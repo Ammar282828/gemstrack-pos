@@ -131,7 +131,7 @@ const initialCategories: Category[] = [
   { id: 'cat12', title: 'String Sets' },
   { id: 'cat13', title: 'Stone Necklace Sets without Bracelets' },
   { id: 'cat14', title: 'Stone Necklace Sets with Bracelets' },
-  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' }, // Corrected spelling from braclets
+  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' },
   { id: 'cat16', title: 'Gold Necklace Sets without Bracelets' },
 ];
 
@@ -406,20 +406,18 @@ export const useAppStore = create<AppState>()(
       }),
       onRehydrateStorage: (_persistedState) => {
         console.log('[GemsTrack] Persist: Rehydration attempt finished.');
-        // Regardless of whether state was found in storage,
-        // the hydration process is complete (either with persisted data or initial data).
         queueMicrotask(() => {
           useAppStore.getState().setHasHydrated(true);
           console.log('[GemsTrack] Persist: _hasHydrated flag set to true via onRehydrateStorage.');
         });
-        return undefined; // Important for newer zustand versions
+        return undefined; 
       },
       partialize: (state) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 1, // Schema version
+      version: 2, // Incremented version
     }
   )
 );
@@ -469,23 +467,6 @@ export const selectCartSubtotal = (state: AppState) => {
 };
 
 export const useIsStoreHydrated = () => {
-  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
-
-  React.useEffect(() => {
-    const unsubscribe = useAppStore.subscribe(
-      (state) => state._hasHydrated,
-      (newHydratedState) => {
-        setIsHydrated(newHydratedState);
-      }
-    );
-    // Sync with the store's current state in case it hydrated between initial read and effect run
-    const currentHydratedState = useAppStore.getState()._hasHydrated;
-    if (currentHydratedState !== isHydrated) {
-      setIsHydrated(currentHydratedState);
-    }
-    return unsubscribe;
-  }, []); // Empty dependency array is correct here
-
+  const isHydrated = useAppStore(React.useCallback((state: AppState) => state._hasHydrated, []));
   return isHydrated;
 };
-
