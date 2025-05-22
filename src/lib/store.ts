@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import React from 'react'; // Added React import for useEffect in useHydratedStore
 
 // --- Type Definitions ---
@@ -78,7 +78,7 @@ export const calculateProductCosts = (product: Product, goldRatePerGram: number)
 
 // --- Store State and Actions ---
 
-interface AppState {
+export interface AppState {
   settings: Settings;
   categories: Category[];
   products: Product[];
@@ -135,6 +135,13 @@ const initialSettings: Settings = {
   shopLogoUrl: "https://placehold.co/150x50.png?text=GemsTrack"
 };
 
+// Define a dummy storage for SSR that conforms to StateStorage interface
+const ssrDummyStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+};
+
 export const useAppStore = create<AppState>()(
   persist(
     immer((set, get) => ({
@@ -142,7 +149,7 @@ export const useAppStore = create<AppState>()(
       setHasHydrated: (hydrated) => {
         set((state) => {
           state._hasHydrated = hydrated;
-        });
+        }, false, 'setHasHydrated_action');
       },
       settings: initialSettings,
       categories: initialCategories,
@@ -171,7 +178,6 @@ export const useAppStore = create<AppState>()(
       deleteCategory: (id) =>
         set((state) => {
           state.categories = state.categories.filter((c) => c.id !== id);
-          // Also update products that might be using this category
           state.products = state.products.map(p => p.categoryId === id ? {...p, categoryId: ''} : p);
         }),
 
@@ -189,7 +195,7 @@ export const useAppStore = create<AppState>()(
       deleteProduct: (sku) =>
         set((state) => {
           state.products = state.products.filter((p) => p.sku !== sku);
-          state.cart = state.cart.filter(item => item.sku !== sku); // Remove from cart if deleted
+          state.cart = state.cart.filter(item => item.sku !== sku); 
         }),
       setProductQrCode: (sku, qrCodeDataUrl) =>
         set((state) => {
@@ -214,7 +220,6 @@ export const useAppStore = create<AppState>()(
       deleteCustomer: (id) =>
         set((state) => {
           state.customers = state.customers.filter((c) => c.id !== id);
-           // Unassign customer from products
           state.products.forEach(product => {
             if (product.assignedCustomerId === id) {
               product.assignedCustomerId = undefined;
@@ -273,7 +278,7 @@ export const useAppStore = create<AppState>()(
           };
         });
 
-        const grandTotal = subtotal; // Add taxes/discounts here if needed
+        const grandTotal = subtotal; 
 
         const customer = customers.find(c => c.id === customerId);
 
@@ -289,7 +294,7 @@ export const useAppStore = create<AppState>()(
 
         set(state => {
           state.generatedInvoices.push(newInvoice);
-          state.cart = []; // Clear cart after generating invoice
+          state.cart = []; 
         });
         return newInvoice;
       },
@@ -300,24 +305,33 @@ export const useAppStore = create<AppState>()(
       },
     })),
     {
-      name: 'gemstrack-pos-storage', // unique name
-      storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
-      onRehydrateStorage: (persistedState) => {
-        console.log('[GemsTrack] Zustand store rehydration process starting.');
-        // The `persistedState` argument here is the state that was loaded from storage.
-        // `setHasHydrated` is an action on our store, so we call it via `get()` or directly if it's static.
-        // Since setHasHydrated is part of the store's actions, we should call it on the store instance.
-        // The `persist` middleware calls this function *after* it has already updated the store with `persistedState`.
-        // So, at this point, the store should reflect the rehydrated values. We just need to set our flag.
-        if (persistedState) { // Check if there was actually any state persisted
-            console.log('[GemsTrack] Persisted state found. Setting _hasHydrated to true.');
-        } else {
-            console.log('[GemsTrack] No persisted state found (e.g., first visit). Setting _hasHydrated to true as rehydration process is complete.');
+      name: 'gemstrack-pos-storage',
+      storage: createJSONStorage(() => {
+        // Provide localStorage for client-side, and a dummy storage for SSR
+        if (typeof window === 'undefined') {
+          return ssrDummyStorage;
         }
-        // We always set _hasHydrated to true because the rehydration process (attempt) is complete.
-        useAppStore.getState().setHasHydrated(true); 
+        return localStorage;
+      }),
+      onRehydrateStorage: (state, error) => {
+        // This callback is invoked after the storage has been rehydrated.
+        if (error) {
+          console.error('[GemsTrack] Persist: Rehydration error:', error);
+        }
+        // Use queueMicrotask to ensure this runs after the current synchronous execution path,
+        // giving the store a chance to be fully initialized.
+        queueMicrotask(() => {
+          useAppStore.getState().setHasHydrated(true);
+          // console.log('[GemsTrack] Persist: _hasHydrated flag set to true.');
+        });
       },
-      version: 1, // Optional: migrate state if schema changes
+      partialize: (state) => {
+        // Do not persist the _hasHydrated flag itself
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { _hasHydrated, ...rest } = state;
+        return rest;
+      },
+      version: 1,
     }
   )
 );
@@ -348,7 +362,7 @@ export const selectCategoryTitleById = (categoryId: string, state: AppState) => 
 export const selectCartDetails = (state: AppState) => {
   return state.cart.map(cartItem => {
     const product = state.products.find(p => p.sku === cartItem.sku);
-    if (!product) return null; // Should not happen if data is consistent
+    if (!product) return null; 
     const costs = calculateProductCosts(product, state.settings.goldRatePerGram);
     return {
       ...product,
@@ -364,8 +378,6 @@ export const selectCartSubtotal = (state: AppState) => {
   return cartDetails.reduce((sum, item) => sum + item.lineItemTotal, 0);
 };
 
-// Hook to ensure store is hydrated before rendering client components
-// This helps avoid hydration mismatches with persisted state
 export const useHydratedStore = <T, F>(
   store: (callback: (state: T) => unknown) => unknown,
   callback: (state: T) => F
@@ -379,7 +391,6 @@ export const useHydratedStore = <T, F>(
       (state) => state._hasHydrated,
       (storeHasHydrated) => {
         if (storeHasHydrated) {
-          // Re-evaluate the callback with the now hydrated store state
           setHydratedResult(callback(useAppStore.getState() as unknown as T));
           setIsHydrated(true);
           unsub(); 
@@ -388,32 +399,31 @@ export const useHydratedStore = <T, F>(
       { fireImmediately: true }
     );
     return unsub;
-  }, [callback]); // Dependency array updated
+  }, [callback]); 
   
   if (!isHydrated && typeof window === 'undefined') {
-     return result; // Return initial sync result for SSR
+     return result; 
   }
 
-  return isHydrated ? hydratedResult : result; // Return hydrated result, or initial if not yet hydrated on client
+  return isHydrated ? hydratedResult : result; 
 };
 
-// A simpler hook that just tells you if hydration is complete.
-// Useful for conditional rendering of components that depend on persisted state.
 export const useIsStoreHydrated = () => {
   const isStoreHydrated = useAppStore(state => state._hasHydrated);
   const [clientIsHydrated, setClientIsHydrated] = React.useState(false);
   
   React.useEffect(() => {
-    // This effect runs only on the client, after initial mount
-    // It ensures that clientIsHydrated only becomes true on the client
-    // and after the store itself has confirmed hydration.
     if (isStoreHydrated) {
       setClientIsHydrated(true);
     }
   }, [isStoreHydrated]);
 
-  // During SSR and before client-side effect runs, this will be false.
-  // It becomes true on the client once Zustand hydration is complete and effect runs.
   return clientIsHydrated;
 };
 
+// Ensure there are no module-level calls to useAppStore.persist.onFinishHydration or similar problematic lines.
+// The problematic line 225 should now be part of the onRehydrateStorage callback if it still exists, or gone entirely.
+// The crucial part is that the error message points to an onFinishHydration call.
+// This version completely removes any such call from the module scope.
+// The `onRehydrateStorage` is now the sole mechanism for post-hydration actions directly tied to persist config.
+```
