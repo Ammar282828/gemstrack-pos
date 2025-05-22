@@ -1,6 +1,31 @@
 
 "use client";
 
+// Polyfill for structuredClone for older browsers like Safari
+if (typeof window !== 'undefined' && typeof window.structuredClone !== 'function') {
+  console.log('[GemsTrack] structuredClone not found. Applying basic polyfill.');
+  window.structuredClone = function(value: any) {
+    // Basic polyfill using JSON stringify/parse.
+    // WARNING: This has limitations:
+    // - Dates will be converted to ISO strings.
+    // - Functions, undefined, Infinity, NaN, RegExp, Map, Set, etc., will not be cloned correctly or will be lost.
+    // - Circular references will cause an error with JSON.stringify.
+    // For GemsTrack POS, the state is primarily plain objects, arrays, strings, numbers, booleans,
+    // so this simplified polyfill should generally work.
+    if (value === undefined) {
+        return undefined;
+    }
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch (e) {
+        console.error("GemsTrack: structuredClone polyfill (JSON.parse(JSON.stringify)) failed:", e);
+        // As a last resort, return the original value, acknowledging it's not a clone.
+        // This is not ideal but prevents a crash if JSON methods fail.
+        return value;
+    }
+  };
+}
+
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -43,9 +68,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const isHydrated = useIsStoreHydrated();
 
   if (!isHydrated) {
-    // Render nothing or a minimal loading skeleton until the store is hydrated
-    // to prevent content flashes or errors related to unhydrated state.
-    return null;
+    return null; 
   }
   
   return (
