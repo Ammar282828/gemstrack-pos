@@ -26,34 +26,34 @@ body {
     --muted: 240 30% 88%; /* Muted Lavender */
     --muted-foreground: 240 10% 35%; /* Darker muted text */
 
-    --accent: 43 90% 38%; /* Muted Gold */
-    --accent-foreground: 43 90% 95%; /* Very light for contrast on Gold */
+    --accent: 45 70% 40%; /* Softer Muted Gold */
+    --accent-foreground: 45 70% 95%; /* Very light for contrast on Softer Gold */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 240 30% 85%; /* Lavender-based border */
     --input: 240 30% 90%; /* Lavender-based input background */
-    --ring: 43 90% 38%; /* Muted Gold for focus rings */
+    --ring: 45 70% 40%; /* Softer Muted Gold for focus rings */
 
     --radius: 0.5rem;
 
     /* Chart colors - can be adjusted if charts are heavily used */
     --chart-1: 276 70% 50%; 
-    --chart-2: 43 70% 50%;
+    --chart-2: 45 65% 50%; /* Adjusted gold-based chart color */
     --chart-3: 240 50% 60%;
     --chart-4: 276 50% 70%;
-    --chart-5: 43 50% 70%;
+    --chart-5: 45 45% 70%; /* Adjusted gold-based chart color */
 
     /* Sidebar specific theme adjustments */
     --sidebar-background: 276 100% 25%; /* Deep Indigo */
     --sidebar-foreground: 240 67% 94%; /* Light Lavender */
-    --sidebar-primary: 43 90% 38%; /* Muted Gold for active/hover items */
+    --sidebar-primary: 45 70% 40%; /* Softer Muted Gold for active/hover items */
     --sidebar-primary-foreground: 276 100% 15%; /* Dark Indigo for text on Gold */
     --sidebar-accent: 276 100% 30%; /* Slightly lighter Indigo for hover */
     --sidebar-accent-foreground: 240 67% 94%;
     --sidebar-border: 276 100% 20%; /* Darker Indigo border */
-    --sidebar-ring: 43 90% 45%; /* Slightly darker Gold for ring */
+    --sidebar-ring: 45 70% 45%; /* Slightly darker Softer Gold for ring */
   }
 
   .dark {
@@ -66,11 +66,11 @@ body {
     --popover: 276 25% 17%;
     --popover-foreground: 240 60% 88%;
 
-    --primary: 43 90% 50%; /* Muted Gold (brighter in dark mode) */
-    --primary-foreground: 43 90% 10%; /* Dark brown/black for contrast on Gold */
+    --primary: 45 75% 55%; /* Softer Muted Gold (brighter in dark mode) */
+    --primary-foreground: 45 75% 10%; /* Dark brown/black for contrast on Softer Gold */
     
-    --secondary: 43 80% 40%;  /* Slightly darker/desaturated Muted Gold */
-    --secondary-foreground: 43 80% 90%; /* Light text on secondary gold */
+    --secondary: 45 70% 45%;  /* Slightly darker/desaturated Softer Muted Gold */
+    --secondary-foreground: 45 70% 90%; /* Light text on secondary Softer gold */
 
     --muted: 276 20% 28%; /* Muted, slightly lighter than card */
     --muted-foreground: 240 40% 75%; /* Muted text color */
@@ -83,24 +83,24 @@ body {
 
     --border: 276 20% 30%;
     --input: 276 20% 22%; /* Darker input fields */
-    --ring: 43 90% 55%; /* Ring color to match primary (Muted Gold) */
+    --ring: 45 75% 60%; /* Ring color to match new primary (Softer Muted Gold) */
 
     /* Chart colors for dark mode */
     --chart-1: 276 70% 60%;
-    --chart-2: 43 70% 60%;
+    --chart-2: 45 65% 60%; /* Adjusted gold-based chart color */
     --chart-3: 240 50% 70%;
     --chart-4: 276 50% 80%;
-    --chart-5: 43 50% 80%;
+    --chart-5: 45 45% 80%; /* Adjusted gold-based chart color */
 
     /* Sidebar dark theme variables (already well-defined, ensuring consistency) */
     --sidebar-background: 276 25% 12%; /* Consistent with main dark background */
     --sidebar-foreground: 240 60% 88%; /* Consistent with main dark foreground */
-    --sidebar-primary: 43 90% 50%; /* Muted Gold for active/hover items */
-    --sidebar-primary-foreground: 276 100% 8%; /* Dark Indigo for text on Gold */
+    --sidebar-primary: 45 75% 55%; /* Softer Muted Gold for active/hover items */
+    --sidebar-primary-foreground: 276 100% 8%; /* Dark Indigo for text on Softer Gold */
     --sidebar-accent: 276 25% 18%; /* Slightly lighter Indigo for hover */
     --sidebar-accent-foreground: 240 60% 88%;
     --sidebar-border: 276 25% 10%; /* Darker Indigo border for sidebar */
-    --sidebar-ring: 43 90% 55%; /* Ring color for sidebar focus */
+    --sidebar-ring: 45 75% 60%; /* Ring color for sidebar focus (Softer Gold) */
   }
 }
 
@@ -132,9 +132,9 @@ body {
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-accent/70;
+  @apply bg-accent/70; /* Uses the light-mode accent or dark-mode general accent */
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-accent;
+  @apply bg-accent; /* Uses the light-mode accent or dark-mode general accent */
 }
