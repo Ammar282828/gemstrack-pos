@@ -8,12 +8,12 @@ import Image from 'next/image';
 import QRCode from 'qrcode.react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useAppStore, selectProductWithCosts, selectCategoryTitleById, Product, calculateProductCosts, Settings, KaratValue } from '@/lib/store';
+import { useAppStore, selectProductWithCosts, selectCategoryTitleById, Product, Settings, KaratValue, MetalType } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond, Zap } from 'lucide-react';
+import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond, Zap, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -29,7 +29,7 @@ import {
 import { useIsStoreHydrated } from '@/lib/store';
 
 
-type ProductWithCosts = Product & ReturnType<typeof calculateProductCosts>;
+type ProductWithCalculatedCosts = ReturnType<typeof selectProductWithCosts>;
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -57,6 +57,7 @@ export default function ProductDetailPage() {
   const sku = params.sku as string;
 
   const isHydrated = useIsStoreHydrated();
+  // productData will be ProductWithCalculatedCosts | null
   const productData = useAppStore(state => selectProductWithCosts(sku, state));
   const categoryTitle = useAppStore(state => productData ? selectCategoryTitleById(productData.categoryId, state) : '');
   const settings = useAppStore(state => state.settings);
@@ -99,13 +100,12 @@ export default function ProductDetailPage() {
     }
     if (!qrCodeDataUrl) {
          toast({ title: "Error", description: "QR code image not ready. Please wait a moment and try again.", variant: "destructive" });
-         // Attempt to generate it if it's missing for some reason
          const canvas = document.getElementById(`qr-${sku}`) as HTMLCanvasElement;
          if (canvas) {
            try {
              const dataUrl = canvas.toDataURL('image/png');
-             setQrCodeDataUrl(dataUrl); // Update local state
-             setProductQrCodeDataUrlAction(sku, dataUrl); // Update store
+             setQrCodeDataUrl(dataUrl); 
+             setProductQrCodeDataUrlAction(sku, dataUrl); 
              toast({ title: "QR Generated", description: "QR code image was just generated. Please try printing the tag again."});
            } catch (e) {
              console.error("Error generating QR code data URL on demand:", e);
@@ -118,15 +118,13 @@ export default function ProductDetailPage() {
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
-      format: [70, 30] // Standard small tag size
+      format: [70, 30] 
     });
 
-    // Left side: Text details
     const textStartX = 3;
     let currentY = 5;
     doc.setFontSize(8);
-    // Product name can be long, truncate if necessary or make font smaller
-    const maxNameLength = 30; // Adjust as needed
+    const maxNameLength = 30; 
     const displayName = productData.name.length > maxNameLength ? productData.name.substring(0, maxNameLength) + '...' : productData.name;
     doc.text(displayName, textStartX, currentY);
     currentY += 4;
@@ -135,7 +133,11 @@ export default function ProductDetailPage() {
     doc.text(`SKU: ${productData.sku}`, textStartX, currentY);
     currentY += 4;
 
-    doc.text(`Metal: ${productData.metalWeightG.toFixed(2)}g (${productData.karat.toUpperCase()})`, textStartX, currentY);
+    let metalInfo = `${productData.metalType.charAt(0).toUpperCase() + productData.metalType.slice(1)}: ${productData.metalWeightG.toFixed(2)}g`;
+    if (productData.metalType === 'gold' && productData.karat) {
+      metalInfo += ` (${productData.karat.toUpperCase()})`;
+    }
+    doc.text(metalInfo, textStartX, currentY);
     currentY += 4;
 
     if (productData.hasDiamonds) {
@@ -143,15 +145,13 @@ export default function ProductDetailPage() {
         currentY += 4;
     }
 
-    // Price (larger font, bold)
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(`PKR ${productData.totalPrice.toLocaleString()}`, textStartX, currentY + 2); // Slightly lower
+    doc.text(`PKR ${productData.totalPrice.toLocaleString()}`, textStartX, currentY + 2);
 
-    // Right side: QR Code
     const qrCodeSize = 24; // mm
-    const qrCodeX = 70 - qrCodeSize - 3; // 3mm margin from right
-    const qrCodeY = (30 - qrCodeSize) / 2; // Centered vertically
+    const qrCodeX = 70 - qrCodeSize - 3; 
+    const qrCodeY = (30 - qrCodeSize) / 2; 
 
     if (qrCodeDataUrl.startsWith("data:image/png")) {
          doc.addImage(qrCodeDataUrl, 'PNG', qrCodeX, qrCodeY, qrCodeSize, qrCodeSize);
@@ -161,8 +161,7 @@ export default function ProductDetailPage() {
         doc.text("[QR]", qrCodeX + qrCodeSize/2, qrCodeY + qrCodeSize/2, { align: 'center'});
     }
 
-    // Optional: Add a border around the tag
-    doc.rect(1, 1, 68, 28); // (x, y, width, height)
+    doc.rect(1, 1, 68, 28); 
 
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
@@ -240,9 +239,11 @@ export default function ProductDetailPage() {
                     <Image
                     src={productData.imageUrl || `https://placehold.co/400x400.png?text=${encodeURIComponent(productData.name)}`}
                     alt={productData.name}
-                    layout="fill"
-                    objectFit="cover"
+                    fill // Changed from layout="fill"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes
+                    style={{ objectFit: "cover" }} // Changed from objectFit="cover"
                     data-ai-hint="jewelry piece"
+                    priority={false} // Consider adding priority if it's LCP
                     />
                 </div>
               </CardContent>
@@ -254,7 +255,6 @@ export default function ProductDetailPage() {
                 <QrCodeIcon className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center p-4">
-                {/* Hidden QRCode component used to generate data URL for PDF */}
                 <QRCode id={`qr-${sku}`} value={productData.sku} size={128} level="H" style={{ display: 'none' }} />
                 {qrCodeDataUrl ? (
                   <Image src={qrCodeDataUrl} alt={`QR Code for ${productData.sku}`} width={128} height={128} />
@@ -282,7 +282,15 @@ export default function ProductDetailPage() {
                  <Button size="lg" className="w-full mb-4" onClick={handleAddToCart}>
                     <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
                 </Button>
-                <DetailItem label="Gold Rate (Store Setting, 24k)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR" />
+                {productData.metalType === 'gold' && (
+                    <DetailItem label="Gold Rate (Store Setting, 24k)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR" />
+                )}
+                {productData.metalType === 'palladium' && (
+                    <DetailItem label="Palladium Rate (Store Setting)" value={settings.palladiumRatePerGram} unit="/ gram" currency="PKR" />
+                )}
+                {productData.metalType === 'platinum' && (
+                    <DetailItem label="Platinum Rate (Store Setting)" value={settings.platinumRatePerGram} unit="/ gram" currency="PKR" />
+                )}
                 <Separator className="my-1" />
                 <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR" />
                 <Separator className="my-1" />
@@ -305,7 +313,13 @@ export default function ProductDetailPage() {
             <Card>
               <CardHeader><CardTitle className="text-xl">Specifications</CardTitle></CardHeader>
               <CardContent>
-                <DetailItem label="Karat" value={productData.karat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
+                <DetailItem label="Metal Type" value={productData.metalType.charAt(0).toUpperCase() + productData.metalType.slice(1)} icon={<Shield className="w-4 h-4" />} />
+                {productData.metalType === 'gold' && productData.karat && (
+                    <>
+                    <Separator className="my-1" />
+                    <DetailItem label="Karat" value={productData.karat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
+                    </>
+                )}
                 <Separator className="my-1" />
                 <DetailItem label="Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
                 <Separator className="my-1" />
@@ -320,4 +334,3 @@ export default function ProductDetailPage() {
     </div>
   );
 }
-

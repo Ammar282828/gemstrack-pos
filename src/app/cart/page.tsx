@@ -11,15 +11,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable'; // For table generation
+import 'jspdf-autotable'; 
 import { useIsStoreHydrated } from '@/lib/store';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-// Extend jsPDF with autoTable typings
+
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
@@ -33,7 +34,7 @@ export default function CartPage() {
   
   const isHydrated = useIsStoreHydrated();
   const cartItems = useAppStore(selectCartDetails);
-  const cartSubtotal = useAppStore(selectCartSubtotal); // This subtotal is based on settings gold rate
+  const cartSubtotal = useAppStore(selectCartSubtotal); 
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
   const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction } = useAppStore();
@@ -41,7 +42,6 @@ export default function CartPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
   
-  // State for dynamic gold rate and discount for the current invoice
   const [invoiceGoldRateInput, setInvoiceGoldRateInput] = useState<string>('');
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
 
@@ -51,10 +51,8 @@ export default function CartPage() {
     }
   }, [isHydrated, settings.goldRatePerGram]);
 
+  const cartContainsNonGoldItems = cartItems.some(item => item.metalType !== 'gold');
 
-  const handleQuantityChange = (sku: string, newQuantity: number) => {
-    updateCartQuantity(sku, newQuantity);
-  };
 
   const handleGenerateInvoice = () => {
     if (cartItems.length === 0) {
@@ -63,24 +61,31 @@ export default function CartPage() {
     }
 
     const parsedGoldRate = parseFloat(invoiceGoldRateInput);
-    if (isNaN(parsedGoldRate) || parsedGoldRate <= 0) {
-      toast({ title: "Invalid Gold Rate", description: "Please enter a valid positive gold rate.", variant: "destructive" });
+    // Gold rate validation only if there are gold items in cart or if it's the only metal type
+    const hasGoldItems = cartItems.some(item => item.metalType === 'gold');
+    if (hasGoldItems && (isNaN(parsedGoldRate) || parsedGoldRate <= 0)) {
+      toast({ title: "Invalid Gold Rate", description: "Please enter a valid positive gold rate for gold items.", variant: "destructive" });
       return;
     }
-
+    
     const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
     if (parsedDiscountAmount < 0) {
       toast({ title: "Invalid Discount", description: "Discount amount cannot be negative.", variant: "destructive" });
       return;
     }
 
-    // Calculate subtotal based on the dynamic gold rate for validation, though store will recalculate
+    // Calculate subtotal for validation based on the dynamic gold rate for gold items,
+    // and settings rates for palladium/platinum.
     let currentSubtotalForValidation = 0;
     cartItems.forEach(item => {
         const productFromStore = useAppStore.getState().products.find(p => p.sku === item.sku);
         if (productFromStore) {
-            // Use the calculateProductCosts helper directly
-            const costs = calculateProductCosts(productFromStore, parsedGoldRate);
+            const ratesForCalc = {
+                goldRatePerGram24k: item.metalType === 'gold' ? parsedGoldRate : settings.goldRatePerGram, // Use dynamic for gold, settings for others
+                palladiumRatePerGram: settings.palladiumRatePerGram,
+                platinumRatePerGram: settings.platinumRatePerGram,
+            };
+            const costs = calculateProductCosts(productFromStore, ratesForCalc);
             currentSubtotalForValidation += costs.totalPrice * item.quantity;
         }
     });
@@ -95,7 +100,6 @@ export default function CartPage() {
       setGeneratedInvoice(invoice);
       toast({ title: "Invoice Generated", description: `Invoice ${invoice.id} created successfully.` });
     } else {
-      // This case might be hit if generateInvoiceAction itself returns null for other reasons (e.g. internal validation)
       toast({ title: "Invoice Generation Failed", description: "Could not generate the invoice. Please check inputs.", variant: "destructive" });
     }
   };
@@ -105,10 +109,7 @@ export default function CartPage() {
 
     if (settings.shopLogoUrl) {
       try {
-        // Note: External image URLs in jsPDF often require CORS or preloading to base64
-        // For simplicity, if using a placeholder, it might not render directly without proxy/base64.
-        // Actual image URLs that allow CORS should work better.
-        // Example: doc.addImage(settings.shopLogoUrl, 'PNG', 15, 10, 30, 10); 
+        // doc.addImage(settings.shopLogoUrl, 'PNG', 15, 10, 30, 10); // Example, may need CORS handling
       } catch (e) { console.error("Error adding logo to PDF:", e); }
     }
     doc.setFontSize(18);
@@ -122,7 +123,19 @@ export default function CartPage() {
     doc.setFontSize(12);
     doc.text(`Invoice #: ${invoiceToPrint.id}`, 140, 22);
     doc.text(`Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`, 140, 27);
-    doc.text(`Gold Rate: PKR ${invoiceToPrint.goldRateApplied.toLocaleString()}/g`, 140, 32);
+
+    let rateYPos = 32;
+    if (invoiceToPrint.goldRateApplied) {
+        doc.text(`Gold Rate: PKR ${invoiceToPrint.goldRateApplied.toLocaleString()}/g (24k)`, 140, rateYPos);
+        rateYPos += 5;
+    }
+    if (invoiceToPrint.palladiumRateApplied) {
+        doc.text(`Palladium Rate: PKR ${invoiceToPrint.palladiumRateApplied.toLocaleString()}/g`, 140, rateYPos);
+        rateYPos += 5;
+    }
+    if (invoiceToPrint.platinumRateApplied) {
+        doc.text(`Platinum Rate: PKR ${invoiceToPrint.platinumRateApplied.toLocaleString()}/g`, 140, rateYPos);
+    }
 
 
     if (invoiceToPrint.customerId) {
@@ -143,13 +156,18 @@ export default function CartPage() {
         doc.text("Walk-in Customer", 15, 45);
     }
     
-    const tableColumn = ["#", "Item", "SKU", "Qty", "Unit Price (PKR)", "Total (PKR)"];
+    const tableColumn = ["#", "Item", "SKU", "Metal", "Qty", "Unit Price (PKR)", "Total (PKR)"];
     const tableRows: any[][] = [];
     invoiceToPrint.items.forEach((item, index) => {
+      let metalDisplay = item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1);
+      if (item.metalType === 'gold' && item.karat) {
+        metalDisplay += ` (${item.karat.toUpperCase()})`;
+      }
       const itemData = [
         index + 1,
         item.name,
         item.sku,
+        metalDisplay,
         item.quantity,
         item.unitPrice.toLocaleString(),
         item.itemTotal.toLocaleString(),
@@ -162,7 +180,7 @@ export default function CartPage() {
       body: tableRows,
       startY: 70,
       theme: 'grid',
-      headStyles: { fillColor: [75, 0, 130] }, // Deep Indigo-like color
+      headStyles: { fillColor: [75, 0, 130] }, 
       styles: { fontSize: 8 },
     });
 
@@ -208,6 +226,11 @@ export default function CartPage() {
   }
   
   if (generatedInvoice) {
+    let ratesAppliedMessage = "";
+    if (generatedInvoice.goldRateApplied) ratesAppliedMessage += `Gold Rate: PKR ${generatedInvoice.goldRateApplied.toLocaleString()}/g. `;
+    if (generatedInvoice.palladiumRateApplied) ratesAppliedMessage += `Palladium Rate: PKR ${generatedInvoice.palladiumRateApplied.toLocaleString()}/g. `;
+    if (generatedInvoice.platinumRateApplied) ratesAppliedMessage += `Platinum Rate: PKR ${generatedInvoice.platinumRateApplied.toLocaleString()}/g.`;
+
     return (
         <div className="container mx-auto py-8 px-4">
             <Card>
@@ -216,7 +239,7 @@ export default function CartPage() {
                     <CardDescription>
                         Invoice for {generatedInvoice.customerName || "Walk-in Customer"} created on {new Date(generatedInvoice.createdAt).toLocaleString()}.
                         <br/>
-                        Gold Rate Applied: PKR {generatedInvoice.goldRateApplied.toLocaleString()}/gram
+                        {ratesAppliedMessage.trim()}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -227,6 +250,7 @@ export default function CartPage() {
                                 <TableRow>
                                     <TableHead>Product</TableHead>
                                     <TableHead>SKU</TableHead>
+                                    <TableHead>Metal</TableHead>
                                     <TableHead className="text-right">Qty</TableHead>
                                     <TableHead className="text-right">Unit Price (PKR)</TableHead>
                                     <TableHead className="text-right">Total (PKR)</TableHead>
@@ -237,6 +261,7 @@ export default function CartPage() {
                                     <TableRow key={item.sku}>
                                         <TableCell>{item.name}</TableCell>
                                         <TableCell>{item.sku}</TableCell>
+                                        <TableCell>{item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}</TableCell>
                                         <TableCell className="text-right">{item.quantity}</TableCell>
                                         <TableCell className="text-right">{item.unitPrice.toLocaleString()}</TableCell>
                                         <TableCell className="text-right">{item.itemTotal.toLocaleString()}</TableCell>
@@ -300,7 +325,8 @@ export default function CartPage() {
                         <div className="flex-grow">
                           <h4 className="font-medium">{item.name}</h4>
                           <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
-                          <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString()} (at current gold rate)</p>
+                          <p className="text-xs text-muted-foreground">Metal: {item.metalType}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}</p>
+                          <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString()} (at current store rates)</p>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Button 
@@ -377,7 +403,7 @@ export default function CartPage() {
                 <Separator />
                 <div>
                   <Label htmlFor="invoice-gold-rate" className="flex items-center mb-1 text-sm font-medium">
-                    <SettingsIcon className="w-4 h-4 mr-1 text-muted-foreground" /> Gold Rate for this Invoice (PKR/gram)
+                    <SettingsIcon className="w-4 h-4 mr-1 text-muted-foreground" /> Gold Rate for this Invoice (PKR/gram, 24k)
                   </Label>
                   <Input
                     id="invoice-gold-rate"
@@ -388,7 +414,15 @@ export default function CartPage() {
                     className="text-base"
                     step="0.01"
                   />
-                   <p className="text-xs text-muted-foreground mt-1">Current store setting: PKR {settings.goldRatePerGram.toLocaleString()}/gram</p>
+                   <p className="text-xs text-muted-foreground mt-1">Current store setting for Gold: PKR {settings.goldRatePerGram.toLocaleString()}/gram.</p>
+                   {cartContainsNonGoldItems && (
+                    <Alert variant="default" className="mt-2 text-xs">
+                        <Info className="h-4 w-4" />
+                        <AlertDescription>
+                            Palladium and Platinum items in this cart will be priced using their current rates from store settings (Pd: {settings.palladiumRatePerGram.toLocaleString()}, Pt: {settings.platinumRatePerGram.toLocaleString()}).
+                        </AlertDescription>
+                    </Alert>
+                   )}
                 </div>
                 <div>
                   <Label htmlFor="discount-amount" className="flex items-center mb-1 text-sm font-medium">
@@ -411,7 +445,7 @@ export default function CartPage() {
                   <span className="font-semibold text-lg">PKR {cartSubtotal.toLocaleString()}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  (Estimated using current store gold rate. Final invoice will use the rate entered above.)
+                  (Estimated using current store metal rates. Final invoice will use the Gold rate entered above for gold items, and store rates for Palladium/Platinum.)
                 </p>
                 <Separator />
                 <div className="flex justify-between items-center text-xl font-bold">
@@ -431,5 +465,3 @@ export default function CartPage() {
     </div>
   );
 }
-
-    

@@ -12,16 +12,17 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAppStore, Product, Category, KaratValue } from '@/lib/store';
+import { useAppStore, Product, Category, KaratValue, MetalType } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Ban, Diamond, Zap } from 'lucide-react';
+import { Save, Ban, Diamond, Zap, Shield } from 'lucide-react'; // Added Shield for MetalType
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k'];
+const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum'];
 
-const productFormSchema = z.object({
+const productFormSchemaBase = z.object({
   categoryId: z.string().min(1, "Category is required"),
-  karat: z.enum(karatValues, { required_error: "Karat is required" }),
+  metalType: z.enum(metalTypeValues, { required_error: "Metal type is required" }),
   metalWeightG: z.coerce.number().min(0, "Metal weight must be non-negative"),
   wastagePercentage: z.coerce.number().min(0).max(100, "Wastage must be between 0 and 100"),
   makingCharges: z.coerce.number().min(0, "Making charges must be non-negative"),
@@ -32,11 +33,29 @@ const productFormSchema = z.object({
   imageUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
 });
 
+const productFormSchema = productFormSchemaBase.extend({
+  karat: z.enum(karatValues).optional(),
+}).superRefine((data, ctx) => {
+  if (data.metalType === 'gold' && !data.karat) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Karat is required for gold items.",
+      path: ["karat"],
+    });
+  }
+  if (data.metalType !== 'gold' && data.karat) {
+    // Optionally, clear karat if metalType is not gold, or just don't validate it.
+    // For now, we'll rely on conditional rendering in the form.
+    // If strictness is needed, one might clear it here or add a transform.
+  }
+});
+
+
 type ProductFormData = z.infer<typeof productFormSchema>;
 
 interface ProductFormProps {
   product?: Product;
-  onSubmitSuccess?: () => void; // This prop might become less relevant with "Save & Add Another"
+  onSubmitSuccess?: () => void;
 }
 
 export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess }) => {
@@ -50,7 +69,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     resolver: zodResolver(productFormSchema),
     defaultValues: product ? {
       categoryId: product.categoryId,
-      karat: product.karat,
+      metalType: product.metalType || 'gold',
+      karat: product.metalType === 'gold' ? product.karat : undefined,
       metalWeightG: product.metalWeightG,
       wastagePercentage: product.wastagePercentage,
       makingCharges: product.makingCharges,
@@ -61,7 +81,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       imageUrl: product.imageUrl || "",
     } : {
       categoryId: '',
-      karat: '21k',
+      metalType: 'gold', // Default metal type
+      karat: '21k',      // Default karat for gold
       metalWeightG: 0,
       wastagePercentage: 10,
       makingCharges: 0,
@@ -75,6 +96,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
 
   const selectedCategoryId = form.watch('categoryId');
   const hasDiamondsValue = form.watch('hasDiamonds');
+  const selectedMetalType = form.watch('metalType');
+
+  useEffect(() => {
+    if (selectedMetalType !== 'gold') {
+      form.setValue('karat', undefined, { shouldValidate: false }); // Clear karat if not gold
+    } else if (selectedMetalType === 'gold' && !form.getValues('karat')) {
+      form.setValue('karat', '21k'); // Default karat if switched to gold and no karat set
+    }
+  }, [selectedMetalType, form]);
 
   useEffect(() => {
     if (hasDiamondsValue) {
@@ -83,42 +113,43 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
          form.setValue('diamondCharges', product?.diamondCharges || 0);
       }
     } else {
-      // This logic applies when hasDiamonds is false, or when it's unchecked,
-      // or when the form is reset for "Save & Add Another"
       const category = categories.find(c => c.id === selectedCategoryId);
-      let defaultWastage = 10; // Default for most categories
+      let defaultWastage = 10;
       if (category) {
         const lowerCaseTitle = category.title.toLowerCase();
-        const fifteenPercentTriggers = ["chain", "bangle", "gold necklace set"];
+        const fifteenPercentTriggers = ["chain", "bangle", "gold necklace set"]; // Keep "gold necklace set" for now, or make more generic
         if (fifteenPercentTriggers.some(trigger => lowerCaseTitle.includes(trigger))) {
           defaultWastage = 15;
         }
       }
       form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
       
-      // If diamonds are deselected, ensure diamond charges are reset if they were set
-      if (form.getValues('diamondCharges') !== 0 && !isEditMode && product?.hasDiamonds === undefined) { // only for new product form
+      if (form.getValues('diamondCharges') !== 0 && !isEditMode && product?.hasDiamonds === undefined) {
          form.setValue('diamondCharges', 0);
-      } else if (isEditMode && product && product.hasDiamonds && !hasDiamondsValue) { // if editing and unchecking diamonds
+      } else if (isEditMode && product && product.hasDiamonds && !hasDiamondsValue) {
          form.setValue('diamondCharges', 0);
       }
     }
   }, [selectedCategoryId, hasDiamondsValue, isEditMode, categories, form, product]);
 
 
+  const processFormData = (data: ProductFormData): Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'> => {
+    return {
+      ...data,
+      karat: data.metalType === 'gold' ? data.karat : undefined,
+      diamondCharges: data.hasDiamonds ? data.diamondCharges : 0,
+    } as Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
+  };
+  
   const onSubmitAndClose = async (data: ProductFormData) => {
     try {
-      const finalData = {
-        ...data,
-        diamondCharges: data.hasDiamonds ? data.diamondCharges : 0,
-      };
-
+      const processedData = processFormData(data);
       if (isEditMode && product) {
-        updateProduct(product.sku, finalData as Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>);
+        updateProduct(product.sku, processedData);
         toast({ title: "Success", description: "Product updated successfully." });
         if (onSubmitSuccess) onSubmitSuccess(); else router.push(`/products/${product.sku}`);
       } else {
-        const newProduct = addProduct(finalData as Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>);
+        const newProduct = addProduct(processedData);
         if (newProduct) {
             toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added successfully.` });
             if (onSubmitSuccess) onSubmitSuccess(); else router.push('/products');
@@ -133,32 +164,25 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   };
 
   const onSaveAndAddAnother = async (data: ProductFormData) => {
-    // This handler is only for *adding* new products.
     try {
-      const finalData = { // Ensure diamondCharges are handled correctly if hasDiamonds is false
-        ...data,
-        diamondCharges: data.hasDiamonds ? data.diamondCharges : 0,
-      };
-      const newProduct = addProduct(finalData as Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>);
+      const processedData = processFormData(data);
+      const newProduct = addProduct(processedData);
       if (newProduct) {
         toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added. You can add another product.` });
-        // Reset form, keeping category and karat, defaulting others
-        // The wastagePercentage will be recalculated by the useEffect based on the (retained) category
-        // and hasDiamonds (which is reset to false).
         form.reset({
-          categoryId: data.categoryId, // Keep current category
-          karat: data.karat,           // Keep current karat
+          categoryId: data.categoryId,
+          metalType: data.metalType,      // Keep current metal type
+          karat: data.metalType === 'gold' ? data.karat : undefined, // Keep karat if gold
           metalWeightG: 0,
-          wastagePercentage: 10, // This is a temporary value; useEffect will set the correct one
+          wastagePercentage: 10, 
           makingCharges: 0,
-          hasDiamonds: false,      // Default to false for the next item
+          hasDiamonds: false,    
           diamondCharges: 0,
           stoneCharges: 0,
           miscCharges: 0,
           imageUrl: "",
         });
-        // Ensure focus goes to a logical first field for the new entry, e.g., category or metal weight.
-        // You might need a ref for this, or just let the browser default.
+        // useEffect will re-evaluate wastage based on category and hasDiamonds being false
       } else {
         toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
       }
@@ -171,7 +195,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
 
   return (
     <Form {...form}>
-      {/* Removed onSubmit from form tag to handle submission via button clicks */}
       <form>
         <Card>
           <CardHeader>
@@ -219,22 +242,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 </FormItem>
               )}
             />
-            <FormField
+             <FormField
               control={form.control}
-              name="karat"
+              name="metalType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4 text-primary" /> Karat</FormLabel>
+                  <FormLabel className="flex items-center"><Shield className="mr-2 h-4 w-4 text-primary" /> Metal Type</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Karat" />
+                        <SelectValue placeholder="Select Metal Type" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {karatValues.map((kVal) => (
-                        <SelectItem key={kVal} value={kVal}>
-                          {kVal.toUpperCase()}
+                      {metalTypeValues.map((mVal) => (
+                        <SelectItem key={mVal} value={mVal}>
+                          {mVal.charAt(0).toUpperCase() + mVal.slice(1)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -243,11 +266,39 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 </FormItem>
               )}
             />
+            
+            {selectedMetalType === 'gold' && (
+              <FormField
+                control={form.control}
+                name="karat"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4 text-primary" /> Karat (for Gold)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Karat for Gold" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {karatValues.map((kVal) => (
+                          <SelectItem key={kVal} value={kVal}>
+                            {kVal.toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
              <FormField
               control={form.control}
               name="hasDiamonds"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 md:col-span-2">
+                <FormItem className={`flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 ${selectedMetalType === 'gold' ? '' : 'md:col-span-2' }`}>
                   <FormControl>
                     <Checkbox
                       checked={field.value}
@@ -351,7 +402,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               control={form.control}
               name="imageUrl"
               render={({ field }) => (
-                <FormItem className={ (hasDiamondsValue && product?.karat) ? "" : "md:col-span-2"}>
+                <FormItem className={ (hasDiamondsValue && (selectedMetalType === 'gold' || product?.karat)) ? "" : "md:col-span-2"}>
                   <FormLabel>Image URL (Optional)</FormLabel>
                   <FormControl>
                     <Input type="url" placeholder="https://example.com/image.png" {...field} />
@@ -384,5 +435,3 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     </Form>
   );
 };
-
-    

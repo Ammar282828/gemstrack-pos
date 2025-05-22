@@ -13,11 +13,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield } from 'lucide-react';
 import { useIsStoreHydrated } from '@/lib/store';
 
 const settingsSchema = z.object({
   goldRatePerGram: z.coerce.number().min(0, "Gold rate must be a positive number"),
+  palladiumRatePerGram: z.coerce.number().min(0, "Palladium rate must be a positive number"),
+  platinumRatePerGram: z.coerce.number().min(0, "Platinum rate must be a positive number"),
   shopName: z.string().min(1, "Shop name is required"),
   shopAddress: z.string().optional(),
   shopContact: z.string().optional(),
@@ -60,7 +62,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl">Shop Settings</CardTitle>
-              <CardDescription>Manage your shop's global settings, including the current gold rate.</CardDescription>
+              <CardDescription>Manage your shop's global settings, including metal rates.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <FormField
@@ -75,8 +77,38 @@ export default function SettingsPage() {
                       <Input type="number" step="0.01" placeholder="e.g., 20000.00" {...field} className="text-lg"/>
                     </FormControl>
                     <FormDescription>
-                        This rate is assumed to be for 24 Karat gold. Product prices will be adjusted based on their selected Karat (18k, 21k, 22k).
+                        This rate is for 24 Karat gold. Gold product prices are adjusted based on their selected Karat.
                     </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="palladiumRatePerGram"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base flex items-center">
+                        <Shield className="h-5 w-5 mr-2 text-muted-foreground" /> Current Palladium Rate (PKR per gram)
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="e.g., 22000.00" {...field} className="text-lg"/>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="platinumRatePerGram"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base flex items-center">
+                        <Shield className="h-5 w-5 mr-2 text-muted-foreground" /> Current Platinum Rate (PKR per gram)
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="e.g., 25000.00" {...field} className="text-lg"/>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -122,7 +154,7 @@ export default function SettingsPage() {
                      <div className="flex items-center">
                        <Phone className="h-5 w-5 mr-2 text-muted-foreground" />
                         <FormControl>
-                          <Input placeholder="phone@example.com | (555) 123-4567" {...field} />
+                          <Input placeholder="contact@taheri.com | (021) 123-4567" {...field} />
                         </FormControl>
                      </div>
                     <FormMessage />
@@ -138,7 +170,7 @@ export default function SettingsPage() {
                      <div className="flex items-center">
                        <ImageIcon className="h-5 w-5 mr-2 text-muted-foreground" />
                         <FormControl>
-                          <Input type="url" placeholder="https://example.com/logo.png" {...field} />
+                          <Input type="url" placeholder="https://placehold.co/150x50.png?text=Taheri" {...field} />
                         </FormControl>
                      </div>
                      {field.value && (
