@@ -93,102 +93,93 @@ export default function ProductDetailPage() {
   };
 
   const generateTagPDF = (product: NonNullable<ProductWithCalculatedCosts>, qrUrl: string, settingsData: Settings) => {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [20, 50] }); // Unfolded dimensions
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [20, 50] }); // Unfolded dumbbell tag: 20mm wide, 50mm tall
     const tagWidth = 20;
-    const tagHeight = 50;
-    const panelHeight = 21; // Approx height for each panel
-    const connectorHeight = tagHeight - (2 * panelHeight); // Approx 8mm
-    const padding = 1.5;
+    const panelHeight = 21; // Height of each end panel
+    const connectorHeight = 8; // Height of the middle connecting strip
+    const padding = 1.5; // Padding inside panels
 
-    // --- Top Panel (Logo & SKU) ---
-    let currentYTop = padding;
-
-    // Shop Logo or Name
-    if (settingsData.shopLogoUrl) {
-      try {
-        const img = new window.Image();
-        img.crossOrigin = "Anonymous"; // Attempt to handle CORS if logo is external
-        img.onload = () => {
-          const logoMaxHeight = 6;
-          const logoMaxWidth = tagWidth - (padding * 2);
-          let logoDisplayWidth = img.width;
-          let logoDisplayHeight = img.height;
-
-          if (logoDisplayHeight > logoMaxHeight) {
-            logoDisplayWidth = (logoMaxHeight / logoDisplayHeight) * logoDisplayWidth;
-            logoDisplayHeight = logoMaxHeight;
-          }
-          if (logoDisplayWidth > logoMaxWidth) {
-            logoDisplayHeight = (logoMaxWidth / logoDisplayWidth) * logoDisplayHeight;
-            logoDisplayWidth = logoMaxWidth;
-          }
-          const logoX = (tagWidth - logoDisplayWidth) / 2;
-          doc.addImage(settingsData.shopLogoUrl!, 'PNG', logoX, currentYTop, logoDisplayWidth, logoDisplayHeight);
-          currentYTop += logoDisplayHeight + 1; // Move Y down after logo
-          drawSkuAndContinue();
-        };
-        img.onerror = () => {
-          console.warn("Failed to load logo for PDF tag. Using shop name.");
-          doc.setFontSize(5);
-          doc.setFont("helvetica", "bold");
-          doc.text(settingsData.shopName.substring(0,12), tagWidth / 2, currentYTop + 2, { align: 'center', maxWidth: tagWidth - (padding * 2) });
-          currentYTop += 4;
-          drawSkuAndContinue();
-        };
-        img.src = settingsData.shopLogoUrl; 
-      } catch (e) {
-        console.error("Error processing logo for PDF:", e);
-        doc.setFontSize(5);
-        doc.setFont("helvetica", "bold");
-        doc.text(settingsData.shopName.substring(0,12), tagWidth / 2, currentYTop + 2, { align: 'center', maxWidth: tagWidth - (padding * 2) });
-        currentYTop += 4;
-        drawSkuAndContinue();
-      }
-    } else {
+    // --- Helper function to draw content common to both panels after logo/shop name ---
+    const drawPanelsAndFinalize = (logoDrawnY: number) => {
+      // Top Panel Content (after logo/shop name)
+      // SKU below logo/shop name
       doc.setFontSize(5);
-      doc.setFont("helvetica", "bold");
-      doc.text(settingsData.shopName.substring(0,12), tagWidth / 2, currentYTop + 2, { align: 'center', maxWidth: tagWidth - (padding * 2) });
-      currentYTop += 4;
-      drawSkuAndContinue();
-    }
+      doc.setFont("helvetica", "normal");
+      doc.text(product.sku, tagWidth / 2, logoDrawnY + 2, { align: 'center', maxWidth: tagWidth - (padding * 2) });
 
-    function drawSkuAndContinue() {
-        // SKU
+      // --- Bottom Panel (Details & QR) ---
+      let currentYBottom = panelHeight + connectorHeight + padding; // Start Y for bottom panel
+
+      // QR Code
+      const qrSize = 12;
+      const qrX = (tagWidth - qrSize) / 2;
+      if (qrUrl && qrUrl.startsWith("data:image/png")) {
+        doc.addImage(qrUrl, 'PNG', qrX, currentYBottom, qrSize, qrSize);
+      } else {
+        doc.rect(qrX, currentYBottom, qrSize, qrSize); // Placeholder if QR not available
+        doc.setFontSize(4);
+        doc.text("QR", qrX + qrSize/2, currentYBottom + qrSize/2, { align: 'center', baseline: 'middle'});
+      }
+      currentYBottom += qrSize + 1.5; // Space after QR
+
+      // Weight
+      doc.setFontSize(5);
+      doc.text(`Wt: ${product.metalWeightG.toFixed(2)}g`, padding, currentYBottom, { maxWidth: tagWidth - (padding * 2) - (product.karat ? 5 : 0) }); // Adjust for Karat
+
+      // Karat (if gold and available)
+      if (product.metalType === 'gold' && product.karat) {
+        doc.text(product.karat.toUpperCase(), tagWidth - padding, currentYBottom, { align: 'right' });
+      }
+      currentYBottom += 3; // Move for next line if any, or just buffer
+
+      // Price (Optional on bottom panel, can be small or omitted if focused on top)
+      // doc.setFontSize(5);
+      // doc.setFont("helvetica", "bold");
+      // doc.text(`PKR ${product.totalPrice.toLocaleString()}`, tagWidth / 2, currentYBottom, { align: 'center', maxWidth: tagWidth - (padding * 2) });
+
+      doc.autoPrint();
+      window.open(doc.output('bloburl'), '_blank');
+      toast({ title: "Tag Ready", description: `Product tag PDF generated.` });
+    };
+    
+    // --- Top Panel Initial Drawing (Logo or Shop Name) ---
+    let currentYTop = padding;
+    const logoMaxHeight = 6;
+    const logoMaxWidth = tagWidth - (padding * 2);
+
+    if (settingsData.shopLogoUrl) {
+      const img = new window.Image();
+      img.crossOrigin = "Anonymous";
+      img.onload = () => {
+        let logoDisplayWidth = img.width;
+        let logoDisplayHeight = img.height;
+
+        if (logoDisplayHeight > logoMaxHeight) {
+          logoDisplayWidth = (logoMaxHeight / logoDisplayHeight) * logoDisplayWidth;
+          logoDisplayHeight = logoMaxHeight;
+        }
+        if (logoDisplayWidth > logoMaxWidth) {
+          logoDisplayHeight = (logoMaxWidth / logoDisplayWidth) * logoDisplayHeight;
+          logoDisplayWidth = logoMaxWidth;
+        }
+        const logoX = (tagWidth - logoDisplayWidth) / 2;
+        doc.addImage(settingsData.shopLogoUrl!, 'PNG', logoX, currentYTop, logoDisplayWidth, logoDisplayHeight);
+        drawPanelsAndFinalize(currentYTop + logoDisplayHeight + 1);
+      };
+      img.onerror = () => {
+        console.warn("Failed to load logo for PDF tag. Using shop name.");
         doc.setFontSize(6);
-        doc.setFont("helvetica", "normal");
-        doc.text(product.sku, tagWidth / 2, currentYTop + 3, { align: 'center', maxWidth: tagWidth - (padding * 2) });
-        
-        // --- Bottom Panel (QR, Weight, Karat) ---
-        let currentYBottom = panelHeight + connectorHeight + padding;
-        const qrSize = 12; 
-        const qrX = (tagWidth - qrSize) / 2;
-        if (qrUrl && qrUrl.startsWith("data:image/png")) {
-            doc.addImage(qrUrl, 'PNG', qrX, currentYBottom, qrSize, qrSize);
-        } else {
-            doc.rect(qrX, currentYBottom, qrSize, qrSize); // Placeholder
-        }
-        currentYBottom += qrSize + 2; // Space after QR
-
-        // Weight
-        doc.setFontSize(5);
-        doc.text(`Wt: ${product.metalWeightG.toFixed(2)}g`, padding, currentYBottom, {maxWidth: tagWidth - (padding * 2)});
-        currentYBottom += 3;
-
-        // Karat (if gold and available)
-        if (product.metalType === 'gold' && product.karat) {
-            doc.text(product.karat.toUpperCase(), padding, currentYBottom, {maxWidth: tagWidth - (padding * 2)});
-        }
-        
-        // Finalize and print (if logo was async and this is the final step)
-        if (!(settingsData.shopLogoUrl && !(img && img.complete && img.naturalHeight !== 0))) { // if logo is not async or already loaded
-            doc.autoPrint();
-            window.open(doc.output('bloburl'), '_blank');
-            toast({ title: "Tag Ready", description: `Product tag PDF generated.` });
-        }
-    }
-     // If logo is async, printing happens in img.onload or img.onerror
-    if (!(settingsData.shopLogoUrl)) {
-         drawSkuAndContinue(); // proceed if no logo
+        doc.setFont("helvetica", "bold");
+        doc.text(settingsData.shopName.substring(0,10), tagWidth / 2, currentYTop + 3, { align: 'center', maxWidth: tagWidth - (padding * 2) });
+        drawPanelsAndFinalize(currentYTop + 4);
+      };
+      img.src = settingsData.shopLogoUrl;
+    } else {
+      // No logo URL, draw shop name directly
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "bold");
+      doc.text(settingsData.shopName.substring(0,10), tagWidth / 2, currentYTop + 3, { align: 'center', maxWidth: tagWidth - (padding * 2) });
+      drawPanelsAndFinalize(currentYTop + 4);
     }
   };
 
@@ -383,3 +374,4 @@ export default function ProductDetailPage() {
     </div>
   );
 }
+
