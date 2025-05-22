@@ -31,7 +31,7 @@ import { useIsStoreHydrated } from '@/lib/store';
 
 type ProductWithCalculatedCosts = ReturnType<typeof selectProductWithCosts>;
 
-type TagFormat = "detailed-landscape" | "compact-landscape" | "classic-vertical" | "price-focus-horizontal";
+type TagFormat = "detailed-landscape" | "compact-landscape" | "classic-vertical" | "price-focus-horizontal" | "dumbbell-vertical";
 
 
 declare module 'jspdf' {
@@ -112,6 +112,9 @@ export default function ProductDetailPage() {
     } else if (format === "price-focus-horizontal") {
         tagWidth = 60; tagHeight = 20;
         doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [tagWidth, tagHeight] });
+    } else if (format === "dumbbell-vertical") {
+        tagWidth = 20; tagHeight = 50; // Unfolded dimensions
+        doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [tagWidth, tagHeight] });
     } else {
         toast({ title: "Error", description: "Unknown tag format.", variant: "destructive" });
         return;
@@ -253,7 +256,41 @@ export default function ProductDetailPage() {
         const qrSize = Math.min(tagHeight - (padding * 2) - 2, 12); // Smaller QR
         addQrCode(tagWidth - padding - qrSize, currentY + 1 - qrSize, qrSize);
         doc.rect(padding / 2, padding / 2, tagWidth - padding, tagHeight - padding);
+    } else if (format === "dumbbell-vertical") {
+        const padding = 1;
+        const rectHeight = (tagHeight - 10) / 2; // Height of top/bottom rectangles, leaving 10mm for connector
+
+        // Top Rectangle (Folded Front/Top)
+        let currentYTop = padding + 2;
+        doc.setFontSize(5); doc.setFont("helvetica", "normal");
+        doc.text(shopName.substring(0, 12), tagWidth/2, currentYTop, {align: 'center', maxWidth: tagWidth - (padding*2) });
+        currentYTop += (doc.getTextDimensions(shopName.substring(0,12)).h) + 1;
+
+        doc.setFontSize(7); doc.setFont("helvetica", "bold");
+        doc.text(productPrice, tagWidth/2, currentYTop + 3, {align: 'center', maxWidth: tagWidth - (padding*2)});
+
+        // Bottom Rectangle (Folded Back/Bottom)
+        let currentYBottom = rectHeight + 10 + padding + 1.5; // Start after top rect and connector
+        
+        doc.setFontSize(5); doc.setFont("helvetica", "bold");
+        doc.text(productName.substring(0,20), padding, currentYBottom, {maxWidth: tagWidth - (padding*2)});
+        currentYBottom += (doc.getTextDimensions(productName.substring(0,20)).h) + 0.5;
+
+        doc.setFontSize(4.5); doc.setFont("helvetica", "normal");
+        doc.text(`SKU: ${productSku}`, padding, currentYBottom, {maxWidth: tagWidth - (padding*2)}); currentYBottom += 2;
+        doc.text(metalInfo.substring(0,25), padding, currentYBottom, {maxWidth: tagWidth - (padding*2)}); currentYBottom += 2;
+        if (product.hasDiamonds) { doc.text(`Diamonds: Yes`, padding, currentYBottom); currentYBottom += 2;}
+        
+        const qrSize = Math.min(tagWidth - (padding*2) -2, 10);
+        addQrCode((tagWidth - qrSize)/2, currentYBottom + 0.5, qrSize);
+        
+        // Optional: draw faint lines for the rectangles if desired for visual aid
+        // doc.setDrawColor(200, 200, 200); // Light gray
+        // doc.rect(padding/2, padding/2, tagWidth - padding, rectHeight); // Top rectangle
+        // doc.rect(padding/2, rectHeight + 10 + padding/2, tagWidth - padding, rectHeight); // Bottom rectangle
+        // doc.rect(padding/2, padding/2, tagWidth-padding, tagHeight-padding); // Full outline
     }
+
 
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
@@ -389,6 +426,9 @@ export default function ProductDetailPage() {
                 </Button>
                  <Button variant="outline" size="sm" onClick={() => handlePrintTag("price-focus-horizontal")} className="w-full">
                   <Printer className="mr-2 h-4 w-4" /> Print Price Focus Tag
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handlePrintTag("dumbbell-vertical")} className="w-full">
+                  <Printer className="mr-2 h-4 w-4" /> Print Dumbbell Vertical Tag
                 </Button>
               </CardContent>
             </Card>
