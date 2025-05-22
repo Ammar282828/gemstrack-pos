@@ -37,7 +37,7 @@ const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: stri
       description: `${product.name} has been added to your cart.`,
     });
   };
-  
+
   return (
     <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
       <CardHeader className="flex flex-row items-start justify-between p-4 space-y-0">
@@ -66,7 +66,7 @@ const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: stri
           </span>
         </div>
         <div className="text-xs text-muted-foreground mt-1">
-          Metal: {product.metalWeightG}g | Stone: {product.stoneWeightCt}ct
+          Metal: {product.metalWeightG}g {/* Stone weight display removed */}
         </div>
       </CardContent>
       <CardFooter className="p-4 border-t flex flex-col items-stretch gap-2">
@@ -111,7 +111,7 @@ const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: stri
 export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  
+
   const isHydrated = useIsStoreHydrated();
   const products = useAppStore(selectAllProductsWithCosts);
   const categories = useAppStore(state => state.categories);
@@ -127,11 +127,11 @@ export default function ProductsPage() {
     deleteProductAction(sku);
     toast({ title: "Product Deleted", description: `Product with SKU ${sku} has been deleted.` });
   };
-  
+
   const filteredProducts = useMemo(() => {
     if (!isHydrated) return [];
     return products
-      .filter(product => 
+      .filter(product =>
         selectedCategory ? product.categoryId === selectedCategory : true
       )
       .filter(product =>
@@ -178,7 +178,7 @@ export default function ProductsPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             </div>
           </div>
-          
+
           <div className="flex flex-wrap gap-2 items-center">
             <Button
               variant={selectedCategory === null ? 'default' : 'outline'}

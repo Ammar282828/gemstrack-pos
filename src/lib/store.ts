@@ -32,10 +32,10 @@ export interface Product {
   name: string; // Name is still part of the Product model
   categoryId: string;
   metalWeightG: number;
-  stoneWeightCt: number;
+  // stoneWeightCt: number; // Removed
   wastagePercentage: number;
-  makingCharges: number; // Changed from makingRatePerG
-  stoneCharges: number; // Changed from stonePricePerCt
+  makingCharges: number;
+  stoneCharges: number;
   miscCharges: number;
   qrCodeDataUrl?: string; // Data URL of the generated QR code image
   assignedCustomerId?: string;
@@ -69,9 +69,8 @@ export interface Invoice {
 export const calculateProductCosts = (product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'assignedCustomerId' | 'imageUrl' | 'name'> & { categoryId?: string, name?: string}, goldRatePerGram: number) => {
   const metalCost = product.metalWeightG * goldRatePerGram;
   const wastageCost = metalCost * (product.wastagePercentage / 100);
-  // Direct charges now
   const makingCost = product.makingCharges;
-  const stoneCost = product.stoneCharges;
+  const stoneCost = product.stoneCharges; // Direct charge, no calculation with stoneWeightCt
   const totalPrice = metalCost + wastageCost + makingCost + stoneCost + product.miscCharges;
   return { metalCost, wastageCost, makingCost, stoneCost, totalPrice };
 };
@@ -132,7 +131,7 @@ const initialCategories: Category[] = [
   { id: 'cat12', title: 'String Sets' },
   { id: 'cat13', title: 'Stone Necklace Sets without Bracelets' },
   { id: 'cat14', title: 'Stone Necklace Sets with Bracelets' },
-  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' }, // Corrected typo
+  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' },
   { id: 'cat16', title: 'Gold Necklace Sets without Bracelets' },
 ];
 
@@ -156,27 +155,27 @@ const initialCustomers: Customer[] = [
 
 const initialProducts: Product[] = [
   {
-    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalWeightG: 5.2, stoneWeightCt: 0.25, wastagePercentage: 10,
+    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalWeightG: 5.2, wastagePercentage: 10,
     makingCharges: 4160, stoneCharges: 15000, miscCharges: 500, assignedCustomerId: 'cust-001', imageUrl: "https://placehold.co/300x300.png?text=Ring"
   },
   {
-    sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalWeightG: 12.5, stoneWeightCt: 1.5, wastagePercentage: 10,
+    sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalWeightG: 12.5, wastagePercentage: 10,
     makingCharges: 15000, stoneCharges: 112500, miscCharges: 1500, imageUrl: "https://placehold.co/300x300.png?text=Necklace+Set"
   },
   {
-    sku: "TOP-000001", name: "Tops - TOP-000001", categoryId: "cat02", metalWeightG: 3.0, stoneWeightCt: 0.75, wastagePercentage: 10,
+    sku: "TOP-000001", name: "Tops - TOP-000001", categoryId: "cat02", metalWeightG: 3.0, wastagePercentage: 10,
     makingCharges: 1800, stoneCharges: 37500, miscCharges: 300, assignedCustomerId: 'cust-002', imageUrl: "https://placehold.co/300x300.png?text=Tops"
   },
   {
-    sku: "BRA-000001", name: "Bracelets - BRA-000001", categoryId: "cat05", metalWeightG: 8.0, stoneWeightCt: 0, wastagePercentage: 10,
+    sku: "BRA-000001", name: "Bracelets - BRA-000001", categoryId: "cat05", metalWeightG: 8.0, wastagePercentage: 10,
     makingCharges: 7200, stoneCharges: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png?text=Bracelet"
   },
   {
-    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", metalWeightG: 15.0, stoneWeightCt: 0.5, wastagePercentage: 15,
+    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", metalWeightG: 15.0, wastagePercentage: 15,
     makingCharges: 15000, stoneCharges: 22500, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png?text=Bangle"
   },
   {
-    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalWeightG: 20.0, stoneWeightCt: 2.0, wastagePercentage: 15,
+    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalWeightG: 20.0, wastagePercentage: 15,
     makingCharges: 30000, stoneCharges: 160000, miscCharges: 2000, assignedCustomerId: 'cust-003', imageUrl: "https://placehold.co/300x300.png?text=Gold+Set"
   }
 ];
@@ -407,18 +406,15 @@ export const useAppStore = create<AppState>()(
         return localStorage;
       }),
       onRehydrateStorage: (_persistedState) => {
-        console.log('[GemsTrack] Persist: Storage rehydration attempt started.');
         return (state, error) => {
           if (error) {
             console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
           } else {
             console.log('[GemsTrack] Persist: Storage rehydration successful.');
+            queueMicrotask(() => {
+              useAppStore.getState().setHasHydrated(true);
+            });
           }
-          // Ensure _hasHydrated is set after the attempt, regardless of success/failure
-          queueMicrotask(() => {
-            useAppStore.getState().setHasHydrated(true);
-            console.log('[GemsTrack] Persist: _hasHydrated flag set to true via onRehydrateStorage.');
-          });
         };
       },
       partialize: (state) => {
@@ -426,7 +422,7 @@ export const useAppStore = create<AppState>()(
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 2, 
+      version: 2,
     }
   )
 );
@@ -476,7 +472,8 @@ export const selectCartSubtotal = (state: AppState) => {
 };
 
 export const useIsStoreHydrated = () => {
-  const isHydrated = useAppStore(React.useCallback(state => state._hasHydrated, []));
+  const isHydrated = useAppStore(
+    React.useCallback((s: AppState) => s._hasHydrated, [])
+  );
   return isHydrated;
 };
-

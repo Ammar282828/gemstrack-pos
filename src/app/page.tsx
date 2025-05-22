@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shapes, Search, Tag, Weight, PlusCircle, Eye, ShoppingCart } from 'lucide-react'; 
+import { Shapes, Search, Tag, Weight, PlusCircle, Eye, ShoppingCart } from 'lucide-react';
 import { useIsStoreHydrated } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 
@@ -55,12 +55,7 @@ const ProductCard: React.FC<{ product: ProductWithCosts, categoryTitle: string }
           <Weight className="w-4 h-4 mr-2 text-muted-foreground" />
           Metal: {product.metalWeightG}g
         </div>
-        {product.stoneWeightCt > 0 && (
-          <div className="flex items-center text-sm mb-1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-muted-foreground"><path d="M6 3.27A21.64 21.64 0 0 1 12 3a21.64 21.64 0 0 1 6 0.27V5.5a21.64 21.64 0 0 0-6 15.23A21.64 21.64 0 0 0 6 5.5V3.27Z"></path><path d="M12 15.5V21"></path><path d="M12 3v3.05"></path><path d="M17.83 4.53c2.22 0 3.17 1.34 3.17 2.69 0 .84-.47 1.41-1.12 1.88L18 9.93"></path><path d="M6.17 4.53c-2.22 0-3.17 1.34-3.17 2.69 0 .84.47 1.41 1.12 1.88L6 9.93"></path></svg>
-             Stone: {product.stoneWeightCt}ct
-          </div>
-        )}
+        {/* Stone Weight display removed */}
       </CardContent>
       <CardFooter className="p-4 bg-muted/30 flex flex-col items-stretch gap-2">
         <div className="text-xl font-bold text-primary flex items-center justify-center">
@@ -87,7 +82,7 @@ const ProductCard: React.FC<{ product: ProductWithCosts, categoryTitle: string }
 export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  
+
   const isHydrated = useIsStoreHydrated();
   const products = useAppStore(selectAllProductsWithCosts);
   const categories = useAppStore(state => state.categories);
@@ -101,9 +96,9 @@ export default function HomePage() {
   }, [categories, isHydrated]);
 
   const filteredProducts = useMemo(() => {
-    if (!isHydrated) return []; 
+    if (!isHydrated) return [];
     return products
-      .filter(product => 
+      .filter(product =>
         selectedCategory ? product.categoryId === selectedCategory : true
       )
       .filter(product =>
@@ -146,7 +141,7 @@ export default function HomePage() {
             </Button>
           </Link>
         </div>
-        
+
         <div className="mt-6 flex flex-wrap gap-2 items-center">
           <Button
             variant={selectedCategory === null ? 'default' : 'outline'}
@@ -170,10 +165,10 @@ export default function HomePage() {
       {filteredProducts.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {filteredProducts.map((product) => (
-            <ProductCard 
-              key={product.sku} 
-              product={product} 
-              categoryTitle={categoryMap.get(product.categoryId) || 'Uncategorized'} 
+            <ProductCard
+              key={product.sku}
+              product={product}
+              categoryTitle={categoryMap.get(product.categoryId) || 'Uncategorized'}
             />
           ))}
         </div>
