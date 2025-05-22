@@ -61,7 +61,6 @@ export default function CartPage() {
     }
 
     const parsedGoldRate = parseFloat(invoiceGoldRateInput);
-    // Gold rate validation only if there are gold items in cart or if it's the only metal type
     const hasGoldItems = cartItems.some(item => item.metalType === 'gold');
     if (hasGoldItems && (isNaN(parsedGoldRate) || parsedGoldRate <= 0)) {
       toast({ title: "Invalid Gold Rate", description: "Please enter a valid positive gold rate for gold items.", variant: "destructive" });
@@ -74,14 +73,12 @@ export default function CartPage() {
       return;
     }
 
-    // Calculate subtotal for validation based on the dynamic gold rate for gold items,
-    // and settings rates for palladium/platinum.
     let currentSubtotalForValidation = 0;
     cartItems.forEach(item => {
         const productFromStore = useAppStore.getState().products.find(p => p.sku === item.sku);
         if (productFromStore) {
             const ratesForCalc = {
-                goldRatePerGram24k: item.metalType === 'gold' ? parsedGoldRate : settings.goldRatePerGram, // Use dynamic for gold, settings for others
+                goldRatePerGram24k: item.metalType === 'gold' ? parsedGoldRate : settings.goldRatePerGram,
                 palladiumRatePerGram: settings.palladiumRatePerGram,
                 platinumRatePerGram: settings.platinumRatePerGram,
             };
@@ -109,7 +106,7 @@ export default function CartPage() {
 
     if (settings.shopLogoUrl) {
       try {
-        // doc.addImage(settings.shopLogoUrl, 'PNG', 15, 10, 30, 10); // Example, may need CORS handling
+        // Consider pre-loading or ensuring CORS compliance for logo
       } catch (e) { console.error("Error adding logo to PDF:", e); }
     }
     doc.setFontSize(18);
@@ -156,18 +153,26 @@ export default function CartPage() {
         doc.text("Walk-in Customer", 15, 45);
     }
     
-    const tableColumn = ["#", "Item", "SKU", "Metal", "Qty", "Unit Price (PKR)", "Total (PKR)"];
+    const tableColumn = ["#", "Item Description", "Qty", "Unit Price (PKR)", "Total (PKR)"];
     const tableRows: any[][] = [];
+
     invoiceToPrint.items.forEach((item, index) => {
       let metalDisplay = item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1);
       if (item.metalType === 'gold' && item.karat) {
         metalDisplay += ` (${item.karat.toUpperCase()})`;
       }
+
+      let breakdown = `  Metal: ${item.metalCost.toLocaleString()}, Wastage: ${item.wastageCost.toLocaleString()}\n`;
+      breakdown += `  Making: ${item.makingCharges.toLocaleString()}`;
+      if (item.diamondChargesIfAny > 0) breakdown += `, Diamonds: ${item.diamondChargesIfAny.toLocaleString()}`;
+      if (item.stoneChargesIfAny > 0) breakdown += `, Stones: ${item.stoneChargesIfAny.toLocaleString()}`;
+      if (item.miscChargesIfAny > 0) breakdown += `, Misc: ${item.miscChargesIfAny.toLocaleString()}`;
+      
+      const itemDescription = `${item.name} (SKU: ${item.sku}, ${metalDisplay})\n${breakdown}`;
+      
       const itemData = [
         index + 1,
-        item.name,
-        item.sku,
-        metalDisplay,
+        itemDescription,
         item.quantity,
         item.unitPrice.toLocaleString(),
         item.itemTotal.toLocaleString(),
@@ -181,7 +186,15 @@ export default function CartPage() {
       startY: 70,
       theme: 'grid',
       headStyles: { fillColor: [75, 0, 130] }, 
-      styles: { fontSize: 8 },
+      styles: { fontSize: 8, cellPadding: 1.5 },
+      columnStyles: {
+        1: { cellWidth: 'auto' }, // Item Description column
+      },
+      didParseCell: function (data) {
+        if (data.column.index === 1 && data.cell.section === 'body') { // Item Description column
+            // Potentially adjust row height if content is multi-line, autoTable usually handles this.
+        }
+      }
     });
 
     const finalY = (doc as any).lastAutoTable.finalY || 100; 
@@ -248,25 +261,31 @@ export default function CartPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>SKU</TableHead>
-                                    <TableHead>Metal</TableHead>
+                                    <TableHead>Product & Breakdown</TableHead>
                                     <TableHead className="text-right">Qty</TableHead>
                                     <TableHead className="text-right">Unit Price (PKR)</TableHead>
                                     <TableHead className="text-right">Total (PKR)</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {generatedInvoice.items.map(item => (
+                                {generatedInvoice.items.map(item => {
+                                    let breakdown = `Metal: ${item.metalCost.toLocaleString()}, Wastage: ${item.wastageCost.toLocaleString()}, Making: ${item.makingCharges.toLocaleString()}`;
+                                    if (item.diamondChargesIfAny > 0) breakdown += `, Diamonds: ${item.diamondChargesIfAny.toLocaleString()}`;
+                                    if (item.stoneChargesIfAny > 0) breakdown += `, Stones: ${item.stoneChargesIfAny.toLocaleString()}`;
+                                    if (item.miscChargesIfAny > 0) breakdown += `, Misc: ${item.miscChargesIfAny.toLocaleString()}`;
+                                    return (
                                     <TableRow key={item.sku}>
-                                        <TableCell>{item.name}</TableCell>
-                                        <TableCell>{item.sku}</TableCell>
-                                        <TableCell>{item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}</TableCell>
+                                        <TableCell>
+                                            <p className="font-medium">{item.name}</p>
+                                            <p className="text-xs text-muted-foreground">SKU: {item.sku} | Metal: {item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}</p>
+                                            <p className="text-xs text-muted-foreground/80 italic">{breakdown}</p>
+                                        </TableCell>
                                         <TableCell className="text-right">{item.quantity}</TableCell>
                                         <TableCell className="text-right">{item.unitPrice.toLocaleString()}</TableCell>
                                         <TableCell className="text-right">{item.itemTotal.toLocaleString()}</TableCell>
                                     </TableRow>
-                                ))}
+                                );
+                            })}
                             </TableBody>
                         </Table>
                     </div>
@@ -332,7 +351,7 @@ export default function CartPage() {
                           <Button 
                             size="icon" 
                             variant="outline" 
-                            onClick={() => handleQuantityChange(item.sku, item.quantity - 1)} 
+                            onClick={() => updateCartQuantity(item.sku, item.quantity - 1)} 
                             disabled={item.quantity <= 1}
                             aria-label={`Decrease quantity of ${item.name}`}
                           >
@@ -341,7 +360,7 @@ export default function CartPage() {
                           <Input
                             type="number"
                             value={item.quantity}
-                            onChange={(e) => handleQuantityChange(item.sku, parseInt(e.target.value) || 1)}
+                            onChange={(e) => updateCartQuantity(item.sku, parseInt(e.target.value) || 1)}
                             className="w-16 h-9 text-center"
                             min="1"
                             aria-label={`Quantity of ${item.name}`}
@@ -349,7 +368,7 @@ export default function CartPage() {
                           <Button 
                             size="icon" 
                             variant="outline" 
-                            onClick={() => handleQuantityChange(item.sku, item.quantity + 1)}
+                            onClick={() => updateCartQuantity(item.sku, item.quantity + 1)}
                             aria-label={`Increase quantity of ${item.name}`}
                            >
                             <Plus className="h-4 w-4" />
@@ -465,3 +484,4 @@ export default function CartPage() {
     </div>
   );
 }
+
