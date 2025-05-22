@@ -18,7 +18,7 @@ import {
   Html5QrcodeSupportedFormats,
   QrcodeErrorCallback,
   QrcodeSuccessCallback,
-  Html5QrcodeScannerState
+  Html5QrcodeScannerState // Import this for checking scanner state
 } from 'html5-qrcode';
 
 const qrReaderElementId = "qr-reader-container";
@@ -44,28 +44,28 @@ export default function ScanPage() {
 
       if (productExists) {
         toast({ title: "QR Code Scanned!", description: `SKU: ${decodedText}. Navigating...` });
-        if (html5QrcodeScannerRef.current && typeof html5QrcodeScannerRef.current.clear === 'function') {
-          const scannerToClear = html5QrcodeScannerRef.current;
-          // Set ref to null *before* awaiting clear and navigating.
-          // This prevents the useEffect cleanup from trying to clear again.
-          html5QrcodeScannerRef.current = null; 
+        
+        const scannerInstance = html5QrcodeScannerRef.current;
+        if (scannerInstance && typeof scannerInstance.clear === 'function') {
           try {
-            if (scannerToClear.getState && 
-                (scannerToClear.getState() === Html5QrcodeScannerState.SCANNING ||
-                 scannerToClear.getState() === Html5QrcodeScannerState.PAUSED)
-                ) {
-              await scannerToClear.clear();
-            } else if (!scannerToClear.getState) { // Fallback if getState is not available
-              await scannerToClear.clear();
+            // Check state BEFORE setting ref to null or attempting clear
+            if (scannerInstance.getState && 
+                (scannerInstance.getState() === Html5QrcodeScannerState.SCANNING ||
+                 scannerInstance.getState() === Html5QrcodeScannerState.PAUSED)) {
+              await scannerInstance.clear();
+            } else if (!scannerInstance.getState) { // Fallback for older versions or if getState isn't there
+              await scannerInstance.clear();
             }
           } catch (error) {
             console.error("Error clearing scanner on success (before navigation):", error);
+          } finally {
+            // Ensure ref is nulled out to prevent useEffect cleanup from trying again AFTER attempt to clear
+            html5QrcodeScannerRef.current = null; 
           }
         }
         router.push(`/products/${decodedText.trim()}`);
       } else {
         toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
-        // If product not found, scanner remains active for another attempt.
       }
     };
 
@@ -73,8 +73,6 @@ export default function ScanPage() {
       // console.warn(`QR Scan Error: ${error}`); // Can be noisy
     };
 
-    // Only initialize the scanner if the ref is null (i.e., not already initialized or has been cleared)
-    // and the DOM element is present.
     if (document.getElementById(qrReaderElementId) && !html5QrcodeScannerRef.current) {
       const scanner = new Html5QrcodeScanner(
         qrReaderElementId,
@@ -104,7 +102,6 @@ export default function ScanPage() {
             variant: "destructive"
         });
         setHasCameraPermission(false);
-        // If render fails, ensure the ref is cleared if it was partially set or if an old instance exists
         if (html5QrcodeScannerRef.current && typeof html5QrcodeScannerRef.current.clear === 'function') {
              html5QrcodeScannerRef.current.clear().catch(e => console.error("Error clearing scanner during init failure:", e));
         }
@@ -113,11 +110,9 @@ export default function ScanPage() {
     }
 
     return () => {
-      // This cleanup runs when the component unmounts.
-      // It will only attempt to clear if html5QrcodeScannerRef.current is not already null
-      // (which would be the case if onScanSuccess handled the clearing before navigation).
       if (html5QrcodeScannerRef.current && typeof html5QrcodeScannerRef.current.clear === 'function') {
         const scannerInstance = html5QrcodeScannerRef.current;
+        // Check state before attempting to clear
         if (scannerInstance.getState && 
             (scannerInstance.getState() === Html5QrcodeScannerState.SCANNING ||
              scannerInstance.getState() === Html5QrcodeScannerState.PAUSED)
@@ -125,13 +120,15 @@ export default function ScanPage() {
           scannerInstance.clear().catch(err => {
             console.error("Error clearing scanner on component unmount:", err);
           });
-        } else if (!scannerInstance.getState) {
+        } else if (!scannerInstance.getState) { // Fallback if getState is not available
+           // This path is risky if the scanner is already cleared or its DOM is gone.
+           // Consider if this specific fallback clear is always safe or needed.
+           // For now, keeping it as it was, but with awareness.
            scannerInstance.clear().catch(err => {
             console.error("Error clearing scanner (no state check) on component unmount:", err);
           });
         }
       }
-      // Ensure the ref is null after unmount, regardless of whether clear was called or succeeded.
       html5QrcodeScannerRef.current = null;
     };
   }, [isHydrated, products, router, toast]);
@@ -166,13 +163,13 @@ export default function ScanPage() {
           <CardDescription>Point your camera at a QR code. Or, enter the SKU manually below.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div id={qrReaderElementId} className="w-full aspect-video border rounded-md bg-muted overflow-hidden">
-            {/* html5-qrcode-scanner will render here */}
+          <div id={qrReaderElementId} className="w-full aspect-video border rounded-md bg-muted overflow-hidden text-sm text-muted-foreground flex items-center justify-center">
+            {/* html5-qrcode-scanner will render here or show its own messages */}
             {hasCameraPermission === null && (
-                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                 <div className="flex flex-col items-center justify-center h-full">
                     <VideoOff className="w-12 h-12 mb-2" />
                     <p>Initializing QR Scanner...</p>
-                    <p className="text-xs">Camera permission may be requested.</p>
+                    <p className="text-xs">Waiting for camera permission.</p>
                 </div>
             )}
           </div>
@@ -199,7 +196,13 @@ export default function ScanPage() {
                 onKeyPress={(e) => { if (e.key === 'Enter') handleManualSkuSearch(); }}
                 />
                  {skuInput && (
-                    <Button variant="ghost" size="icon" onClick={() => setSkuInput('')} className="text-muted-foreground hover:text-foreground">
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setSkuInput('')} 
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Clear SKU input"
+                    >
                         <X className="h-5 w-5" />
                     </Button>
                 )}
@@ -213,3 +216,4 @@ export default function ScanPage() {
     </div>
   );
 }
+

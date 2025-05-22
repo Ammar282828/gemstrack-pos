@@ -20,7 +20,13 @@ const CartSummaryItem: React.FC<{ item: NonNullable<ReturnType<typeof selectCart
       </div>
       <div className="flex items-center space-x-2">
         <p className="font-semibold text-sm text-primary">PKR {item.lineItemTotal.toLocaleString()}</p>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => removeFromCart(item.sku)}>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-7 w-7 text-destructive hover:bg-destructive/10" 
+          onClick={() => removeFromCart(item.sku)}
+          aria-label={`Remove ${item.name} from cart`}
+        >
           <Trash2 className="w-3.5 h-3.5" />
         </Button>
       </div>

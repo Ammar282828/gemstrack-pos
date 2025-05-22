@@ -79,6 +79,7 @@ export default function CartPage() {
     cartItems.forEach(item => {
         const productFromStore = useAppStore.getState().products.find(p => p.sku === item.sku);
         if (productFromStore) {
+            // Use the calculateProductCosts helper directly
             const costs = calculateProductCosts(productFromStore, parsedGoldRate);
             currentSubtotalForValidation += costs.totalPrice * item.quantity;
         }
@@ -302,7 +303,13 @@ export default function CartPage() {
                           <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString()} (at current gold rate)</p>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Button size="icon" variant="outline" onClick={() => handleQuantityChange(item.sku, item.quantity - 1)} disabled={item.quantity <= 1}>
+                          <Button 
+                            size="icon" 
+                            variant="outline" 
+                            onClick={() => handleQuantityChange(item.sku, item.quantity - 1)} 
+                            disabled={item.quantity <= 1}
+                            aria-label={`Decrease quantity of ${item.name}`}
+                          >
                             <Minus className="h-4 w-4" />
                           </Button>
                           <Input
@@ -311,12 +318,24 @@ export default function CartPage() {
                             onChange={(e) => handleQuantityChange(item.sku, parseInt(e.target.value) || 1)}
                             className="w-16 h-9 text-center"
                             min="1"
+                            aria-label={`Quantity of ${item.name}`}
                           />
-                          <Button size="icon" variant="outline" onClick={() => handleQuantityChange(item.sku, item.quantity + 1)}>
+                          <Button 
+                            size="icon" 
+                            variant="outline" 
+                            onClick={() => handleQuantityChange(item.sku, item.quantity + 1)}
+                            aria-label={`Increase quantity of ${item.name}`}
+                           >
                             <Plus className="h-4 w-4" />
                           </Button>
                         </div>
-                        <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => removeFromCart(item.sku)}>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10" 
+                          onClick={() => removeFromCart(item.sku)}
+                          aria-label={`Remove ${item.name} from cart`}
+                        >
                           <Trash2 className="h-5 w-5" />
                         </Button>
                       </div>
@@ -339,7 +358,7 @@ export default function CartPage() {
                 <div>
                   <Label htmlFor="customer-select" className="mb-1 block text-sm font-medium">Select Customer (Optional)</Label>
                   <Select 
-                    value={selectedCustomerId} 
+                    value={selectedCustomerId === undefined ? WALK_IN_CUSTOMER_VALUE : selectedCustomerId} 
                     onValueChange={(value) => setSelectedCustomerId(value === WALK_IN_CUSTOMER_VALUE ? undefined : value)}
                   >
                     <SelectTrigger id="customer-select">
