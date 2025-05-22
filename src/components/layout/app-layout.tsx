@@ -61,8 +61,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const isHydrated = useIsStoreHydrated();
 
   if (!isHydrated) {
-    // Render null or a minimal loading skeleton until the store is hydrated
-    // to prevent rendering with potentially incorrect initial state.
     return null; 
   }
   
@@ -121,4 +119,3 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
-
