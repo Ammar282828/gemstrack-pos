@@ -23,8 +23,8 @@ const productFormSchema = z.object({
   metalWeightG: z.coerce.number().min(0, "Metal weight must be non-negative"),
   stoneWeightCt: z.coerce.number().min(0, "Stone weight must be non-negative"),
   wastagePercentage: z.coerce.number().min(0).max(100, "Wastage must be between 0 and 100"),
-  makingRatePerG: z.coerce.number().min(0, "Making rate must be non-negative"),
-  stonePricePerCt: z.coerce.number().min(0, "Stone price must be non-negative"), // Renamed
+  makingCharges: z.coerce.number().min(0, "Making charges must be non-negative"), // Changed from makingRatePerG
+  stoneCharges: z.coerce.number().min(0, "Stone charges must be non-negative"), // Changed from stonePricePerCt
   miscCharges: z.coerce.number().min(0, "Misc charges must be non-negative"),
   assignedCustomerId: z.string().optional(),
   imageUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
@@ -51,8 +51,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       metalWeightG: product.metalWeightG,
       stoneWeightCt: product.stoneWeightCt,
       wastagePercentage: product.wastagePercentage,
-      makingRatePerG: product.makingRatePerG,
-      stonePricePerCt: product.stonePricePerCt, // Renamed
+      makingCharges: product.makingCharges, // Changed
+      stoneCharges: product.stoneCharges, // Changed
       miscCharges: product.miscCharges,
       assignedCustomerId: product.assignedCustomerId ?? "__NONE__",
       imageUrl: product.imageUrl || "",
@@ -60,9 +60,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       categoryId: '',
       metalWeightG: 0,
       stoneWeightCt: 0,
-      wastagePercentage: 10, // Default initial wastage, will be overridden by category logic
-      makingRatePerG: 0,
-      stonePricePerCt: 0, // Renamed
+      wastagePercentage: 10, 
+      makingCharges: 0, // Changed
+      stoneCharges: 0, // Changed
       miscCharges: 0,
       assignedCustomerId: "__NONE__",
       imageUrl: "",
@@ -72,16 +72,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   const selectedCategoryId = form.watch('categoryId');
 
   useEffect(() => {
-    if (!isEditMode && selectedCategoryId) { // Only for new products and when a category is selected
+    if (!isEditMode && selectedCategoryId) { 
       const category = categories.find(c => c.id === selectedCategoryId);
       if (category) {
-        let defaultWastage = 10; // Default for "the rest"
+        let defaultWastage = 10; 
         const lowerCaseTitle = category.title.toLowerCase();
   
         const fifteenPercentTriggers = [
           "chain", 
           "bangle", 
-          "gold necklace set"
+          "gold necklace set" 
         ];
   
         if (fifteenPercentTriggers.some(trigger => lowerCaseTitle.includes(trigger))) {
@@ -93,7 +93,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
         });
       }
     }
-  }, [selectedCategoryId, isEditMode, categories, form]); // form.setValue is stable, form can be a dependency
+  }, [selectedCategoryId, isEditMode, categories, form]);
 
   const onSubmit = (data: ProductFormData) => {
     try {
@@ -214,12 +214,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
             />
             <FormField
               control={form.control}
-              name="makingRatePerG"
+              name="makingCharges" // Changed
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Making Rate (per gram)</FormLabel>
+                  <FormLabel>Making Charges</FormLabel> 
                   <FormControl>
-                    <Input type="number" step="1" placeholder="e.g., 500" {...field} />
+                    <Input type="number" step="1" placeholder="e.g., 5000" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -227,12 +227,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
             />
             <FormField
               control={form.control}
-              name="stonePricePerCt" 
+              name="stoneCharges" // Changed
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Stone Price (per carat)</FormLabel> 
+                  <FormLabel>Stone Charges</FormLabel> 
                   <FormControl>
-                    <Input type="number" step="1" placeholder="e.g., 50000" {...field} />
+                    <Input type="number" step="1" placeholder="e.g., 15000" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

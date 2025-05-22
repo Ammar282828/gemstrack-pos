@@ -34,8 +34,8 @@ export interface Product {
   metalWeightG: number;
   stoneWeightCt: number;
   wastagePercentage: number;
-  makingRatePerG: number;
-  stonePricePerCt: number; // Renamed from stoneRatePerCt
+  makingCharges: number; // Changed from makingRatePerG
+  stoneCharges: number; // Changed from stonePricePerCt
   miscCharges: number;
   qrCodeDataUrl?: string; // Data URL of the generated QR code image
   assignedCustomerId?: string;
@@ -69,8 +69,9 @@ export interface Invoice {
 export const calculateProductCosts = (product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'assignedCustomerId' | 'imageUrl' | 'name'> & { categoryId?: string, name?: string}, goldRatePerGram: number) => {
   const metalCost = product.metalWeightG * goldRatePerGram;
   const wastageCost = metalCost * (product.wastagePercentage / 100);
-  const makingCost = product.metalWeightG * product.makingRatePerG;
-  const stoneCost = product.stoneWeightCt * product.stonePricePerCt; // Updated to use stonePricePerCt
+  // Direct charges now
+  const makingCost = product.makingCharges;
+  const stoneCost = product.stoneCharges;
   const totalPrice = metalCost + wastageCost + makingCost + stoneCost + product.miscCharges;
   return { metalCost, wastageCost, makingCost, stoneCost, totalPrice };
 };
@@ -117,23 +118,24 @@ export interface AppState {
 }
 
 const initialCategories: Category[] = [
-  { id: 'cat1', title: 'Rings' },
-  { id: 'cat2', title: 'Tops' },
-  { id: 'cat3', title: 'Balis' },
-  { id: 'cat4', title: 'Lockets' },
-  { id: 'cat5', title: 'Bracelets' },
-  { id: 'cat6', title: 'Bracelet and Ring Set' },
-  { id: 'cat7', title: 'Bangles' },
-  { id: 'cat8', title: 'Chains' },
-  { id: 'cat9', title: 'Bands' },
+  { id: 'cat01', title: 'Rings' },
+  { id: 'cat02', title: 'Tops' },
+  { id: 'cat03', title: 'Balis' },
+  { id: 'cat04', title: 'Lockets' },
+  { id: 'cat05', title: 'Bracelets' },
+  { id: 'cat06', title: 'Bracelet and Ring Set' },
+  { id: 'cat07', title: 'Bangles' },
+  { id: 'cat08', title: 'Chains' },
+  { id: 'cat09', title: 'Bands' },
   { id: 'cat10', title: 'Locket Sets without Bangle' },
   { id: 'cat11', title: 'Locket Set with Bangle' },
   { id: 'cat12', title: 'String Sets' },
   { id: 'cat13', title: 'Stone Necklace Sets without Bracelets' },
   { id: 'cat14', title: 'Stone Necklace Sets with Bracelets' },
-  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' },
+  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' }, // Corrected typo
   { id: 'cat16', title: 'Gold Necklace Sets without Bracelets' },
 ];
+
 
 const initialSettings: Settings = {
   goldRatePerGram: 20000,
@@ -154,28 +156,28 @@ const initialCustomers: Customer[] = [
 
 const initialProducts: Product[] = [
   {
-    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat1", metalWeightG: 5.2, stoneWeightCt: 0.25, wastagePercentage: 10,
-    makingRatePerG: 800, stonePricePerCt: 60000, miscCharges: 500, assignedCustomerId: 'cust-001', imageUrl: "https://placehold.co/300x300.png"
+    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalWeightG: 5.2, stoneWeightCt: 0.25, wastagePercentage: 10,
+    makingCharges: 4160, stoneCharges: 15000, miscCharges: 500, assignedCustomerId: 'cust-001', imageUrl: "https://placehold.co/300x300.png?text=Ring"
   },
   {
-    sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalWeightG: 12.5, stoneWeightCt: 1.5, wastagePercentage: 12, // Example, will be 10% if added fresh
-    makingRatePerG: 1200, stonePricePerCt: 75000, miscCharges: 1500, imageUrl: "https://placehold.co/300x300.png"
+    sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalWeightG: 12.5, stoneWeightCt: 1.5, wastagePercentage: 10,
+    makingCharges: 15000, stoneCharges: 112500, miscCharges: 1500, imageUrl: "https://placehold.co/300x300.png?text=Necklace+Set"
   },
   {
-    sku: "TOP-000001", name: "Tops - TOP-000001", categoryId: "cat2", metalWeightG: 3.0, stoneWeightCt: 0.75, wastagePercentage: 8, // Example, will be 10% if added fresh
-    makingRatePerG: 600, stonePricePerCt: 50000, miscCharges: 300, assignedCustomerId: 'cust-002', imageUrl: "https://placehold.co/300x300.png"
+    sku: "TOP-000001", name: "Tops - TOP-000001", categoryId: "cat02", metalWeightG: 3.0, stoneWeightCt: 0.75, wastagePercentage: 10,
+    makingCharges: 1800, stoneCharges: 37500, miscCharges: 300, assignedCustomerId: 'cust-002', imageUrl: "https://placehold.co/300x300.png?text=Tops"
   },
   {
-    sku: "BRA-000001", name: "Bracelets - BRA-000001", categoryId: "cat5", metalWeightG: 8.0, stoneWeightCt: 0, wastagePercentage: 10,
-    makingRatePerG: 900, stonePricePerCt: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png"
+    sku: "BRA-000001", name: "Bracelets - BRA-000001", categoryId: "cat05", metalWeightG: 8.0, stoneWeightCt: 0, wastagePercentage: 10,
+    makingCharges: 7200, stoneCharges: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png?text=Bracelet"
   },
   {
-    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat7", metalWeightG: 15.0, stoneWeightCt: 0.5, wastagePercentage: 11, // Example, will be 15% if added fresh
-    makingRatePerG: 1000, stonePricePerCt: 45000, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png"
+    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", metalWeightG: 15.0, stoneWeightCt: 0.5, wastagePercentage: 15,
+    makingCharges: 15000, stoneCharges: 22500, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png?text=Bangle"
   },
   {
     sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalWeightG: 20.0, stoneWeightCt: 2.0, wastagePercentage: 15,
-    makingRatePerG: 1500, stonePricePerCt: 80000, miscCharges: 2000, assignedCustomerId: 'cust-003', imageUrl: "https://placehold.co/300x300.png"
+    makingCharges: 30000, stoneCharges: 160000, miscCharges: 2000, assignedCustomerId: 'cust-003', imageUrl: "https://placehold.co/300x300.png?text=Gold+Set"
   }
 ];
 
@@ -191,7 +193,7 @@ export const useAppStore = create<AppState>()(
     immer((set, get) => ({
       _hasHydrated: false,
       setHasHydrated: (hydrated) => {
-        set((state) => {
+         set((state) => {
           state._hasHydrated = hydrated;
         }, false, '[GemsTrack] Store: setHasHydrated');
       },
@@ -405,19 +407,17 @@ export const useAppStore = create<AppState>()(
         return localStorage;
       }),
       onRehydrateStorage: (_persistedState) => {
-        console.log('[GemsTrack] Persist: Rehydration attempt finished.');
-        // queueMicrotask is preferred over setTimeout(0) for immediate execution after current task.
-        queueMicrotask(() => {
-          useAppStore.getState().setHasHydrated(true);
-        });
-        return (state, error) => { // This is the correct signature for onRehydrateStorage with error handling
+        console.log('[GemsTrack] Persist: Storage rehydration attempt started.');
+        return (state, error) => {
           if (error) {
             console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
+          } else {
+            console.log('[GemsTrack] Persist: Storage rehydration successful.');
           }
-          // The state argument here is the rehydrated state or undefined if error/no storage.
-          // We still set _hasHydrated to true to signal completion of the attempt.
+          // Ensure _hasHydrated is set after the attempt, regardless of success/failure
           queueMicrotask(() => {
-             useAppStore.getState().setHasHydrated(true);
+            useAppStore.getState().setHasHydrated(true);
+            console.log('[GemsTrack] Persist: _hasHydrated flag set to true via onRehydrateStorage.');
           });
         };
       },
@@ -475,25 +475,8 @@ export const selectCartSubtotal = (state: AppState) => {
   return cartDetails.reduce((sum, item) => sum + item.lineItemTotal, 0);
 };
 
-// Revised useIsStoreHydrated hook
 export const useIsStoreHydrated = () => {
-  // Initialize with the current hydration state from the store
-  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
-
-  React.useEffect(() => {
-    // Sync with the store's hydration status in case it changed between initial state and effect execution
-    setIsHydrated(useAppStore.getState()._hasHydrated);
-
-    // Subscribe to future changes
-    const unsub = useAppStore.subscribe(
-      (state) => state._hasHydrated,
-      (hydrated) => setIsHydrated(hydrated)
-    );
-
-    return () => {
-      unsub(); // Cleanup subscription on unmount
-    };
-  }, []); // Empty dependency array ensures this runs only on mount and unmount
-
+  const isHydrated = useAppStore(React.useCallback(state => state._hasHydrated, []));
   return isHydrated;
 };
+
