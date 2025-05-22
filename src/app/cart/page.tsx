@@ -82,6 +82,7 @@ export default function CartPage() {
                 palladiumRatePerGram: settings.palladiumRatePerGram,
                 platinumRatePerGram: settings.platinumRatePerGram,
             };
+            // Directly use the imported calculateProductCosts function
             const costs = calculateProductCosts(productFromStore, ratesForCalc);
             currentSubtotalForValidation += costs.totalPrice * item.quantity;
         }
@@ -162,17 +163,21 @@ export default function CartPage() {
         metalDisplay += ` (${item.karat.toUpperCase()})`;
       }
 
-      let breakdown = `  Metal: ${item.metalCost.toLocaleString()}, Wastage: ${item.wastageCost.toLocaleString()}\n`;
-      breakdown += `  Making: ${item.makingCharges.toLocaleString()}`;
-      if (item.diamondChargesIfAny > 0) breakdown += `, Diamonds: ${item.diamondChargesIfAny.toLocaleString()}`;
-      if (item.stoneChargesIfAny > 0) breakdown += `, Stones: ${item.stoneChargesIfAny.toLocaleString()}`;
-      if (item.miscChargesIfAny > 0) breakdown += `, Misc: ${item.miscChargesIfAny.toLocaleString()}`;
+      let breakdownLines = [];
+      if (item.metalCost > 0) breakdownLines.push(`  Metal Cost: ${item.metalCost.toLocaleString()}`);
+      if (item.wastageCost > 0) breakdownLines.push(`  Wastage Cost: ${item.wastageCost.toLocaleString()}`);
+      if (item.makingCharges > 0) breakdownLines.push(`  Making Charges: ${item.makingCharges.toLocaleString()}`);
+      if (item.diamondChargesIfAny > 0) breakdownLines.push(`  Diamonds: ${item.diamondChargesIfAny.toLocaleString()}`);
+      if (item.stoneChargesIfAny > 0) breakdownLines.push(`  Stones: ${item.stoneChargesIfAny.toLocaleString()}`);
+      if (item.miscChargesIfAny > 0) breakdownLines.push(`  Misc: ${item.miscChargesIfAny.toLocaleString()}`);
       
-      const itemDescription = `${item.name} (SKU: ${item.sku}, ${metalDisplay})\n${breakdown}`;
+      const breakdown = breakdownLines.join('\n');
+      
+      const itemDescription = `${item.name} (SKU: ${item.sku})\nMetal: ${metalDisplay}, Wt: ${item.metalWeightG.toFixed(2)}g\n${breakdown ? breakdown : ''}`;
       
       const itemData = [
         index + 1,
-        itemDescription,
+        itemDescription.trim(),
         item.quantity,
         item.unitPrice.toLocaleString(),
         item.itemTotal.toLocaleString(),
@@ -186,14 +191,12 @@ export default function CartPage() {
       startY: 70,
       theme: 'grid',
       headStyles: { fillColor: [75, 0, 130] }, 
-      styles: { fontSize: 8, cellPadding: 1.5 },
+      styles: { fontSize: 8, cellPadding: 1.5, overflow: 'linebreak' },
       columnStyles: {
-        1: { cellWidth: 'auto' }, // Item Description column
+        1: { cellWidth: 'auto' }, 
       },
       didParseCell: function (data) {
-        if (data.column.index === 1 && data.cell.section === 'body') { // Item Description column
-            // Potentially adjust row height if content is multi-line, autoTable usually handles this.
-        }
+        // Potentially adjust row height if content is multi-line, autoTable usually handles this.
       }
     });
 
@@ -269,16 +272,25 @@ export default function CartPage() {
                             </TableHeader>
                             <TableBody>
                                 {generatedInvoice.items.map(item => {
-                                    let breakdown = `Metal: ${item.metalCost.toLocaleString()}, Wastage: ${item.wastageCost.toLocaleString()}, Making: ${item.makingCharges.toLocaleString()}`;
-                                    if (item.diamondChargesIfAny > 0) breakdown += `, Diamonds: ${item.diamondChargesIfAny.toLocaleString()}`;
-                                    if (item.stoneChargesIfAny > 0) breakdown += `, Stones: ${item.stoneChargesIfAny.toLocaleString()}`;
-                                    if (item.miscChargesIfAny > 0) breakdown += `, Misc: ${item.miscChargesIfAny.toLocaleString()}`;
+                                    let breakdownLines = [];
+                                    if (item.metalCost > 0) breakdownLines.push(`Metal Cost: ${item.metalCost.toLocaleString()}`);
+                                    if (item.wastageCost > 0) breakdownLines.push(`Wastage Cost: ${item.wastageCost.toLocaleString()}`);
+                                    if (item.makingCharges > 0) breakdownLines.push(`Making Charges: ${item.makingCharges.toLocaleString()}`);
+                                    if (item.diamondChargesIfAny > 0) breakdownLines.push(`Diamonds: ${item.diamondChargesIfAny.toLocaleString()}`);
+                                    if (item.stoneChargesIfAny > 0) breakdownLines.push(`Stones: ${item.stoneChargesIfAny.toLocaleString()}`);
+                                    if (item.miscChargesIfAny > 0) breakdownLines.push(`Misc: ${item.miscChargesIfAny.toLocaleString()}`);
+                                    const breakdownText = breakdownLines.join(', ');
+
                                     return (
                                     <TableRow key={item.sku}>
                                         <TableCell>
                                             <p className="font-medium">{item.name}</p>
-                                            <p className="text-xs text-muted-foreground">SKU: {item.sku} | Metal: {item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}</p>
-                                            <p className="text-xs text-muted-foreground/80 italic">{breakdown}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                SKU: {item.sku} | 
+                                                Metal: {item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''} | 
+                                                Wt: {item.metalWeightG.toFixed(2)}g
+                                            </p>
+                                            {breakdownText && <p className="text-xs text-muted-foreground/80 italic">{breakdownText}</p>}
                                         </TableCell>
                                         <TableCell className="text-right">{item.quantity}</TableCell>
                                         <TableCell className="text-right">{item.unitPrice.toLocaleString()}</TableCell>
@@ -344,7 +356,7 @@ export default function CartPage() {
                         <div className="flex-grow">
                           <h4 className="font-medium">{item.name}</h4>
                           <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
-                          <p className="text-xs text-muted-foreground">Metal: {item.metalType}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}</p>
+                          <p className="text-xs text-muted-foreground">Metal: {item.metalType}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: {item.metalWeightG.toFixed(2)}g</p>
                           <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString()} (at current store rates)</p>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -485,3 +497,4 @@ export default function CartPage() {
   );
 }
 
+```
