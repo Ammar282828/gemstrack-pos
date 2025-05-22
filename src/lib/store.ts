@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
-import React from 'react'; // Added React import for useEffect in useHydratedStore
+import React from 'react';
 
 // --- Type Definitions ---
 
@@ -54,18 +54,20 @@ export interface InvoiceItem extends Product {
 }
 
 export interface Invoice {
-  id: string;
+  id:string;
   customerId?: string;
   customerName?: string; // Denormalized for easier display
   items: InvoiceItem[];
   subtotal: number;
+  discountAmount: number;
   grandTotal: number;
   createdAt: string; // ISO Date string
-  // Add other fields like tax, discount if needed
+  goldRateApplied: number; // Gold rate used for this specific invoice
 }
 
 // --- Computed Value Helpers ---
 
+// This function now takes goldRatePerGram as a parameter
 export const calculateProductCosts = (product: Product, goldRatePerGram: number) => {
   const metalCost = product.metalWeightG * goldRatePerGram;
   const wastageCost = metalCost * (product.wastagePercentage / 100);
@@ -112,7 +114,7 @@ export interface AppState {
   clearCart: () => void;
 
   // Invoice Actions
-  generateInvoice: (customerId?: string) => Invoice | null; // Returns the generated invoice
+  generateInvoice: (customerId: string | undefined, invoiceGoldRate: number, discountAmount: number) => Invoice | null;
   clearGeneratedInvoices: () => void;
 
   // Hydration check
@@ -128,10 +130,10 @@ const initialCategories: Category[] = [
 ];
 
 const initialSettings: Settings = {
-  goldRatePerGram: 7000, // Example rate
+  goldRatePerGram: 20000, // Example rate for PKR (adjust as needed)
   shopName: "GemsTrack Boutique",
   shopAddress: "123 Jewel Street, Sparkle City",
-  shopContact: "contact@gemstrack.com | (555) 123-4567",
+  shopContact: "contact@gemstrack.com | (021) 123-4567",
   shopLogoUrl: "https://placehold.co/150x50.png?text=GemsTrack"
 };
 
@@ -256,16 +258,22 @@ export const useAppStore = create<AppState>()(
           state.cart = [];
         }),
       
-      generateInvoice: (customerId) => {
-        const { products, cart, settings, customers } = get();
+      generateInvoice: (customerId, invoiceGoldRate, discountAmount) => {
+        const { products, cart, customers } = get(); // Removed settings from here as gold rate is now dynamic
         if (cart.length === 0) return null;
+        if (invoiceGoldRate <= 0) { // Basic validation for gold rate
+            console.error("Invoice gold rate must be positive.");
+            return null; 
+        }
+
 
         let subtotal = 0;
         const invoiceItems: InvoiceItem[] = cart.map(cartItem => {
           const product = products.find(p => p.sku === cartItem.sku);
           if (!product) throw new Error(`Product with SKU ${cartItem.sku} not found for invoice.`);
           
-          const costs = calculateProductCosts(product, settings.goldRatePerGram);
+          // Use the passed invoiceGoldRate for calculations
+          const costs = calculateProductCosts(product, invoiceGoldRate);
           const unitPrice = costs.totalPrice;
           const itemTotal = unitPrice * cartItem.quantity;
           subtotal += itemTotal;
@@ -278,7 +286,8 @@ export const useAppStore = create<AppState>()(
           };
         });
 
-        const grandTotal = subtotal; 
+        const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, discountAmount)); // Ensure discount isn't negative or more than subtotal
+        const grandTotal = subtotal - calculatedDiscountAmount; 
 
         const customer = customers.find(c => c.id === customerId);
 
@@ -288,13 +297,15 @@ export const useAppStore = create<AppState>()(
           customerName: customer?.name,
           items: invoiceItems,
           subtotal,
+          discountAmount: calculatedDiscountAmount,
           grandTotal,
           createdAt: new Date().toISOString(),
+          goldRateApplied: invoiceGoldRate,
         };
 
         set(state => {
           state.generatedInvoices.push(newInvoice);
-          state.cart = []; 
+          // state.cart = []; // Do not clear cart here, let user do it explicitly or by new sale
         });
         return newInvoice;
       },
@@ -316,6 +327,7 @@ export const useAppStore = create<AppState>()(
         if (error) {
           console.error('[GemsTrack] Persist: Rehydration error:', error);
         }
+        // Ensure _hasHydrated is set after rehydration attempt
         queueMicrotask(() => {
           useAppStore.getState().setHasHydrated(true);
         });
@@ -325,12 +337,12 @@ export const useAppStore = create<AppState>()(
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 1,
+      version: 1, // Increment version if schema changes significantly
     }
   )
 );
 
-// Selector to get product with all calculated costs
+// Selector to get product with all calculated costs (uses settings gold rate for general display)
 export const selectProductWithCosts = (sku: string, state: AppState) => {
   const product = state.products.find(p => p.sku === sku);
   if (!product) return null;
@@ -338,7 +350,7 @@ export const selectProductWithCosts = (sku: string, state: AppState) => {
   return { ...product, ...costs };
 };
 
-// Selector to get all products with calculated costs
+// Selector to get all products with calculated costs (uses settings gold rate for general display)
 export const selectAllProductsWithCosts = (state: AppState) => {
   return state.products.map(product => {
     const costs = calculateProductCosts(product, state.settings.goldRatePerGram);
@@ -352,12 +364,12 @@ export const selectCategoryTitleById = (categoryId: string, state: AppState) => 
   return category ? category.title : 'Uncategorized';
 };
 
-// Selector for cart items with full product details and costs
+// Selector for cart items with full product details and costs (uses settings gold rate for pre-invoice display)
 export const selectCartDetails = (state: AppState) => {
   return state.cart.map(cartItem => {
     const product = state.products.find(p => p.sku === cartItem.sku);
     if (!product) return null; 
-    const costs = calculateProductCosts(product, state.settings.goldRatePerGram);
+    const costs = calculateProductCosts(product, state.settings.goldRatePerGram); // Cart display uses settings rate
     return {
       ...product,
       ...costs,
@@ -372,56 +384,21 @@ export const selectCartSubtotal = (state: AppState) => {
   return cartDetails.reduce((sum, item) => sum + item.lineItemTotal, 0);
 };
 
-export const useHydratedStore = <T, F>(
-  store: (callback: (state: T) => unknown) => unknown,
-  callback: (state: T) => F
-) => {
-  const result = store(callback) as F;
-  const [hydratedResult, setHydratedResult] = React.useState<F>();
-  const [isHydrated, setIsHydrated] = React.useState(false);
+
+export const useIsStoreHydrated = () => {
+  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
 
   React.useEffect(() => {
     const unsub = useAppStore.subscribe(
       (state) => state._hasHydrated,
-      (storeHasHydrated) => {
-        if (storeHasHydrated) {
-          setHydratedResult(callback(useAppStore.getState() as unknown as T));
-          setIsHydrated(true);
-          unsub(); 
-        }
-      },
-      { fireImmediately: true }
-    );
-    return unsub;
-  }, [callback]); 
-  
-  if (!isHydrated && typeof window === 'undefined') {
-     return result; 
-  }
-
-  return isHydrated ? hydratedResult : result; 
-};
-
-export const useIsStoreHydrated = () => {
-  const [isHydrated, setIsHydrated] = React.useState(false);
-
-  React.useEffect(() => {
-    const storeAlreadyHydrated = useAppStore.getState()._hasHydrated;
-    if (storeAlreadyHydrated) {
-      setIsHydrated(true);
-    }
-
-    const unsubscribe = useAppStore.subscribe(
-      (state) => state._hasHydrated,
-      (hydratedValueFromStore) => {
-        setIsHydrated(hydratedValueFromStore);
+      (hydrated) => {
+        setIsHydrated(hydrated);
       }
     );
-
-    return () => {
-      unsubscribe();
-    };
-  }, []); // Empty dependency array ensures this effect runs only on mount and unmount
+    // Also set if it's already hydrated on first render
+    setIsHydrated(useAppStore.getState()._hasHydrated);
+    return unsub;
+  }, []);
 
   return isHydrated;
 };

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, IndianRupee, Weight, Shapes, User } from 'lucide-react';
+import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, User } from 'lucide-react'; // Removed IndianRupee
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -38,13 +38,14 @@ declare module 'jspdf' {
   }
 }
 
-const DetailItem: React.FC<{ label: string; value: string | number | undefined; icon?: React.ReactNode, unit?: string }> = ({ label, value, icon, unit }) => (
+const DetailItem: React.FC<{ label: string; value: string | number | undefined; icon?: React.ReactNode, unit?: string, currency?: string }> = ({ label, value, icon, unit, currency }) => (
   <div className="flex justify-between items-center py-2">
     <div className="flex items-center text-muted-foreground">
       {icon && <span className="mr-2">{icon}</span>}
       <span>{label}</span>
     </div>
     <span className="font-medium text-foreground">
+      {currency && <span className="mr-0.5">{currency}</span>}
       {typeof value === 'number' ? value.toLocaleString() : value || '-'} {unit}
     </span>
   </div>
@@ -108,10 +109,9 @@ export default function ProductDetailPage() {
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(`₹${productData.totalPrice.toLocaleString()}`, 3, 20);
+    doc.text(`PKR ${productData.totalPrice.toLocaleString()}`, 3, 20); // Currency updated
     
     // Add QR Code
-    // Ensure qrCodeDataUrl is a PNG data URL
     if (qrCodeDataUrl.startsWith("data:image/png")) {
          doc.addImage(qrCodeDataUrl, 'PNG', 45, 3, 24, 24); // Adjust position and size as needed
     } else {
@@ -119,10 +119,8 @@ export default function ProductDetailPage() {
         doc.text("[QR Placeholder]", 45, 15);
     }
 
-
     doc.rect(1, 1, 68, 28); // Border for the tag
 
-    // Open print dialog
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
     
@@ -204,9 +202,7 @@ export default function ProductDetailPage() {
                 <QrCodeIcon className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center p-4">
-                {/* Hidden canvas for QR code data URL generation */}
                 <QRCode id={`qr-${sku}`} value={productData.sku} size={128} level="H" style={{ display: 'none' }} />
-                {/* Visible QR Code using img tag with data URL */}
                 {qrCodeDataUrl ? (
                   <Image src={qrCodeDataUrl} alt={`QR Code for ${productData.sku}`} width={128} height={128} />
                 ) : (
@@ -237,17 +233,17 @@ export default function ProductDetailPage() {
                 <div className="bg-primary/10 p-4 rounded-lg mb-4 text-center">
                   <p className="text-sm text-primary font-medium">TOTAL PRICE</p>
                   <p className="text-4xl font-bold text-primary flex items-center justify-center">
-                    <IndianRupee className="h-7 w-7 mr-1" />
+                    <span className="mr-1">PKR</span> {/* Currency updated */}
                     {productData.totalPrice.toLocaleString()}
                   </p>
                 </div>
-                <DetailItem label="Gold Rate" value={settings.goldRatePerGram} unit="/ gram" />
+                <DetailItem label="Gold Rate (Store Setting)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR" />
                 <Separator className="my-1" />
-                <DetailItem label="Metal Cost" value={productData.metalCost} />
-                <DetailItem label="Wastage Cost" value={productData.wastageCost} />
-                <DetailItem label="Making Cost" value={productData.makingCost} />
-                <DetailItem label="Stone Cost" value={productData.stoneCost} />
-                <DetailItem label="Misc. Charges" value={productData.miscCharges} />
+                <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR" />
+                <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR" />
+                <DetailItem label="Making Cost" value={productData.makingCost} currency="PKR" />
+                <DetailItem label="Stone Cost" value={productData.stoneCost} currency="PKR" />
+                <DetailItem label="Misc. Charges" value={productData.miscCharges} currency="PKR" />
               </CardContent>
             </Card>
 
@@ -256,13 +252,13 @@ export default function ProductDetailPage() {
               <CardContent>
                 <DetailItem label="Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
                 <Separator className="my-1" />
-                <DetailItem label="Stone Weight" value={productData.stoneWeightCt} icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3.27A21.64 21.64 0 0 1 12 3a21.64 21.64 0 0 1 6 0.27V5.5a21.64 21.64 0 0 0-6 15.23A21.64 21.64 0 0 0 6 5.5V3.27Z"></path><path d="M12 15.5V21"></path><path d="M12 3v3.05"></path><path d="M17.83 4.53c2.22 0 3.17 1.34 3.17 2.69 0 .84-.47 1.41-1.12 1.88L18 9.93"></path><path d="M6.17 4.53c-2.22 0-3.17 1.34-3.17 2.69 0 .84-.47 1.41 1.12 1.88L6 9.93"></path></svg>} unit="carats" />
+                <DetailItem label="Stone Weight" value={productData.stoneWeightCt} icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3.27A21.64 21.64 0 0 1 12 3a21.64 21.64 0 0 1 6 0.27V5.5a21.64 21.64 0 0 0-6 15.23A21.64 21.64 0 0 0 6 5.5V3.27Z"></path><path d="M12 15.5V21"></path><path d="M12 3v3.05"></path><path d="M17.83 4.53c2.22 0 3.17 1.34 3.17 2.69 0 .84-.47 1.41-1.12 1.88L18 9.93"></path><path d="M6.17 4.53c-2.22 0-3.17 1.34-3.17 2.69 0 .84.47 1.41 1.12 1.88L6 9.93"></path></svg>} unit="carats" />
                 <Separator className="my-1" />
                 <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
                 <Separator className="my-1" />
-                <DetailItem label="Making Rate" value={productData.makingRatePerG} unit="/ gram" />
+                <DetailItem label="Making Rate" value={productData.makingRatePerG} unit="/ gram" currency="PKR" />
                 <Separator className="my-1" />
-                <DetailItem label="Stone Rate" value={productData.stoneRatePerCt} unit="/ carat" />
+                <DetailItem label="Stone Rate" value={productData.stoneRatePerCt} unit="/ carat" currency="PKR" />
               </CardContent>
             </Card>
           </div>

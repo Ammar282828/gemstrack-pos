@@ -1,17 +1,17 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link'; 
-import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Product, Settings, InvoiceItem, Invoice as InvoiceType } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Settings, InvoiceItem, Invoice as InvoiceType } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, IndianRupee, ShoppingCart, FileText, Printer, User, XCircle } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable'; // For table generation
@@ -33,13 +33,23 @@ export default function CartPage() {
   
   const isHydrated = useIsStoreHydrated();
   const cartItems = useAppStore(selectCartDetails);
-  const cartSubtotal = useAppStore(selectCartSubtotal);
+  const cartSubtotal = useAppStore(selectCartSubtotal); // This subtotal is based on settings gold rate
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
   const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction } = useAppStore();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
+  
+  // State for dynamic gold rate and discount for the current invoice
+  const [invoiceGoldRateInput, setInvoiceGoldRateInput] = useState<string>('');
+  const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
+
+  useEffect(() => {
+    if (isHydrated) {
+        setInvoiceGoldRateInput(settings.goldRatePerGram.toString());
+    }
+  }, [isHydrated, settings.goldRatePerGram]);
 
 
   const handleQuantityChange = (sku: string, newQuantity: number) => {
@@ -47,40 +57,71 @@ export default function CartPage() {
   };
 
   const handleGenerateInvoice = () => {
-    const invoice = generateInvoiceAction(selectedCustomerId);
+    if (cartItems.length === 0) {
+      toast({ title: "Cart Empty", description: "Cannot generate invoice for an empty cart.", variant: "destructive" });
+      return;
+    }
+
+    const parsedGoldRate = parseFloat(invoiceGoldRateInput);
+    if (isNaN(parsedGoldRate) || parsedGoldRate <= 0) {
+      toast({ title: "Invalid Gold Rate", description: "Please enter a valid positive gold rate.", variant: "destructive" });
+      return;
+    }
+
+    const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
+    if (parsedDiscountAmount < 0) {
+      toast({ title: "Invalid Discount", description: "Discount amount cannot be negative.", variant: "destructive" });
+      return;
+    }
+
+    // Calculate subtotal based on the dynamic gold rate for validation, though store will recalculate
+    let currentSubtotalForValidation = 0;
+    cartItems.forEach(item => {
+        const product = useAppStore.getState().products.find(p => p.sku === item.sku);
+        if (product) {
+            const costs = useAppStore.getState().calculateProductCosts(product, parsedGoldRate);
+            currentSubtotalForValidation += costs.totalPrice * item.quantity;
+        }
+    });
+
+    if (parsedDiscountAmount > currentSubtotalForValidation) {
+        toast({ title: "Invalid Discount", description: "Discount cannot be greater than the subtotal.", variant: "destructive" });
+        return;
+    }
+    
+    const invoice = generateInvoiceAction(selectedCustomerId, parsedGoldRate, parsedDiscountAmount);
     if (invoice) {
       setGeneratedInvoice(invoice);
       toast({ title: "Invoice Generated", description: `Invoice ${invoice.id} created successfully.` });
     } else {
-      toast({ title: "Cart Empty", description: "Cannot generate invoice for an empty cart.", variant: "destructive" });
+      // This case might be hit if generateInvoiceAction itself returns null for other reasons (e.g. internal validation)
+      toast({ title: "Invoice Generation Failed", description: "Could not generate the invoice. Please check inputs.", variant: "destructive" });
     }
   };
   
   const printInvoice = (invoiceToPrint: InvoiceType) => {
     const doc = new jsPDF();
 
-    // Shop Logo and Name
     if (settings.shopLogoUrl) {
       try {
-        // This is a simplified approach. For robust solution, ensure image is loaded first or use base64.
-        // For now, assuming URL is directly usable or placeholder.
-        // doc.addImage(settings.shopLogoUrl, 'PNG', 15, 10, 30, 10); // Adjust as needed
+        // Note: External image URLs in jsPDF often require CORS or preloading to base64
+        // doc.addImage(settings.shopLogoUrl, 'PNG', 15, 10, 30, 10); 
       } catch (e) { console.error("Error adding logo to PDF:", e); }
     }
     doc.setFontSize(18);
-    doc.text(settings.shopName, 15, 15); // Adjust X if logo is present
+    doc.text(settings.shopName, 15, 15);
     doc.setFontSize(10);
     doc.text(settings.shopAddress, 15, 22);
     doc.text(settings.shopContact, 15, 27);
 
-    // Invoice Title
     doc.setFontSize(22);
     doc.text('INVOICE', 140, 15);
     doc.setFontSize(12);
     doc.text(`Invoice #: ${invoiceToPrint.id}`, 140, 22);
     doc.text(`Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`, 140, 27);
+    doc.text(`Gold Rate: PKR ${invoiceToPrint.goldRateApplied.toLocaleString()}/g`, 140, 32);
 
-    // Customer Info
+
     if (invoiceToPrint.customerId) {
       const customer = customers.find(c => c.id === invoiceToPrint.customerId);
       if (customer) {
@@ -94,8 +135,7 @@ export default function CartPage() {
       }
     }
     
-    // Table
-    const tableColumn = ["#", "Item", "SKU", "Qty", "Unit Price", "Total"];
+    const tableColumn = ["#", "Item", "SKU", "Qty", "Unit Price (PKR)", "Total (PKR)"];
     const tableRows: any[][] = [];
     invoiceToPrint.items.forEach((item, index) => {
       const itemData = [
@@ -114,21 +154,26 @@ export default function CartPage() {
       body: tableRows,
       startY: 70,
       theme: 'grid',
-      headStyles: { fillColor: [75, 0, 130] }, // Deep Indigo
+      headStyles: { fillColor: [75, 0, 130] }, 
       styles: { fontSize: 8 },
     });
 
-    // Totals
-    const finalY = (doc as any).lastAutoTable.finalY || 100; // Get Y pos after table
+    const finalY = (doc as any).lastAutoTable.finalY || 100; 
+    let currentY = finalY + 10;
     doc.setFontSize(10);
-    doc.text(`Subtotal:`, 140, finalY + 10);
-    doc.text(`₹${invoiceToPrint.subtotal.toLocaleString()}`, 170, finalY + 10);
+    doc.text(`Subtotal:`, 140, currentY);
+    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString()}`, 170, currentY);
+    
+    currentY += 6;
+    doc.text(`Discount:`, 140, currentY);
+    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString()}`, 170, currentY);
+    
+    currentY += 8;
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text(`Grand Total:`, 140, finalY + 18);
-    doc.text(`₹${invoiceToPrint.grandTotal.toLocaleString()}`, 170, finalY + 18);
+    doc.text(`Grand Total:`, 140, currentY);
+    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString()}`, 170, currentY);
     
-    // Footer
     doc.setFontSize(8);
     doc.text("Thank you for your business!", 15, doc.internal.pageSize.height - 10);
 
@@ -136,6 +181,14 @@ export default function CartPage() {
     window.open(doc.output('bloburl'), '_blank');
     toast({ title: "Invoice Printing", description: "Invoice PDF sent to print dialog." });
   };
+
+  const handleNewSale = () => {
+    setGeneratedInvoice(null); 
+    clearCart(); 
+    setSelectedCustomerId(undefined);
+    setInvoiceGoldRateInput(settings.goldRatePerGram.toString());
+    setDiscountAmountInput('0');
+  }
 
 
   if (!isHydrated) {
@@ -154,6 +207,8 @@ export default function CartPage() {
                     <CardTitle className="text-2xl">Invoice Generated: {generatedInvoice.id}</CardTitle>
                     <CardDescription>
                         Invoice for {generatedInvoice.customerName || "Walk-in Customer"} created on {new Date(generatedInvoice.createdAt).toLocaleString()}.
+                        <br/>
+                        Gold Rate Applied: PKR {generatedInvoice.goldRateApplied.toLocaleString()}/gram
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -165,8 +220,8 @@ export default function CartPage() {
                                     <TableHead>Product</TableHead>
                                     <TableHead>SKU</TableHead>
                                     <TableHead className="text-right">Qty</TableHead>
-                                    <TableHead className="text-right">Unit Price</TableHead>
-                                    <TableHead className="text-right">Total</TableHead>
+                                    <TableHead className="text-right">Unit Price (PKR)</TableHead>
+                                    <TableHead className="text-right">Total (PKR)</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -175,20 +230,21 @@ export default function CartPage() {
                                         <TableCell>{item.name}</TableCell>
                                         <TableCell>{item.sku}</TableCell>
                                         <TableCell className="text-right">{item.quantity}</TableCell>
-                                        <TableCell className="text-right">₹{item.unitPrice.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">₹{item.itemTotal.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">{item.unitPrice.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">{item.itemTotal.toLocaleString()}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
                     </div>
-                    <div className="text-right mt-4">
-                        <p>Subtotal: <span className="font-semibold">₹{generatedInvoice.subtotal.toLocaleString()}</span></p>
-                        <p className="text-xl font-bold">Grand Total: <span className="text-primary">₹{generatedInvoice.grandTotal.toLocaleString()}</span></p>
+                    <div className="text-right mt-4 space-y-1">
+                        <p>Subtotal: <span className="font-semibold">PKR {generatedInvoice.subtotal.toLocaleString()}</span></p>
+                        <p>Discount: <span className="font-semibold text-destructive">- PKR {generatedInvoice.discountAmount.toLocaleString()}</span></p>
+                        <p className="text-xl font-bold">Grand Total: <span className="text-primary">PKR {generatedInvoice.grandTotal.toLocaleString()}</span></p>
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => { setGeneratedInvoice(null); clearCart(); setSelectedCustomerId(undefined);}}>New Sale / Clear</Button>
+                    <Button variant="outline" onClick={handleNewSale}>New Sale / Clear</Button>
                     <Button onClick={() => printInvoice(generatedInvoice)}><Printer className="mr-2 h-4 w-4"/> Print Invoice</Button>
                 </CardFooter>
             </Card>
@@ -201,7 +257,7 @@ export default function CartPage() {
     <div className="container mx-auto py-8 px-4">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-primary">Shopping Cart & Invoice</h1>
-        <p className="text-muted-foreground">Review items and generate an invoice.</p>
+        <p className="text-muted-foreground">Review items, set invoice parameters, and generate an invoice.</p>
       </header>
 
       {cartItems.length === 0 ? (
@@ -236,7 +292,7 @@ export default function CartPage() {
                         <div className="flex-grow">
                           <h4 className="font-medium">{item.name}</h4>
                           <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
-                          <p className="text-sm font-semibold text-primary">₹{item.totalPrice.toLocaleString()}</p>
+                          <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString()} (at current gold rate)</p>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Button size="icon" variant="outline" onClick={() => handleQuantityChange(item.sku, item.quantity - 1)} disabled={item.quantity <= 1}>
@@ -270,7 +326,7 @@ export default function CartPage() {
           <div>
             <Card>
               <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
+                <CardTitle>Order Summary & Invoice Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -293,15 +349,46 @@ export default function CartPage() {
                   </Select>
                 </div>
                 <Separator />
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Subtotal:</span>
-                  <span className="font-semibold text-lg">₹{cartSubtotal.toLocaleString()}</span>
+                <div>
+                  <Label htmlFor="invoice-gold-rate" className="flex items-center mb-1 text-sm font-medium">
+                    <SettingsIcon className="w-4 h-4 mr-1 text-muted-foreground" /> Gold Rate for this Invoice (PKR/gram)
+                  </Label>
+                  <Input
+                    id="invoice-gold-rate"
+                    type="number"
+                    value={invoiceGoldRateInput}
+                    onChange={(e) => setInvoiceGoldRateInput(e.target.value)}
+                    placeholder="e.g., 20000"
+                    className="text-base"
+                  />
+                   <p className="text-xs text-muted-foreground mt-1">Current store setting: PKR {settings.goldRatePerGram.toLocaleString()}/gram</p>
                 </div>
-                {/* Add Tax/Discount fields here if needed */}
+                <div>
+                  <Label htmlFor="discount-amount" className="flex items-center mb-1 text-sm font-medium">
+                    <Percent className="w-4 h-4 mr-1 text-muted-foreground" /> Discount Amount (PKR)
+                  </Label>
+                  <Input
+                    id="discount-amount"
+                    type="number"
+                    value={discountAmountInput}
+                    onChange={(e) => setDiscountAmountInput(e.target.value)}
+                    placeholder="e.g., 500"
+                    className="text-base"
+                  />
+                </div>
+
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Cart Subtotal (est.):</span>
+                  <span className="font-semibold text-lg">PKR {cartSubtotal.toLocaleString()}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  (Estimated using current store gold rate. Final invoice will use the rate entered above.)
+                </p>
                 <Separator />
                 <div className="flex justify-between items-center text-xl font-bold">
-                  <span>Grand Total:</span>
-                  <span className="text-primary">₹{cartSubtotal.toLocaleString()}</span>
+                  <span>Grand Total (est.):</span>
+                  <span className="text-primary">PKR {(cartSubtotal - (parseFloat(discountAmountInput) || 0)).toLocaleString()}</span>
                 </div>
               </CardContent>
               <CardFooter>

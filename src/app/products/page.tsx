@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shapes, Search, Tag, Weight, IndianRupee, PlusCircle, Eye, Edit3, Trash2 } from 'lucide-react';
+import { Shapes, Search, Tag, Weight, PlusCircle, Eye, Edit3, Trash2 } from 'lucide-react'; // Removed IndianRupee
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,8 +50,9 @@ const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: stri
           {categoryTitle}
         </Badge>
         <div className="flex items-center text-sm">
-          <IndianRupee className="w-4 h-4 mr-1 text-primary" />
-          <span className="font-semibold text-primary">{product.totalPrice.toLocaleString()}</span>
+          <span className="font-semibold text-primary">
+            <span className="mr-0.5">PKR</span>{product.totalPrice.toLocaleString()} {/* Currency updated */}
+          </span>
         </div>
         <div className="text-xs text-muted-foreground mt-1">
           Metal: {product.metalWeightG}g | Stone: {product.stoneWeightCt}ct
