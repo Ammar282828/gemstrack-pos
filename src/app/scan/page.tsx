@@ -62,7 +62,7 @@ export default function ScanPOSPage() {
   const html5QrcodeScannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   const onScanFailure: QrcodeErrorCallback = useCallback((error) => {
-    // console.warn(`[GemsTrack] QR Scan Error: ${error}`);
+    console.warn(`[GemsTrack] QR Scan Error or Not Found: ${error}`);
   }, []);
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText, decodedResult) => {
@@ -84,63 +84,80 @@ export default function ScanPOSPage() {
       return;
     }
 
-    // If a scanner instance is already in the ref (and presumably active), do nothing further.
-    if (html5QrcodeScannerRef.current) {
-      // We might want to check its state, but for now, if it exists, assume it's managed.
-      // This check helps prevent re-initialization if the effect runs multiple times
-      // (e.g. due to dependency changes or StrictMode in dev).
-      return;
-    }
-
     const containerElement = document.getElementById(qrReaderElementId);
     if (!containerElement) {
       console.warn(`[GemsTrack] QR Reader container element with ID '${qrReaderElementId}' not found.`);
       setHasCameraPermission(false);
       return;
     }
-
-    // Explicitly empty the container before rendering the scanner.
-    // This can prevent errors if the library fails to clean up its own previous DOM elements.
-    while (containerElement.firstChild) {
-      containerElement.removeChild(containerElement.firstChild);
-    }
     
-    const newScanner = new Html5QrcodeScanner(
-      qrReaderElementId,
-      {
-        fps: 10,
-        qrbox: (viewfinderWidth, viewfinderHeight) => {
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdge * 0.7);
-          return { width: qrboxSize, height: qrboxSize };
-        },
-        rememberLastUsedCamera: true,
-        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
-      },
-      false // verbose
-    );
+    // Only initialize if no active scanner instance exists
+    if (!html5QrcodeScannerRef.current) {
+      // Explicitly empty the container before rendering a new scanner.
+      while (containerElement.firstChild) {
+        containerElement.removeChild(containerElement.firstChild);
+      }
 
-    try {
-      newScanner.render(onScanSuccess, onScanFailure);
-      html5QrcodeScannerRef.current = newScanner; // Store the instance
-      setHasCameraPermission(true);
-    } catch (renderError) {
-      console.error("[GemsTrack] Error calling scanner.render(): ", renderError);
-      setHasCameraPermission(false);
-      // html5QrcodeScannerRef.current remains null if it was, or if newScanner failed before assignment.
+      const newScanner = new Html5QrcodeScanner(
+        qrReaderElementId,
+        {
+          fps: 10,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.floor(minEdge * 0.8); // Increased from 0.7
+            return { width: qrboxSize, height: qrboxSize };
+          },
+          rememberLastUsedCamera: true,
+          supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
+        },
+        false // verbose
+      );
+
+      try {
+        newScanner.render(onScanSuccess, onScanFailure);
+        html5QrcodeScannerRef.current = newScanner; // Store the instance AFTER successful render call
+        setHasCameraPermission(true);
+      } catch (renderError) {
+        console.error("[GemsTrack] Error calling scanner.render(): ", renderError);
+        setHasCameraPermission(false);
+        // Attempt to clear if render failed but instance was created
+        if (newScanner && typeof newScanner.clear === 'function') {
+          newScanner.clear().catch(err => {
+            console.warn("[GemsTrack] Error clearing scanner after render fail:", err);
+          });
+        }
+        html5QrcodeScannerRef.current = null;
+      }
     }
 
     return () => {
       // Cleanup when component unmounts
-      if (html5QrcodeScannerRef.current) {
-        const scannerToClear = html5QrcodeScannerRef.current;
-        html5QrcodeScannerRef.current = null; // Nullify immediately
-        
-        // Attempt to clear the scanner, catching potential errors
-        scannerToClear.clear().catch(err => {
-          console.warn("[GemsTrack] Error clearing scanner on component unmount:", err);
-        });
+      const scannerToClear = html5QrcodeScannerRef.current;
+      html5QrcodeScannerRef.current = null; // Nullify immediately
+      
+      if (scannerToClear && typeof scannerToClear.clear === 'function') {
+         try {
+          // Check state before clearing, if possible (not all versions expose getState robustly)
+          if (scannerToClear.getState && scannerToClear.getState() === Html5QrcodeScannerState.SCANNING) {
+            scannerToClear.clear().catch(err => {
+              console.warn("[GemsTrack] Error clearing scanner on component unmount (was scanning):", err);
+            });
+          } else if (scannerToClear.getState && scannerToClear.getState() === Html5QrcodeScannerState.NOT_STARTED) {
+            // Do nothing, it wasn't really active.
+          } else {
+            // Attempt to clear anyway if state is unknown or paused
+             scannerToClear.clear().catch(err => {
+              console.warn("[GemsTrack] Error clearing scanner on component unmount (state unknown/paused):", err);
+            });
+          }
+        } catch (e) {
+             console.warn("[GemsTrack] Error during scanner state check/clear on unmount:", e);
+             // Fallback clear if getState is not available or throws
+             scannerToClear.clear().catch(err_1 => {
+                console.warn("[GemsTrack] Error clearing scanner on component unmount (fallback):", err_1);
+             });
+        }
       }
     };
   }, [isHydrated, onScanSuccess, onScanFailure]);
@@ -182,13 +199,11 @@ export default function ScanPOSPage() {
               <CardDescription>Scan product QR codes to add them to the current sale. Or, enter SKU manually.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Container for the QR Code Scanner UI */}
               <div id={qrReaderElementId} className="w-full aspect-[4/3] md:aspect-video border rounded-md bg-muted overflow-hidden mx-auto max-w-lg">
                 {/* The html5-qrcode library will render its UI here. */}
-                {/* We only show status messages if the scanner itself hasn't started or had an issue. */}
               </div>
               
-              {hasCameraPermission === null && !html5QrcodeScannerRef.current && (
+              {hasCameraPermission === null && (
                 <div className="text-center py-2 text-muted-foreground">
                   <VideoOff className="w-10 h-10 mb-1 mx-auto" />
                   <p className="text-sm">Initializing QR Scanner...</p>
@@ -216,6 +231,7 @@ export default function ScanPOSPage() {
                     placeholder="e.g., RIN-000001"
                     className="text-base"
                     onKeyPress={(e) => { if (e.key === 'Enter') handleManualSkuAdd(); }}
+                    aria-label="Manually enter SKU"
                     />
                      {skuInput && (
                         <Button
@@ -280,5 +296,4 @@ export default function ScanPOSPage() {
     </div>
   );
 }
-
     
