@@ -57,35 +57,33 @@ body {
   }
 
   .dark {
-    /* For dark mode, we'll invert and adjust. 
-       This is a basic setup and might need refinement. */
-    --background: 276 20% 10%; /* Dark Indigo/Purple */
-    --foreground: 240 30% 85%; /* Light Lavender/Gray */
+    --background: 276 25% 12%; /* Dark Indigo/Purple base */
+    --foreground: 240 60% 88%; /* Lighter Lavender/Gray for text */
 
-    --card: 276 20% 15%;
-    --card-foreground: 240 30% 85%;
+    --card: 276 25% 17%; /* Slightly lighter than background */
+    --card-foreground: 240 60% 88%;
 
-    --popover: 276 20% 15%;
-    --popover-foreground: 240 30% 85%;
+    --popover: 276 25% 17%;
+    --popover-foreground: 240 60% 88%;
 
-    --primary: 43 90% 45%; /* Muted Gold (brighter in dark mode) */
-    --primary-foreground: 276 100% 10%; /* Dark for contrast on Gold */
+    --primary: 43 90% 50%; /* Muted Gold (brighter in dark mode) */
+    --primary-foreground: 43 90% 10%; /* Dark brown/black for contrast on Gold */
     
-    --secondary: 43 90% 35%; 
-    --secondary-foreground: 276 100% 10%;
+    --secondary: 43 80% 40%;  /* Slightly darker/desaturated Muted Gold */
+    --secondary-foreground: 43 80% 90%; /* Light text on secondary gold */
 
-    --muted: 276 15% 25%;
-    --muted-foreground: 240 30% 70%;
+    --muted: 276 20% 28%; /* Muted, slightly lighter than card */
+    --muted-foreground: 240 40% 75%; /* Muted text color */
 
-    --accent: 276 80% 60%; /* Lighter Indigo/Purple for accent */
-    --accent-foreground: 0 0% 98%;
+    --accent: 276 80% 70%; /* Brighter Indigo/Purple for general accents */
+    --accent-foreground: 276 80% 10%; /* Dark text on accent */
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 72% 51%; /* Adjusted destructive red */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 276 15% 25%;
-    --input: 276 15% 20%;
-    --ring: 43 90% 50%;
+    --border: 276 20% 30%;
+    --input: 276 20% 22%; /* Darker input fields */
+    --ring: 43 90% 55%; /* Ring color to match primary (Muted Gold) */
 
     /* Chart colors for dark mode */
     --chart-1: 276 70% 60%;
@@ -94,14 +92,15 @@ body {
     --chart-4: 276 50% 80%;
     --chart-5: 43 50% 80%;
 
-    --sidebar-background: 276 25% 12%; 
-    --sidebar-foreground: 240 40% 90%;
-    --sidebar-primary: 43 90% 50%; 
-    --sidebar-primary-foreground: 276 100% 8%; 
-    --sidebar-accent: 276 25% 18%; 
-    --sidebar-accent-foreground: 240 40% 90%;
-    --sidebar-border: 276 25% 10%;
-    --sidebar-ring: 43 90% 55%;
+    /* Sidebar dark theme variables (already well-defined, ensuring consistency) */
+    --sidebar-background: 276 25% 12%; /* Consistent with main dark background */
+    --sidebar-foreground: 240 60% 88%; /* Consistent with main dark foreground */
+    --sidebar-primary: 43 90% 50%; /* Muted Gold for active/hover items */
+    --sidebar-primary-foreground: 276 100% 8%; /* Dark Indigo for text on Gold */
+    --sidebar-accent: 276 25% 18%; /* Slightly lighter Indigo for hover */
+    --sidebar-accent-foreground: 240 60% 88%;
+    --sidebar-border: 276 25% 10%; /* Darker Indigo border for sidebar */
+    --sidebar-ring: 43 90% 55%; /* Ring color for sidebar focus */
   }
 }
 
