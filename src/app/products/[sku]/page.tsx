@@ -264,13 +264,13 @@ export default function ProductDetailPage() {
               <CardContent>
                 <DetailItem label="Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
                 <Separator className="my-1" />
-                <DetailItem label="Stone Weight" value={productData.stoneWeightCt} icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3.27A21.64 21.64 0 0 1 12 3a21.64 21.64 0 0 1 6 0.27V5.5a21.64 21.64 0 0 0-6 15.23A21.64 21.64 0 0 0 6 5.5V3.27Z"></path><path d="M12 15.5V21"></path><path d="M12 3v3.05"></path><path d="M17.83 4.53c2.22 0 3.17 1.34 3.17 2.69 0 .84-.47 1.41-1.12 1.88L18 9.93"></path><path d="M6.17 4.53c-2.22 0-3.17 1.34-3.17 2.69 0 .84-.47 1.41 1.12 1.88L6 9.93"></path></svg>} unit="carats" />
+                <DetailItem label="Stone Weight" value={productData.stoneWeightCt} icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3.27A21.64 21.64 0 0 1 12 3a21.64 21.64 0 0 1 6 0.27V5.5a21.64 21.64 0 0 0-6 15.23A21.64 21.64 0 0 0 6 5.5V3.27Z"></path><path d="M12 15.5V21"></path><path d="M12 3v3.05"></path><path d="M17.83 4.53c2.22 0 3.17 1.34 3.17 2.69 0 .84-.47 1.41-1.12 1.88L18 9.93"></path><path d="M6.17 4.53c-2.22 0-3.17 1.34-3.17 2.69 0 .84.47 1.41 1.12 1.88L6 9.93"></path></svg>} unit="carats" />
                 <Separator className="my-1" />
                 <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
                 <Separator className="my-1" />
                 <DetailItem label="Making Rate" value={productData.makingRatePerG} unit="/ gram" currency="PKR" />
                 <Separator className="my-1" />
-                <DetailItem label="Stone Rate" value={productData.stoneRatePerCt} unit="/ carat" currency="PKR" />
+                <DetailItem label="Stone Price" value={productData.stonePricePerCt} unit="/ carat" currency="PKR" />
               </CardContent>
             </Card>
           </div>
