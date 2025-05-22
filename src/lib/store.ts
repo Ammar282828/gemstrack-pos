@@ -149,6 +149,7 @@ export const useAppStore = create<AppState>()(
       setHasHydrated: (hydrated) => {
         set((state) => {
           state._hasHydrated = hydrated;
+          console.log(`[GemsTrack] Store: _hasHydrated explicitly set to ${hydrated}`);
         }, false, 'setHasHydrated_action');
       },
       settings: initialSettings,
@@ -307,26 +308,21 @@ export const useAppStore = create<AppState>()(
     {
       name: 'gemstrack-pos-storage',
       storage: createJSONStorage(() => {
-        // Provide localStorage for client-side, and a dummy storage for SSR
         if (typeof window === 'undefined') {
           return ssrDummyStorage;
         }
         return localStorage;
       }),
-      onRehydrateStorage: (state, error) => {
-        // This callback is invoked after the storage has been rehydrated.
+      onRehydrateStorage: (_state, error) => {
         if (error) {
           console.error('[GemsTrack] Persist: Rehydration error:', error);
         }
-        // Use queueMicrotask to ensure this runs after the current synchronous execution path,
-        // giving the store a chance to be fully initialized.
         queueMicrotask(() => {
           useAppStore.getState().setHasHydrated(true);
-          // console.log('[GemsTrack] Persist: _hasHydrated flag set to true.');
+          console.log('[GemsTrack] Persist: _hasHydrated flag set to true via onRehydrateStorage.');
         });
       },
       partialize: (state) => {
-        // Do not persist the _hasHydrated flag itself
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _hasHydrated, ...rest } = state;
         return rest;
@@ -409,21 +405,42 @@ export const useHydratedStore = <T, F>(
 };
 
 export const useIsStoreHydrated = () => {
-  const isStoreHydrated = useAppStore(state => state._hasHydrated);
-  const [clientIsHydrated, setClientIsHydrated] = React.useState(false);
-  
+  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
+
   React.useEffect(() => {
-    if (isStoreHydrated) {
-      setClientIsHydrated(true);
+    // This effect ensures that if hydration completes *after* initial mount but *before*
+    // this effect runs for the first time, we still update.
+    // Also, it handles the case where the store becomes hydrated after initial mount.
+    const currentlyHydrated = useAppStore.getState()._hasHydrated;
+    if (currentlyHydrated && !isHydrated) {
+      console.log('[GemsTrack] useIsStoreHydrated: useEffect found store already hydrated or hydration just completed, setting to true.');
+      setIsHydrated(true);
     }
-  }, [isStoreHydrated]);
 
-  return clientIsHydrated;
+    const unsubscribe = useAppStore.subscribe(
+      (state) => state._hasHydrated, // Selector: only listen to changes in _hasHydrated
+      (hydratedValue) => { // Listener: called when _hasHydrated changes
+        console.log(`[GemsTrack] useIsStoreHydrated: Subscription received _hasHydrated = ${hydratedValue}`);
+        if (hydratedValue !== isHydrated) { // Only update if the value actually changed
+          setIsHydrated(hydratedValue);
+        }
+      }
+    );
+
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('[GemsTrack] useIsStoreHydrated: Unsubscribing.');
+      unsubscribe();
+    };
+  // IMPORTANT: The dependency array should react to changes in `isHydrated` if you want
+  // the effect to re-run when `isHydrated` (the local state) changes.
+  // However, for this specific hook, we primarily want the subscription to drive updates.
+  // An empty dependency array `[]` would make the subscription set up once.
+  // Including `isHydrated` allows re-syncing if needed, though the subscription itself
+  // should handle the direct updates to `setIsHydrated`. For robustness and to ensure
+  // the `console.log` for returning is up-to-date, let's include it.
+  }, [isHydrated]);
+
+  console.log(`[GemsTrack] useIsStoreHydrated: Returning ${isHydrated}`);
+  return isHydrated;
 };
-
-// Ensure there are no module-level calls to useAppStore.persist.onFinishHydration or similar problematic lines.
-// The problematic line 225 should now be part of the onRehydrateStorage callback if it still exists, or gone entirely.
-// The crucial part is that the error message points to an onFinishHydration call.
-// This version completely removes any such call from the module scope.
-// The `onRehydrateStorage` is now the sole mechanism for post-hydration actions directly tied to persist config.
-```
