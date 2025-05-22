@@ -43,7 +43,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const isHydrated = useIsStoreHydrated();
 
   if (!isHydrated) {
-    return null; 
+    // Render nothing or a minimal loading skeleton until the store is hydrated
+    // to prevent content flashes or errors related to unhydrated state.
+    return null;
   }
   
   return (
@@ -84,7 +86,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <Separator />
         <SidebarFooter className="p-4 group-data-[collapsible=icon]:p-2">
           <div className="group-data-[collapsible=icon]:hidden text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Taheri POS
+            © {new Date().getFullYear()} Taheri
           </div>
         </SidebarFooter>
       </Sidebar>

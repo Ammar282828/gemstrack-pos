@@ -131,7 +131,7 @@ const initialCategories: Category[] = [
   { id: 'cat12', title: 'String Sets' },
   { id: 'cat13', title: 'Stone Necklace Sets without Bracelets' },
   { id: 'cat14', title: 'Stone Necklace Sets with Bracelets' },
-  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' },
+  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' }, // Corrected spelling from braclets
   { id: 'cat16', title: 'Gold Necklace Sets without Bracelets' },
 ];
 
@@ -150,6 +150,7 @@ const initialCustomers: Customer[] = [
   { id: 'cust-004', name: 'Zayn Malik', phone: '0333-1122334' },
   { id: 'cust-005', name: 'Sana Mirza', phone: '0345-5556677', email: 'sana.m@example.com', address: 'Apt 7B, Royal Towers, Islamabad' },
 ];
+
 
 const initialProducts: Product[] = [
   {
@@ -192,7 +193,7 @@ export const useAppStore = create<AppState>()(
       setHasHydrated: (hydrated) => {
         set((state) => {
           state._hasHydrated = hydrated;
-        }, false, '[GemsTrack] Store: setHasHydrated_action');
+        }, false, '[GemsTrack] Store: setHasHydrated');
       },
       settings: initialSettings,
       categories: initialCategories,
@@ -360,7 +361,7 @@ export const useAppStore = create<AppState>()(
           return {
             sku: product.sku,
             name: product.name,
-            categoryId: product.categoryId, 
+            categoryId: product.categoryId,
             quantity: cartItem.quantity,
             unitPrice,
             itemTotal,
@@ -396,22 +397,22 @@ export const useAppStore = create<AppState>()(
       },
     })),
     {
-      name: 'gemstrack-pos-storage', 
+      name: 'gemstrack-pos-storage',
       storage: createJSONStorage(() => {
         if (typeof window === 'undefined') {
           return ssrDummyStorage;
         }
         return localStorage;
       }),
-      onRehydrateStorage: (_state) => {
-        return (state, error) => {
-          if (error) {
-            console.error('[GemsTrack] Persist: An error occurred during hydration:', error);
-          } else if (state) {
-            queueMicrotask(() => state.setHasHydrated(true));
-            console.log('[GemsTrack] Persist: Hydration finished.');
-          }
-        };
+      onRehydrateStorage: (_persistedState) => {
+        console.log('[GemsTrack] Persist: Rehydration attempt finished.');
+        // Regardless of whether state was found in storage,
+        // the hydration process is complete (either with persisted data or initial data).
+        queueMicrotask(() => {
+          useAppStore.getState().setHasHydrated(true);
+          console.log('[GemsTrack] Persist: _hasHydrated flag set to true via onRehydrateStorage.');
+        });
+        return undefined; // Important for newer zustand versions
       },
       partialize: (state) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -450,13 +451,13 @@ export interface CartItem {
 export const selectCartDetails = (state: AppState) => {
   return state.cart.map(cartItem => {
     const product = state.products.find(p => p.sku === cartItem.sku);
-    if (!product) return null; 
+    if (!product) return null;
     const costs = calculateProductCosts(product, state.settings.goldRatePerGram);
     return {
       ...product,
       ...costs,
       quantity: cartItem.quantity,
-      lineItemTotal: costs.totalPrice * cartItem.quantity, 
+      lineItemTotal: costs.totalPrice * cartItem.quantity,
     };
   }).filter(item => item !== null) as (Product & ReturnType<typeof calculateProductCosts> & { quantity: number, lineItemTotal: number })[];
 };
@@ -467,33 +468,24 @@ export const selectCartSubtotal = (state: AppState) => {
   return cartDetails.reduce((sum, item) => sum + item.lineItemTotal, 0);
 };
 
-
 export const useIsStoreHydrated = () => {
-  // Initialize state from the store's _hasHydrated flag directly
-  const storeHydrated = useAppStore.getState()._hasHydrated;
-  const [isHydrated, setIsHydrated] = React.useState(storeHydrated);
+  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
 
   React.useEffect(() => {
-    // Update local state if the store's hydration status changes after initial mount
     const unsubscribe = useAppStore.subscribe(
       (state) => state._hasHydrated,
-      (hydrated) => {
-        if (hydrated !== isHydrated) { // Only update if different to prevent loop
-          setIsHydrated(hydrated);
-        }
+      (newHydratedState) => {
+        setIsHydrated(newHydratedState);
       }
     );
-
     // Sync with the store's current state in case it hydrated between initial read and effect run
-    const currentStoreHydrated = useAppStore.getState()._hasHydrated;
-    if (currentStoreHydrated !== isHydrated) {
-        setIsHydrated(currentStoreHydrated);
+    const currentHydratedState = useAppStore.getState()._hasHydrated;
+    if (currentHydratedState !== isHydrated) {
+      setIsHydrated(currentHydratedState);
     }
-
-    return () => {
-      unsubscribe();
-    };
-  }, [isHydrated]); // Rerun effect if local isHydrated changes, ensuring sub/unsub logic is correct.
+    return unsubscribe;
+  }, []); // Empty dependency array is correct here
 
   return isHydrated;
 };
+
