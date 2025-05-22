@@ -8,7 +8,7 @@ import Image from 'next/image';
 import QRCode from 'qrcode.react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useAppStore, selectProductWithCosts, selectCategoryTitleById, Product, Settings, KaratValue, MetalType } from '@/lib/store';
+import { useAppStore, selectProductWithCosts, selectCategoryTitleById, Settings, KaratValue, MetalType } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -64,27 +64,49 @@ export default function ProductDetailPage() {
   const setProductQrCodeDataUrlAction = useAppStore(state => state.setProductQrCode);
   const { addToCart } = useAppStore();
 
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | undefined>(undefined);
 
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | undefined>(productData?.qrCodeDataUrl);
-
-
+  // Effect 1: Sync local qrCodeDataUrl state from the store's productData.qrCodeDataUrl
   useEffect(() => {
-    if (productData && !productData.qrCodeDataUrl) {
+    if (productData?.qrCodeDataUrl) {
+      setQrCodeDataUrl(productData.qrCodeDataUrl);
+    } else {
+      // If it's removed from store or productData is initially null/undefined, clear local state
+      setQrCodeDataUrl(undefined);
+    }
+  }, [productData?.qrCodeDataUrl]); // Depend specifically on the qrCodeDataUrl string from the store
+
+  // Effect 2: Generate and save QR code to the store IF it's not already there and component is hydrated
+  useEffect(() => {
+    // Only run if:
+    // 1. Store is hydrated
+    // 2. We have productData
+    // 3. The store does NOT already have a qrCodeDataUrl for this product
+    if (isHydrated && productData && !productData.qrCodeDataUrl) {
       const canvas = document.getElementById(`qr-${sku}`) as HTMLCanvasElement;
       if (canvas) {
-        try {
+        // Delay to allow QRCode.react component to render the canvas content
+        const timerId = setTimeout(() => {
+          try {
             const dataUrl = canvas.toDataURL('image/png');
-            setQrCodeDataUrl(dataUrl);
-            setProductQrCodeDataUrlAction(sku, dataUrl);
-        } catch (e) {
-            console.error("Error generating QR code data URL:", e);
-            toast({ title: "QR Code Error", description: "Could not generate QR code image for the tag.", variant: "destructive"});
-        }
+            // Basic check to ensure canvas isn't blank
+            if (dataUrl && dataUrl.length > 100 && dataUrl !== 'data:,') {
+              // Update the store. Effect 1 will then sync it to local state.
+              setProductQrCodeDataUrlAction(sku, dataUrl);
+            } else {
+              console.warn(`[GemsTrack] QR Canvas for ${sku} was blank or toDataURL returned minimal data. Generation skipped.`);
+            }
+          } catch (e) {
+            console.error("Error generating QR code data URL for store:", e);
+            toast({ title: "QR Code Error", description: "Failed to generate and save QR code image.", variant: "destructive"});
+          }
+        }, 150); // 150ms delay, adjust if necessary
+
+        return () => clearTimeout(timerId); // Cleanup timeout if component unmounts
       }
-    } else if (productData?.qrCodeDataUrl) {
-      setQrCodeDataUrl(productData.qrCodeDataUrl);
     }
-  }, [productData, sku, setProductQrCodeDataUrlAction, toast]);
+  }, [isHydrated, productData, sku, setProductQrCodeDataUrlAction, toast]);
+
 
   const handleDeleteProduct = () => {
     deleteProductAction(sku);
@@ -92,121 +114,106 @@ export default function ProductDetailPage() {
     router.push('/products');
   };
 
-  const generateTagPDF = (product: NonNullable<ProductWithCalculatedCosts>, qrUrl: string, settingsData: Settings) => {
+  const generateTagPDF = (product: NonNullable<ProductWithCalculatedCosts>, qrDataUrl: string, settingsData: Settings) => {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [20, 50] }); // Unfolded dumbbell tag: 20mm wide, 50mm tall
     const tagWidth = 20;
-    const panelHeight = 21; // Height of each end panel
+    const panelHeight = 21; // Height of each end panel (top and bottom)
     const connectorHeight = 8; // Height of the middle connecting strip
     const padding = 1.5; // Padding inside panels
 
-    // --- Helper function to draw content common to both panels after logo/shop name ---
-    const drawPanelsAndFinalize = (logoDrawnY: number) => {
-      // Top Panel Content (after logo/shop name)
-      // SKU below logo/shop name
-      doc.setFontSize(5);
-      doc.setFont("helvetica", "normal");
-      doc.text(product.sku, tagWidth / 2, logoDrawnY + 2, { align: 'center', maxWidth: tagWidth - (padding * 2) });
+    const drawFinalTagContent = (logoImage?: HTMLImageElement) => {
+        // --- Top Panel (Logo & SKU) ---
+        let currentYTop = padding;
+        const logoMaxHeight = 6;
+        const logoMaxWidth = tagWidth - (padding * 2);
 
-      // --- Bottom Panel (Details & QR) ---
-      let currentYBottom = panelHeight + connectorHeight + padding; // Start Y for bottom panel
+        if (logoImage) {
+            let logoDisplayWidth = logoImage.width;
+            let logoDisplayHeight = logoImage.height;
 
-      // QR Code
-      const qrSize = 12;
-      const qrX = (tagWidth - qrSize) / 2;
-      if (qrUrl && qrUrl.startsWith("data:image/png")) {
-        doc.addImage(qrUrl, 'PNG', qrX, currentYBottom, qrSize, qrSize);
-      } else {
-        doc.rect(qrX, currentYBottom, qrSize, qrSize); // Placeholder if QR not available
-        doc.setFontSize(4);
-        doc.text("QR", qrX + qrSize/2, currentYBottom + qrSize/2, { align: 'center', baseline: 'middle'});
-      }
-      currentYBottom += qrSize + 1.5; // Space after QR
+            if (logoDisplayHeight > logoMaxHeight) {
+                logoDisplayWidth = (logoMaxHeight / logoDisplayHeight) * logoDisplayWidth;
+                logoDisplayHeight = logoMaxHeight;
+            }
+            if (logoDisplayWidth > logoMaxWidth) {
+                logoDisplayHeight = (logoMaxWidth / logoDisplayWidth) * logoDisplayHeight;
+                logoDisplayWidth = logoMaxWidth;
+            }
+            const logoX = (tagWidth - logoDisplayWidth) / 2;
+            doc.addImage(logoImage, 'PNG', logoX, currentYTop, logoDisplayWidth, logoDisplayHeight);
+            currentYTop += logoDisplayHeight + 1; // Space after logo
+        } else {
+            // Fallback to Shop Name if no logo or logo fails to load
+            doc.setFontSize(6);
+            doc.setFont("helvetica", "bold");
+            doc.text(settingsData.shopName.substring(0, 12), tagWidth / 2, currentYTop + 3, { align: 'center', maxWidth: tagWidth - (padding * 2) });
+            currentYTop += 4; // Space after shop name
+        }
 
-      // Weight
-      doc.setFontSize(5);
-      doc.text(`Wt: ${product.metalWeightG.toFixed(2)}g`, padding, currentYBottom, { maxWidth: tagWidth - (padding * 2) - (product.karat ? 5 : 0) }); // Adjust for Karat
+        // SKU below logo/shop name
+        doc.setFontSize(5);
+        doc.setFont("helvetica", "normal");
+        doc.text(product.sku, tagWidth / 2, currentYTop + 1, { align: 'center', maxWidth: tagWidth - (padding * 2) });
 
-      // Karat (if gold and available)
-      if (product.metalType === 'gold' && product.karat) {
-        doc.text(product.karat.toUpperCase(), tagWidth - padding, currentYBottom, { align: 'right' });
-      }
-      currentYBottom += 3; // Move for next line if any, or just buffer
+        // --- Bottom Panel (QR, Weight, Karat) ---
+        let currentYBottom = panelHeight + connectorHeight + padding; // Start Y for bottom panel
 
-      // Price (Optional on bottom panel, can be small or omitted if focused on top)
-      // doc.setFontSize(5);
-      // doc.setFont("helvetica", "bold");
-      // doc.text(`PKR ${product.totalPrice.toLocaleString()}`, tagWidth / 2, currentYBottom, { align: 'center', maxWidth: tagWidth - (padding * 2) });
+        // QR Code
+        const qrSize = 12; // Max size for QR on this panel
+        const qrX = (tagWidth - qrSize) / 2;
+        if (qrDataUrl && qrDataUrl.startsWith("data:image/png")) {
+            doc.addImage(qrDataUrl, 'PNG', qrX, currentYBottom, qrSize, qrSize);
+        } else {
+            doc.rect(qrX, currentYBottom, qrSize, qrSize); // Placeholder
+            doc.setFontSize(4);
+            doc.text("QR", qrX + qrSize / 2, currentYBottom + qrSize / 2, { align: 'center', baseline: 'middle' });
+        }
+        currentYBottom += qrSize + 1.5; // Space after QR
 
-      doc.autoPrint();
-      window.open(doc.output('bloburl'), '_blank');
-      toast({ title: "Tag Ready", description: `Product tag PDF generated.` });
+        // Weight
+        doc.setFontSize(5);
+        let weightText = `Wt: ${product.metalWeightG.toFixed(2)}g`;
+        doc.text(weightText, padding, currentYBottom, { maxWidth: tagWidth - (padding * 2) - (product.karat ? 5 : 0) });
+
+        // Karat (if gold and available)
+        if (product.metalType === 'gold' && product.karat) {
+            doc.text(product.karat.toUpperCase(), tagWidth - padding, currentYBottom, { align: 'right' });
+        }
+        // currentYBottom += 3; // Space for next line if any (not used here)
+
+        doc.autoPrint();
+        window.open(doc.output('bloburl'), '_blank');
+        toast({ title: "Tag Ready", description: `Product tag PDF generated.` });
     };
     
-    // --- Top Panel Initial Drawing (Logo or Shop Name) ---
-    let currentYTop = padding;
-    const logoMaxHeight = 6;
-    const logoMaxWidth = tagWidth - (padding * 2);
-
     if (settingsData.shopLogoUrl) {
-      const img = new window.Image();
-      img.crossOrigin = "Anonymous";
-      img.onload = () => {
-        let logoDisplayWidth = img.width;
-        let logoDisplayHeight = img.height;
-
-        if (logoDisplayHeight > logoMaxHeight) {
-          logoDisplayWidth = (logoMaxHeight / logoDisplayHeight) * logoDisplayWidth;
-          logoDisplayHeight = logoMaxHeight;
-        }
-        if (logoDisplayWidth > logoMaxWidth) {
-          logoDisplayHeight = (logoMaxWidth / logoDisplayWidth) * logoDisplayHeight;
-          logoDisplayWidth = logoMaxWidth;
-        }
-        const logoX = (tagWidth - logoDisplayWidth) / 2;
-        doc.addImage(settingsData.shopLogoUrl!, 'PNG', logoX, currentYTop, logoDisplayWidth, logoDisplayHeight);
-        drawPanelsAndFinalize(currentYTop + logoDisplayHeight + 1);
-      };
-      img.onerror = () => {
-        console.warn("Failed to load logo for PDF tag. Using shop name.");
-        doc.setFontSize(6);
-        doc.setFont("helvetica", "bold");
-        doc.text(settingsData.shopName.substring(0,10), tagWidth / 2, currentYTop + 3, { align: 'center', maxWidth: tagWidth - (padding * 2) });
-        drawPanelsAndFinalize(currentYTop + 4);
-      };
-      img.src = settingsData.shopLogoUrl;
+        const img = new window.Image();
+        img.crossOrigin = "Anonymous"; // Important for loading external images into canvas/jsPDF
+        img.onload = () => {
+            drawFinalTagContent(img);
+        };
+        img.onerror = () => {
+            console.warn("Failed to load logo for PDF tag. Using shop name as fallback.");
+            drawFinalTagContent(); // Proceed without logo
+        };
+        img.src = settingsData.shopLogoUrl;
     } else {
-      // No logo URL, draw shop name directly
-      doc.setFontSize(6);
-      doc.setFont("helvetica", "bold");
-      doc.text(settingsData.shopName.substring(0,10), tagWidth / 2, currentYTop + 3, { align: 'center', maxWidth: tagWidth - (padding * 2) });
-      drawPanelsAndFinalize(currentYTop + 4);
+        drawFinalTagContent(); // Proceed without logo if no URL is set
     }
   };
-
 
   const handlePrintTag = () => {
     if (!productData) {
       toast({ title: "Error", description: "Product data not available for printing.", variant: "destructive" });
       return;
     }
+    // Rely on the useEffects to have populated the local qrCodeDataUrl state.
     if (!qrCodeDataUrl) {
-         toast({ title: "Error", description: "QR code image not ready. Please wait a moment and try again.", variant: "destructive" });
-         const canvas = document.getElementById(`qr-${sku}`) as HTMLCanvasElement;
-         if (canvas) {
-           try {
-             const dataUrl = canvas.toDataURL('image/png');
-             setQrCodeDataUrl(dataUrl);
-             setProductQrCodeDataUrlAction(sku, dataUrl);
-             toast({ title: "QR Generated", description: "QR code image was just generated. Please try printing the tag again."});
-           } catch (e) {
-             console.error("Error generating QR code data URL on demand:", e);
-           }
-         }
-         return;
+      toast({ title: "QR Code Not Ready", description: "QR code image is not yet available. Please wait a moment or try refreshing.", variant: "destructive" });
+      return;
     }
     generateTagPDF(productData, qrCodeDataUrl, settings);
   };
-
 
   const handleAddToCart = () => {
     if (!productData) return;
@@ -216,7 +223,6 @@ export default function ProductDetailPage() {
       description: `${productData.name} has been added to your cart.`,
     });
   };
-
 
   if (!isHydrated) {
     return <div className="container mx-auto p-4"><p>Loading product details...</p></div>;
@@ -232,7 +238,6 @@ export default function ProductDetailPage() {
       </div>
     );
   }
-
 
   return (
     <div className="container mx-auto p-4">
@@ -295,7 +300,9 @@ export default function ProductDetailPage() {
                 <QrCodeIcon className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center p-4 space-y-3">
-                <QRCode id={`qr-${sku}`} value={productData.sku} size={128} level="H" style={{ display: 'none' }} />
+                {/* This QRCode component is only for generating the data, it's not displayed directly */}
+                {productData && <QRCode id={`qr-${sku}`} value={productData.sku} size={128} level="H" style={{ display: 'none' }} />}
+                
                 {qrCodeDataUrl ? (
                   <Image src={qrCodeDataUrl} alt={`QR Code for ${productData.sku}`} width={128} height={128} />
                 ) : (
