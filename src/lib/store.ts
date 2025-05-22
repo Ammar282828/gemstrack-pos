@@ -75,9 +75,9 @@ const parseKarat = (karat: KaratValue): number => {
 };
 
 export const calculateProductCosts = (
-  product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'imageUrl' | 'name' | 'karat'> & { 
-    categoryId?: string; 
-    name?: string; 
+  product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'imageUrl' | 'name' | 'karat'> & {
+    categoryId?: string;
+    name?: string;
     karat?: KaratValue; // Make karat optional here to handle old data
   },
   goldRatePerGram24k: number
@@ -87,7 +87,7 @@ export const calculateProductCosts = (
     const productNameForLog = product.name || ((product as any).sku ? `SKU: ${(product as any).sku}` : 'Unknown Product');
     console.warn(`[GemsTrack] Product "${productNameForLog}" is missing karat value. Defaulting to ${DEFAULT_KARAT_VALUE_FOR_CALCULATION} for cost calculation.`);
   }
-  
+
   const karatNumeric = parseKarat(karatToUse);
   const purityFactor = karatNumeric / 24;
   const effectiveGoldRate = purityFactor * goldRatePerGram24k;
@@ -98,14 +98,14 @@ export const calculateProductCosts = (
   const totalDiamondCharges = product.hasDiamonds ? product.diamondCharges : 0;
   const totalStoneCharges = product.stoneCharges; // Already total stone charges
   const totalPrice = metalCost + wastageCost + makingCost + totalDiamondCharges + totalStoneCharges + product.miscCharges;
-  
-  return { 
-    metalCost, 
-    wastageCost, 
+
+  return {
+    metalCost,
+    wastageCost,
     makingCost, // this is total making charges
     diamondCharges: totalDiamondCharges, // this is total diamond charges
     stoneCharges: totalStoneCharges, // this is total other stone charges
-    totalPrice 
+    totalPrice
   };
 };
 
@@ -165,13 +165,13 @@ const initialCategories: Category[] = [
   { id: 'cat12', title: 'String Sets' },
   { id: 'cat13', title: 'Stone Necklace Sets without Bracelets' },
   { id: 'cat14', title: 'Stone Necklace Sets with Bracelets' },
-  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' }, // Corrected spelling
+  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' },
   { id: 'cat16', title: 'Gold Necklace Sets without Bracelets' },
 ];
 
 
 const initialSettings: Settings = {
-  goldRatePerGram: 20000, 
+  goldRatePerGram: 20000,
   shopName: "Taheri",
   shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
@@ -205,11 +205,11 @@ const initialProducts: Product[] = [
     makingCharges: 7200, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png?text=Bracelet"
   },
   {
-    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", karat: '22k', metalWeightG: 15.0, wastagePercentage: 15, // Example of 15% for bangles
+    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", karat: '22k', metalWeightG: 15.0, wastagePercentage: 15,
     makingCharges: 15000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 22500, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png?text=Bangle"
   },
   {
-    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", karat: '21k', metalWeightG: 20.0, wastagePercentage: 15, // Example of 15% for gold sets
+    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", karat: '21k', metalWeightG: 20.0, wastagePercentage: 15,
     makingCharges: 30000, hasDiamonds: true, diamondCharges: 50000, stoneCharges: 160000, miscCharges: 2000, imageUrl: "https://placehold.co/300x300.png?text=Gold+Set+Diamond"
   }
 ];
@@ -386,7 +386,7 @@ export const useAppStore = create<AppState>()(
           // Ensure product object has all necessary fields for calculateProductCosts
           const productForCostCalc = {
             name: product.name, // For logging in calculateProductCosts if needed
-            karat: product.karat,
+            karat: product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION, // Ensure karat is present
             metalWeightG: product.metalWeightG,
             wastagePercentage: product.wastagePercentage,
             makingCharges: product.makingCharges,
@@ -406,7 +406,7 @@ export const useAppStore = create<AppState>()(
             sku: product.sku,
             name: product.name,
             categoryId: product.categoryId,
-            karat: product.karat,
+            karat: productForCostCalc.karat, // Use the potentially defaulted karat
             quantity: cartItem.quantity,
             unitPrice,
             itemTotal,
@@ -453,14 +453,12 @@ export const useAppStore = create<AppState>()(
         return (state, error) => {
           if (error) {
             console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
-          } else {
-            // Use queueMicrotask to ensure this runs after the current event loop cycle
-            // and after the store has been fully initialized with the persisted state.
-             queueMicrotask(() => {
-                if (state) state.setHasHydrated(true);
-                console.log('[GemsTrack] Persist: _hasHydrated flag attempt via onRehydrateStorage.');
-            });
           }
+          // Ensure _hasHydrated is set after rehydration attempt
+          queueMicrotask(() => {
+            useAppStore.getState().setHasHydrated(true);
+            console.log('[GemsTrack] Persist: _hasHydrated flag set via onRehydrateStorage.');
+          });
         };
       },
       partialize: (state) => {
@@ -468,7 +466,7 @@ export const useAppStore = create<AppState>()(
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 2, 
+      version: 2,
     }
   )
 );
@@ -476,14 +474,24 @@ export const useAppStore = create<AppState>()(
 export const selectProductWithCosts = (sku: string, state: AppState) => {
   const product = state.products.find(p => p.sku === sku);
   if (!product) return null;
-  const costs = calculateProductCosts(product, state.settings.goldRatePerGram);
-  return { ...product, ...costs };
+  // Ensure product.karat is defaulted if undefined from old storage
+  const productWithDefaultedKarat = {
+    ...product,
+    karat: product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION,
+  };
+  const costs = calculateProductCosts(productWithDefaultedKarat, state.settings.goldRatePerGram);
+  return { ...productWithDefaultedKarat, ...costs };
 };
 
 export const selectAllProductsWithCosts = (state: AppState) => {
   return state.products.map(product => {
-    const costs = calculateProductCosts(product, state.settings.goldRatePerGram);
-    return { ...product, ...costs };
+    // Ensure product.karat is defaulted if undefined from old storage
+    const productWithDefaultedKarat = {
+      ...product,
+      karat: product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION,
+    };
+    const costs = calculateProductCosts(productWithDefaultedKarat, state.settings.goldRatePerGram);
+    return { ...productWithDefaultedKarat, ...costs };
   });
 };
 
@@ -501,9 +509,14 @@ export const selectCartDetails = (state: AppState) => {
   return state.cart.map(cartItem => {
     const product = state.products.find(p => p.sku === cartItem.sku);
     if (!product) return null;
-    const costs = calculateProductCosts(product, state.settings.goldRatePerGram);
-    return {
+    // Ensure product.karat is defaulted if undefined from old storage
+    const productWithDefaultedKarat = {
       ...product,
+      karat: product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION,
+    };
+    const costs = calculateProductCosts(productWithDefaultedKarat, state.settings.goldRatePerGram);
+    return {
+      ...productWithDefaultedKarat,
       ...costs,
       quantity: cartItem.quantity,
       lineItemTotal: costs.totalPrice * cartItem.quantity,
@@ -518,6 +531,21 @@ export const selectCartSubtotal = (state: AppState) => {
 };
 
 export const useIsStoreHydrated = () => {
-  const isHydrated = useAppStore(React.useCallback((s: AppState) => s._hasHydrated, []));
+  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
+
+  React.useEffect(() => {
+    // Sync with store's _hasHydrated status immediately in case it changed
+    // between initial useState read and useEffect execution.
+    setIsHydrated(useAppStore.getState()._hasHydrated);
+
+    const unsubscribe = useAppStore.subscribe(
+      (state) => state._hasHydrated,
+      (hydrated) => {
+        setIsHydrated(hydrated);
+      }
+    );
+    return unsubscribe;
+  }, []);
+
   return isHydrated;
 };
