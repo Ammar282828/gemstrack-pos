@@ -31,7 +31,7 @@ import { useIsStoreHydrated } from '@/lib/store';
 
 type ProductWithCalculatedCosts = ReturnType<typeof selectProductWithCosts>;
 
-type TagFormat = "detailed-landscape" | "compact-landscape" | "classic-vertical" | "price-focus-horizontal" | "dumbbell-vertical";
+type TagFormat = "dumbbell-vertical";
 
 
 declare module 'jspdf' {
@@ -99,20 +99,7 @@ export default function ProductDetailPage() {
     let doc: jsPDF;
     let tagWidth: number, tagHeight: number;
 
-    // --- Define dimensions and orientation for each format ---
-    if (format === "detailed-landscape") {
-        tagWidth = 70; tagHeight = 35;
-        doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [tagWidth, tagHeight] });
-    } else if (format === "compact-landscape") {
-        tagWidth = 50; tagHeight = 25;
-        doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [tagWidth, tagHeight] });
-    } else if (format === "classic-vertical") {
-        tagWidth = 25; tagHeight = 50;
-        doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [tagWidth, tagHeight] });
-    } else if (format === "price-focus-horizontal") {
-        tagWidth = 60; tagHeight = 20;
-        doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [tagWidth, tagHeight] });
-    } else if (format === "dumbbell-vertical") {
+    if (format === "dumbbell-vertical") {
         tagWidth = 20; tagHeight = 50; // Unfolded dimensions
         doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [tagWidth, tagHeight] });
     } else {
@@ -126,7 +113,7 @@ export default function ProductDetailPage() {
         } else {
             console.warn(`QR code is not in PNG format or missing for ${format} tag.`);
             doc.rect(x, y, size, size);
-            doc.setFontSize(Math.min(size / 2, 4)); // Adjust text size for small QRs
+            doc.setFontSize(Math.min(size / 2, 4)); 
             doc.text("[QR]", x + size / 2, y + size / 2, { align: 'center', baseline: 'middle' });
         }
     };
@@ -134,151 +121,32 @@ export default function ProductDetailPage() {
     const productName = product.name;
     const productSku = product.sku;
     const productPrice = `PKR ${product.totalPrice.toLocaleString()}`;
-    let metalInfo = `${product.metalType.charAt(0).toUpperCase() + product.metalType.slice(1)}: ${product.metalWeightG.toFixed(2)}g`;
-    if (product.metalType === 'gold' && product.karat) {
-        metalInfo += ` (${product.karat.toUpperCase()})`;
-    }
     const shopName = settingsData.shopName || "Your Shop";
 
-    // --- Layout logic for each format ---
-    if (format === "detailed-landscape") {
-      const logoSectionWidth = 25;
-      const detailsSectionX = logoSectionWidth + 2;
-      const padding = 2;
-
-      // Logo Side
-      if (settingsData.shopLogoUrl) {
-        try {
-          const logoImg = new window.Image();
-          logoImg.crossOrigin = "Anonymous";
-          logoImg.onload = () => {
-            const aspectRatio = logoImg.width / logoImg.height;
-            let imgWidth = logoSectionWidth - (padding * 2);
-            let imgHeight = imgWidth / aspectRatio;
-            if (imgHeight > tagHeight - (padding * 2)) {
-              imgHeight = tagHeight - (padding * 2);
-              imgWidth = imgHeight * aspectRatio;
-            }
-            const imgX = padding + (logoSectionWidth - (padding * 2) - imgWidth) / 2;
-            const imgY = padding + (tagHeight - (padding * 2) - imgHeight) / 2;
-            doc.addImage(settingsData.shopLogoUrl!, 'PNG', imgX, imgY, imgWidth, imgHeight);
-          };
-          logoImg.onerror = () => {
-            doc.setFontSize(6); doc.text(shopName.substring(0,12), logoSectionWidth/2, tagHeight/2, {align: "center"});
-          }
-          logoImg.src = settingsData.shopLogoUrl;
-        } catch (e) {
-            doc.setFontSize(6); doc.text(shopName.substring(0,12), logoSectionWidth/2, tagHeight/2, {align: "center"});
-        }
-      } else {
-        doc.setFontSize(8); doc.text(shopName.substring(0,10), logoSectionWidth/2, tagHeight/2, {align: "center"});
-      }
-      doc.line(logoSectionWidth, padding, logoSectionWidth, tagHeight - padding); // Vertical separator
-
-      // Details Side
-      let currentY = padding + 2;
-      if(settingsData.shopName) {
-        doc.setFontSize(5); doc.text(settingsData.shopName, detailsSectionX, currentY);
-        currentY +=3;
-      }
-      doc.setFontSize(7); doc.setFont("helvetica", "bold");
-      doc.text(productName.substring(0, 28), detailsSectionX, currentY, {maxWidth: tagWidth - detailsSectionX - padding - 12}); // Leave space for QR
-      currentY += (doc.getTextDimensions(productName.substring(0, 28), {maxWidth: tagWidth - detailsSectionX - padding - 12}).h) + 1;
-
-
-      doc.setFontSize(6); doc.setFont("helvetica", "normal");
-      doc.text(`SKU: ${productSku}`, detailsSectionX, currentY); currentY += 3;
-      doc.text(metalInfo, detailsSectionX, currentY); currentY += 3;
-      if (product.hasDiamonds) { doc.text(`Diamonds: Yes`, detailsSectionX, currentY); currentY += 3; }
-
-      doc.setFontSize(8); doc.setFont("helvetica", "bold");
-      doc.text(productPrice, detailsSectionX, currentY + 1);
-
-      addQrCode(tagWidth - padding - 15, tagHeight - padding - 15, 15);
-      doc.rect(padding / 2, padding / 2, tagWidth - padding, tagHeight - padding);
-
-    } else if (format === "compact-landscape") {
-      const padding = 1.5;
-      let currentY = padding + 2.5;
-      const detailsWidth = tagWidth * 0.6;
-
-      doc.setFontSize(7); doc.setFont("helvetica", "bold");
-      doc.text(productName.substring(0, 20), padding, currentY, {maxWidth: detailsWidth - (padding * 2)}); currentY += 3.5;
-
-      doc.setFontSize(5); doc.setFont("helvetica", "normal");
-      doc.text(`SKU: ${productSku}`, padding, currentY); currentY += 2.5;
-      doc.text(metalInfo, padding, currentY); currentY += 2.5;
-      if (product.hasDiamonds) { doc.text(`Diamonds: Yes`, padding, currentY); currentY += 2.5; }
-
-      doc.setFontSize(7); doc.setFont("helvetica", "bold");
-      doc.text(productPrice, padding, currentY + 1);
-
-      addQrCode(tagWidth - padding - 16, (tagHeight - 16) / 2, 16);
-      doc.rect(padding / 2, padding / 2, tagWidth - padding, tagHeight - padding);
-
-    } else if (format === "classic-vertical") {
-        const padding = 2;
-        let currentY = padding + 2;
-
-        doc.setFontSize(6); doc.setFont("helvetica", "bold");
-        doc.text(shopName.substring(0,15), tagWidth/2, currentY, {align: 'center'}); currentY += 3.5;
-
-        doc.setFontSize(7); doc.setFont("helvetica", "bold");
-        doc.text(productName.substring(0, 25), padding, currentY, {maxWidth: tagWidth - (padding*2)}); 
-        currentY += (doc.getTextDimensions(productName.substring(0, 25), {maxWidth: tagWidth - (padding*2)}).h) + 1.5;
-
-
-        doc.setFontSize(5); doc.setFont("helvetica", "normal");
-        doc.text(`SKU: ${productSku}`, padding, currentY); currentY += 2.5;
-        doc.text(metalInfo, padding, currentY); currentY += 2.5;
-        if (product.hasDiamonds) { doc.text(`Diamonds: Yes`, padding, currentY); currentY += 2.5; }
-
-        doc.setFontSize(8); doc.setFont("helvetica", "bold");
-        doc.text(productPrice, padding, currentY + 1); currentY += 4.5;
-        
-        const qrSize = Math.min(tagWidth - (padding * 2), 18);
-        addQrCode((tagWidth - qrSize) / 2, currentY, qrSize);
-        doc.rect(padding / 2, padding / 2, tagWidth - padding, tagHeight - padding);
-
-    } else if (format === "price-focus-horizontal") {
-        const padding = 1.5;
-        let currentY = padding + 2;
-
-        doc.setFontSize(5); doc.setFont("helvetica", "normal");
-        doc.text(productName.substring(0, 30), padding, currentY, {maxWidth: tagWidth - (padding * 2)}); currentY += 2;
-        
-        doc.setFontSize(10); doc.setFont("helvetica", "bold");
-        doc.text(productPrice, tagWidth / 2, currentY + 5, { align: 'center' }); currentY += 7;
-
-        doc.setFontSize(5); doc.setFont("helvetica", "normal");
-        doc.text(`SKU: ${productSku}`, padding, currentY + 1);
-        
-        const qrSize = Math.min(tagHeight - (padding * 2) - 2, 12); // Smaller QR
-        addQrCode(tagWidth - padding - qrSize, currentY + 1 - qrSize, qrSize);
-        doc.rect(padding / 2, padding / 2, tagWidth - padding, tagHeight - padding);
-    } else if (format === "dumbbell-vertical") {
+    if (format === "dumbbell-vertical") {
         const padding = 1.5; 
-        const connectorHeight = 6; 
-        const endHeight = (tagHeight - connectorHeight) / 2; 
+        const connectorHeight = 8; // Slightly increased for a more defined fold area
+        const panelHeight = (tagHeight - connectorHeight) / 2; // Height of each display panel
 
-        // --- Top End (e.g., Price and Shop Name) ---
+        // --- Top Panel (e.g., Price Side) ---
         let currentYTop = padding;
         doc.setFontSize(4.5); 
         doc.setFont("helvetica", "normal");
-        doc.text(shopName.substring(0, 15).toUpperCase(), tagWidth / 2, currentYTop + 2.5, { align: 'center', maxWidth: tagWidth - (padding * 2) });
-        currentYTop += 4.5;
+        doc.text(shopName.substring(0, 15).toUpperCase(), tagWidth / 2, currentYTop + 2, { align: 'center', maxWidth: tagWidth - (padding * 2) });
+        currentYTop += 4;
 
         doc.setFontSize(8); 
         doc.setFont("helvetica", "bold");
-        doc.text(productPrice, tagWidth / 2, currentYTop + 4, { align: 'center', maxWidth: tagWidth - (padding * 2) });
+        doc.text(productPrice, tagWidth / 2, currentYTop + 4.5, { align: 'center', maxWidth: tagWidth - (padding * 2) });
         
-        // --- Bottom End (e.g., Product Name, SKU, QR) ---
-        let currentYBottom = endHeight + connectorHeight + padding; // Start Y for the bottom end
+        // --- Bottom Panel (e.g., Detail Side) ---
+        let currentYBottom = panelHeight + connectorHeight + padding; // Start Y for the bottom panel
 
         doc.setFontSize(5); 
         doc.setFont("helvetica", "normal");
-        const productNameShort = productName.split(" - ")[0]; // Get only category part if name is "Category - SKU"
-        const productNameLines = doc.splitTextToSize(productNameShort.substring(0, 25), tagWidth - (padding * 2) - 1);
+        // Try to get just the category part if name is "Category - SKU" for brevity, otherwise full name up to a limit
+        const productNameDisplay = productName.includes(" - ") ? productName.split(" - ")[0] : productName;
+        const productNameLines = doc.splitTextToSize(productNameDisplay.substring(0, 25), tagWidth - (padding * 2) - 1);
         doc.text(productNameLines, tagWidth / 2, currentYBottom + 1.5, { align: 'center', maxWidth: tagWidth - (padding * 2) -1 });
         currentYBottom += (productNameLines.length * 2.5) + 1;
 
@@ -287,22 +155,22 @@ export default function ProductDetailPage() {
         doc.text(`SKU: ${productSku}`, tagWidth / 2, currentYBottom, { align: 'center', maxWidth: tagWidth - (padding * 2) });
         currentYBottom += 3;
         
-        const qrSizeMax = Math.min(tagWidth - (padding * 2) - 2, 12); // Max 12mm for QR
-        const spaceForQR = endHeight - (currentYBottom - (endHeight + connectorHeight + padding));
-        const qrSize = Math.min(qrSizeMax, spaceForQR - 1);
+        const qrSizeMax = Math.min(tagWidth - (padding * 2) - 2, 12); // Max 12mm for QR on this small tag
+        // Calculate remaining space for QR on the bottom panel
+        const spaceForQROnBottomPanel = (panelHeight + connectorHeight + panelHeight) - currentYBottom - padding;
+        const qrSize = Math.min(qrSizeMax, spaceForQROnBottomPanel - 1); // -1 for a small margin
 
-        if (qrSize > 5) { 
+        if (qrSize > 5) { // Only add QR if there's reasonable space
              addQrCode((tagWidth - qrSize) / 2, currentYBottom, qrSize);
         } else {
             doc.setFontSize(4);
-            doc.text("[QR]", tagWidth / 2, currentYBottom + 3, { align: 'center' });
+            doc.text("[QR]", tagWidth / 2, currentYBottom + (panelHeight - (currentYBottom - (panelHeight + connectorHeight)) )/2 , { align: 'center', baseline: 'middle'});
         }
     }
 
-
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
-    toast({ title: "Tag Ready", description: `Jewellery tag (${format.replace('-', ' ')}) PDF generated.` });
+    toast({ title: "Tag Ready", description: `Product tag PDF generated.` });
   };
 
 
@@ -423,20 +291,8 @@ export default function ProductDetailPage() {
                 ) : (
                   <div className="w-32 h-32 bg-gray-200 flex items-center justify-center text-sm text-gray-500 rounded-md">Generating QR...</div>
                 )}
-                <Button variant="outline" size="sm" onClick={() => handlePrintTag("detailed-landscape")} className="w-full">
-                  <Printer className="mr-2 h-4 w-4" /> Print Detailed Landscape Tag
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => handlePrintTag("compact-landscape")} className="w-full">
-                  <Printer className="mr-2 h-4 w-4" /> Print Compact Landscape Tag
-                </Button>
-                 <Button variant="outline" size="sm" onClick={() => handlePrintTag("classic-vertical")} className="w-full">
-                  <Printer className="mr-2 h-4 w-4" /> Print Classic Vertical Tag
-                </Button>
-                 <Button variant="outline" size="sm" onClick={() => handlePrintTag("price-focus-horizontal")} className="w-full">
-                  <Printer className="mr-2 h-4 w-4" /> Print Price Focus Tag
-                </Button>
                 <Button variant="outline" size="sm" onClick={() => handlePrintTag("dumbbell-vertical")} className="w-full">
-                  <Printer className="mr-2 h-4 w-4" /> Print Dumbbell Vertical Tag
+                  <Printer className="mr-2 h-4 w-4" /> Print Product Tag
                 </Button>
               </CardContent>
             </Card>
@@ -509,3 +365,4 @@ export default function ProductDetailPage() {
   );
 }
 
+    
