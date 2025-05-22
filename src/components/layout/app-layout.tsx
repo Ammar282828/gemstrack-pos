@@ -42,7 +42,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isHydrated = useIsStoreHydrated();
 
-
   if (!isHydrated) {
     return null; 
   }

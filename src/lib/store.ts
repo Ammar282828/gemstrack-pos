@@ -259,20 +259,18 @@ export const useAppStore = create<AppState>()(
         }),
       
       generateInvoice: (customerId, invoiceGoldRate, discountAmount) => {
-        const { products, cart, customers } = get(); // Removed settings from here as gold rate is now dynamic
+        const { products, cart, customers } = get(); 
         if (cart.length === 0) return null;
-        if (invoiceGoldRate <= 0) { // Basic validation for gold rate
+        if (invoiceGoldRate <= 0) { 
             console.error("Invoice gold rate must be positive.");
             return null; 
         }
-
 
         let subtotal = 0;
         const invoiceItems: InvoiceItem[] = cart.map(cartItem => {
           const product = products.find(p => p.sku === cartItem.sku);
           if (!product) throw new Error(`Product with SKU ${cartItem.sku} not found for invoice.`);
           
-          // Use the passed invoiceGoldRate for calculations
           const costs = calculateProductCosts(product, invoiceGoldRate);
           const unitPrice = costs.totalPrice;
           const itemTotal = unitPrice * cartItem.quantity;
@@ -286,7 +284,7 @@ export const useAppStore = create<AppState>()(
           };
         });
 
-        const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, discountAmount)); // Ensure discount isn't negative or more than subtotal
+        const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, discountAmount)); 
         const grandTotal = subtotal - calculatedDiscountAmount; 
 
         const customer = customers.find(c => c.id === customerId);
@@ -305,7 +303,6 @@ export const useAppStore = create<AppState>()(
 
         set(state => {
           state.generatedInvoices.push(newInvoice);
-          // state.cart = []; // Do not clear cart here, let user do it explicitly or by new sale
         });
         return newInvoice;
       },
@@ -327,17 +324,15 @@ export const useAppStore = create<AppState>()(
         if (error) {
           console.error('[GemsTrack] Persist: Rehydration error:', error);
         }
-        // Ensure _hasHydrated is set after rehydration attempt
         queueMicrotask(() => {
           useAppStore.getState().setHasHydrated(true);
         });
       },
       partialize: (state) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 1, // Increment version if schema changes significantly
+      version: 1, 
     }
   )
 );
@@ -386,19 +381,26 @@ export const selectCartSubtotal = (state: AppState) => {
 
 
 export const useIsStoreHydrated = () => {
-  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
+  const [isHydrated, setIsHydrated] = React.useState(false); 
 
   React.useEffect(() => {
-    const unsub = useAppStore.subscribe(
-      (state) => state._hasHydrated,
-      (hydrated) => {
-        setIsHydrated(hydrated);
+    // Set the initial hydration state based on the store
+    const initialStoreHydrationState = useAppStore.getState()._hasHydrated;
+    setIsHydrated(initialStoreHydrationState);
+
+    // Subscribe to changes in the store's _hasHydrated state
+    const unsubscribe = useAppStore.subscribe(
+      (storeState) => storeState._hasHydrated, 
+      (hydratedStoreValue) => { 
+        setIsHydrated(hydratedStoreValue);
       }
     );
-    // Also set if it's already hydrated on first render
-    setIsHydrated(useAppStore.getState()._hasHydrated);
-    return unsub;
-  }, []);
+
+    // Cleanup subscription on unmount
+    return () => {
+      unsubscribe();
+    };
+  }, []); // Empty dependency array: run only on mount and unmount
 
   return isHydrated;
 };
