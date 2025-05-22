@@ -8,12 +8,12 @@ import * as z from 'zod';
 import { useAppStore, Settings } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea'; // Assuming you might want Textarea for address
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin } from 'lucide-react'; // Added MapPin import
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign } from 'lucide-react';
 import { useIsStoreHydrated } from '@/lib/store';
 
 const settingsSchema = z.object({
@@ -37,7 +37,6 @@ export default function SettingsPage() {
     defaultValues: currentSettings,
   });
   
-  // Effect to reset form if currentSettings change from store (e.g. due to hydration)
   React.useEffect(() => {
     if (isHydrated) {
       form.reset(currentSettings);
@@ -69,10 +68,15 @@ export default function SettingsPage() {
                 name="goldRatePerGram"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base">Current Gold Rate (per gram)</FormLabel>
+                    <FormLabel className="text-base flex items-center">
+                        <DollarSign className="h-5 w-5 mr-2 text-muted-foreground" /> Current Gold Rate (PKR per gram for 24k)
+                    </FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="e.g., 7000.00" {...field} className="text-lg"/>
+                      <Input type="number" step="0.01" placeholder="e.g., 20000.00" {...field} className="text-lg"/>
                     </FormControl>
+                    <FormDescription>
+                        This rate is assumed to be for 24 Karat gold. Product prices will be adjusted based on their selected Karat (18k, 21k, 22k).
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

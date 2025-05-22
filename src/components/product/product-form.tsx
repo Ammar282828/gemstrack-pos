@@ -7,25 +7,28 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // Keep Label for Checkbox
-import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
+import { Label } from '@/components/ui/label'; 
+import { Checkbox } from '@/components/ui/checkbox'; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAppStore, Product, Category } from '@/lib/store';
+import { useAppStore, Product, Category, KaratValue } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Ban, Diamond } from 'lucide-react'; // Added Diamond icon
+import { Save, Ban, Diamond, Zap } from 'lucide-react'; // Added Zap for Karat
+
+const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k'];
 
 // Schema for form data
 const productFormSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
+  karat: z.enum(karatValues, { required_error: "Karat is required" }),
   metalWeightG: z.coerce.number().min(0, "Metal weight must be non-negative"),
   wastagePercentage: z.coerce.number().min(0).max(100, "Wastage must be between 0 and 100"),
   makingCharges: z.coerce.number().min(0, "Making charges must be non-negative"),
   hasDiamonds: z.boolean().default(false),
   diamondCharges: z.coerce.number().min(0, "Diamond charges must be non-negative").default(0),
-  stoneCharges: z.coerce.number().min(0, "Stone charges must be non-negative"), // For non-diamond stones
+  stoneCharges: z.coerce.number().min(0, "Stone charges must be non-negative"),
   miscCharges: z.coerce.number().min(0, "Misc charges must be non-negative"),
   imageUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
 });
@@ -48,6 +51,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     resolver: zodResolver(productFormSchema),
     defaultValues: product ? {
       categoryId: product.categoryId,
+      karat: product.karat,
       metalWeightG: product.metalWeightG,
       wastagePercentage: product.wastagePercentage,
       makingCharges: product.makingCharges,
@@ -58,6 +62,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       imageUrl: product.imageUrl || "",
     } : {
       categoryId: '',
+      karat: '21k', // Default Karat
       metalWeightG: 0,
       wastagePercentage: 10, // Default, will be overridden by category/diamond logic
       makingCharges: 0,
@@ -73,14 +78,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   const hasDiamondsValue = form.watch('hasDiamonds');
 
   useEffect(() => {
-    // This effect runs when categoryId or hasDiamondsValue changes
     if (hasDiamondsValue) {
       form.setValue('wastagePercentage', 25, { shouldValidate: true });
-      if(!isEditMode || (product && !product.hasDiamonds)){ // Only reset diamond charges if toggling to true in add mode, or from false in edit mode
+      if(!isEditMode || (product && !product.hasDiamonds)){
          form.setValue('diamondCharges', product?.diamondCharges || 0);
       }
     } else {
-      // If not diamonds, apply category-based wastage
       if (selectedCategoryId) {
         const category = categories.find(c => c.id === selectedCategoryId);
         if (category) {
@@ -93,10 +96,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
           form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
         }
       } else {
-        // Default if no category yet selected and not diamonds
         form.setValue('wastagePercentage', 10, { shouldValidate: true });
       }
-      // if hasDiamonds becomes false, ensure diamondCharges is 0 if it wasn't already
       if (form.getValues('diamondCharges') !== 0) {
         form.setValue('diamondCharges', 0);
       }
@@ -108,15 +109,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     try {
       const finalData = {
         ...data,
-        diamondCharges: data.hasDiamonds ? data.diamondCharges : 0, // Ensure diamondCharges is 0 if not hasDiamonds
+        diamondCharges: data.hasDiamonds ? data.diamondCharges : 0,
       };
 
       if (isEditMode && product) {
-        updateProduct(product.sku, finalData as ProductDataForUpdate);
+        updateProduct(product.sku, finalData as Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>);
         toast({ title: "Success", description: "Product updated successfully." });
         if (onSubmitSuccess) onSubmitSuccess(); else router.push(`/products/${product.sku}`);
       } else {
-        const newProduct = addProduct(finalData as ProductDataForAdd);
+        const newProduct = addProduct(finalData as Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>);
         if (newProduct) {
             toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added successfully.` });
             if (onSubmitSuccess) onSubmitSuccess(); else router.push('/products');
@@ -159,7 +160,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               control={form.control}
               name="categoryId"
               render={({ field }) => (
-                <FormItem className={isEditMode ? "md:col-span-2" : ""}>
+                <FormItem>
                   <FormLabel>Category</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
@@ -171,6 +172,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                       {categories.map((category: Category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="karat"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4 text-primary" /> Karat</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Karat" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {karatValues.map((kVal) => (
+                        <SelectItem key={kVal} value={kVal}>
+                          {kVal.toUpperCase()}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -287,14 +312,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               control={form.control}
               name="imageUrl"
               render={({ field }) => (
-                <FormItem className={hasDiamondsValue ? "" : "md:col-span-2"}>
+                <FormItem className={hasDiamondsValue && selectedCategoryId ? "" : "md:col-span-2"}>
                   <FormLabel>Image URL (Optional)</FormLabel>
                   <FormControl>
                     <Input type="url" placeholder="https://example.com/image.png" {...field} />
                   </FormControl>
                    {field.value && (
                         <div className="mt-2 p-2 border rounded-md w-fit">
-                            <img src={field.value} alt="Product Preview" className="h-24 object-contain" data-ai-hint="product jewelry" />
+                            <img src={field.value} alt="Product Preview" className="h-24 object-contain" data-ai-hint="product jewelry"/>
                         </div>
                      )}
                   <FormMessage />
@@ -315,4 +340,3 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     </Form>
   );
 };
-

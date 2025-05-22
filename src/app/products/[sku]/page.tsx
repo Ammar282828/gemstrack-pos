@@ -8,12 +8,12 @@ import Image from 'next/image';
 import QRCode from 'qrcode.react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useAppStore, selectProductWithCosts, selectCategoryTitleById, Product, calculateProductCosts, Settings } from '@/lib/store';
+import { useAppStore, selectProductWithCosts, selectCategoryTitleById, Product, calculateProductCosts, Settings, KaratValue } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond } from 'lucide-react'; // Added Diamond
+import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -103,7 +103,7 @@ export default function ProductDetailPage() {
     doc.text(productData.name, 3, 5);
     doc.setFontSize(6);
     doc.text(`SKU: ${productData.sku}`, 3, 9);
-    doc.text(`Metal: ${productData.metalWeightG}g`, 3, 13);
+    doc.text(`Metal: ${productData.metalWeightG}g (${productData.karat.toUpperCase()})`, 3, 13);
     if (productData.hasDiamonds) {
         doc.text(`Diamonds: Yes`, 3, 17);
     }
@@ -238,7 +238,7 @@ export default function ProductDetailPage() {
                  <Button size="lg" className="w-full mb-4" onClick={handleAddToCart}>
                     <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
                 </Button>
-                <DetailItem label="Gold Rate (Store Setting)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR" />
+                <DetailItem label="Gold Rate (Store Setting, 24k)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR" />
                 <Separator className="my-1" />
                 <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR" />
                 <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR" />
@@ -257,6 +257,8 @@ export default function ProductDetailPage() {
             <Card>
               <CardHeader><CardTitle className="text-xl">Specifications</CardTitle></CardHeader>
               <CardContent>
+                <DetailItem label="Karat" value={productData.karat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
+                <Separator className="my-1" />
                 <DetailItem label="Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
                 <Separator className="my-1" />
                 <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
@@ -270,4 +272,3 @@ export default function ProductDetailPage() {
     </div>
   );
 }
-
