@@ -207,7 +207,7 @@ export const useAppStore = create<AppState>()(
               }
             }
           });
-          const newNum = (maxNum + 1).toString().padStart(3, '0');
+          const newNum = (maxNum + 1).toString().padStart(4, '0'); // Changed 3 to 4
           const generatedSku = `${prefix}-${newNum}`;
           
           // Auto-generate the product name
