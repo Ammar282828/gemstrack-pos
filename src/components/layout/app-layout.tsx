@@ -3,7 +3,7 @@
 
 // Polyfill for structuredClone for older browsers like Safari
 if (typeof window !== 'undefined' && typeof window.structuredClone !== 'function') {
-  console.log('[GemsTrack] structuredClone not found. Applying basic polyfill.');
+  console.log('[TaheriPOS] structuredClone not found. Applying basic polyfill.');
   window.structuredClone = function(value: any) {
     if (value === undefined) {
         return undefined;
@@ -11,8 +11,8 @@ if (typeof window !== 'undefined' && typeof window.structuredClone !== 'function
     try {
       return JSON.parse(JSON.stringify(value));
     } catch (e) {
-        console.error("GemsTrack: structuredClone polyfill (JSON.parse(JSON.stringify)) failed:", e);
-        return value;
+        console.error("TaheriPOS: structuredClone polyfill (JSON.parse(JSON.stringify)) failed:", e);
+        return value; // Fallback to returning the original value if stringify fails (e.g., for non-serializable types)
     }
   };
 }
@@ -61,6 +61,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const isHydrated = useIsStoreHydrated();
 
   if (!isHydrated) {
+    // Render null or a minimal loading skeleton until the store is hydrated
+    // to prevent rendering with potentially incorrect initial state.
     return null; 
   }
   
@@ -119,3 +121,4 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+

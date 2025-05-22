@@ -13,6 +13,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Taheri POS',
   description: 'Jewellery Inventory & Point-of-Sale System',
+  viewport: { // Explicitly define viewport settings for better mobile control
+    width: 'device-width',
+    initialScale: 1,
+    // Consider adding maximumScale: 1 if you want to prevent zooming,
+    // but be mindful of accessibility implications.
+  },
 };
 
 export default function RootLayout({
@@ -31,3 +37,4 @@ export default function RootLayout({
     </html>
   );
 }
+
