@@ -82,7 +82,7 @@ export const DEFAULT_KARAT_VALUE_FOR_CALCULATION: KaratValue = '21k';
 
 function parseKarat(karat: KaratValue | undefined): number {
   const karatToUse = karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION;
-  const karatString = String(karatToUse);
+  const karatString = String(karatToUse); // Ensure it's a string before calling replace
   const numericPart = parseInt(karatString.replace('k', ''), 10);
   if (isNaN(numericPart) || numericPart <= 0) {
     console.warn(`[GemsTrack] parseKarat received invalid or non-positive karat value: "${karatString}". Defaulting to ${parseInt(DEFAULT_KARAT_VALUE_FOR_CALCULATION.replace('k',''))}.`);
@@ -91,7 +91,7 @@ function parseKarat(karat: KaratValue | undefined): number {
   return numericPart;
 }
 
-export function calculateProductCosts(
+function calculateProductCosts(
   product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & {
     categoryId?: string;
     name?: string;
@@ -121,14 +121,14 @@ export function calculateProductCosts(
         metalCost = metalWeightG * effectiveGoldRate;
     } else {
         metalCost = 0;
-        if(goldRate24k <=0 ) console.warn(`[GemsTrack] Gold rate (${goldRate24k}) is zero or negative for gold product: ${product.name || JSON.stringify(product)}`);
+        if(goldRate24k <=0 && metalWeightG > 0) console.warn(`[GemsTrack] Gold rate (${goldRate24k}) is zero or negative for gold product: ${product.name || JSON.stringify(product)}`);
     }
   } else if (currentMetalType === 'palladium') {
     if (palladiumRate > 0) metalCost = metalWeightG * palladiumRate;
-    else if (palladiumRate <=0) console.warn(`[GemsTrack] Palladium rate (${palladiumRate}) is zero or negative for palladium product: ${product.name || JSON.stringify(product)}`);
+    else if (palladiumRate <=0 && metalWeightG > 0) console.warn(`[GemsTrack] Palladium rate (${palladiumRate}) is zero or negative for palladium product: ${product.name || JSON.stringify(product)}`);
   } else if (currentMetalType === 'platinum') {
     if (platinumRate > 0) metalCost = metalWeightG * platinumRate;
-    else if (platinumRate <=0) console.warn(`[GemsTrack] Platinum rate (${platinumRate}) is zero or negative for platinum product: ${product.name || JSON.stringify(product)}`);
+    else if (platinumRate <=0 && metalWeightG > 0) console.warn(`[GemsTrack] Platinum rate (${platinumRate}) is zero or negative for platinum product: ${product.name || JSON.stringify(product)}`);
   }
 
   const validMetalCost = Number(metalCost) || 0;
@@ -148,6 +148,7 @@ export function calculateProductCosts(
         calculatedTotalPrice: totalPrice,
         finalTotalPriceReturned: finalTotalPrice
     });
+    return { metalCost: 0, wastageCost: 0, makingCharges: 0, diamondCharges: 0, stoneCharges: 0, totalPrice: 0 };
   }
 
   return {
@@ -200,11 +201,11 @@ const initialCustomers: Customer[] = [
 
 const initialProducts: Product[] = [
   {
-    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalType: 'gold', karat: '21k', metalWeightG: 5.2, wastagePercentage: 25,
+    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalType: 'gold', karat: '21k', metalWeightG: 5.2, wastagePercentage: 25, // Diamond default
     makingCharges: 4160, hasDiamonds: true, diamondCharges: 25000, stoneCharges: 0, miscCharges: 500, imageUrl: "https://placehold.co/300x300.png?text=Diamond+Ring"
   },
   {
-    sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalType: 'gold', karat: '22k', metalWeightG: 12.5, wastagePercentage: 10,
+    sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalType: 'gold', karat: '22k', metalWeightG: 12.5, wastagePercentage: 10, // Default for this category
     makingCharges: 15000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 112500, miscCharges: 1500, imageUrl: "https://placehold.co/300x300.png?text=Necklace+Set"
   },
   {
@@ -220,7 +221,7 @@ const initialProducts: Product[] = [
     makingCharges: 15000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 22500, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png?text=Bangle"
   },
   {
-    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalType: 'gold', karat: '21k', metalWeightG: 20.0, wastagePercentage: 25, // 15% for gold sets, 25% if diamonds
+    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalType: 'gold', karat: '21k', metalWeightG: 20.0, wastagePercentage: 25, // Diamond default (assuming GOL has diamonds)
     makingCharges: 30000, hasDiamonds: true, diamondCharges: 50000, stoneCharges: 160000, miscCharges: 2000, imageUrl: "https://placehold.co/300x300.png?text=Gold+Set+Diamond"
   },
   {
@@ -232,7 +233,7 @@ const initialProducts: Product[] = [
     makingCharges: 5000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 10000, miscCharges: 300, imageUrl: "https://placehold.co/300x300.png?text=Palladium+Ring"
   },
    {
-    sku: "BAN-000002", name: "Bands - BAN-000002", categoryId: "cat09", metalType: 'platinum', metalWeightG: 7.5, wastagePercentage: 25,
+    sku: "BAN-000002", name: "Bands - BAN-000002", categoryId: "cat09", metalType: 'platinum', metalWeightG: 7.5, wastagePercentage: 25, // Diamond default
     makingCharges: 6000, hasDiamonds: true, diamondCharges: 15000, stoneCharges: 0, miscCharges: 250, imageUrl: "https://placehold.co/300x300.png?text=Platinum+Band"
   }
 ];
@@ -558,7 +559,8 @@ export const useAppStore = create<AppState>()(
                  console.warn(`[GemsTrack] Invoice: Invalid invoiceGoldRate24k (${invoiceGoldRate24k}). Defaulting to store setting: ${settings.goldRatePerGram}`);
                  validInvoiceGoldRate24k = settings.goldRatePerGram;
              } else {
-                validInvoiceGoldRate24k = 0;
+                // No gold items in cart, so the invoice gold rate is not strictly needed for them
+                validInvoiceGoldRate24k = 0; // Or could be settings.goldRatePerGram, but it won't be used if no gold items
              }
         }
 
@@ -598,7 +600,7 @@ export const useAppStore = create<AppState>()(
 
           const costs = calculateProductCosts(productForCostCalc, ratesForInvoice);
           if (isNaN(costs.totalPrice)) {
-              console.error(`[GemsTrack] Invoice: Calculated NaN unit price for product SKU ${product.sku}. Skipping item.`);
+              console.error(`[GemsTrack] Invoice: Calculated NaN unit price for product SKU ${product.sku}. Skipping item. Costs:`, costs);
               continue;
           }
           const unitPrice = costs.totalPrice;
@@ -661,13 +663,12 @@ export const useAppStore = create<AppState>()(
         }
         return localStorage;
       }),
-      onRehydrateStorage: (_initialState) => (state, error) => {
+      onRehydrateStorage: () => (_state, error) => {
         if (error) {
           console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
         }
         queueMicrotask(() => {
           useAppStore.getState().setHasHydrated(true);
-          console.log('[GemsTrack] Persist: _hasHydrated flag set to true via onRehydrateStorage.');
         });
       },
       partialize: (state) => {
@@ -675,7 +676,7 @@ export const useAppStore = create<AppState>()(
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 3,
+      version: 4, // Incremented version
     }
   )
 );
@@ -764,16 +765,17 @@ export const useIsStoreHydrated = () => {
   const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
 
   React.useEffect(() => {
-    const initialHydrationStatus = useAppStore.getState()._hasHydrated;
-    if (isHydrated !== initialHydrationStatus) {
-      setIsHydrated(initialHydrationStatus);
+    // Sync with store state in case it hydrated between initial useState and effect run
+    const currentStoreHydrationStatus = useAppStore.getState()._hasHydrated;
+    if (isHydrated !== currentStoreHydrationStatus) {
+      setIsHydrated(currentStoreHydrationStatus);
     }
-    
+
     const unsubscribe = useAppStore.subscribe(
       (state) => state._hasHydrated,
       (hydratedState) => {
         queueMicrotask(() => {
-           if (isHydrated !== hydratedState) { // Prevent unnecessary re-renders
+           if (isHydrated !== hydratedState) {
             setIsHydrated(hydratedState);
           }
         });
@@ -782,7 +784,8 @@ export const useIsStoreHydrated = () => {
     return () => {
       unsubscribe();
     };
-  }, [isHydrated]); // Add isHydrated to dependency array
+  }, []); // Empty dependency array
 
   return isHydrated;
 };
+

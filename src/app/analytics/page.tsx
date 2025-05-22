@@ -21,6 +21,8 @@ export default function AnalyticsPage() {
   const products = useAppStore(state => state.products);
   const categories = useAppStore(state => state.categories);
 
+  console.log('[AnalyticsPage] Rendering. isHydrated:', isHydrated, 'Invoices count:', invoices.length);
+
   const analyticsData = useMemo(() => {
     if (!isHydrated || invoices.length === 0) {
       return {
@@ -281,3 +283,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
