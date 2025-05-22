@@ -149,7 +149,6 @@ export const useAppStore = create<AppState>()(
       setHasHydrated: (hydrated) => {
         set((state) => {
           state._hasHydrated = hydrated;
-          console.log(`[GemsTrack] Store: _hasHydrated explicitly set to ${hydrated}`);
         }, false, 'setHasHydrated_action');
       },
       settings: initialSettings,
@@ -319,7 +318,6 @@ export const useAppStore = create<AppState>()(
         }
         queueMicrotask(() => {
           useAppStore.getState().setHasHydrated(true);
-          console.log('[GemsTrack] Persist: _hasHydrated flag set to true via onRehydrateStorage.');
         });
       },
       partialize: (state) => {
@@ -405,42 +403,25 @@ export const useHydratedStore = <T, F>(
 };
 
 export const useIsStoreHydrated = () => {
-  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
+  const [isHydrated, setIsHydrated] = React.useState(false);
 
   React.useEffect(() => {
-    // This effect ensures that if hydration completes *after* initial mount but *before*
-    // this effect runs for the first time, we still update.
-    // Also, it handles the case where the store becomes hydrated after initial mount.
-    const currentlyHydrated = useAppStore.getState()._hasHydrated;
-    if (currentlyHydrated && !isHydrated) {
-      console.log('[GemsTrack] useIsStoreHydrated: useEffect found store already hydrated or hydration just completed, setting to true.');
+    const storeAlreadyHydrated = useAppStore.getState()._hasHydrated;
+    if (storeAlreadyHydrated) {
       setIsHydrated(true);
     }
 
     const unsubscribe = useAppStore.subscribe(
-      (state) => state._hasHydrated, // Selector: only listen to changes in _hasHydrated
-      (hydratedValue) => { // Listener: called when _hasHydrated changes
-        console.log(`[GemsTrack] useIsStoreHydrated: Subscription received _hasHydrated = ${hydratedValue}`);
-        if (hydratedValue !== isHydrated) { // Only update if the value actually changed
-          setIsHydrated(hydratedValue);
-        }
+      (state) => state._hasHydrated,
+      (hydratedValueFromStore) => {
+        setIsHydrated(hydratedValueFromStore);
       }
     );
 
-    // Cleanup subscription on unmount
     return () => {
-      console.log('[GemsTrack] useIsStoreHydrated: Unsubscribing.');
       unsubscribe();
     };
-  // IMPORTANT: The dependency array should react to changes in `isHydrated` if you want
-  // the effect to re-run when `isHydrated` (the local state) changes.
-  // However, for this specific hook, we primarily want the subscription to drive updates.
-  // An empty dependency array `[]` would make the subscription set up once.
-  // Including `isHydrated` allows re-syncing if needed, though the subscription itself
-  // should handle the direct updates to `setIsHydrated`. For robustness and to ensure
-  // the `console.log` for returning is up-to-date, let's include it.
-  }, [isHydrated]);
+  }, []); // Empty dependency array ensures this effect runs only on mount and unmount
 
-  console.log(`[GemsTrack] useIsStoreHydrated: Returning ${isHydrated}`);
   return isHydrated;
 };

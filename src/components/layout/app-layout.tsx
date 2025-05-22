@@ -44,11 +44,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
 
   if (!isHydrated) {
-    console.log(`[GemsTrack] AppLayout: Store not hydrated (isHydrated: ${isHydrated}), rendering null.`);
     return null; 
   }
   
-  console.log(`[GemsTrack] AppLayout: Store IS hydrated (isHydrated: ${isHydrated}), rendering layout.`);
   return (
     <SidebarProvider defaultOpen={true}>
       <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
