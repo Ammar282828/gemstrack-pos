@@ -34,12 +34,11 @@ export interface Product {
   metalWeightG: number;
   wastagePercentage: number;
   makingCharges: number; // Total making charges
-  hasDiamonds: boolean; // New field
-  diamondCharges: number; // New field for diamond costs
+  hasDiamonds: boolean;
+  diamondCharges: number;
   stoneCharges: number; // For non-diamond stones
   miscCharges: number;
   qrCodeDataUrl?: string;
-  assignedCustomerId?: string;
   imageUrl?: string;
 }
 
@@ -67,7 +66,7 @@ export interface Invoice {
 // --- Computed Value Helpers ---
 
 export const calculateProductCosts = (
-  product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'assignedCustomerId' | 'imageUrl' | 'name'> & { categoryId?: string, name?: string},
+  product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & { categoryId?: string, name?: string},
   goldRatePerGram: number
 ) => {
   const metalCost = product.metalWeightG * goldRatePerGram;
@@ -160,7 +159,7 @@ const initialCustomers: Customer[] = [
 const initialProducts: Product[] = [
   {
     sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalWeightG: 5.2, wastagePercentage: 25, // Diamond default
-    makingCharges: 4160, hasDiamonds: true, diamondCharges: 25000, stoneCharges: 0, miscCharges: 500, assignedCustomerId: 'cust-001', imageUrl: "https://placehold.co/300x300.png?text=Diamond+Ring"
+    makingCharges: 4160, hasDiamonds: true, diamondCharges: 25000, stoneCharges: 0, miscCharges: 500, imageUrl: "https://placehold.co/300x300.png?text=Diamond+Ring"
   },
   {
     sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalWeightG: 12.5, wastagePercentage: 10,
@@ -168,7 +167,7 @@ const initialProducts: Product[] = [
   },
   {
     sku: "TOP-000001", name: "Tops - TOP-000001", categoryId: "cat02", metalWeightG: 3.0, wastagePercentage: 10,
-    makingCharges: 1800, hasDiamonds: false, diamondCharges: 0, stoneCharges: 37500, miscCharges: 300, assignedCustomerId: 'cust-002', imageUrl: "https://placehold.co/300x300.png?text=Tops"
+    makingCharges: 1800, hasDiamonds: false, diamondCharges: 0, stoneCharges: 37500, miscCharges: 300, imageUrl: "https://placehold.co/300x300.png?text=Tops"
   },
   {
     sku: "BRA-000001", name: "Bracelets - BRA-000001", categoryId: "cat05", metalWeightG: 8.0, wastagePercentage: 10,
@@ -180,7 +179,7 @@ const initialProducts: Product[] = [
   },
   {
     sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalWeightG: 20.0, wastagePercentage: 15, // Category default
-    makingCharges: 30000, hasDiamonds: true, diamondCharges: 50000, stoneCharges: 160000, miscCharges: 2000, assignedCustomerId: 'cust-003', imageUrl: "https://placehold.co/300x300.png?text=Gold+Set+Diamond"
+    makingCharges: 30000, hasDiamonds: true, diamondCharges: 50000, stoneCharges: 160000, miscCharges: 2000, imageUrl: "https://placehold.co/300x300.png?text=Gold+Set+Diamond"
   }
 ];
 
@@ -302,11 +301,7 @@ export const useAppStore = create<AppState>()(
       deleteCustomer: (id) =>
         set((state) => {
           state.customers = state.customers.filter((c) => c.id !== id);
-          state.products.forEach(product => {
-            if (product.assignedCustomerId === id) {
-              product.assignedCustomerId = undefined;
-            }
-          });
+          // No longer need to unassign products from customers
         }, false, '[GemsTrack] Customers: deleteCustomer'),
 
       addToCart: (sku, quantity = 1) =>
@@ -414,14 +409,8 @@ export const useAppStore = create<AppState>()(
         return (state, error) => {
           if (error) {
             console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
-          } else {
-            if (state) {
-              queueMicrotask(() => state.setHasHydrated(true));
-              console.log('[GemsTrack] Persist: Storage rehydration successful.');
-            } else {
-              console.warn('[GemsTrack] Persist: Rehydration called but state is undefined.');
-               queueMicrotask(() => useAppStore.getState().setHasHydrated(true));
-            }
+          } else if (state) {
+            queueMicrotask(() => useAppStore.getState().setHasHydrated(true));
           }
         };
       },
@@ -479,26 +468,23 @@ export const selectCartSubtotal = (state: AppState) => {
   return cartDetails.reduce((sum, item) => sum + item.lineItemTotal, 0);
 };
 
-// export const useIsStoreHydrated = () => {
-//   // Selects the _hasHydrated state and ensures it rerenders when it changes.
-//   return useAppStore(s => s._hasHydrated);
-// };
-
 export const useIsStoreHydrated = () => {
-  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
+  const [isHydrated, setIsHydrated] = React.useState(false);
 
   React.useEffect(() => {
+    // Initialize state from the store
+    setIsHydrated(useAppStore.getState()._hasHydrated);
+
+    // Subscribe to changes
     const unsub = useAppStore.subscribe(
       (state) => state._hasHydrated,
       (hydrated) => {
         setIsHydrated(hydrated);
       }
     );
-
-    // Sync with a potential change that happened between useState and useEffect
-    setIsHydrated(useAppStore.getState()._hasHydrated);
     return unsub;
   }, []);
 
   return isHydrated;
 };
+

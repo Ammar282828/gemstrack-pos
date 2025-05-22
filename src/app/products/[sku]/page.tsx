@@ -8,12 +8,12 @@ import Image from 'next/image';
 import QRCode from 'qrcode.react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useAppStore, selectProductWithCosts, selectCategoryTitleById, Product, calculateProductCosts, Customer, Settings } from '@/lib/store';
+import { useAppStore, selectProductWithCosts, selectCategoryTitleById, Product, calculateProductCosts, Settings } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, User, ShoppingCart, Diamond } from 'lucide-react'; // Added Diamond
+import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond } from 'lucide-react'; // Added Diamond
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -60,7 +60,6 @@ export default function ProductDetailPage() {
   const productData = useAppStore(state => selectProductWithCosts(sku, state));
   const categoryTitle = useAppStore(state => productData ? selectCategoryTitleById(productData.categoryId, state) : '');
   const settings = useAppStore(state => state.settings);
-  const customer = useAppStore(state => productData?.assignedCustomerId ? state.customers.find(c => c.id === productData.assignedCustomerId) : undefined);
   const deleteProductAction = useAppStore(state => state.deleteProduct);
   const setProductQrCodeDataUrl = useAppStore(state => state.setProductQrCode);
   const { addToCart } = useAppStore();
@@ -223,17 +222,6 @@ export default function ProductDetailPage() {
                 </Button>
               </CardContent>
             </Card>
-
-            {customer && (
-              <Card>
-                <CardHeader><CardTitle className="text-lg">Assigned Customer</CardTitle></CardHeader>
-                <CardContent>
-                  <DetailItem label="Name" value={customer.name} icon={<User className="w-4 h-4" />} />
-                  {customer.phone && <DetailItem label="Phone" value={customer.phone} />}
-                  {customer.email && <DetailItem label="Email" value={customer.email} />}
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           <div className="md:col-span-2 space-y-6">
@@ -282,3 +270,4 @@ export default function ProductDetailPage() {
     </div>
   );
 }
+

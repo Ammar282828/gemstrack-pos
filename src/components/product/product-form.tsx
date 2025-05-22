@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'; // Import Checkbox
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAppStore, Product, Category, Customer } from '@/lib/store';
+import { useAppStore, Product, Category } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, Diamond } from 'lucide-react'; // Added Diamond icon
@@ -27,7 +27,6 @@ const productFormSchema = z.object({
   diamondCharges: z.coerce.number().min(0, "Diamond charges must be non-negative").default(0),
   stoneCharges: z.coerce.number().min(0, "Stone charges must be non-negative"), // For non-diamond stones
   miscCharges: z.coerce.number().min(0, "Misc charges must be non-negative"),
-  assignedCustomerId: z.string().optional(),
   imageUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
 });
 
@@ -41,7 +40,7 @@ interface ProductFormProps {
 export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess }) => {
   const router = useRouter();
   const { toast } = useToast();
-  const { categories, customers, addProduct, updateProduct } = useAppStore();
+  const { categories, addProduct, updateProduct } = useAppStore();
 
   const isEditMode = !!product;
 
@@ -56,7 +55,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       diamondCharges: product.diamondCharges || 0,
       stoneCharges: product.stoneCharges,
       miscCharges: product.miscCharges,
-      assignedCustomerId: product.assignedCustomerId ?? "__NONE__",
       imageUrl: product.imageUrl || "",
     } : {
       categoryId: '',
@@ -67,7 +65,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       diamondCharges: 0,
       stoneCharges: 0,
       miscCharges: 0,
-      assignedCustomerId: "__NONE__",
       imageUrl: "",
     },
   });
@@ -111,7 +108,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     try {
       const finalData = {
         ...data,
-        assignedCustomerId: data.assignedCustomerId === "__NONE__" ? undefined : data.assignedCustomerId,
         diamondCharges: data.hasDiamonds ? data.diamondCharges : 0, // Ensure diamondCharges is 0 if not hasDiamonds
       };
 
@@ -287,34 +283,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="assignedCustomerId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Assign to Customer (Optional)</FormLabel>
-                  <Select
-                    onValueChange={(value) => field.onChange(value === "__NONE__" ? undefined : value)}
-                    value={field.value ?? "__NONE__"}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a customer or None" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="__NONE__">None</SelectItem>
-                      {customers.map((customer: Customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name} ({customer.id})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
              <FormField
               control={form.control}
               name="imageUrl"
@@ -347,3 +315,4 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     </Form>
   );
 };
+

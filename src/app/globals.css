@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -26,34 +27,34 @@ body {
     --muted: 240 30% 88%; /* Muted Lavender */
     --muted-foreground: 240 10% 35%; /* Darker muted text */
 
-    --accent: 45 70% 40%; /* Softer Muted Gold */
-    --accent-foreground: 45 70% 95%; /* Very light for contrast on Softer Gold */
+    --accent: 40 60% 45%; /* Warmer, Softer Muted Gold */
+    --accent-foreground: 40 60% 95%; /* Very light for contrast on Softer Gold */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 240 30% 85%; /* Lavender-based border */
     --input: 240 30% 90%; /* Lavender-based input background */
-    --ring: 45 70% 40%; /* Softer Muted Gold for focus rings */
+    --ring: 40 60% 45%; /* Warmer, Softer Muted Gold for focus rings */
 
     --radius: 0.5rem;
 
-    /* Chart colors - can be adjusted if charts are heavily used */
+    /* Chart colors */
     --chart-1: 276 70% 50%; 
-    --chart-2: 45 65% 50%; /* Adjusted gold-based chart color */
+    --chart-2: 40 55% 50%; /* Adjusted gold-based chart color */
     --chart-3: 240 50% 60%;
     --chart-4: 276 50% 70%;
-    --chart-5: 45 45% 70%; /* Adjusted gold-based chart color */
+    --chart-5: 40 40% 70%; /* Adjusted gold-based chart color */
 
     /* Sidebar specific theme adjustments */
     --sidebar-background: 276 100% 25%; /* Deep Indigo */
     --sidebar-foreground: 240 67% 94%; /* Light Lavender */
-    --sidebar-primary: 45 70% 40%; /* Softer Muted Gold for active/hover items */
+    --sidebar-primary: 40 60% 45%; /* Warmer, Softer Muted Gold for active/hover items */
     --sidebar-primary-foreground: 276 100% 15%; /* Dark Indigo for text on Gold */
     --sidebar-accent: 276 100% 30%; /* Slightly lighter Indigo for hover */
     --sidebar-accent-foreground: 240 67% 94%;
     --sidebar-border: 276 100% 20%; /* Darker Indigo border */
-    --sidebar-ring: 45 70% 45%; /* Slightly darker Softer Gold for ring */
+    --sidebar-ring: 40 60% 50%; /* Slightly brighter Warmer Softer Gold for ring */
   }
 
   .dark {
@@ -66,11 +67,11 @@ body {
     --popover: 276 25% 17%;
     --popover-foreground: 240 60% 88%;
 
-    --primary: 45 75% 55%; /* Softer Muted Gold (brighter in dark mode) */
-    --primary-foreground: 45 75% 10%; /* Dark brown/black for contrast on Softer Gold */
+    --primary: 40 65% 60%; /* Warmer, Softer Muted Gold (brighter in dark mode) */
+    --primary-foreground: 40 65% 10%; /* Dark brown/black for contrast on Softer Gold */
     
-    --secondary: 45 70% 45%;  /* Slightly darker/desaturated Softer Muted Gold */
-    --secondary-foreground: 45 70% 90%; /* Light text on secondary Softer gold */
+    --secondary: 40 60% 50%;  /* Slightly darker/desaturated Warmer Softer Gold */
+    --secondary-foreground: 40 60% 90%; /* Light text on secondary Softer gold */
 
     --muted: 276 20% 28%; /* Muted, slightly lighter than card */
     --muted-foreground: 240 40% 75%; /* Muted text color */
@@ -83,24 +84,24 @@ body {
 
     --border: 276 20% 30%;
     --input: 276 20% 22%; /* Darker input fields */
-    --ring: 45 75% 60%; /* Ring color to match new primary (Softer Muted Gold) */
+    --ring: 40 65% 65%; /* Ring color to match new primary (Warmer Softer Gold) */
 
     /* Chart colors for dark mode */
     --chart-1: 276 70% 60%;
-    --chart-2: 45 65% 60%; /* Adjusted gold-based chart color */
+    --chart-2: 40 55% 60%; /* Adjusted gold-based chart color */
     --chart-3: 240 50% 70%;
     --chart-4: 276 50% 80%;
-    --chart-5: 45 45% 80%; /* Adjusted gold-based chart color */
+    --chart-5: 40 40% 80%; /* Adjusted gold-based chart color */
 
-    /* Sidebar dark theme variables (already well-defined, ensuring consistency) */
+    /* Sidebar dark theme variables */
     --sidebar-background: 276 25% 12%; /* Consistent with main dark background */
     --sidebar-foreground: 240 60% 88%; /* Consistent with main dark foreground */
-    --sidebar-primary: 45 75% 55%; /* Softer Muted Gold for active/hover items */
+    --sidebar-primary: 40 65% 60%; /* Warmer Softer Muted Gold for active/hover items */
     --sidebar-primary-foreground: 276 100% 8%; /* Dark Indigo for text on Softer Gold */
     --sidebar-accent: 276 25% 18%; /* Slightly lighter Indigo for hover */
     --sidebar-accent-foreground: 240 60% 88%;
     --sidebar-border: 276 25% 10%; /* Darker Indigo border for sidebar */
-    --sidebar-ring: 45 75% 60%; /* Ring color for sidebar focus (Softer Gold) */
+    --sidebar-ring: 40 65% 65%; /* Ring color for sidebar focus (Warmer Softer Gold) */
   }
 }
 

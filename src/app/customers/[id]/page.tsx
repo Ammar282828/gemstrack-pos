@@ -4,12 +4,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAppStore, Customer, Product, selectAllProductsWithCosts, Invoice, useIsStoreHydrated } from '@/lib/store';
+import { useAppStore, Customer, Invoice, useIsStoreHydrated } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, Package, FileText, Brain, AlertTriangle, Loader2 } from 'lucide-react';
+import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, Brain, AlertTriangle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { analyzeCustomerTrends, AnalyzeCustomerTrendsOutput, AnalyzeCustomerTrendsInput } from '@/ai/flows/analyze-customer-trends-flow';
 
-type ProductWithCosts = ReturnType<typeof selectAllProductsWithCosts>[0];
 
 const DetailItem: React.FC<{ label: string; value: string | undefined; icon?: React.ReactNode }> = ({ label, value, icon }) => (
   <div className="flex items-start py-2">
@@ -44,9 +43,6 @@ export default function CustomerDetailPage() {
 
   const isHydrated = useIsStoreHydrated();
   const customer = useAppStore(state => state.customers.find(c => c.id === customerId));
-  const assignedProducts = useAppStore(state => 
-    selectAllProductsWithCosts(state).filter(p => p.assignedCustomerId === customerId)
-  );
   const allInvoices = useAppStore(state => state.generatedInvoices);
   const deleteCustomerAction = useAppStore(state => state.deleteCustomer);
 
@@ -213,32 +209,6 @@ export default function CustomerDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl">Assigned Products</CardTitle>
-              <CardDescription>Products currently assigned to {customer.name}.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {assignedProducts.length > 0 ? (
-                <ul className="space-y-3">
-                  {assignedProducts.map((product: ProductWithCosts) => (
-                    <li key={product.sku} className="p-3 border rounded-md hover:bg-muted/50 transition-colors">
-                      <Link href={`/products/${product.sku}`} className="flex justify-between items-center">
-                        <div>
-                          <p className="font-medium text-primary">{product.name}</p>
-                          <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
-                        </div>
-                        <Package className="w-5 h-5 text-muted-foreground" />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">No products assigned to this customer.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
               <CardTitle className="text-xl">Transaction History</CardTitle>
               <CardDescription>Past invoices for {customer.name}.</CardDescription>
             </CardHeader>
@@ -258,15 +228,6 @@ export default function CustomerDetailPage() {
                         <TableCell className="font-medium">{invoice.id}</TableCell>
                         <TableCell>{new Date(invoice.createdAt).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">{invoice.grandTotal.toLocaleString()}</TableCell>
-                        {/* Future: Link to view full invoice details page */}
-                        {/* <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => {
-                             // TODO: Implement navigation to a full invoice view page if needed 
-                             toast({title: "Coming Soon", description: "Full invoice view not yet implemented."})
-                          }}>
-                            <FileText className="h-4 w-4"/>
-                          </Button>
-                        </TableCell> */}
                       </TableRow>
                     ))}
                   </TableBody>
