@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode } from 'lucide-react';
+import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsStoreHydrated } from '@/lib/store';
 
@@ -55,11 +55,12 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/', label: 'Home', icon: <Home /> },
+  { href: '/scan', label: 'Scan QR / POS', icon: <ScanQrCode /> },
+  { href: '/cart', label: 'Cart / Invoice', icon: <ShoppingCart /> },
   { href: '/products', label: 'Products', icon: <Gem /> },
   { href: '/products/add', label: 'Add Product', icon: <PackagePlus /> },
-  { href: '/cart', label: 'Cart / Invoice', icon: <ShoppingCart /> },
   { href: '/customers', label: 'Customers', icon: <Users /> },
-  { href: '/scan', label: 'Scan QR', icon: <ScanQrCode /> },
+  { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
   { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
 ];
 
