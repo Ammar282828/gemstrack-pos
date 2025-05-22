@@ -185,15 +185,15 @@ const initialCategories: Category[] = [
   { id: 'cat12', title: 'String Sets' },
   { id: 'cat13', title: 'Stone Necklace Sets without Bracelets' },
   { id: 'cat14', title: 'Stone Necklace Sets with Bracelets' },
-  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' }, // Corrected typo
+  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' },
   { id: 'cat16', title: 'Gold Necklace Sets without Bracelets' },
 ];
 
 
 const initialSettings: Settings = {
   goldRatePerGram: 20000,
-  palladiumRatePerGram: 22000, // Example rate
-  platinumRatePerGram: 25000,  // Example rate
+  palladiumRatePerGram: 22000, 
+  platinumRatePerGram: 25000,  
   shopName: "Taheri",
   shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
@@ -231,8 +231,20 @@ const initialProducts: Product[] = [
     makingCharges: 15000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 22500, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png?text=Bangle"
   },
   {
-    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalType: 'gold', karat: '21k', metalWeightG: 20.0, wastagePercentage: 15,
+    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalType: 'gold', karat: '21k', metalWeightG: 20.0, wastagePercentage: 15, // Wastage for "gold sets"
     makingCharges: 30000, hasDiamonds: true, diamondCharges: 50000, stoneCharges: 160000, miscCharges: 2000, imageUrl: "https://placehold.co/300x300.png?text=Gold+Set+Diamond"
+  },
+  {
+    sku: "CHA-000001", name: "Chains - CHA-000001", categoryId: "cat08", metalType: 'gold', karat: '22k', metalWeightG: 10.0, wastagePercentage: 15, // Wastage for "chains"
+    makingCharges: 8000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 400, imageUrl: "https://placehold.co/300x300.png?text=Gold+Chain"
+  },
+  {
+    sku: "PAL-000001", name: "Rings - PAL-000001", categoryId: "cat01", metalType: 'palladium', metalWeightG: 6.0, wastagePercentage: 10, // Default wastage for non-special category
+    makingCharges: 5000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 10000, miscCharges: 300, imageUrl: "https://placehold.co/300x300.png?text=Palladium+Ring"
+  },
+   {
+    sku: "PLA-000001", name: "Bands - PLA-000001", categoryId: "cat09", metalType: 'platinum', metalWeightG: 7.5, wastagePercentage: 10, // Default wastage for non-special category
+    makingCharges: 6000, hasDiamonds: true, diamondCharges: 15000, stoneCharges: 0, miscCharges: 250, imageUrl: "https://placehold.co/300x300.png?text=Platinum+Band"
   }
 ];
 
@@ -307,7 +319,7 @@ export const useAppStore = create<AppState>()(
           
           const finalProductData = { ...productData };
           if (finalProductData.metalType !== 'gold') {
-            delete finalProductData.karat; // Remove karat if not gold
+            delete finalProductData.karat; 
           }
 
 
@@ -405,9 +417,9 @@ export const useAppStore = create<AppState>()(
         }
 
         const goldRateForInvoiceInput = invoiceGoldRate24k > 0 ? invoiceGoldRate24k : settings.goldRatePerGram;
-        if (goldRateForInvoiceInput <= 0 && products.some(p => p.metalType === 'gold')) { // Check if any gold products need this rate
-            console.error("[GemsTrack] Invoice: Gold rate for invoice must be positive if gold items are present.");
-            // Potentially return null or handle as an error for the user
+        if (goldRateForInvoiceInput <= 0 && products.some(p => p.metalType === 'gold' && cart.some(ci => ci.sku === p.sku))) { 
+            console.error("[GemsTrack] Invoice: Gold rate for invoice must be positive if gold items are present in the cart.");
+             return null;
         }
         
         const ratesForInvoice = {
@@ -498,12 +510,10 @@ export const useAppStore = create<AppState>()(
             console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
           }
           queueMicrotask(() => {
-            if (state) { // Ensure state exists before trying to call setHasHydrated
+            if (state) { 
               state.setHasHydrated(true);
-              console.log('[GemsTrack] Persist: _hasHydrated flag set via onRehydrateStorage.');
             } else {
-              console.warn('[GemsTrack] Persist: state was undefined during onRehydrateStorage, hydration flag not set directly here.');
-               // Fallback if state is not passed directly, though setHasHydrated should be part of AppState
+              console.warn('[GemsTrack] Persist: state was undefined during onRehydrateStorage, using fallback.');
                useAppStore.getState().setHasHydrated(true);
             }
           });
@@ -514,7 +524,7 @@ export const useAppStore = create<AppState>()(
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 3, // Incremented version due to significant schema changes
+      version: 3, 
     }
   )
 );
@@ -568,7 +578,6 @@ export const selectCartDetails = (state: AppState) => {
         ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION) 
         : undefined,
     };
-    // Use settings gold rate for cart display, invoice rate is applied at invoice generation.
     const costs = calculateProductCosts(productWithDefaultedKarat, state.settings);
     return {
       ...productWithDefaultedKarat,
@@ -586,17 +595,31 @@ export const selectCartSubtotal = (state: AppState) => {
 };
 
 export const useIsStoreHydrated = () => {
-  const isHydrated = useAppStore(React.useCallback((state) => state._hasHydrated, []));
+  const [isHydrated, setIsHydrated] = React.useState(false);
+
+  React.useEffect(() => {
+    // Initialize with the current hydration state
+    setIsHydrated(useAppStore.getState()._hasHydrated);
+
+    // Subscribe to changes in the _hasHydrated state
+    const unsubscribe = useAppStore.subscribe(
+      (state) => state._hasHydrated,
+      (hydrated) => {
+        setIsHydrated(hydrated);
+      }
+    );
+    return unsubscribe; // Cleanup subscription on unmount
+  }, []);
+
   return isHydrated;
 };
 
-// Ensure _hasHydrated is set correctly if onRehydrateStorage doesn't provide 'state'
-// This listener is a fallback.
+// Fallback if onRehydrateStorage doesn't get state, or for safety.
 if (typeof window !== 'undefined') {
     useAppStore.persist.onFinishHydration(() => {
         if (!useAppStore.getState()._hasHydrated) {
             useAppStore.getState().setHasHydrated(true);
-            console.log('[GemsTrack] Persist: _hasHydrated flag set via onFinishHydration.');
+            console.log('[GemsTrack] Persist: _hasHydrated flag set via onFinishHydration fallback.');
         }
     });
 }
