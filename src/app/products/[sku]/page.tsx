@@ -61,7 +61,7 @@ export default function ProductDetailPage() {
   const categoryTitle = useAppStore(state => productData ? selectCategoryTitleById(productData.categoryId, state) : '');
   const settings = useAppStore(state => state.settings);
   const deleteProductAction = useAppStore(state => state.deleteProduct);
-  const setProductQrCodeDataUrl = useAppStore(state => state.setProductQrCode);
+  const setProductQrCodeDataUrlAction = useAppStore(state => state.setProductQrCode);
   const { addToCart } = useAppStore();
 
 
@@ -72,14 +72,19 @@ export default function ProductDetailPage() {
     if (productData && !productData.qrCodeDataUrl) {
       const canvas = document.getElementById(`qr-${sku}`) as HTMLCanvasElement;
       if (canvas) {
-        const dataUrl = canvas.toDataURL('image/png');
-        setQrCodeDataUrl(dataUrl);
-        setProductQrCodeDataUrl(sku, dataUrl);
+        try {
+            const dataUrl = canvas.toDataURL('image/png');
+            setQrCodeDataUrl(dataUrl);
+            setProductQrCodeDataUrlAction(sku, dataUrl);
+        } catch (e) {
+            console.error("Error generating QR code data URL:", e);
+            toast({ title: "QR Code Error", description: "Could not generate QR code image for the tag.", variant: "destructive"});
+        }
       }
     } else if (productData?.qrCodeDataUrl) {
       setQrCodeDataUrl(productData.qrCodeDataUrl);
     }
-  }, [productData, sku, setProductQrCodeDataUrl]);
+  }, [productData, sku, setProductQrCodeDataUrlAction, toast]);
 
   const handleDeleteProduct = () => {
     deleteProductAction(sku);
@@ -88,43 +93,81 @@ export default function ProductDetailPage() {
   };
 
   const handlePrintTag = () => {
-    if (!productData || !qrCodeDataUrl) {
-      toast({ title: "Error", description: "Product data or QR code not available for printing.", variant: "destructive" });
+    if (!productData) {
+      toast({ title: "Error", description: "Product data not available for printing.", variant: "destructive" });
       return;
     }
+    if (!qrCodeDataUrl) {
+         toast({ title: "Error", description: "QR code image not ready. Please wait a moment and try again.", variant: "destructive" });
+         // Attempt to generate it if it's missing for some reason
+         const canvas = document.getElementById(`qr-${sku}`) as HTMLCanvasElement;
+         if (canvas) {
+           try {
+             const dataUrl = canvas.toDataURL('image/png');
+             setQrCodeDataUrl(dataUrl); // Update local state
+             setProductQrCodeDataUrlAction(sku, dataUrl); // Update store
+             toast({ title: "QR Generated", description: "QR code image was just generated. Please try printing the tag again."});
+           } catch (e) {
+             console.error("Error generating QR code data URL on demand:", e);
+           }
+         }
+         return;
+    }
+
 
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
-      format: [70, 30]
+      format: [70, 30] // Standard small tag size
     });
 
+    // Left side: Text details
+    const textStartX = 3;
+    let currentY = 5;
     doc.setFontSize(8);
-    doc.text(productData.name, 3, 5);
+    // Product name can be long, truncate if necessary or make font smaller
+    const maxNameLength = 30; // Adjust as needed
+    const displayName = productData.name.length > maxNameLength ? productData.name.substring(0, maxNameLength) + '...' : productData.name;
+    doc.text(displayName, textStartX, currentY);
+    currentY += 4;
+
     doc.setFontSize(6);
-    doc.text(`SKU: ${productData.sku}`, 3, 9);
-    doc.text(`Metal: ${productData.metalWeightG}g (${productData.karat.toUpperCase()})`, 3, 13);
+    doc.text(`SKU: ${productData.sku}`, textStartX, currentY);
+    currentY += 4;
+
+    doc.text(`Metal: ${productData.metalWeightG.toFixed(2)}g (${productData.karat.toUpperCase()})`, textStartX, currentY);
+    currentY += 4;
+
     if (productData.hasDiamonds) {
-        doc.text(`Diamonds: Yes`, 3, 17);
+        doc.text(`Diamonds: Yes`, textStartX, currentY);
+        currentY += 4;
     }
 
+    // Price (larger font, bold)
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(`PKR ${productData.totalPrice.toLocaleString()}`, 3, 22);
+    doc.text(`PKR ${productData.totalPrice.toLocaleString()}`, textStartX, currentY + 2); // Slightly lower
+
+    // Right side: QR Code
+    const qrCodeSize = 24; // mm
+    const qrCodeX = 70 - qrCodeSize - 3; // 3mm margin from right
+    const qrCodeY = (30 - qrCodeSize) / 2; // Centered vertically
 
     if (qrCodeDataUrl.startsWith("data:image/png")) {
-         doc.addImage(qrCodeDataUrl, 'PNG', 45, 3, 24, 24);
+         doc.addImage(qrCodeDataUrl, 'PNG', qrCodeX, qrCodeY, qrCodeSize, qrCodeSize);
     } else {
-        console.warn("QR code is not in PNG format, skipping image on PDF.");
-        doc.text("[QR Placeholder]", 45, 15);
+        console.warn("QR code is not in PNG format or missing, skipping image on PDF.");
+        doc.setFontSize(6);
+        doc.text("[QR]", qrCodeX + qrCodeSize/2, qrCodeY + qrCodeSize/2, { align: 'center'});
     }
 
-    doc.rect(1, 1, 68, 28);
+    // Optional: Add a border around the tag
+    doc.rect(1, 1, 68, 28); // (x, y, width, height)
 
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
 
-    toast({ title: "Tag Ready", description: "Jewellery tag PDF generated." });
+    toast({ title: "Tag Ready", description: "Jewellery tag PDF generated and opened for printing." });
   };
 
   const handleAddToCart = () => {
@@ -211,11 +254,12 @@ export default function ProductDetailPage() {
                 <QrCodeIcon className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center p-4">
+                {/* Hidden QRCode component used to generate data URL for PDF */}
                 <QRCode id={`qr-${sku}`} value={productData.sku} size={128} level="H" style={{ display: 'none' }} />
                 {qrCodeDataUrl ? (
                   <Image src={qrCodeDataUrl} alt={`QR Code for ${productData.sku}`} width={128} height={128} />
                 ) : (
-                  <div className="w-32 h-32 bg-gray-200 flex items-center justify-center text-sm text-gray-500">Generating QR...</div>
+                  <div className="w-32 h-32 bg-gray-200 flex items-center justify-center text-sm text-gray-500 rounded-md">Generating QR...</div>
                 )}
                 <Button variant="outline" size="sm" onClick={handlePrintTag} className="mt-4">
                   <Printer className="mr-2 h-4 w-4" /> Print Tag
@@ -241,15 +285,19 @@ export default function ProductDetailPage() {
                 <DetailItem label="Gold Rate (Store Setting, 24k)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR" />
                 <Separator className="my-1" />
                 <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR" />
+                <Separator className="my-1" />
                 <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR" />
+                <Separator className="my-1" />
                 <DetailItem label="Making Charges" value={productData.makingCharges} currency="PKR" />
                 {productData.hasDiamonds && (
                   <>
-                    <DetailItem label="Diamond Charges" value={productData.diamondCharges} currency="PKR" icon={<Diamond className="w-4 h-4" />}/>
                     <Separator className="my-1" />
+                    <DetailItem label="Diamond Charges" value={productData.diamondCharges} currency="PKR" icon={<Diamond className="w-4 h-4" />}/>
                   </>
                 )}
+                 <Separator className="my-1" />
                 <DetailItem label={productData.hasDiamonds ? "Other Stone Charges" : "Stone Charges"} value={productData.stoneCharges} currency="PKR" />
+                 <Separator className="my-1" />
                 <DetailItem label="Misc. Charges" value={productData.miscCharges} currency="PKR" />
               </CardContent>
             </Card>
@@ -272,3 +320,4 @@ export default function ProductDetailPage() {
     </div>
   );
 }
+
