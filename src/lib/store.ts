@@ -1,6 +1,8 @@
+
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import React from 'react'; // Added React import for useEffect in useHydratedStore
 
 // --- Type Definitions ---
 
@@ -301,7 +303,13 @@ export const useAppStore = create<AppState>()(
       name: 'gemstrack-pos-storage', // unique name
       storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
       onRehydrateStorage: () => (state) => {
-        if (state) state.setHasHydrated(true)
+        console.log('[GemsTrack] Zustand store rehydration attempt.');
+        if (state) {
+          state.setHasHydrated(true);
+          console.log('[GemsTrack] Zustand store rehydrated successfully.');
+        } else {
+          console.warn('[GemsTrack] Zustand store rehydration: state is undefined post rehydration attempt.');
+        }
       },
     }
   )
