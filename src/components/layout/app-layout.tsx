@@ -5,13 +5,6 @@
 if (typeof window !== 'undefined' && typeof window.structuredClone !== 'function') {
   console.log('[GemsTrack] structuredClone not found. Applying basic polyfill.');
   window.structuredClone = function(value: any) {
-    // Basic polyfill using JSON stringify/parse.
-    // WARNING: This has limitations:
-    // - Dates will be converted to ISO strings.
-    // - Functions, undefined, Infinity, NaN, RegExp, Map, Set, etc., will not be cloned correctly or will be lost.
-    // - Circular references will cause an error with JSON.stringify.
-    // For GemsTrack POS, the state is primarily plain objects, arrays, strings, numbers, booleans,
-    // so this simplified polyfill should generally work.
     if (value === undefined) {
         return undefined;
     }
@@ -19,8 +12,6 @@ if (typeof window !== 'undefined' && typeof window.structuredClone !== 'function
       return JSON.parse(JSON.stringify(value));
     } catch (e) {
         console.error("GemsTrack: structuredClone polyfill (JSON.parse(JSON.stringify)) failed:", e);
-        // As a last resort, return the original value, acknowledging it's not a clone.
-        // This is not ideal but prevents a crash if JSON methods fail.
         return value;
     }
   };
@@ -43,7 +34,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp } from 'lucide-react';
+import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsStoreHydrated } from '@/lib/store';
 
@@ -60,6 +51,7 @@ const navItems: NavItem[] = [
   { href: '/products', label: 'Products', icon: <Gem /> },
   { href: '/products/add', label: 'Add Product', icon: <PackagePlus /> },
   { href: '/customers', label: 'Customers', icon: <Users /> },
+  { href: '/karigars', label: 'Karigars', icon: <Briefcase /> },
   { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
   { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
 ];
@@ -118,9 +110,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
           <SidebarTrigger className="md:hidden" />
           <div className="flex-1 text-center md:text-left">
-             {/* Breadcrumbs or page title could go here */}
           </div>
-          {/* Potentially user profile / actions */}
         </header>
         <main className="flex-1 p-4 overflow-auto md:p-6">
           {children}

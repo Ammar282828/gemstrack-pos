@@ -77,6 +77,14 @@ export interface Invoice {
   platinumRateApplied?: number; // The platinum rate used for platinum items
 }
 
+export interface Karigar {
+  id: string;
+  name: string;
+  contact?: string;
+  notes?: string;
+}
+
+
 // --- Helper Functions and Constants (Defined BEFORE use in initial data) ---
 export const DEFAULT_KARAT_VALUE_FOR_CALCULATION: KaratValue = '21k';
 
@@ -201,11 +209,11 @@ const initialCustomers: Customer[] = [
 
 const initialProducts: Product[] = [
   {
-    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalType: 'gold', karat: '21k', metalWeightG: 5.2, wastagePercentage: 25, // Diamond default
+    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalType: 'gold', karat: '21k', metalWeightG: 5.2, wastagePercentage: 25,
     makingCharges: 4160, hasDiamonds: true, diamondCharges: 25000, stoneCharges: 0, miscCharges: 500, imageUrl: "https://placehold.co/300x300.png?text=Diamond+Ring"
   },
   {
-    sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalType: 'gold', karat: '22k', metalWeightG: 12.5, wastagePercentage: 10, // Default for this category
+    sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalType: 'gold', karat: '22k', metalWeightG: 12.5, wastagePercentage: 10,
     makingCharges: 15000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 112500, miscCharges: 1500, imageUrl: "https://placehold.co/300x300.png?text=Necklace+Set"
   },
   {
@@ -217,15 +225,15 @@ const initialProducts: Product[] = [
     makingCharges: 7200, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png?text=Bracelet"
   },
   {
-    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", metalType: 'gold', karat: '22k', metalWeightG: 15.0, wastagePercentage: 15, // 15% for bangles
+    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", metalType: 'gold', karat: '22k', metalWeightG: 15.0, wastagePercentage: 15,
     makingCharges: 15000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 22500, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png?text=Bangle"
   },
   {
-    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalType: 'gold', karat: '21k', metalWeightG: 20.0, wastagePercentage: 25, // Diamond default (assuming GOL has diamonds)
+    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalType: 'gold', karat: '21k', metalWeightG: 20.0, wastagePercentage: 25,
     makingCharges: 30000, hasDiamonds: true, diamondCharges: 50000, stoneCharges: 160000, miscCharges: 2000, imageUrl: "https://placehold.co/300x300.png?text=Gold+Set+Diamond"
   },
   {
-    sku: "CHA-000001", name: "Chains - CHA-000001", categoryId: "cat08", metalType: 'gold', karat: '22k', metalWeightG: 10.0, wastagePercentage: 15, // 15% for chains
+    sku: "CHA-000001", name: "Chains - CHA-000001", categoryId: "cat08", metalType: 'gold', karat: '22k', metalWeightG: 10.0, wastagePercentage: 15,
     makingCharges: 8000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 400, imageUrl: "https://placehold.co/300x300.png?text=Gold+Chain"
   },
   {
@@ -233,7 +241,7 @@ const initialProducts: Product[] = [
     makingCharges: 5000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 10000, miscCharges: 300, imageUrl: "https://placehold.co/300x300.png?text=Palladium+Ring"
   },
    {
-    sku: "BAN-000002", name: "Bands - BAN-000002", categoryId: "cat09", metalType: 'platinum', metalWeightG: 7.5, wastagePercentage: 25, // Diamond default
+    sku: "BAN-000002", name: "Bands - BAN-000002", categoryId: "cat09", metalType: 'platinum', metalWeightG: 7.5, wastagePercentage: 25,
     makingCharges: 6000, hasDiamonds: true, diamondCharges: 15000, stoneCharges: 0, miscCharges: 250, imageUrl: "https://placehold.co/300x300.png?text=Platinum+Band"
   }
 ];
@@ -248,9 +256,8 @@ const initialGeneratedInvoices: Invoice[] = (() => {
         platinumRatePerGram: platinumRatePerGram,
     };
 
-    // Invoice 1 (Aisha Khan, 10 days ago)
-    const product1_inv1 = initialProducts.find(p => p.sku === "RIN-000001"); // Gold, Diamond
-    const product2_inv1 = initialProducts.find(p => p.sku === "TOP-000001"); // Gold, Non-Diamond
+    const product1_inv1 = initialProducts.find(p => p.sku === "RIN-000001"); 
+    const product2_inv1 = initialProducts.find(p => p.sku === "TOP-000001"); 
     if (product1_inv1 && product2_inv1) {
         const costs1_inv1 = calculateProductCosts(product1_inv1, ratesForCalc);
         const costs2_inv1 = calculateProductCosts(product2_inv1, ratesForCalc);
@@ -267,9 +274,8 @@ const initialGeneratedInvoices: Invoice[] = (() => {
         });
     }
 
-    // Invoice 2 (Bilal Ahmed, 5 days ago)
-    const product1_inv2 = initialProducts.find(p => p.sku === "BRA-000001"); // Gold, Non-Diamond
-    const product2_inv2 = initialProducts.find(p => p.sku === "RIN-000002"); // Palladium
+    const product1_inv2 = initialProducts.find(p => p.sku === "BRA-000001"); 
+    const product2_inv2 = initialProducts.find(p => p.sku === "RIN-000002"); 
      if (product1_inv2 && product2_inv2) {
         const costs1_inv2 = calculateProductCosts(product1_inv2, ratesForCalc);
         const costs2_inv2 = calculateProductCosts(product2_inv2, ratesForCalc);
@@ -286,8 +292,7 @@ const initialGeneratedInvoices: Invoice[] = (() => {
         });
     }
 
-    // Invoice 3 (Walk-in, 2 days ago)
-    const product1_inv3 = initialProducts.find(p => p.sku === "BAN-000002"); // Platinum, Diamond
+    const product1_inv3 = initialProducts.find(p => p.sku === "BAN-000002"); 
      if (product1_inv3) {
         const costs1_inv3 = calculateProductCosts(product1_inv3, ratesForCalc);
         const items_inv3: InvoiceItem[] = [
@@ -302,8 +307,7 @@ const initialGeneratedInvoices: Invoice[] = (() => {
         });
     }
 
-    // Invoice 4 (Aisha Khan, yesterday)
-    const product1_inv4 = initialProducts.find(p => p.sku === "CHA-000001"); // Gold, Non-Diamond
+    const product1_inv4 = initialProducts.find(p => p.sku === "CHA-000001"); 
      if (product1_inv4) {
         const costs1_inv4 = calculateProductCosts(product1_inv4, ratesForCalc);
         const items_inv4: InvoiceItem[] = [
@@ -317,8 +321,7 @@ const initialGeneratedInvoices: Invoice[] = (() => {
             goldRateApplied: goldRatePerGram,
         });
     }
-    // Invoice 5 (Fatima Ali, 15 days ago)
-    const product1_inv5 = initialProducts.find(p => p.sku === "GOL-000001"); // Gold, Diamond
+    const product1_inv5 = initialProducts.find(p => p.sku === "GOL-000001"); 
     if (product1_inv5) {
         const costs1_inv5 = calculateProductCosts(product1_inv5, ratesForCalc);
         const items_inv5: InvoiceItem[] = [
@@ -335,6 +338,11 @@ const initialGeneratedInvoices: Invoice[] = (() => {
     return invoices;
 })();
 
+const initialKarigars: Karigar[] = [
+    { id: 'karigar-001', name: 'Ustad Karim Baksh', contact: '0301-1112233', notes: 'Specializes in intricate gold work.'},
+    { id: 'karigar-002', name: 'Ali Bhai', contact: '0302-4445566', notes: 'Good with modern designs and platinum.'},
+];
+
 
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'qrCodeDataUrl' | 'name'>;
@@ -348,6 +356,7 @@ export interface AppState {
   customers: Customer[];
   cart: CartItem[];
   generatedInvoices: Invoice[];
+  karigars: Karigar[];
 
   updateSettings: (newSettings: Partial<Settings>) => void;
 
@@ -363,6 +372,10 @@ export interface AppState {
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
   updateCustomer: (id: string, updatedCustomer: Partial<Customer>) => void;
   deleteCustomer: (id: string) => void;
+
+  addKarigar: (karigarData: Omit<Karigar, 'id'>) => Karigar;
+  updateKarigar: (id: string, updatedKarigarData: Partial<Karigar>) => void;
+  deleteKarigar: (id: string) => void;
 
   addToCart: (sku: string, quantity?: number) => void;
   removeFromCart: (sku: string) => void;
@@ -402,6 +415,7 @@ export const useAppStore = create<AppState>()(
       customers: initialCustomers,
       cart: [],
       generatedInvoices: initialGeneratedInvoices,
+      karigars: initialKarigars,
 
       updateSettings: (newSettings) =>
         set((state) => {
@@ -513,6 +527,30 @@ export const useAppStore = create<AppState>()(
           state.customers = state.customers.filter((c) => c.id !== id);
         }, false, '[GemsTrack] Customers: deleteCustomer'),
 
+      addKarigar: (karigarData) => {
+        let newKarigar: Karigar | null = null;
+        set((state) => {
+            newKarigar = { ...karigarData, id: `karigar-${Date.now()}-${Math.random().toString(36).substring(2,7)}` };
+            state.karigars.push(newKarigar);
+        }, false, '[GemsTrack] Karigars: addKarigar');
+        return newKarigar!;
+      },
+      updateKarigar: (id, updatedKarigarData) => {
+        set((state) => {
+            const karigarIndex = state.karigars.findIndex(k => k.id === id);
+            if (karigarIndex !== -1) {
+                state.karigars[karigarIndex] = { ...state.karigars[karigarIndex], ...updatedKarigarData };
+            }
+        }, false, '[GemsTrack] Karigars: updateKarigar');
+      },
+      deleteKarigar: (id) => {
+        set((state) => {
+            state.karigars = state.karigars.filter(k => k.id !== id);
+            // Future: Also delete related hisaabs or handle orphaned hisaabs
+        }, false, '[GemsTrack] Karigars: deleteKarigar');
+      },
+
+
       addToCart: (sku, quantity = 1) =>
         set((state) => {
           const existingItem = state.cart.find((item) => item.sku === sku);
@@ -559,8 +597,7 @@ export const useAppStore = create<AppState>()(
                  console.warn(`[GemsTrack] Invoice: Invalid invoiceGoldRate24k (${invoiceGoldRate24k}). Defaulting to store setting: ${settings.goldRatePerGram}`);
                  validInvoiceGoldRate24k = settings.goldRatePerGram;
              } else {
-                // No gold items in cart, so the invoice gold rate is not strictly needed for them
-                validInvoiceGoldRate24k = 0; // Or could be settings.goldRatePerGram, but it won't be used if no gold items
+                validInvoiceGoldRate24k = 0;
              }
         }
 
@@ -663,20 +700,26 @@ export const useAppStore = create<AppState>()(
         }
         return localStorage;
       }),
-      onRehydrateStorage: () => (_state, error) => {
-        if (error) {
-          console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
-        }
-        queueMicrotask(() => {
-          useAppStore.getState().setHasHydrated(true);
-        });
+      onRehydrateStorage: (_state) => {
+        console.log("[GemsTrack] Persist: Hydration preparing to start or error occurred.");
+        return (finalState, error) => {
+          if (error) {
+            console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
+          } else {
+            console.log("[GemsTrack] Persist: Hydration finished. Final state object:", finalState);
+            queueMicrotask(() => {
+                useAppStore.getState().setHasHydrated(true);
+                console.log("[GemsTrack] Persist: _hasHydrated flag set to true via onRehydrateStorage.");
+            });
+          }
+        };
       },
       partialize: (state) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 4, // Incremented version
+      version: 4, 
     }
   )
 );
@@ -762,30 +805,37 @@ export const selectCartSubtotal = (state: AppState) => {
 };
 
 export const useIsStoreHydrated = () => {
-  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
+  const [isHydrated, setIsHydrated] = React.useState(false);
 
   React.useEffect(() => {
-    // Sync with store state in case it hydrated between initial useState and effect run
-    const currentStoreHydrationStatus = useAppStore.getState()._hasHydrated;
-    if (isHydrated !== currentStoreHydrationStatus) {
-      setIsHydrated(currentStoreHydrationStatus);
-    }
+    const checkHydration = () => {
+        const storeHydrated = useAppStore.getState()._hasHydrated;
+        if (storeHydrated) {
+            setIsHydrated(true);
+        }
+    };
+    
+    checkHydration(); // Check immediately
 
     const unsubscribe = useAppStore.subscribe(
       (state) => state._hasHydrated,
       (hydratedState) => {
-        queueMicrotask(() => {
-           if (isHydrated !== hydratedState) {
-            setIsHydrated(hydratedState);
-          }
-        });
+        if (hydratedState) {
+          queueMicrotask(() => setIsHydrated(true));
+        }
       }
     );
+    
+    // Additional check in case hydration happens very quickly
+    // or if the initial state from subscribe is already true
+    if (useAppStore.getState()._hasHydrated) {
+        setIsHydrated(true);
+    }
+
     return () => {
       unsubscribe();
     };
-  }, []); // Empty dependency array
+  }, []);
 
   return isHydrated;
 };
-
