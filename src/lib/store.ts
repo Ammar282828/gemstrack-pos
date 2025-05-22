@@ -157,11 +157,11 @@ const initialProducts: Product[] = [
     makingRatePerG: 800, stoneRatePerCt: 60000, miscCharges: 500, assignedCustomerId: 'cust-001', imageUrl: "https://placehold.co/300x300.png"
   },
   {
-    sku: "NEC-000001", name: "Necklaces - NEC-000001", categoryId: "cat13", metalWeightG: 12.5, stoneWeightCt: 1.5, wastagePercentage: 12, // Assuming cat13 is 'Stone Necklace Sets without Bracelets'
+    sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalWeightG: 12.5, stoneWeightCt: 1.5, wastagePercentage: 12,
     makingRatePerG: 1200, stoneRatePerCt: 75000, miscCharges: 1500, imageUrl: "https://placehold.co/300x300.png"
   },
   {
-    sku: "EAR-000001", name: "Earrings - EAR-000001", categoryId: "cat2", metalWeightG: 3.0, stoneWeightCt: 0.75, wastagePercentage: 8, // Assuming cat2 is 'Tops' or similar to earrings
+    sku: "TOP-000001", name: "Tops - TOP-000001", categoryId: "cat2", metalWeightG: 3.0, stoneWeightCt: 0.75, wastagePercentage: 8,
     makingRatePerG: 600, stoneRatePerCt: 50000, miscCharges: 300, assignedCustomerId: 'cust-002', imageUrl: "https://placehold.co/300x300.png"
   },
   {
@@ -169,8 +169,12 @@ const initialProducts: Product[] = [
     makingRatePerG: 900, stoneRatePerCt: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png"
   },
   {
-    sku: "RIN-000002", name: "Rings - RIN-000002", categoryId: "cat1", metalWeightG: 4.5, stoneWeightCt: 0.15, wastagePercentage: 9,
-    makingRatePerG: 750, stoneRatePerCt: 55000, miscCharges: 400, imageUrl: "https://placehold.co/300x300.png"
+    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat7", metalWeightG: 15.0, stoneWeightCt: 0.5, wastagePercentage: 11,
+    makingRatePerG: 1000, stoneRatePerCt: 45000, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png"
+  },
+  {
+    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalWeightG: 20.0, stoneWeightCt: 2.0, wastagePercentage: 15,
+    makingRatePerG: 1500, stoneRatePerCt: 80000, miscCharges: 2000, assignedCustomerId: 'cust-003', imageUrl: "https://placehold.co/300x300.png"
   }
 ];
 
@@ -188,7 +192,7 @@ export const useAppStore = create<AppState>()(
       setHasHydrated: (hydrated) => {
         set((state) => {
           state._hasHydrated = hydrated;
-        }, false, 'setHasHydrated_action');
+        }, false, '[GemsTrack] Store: setHasHydrated_action');
       },
       settings: initialSettings,
       categories: initialCategories,
@@ -200,32 +204,32 @@ export const useAppStore = create<AppState>()(
       updateSettings: (newSettings) =>
         set((state) => {
           state.settings = { ...state.settings, ...newSettings };
-        }),
+        }, false, '[GemsTrack] Settings: updateSettings'),
 
       addCategory: (title) =>
         set((state) => {
           const newCategory: Category = { id: `cat-${Date.now()}`, title };
           state.categories.push(newCategory);
-        }),
+        }, false, '[GemsTrack] Categories: addCategory'),
       updateCategory: (id, title) =>
         set((state) => {
           const category = state.categories.find((c) => c.id === id);
           if (category) {
             category.title = title;
           }
-        }),
+        }, false, '[GemsTrack] Categories: updateCategory'),
       deleteCategory: (id) =>
         set((state) => {
           state.categories = state.categories.filter((c) => c.id !== id);
-          state.products = state.products.map(p => p.categoryId === id ? {...p, categoryId: ''} : p);
-        }),
+          state.products = state.products.map(p => p.categoryId === id ? {...p, categoryId: ''} : p); // Untag products from deleted category
+        }, false, '[GemsTrack] Categories: deleteCategory'),
 
       addProduct: (productData) => {
         let newProduct: Product | null = null;
         set((state) => {
           const category = state.categories.find(c => c.id === productData.categoryId);
           if (!category) {
-            console.error(`Category with id ${productData.categoryId} not found. Product not added.`);
+            console.error(`[GemsTrack] Products: Category with id ${productData.categoryId} not found. Product not added.`);
             return;
           }
 
@@ -250,51 +254,53 @@ export const useAppStore = create<AppState>()(
             sku: generatedSku,
           };
           state.products.push(newProduct);
-        });
+        }, false, '[GemsTrack] Products: addProduct');
         return newProduct;
       },
       updateProduct: (sku, updatedFields) =>
         set((state) => {
           const productIndex = state.products.findIndex((p) => p.sku === sku);
           if (productIndex !== -1) {
+            // Prevent SKU and name from being overwritten by form data
             const { name: _name, sku: _sku, ...safeUpdateFields } = updatedFields as any;
             state.products[productIndex] = { ...state.products[productIndex], ...safeUpdateFields };
           }
-        }),
+        }, false, '[GemsTrack] Products: updateProduct'),
       deleteProduct: (sku) =>
         set((state) => {
           state.products = state.products.filter((p) => p.sku !== sku);
-          state.cart = state.cart.filter(item => item.sku !== sku);
-        }),
+          state.cart = state.cart.filter(item => item.sku !== sku); // Remove from cart if present
+        }, false, '[GemsTrack] Products: deleteProduct'),
       setProductQrCode: (sku, qrCodeDataUrl) =>
         set((state) => {
           const product = state.products.find((p) => p.sku === sku);
           if (product) {
             product.qrCodeDataUrl = qrCodeDataUrl;
           }
-        }),
+        }, false, '[GemsTrack] Products: setProductQrCode'),
 
       addCustomer: (customerData) =>
         set((state) => {
           const newCustomer: Customer = { ...customerData, id: `cust-${Date.now()}` };
           state.customers.push(newCustomer);
-        }),
+        }, false, '[GemsTrack] Customers: addCustomer'),
       updateCustomer: (id, updatedFields) =>
         set((state) => {
           const customerIndex = state.customers.findIndex((c) => c.id === id);
           if (customerIndex !== -1) {
             state.customers[customerIndex] = { ...state.customers[customerIndex], ...updatedFields };
           }
-        }),
+        }, false, '[GemsTrack] Customers: updateCustomer'),
       deleteCustomer: (id) =>
         set((state) => {
           state.customers = state.customers.filter((c) => c.id !== id);
+          // Unassign customer from products
           state.products.forEach(product => {
             if (product.assignedCustomerId === id) {
               product.assignedCustomerId = undefined;
             }
           });
-        }),
+        }, false, '[GemsTrack] Customers: deleteCustomer'),
 
       addToCart: (sku, quantity = 1) =>
         set((state) => {
@@ -304,41 +310,47 @@ export const useAppStore = create<AppState>()(
           } else {
             state.cart.push({ sku, quantity });
           }
-        }),
+        }, false, '[GemsTrack] Cart: addToCart'),
       removeFromCart: (sku) =>
         set((state) => {
           state.cart = state.cart.filter((item) => item.sku !== sku);
-        }),
+        }, false, '[GemsTrack] Cart: removeFromCart'),
       updateCartQuantity: (sku, quantity) =>
         set((state) => {
           const item = state.cart.find((i) => i.sku === sku);
           if (item) {
             if (quantity <= 0) {
-              state.cart = state.cart.filter((i) => i.sku !== sku);
+              state.cart = state.cart.filter((i) => i.sku !== sku); // Remove if quantity is 0 or less
             } else {
               item.quantity = quantity;
             }
           }
-        }),
+        }, false, '[GemsTrack] Cart: updateCartQuantity'),
       clearCart: () =>
         set((state) => {
           state.cart = [];
-        }),
+        }, false, '[GemsTrack] Cart: clearCart'),
 
       generateInvoice: (customerId, invoiceGoldRate, discountAmount) => {
         const { products, cart, customers, settings } = get();
-        if (cart.length === 0) return null;
+        if (cart.length === 0) {
+            console.warn("[GemsTrack] Invoice: Cart is empty, cannot generate invoice.");
+            return null;
+        }
 
         const goldRateForInvoice = invoiceGoldRate > 0 ? invoiceGoldRate : settings.goldRatePerGram;
         if (goldRateForInvoice <= 0) {
-            console.error("Invoice gold rate must be positive.");
+            console.error("[GemsTrack] Invoice: Gold rate for invoice must be positive.");
             return null;
         }
 
         let subtotal = 0;
         const invoiceItems: InvoiceItem[] = cart.map(cartItem => {
           const product = products.find(p => p.sku === cartItem.sku);
-          if (!product) throw new Error(`Product with SKU ${cartItem.sku} not found for invoice.`);
+          if (!product) {
+              console.error(`[GemsTrack] Invoice: Product with SKU ${cartItem.sku} not found.`);
+              throw new Error(`Product with SKU ${cartItem.sku} not found for invoice.`); // Or handle more gracefully
+          }
 
           const costs = calculateProductCosts(product, goldRateForInvoice);
           const unitPrice = costs.totalPrice;
@@ -374,13 +386,13 @@ export const useAppStore = create<AppState>()(
 
         set(state => {
           state.generatedInvoices.push(newInvoice);
-        });
+        }, false, '[GemsTrack] Invoice: generateInvoice');
         return newInvoice;
       },
       clearGeneratedInvoices: () => {
         set(state => {
           state.generatedInvoices = [];
-        });
+        }, false, '[GemsTrack] Invoice: clearGeneratedInvoices');
       },
     })),
     {
@@ -391,22 +403,22 @@ export const useAppStore = create<AppState>()(
         }
         return localStorage;
       }),
-      onRehydrateStorage: (_state, error) => {
-        if (error) {
-          console.error('[GemsTrack] Persist: Rehydration error:', error);
-        }
-        queueMicrotask(() => {
-          useAppStore.getState().setHasHydrated(true);
-        });
+      onRehydrateStorage: (_state) => {
+        return (state, error) => {
+          if (error) {
+            console.error('[GemsTrack] Persist: An error occurred during hydration:', error);
+          } else if (state) {
+            queueMicrotask(() => state.setHasHydrated(true));
+            console.log('[GemsTrack] Persist: Hydration finished.');
+          }
+        };
       },
       partialize: (state) => {
-        const {
-          _hasHydrated, 
-          ...rest 
-        } = state;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 1, 
+      version: 1, // Schema version
     }
   )
 );
@@ -457,29 +469,31 @@ export const selectCartSubtotal = (state: AppState) => {
 
 
 export const useIsStoreHydrated = () => {
-  const [isHydrated, setIsHydrated] = React.useState(false);
+  // Initialize state from the store's _hasHydrated flag directly
+  const storeHydrated = useAppStore.getState()._hasHydrated;
+  const [isHydrated, setIsHydrated] = React.useState(storeHydrated);
 
   React.useEffect(() => {
-    const syncHydrationState = () => {
-      const storeHydrated = useAppStore.getState()._hasHydrated;
-      setIsHydrated(storeHydrated);
-    };
-
-    syncHydrationState(); // Sync on initial mount
-
+    // Update local state if the store's hydration status changes after initial mount
     const unsubscribe = useAppStore.subscribe(
       (state) => state._hasHydrated,
       (hydrated) => {
-        setIsHydrated(hydrated);
+        if (hydrated !== isHydrated) { // Only update if different to prevent loop
+          setIsHydrated(hydrated);
+        }
       }
     );
+
+    // Sync with the store's current state in case it hydrated between initial read and effect run
+    const currentStoreHydrated = useAppStore.getState()._hasHydrated;
+    if (currentStoreHydrated !== isHydrated) {
+        setIsHydrated(currentStoreHydrated);
+    }
 
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [isHydrated]); // Rerun effect if local isHydrated changes, ensuring sub/unsub logic is correct.
 
   return isHydrated;
 };
-
-
