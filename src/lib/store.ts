@@ -302,15 +302,22 @@ export const useAppStore = create<AppState>()(
     {
       name: 'gemstrack-pos-storage', // unique name
       storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
-      onRehydrateStorage: () => (state) => {
-        console.log('[GemsTrack] Zustand store rehydration attempt.');
-        if (state) {
-          state.setHasHydrated(true);
-          console.log('[GemsTrack] Zustand store rehydrated successfully.');
+      onRehydrateStorage: (persistedState) => {
+        console.log('[GemsTrack] Zustand store rehydration process starting.');
+        // The `persistedState` argument here is the state that was loaded from storage.
+        // `setHasHydrated` is an action on our store, so we call it via `get()` or directly if it's static.
+        // Since setHasHydrated is part of the store's actions, we should call it on the store instance.
+        // The `persist` middleware calls this function *after* it has already updated the store with `persistedState`.
+        // So, at this point, the store should reflect the rehydrated values. We just need to set our flag.
+        if (persistedState) { // Check if there was actually any state persisted
+            console.log('[GemsTrack] Persisted state found. Setting _hasHydrated to true.');
         } else {
-          console.warn('[GemsTrack] Zustand store rehydration: state is undefined post rehydration attempt.');
+            console.log('[GemsTrack] No persisted state found (e.g., first visit). Setting _hasHydrated to true as rehydration process is complete.');
         }
+        // We always set _hasHydrated to true because the rehydration process (attempt) is complete.
+        useAppStore.getState().setHasHydrated(true); 
       },
+      version: 1, // Optional: migrate state if schema changes
     }
   )
 );
@@ -370,9 +377,10 @@ export const useHydratedStore = <T, F>(
   React.useEffect(() => {
     const unsub = useAppStore.subscribe(
       (state) => state._hasHydrated,
-      (hydrated) => {
-        if (hydrated) {
-          setHydratedResult(result);
+      (storeHasHydrated) => {
+        if (storeHasHydrated) {
+          // Re-evaluate the callback with the now hydrated store state
+          setHydratedResult(callback(useAppStore.getState() as unknown as T));
           setIsHydrated(true);
           unsub(); 
         }
@@ -380,28 +388,32 @@ export const useHydratedStore = <T, F>(
       { fireImmediately: true }
     );
     return unsub;
-  }, [result]);
+  }, [callback]); // Dependency array updated
   
-  // Fallback for initial server render or before hydration
   if (!isHydrated && typeof window === 'undefined') {
-     // For server render, try to compute based on initial state if possible
-     // Or return a default/loading state. This part is tricky.
-     // For now, using the direct result which might be from initial state.
-     return result;
+     return result; // Return initial sync result for SSR
   }
 
-
-  return hydratedResult ?? (typeof callback === 'function' ? callback(useAppStore.getState() as unknown as T) : undefined);
+  return isHydrated ? hydratedResult : result; // Return hydrated result, or initial if not yet hydrated on client
 };
 
 // A simpler hook that just tells you if hydration is complete.
 // Useful for conditional rendering of components that depend on persisted state.
 export const useIsStoreHydrated = () => {
-  const isHydrated = useAppStore(state => state._hasHydrated);
-  const [clientHydrated, setClientHydrated] = React.useState(false);
+  const isStoreHydrated = useAppStore(state => state._hasHydrated);
+  const [clientIsHydrated, setClientIsHydrated] = React.useState(false);
+  
   React.useEffect(() => {
-    setClientHydrated(isHydrated);
-  }, [isHydrated]);
-  return clientHydrated;
-}
+    // This effect runs only on the client, after initial mount
+    // It ensures that clientIsHydrated only becomes true on the client
+    // and after the store itself has confirmed hydration.
+    if (isStoreHydrated) {
+      setClientIsHydrated(true);
+    }
+  }, [isStoreHydrated]);
+
+  // During SSR and before client-side effect runs, this will be false.
+  // It becomes true on the client once Zustand hydration is complete and effect runs.
+  return clientIsHydrated;
+};
 

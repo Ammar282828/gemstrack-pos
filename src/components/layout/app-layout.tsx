@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -43,12 +44,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
 
   if (!isHydrated) {
-    // You can render a loading spinner or a simplified layout here
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="p-4 text-lg text-foreground">Loading GemsTrack POS...</div>
-      </div>
-    );
+    // Render null or a very minimal placeholder until hydration is complete
+    // This avoids showing content based on potentially unhydrated state
+    return null; 
   }
   
   return (
@@ -108,3 +106,4 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
