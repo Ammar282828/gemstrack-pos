@@ -77,26 +77,27 @@ export interface Invoice {
   platinumRateApplied?: number; // The platinum rate used for platinum items
 }
 
-// --- Computed Value Helpers ---
+// --- Helper Functions and Constants (Defined BEFORE use in initial data) ---
 export const DEFAULT_KARAT_VALUE_FOR_CALCULATION: KaratValue = '21k';
 
-const parseKarat = (karat: KaratValue | undefined): number => {
-  const karatString = String(karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION); // Ensure it's a string
+function parseKarat(karat: KaratValue | undefined): number {
+  const karatToUse = karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION;
+  const karatString = String(karatToUse);
   const numericPart = parseInt(karatString.replace('k', ''), 10);
   if (isNaN(numericPart) || numericPart <= 0) {
     console.warn(`[GemsTrack] parseKarat received invalid or non-positive karat value: "${karatString}". Defaulting to ${parseInt(DEFAULT_KARAT_VALUE_FOR_CALCULATION.replace('k',''))}.`);
     return parseInt(DEFAULT_KARAT_VALUE_FOR_CALCULATION.replace('k',''));
   }
   return numericPart;
-};
+}
 
-export const calculateProductCosts = (
+export function calculateProductCosts(
   product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & {
     categoryId?: string;
     name?: string;
   },
   rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number }
-) => {
+) {
   let metalCost = 0;
   const currentMetalType = product.metalType || 'gold';
 
@@ -129,7 +130,7 @@ export const calculateProductCosts = (
     if (platinumRate > 0) metalCost = metalWeightG * platinumRate;
     else if (platinumRate <=0) console.warn(`[GemsTrack] Platinum rate (${platinumRate}) is zero or negative for platinum product: ${product.name || JSON.stringify(product)}`);
   }
-  
+
   const validMetalCost = Number(metalCost) || 0;
   const wastageCost = validMetalCost * (wastagePercentage / 100);
   const validWastageCost = Number(wastageCost) || 0;
@@ -152,57 +153,24 @@ export const calculateProductCosts = (
   return {
     metalCost: validMetalCost,
     wastageCost: validWastageCost,
-    makingCost: makingCharges, 
+    makingCharges: makingCharges,
     diamondCharges: diamondChargesValue,
     stoneCharges,
     totalPrice: finalTotalPrice,
   };
-};
-
-
-// --- Store State and Actions ---
-type ProductDataForAdd = Omit<Product, 'sku' | 'qrCodeDataUrl' | 'name'>;
-type ProductDataForUpdate = Partial<Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>>;
-
-
-export interface AppState {
-  settings: Settings;
-  categories: Category[];
-  products: Product[];
-  customers: Customer[];
-  cart: CartItem[];
-  generatedInvoices: Invoice[];
-
-  updateSettings: (newSettings: Partial<Settings>) => void;
-
-  addCategory: (title: string) => void;
-  updateCategory: (id: string, title: string) => void;
-  deleteCategory: (id: string) => void;
-
-  addProduct: (productData: ProductDataForAdd) => Product | null;
-  updateProduct: (sku: string, updatedProduct: ProductDataForUpdate) => void;
-  deleteProduct: (sku: string) => void;
-  setProductQrCode: (sku: string, qrCodeDataUrl: string) => void;
-
-  addCustomer: (customer: Omit<Customer, 'id'>) => void;
-  updateCustomer: (id: string, updatedCustomer: Partial<Customer>) => void;
-  deleteCustomer: (id: string) => void;
-
-  addToCart: (sku: string, quantity?: number) => void;
-  removeFromCart: (sku: string) => void;
-  updateCartQuantity: (sku: string, quantity: number) => void;
-  clearCart: () => void;
-
-  generateInvoice: (
-    customerId: string | undefined, 
-    invoiceGoldRate24k: number, 
-    discountAmount: number
-  ) => Invoice | null;
-  clearGeneratedInvoices: () => void;
-
-  _hasHydrated: boolean;
-  setHasHydrated: (hydrated: boolean) => void;
 }
+
+
+// --- Initial Data Definitions ---
+const initialSettings: Settings = {
+  goldRatePerGram: 20000,
+  palladiumRatePerGram: 22000,
+  platinumRatePerGram: 25000,
+  shopName: "Taheri",
+  shopAddress: "123 Jewel Street, Sparkle City",
+  shopContact: "contact@taheri.com | (021) 123-4567",
+  shopLogoUrl: "https://placehold.co/150x50.png?text=Taheri"
+};
 
 const initialCategories: Category[] = [
   { id: 'cat01', title: 'Rings' },
@@ -223,52 +191,48 @@ const initialCategories: Category[] = [
   { id: 'cat16', title: 'Gold Necklace Sets without Bracelets' },
 ];
 
-
-const initialSettings: Settings = {
-  goldRatePerGram: 20000,
-  palladiumRatePerGram: 22000, 
-  platinumRatePerGram: 25000,  
-  shopName: "Taheri",
-  shopAddress: "123 Jewel Street, Sparkle City",
-  shopContact: "contact@taheri.com | (021) 123-4567",
-  shopLogoUrl: "https://placehold.co/150x50.png?text=Taheri"
-};
+const initialCustomers: Customer[] = [
+  { id: 'cust-001', name: 'Aisha Khan', phone: '0300-1234567', email: 'aisha.khan@example.com', address: '123 Gulberg, Lahore' },
+  { id: 'cust-002', name: 'Bilal Ahmed', phone: '0321-9876543', email: 'bilal.ahmed@example.com', address: '456 DHA, Karachi' },
+  { id: 'cust-003', name: 'Fatima Ali', phone: '0333-1122334', email: 'fatima.ali@example.com', address: '789 F-8, Islamabad' },
+  { id: 'cust-004', name: 'Sana Mirza', phone: '0345-5566778', email: 'sana.mirza@example.com', address: 'A-1 Cantt, Rawalpindi' },
+];
 
 const initialProducts: Product[] = [
   {
-    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalType: 'gold', karat: '21k', metalWeightG: 5.2, wastagePercentage: 25, // Diamond Item default
+    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalType: 'gold', karat: '21k', metalWeightG: 5.2, wastagePercentage: 25,
     makingCharges: 4160, hasDiamonds: true, diamondCharges: 25000, stoneCharges: 0, miscCharges: 500, imageUrl: "https://placehold.co/300x300.png?text=Diamond+Ring"
   },
   {
-    sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalType: 'gold', karat: '22k', metalWeightG: 12.5, wastagePercentage: 10, // Non-diamond
+    sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalType: 'gold', karat: '22k', metalWeightG: 12.5, wastagePercentage: 10,
     makingCharges: 15000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 112500, miscCharges: 1500, imageUrl: "https://placehold.co/300x300.png?text=Necklace+Set"
   },
   {
-    sku: "TOP-000001", name: "Tops - TOP-000001", categoryId: "cat02", metalType: 'gold', karat: '18k', metalWeightG: 3.0, wastagePercentage: 10, // Non-diamond
+    sku: "TOP-000001", name: "Tops - TOP-000001", categoryId: "cat02", metalType: 'gold', karat: '18k', metalWeightG: 3.0, wastagePercentage: 10,
     makingCharges: 1800, hasDiamonds: false, diamondCharges: 0, stoneCharges: 37500, miscCharges: 300, imageUrl: "https://placehold.co/300x300.png?text=Tops"
   },
   {
-    sku: "BRA-000001", name: "Bracelets - BRA-000001", categoryId: "cat05", metalType: 'gold', karat: '21k', metalWeightG: 8.0, wastagePercentage: 10, // Non-diamond
+    sku: "BRA-000001", name: "Bracelets - BRA-000001", categoryId: "cat05", metalType: 'gold', karat: '21k', metalWeightG: 8.0, wastagePercentage: 10,
     makingCharges: 7200, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png?text=Bracelet"
   },
   {
-    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", metalType: 'gold', karat: '22k', metalWeightG: 15.0, wastagePercentage: 15, // Bangles category, non-diamond
+    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", metalType: 'gold', karat: '22k', metalWeightG: 15.0, wastagePercentage: 15, // 15% for bangles
     makingCharges: 15000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 22500, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png?text=Bangle"
   },
   {
-    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalType: 'gold', karat: '21k', metalWeightG: 20.0, wastagePercentage: 25, // Diamond Item + Gold Necklace Set (15% base + diamond)
+    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalType: 'gold', karat: '21k', metalWeightG: 20.0, wastagePercentage: 25, // 15% for gold sets, 25% if diamonds
     makingCharges: 30000, hasDiamonds: true, diamondCharges: 50000, stoneCharges: 160000, miscCharges: 2000, imageUrl: "https://placehold.co/300x300.png?text=Gold+Set+Diamond"
   },
   {
-    sku: "CHA-000001", name: "Chains - CHA-000001", categoryId: "cat08", metalType: 'gold', karat: '22k', metalWeightG: 10.0, wastagePercentage: 15, // Chains category, non-diamond
+    sku: "CHA-000001", name: "Chains - CHA-000001", categoryId: "cat08", metalType: 'gold', karat: '22k', metalWeightG: 10.0, wastagePercentage: 15, // 15% for chains
     makingCharges: 8000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 400, imageUrl: "https://placehold.co/300x300.png?text=Gold+Chain"
   },
   {
-    sku: "RIN-000002", name: "Rings - RIN-000002", categoryId: "cat01", metalType: 'palladium', metalWeightG: 6.0, wastagePercentage: 10, // Non-diamond
+    sku: "RIN-000002", name: "Rings - RIN-000002", categoryId: "cat01", metalType: 'palladium', metalWeightG: 6.0, wastagePercentage: 10,
     makingCharges: 5000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 10000, miscCharges: 300, imageUrl: "https://placehold.co/300x300.png?text=Palladium+Ring"
   },
    {
-    sku: "BAN-000002", name: "Bands - BAN-000002", categoryId: "cat09", metalType: 'platinum', metalWeightG: 7.5, wastagePercentage: 25, // Diamond Item default
+    sku: "BAN-000002", name: "Bands - BAN-000002", categoryId: "cat09", metalType: 'platinum', metalWeightG: 7.5, wastagePercentage: 25,
     makingCharges: 6000, hasDiamonds: true, diamondCharges: 15000, stoneCharges: 0, miscCharges: 250, imageUrl: "https://placehold.co/300x300.png?text=Platinum+Band"
   }
 ];
@@ -336,7 +300,7 @@ const initialGeneratedInvoices: Invoice[] = (() => {
             platinumRateApplied: platinumRatePerGram,
         });
     }
-    
+
     // Invoice 4 (Aisha Khan, yesterday)
     const product1_inv4 = initialProducts.find(p => p.sku === "CHA-000001"); // Gold, Non-Diamond
      if (product1_inv4) {
@@ -367,10 +331,53 @@ const initialGeneratedInvoices: Invoice[] = (() => {
             goldRateApplied: goldRatePerGram,
         });
     }
-
-
     return invoices;
 })();
+
+
+// --- Store State and Actions ---
+type ProductDataForAdd = Omit<Product, 'sku' | 'qrCodeDataUrl' | 'name'>;
+type ProductDataForUpdate = Partial<Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>>;
+
+
+export interface AppState {
+  settings: Settings;
+  categories: Category[];
+  products: Product[];
+  customers: Customer[];
+  cart: CartItem[];
+  generatedInvoices: Invoice[];
+
+  updateSettings: (newSettings: Partial<Settings>) => void;
+
+  addCategory: (title: string) => void;
+  updateCategory: (id: string, title: string) => void;
+  deleteCategory: (id: string) => void;
+
+  addProduct: (productData: ProductDataForAdd) => Product | null;
+  updateProduct: (sku: string, updatedProduct: ProductDataForUpdate) => void;
+  deleteProduct: (sku: string) => void;
+  setProductQrCode: (sku: string, qrCodeDataUrl: string) => void;
+
+  addCustomer: (customer: Omit<Customer, 'id'>) => void;
+  updateCustomer: (id: string, updatedCustomer: Partial<Customer>) => void;
+  deleteCustomer: (id: string) => void;
+
+  addToCart: (sku: string, quantity?: number) => void;
+  removeFromCart: (sku: string) => void;
+  updateCartQuantity: (sku: string, quantity: number) => void;
+  clearCart: () => void;
+
+  generateInvoice: (
+    customerId: string | undefined,
+    invoiceGoldRate24k: number,
+    discountAmount: number
+  ) => Invoice | null;
+  clearGeneratedInvoices: () => void;
+
+  _hasHydrated: boolean;
+  setHasHydrated: (hydrated: boolean) => void;
+}
 
 
 const ssrDummyStorage: StateStorage = {
@@ -440,10 +447,10 @@ export const useAppStore = create<AppState>()(
           const newNum = (maxNum + 1).toString().padStart(6, '0');
           const generatedSku = `${prefix}-${newNum}`;
           const autoGeneratedName = `${category.title} - ${generatedSku}`;
-          
+
           const finalProductData = { ...productData };
           if (finalProductData.metalType !== 'gold') {
-            delete finalProductData.karat; 
+            delete finalProductData.karat;
           }
           if (!finalProductData.hasDiamonds) {
             finalProductData.diamondCharges = 0;
@@ -551,10 +558,10 @@ export const useAppStore = create<AppState>()(
                  console.warn(`[GemsTrack] Invoice: Invalid invoiceGoldRate24k (${invoiceGoldRate24k}). Defaulting to store setting: ${settings.goldRatePerGram}`);
                  validInvoiceGoldRate24k = settings.goldRatePerGram;
              } else {
-                validInvoiceGoldRate24k = 0; 
+                validInvoiceGoldRate24k = 0;
              }
         }
-        
+
         const ratesForInvoice = {
             goldRatePerGram24k: validInvoiceGoldRate24k,
             palladiumRatePerGram: Number(settings.palladiumRatePerGram) || 0,
@@ -573,11 +580,11 @@ export const useAppStore = create<AppState>()(
           const product = products.find(p => p.sku === cartItem.sku);
           if (!product) {
               console.error(`[GemsTrack] Invoice: Product with SKU ${cartItem.sku} not found.`);
-              continue; 
+              continue;
           }
 
-          const productForCostCalc = { 
-            name: product.name, 
+          const productForCostCalc = {
+            name: product.name,
             metalType: product.metalType,
             karat: product.metalType === 'gold' ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION) : undefined,
             metalWeightG: product.metalWeightG,
@@ -592,7 +599,7 @@ export const useAppStore = create<AppState>()(
           const costs = calculateProductCosts(productForCostCalc, ratesForInvoice);
           if (isNaN(costs.totalPrice)) {
               console.error(`[GemsTrack] Invoice: Calculated NaN unit price for product SKU ${product.sku}. Skipping item.`);
-              continue; 
+              continue;
           }
           const unitPrice = costs.totalPrice;
           const itemTotal = unitPrice * cartItem.quantity;
@@ -609,7 +616,7 @@ export const useAppStore = create<AppState>()(
             itemTotal,
           });
         }
-        
+
         if (invoiceItems.length === 0 && cart.length > 0) {
             console.error("[GemsTrack] Invoice: All cart items resulted in NaN prices or were not found. Cannot generate invoice.");
             return null;
@@ -654,23 +661,21 @@ export const useAppStore = create<AppState>()(
         }
         return localStorage;
       }),
-      onRehydrateStorage: (_persistedState) => {
-        return (state, error) => {
-          if (error) {
-            console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
-          }
-          // Ensure setHasHydrated is called after the store is ready
-          queueMicrotask(() => {
-            useAppStore.getState().setHasHydrated(true);
-          });
-        };
+      onRehydrateStorage: (_initialState) => (state, error) => {
+        if (error) {
+          console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
+        }
+        queueMicrotask(() => {
+          useAppStore.getState().setHasHydrated(true);
+          console.log('[GemsTrack] Persist: _hasHydrated flag set to true via onRehydrateStorage.');
+        });
       },
       partialize: (state) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 3, 
+      version: 3,
     }
   )
 );
@@ -681,8 +686,8 @@ export const selectProductWithCosts = (sku: string, state: AppState) => {
   const productWithDefaultedKarat = {
     ...product,
     metalType: product.metalType || 'gold',
-    karat: (product.metalType === 'gold' || !product.metalType) 
-      ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION) 
+    karat: (product.metalType === 'gold' || !product.metalType)
+      ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION)
       : undefined,
   };
   const ratesForCalculation = {
@@ -699,7 +704,7 @@ export const selectAllProductsWithCosts = (state: AppState) => {
     const productWithDefaultedKarat = {
       ...product,
       metalType: product.metalType || 'gold',
-      karat: (product.metalType === 'gold' || !product.metalType) 
+      karat: (product.metalType === 'gold' || !product.metalType)
         ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION)
         : undefined,
     };
@@ -730,8 +735,8 @@ export const selectCartDetails = (state: AppState) => {
     const productWithDefaultedKarat = {
       ...product,
       metalType: product.metalType || 'gold',
-      karat: (product.metalType === 'gold' || !product.metalType) 
-        ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION) 
+      karat: (product.metalType === 'gold' || !product.metalType)
+        ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION)
         : undefined,
     };
     const ratesForCalculation = {
@@ -739,7 +744,7 @@ export const selectCartDetails = (state: AppState) => {
       palladiumRatePerGram: state.settings.palladiumRatePerGram,
       platinumRatePerGram: state.settings.platinumRatePerGram,
     };
-    const costs = calculateProductCosts(productWithDefaultedKarat, ratesForCalculation); 
+    const costs = calculateProductCosts(productWithDefaultedKarat, ratesForCalculation);
     return {
       ...productWithDefaultedKarat,
       ...costs,
@@ -759,25 +764,25 @@ export const useIsStoreHydrated = () => {
   const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
 
   React.useEffect(() => {
-    const syncHydration = () => setIsHydrated(useAppStore.getState()._hasHydrated);
-    syncHydration(); 
-
+    const initialHydrationStatus = useAppStore.getState()._hasHydrated;
+    if (isHydrated !== initialHydrationStatus) {
+      setIsHydrated(initialHydrationStatus);
+    }
+    
     const unsubscribe = useAppStore.subscribe(
       (state) => state._hasHydrated,
       (hydratedState) => {
         queueMicrotask(() => {
+           if (isHydrated !== hydratedState) { // Prevent unnecessary re-renders
             setIsHydrated(hydratedState);
+          }
         });
       }
     );
-
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [isHydrated]); // Add isHydrated to dependency array
 
   return isHydrated;
 };
-
-
-    
