@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect } from 'react';
@@ -15,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useAppStore, Product, Category, KaratValue, MetalType } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Ban, Diamond, Zap, Shield } from 'lucide-react'; // Added Shield for MetalType
+import { Save, Ban, Diamond, Zap, Shield } from 'lucide-react';
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k'];
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum'];
@@ -81,8 +80,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       imageUrl: product.imageUrl || "",
     } : {
       categoryId: '',
-      metalType: 'gold', // Default metal type
-      karat: '21k',      // Default karat for gold
+      metalType: 'gold', 
+      karat: '21k',      
       metalWeightG: 0,
       wastagePercentage: 10,
       makingCharges: 0,
@@ -100,35 +99,37 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
 
   useEffect(() => {
     if (selectedMetalType !== 'gold') {
-      form.setValue('karat', undefined, { shouldValidate: false }); // Clear karat if not gold
+      form.setValue('karat', undefined, { shouldValidate: false }); 
     } else if (selectedMetalType === 'gold' && !form.getValues('karat')) {
-      form.setValue('karat', '21k'); // Default karat if switched to gold and no karat set
+      form.setValue('karat', '21k'); 
     }
   }, [selectedMetalType, form]);
 
   useEffect(() => {
-    if (hasDiamondsValue) {
-      form.setValue('wastagePercentage', 25, { shouldValidate: true });
-      if(!isEditMode || (product && !product.hasDiamonds)){
-         form.setValue('diamondCharges', product?.diamondCharges || 0);
-      }
-    } else {
-      const category = categories.find(c => c.id === selectedCategoryId);
-      let defaultWastage = 10;
-      if (category) {
-        const lowerCaseTitle = category.title.toLowerCase();
-        const fifteenPercentTriggers = ["chain", "bangle", "gold necklace set"]; // Keep "gold necklace set" for now, or make more generic
-        if (fifteenPercentTriggers.some(trigger => lowerCaseTitle.includes(trigger))) {
-          defaultWastage = 15;
+    if (!isEditMode || (isEditMode && form.getValues('hasDiamonds') !== product?.hasDiamonds) || (isEditMode && form.getValues('categoryId') !== product?.categoryId)) {
+        if (hasDiamondsValue) {
+            form.setValue('wastagePercentage', 25, { shouldValidate: true });
+            if (!isEditMode || (product && !product.hasDiamonds)) {
+                form.setValue('diamondCharges', product?.diamondCharges || 0);
+            }
+        } else {
+            const category = categories.find(c => c.id === selectedCategoryId);
+            let defaultWastage = 10;
+            if (category) {
+                const lowerCaseTitle = category.title.toLowerCase();
+                const fifteenPercentTriggers = ["chain", "bangle", "gold necklace set"];
+                if (fifteenPercentTriggers.some(trigger => lowerCaseTitle.includes(trigger))) {
+                defaultWastage = 15;
+                }
+            }
+            form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
+            
+            if (form.getValues('diamondCharges') !== 0 && !isEditMode && (product?.hasDiamonds === undefined || !product.hasDiamonds) ) {
+                form.setValue('diamondCharges', 0);
+            } else if (isEditMode && product && product.hasDiamonds && !hasDiamondsValue) {
+                form.setValue('diamondCharges', 0);
+            }
         }
-      }
-      form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
-      
-      if (form.getValues('diamondCharges') !== 0 && !isEditMode && product?.hasDiamonds === undefined) {
-         form.setValue('diamondCharges', 0);
-      } else if (isEditMode && product && product.hasDiamonds && !hasDiamondsValue) {
-         form.setValue('diamondCharges', 0);
-      }
     }
   }, [selectedCategoryId, hasDiamondsValue, isEditMode, categories, form, product]);
 
@@ -171,18 +172,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
         toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added. You can add another product.` });
         form.reset({
           categoryId: data.categoryId,
-          metalType: data.metalType,      // Keep current metal type
-          karat: data.metalType === 'gold' ? data.karat : undefined, // Keep karat if gold
+          metalType: data.metalType,      
+          karat: data.metalType === 'gold' ? data.karat : undefined, 
           metalWeightG: 0,
           wastagePercentage: 10, 
-          makingCharges: 0,
+          makingCharges: data.makingCharges, // Retain previous making charges
           hasDiamonds: false,    
           diamondCharges: 0,
           stoneCharges: 0,
           miscCharges: 0,
           imageUrl: "",
         });
-        // useEffect will re-evaluate wastage based on category and hasDiamonds being false
       } else {
         toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
       }
@@ -435,3 +435,4 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     </Form>
   );
 };
+
