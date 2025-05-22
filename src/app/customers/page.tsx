@@ -37,9 +37,12 @@ const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => void
       <TableCell className="hidden md:table-cell">{customer.address || '-'}</TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end space-x-2">
-          <Link href={`/customers/${customer.id}/edit`} passHref>
-            <Button size="sm" variant="outline"><Edit3 className="w-4 h-4" /></Button>
-          </Link>
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/customers/${customer.id}/edit`}>
+              <Edit3 className="w-4 h-4" />
+              <span className="sr-only">Edit {customer.name}</span>
+            </Link>
+          </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button size="sm" variant="destructive"><Trash2 className="w-4 h-4" /></Button>

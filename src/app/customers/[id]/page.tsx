@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -92,9 +93,11 @@ export default function CustomerDetailPage() {
               <DetailItem label="Address" value={customer.address} icon={<MapPin className="w-4 h-4" />} />
             </CardContent>
             <CardFooter className="flex space-x-2">
-              <Link href={`/customers/${customerId}/edit`} passHref>
-                <Button variant="outline" className="w-full"><Edit3 className="mr-2 h-4 w-4" /> Edit</Button>
-              </Link>
+              <Button asChild variant="outline" className="w-full">
+                <Link href={`/customers/${customerId}/edit`}>
+                  <Edit3 className="mr-2 h-4 w-4" /> Edit
+                </Link>
+              </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" className="w-full"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>

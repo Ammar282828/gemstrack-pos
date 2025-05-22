@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -6,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import QRCode from 'qrcode.react';
 import jsPDF from 'jspdf';
+import 'jspdf-autotable'; 
 import { useAppStore, selectProductWithCosts, selectCategoryTitleById, Product, calculateProductCosts, Customer, Settings } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +30,13 @@ import { useIsStoreHydrated } from '@/lib/store';
 
 
 type ProductWithCosts = Product & ReturnType<typeof calculateProductCosts>;
+
+// Extend jsPDF with autoTable typings
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 const DetailItem: React.FC<{ label: string; value: string | number | undefined; icon?: React.ReactNode, unit?: string }> = ({ label, value, icon, unit }) => (
   <div className="flex justify-between items-center py-2">
@@ -154,9 +163,11 @@ export default function ProductDetailPage() {
               <CardDescription>SKU: {productData.sku}</CardDescription>
             </div>
             <div className="flex space-x-2 mt-2 md:mt-0">
-              <Link href={`/products/${sku}/edit`} passHref>
-                <Button variant="outline"><Edit3 className="mr-2 h-4 w-4" /> Edit</Button>
-              </Link>
+              <Button asChild variant="outline">
+                <Link href={`/products/${sku}/edit`}>
+                  <Edit3 className="mr-2 h-4 w-4" /> Edit
+                </Link>
+              </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
@@ -245,7 +256,7 @@ export default function ProductDetailPage() {
               <CardContent>
                 <DetailItem label="Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
                 <Separator className="my-1" />
-                <DetailItem label="Stone Weight" value={productData.stoneWeightCt} icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3.27A21.64 21.64 0 0 1 12 3a21.64 21.64 0 0 1 6 0.27V5.5a21.64 21.64 0 0 0-6 15.23A21.64 21.64 0 0 0 6 5.5V3.27Z"></path><path d="M12 15.5V21"></path><path d="M12 3v3.05"></path><path d="M17.83 4.53c2.22 0 3.17 1.34 3.17 2.69 0 .84-.47 1.41-1.12 1.88L18 9.93"></path><path d="M6.17 4.53c-2.22 0-3.17 1.34-3.17 2.69 0 .84.47 1.41 1.12 1.88L6 9.93"></path></svg>} unit="carats" />
+                <DetailItem label="Stone Weight" value={productData.stoneWeightCt} icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3.27A21.64 21.64 0 0 1 12 3a21.64 21.64 0 0 1 6 0.27V5.5a21.64 21.64 0 0 0-6 15.23A21.64 21.64 0 0 0 6 5.5V3.27Z"></path><path d="M12 15.5V21"></path><path d="M12 3v3.05"></path><path d="M17.83 4.53c2.22 0 3.17 1.34 3.17 2.69 0 .84-.47 1.41-1.12 1.88L18 9.93"></path><path d="M6.17 4.53c-2.22 0-3.17 1.34-3.17 2.69 0 .84-.47 1.41 1.12 1.88L6 9.93"></path></svg>} unit="carats" />
                 <Separator className="my-1" />
                 <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
                 <Separator className="my-1" />

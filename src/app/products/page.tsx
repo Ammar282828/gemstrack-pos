@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -57,12 +58,16 @@ const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: stri
         </div>
       </CardContent>
       <CardFooter className="p-4 border-t flex justify-end items-center space-x-2">
-        <Link href={`/products/${product.sku}/edit`} passHref>
-          <Button size="sm" variant="outline"><Edit3 className="w-4 h-4 mr-1" /> Edit</Button>
-        </Link>
-        <Link href={`/products/${product.sku}`} passHref>
-          <Button size="sm" variant="ghost"><Eye className="w-4 h-4 mr-1" /> View</Button>
-        </Link>
+        <Button asChild size="sm" variant="outline">
+          <Link href={`/products/${product.sku}/edit`}>
+            <Edit3 className="w-4 h-4 mr-1" /> Edit
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="ghost">
+          <Link href={`/products/${product.sku}`}>
+            <Eye className="w-4 h-4 mr-1" /> View
+          </Link>
+        </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button size="sm" variant="destructive"><Trash2 className="w-4 h-4 mr-1" /> Delete</Button>
