@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, User, ShoppingCart } from 'lucide-react';
+import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, User, ShoppingCart, Diamond } from 'lucide-react'; // Added Diamond
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -31,22 +31,21 @@ import { useIsStoreHydrated } from '@/lib/store';
 
 type ProductWithCosts = Product & ReturnType<typeof calculateProductCosts>;
 
-// Extend jsPDF with autoTable typings
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
   }
 }
 
-const DetailItem: React.FC<{ label: string; value: string | number | undefined; icon?: React.ReactNode, unit?: string, currency?: string }> = ({ label, value, icon, unit, currency }) => (
+const DetailItem: React.FC<{ label: string; value: string | number | undefined | boolean; icon?: React.ReactNode, unit?: string, currency?: string }> = ({ label, value, icon, unit, currency }) => (
   <div className="flex justify-between items-center py-2">
     <div className="flex items-center text-muted-foreground">
       {icon && <span className="mr-2">{icon}</span>}
       <span>{label}</span>
     </div>
     <span className="font-medium text-foreground">
-      {currency && <span className="mr-0.5">{currency}</span>}
-      {typeof value === 'number' ? value.toLocaleString() : value || '-'} {unit}
+      {currency && value !== undefined && typeof value !== 'boolean' && <span className="mr-0.5">{currency}</span>}
+      {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : typeof value === 'number' ? value.toLocaleString() : value || '-'} {unit}
     </span>
   </div>
 );
@@ -98,19 +97,21 @@ export default function ProductDetailPage() {
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
-      format: [70, 30] // Example tag size: 70mm x 30mm
+      format: [70, 30]
     });
 
-    // Simple Tag Layout
     doc.setFontSize(8);
     doc.text(productData.name, 3, 5);
     doc.setFontSize(6);
     doc.text(`SKU: ${productData.sku}`, 3, 9);
     doc.text(`Metal: ${productData.metalWeightG}g`, 3, 13);
+    if (productData.hasDiamonds) {
+        doc.text(`Diamonds: Yes`, 3, 17);
+    }
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(`PKR ${productData.totalPrice.toLocaleString()}`, 3, 20);
+    doc.text(`PKR ${productData.totalPrice.toLocaleString()}`, 3, 22);
 
     if (qrCodeDataUrl.startsWith("data:image/png")) {
          doc.addImage(qrCodeDataUrl, 'PNG', 45, 3, 24, 24);
@@ -254,7 +255,13 @@ export default function ProductDetailPage() {
                 <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR" />
                 <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR" />
                 <DetailItem label="Making Charges" value={productData.makingCharges} currency="PKR" />
-                <DetailItem label="Stone Charges" value={productData.stoneCharges} currency="PKR" />
+                {productData.hasDiamonds && (
+                  <>
+                    <DetailItem label="Diamond Charges" value={productData.diamondCharges} currency="PKR" icon={<Diamond className="w-4 h-4" />}/>
+                    <Separator className="my-1" />
+                  </>
+                )}
+                <DetailItem label={productData.hasDiamonds ? "Other Stone Charges" : "Stone Charges"} value={productData.stoneCharges} currency="PKR" />
                 <DetailItem label="Misc. Charges" value={productData.miscCharges} currency="PKR" />
               </CardContent>
             </Card>
@@ -264,8 +271,9 @@ export default function ProductDetailPage() {
               <CardContent>
                 <DetailItem label="Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
                 <Separator className="my-1" />
-                {/* Stone Weight display removed */}
                 <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
+                <Separator className="my-1" />
+                <DetailItem label="Contains Diamonds" value={productData.hasDiamonds} icon={<Diamond className="w-4 h-4" />} />
               </CardContent>
             </Card>
           </div>

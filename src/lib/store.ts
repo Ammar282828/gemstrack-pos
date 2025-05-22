@@ -29,50 +29,54 @@ export interface Customer {
 
 export interface Product {
   sku: string;
-  name: string; // Name is still part of the Product model
+  name: string;
   categoryId: string;
   metalWeightG: number;
-  // stoneWeightCt: number; // Removed
   wastagePercentage: number;
-  makingCharges: number;
-  stoneCharges: number;
+  makingCharges: number; // Total making charges
+  hasDiamonds: boolean; // New field
+  diamondCharges: number; // New field for diamond costs
+  stoneCharges: number; // For non-diamond stones
   miscCharges: number;
-  qrCodeDataUrl?: string; // Data URL of the generated QR code image
+  qrCodeDataUrl?: string;
   assignedCustomerId?: string;
-  imageUrl?: string; // Optional image for the product
+  imageUrl?: string;
 }
 
-// InvoiceItem now includes categoryId for better AI analysis potential
 export interface InvoiceItem {
   sku: string;
   name: string;
   categoryId: string;
   quantity: number;
-  unitPrice: number; // Price at the time of invoice generation
+  unitPrice: number;
   itemTotal: number;
 }
 
 export interface Invoice {
   id:string;
   customerId?: string;
-  customerName?: string; // Denormalized for easier display
+  customerName?: string;
   items: InvoiceItem[];
   subtotal: number;
   discountAmount: number;
   grandTotal: number;
-  createdAt: string; // ISO Date string
-  goldRateApplied: number; // Gold rate used for this specific invoice
+  createdAt: string;
+  goldRateApplied: number;
 }
 
 // --- Computed Value Helpers ---
 
-export const calculateProductCosts = (product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'assignedCustomerId' | 'imageUrl' | 'name'> & { categoryId?: string, name?: string}, goldRatePerGram: number) => {
+export const calculateProductCosts = (
+  product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'assignedCustomerId' | 'imageUrl' | 'name'> & { categoryId?: string, name?: string},
+  goldRatePerGram: number
+) => {
   const metalCost = product.metalWeightG * goldRatePerGram;
   const wastageCost = metalCost * (product.wastagePercentage / 100);
   const makingCost = product.makingCharges;
-  const stoneCost = product.stoneCharges; // Direct charge, no calculation with stoneWeightCt
-  const totalPrice = metalCost + wastageCost + makingCost + stoneCost + product.miscCharges;
-  return { metalCost, wastageCost, makingCost, stoneCost, totalPrice };
+  const totalDiamondCharges = product.hasDiamonds ? product.diamondCharges : 0;
+  const totalStoneCharges = product.stoneCharges; // For non-diamond stones
+  const totalPrice = metalCost + wastageCost + makingCost + totalDiamondCharges + totalStoneCharges + product.miscCharges;
+  return { metalCost, wastageCost, makingCost, diamondCharges: totalDiamondCharges, stoneCharges: totalStoneCharges, totalPrice };
 };
 
 
@@ -155,28 +159,28 @@ const initialCustomers: Customer[] = [
 
 const initialProducts: Product[] = [
   {
-    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalWeightG: 5.2, wastagePercentage: 10,
-    makingCharges: 4160, stoneCharges: 15000, miscCharges: 500, assignedCustomerId: 'cust-001', imageUrl: "https://placehold.co/300x300.png?text=Ring"
+    sku: "RIN-000001", name: "Rings - RIN-000001", categoryId: "cat01", metalWeightG: 5.2, wastagePercentage: 25, // Diamond default
+    makingCharges: 4160, hasDiamonds: true, diamondCharges: 25000, stoneCharges: 0, miscCharges: 500, assignedCustomerId: 'cust-001', imageUrl: "https://placehold.co/300x300.png?text=Diamond+Ring"
   },
   {
     sku: "STO-000001", name: "Stone Necklace Sets without Bracelets - STO-000001", categoryId: "cat13", metalWeightG: 12.5, wastagePercentage: 10,
-    makingCharges: 15000, stoneCharges: 112500, miscCharges: 1500, imageUrl: "https://placehold.co/300x300.png?text=Necklace+Set"
+    makingCharges: 15000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 112500, miscCharges: 1500, imageUrl: "https://placehold.co/300x300.png?text=Necklace+Set"
   },
   {
     sku: "TOP-000001", name: "Tops - TOP-000001", categoryId: "cat02", metalWeightG: 3.0, wastagePercentage: 10,
-    makingCharges: 1800, stoneCharges: 37500, miscCharges: 300, assignedCustomerId: 'cust-002', imageUrl: "https://placehold.co/300x300.png?text=Tops"
+    makingCharges: 1800, hasDiamonds: false, diamondCharges: 0, stoneCharges: 37500, miscCharges: 300, assignedCustomerId: 'cust-002', imageUrl: "https://placehold.co/300x300.png?text=Tops"
   },
   {
     sku: "BRA-000001", name: "Bracelets - BRA-000001", categoryId: "cat05", metalWeightG: 8.0, wastagePercentage: 10,
-    makingCharges: 7200, stoneCharges: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png?text=Bracelet"
+    makingCharges: 7200, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png?text=Bracelet"
   },
   {
-    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", metalWeightG: 15.0, wastagePercentage: 15,
-    makingCharges: 15000, stoneCharges: 22500, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png?text=Bangle"
+    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", metalWeightG: 15.0, wastagePercentage: 15, // Category default
+    makingCharges: 15000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 22500, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png?text=Bangle"
   },
   {
-    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalWeightG: 20.0, wastagePercentage: 15,
-    makingCharges: 30000, stoneCharges: 160000, miscCharges: 2000, assignedCustomerId: 'cust-003', imageUrl: "https://placehold.co/300x300.png?text=Gold+Set"
+    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", metalWeightG: 20.0, wastagePercentage: 15, // Category default
+    makingCharges: 30000, hasDiamonds: true, diamondCharges: 50000, stoneCharges: 160000, miscCharges: 2000, assignedCustomerId: 'cust-003', imageUrl: "https://placehold.co/300x300.png?text=Gold+Set+Diamond"
   }
 ];
 
@@ -223,7 +227,7 @@ export const useAppStore = create<AppState>()(
       deleteCategory: (id) =>
         set((state) => {
           state.categories = state.categories.filter((c) => c.id !== id);
-          state.products = state.products.map(p => p.categoryId === id ? {...p, categoryId: ''} : p); // Untag products from deleted category
+          state.products = state.products.map(p => p.categoryId === id ? {...p, categoryId: ''} : p);
         }, false, '[GemsTrack] Categories: deleteCategory'),
 
       addProduct: (productData) => {
@@ -247,7 +251,6 @@ export const useAppStore = create<AppState>()(
           });
           const newNum = (maxNum + 1).toString().padStart(6, '0');
           const generatedSku = `${prefix}-${newNum}`;
-
           const autoGeneratedName = `${category.title} - ${generatedSku}`;
 
           newProduct = {
@@ -263,15 +266,18 @@ export const useAppStore = create<AppState>()(
         set((state) => {
           const productIndex = state.products.findIndex((p) => p.sku === sku);
           if (productIndex !== -1) {
-            // Prevent SKU and name from being overwritten by form data
             const { name: _name, sku: _sku, ...safeUpdateFields } = updatedFields as any;
+             // Ensure diamondCharges is 0 if hasDiamonds is false
+            if (safeUpdateFields.hasDiamonds === false) {
+                safeUpdateFields.diamondCharges = 0;
+            }
             state.products[productIndex] = { ...state.products[productIndex], ...safeUpdateFields };
           }
         }, false, '[GemsTrack] Products: updateProduct'),
       deleteProduct: (sku) =>
         set((state) => {
           state.products = state.products.filter((p) => p.sku !== sku);
-          state.cart = state.cart.filter(item => item.sku !== sku); // Remove from cart if present
+          state.cart = state.cart.filter(item => item.sku !== sku);
         }, false, '[GemsTrack] Products: deleteProduct'),
       setProductQrCode: (sku, qrCodeDataUrl) =>
         set((state) => {
@@ -296,7 +302,6 @@ export const useAppStore = create<AppState>()(
       deleteCustomer: (id) =>
         set((state) => {
           state.customers = state.customers.filter((c) => c.id !== id);
-          // Unassign customer from products
           state.products.forEach(product => {
             if (product.assignedCustomerId === id) {
               product.assignedCustomerId = undefined;
@@ -322,7 +327,7 @@ export const useAppStore = create<AppState>()(
           const item = state.cart.find((i) => i.sku === sku);
           if (item) {
             if (quantity <= 0) {
-              state.cart = state.cart.filter((i) => i.sku !== sku); // Remove if quantity is 0 or less
+              state.cart = state.cart.filter((i) => i.sku !== sku);
             } else {
               item.quantity = quantity;
             }
@@ -351,7 +356,7 @@ export const useAppStore = create<AppState>()(
           const product = products.find(p => p.sku === cartItem.sku);
           if (!product) {
               console.error(`[GemsTrack] Invoice: Product with SKU ${cartItem.sku} not found.`);
-              throw new Error(`Product with SKU ${cartItem.sku} not found for invoice.`); // Or handle more gracefully
+              throw new Error(`Product with SKU ${cartItem.sku} not found for invoice.`);
           }
 
           const costs = calculateProductCosts(product, goldRateForInvoice);
@@ -410,10 +415,13 @@ export const useAppStore = create<AppState>()(
           if (error) {
             console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
           } else {
-            console.log('[GemsTrack] Persist: Storage rehydration successful.');
-            queueMicrotask(() => {
-              useAppStore.getState().setHasHydrated(true);
-            });
+            if (state) {
+              queueMicrotask(() => state.setHasHydrated(true));
+              console.log('[GemsTrack] Persist: Storage rehydration successful.');
+            } else {
+              console.warn('[GemsTrack] Persist: Rehydration called but state is undefined.');
+               queueMicrotask(() => useAppStore.getState().setHasHydrated(true));
+            }
           }
         };
       },
@@ -471,9 +479,26 @@ export const selectCartSubtotal = (state: AppState) => {
   return cartDetails.reduce((sum, item) => sum + item.lineItemTotal, 0);
 };
 
+// export const useIsStoreHydrated = () => {
+//   // Selects the _hasHydrated state and ensures it rerenders when it changes.
+//   return useAppStore(s => s._hasHydrated);
+// };
+
 export const useIsStoreHydrated = () => {
-  const isHydrated = useAppStore(
-    React.useCallback((s: AppState) => s._hasHydrated, [])
-  );
+  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
+
+  React.useEffect(() => {
+    const unsub = useAppStore.subscribe(
+      (state) => state._hasHydrated,
+      (hydrated) => {
+        setIsHydrated(hydrated);
+      }
+    );
+
+    // Sync with a potential change that happened between useState and useEffect
+    setIsHydrated(useAppStore.getState()._hasHydrated);
+    return unsub;
+  }, []);
+
   return isHydrated;
 };
