@@ -17,7 +17,8 @@ import {
   Html5QrcodeScanType, 
   Html5QrcodeSupportedFormats,
   QrcodeErrorCallback,
-  QrcodeSuccessCallback
+  QrcodeSuccessCallback,
+  Html5QrcodeScannerState // Import scanner state
 } from 'html5-qrcode';
 
 const qrReaderElementId = "qr-reader-container";
@@ -38,10 +39,21 @@ export default function ScanPage() {
     }
 
     const onScanSuccess: QrcodeSuccessCallback = (decodedText, decodedResult) => {
-      if (html5QrcodeScannerRef.current) {
-        html5QrcodeScannerRef.current.clear().catch(err => console.error("Error clearing scanner on success:", err));
-        html5QrcodeScannerRef.current = null; 
+      // Stop the scanner when a QR code is found.
+      if (html5QrcodeScannerRef.current && typeof html5QrcodeScannerRef.current.clear === 'function') {
+         // Check state before clearing if possible
+        if (html5QrcodeScannerRef.current.getState && 
+            (html5QrcodeScannerRef.current.getState() === Html5QrcodeScannerState.SCANNING ||
+             html5QrcodeScannerRef.current.getState() === Html5QrcodeScannerState.PAUSED)
+            ) {
+          html5QrcodeScannerRef.current.clear().catch(err => console.error("Error clearing scanner on success:", err));
+        } else if (!html5QrcodeScannerRef.current.getState) {
+          // Fallback if getState is not available
+           html5QrcodeScannerRef.current.clear().catch(err => console.error("Error clearing scanner on success (no state check):", err));
+        }
       }
+      // It's good practice to nullify the ref after clearing if you intend for it to be re-initialized later,
+      // but since we navigate away, the component unmount will handle it.
       
       setSkuInput(decodedText);
       const productExists = products.some(p => p.sku === decodedText.trim());
@@ -50,14 +62,13 @@ export default function ScanPage() {
         router.push(`/products/${decodedText.trim()}`);
       } else {
         toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
-        // Re-initialize scanner for another scan if product not found and user wants to try again
-        // For now, we stop. User can refresh or we can add a "Scan Again" button.
+        // Consider re-enabling scanner or providing UI to scan again if product not found.
+        // For now, it stops.
       }
     };
 
     const onScanFailure: QrcodeErrorCallback = (error) => {
-      // Errors during scanning (e.g., QR not found, blurry) - usually frequent, so avoid toasts
-      // console.warn(`QR Scan Error: ${error}`);
+      // console.warn(`QR Scan Error: ${error}`); // Can be noisy
     };
 
     if (document.getElementById(qrReaderElementId) && !html5QrcodeScannerRef.current) {
@@ -77,23 +88,42 @@ export default function ScanPage() {
         /* verbose= */ false
       );
 
-      scanner.render(onScanSuccess, onScanFailure)
-        .then(() => {
-          setHasCameraPermission(true);
-        })
-        .catch(err => {
-          console.error("Could not render html5-qrcode-scanner: ", err);
-          setHasCameraPermission(false);
-          // Don't toast immediately, let the Alert component handle it based on hasCameraPermission state.
+      try {
+        scanner.render(onScanSuccess, onScanFailure);
+        html5QrcodeScannerRef.current = scanner; // Store the instance
+        setHasCameraPermission(true); // Optimistically set true if render() doesn't throw
+      } catch (error) {
+        console.error("Error calling scanner.render(): ", error);
+        toast({
+            title: "Scanner Initialization Failed",
+            description: "Could not start the QR scanner. Please check camera permissions and ensure your browser supports WebRTC.",
+            variant: "destructive"
         });
-      html5QrcodeScannerRef.current = scanner;
+        setHasCameraPermission(false);
+        if (html5QrcodeScannerRef.current && typeof html5QrcodeScannerRef.current.clear === 'function') {
+             html5QrcodeScannerRef.current.clear().catch(e => console.error("Error clearing scanner during init failure:", e));
+             html5QrcodeScannerRef.current = null;
+        }
+      }
     }
 
     return () => {
       if (html5QrcodeScannerRef.current && typeof html5QrcodeScannerRef.current.clear === 'function') {
-        html5QrcodeScannerRef.current.clear().catch(err => {
-          console.error("Error clearing scanner on component unmount:", err);
-        });
+        const scannerInstance = html5QrcodeScannerRef.current;
+         // Check if the scanner is in a state that can be cleared
+        if (scannerInstance.getState && 
+            (scannerInstance.getState() === Html5QrcodeScannerState.SCANNING ||
+             scannerInstance.getState() === Html5QrcodeScannerState.PAUSED)
+            ) {
+          scannerInstance.clear().catch(err => {
+            console.error("Error clearing scanner on component unmount:", err);
+          });
+        } else if (!scannerInstance.getState) {
+           // Fallback if getState is not available (e.g. if init was incomplete)
+           scannerInstance.clear().catch(err => {
+            console.error("Error clearing scanner (no state check) on component unmount:", err);
+          });
+        }
         html5QrcodeScannerRef.current = null;
       }
     };
