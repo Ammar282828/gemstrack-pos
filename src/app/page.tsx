@@ -1,9 +1,10 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAppStore, selectAllProductsWithCosts, selectCategoryTitleById, Category, Product } from '@/lib/store';
+import { useAppStore, selectAllProductsWithCosts, Category, Product } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,11 +73,17 @@ export default function HomePage() {
   const isHydrated = useIsStoreHydrated();
   const products = useAppStore(selectAllProductsWithCosts);
   const categories = useAppStore(state => state.categories);
-  const getCategoryTitle = (categoryId: string) => useAppStore(state => selectCategoryTitleById(categoryId, state));
 
+  const categoryMap = useMemo(() => {
+    if (!isHydrated) return new Map<string, string>();
+    return categories.reduce((acc, category) => {
+      acc.set(category.id, category.title);
+      return acc;
+    }, new Map<string, string>());
+  }, [categories, isHydrated]);
 
   const filteredProducts = useMemo(() => {
-    if (!isHydrated) return []; // Don't filter until hydrated
+    if (!isHydrated) return []; 
     return products
       .filter(product => 
         selectedCategory ? product.categoryId === selectedCategory : true
@@ -145,7 +152,11 @@ export default function HomePage() {
       {filteredProducts.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {filteredProducts.map((product) => (
-            <ProductCard key={product.sku} product={product} categoryTitle={getCategoryTitle(product.categoryId)} />
+            <ProductCard 
+              key={product.sku} 
+              product={product} 
+              categoryTitle={categoryMap.get(product.categoryId) || 'Uncategorized'} 
+            />
           ))}
         </div>
       ) : (
