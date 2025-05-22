@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -46,7 +47,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     resolver: zodResolver(productSchema),
     defaultValues: product ? {
       ...product,
-      assignedCustomerId: product.assignedCustomerId || "",
+      assignedCustomerId: product.assignedCustomerId ?? undefined, // Ensure undefined, not ""
       imageUrl: product.imageUrl || "",
     } : {
       sku: '',
@@ -58,7 +59,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       makingRatePerG: 0,
       stoneRatePerCt: 0,
       miscCharges: 0,
-      assignedCustomerId: "",
+      assignedCustomerId: undefined, // Ensure undefined, not ""
       imageUrl: "",
     },
   });
@@ -232,14 +233,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Assign to Customer (Optional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                  <Select 
+                    onValueChange={(value) => field.onChange(value === "__NONE__" ? undefined : value)} 
+                    value={field.value ?? undefined} // Ensure value is undefined if null/empty for placeholder
+                  >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a customer" />
+                        <SelectValue placeholder="Select a customer or None" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="__NONE__">None</SelectItem>
                       {customers.map((customer: Customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
                           {customer.name} ({customer.id})
@@ -260,6 +264,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                   <FormControl>
                     <Input type="url" placeholder="https://example.com/image.png" {...field} />
                   </FormControl>
+                   {field.value && (
+                        <div className="mt-2 p-2 border rounded-md w-fit">
+                            <img src={field.value} alt="Product Preview" className="h-24 object-contain" data-ai-hint="product jewelry" />
+                        </div>
+                     )}
                   <FormMessage />
                 </FormItem>
               )}

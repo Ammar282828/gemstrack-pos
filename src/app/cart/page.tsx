@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link'; // Added Link import
+import Link from 'next/link'; 
 import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Product, Settings, InvoiceItem, Invoice as InvoiceType } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,8 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable'; // For table generation
 import { useIsStoreHydrated } from '@/lib/store';
-import { Separator } from '@/components/ui/separator'; // Added Separator import
+import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
 
 // Extend jsPDF with autoTable typings
 declare module 'jspdf' {
@@ -24,6 +25,8 @@ declare module 'jspdf' {
     autoTable: (options: any) => jsPDF;
   }
 }
+
+const WALK_IN_CUSTOMER_VALUE = "__WALK_IN__";
 
 export default function CartPage() {
   const { toast } = useToast();
@@ -185,7 +188,7 @@ export default function CartPage() {
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setGeneratedInvoice(null)}>New Sale / Clear</Button>
+                    <Button variant="outline" onClick={() => { setGeneratedInvoice(null); clearCart(); setSelectedCustomerId(undefined);}}>New Sale / Clear</Button>
                     <Button onClick={() => printInvoice(generatedInvoice)}><Printer className="mr-2 h-4 w-4"/> Print Invoice</Button>
                 </CardFooter>
             </Card>
@@ -218,7 +221,7 @@ export default function CartPage() {
                 <CardTitle>Cart Items ({cartItems.length})</CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[400px] pr-3"> {/* Added pr-3 for scrollbar space */}
+                <ScrollArea className="h-[400px] pr-3">
                   <div className="space-y-4">
                     {cartItems.map(item => (
                       <div key={item.sku} className="flex items-center space-x-4 p-3 border rounded-md">
@@ -272,12 +275,15 @@ export default function CartPage() {
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="customer-select" className="mb-1 block text-sm font-medium">Select Customer (Optional)</Label>
-                  <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                  <Select 
+                    value={selectedCustomerId} 
+                    onValueChange={(value) => setSelectedCustomerId(value === WALK_IN_CUSTOMER_VALUE ? undefined : value)}
+                  >
                     <SelectTrigger id="customer-select">
                       <SelectValue placeholder="Walk-in Customer" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Walk-in Customer</SelectItem>
+                      <SelectItem value={WALK_IN_CUSTOMER_VALUE}>Walk-in Customer</SelectItem>
                       {customers.map(customer => (
                         <SelectItem key={customer.id} value={customer.id}>
                           {customer.name}
@@ -299,7 +305,7 @@ export default function CartPage() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button size="lg" className="w-full" onClick={handleGenerateInvoice}>
+                <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={cartItems.length === 0}>
                   <FileText className="mr-2 h-5 w-5" /> Generate Invoice
                 </Button>
               </CardFooter>
