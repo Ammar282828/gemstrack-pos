@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link'; 
-import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Settings, InvoiceItem, Invoice as InvoiceType } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,9 +77,9 @@ export default function CartPage() {
     // Calculate subtotal based on the dynamic gold rate for validation, though store will recalculate
     let currentSubtotalForValidation = 0;
     cartItems.forEach(item => {
-        const product = useAppStore.getState().products.find(p => p.sku === item.sku);
-        if (product) {
-            const costs = useAppStore.getState().calculateProductCosts(product, parsedGoldRate);
+        const productFromStore = useAppStore.getState().products.find(p => p.sku === item.sku);
+        if (productFromStore) {
+            const costs = calculateProductCosts(productFromStore, parsedGoldRate);
             currentSubtotalForValidation += costs.totalPrice * item.quantity;
         }
     });
@@ -105,7 +105,9 @@ export default function CartPage() {
     if (settings.shopLogoUrl) {
       try {
         // Note: External image URLs in jsPDF often require CORS or preloading to base64
-        // doc.addImage(settings.shopLogoUrl, 'PNG', 15, 10, 30, 10); 
+        // For simplicity, if using a placeholder, it might not render directly without proxy/base64.
+        // Actual image URLs that allow CORS should work better.
+        // Example: doc.addImage(settings.shopLogoUrl, 'PNG', 15, 10, 30, 10); 
       } catch (e) { console.error("Error adding logo to PDF:", e); }
     }
     doc.setFontSize(18);
@@ -133,6 +135,11 @@ export default function CartPage() {
         if(customer.phone) doc.text(`Phone: ${customer.phone}`, 15, 55);
         if(customer.email) doc.text(`Email: ${customer.email}`, 15, 60);
       }
+    } else {
+        doc.setFontSize(12);
+        doc.text('Bill To:', 15, 40);
+        doc.setFontSize(10);
+        doc.text("Walk-in Customer", 15, 45);
     }
     
     const tableColumn = ["#", "Item", "SKU", "Qty", "Unit Price (PKR)", "Total (PKR)"];
@@ -154,7 +161,7 @@ export default function CartPage() {
       body: tableRows,
       startY: 70,
       theme: 'grid',
-      headStyles: { fillColor: [75, 0, 130] }, 
+      headStyles: { fillColor: [75, 0, 130] }, // Deep Indigo-like color
       styles: { fontSize: 8 },
     });
 
@@ -360,6 +367,7 @@ export default function CartPage() {
                     onChange={(e) => setInvoiceGoldRateInput(e.target.value)}
                     placeholder="e.g., 20000"
                     className="text-base"
+                    step="0.01"
                   />
                    <p className="text-xs text-muted-foreground mt-1">Current store setting: PKR {settings.goldRatePerGram.toLocaleString()}/gram</p>
                 </div>
@@ -374,6 +382,7 @@ export default function CartPage() {
                     onChange={(e) => setDiscountAmountInput(e.target.value)}
                     placeholder="e.g., 500"
                     className="text-base"
+                    step="0.01"
                   />
                 </div>
 
@@ -403,3 +412,5 @@ export default function CartPage() {
     </div>
   );
 }
+
+    
