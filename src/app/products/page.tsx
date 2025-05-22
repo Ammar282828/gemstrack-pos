@@ -62,11 +62,11 @@ const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: stri
         </Badge>
         <div className="flex items-center text-sm">
           <span className="font-semibold text-primary">
-            <span className="mr-0.5">PKR</span>{product.totalPrice.toLocaleString()}
+            <span className="mr-0.5">PKR </span>{product.totalPrice.toLocaleString()}
           </span>
         </div>
         <div className="text-xs text-muted-foreground mt-1">
-          Metal: {product.metalWeightG}g {/* Stone weight display removed */}
+          Metal: {product.metalType.charAt(0).toUpperCase() + product.metalType.slice(1)}{product.metalType === 'gold' && product.karat ? ` (${product.karat.toUpperCase()})` : ''} - {product.metalWeightG}g
         </div>
       </CardContent>
       <CardFooter className="p-4 border-t flex flex-col items-stretch gap-2">
@@ -76,9 +76,11 @@ const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: stri
         </Button>
         <div className="flex gap-2">
             <Button asChild size="sm" variant="outline" className="flex-1">
-            <Link href={`/products/${product.sku}/edit`}>
-                <Edit3 className="w-4 h-4 mr-1" /> Edit
-            </Link>
+              <Link href={`/products/${product.sku}/edit`} passHref legacyBehavior>
+                <a>
+                  <Edit3 className="w-4 h-4 mr-1" /> Edit
+                </a>
+              </Link>
             </Button>
             <Button asChild size="sm" variant="ghost" className="flex-1">
             <Link href={`/products/${product.sku}`}>

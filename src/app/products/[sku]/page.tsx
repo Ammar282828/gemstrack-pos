@@ -213,8 +213,10 @@ export default function ProductDetailPage() {
             </div>
             <div className="flex space-x-2 mt-2 md:mt-0">
               <Button asChild variant="outline">
-                <Link href={`/products/${sku}/edit`}>
-                  <Edit3 className="mr-2 h-4 w-4" /> Edit
+                <Link href={`/products/${sku}/edit`} passHref legacyBehavior>
+                  <a>
+                    <Edit3 className="mr-2 h-4 w-4" /> Edit
+                  </a>
                 </Link>
               </Button>
               <AlertDialog>
@@ -275,7 +277,7 @@ export default function ProductDetailPage() {
                 <div className="bg-primary/10 p-4 rounded-lg mb-4 text-center">
                   <p className="text-sm text-primary font-medium">TOTAL PRICE</p>
                   <p className="text-4xl font-bold text-primary flex items-center justify-center">
-                    <span className="mr-1">PKR</span>
+                    <span className="mr-1">PKR </span>
                     {productData.totalPrice.toLocaleString()}
                   </p>
                 </div>
@@ -283,30 +285,30 @@ export default function ProductDetailPage() {
                     <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
                 </Button>
                 {productData.metalType === 'gold' && (
-                    <DetailItem label="Gold Rate (Store Setting, 24k)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR" />
+                    <DetailItem label="Gold Rate (Store Setting, 24k)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR " />
                 )}
                 {productData.metalType === 'palladium' && (
-                    <DetailItem label="Palladium Rate (Store Setting)" value={settings.palladiumRatePerGram} unit="/ gram" currency="PKR" />
+                    <DetailItem label="Palladium Rate (Store Setting)" value={settings.palladiumRatePerGram} unit="/ gram" currency="PKR " />
                 )}
                 {productData.metalType === 'platinum' && (
-                    <DetailItem label="Platinum Rate (Store Setting)" value={settings.platinumRatePerGram} unit="/ gram" currency="PKR" />
+                    <DetailItem label="Platinum Rate (Store Setting)" value={settings.platinumRatePerGram} unit="/ gram" currency="PKR " />
                 )}
                 <Separator className="my-1" />
-                <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR" />
+                <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR " />
                 <Separator className="my-1" />
-                <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR" />
+                <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR " />
                 <Separator className="my-1" />
-                <DetailItem label="Making Charges" value={productData.makingCharges} currency="PKR" />
+                <DetailItem label="Making Charges" value={productData.makingCharges} currency="PKR " />
                 {productData.hasDiamonds && (
                   <>
                     <Separator className="my-1" />
-                    <DetailItem label="Diamond Charges" value={productData.diamondCharges} currency="PKR" icon={<Diamond className="w-4 h-4" />}/>
+                    <DetailItem label="Diamond Charges" value={productData.diamondCharges} currency="PKR " icon={<Diamond className="w-4 h-4" />}/>
                   </>
                 )}
                  <Separator className="my-1" />
-                <DetailItem label={productData.hasDiamonds ? "Other Stone Charges" : "Stone Charges"} value={productData.stoneCharges} currency="PKR" />
+                <DetailItem label={productData.hasDiamonds ? "Other Stone Charges" : "Stone Charges"} value={productData.stoneCharges} currency="PKR " />
                  <Separator className="my-1" />
-                <DetailItem label="Misc. Charges" value={productData.miscCharges} currency="PKR" />
+                <DetailItem label="Misc. Charges" value={productData.miscCharges} currency="PKR " />
               </CardContent>
             </Card>
 
