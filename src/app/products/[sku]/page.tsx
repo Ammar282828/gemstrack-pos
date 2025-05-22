@@ -257,38 +257,46 @@ export default function ProductDetailPage() {
         addQrCode(tagWidth - padding - qrSize, currentY + 1 - qrSize, qrSize);
         doc.rect(padding / 2, padding / 2, tagWidth - padding, tagHeight - padding);
     } else if (format === "dumbbell-vertical") {
-        const padding = 1;
-        const rectHeight = (tagHeight - 10) / 2; // Height of top/bottom rectangles, leaving 10mm for connector
+        const padding = 1.5; 
+        const connectorHeight = 6; 
+        const endHeight = (tagHeight - connectorHeight) / 2; 
 
-        // Top Rectangle (Folded Front/Top)
-        let currentYTop = padding + 2;
-        doc.setFontSize(5); doc.setFont("helvetica", "normal");
-        doc.text(shopName.substring(0, 12), tagWidth/2, currentYTop, {align: 'center', maxWidth: tagWidth - (padding*2) });
-        currentYTop += (doc.getTextDimensions(shopName.substring(0,12)).h) + 1;
+        // --- Top End (e.g., Price and Shop Name) ---
+        let currentYTop = padding;
+        doc.setFontSize(4.5); 
+        doc.setFont("helvetica", "normal");
+        doc.text(shopName.substring(0, 15).toUpperCase(), tagWidth / 2, currentYTop + 2.5, { align: 'center', maxWidth: tagWidth - (padding * 2) });
+        currentYTop += 4.5;
 
-        doc.setFontSize(7); doc.setFont("helvetica", "bold");
-        doc.text(productPrice, tagWidth/2, currentYTop + 3, {align: 'center', maxWidth: tagWidth - (padding*2)});
-
-        // Bottom Rectangle (Folded Back/Bottom)
-        let currentYBottom = rectHeight + 10 + padding + 1.5; // Start after top rect and connector
+        doc.setFontSize(8); 
+        doc.setFont("helvetica", "bold");
+        doc.text(productPrice, tagWidth / 2, currentYTop + 4, { align: 'center', maxWidth: tagWidth - (padding * 2) });
         
-        doc.setFontSize(5); doc.setFont("helvetica", "bold");
-        doc.text(productName.substring(0,20), padding, currentYBottom, {maxWidth: tagWidth - (padding*2)});
-        currentYBottom += (doc.getTextDimensions(productName.substring(0,20)).h) + 0.5;
+        // --- Bottom End (e.g., Product Name, SKU, QR) ---
+        let currentYBottom = endHeight + connectorHeight + padding; // Start Y for the bottom end
 
-        doc.setFontSize(4.5); doc.setFont("helvetica", "normal");
-        doc.text(`SKU: ${productSku}`, padding, currentYBottom, {maxWidth: tagWidth - (padding*2)}); currentYBottom += 2;
-        doc.text(metalInfo.substring(0,25), padding, currentYBottom, {maxWidth: tagWidth - (padding*2)}); currentYBottom += 2;
-        if (product.hasDiamonds) { doc.text(`Diamonds: Yes`, padding, currentYBottom); currentYBottom += 2;}
+        doc.setFontSize(5); 
+        doc.setFont("helvetica", "normal");
+        const productNameShort = productName.split(" - ")[0]; // Get only category part if name is "Category - SKU"
+        const productNameLines = doc.splitTextToSize(productNameShort.substring(0, 25), tagWidth - (padding * 2) - 1);
+        doc.text(productNameLines, tagWidth / 2, currentYBottom + 1.5, { align: 'center', maxWidth: tagWidth - (padding * 2) -1 });
+        currentYBottom += (productNameLines.length * 2.5) + 1;
+
+        doc.setFontSize(4.5); 
+        doc.setFont("helvetica", "normal");
+        doc.text(`SKU: ${productSku}`, tagWidth / 2, currentYBottom, { align: 'center', maxWidth: tagWidth - (padding * 2) });
+        currentYBottom += 3;
         
-        const qrSize = Math.min(tagWidth - (padding*2) -2, 10);
-        addQrCode((tagWidth - qrSize)/2, currentYBottom + 0.5, qrSize);
-        
-        // Optional: draw faint lines for the rectangles if desired for visual aid
-        // doc.setDrawColor(200, 200, 200); // Light gray
-        // doc.rect(padding/2, padding/2, tagWidth - padding, rectHeight); // Top rectangle
-        // doc.rect(padding/2, rectHeight + 10 + padding/2, tagWidth - padding, rectHeight); // Bottom rectangle
-        // doc.rect(padding/2, padding/2, tagWidth-padding, tagHeight-padding); // Full outline
+        const qrSizeMax = Math.min(tagWidth - (padding * 2) - 2, 12); // Max 12mm for QR
+        const spaceForQR = endHeight - (currentYBottom - (endHeight + connectorHeight + padding));
+        const qrSize = Math.min(qrSizeMax, spaceForQR - 1);
+
+        if (qrSize > 5) { 
+             addQrCode((tagWidth - qrSize) / 2, currentYBottom, qrSize);
+        } else {
+            doc.setFontSize(4);
+            doc.text("[QR]", tagWidth / 2, currentYBottom + 3, { align: 'center' });
+        }
     }
 
 
