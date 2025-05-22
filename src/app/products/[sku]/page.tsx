@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, User } from 'lucide-react'; // Removed IndianRupee
+import { Edit3, Trash2, Printer, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, User, ShoppingCart } from 'lucide-react'; 
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -64,6 +64,7 @@ export default function ProductDetailPage() {
   const customer = useAppStore(state => productData?.assignedCustomerId ? state.customers.find(c => c.id === productData.assignedCustomerId) : undefined);
   const deleteProductAction = useAppStore(state => state.deleteProduct);
   const setProductQrCodeDataUrl = useAppStore(state => state.setProductQrCode);
+  const { addToCart } = useAppStore();
 
 
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | undefined>(productData?.qrCodeDataUrl);
@@ -109,22 +110,30 @@ export default function ProductDetailPage() {
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(`PKR ${productData.totalPrice.toLocaleString()}`, 3, 20); // Currency updated
+    doc.text(`PKR ${productData.totalPrice.toLocaleString()}`, 3, 20); 
     
-    // Add QR Code
     if (qrCodeDataUrl.startsWith("data:image/png")) {
-         doc.addImage(qrCodeDataUrl, 'PNG', 45, 3, 24, 24); // Adjust position and size as needed
+         doc.addImage(qrCodeDataUrl, 'PNG', 45, 3, 24, 24); 
     } else {
         console.warn("QR code is not in PNG format, skipping image on PDF.");
         doc.text("[QR Placeholder]", 45, 15);
     }
 
-    doc.rect(1, 1, 68, 28); // Border for the tag
+    doc.rect(1, 1, 68, 28); 
 
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
     
     toast({ title: "Tag Ready", description: "Jewellery tag PDF generated." });
+  };
+
+  const handleAddToCart = () => {
+    if (!productData) return;
+    addToCart(productData.sku);
+    toast({
+      title: "Added to Cart",
+      description: `${productData.name} has been added to your cart.`,
+    });
   };
 
 
@@ -233,10 +242,13 @@ export default function ProductDetailPage() {
                 <div className="bg-primary/10 p-4 rounded-lg mb-4 text-center">
                   <p className="text-sm text-primary font-medium">TOTAL PRICE</p>
                   <p className="text-4xl font-bold text-primary flex items-center justify-center">
-                    <span className="mr-1">PKR</span> {/* Currency updated */}
+                    <span className="mr-1">PKR</span> 
                     {productData.totalPrice.toLocaleString()}
                   </p>
                 </div>
+                 <Button size="lg" className="w-full mb-4" onClick={handleAddToCart}>
+                    <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
+                </Button>
                 <DetailItem label="Gold Rate (Store Setting)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR" />
                 <Separator className="my-1" />
                 <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR" />
@@ -252,7 +264,7 @@ export default function ProductDetailPage() {
               <CardContent>
                 <DetailItem label="Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
                 <Separator className="my-1" />
-                <DetailItem label="Stone Weight" value={productData.stoneWeightCt} icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3.27A21.64 21.64 0 0 1 12 3a21.64 21.64 0 0 1 6 0.27V5.5a21.64 21.64 0 0 0-6 15.23A21.64 21.64 0 0 0 6 5.5V3.27Z"></path><path d="M12 15.5V21"></path><path d="M12 3v3.05"></path><path d="M17.83 4.53c2.22 0 3.17 1.34 3.17 2.69 0 .84-.47 1.41-1.12 1.88L18 9.93"></path><path d="M6.17 4.53c-2.22 0-3.17 1.34-3.17 2.69 0 .84.47 1.41 1.12 1.88L6 9.93"></path></svg>} unit="carats" />
+                <DetailItem label="Stone Weight" value={productData.stoneWeightCt} icon={<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3.27A21.64 21.64 0 0 1 12 3a21.64 21.64 0 0 1 6 0.27V5.5a21.64 21.64 0 0 0-6 15.23A21.64 21.64 0 0 0 6 5.5V3.27Z"></path><path d="M12 15.5V21"></path><path d="M12 3v3.05"></path><path d="M17.83 4.53c2.22 0 3.17 1.34 3.17 2.69 0 .84-.47 1.41-1.12 1.88L18 9.93"></path><path d="M6.17 4.53c-2.22 0-3.17 1.34-3.17 2.69 0 .84-.47 1.41 1.12 1.88L6 9.93"></path></svg>} unit="carats" />
                 <Separator className="my-1" />
                 <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
                 <Separator className="my-1" />

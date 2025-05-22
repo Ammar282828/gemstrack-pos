@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shapes, Search, Tag, Weight, PlusCircle, Eye, Edit3, Trash2 } from 'lucide-react'; // Removed IndianRupee
+import { Shapes, Search, Tag, Weight, PlusCircle, Eye, Edit3, Trash2, ShoppingCart } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +27,17 @@ import { useIsStoreHydrated } from '@/lib/store';
 type ProductWithCosts = ReturnType<typeof selectAllProductsWithCosts>[0];
 
 const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: string, onDelete: (sku: string) => void }> = ({ product, categoryTitle, onDelete }) => {
+  const { addToCart } = useAppStore();
+  const { toast } = useToast();
+
+  const handleAddToCart = () => {
+    addToCart(product.sku);
+    toast({
+      title: "Added to Cart",
+      description: `${product.name} has been added to your cart.`,
+    });
+  };
+  
   return (
     <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
       <CardHeader className="flex flex-row items-start justify-between p-4 space-y-0">
@@ -51,41 +62,47 @@ const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: stri
         </Badge>
         <div className="flex items-center text-sm">
           <span className="font-semibold text-primary">
-            <span className="mr-0.5">PKR</span>{product.totalPrice.toLocaleString()} {/* Currency updated */}
+            <span className="mr-0.5">PKR</span>{product.totalPrice.toLocaleString()}
           </span>
         </div>
         <div className="text-xs text-muted-foreground mt-1">
           Metal: {product.metalWeightG}g | Stone: {product.stoneWeightCt}ct
         </div>
       </CardContent>
-      <CardFooter className="p-4 border-t flex justify-end items-center space-x-2">
-        <Button asChild size="sm" variant="outline">
-          <Link href={`/products/${product.sku}/edit`}>
-            <Edit3 className="w-4 h-4 mr-1" /> Edit
-          </Link>
+      <CardFooter className="p-4 border-t flex flex-col items-stretch gap-2">
+         <Button size="sm" variant="default" onClick={handleAddToCart} className="w-full">
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            Add to Cart
         </Button>
-        <Button asChild size="sm" variant="ghost">
-          <Link href={`/products/${product.sku}`}>
-            <Eye className="w-4 h-4 mr-1" /> View
-          </Link>
-        </Button>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button size="sm" variant="destructive"><Trash2 className="w-4 h-4 mr-1" /> Delete</Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the product "{product.name}".
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => onDelete(product.sku)}>Delete</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex gap-2">
+            <Button asChild size="sm" variant="outline" className="flex-1">
+            <Link href={`/products/${product.sku}/edit`}>
+                <Edit3 className="w-4 h-4 mr-1" /> Edit
+            </Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost" className="flex-1">
+            <Link href={`/products/${product.sku}`}>
+                <Eye className="w-4 h-4 mr-1" /> View
+            </Link>
+            </Button>
+            <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button size="sm" variant="destructive" className="flex-1"><Trash2 className="w-4 h-4 mr-1" /> Delete</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the product "{product.name}".
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => onDelete(product.sku)}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+            </AlertDialog>
+        </div>
       </CardFooter>
     </Card>
   );
@@ -98,7 +115,11 @@ export default function ProductsPage() {
   const isHydrated = useIsStoreHydrated();
   const products = useAppStore(selectAllProductsWithCosts);
   const categories = useAppStore(state => state.categories);
-  const getCategoryTitle = (categoryId: string) => useAppStore(state => selectCategoryTitleById(categoryId, state));
+  const getCategoryTitle = (categoryId: string) => {
+    if (!isHydrated) return 'Loading...'; // Or handle appropriately
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.title : 'Uncategorized';
+  };
   const deleteProductAction = useAppStore(state => state.deleteProduct);
   const { toast } = useToast();
 

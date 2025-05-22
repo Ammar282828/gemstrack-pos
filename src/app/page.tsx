@@ -9,12 +9,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shapes, Search, Tag, Weight, PlusCircle, Eye } from 'lucide-react'; // Removed IndianRupee
+import { Shapes, Search, Tag, Weight, PlusCircle, Eye, ShoppingCart } from 'lucide-react'; 
 import { useIsStoreHydrated } from '@/lib/store';
+import { useToast } from '@/hooks/use-toast';
 
 type ProductWithCosts = ReturnType<typeof selectAllProductsWithCosts>[0];
 
 const ProductCard: React.FC<{ product: ProductWithCosts, categoryTitle: string }> = ({ product, categoryTitle }) => {
+  const { addToCart } = useAppStore();
+  const { toast } = useToast();
+
+  const handleAddToCart = () => {
+    addToCart(product.sku);
+    toast({
+      title: "Added to Cart",
+      description: `${product.name} has been added to your cart.`,
+    });
+  };
+
   return (
     <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
       <CardHeader className="p-0">
@@ -50,17 +62,23 @@ const ProductCard: React.FC<{ product: ProductWithCosts, categoryTitle: string }
           </div>
         )}
       </CardContent>
-      <CardFooter className="p-4 bg-muted/30 flex justify-between items-center">
-        <div className="text-xl font-bold text-primary flex items-center">
-          <span className="mr-1">PKR</span> {/* Currency updated */}
+      <CardFooter className="p-4 bg-muted/30 flex flex-col items-stretch gap-2">
+        <div className="text-xl font-bold text-primary flex items-center justify-center">
+          <span className="mr-1">PKR</span>
           {product.totalPrice.toLocaleString()}
         </div>
-        <Link href={`/products/${product.sku}`}>
-          <Button size="sm" variant="outline">
-            <Eye className="w-4 h-4 mr-2" />
-            View
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="flex-1" asChild>
+                <Link href={`/products/${product.sku}`}>
+                    <Eye className="w-4 h-4 mr-2" />
+                    View
+                </Link>
+            </Button>
+            <Button size="sm" variant="default" className="flex-1" onClick={handleAddToCart}>
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                Add to Cart
+            </Button>
+        </div>
       </CardFooter>
     </Card>
   );
