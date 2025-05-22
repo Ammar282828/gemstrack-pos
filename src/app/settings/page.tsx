@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText } from 'lucide-react';
 import { useIsStoreHydrated } from '@/lib/store';
 
 const settingsSchema = z.object({
@@ -24,6 +24,7 @@ const settingsSchema = z.object({
   shopAddress: z.string().optional(),
   shopContact: z.string().optional(),
   shopLogoUrl: z.string().url("Must be a valid URL for logo").optional().or(z.literal('')),
+  lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -38,7 +39,7 @@ export default function SettingsPage() {
     resolver: zodResolver(settingsSchema),
     defaultValues: currentSettings,
   });
-  
+
   React.useEffect(() => {
     if (isHydrated) {
       form.reset(currentSettings);
@@ -62,7 +63,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl">Shop Settings</CardTitle>
-              <CardDescription>Manage your shop's global settings, including metal rates.</CardDescription>
+              <CardDescription>Manage your shop's global settings, including metal rates and invoice numbering.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <FormField
@@ -170,7 +171,7 @@ export default function SettingsPage() {
                      <div className="flex items-center">
                        <ImageIcon className="h-5 w-5 mr-2 text-muted-foreground" />
                         <FormControl>
-                          <Input type="url" placeholder="https://placehold.co/150x50.png?text=Taheri" {...field} />
+                          <Input type="url" placeholder="https://placehold.co/200x80.png?text=Taheri+Logo" {...field} />
                         </FormControl>
                      </div>
                      {field.value && (
@@ -178,6 +179,24 @@ export default function SettingsPage() {
                             <img src={field.value} alt="Shop Logo Preview" className="h-16 object-contain" data-ai-hint="logo store" />
                         </div>
                      )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lastInvoiceNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-muted-foreground" /> Last Invoice Number (Sequence)
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="number" step="1" placeholder="e.g., 100" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                        The system will increment this number for the next invoice. Set this if you are migrating or need to adjust the sequence.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
