@@ -1,7 +1,9 @@
+
 "use client";
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link'; // Added Link import
 import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Product, Settings, InvoiceItem, Invoice as InvoiceType } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable'; // For table generation
 import { useIsStoreHydrated } from '@/lib/store';
+import { Separator } from '@/components/ui/separator'; // Added Separator import
 
 // Extend jsPDF with autoTable typings
 declare module 'jspdf' {

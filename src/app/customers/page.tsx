@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin } from 'lucide-react';
+import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users } from 'lucide-react'; // Added Users import
 import {
   AlertDialog,
   AlertDialogAction,

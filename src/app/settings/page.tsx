@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -12,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin } from 'lucide-react'; // Added MapPin import
 import { useIsStoreHydrated } from '@/lib/store';
 
 const settingsSchema = z.object({
