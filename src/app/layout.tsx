@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google'; // Changed from Geist to Inter
 import './globals.css';
@@ -10,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'GemsTrack POS',
+  title: 'Taheri POS',
   description: 'Jewellery Inventory & Point-of-Sale System',
 };
 

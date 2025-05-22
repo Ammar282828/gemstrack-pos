@@ -53,7 +53,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <Link href="/" className="flex items-center gap-2">
             <Gem className="w-8 h-8 text-primary" />
             <h1 className="text-xl font-semibold text-primary group-data-[collapsible=icon]:hidden">
-              GemsTrack
+              Taheri
             </h1>
           </Link>
         </SidebarHeader>
@@ -84,7 +84,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <Separator />
         <SidebarFooter className="p-4 group-data-[collapsible=icon]:p-2">
           <div className="group-data-[collapsible=icon]:hidden text-xs text-muted-foreground">
-            © {new Date().getFullYear()} GemsTrack POS
+            © {new Date().getFullYear()} Taheri POS
           </div>
         </SidebarFooter>
       </Sidebar>

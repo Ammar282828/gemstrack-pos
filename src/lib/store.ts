@@ -131,10 +131,10 @@ const initialCategories: Category[] = [
 
 const initialSettings: Settings = {
   goldRatePerGram: 20000, 
-  shopName: "GemsTrack Boutique",
+  shopName: "Taheri",
   shopAddress: "123 Jewel Street, Sparkle City",
-  shopContact: "contact@gemstrack.com | (021) 123-4567",
-  shopLogoUrl: "https://placehold.co/150x50.png?text=GemsTrack"
+  shopContact: "contact@taheri.com | (021) 123-4567",
+  shopLogoUrl: "https://placehold.co/150x50.png?text=Taheri"
 };
 
 // Define a dummy storage for SSR that conforms to StateStorage interface
@@ -322,15 +322,14 @@ export const useAppStore = create<AppState>()(
       }),
       onRehydrateStorage: (_state, error) => {
         if (error) {
-          console.error('[GemsTrack] Persist: Rehydration error:', error);
+          console.error('[Taheri POS] Persist: Rehydration error:', error);
         }
-        // Use queueMicrotask to ensure this runs after the current event loop tick
         queueMicrotask(() => {
           useAppStore.getState().setHasHydrated(true);
         });
       },
       partialize: (state) => {
-        const { _hasHydrated, ...rest } = state; // Exclude _hasHydrated from persisted state
+        const { _hasHydrated, ...rest } = state; 
         return rest;
       },
       version: 1, 
@@ -382,32 +381,23 @@ export const selectCartSubtotal = (state: AppState) => {
 
 
 export const useIsStoreHydrated = () => {
-  // Initialize state to what the store currently has.
-  // This function runs once when useState is initialized.
-  const [isHydrated, setIsHydrated] = React.useState(() => useAppStore.getState()._hasHydrated);
+  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
 
   React.useEffect(() => {
-    // This effect handles changes to the hydration status after initial mount.
-    
     const handleHydrationChange = (hydratedStatus: boolean) => {
       setIsHydrated(hydratedStatus);
     };
-
-    // Subscribe to the _hasHydrated slice of the store.
-    // The subscriber `handleHydrationChange` will be called with the new value of `state._hasHydrated`.
+    
     const unsubscribe = useAppStore.subscribe(
       (state) => state._hasHydrated,
-      handleHydrationChange
+      handleHydrationChange,
+      { fireImmediately: true } 
     );
-
-    // Sync with the store's current status when the component mounts.
-    // This is important if the store hydrates between the `useState` call and this `useEffect` running.
-    handleHydrationChange(useAppStore.getState()._hasHydrated);
-
+    
     return () => {
-      unsubscribe(); // Clean up the subscription when the component unmounts.
+      unsubscribe();
     };
-  }, []); // Empty dependency array ensures this effect runs only once on mount and cleans up on unmount.
+  }, []);
 
   return isHydrated;
 };
