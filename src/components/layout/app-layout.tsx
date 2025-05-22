@@ -12,7 +12,7 @@ if (typeof window !== 'undefined' && typeof window.structuredClone !== 'function
       return JSON.parse(JSON.stringify(value));
     } catch (e) {
         console.error("TaheriPOS: structuredClone polyfill (JSON.parse(JSON.stringify)) failed:", e);
-        return value; // Fallback to returning the original value if stringify fails (e.g., for non-serializable types)
+        return value; 
     }
   };
 }
@@ -59,11 +59,15 @@ const navItems: NavItem[] = [
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isHydrated = useIsStoreHydrated();
+  console.log(`[GemsTrack] AppLayout: Rendering. Store hydrated: ${isHydrated}`);
+
 
   if (!isHydrated) {
+    console.log("[GemsTrack] AppLayout: Store NOT hydrated, rendering null.");
     return null; 
   }
   
+  console.log("[GemsTrack] AppLayout: Store IS hydrated, rendering layout.");
   return (
     <SidebarProvider defaultOpen={true}>
       <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
