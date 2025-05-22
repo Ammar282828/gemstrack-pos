@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import {
   Html5QrcodeSupportedFormats,
   QrcodeErrorCallback,
   QrcodeSuccessCallback,
-  Html5QrcodeScannerState // Import this for checking scanner state
+  Html5QrcodeScannerState 
 } from 'html5-qrcode';
 
 const qrReaderElementId = "qr-reader-container";
@@ -27,51 +27,51 @@ export default function ScanPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [skuInput, setSkuInput] = useState('');
-  const products = useAppStore(state => state.products);
+  // Products are fetched directly in onScanSuccess to stabilize useEffect
+  // const products = useAppStore(state => state.products); 
   const isHydrated = useIsStoreHydrated();
 
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const html5QrcodeScannerRef = useRef<Html5QrcodeScanner | null>(null);
 
+  const onScanSuccess: QrcodeSuccessCallback = useCallback(async (decodedText, decodedResult) => {
+    setSkuInput(decodedText);
+    const currentProducts = useAppStore.getState().products; // Get latest products
+    const productExists = currentProducts.some(p => p.sku === decodedText.trim());
+
+    if (productExists) {
+      toast({ title: "QR Code Scanned!", description: `SKU: ${decodedText}. Navigating...` });
+      
+      const scannerInstance = html5QrcodeScannerRef.current;
+      if (scannerInstance && typeof scannerInstance.clear === 'function') {
+        try {
+          if (scannerInstance.getState && 
+              (scannerInstance.getState() === Html5QrcodeScannerState.SCANNING ||
+               scannerInstance.getState() === Html5QrcodeScannerState.PAUSED)) {
+            await scannerInstance.clear();
+          } else if (!scannerInstance.getState) { 
+            await scannerInstance.clear();
+          }
+        } catch (error) {
+          console.error("Error clearing scanner on success (before navigation):", error);
+        } finally {
+          html5QrcodeScannerRef.current = null; 
+        }
+      }
+      router.push(`/products/${decodedText.trim()}`);
+    } else {
+      toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
+    }
+  }, [router, toast]); // Dependencies are stable hooks
+
+  const onScanFailure: QrcodeErrorCallback = useCallback((error) => {
+    // console.warn(`QR Scan Error: ${error}`); // Can be noisy
+  }, []);
+
   useEffect(() => {
     if (!isHydrated) {
       return;
     }
-
-    const onScanSuccess: QrcodeSuccessCallback = async (decodedText, decodedResult) => {
-      setSkuInput(decodedText);
-      const productExists = products.some(p => p.sku === decodedText.trim());
-
-      if (productExists) {
-        toast({ title: "QR Code Scanned!", description: `SKU: ${decodedText}. Navigating...` });
-        
-        const scannerInstance = html5QrcodeScannerRef.current;
-        if (scannerInstance && typeof scannerInstance.clear === 'function') {
-          try {
-            // Check state BEFORE setting ref to null or attempting clear
-            if (scannerInstance.getState && 
-                (scannerInstance.getState() === Html5QrcodeScannerState.SCANNING ||
-                 scannerInstance.getState() === Html5QrcodeScannerState.PAUSED)) {
-              await scannerInstance.clear();
-            } else if (!scannerInstance.getState) { // Fallback for older versions or if getState isn't there
-              await scannerInstance.clear();
-            }
-          } catch (error) {
-            console.error("Error clearing scanner on success (before navigation):", error);
-          } finally {
-            // Ensure ref is nulled out to prevent useEffect cleanup from trying again AFTER attempt to clear
-            html5QrcodeScannerRef.current = null; 
-          }
-        }
-        router.push(`/products/${decodedText.trim()}`);
-      } else {
-        toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
-      }
-    };
-
-    const onScanFailure: QrcodeErrorCallback = (error) => {
-      // console.warn(`QR Scan Error: ${error}`); // Can be noisy
-    };
 
     if (document.getElementById(qrReaderElementId) && !html5QrcodeScannerRef.current) {
       const scanner = new Html5QrcodeScanner(
@@ -112,7 +112,6 @@ export default function ScanPage() {
     return () => {
       if (html5QrcodeScannerRef.current && typeof html5QrcodeScannerRef.current.clear === 'function') {
         const scannerInstance = html5QrcodeScannerRef.current;
-        // Check state before attempting to clear
         if (scannerInstance.getState && 
             (scannerInstance.getState() === Html5QrcodeScannerState.SCANNING ||
              scannerInstance.getState() === Html5QrcodeScannerState.PAUSED)
@@ -120,10 +119,7 @@ export default function ScanPage() {
           scannerInstance.clear().catch(err => {
             console.error("Error clearing scanner on component unmount:", err);
           });
-        } else if (!scannerInstance.getState) { // Fallback if getState is not available
-           // This path is risky if the scanner is already cleared or its DOM is gone.
-           // Consider if this specific fallback clear is always safe or needed.
-           // For now, keeping it as it was, but with awareness.
+        } else if (!scannerInstance.getState) { 
            scannerInstance.clear().catch(err => {
             console.error("Error clearing scanner (no state check) on component unmount:", err);
           });
@@ -131,14 +127,15 @@ export default function ScanPage() {
       }
       html5QrcodeScannerRef.current = null;
     };
-  }, [isHydrated, products, router, toast]);
+  }, [isHydrated, onScanSuccess, onScanFailure, toast]); // `toast` is from a hook and stable
 
   const handleManualSkuSearch = () => {
     if (!skuInput.trim()) {
       toast({ title: "Input SKU", description: "Please enter a SKU to search.", variant: "destructive" });
       return;
     }
-    const productExists = products.some(p => p.sku === skuInput.trim());
+    const currentProducts = useAppStore.getState().products;
+    const productExists = currentProducts.some(p => p.sku === skuInput.trim());
     if (productExists) {
       router.push(`/products/${skuInput.trim()}`);
     } else {
@@ -164,7 +161,6 @@ export default function ScanPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div id={qrReaderElementId} className="w-full aspect-video border rounded-md bg-muted overflow-hidden text-sm text-muted-foreground flex items-center justify-center">
-            {/* html5-qrcode-scanner will render here or show its own messages */}
             {hasCameraPermission === null && (
                  <div className="flex flex-col items-center justify-center h-full">
                     <VideoOff className="w-12 h-12 mb-2" />
@@ -217,3 +213,4 @@ export default function ScanPage() {
   );
 }
 
+    
