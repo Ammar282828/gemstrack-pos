@@ -68,7 +68,7 @@ export interface Invoice {
 // --- Computed Value Helpers ---
 
 // This function now takes goldRatePerGram as a parameter
-export const calculateProductCosts = (product: Product, goldRatePerGram: number) => {
+export const calculateProductCosts = (product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'assignedCustomerId' | 'imageUrl' | 'name'> & { categoryId?: string, name?: string}, goldRatePerGram: number) => {
   const metalCost = product.metalWeightG * goldRatePerGram;
   const wastageCost = metalCost * (product.wastagePercentage / 100);
   const makingCost = product.metalWeightG * product.makingRatePerG;
@@ -97,8 +97,8 @@ export interface AppState {
   deleteCategory: (id: string) => void;
 
   // Product Actions
-  addProduct: (product: Product) => void;
-  updateProduct: (sku: string, updatedProduct: Partial<Product>) => void;
+  addProduct: (productData: Omit<Product, 'sku' | 'qrCodeDataUrl'>) => Product | null; // Returns the new product or null if category not found
+  updateProduct: (sku: string, updatedProduct: Partial<Omit<Product, 'sku'>>) => void;
   deleteProduct: (sku: string) => void;
   setProductQrCode: (sku: string, qrCodeDataUrl: string) => void;
 
@@ -183,15 +183,44 @@ export const useAppStore = create<AppState>()(
           state.products = state.products.map(p => p.categoryId === id ? {...p, categoryId: ''} : p);
         }),
 
-      addProduct: (product) =>
+      addProduct: (productData) => {
+        let newProduct: Product | null = null;
         set((state) => {
-          state.products.push(product);
-        }),
+          const category = state.categories.find(c => c.id === productData.categoryId);
+          if (!category) {
+            console.error(`Category with id ${productData.categoryId} not found. Product not added.`);
+            return; // Do not modify state if category is not found
+          }
+
+          const prefix = category.title.substring(0, 3).toUpperCase();
+          let maxNum = 0;
+          state.products.forEach(p => {
+            if (p.sku.startsWith(prefix + "-")) {
+              const numPart = parseInt(p.sku.substring(prefix.length + 1), 10);
+              if (!isNaN(numPart) && numPart > maxNum) {
+                maxNum = numPart;
+              }
+            }
+          });
+          const newNum = (maxNum + 1).toString().padStart(3, '0');
+          const generatedSku = `${prefix}-${newNum}`;
+          
+          newProduct = {
+            ...productData,
+            sku: generatedSku,
+            qrCodeDataUrl: '', // Will be generated later
+          };
+          state.products.push(newProduct);
+        });
+        return newProduct; // Return the newly created product (or null if category issue)
+      },
       updateProduct: (sku, updatedFields) =>
         set((state) => {
           const productIndex = state.products.findIndex((p) => p.sku === sku);
           if (productIndex !== -1) {
-            state.products[productIndex] = { ...state.products[productIndex], ...updatedFields };
+            // Ensure SKU is not part of updatedFields or is ignored
+            const { sku: _sku, ...safeUpdateFields } = updatedFields as any;
+            state.products[productIndex] = { ...state.products[productIndex], ...safeUpdateFields };
           }
         }),
       deleteProduct: (sku) =>
@@ -259,9 +288,11 @@ export const useAppStore = create<AppState>()(
         }),
       
       generateInvoice: (customerId, invoiceGoldRate, discountAmount) => {
-        const { products, cart, customers } = get(); 
+        const { products, cart, customers, settings } = get(); 
         if (cart.length === 0) return null;
-        if (invoiceGoldRate <= 0) { 
+        
+        const goldRateForInvoice = invoiceGoldRate > 0 ? invoiceGoldRate : settings.goldRatePerGram;
+        if (goldRateForInvoice <= 0) { 
             console.error("Invoice gold rate must be positive.");
             return null; 
         }
@@ -271,7 +302,7 @@ export const useAppStore = create<AppState>()(
           const product = products.find(p => p.sku === cartItem.sku);
           if (!product) throw new Error(`Product with SKU ${cartItem.sku} not found for invoice.`);
           
-          const costs = calculateProductCosts(product, invoiceGoldRate);
+          const costs = calculateProductCosts(product, goldRateForInvoice);
           const unitPrice = costs.totalPrice;
           const itemTotal = unitPrice * cartItem.quantity;
           subtotal += itemTotal;
@@ -298,7 +329,7 @@ export const useAppStore = create<AppState>()(
           discountAmount: calculatedDiscountAmount,
           grandTotal,
           createdAt: new Date().toISOString(),
-          goldRateApplied: invoiceGoldRate,
+          goldRateApplied: goldRateForInvoice,
         };
 
         set(state => {
@@ -324,15 +355,18 @@ export const useAppStore = create<AppState>()(
         if (error) {
           console.error('[Taheri POS] Persist: Rehydration error:', error);
         }
+        // Setting _hasHydrated to true must be done outside persist's own callback chain to avoid issues during initial load.
+        // It's usually done in a useEffect in the root of the app or via a dedicated hook.
+        // For now, we will rely on useIsStoreHydrated hook to manage this from component side.
         queueMicrotask(() => {
-          useAppStore.getState().setHasHydrated(true);
+            useAppStore.getState().setHasHydrated(true);
         });
       },
       partialize: (state) => {
         const { _hasHydrated, ...rest } = state; 
         return rest;
       },
-      version: 1, 
+      version: 1, // Corresponds to the version in your store.ts (example)
     }
   )
 );
@@ -381,19 +415,27 @@ export const selectCartSubtotal = (state: AppState) => {
 
 
 export const useIsStoreHydrated = () => {
-  const [isHydrated, setIsHydrated] = React.useState(useAppStore.getState()._hasHydrated);
+  const [isHydrated, setIsHydrated] = React.useState(false);
 
   React.useEffect(() => {
-    const handleHydrationChange = (hydratedStatus: boolean) => {
-      setIsHydrated(hydratedStatus);
-    };
-    
+    // Check initial hydration status
+    const initialHydrationStatus = useAppStore.getState()._hasHydrated;
+    setIsHydrated(initialHydrationStatus);
+
+    // Subscribe to future changes
     const unsubscribe = useAppStore.subscribe(
       (state) => state._hasHydrated,
-      handleHydrationChange,
-      { fireImmediately: true } 
+      (hydratedStatus) => {
+        setIsHydrated(hydratedStatus);
+      }
     );
     
+    // If already hydrated by the time effect runs, ensure state is up to date
+    if (initialHydrationStatus) {
+        setIsHydrated(true);
+    }
+
+
     return () => {
       unsubscribe();
     };

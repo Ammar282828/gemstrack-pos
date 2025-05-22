@@ -17,8 +17,8 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban } from 'lucide-react';
 
-const productSchema = z.object({
-  sku: z.string().min(1, "SKU is required"),
+// Schema for form data, SKU is not included as it's auto-generated or read-only
+const productFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   categoryId: z.string().min(1, "Category is required"),
   metalWeightG: z.coerce.number().min(0, "Metal weight must be non-negative"),
@@ -31,26 +31,34 @@ const productSchema = z.object({
   imageUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
 });
 
-type ProductFormData = z.infer<typeof productSchema>;
+type ProductFormData = z.infer<typeof productFormSchema>;
 
 interface ProductFormProps {
-  product?: Product; // For editing
+  product?: Product; // For editing (includes SKU)
   onSubmitSuccess?: () => void;
 }
 
 export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess }) => {
   const router = useRouter();
   const { toast } = useToast();
-  const { categories, customers, addProduct, updateProduct, products } = useAppStore();
+  const { categories, customers, addProduct, updateProduct } = useAppStore();
+
+  const isEditMode = !!product;
 
   const form = useForm<ProductFormData>({
-    resolver: zodResolver(productSchema),
+    resolver: zodResolver(productFormSchema),
     defaultValues: product ? {
-      ...product,
-      assignedCustomerId: product.assignedCustomerId ?? undefined, // Ensure undefined, not ""
+      name: product.name,
+      categoryId: product.categoryId,
+      metalWeightG: product.metalWeightG,
+      stoneWeightCt: product.stoneWeightCt,
+      wastagePercentage: product.wastagePercentage,
+      makingRatePerG: product.makingRatePerG,
+      stoneRatePerCt: product.stoneRatePerCt,
+      miscCharges: product.miscCharges,
+      assignedCustomerId: product.assignedCustomerId ?? undefined,
       imageUrl: product.imageUrl || "",
     } : {
-      sku: '',
       name: '',
       categoryId: '',
       metalWeightG: 0,
@@ -59,31 +67,25 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       makingRatePerG: 0,
       stoneRatePerCt: 0,
       miscCharges: 0,
-      assignedCustomerId: undefined, // Ensure undefined, not ""
+      assignedCustomerId: undefined,
       imageUrl: "",
     },
   });
 
-  const isEditMode = !!product;
-
   const onSubmit = (data: ProductFormData) => {
     try {
-      if (isEditMode) {
-        updateProduct(product.sku, data);
+      if (isEditMode && product) { // product must exist in edit mode
+        updateProduct(product.sku, data); // Pass only ProductFormData
         toast({ title: "Success", description: "Product updated successfully." });
+        if (onSubmitSuccess) onSubmitSuccess(); else router.push(`/products/${product.sku}`);
       } else {
-        // Check for SKU uniqueness before adding
-        if (products.some(p => p.sku === data.sku)) {
-          form.setError("sku", { type: "manual", message: "SKU already exists. Please use a unique SKU." });
-          return;
+        const newProduct = addProduct(data); // addProduct now expects ProductFormData
+        if (newProduct) {
+            toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added successfully.` });
+            if (onSubmitSuccess) onSubmitSuccess(); else router.push('/products');
+        } else {
+            toast({ title: "Error", description: "Failed to add product. Category might be missing.", variant: "destructive" });
         }
-        addProduct({ ...data, qrCodeDataUrl: '' }); // qrCodeDataUrl will be generated later
-        toast({ title: "Success", description: "Product added successfully." });
-      }
-      if (onSubmitSuccess) {
-        onSubmitSuccess();
-      } else {
-        router.push(isEditMode ? `/products/${product.sku}` : '/products');
       }
     } catch (error) {
       toast({ title: "Error", description: "Failed to save product.", variant: "destructive" });
@@ -99,19 +101,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
             <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="sku"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>SKU</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter unique SKU" {...field} disabled={isEditMode} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {isEditMode && product && (
+              <FormItem>
+                <FormLabel>SKU (Read-only)</FormLabel>
+                <FormControl>
+                  <Input value={product.sku} disabled className="bg-muted/50" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+             {/* Spacer to keep layout consistent if SKU is not shown */}
+            {!isEditMode && <div className="md:col-span-1 hidden md:block"></div>}
+
+
             <FormField
               control={form.control}
               name="name"
@@ -235,7 +237,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                   <FormLabel>Assign to Customer (Optional)</FormLabel>
                   <Select 
                     onValueChange={(value) => field.onChange(value === "__NONE__" ? undefined : value)} 
-                    value={field.value ?? undefined} // Ensure value is undefined if null/empty for placeholder
+                    value={field.value ?? "__NONE__"} // Ensure value is "__NONE__" if undefined for placeholder
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -287,3 +289,4 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     </Form>
   );
 };
+
