@@ -18,7 +18,7 @@ import {
   Html5QrcodeSupportedFormats,
   QrcodeErrorCallback,
   QrcodeSuccessCallback,
-  Html5QrcodeScannerState // Import scanner state
+  Html5QrcodeScannerState
 } from 'html5-qrcode';
 
 const qrReaderElementId = "qr-reader-container";
@@ -38,32 +38,34 @@ export default function ScanPage() {
       return;
     }
 
-    const onScanSuccess: QrcodeSuccessCallback = (decodedText, decodedResult) => {
-      // Stop the scanner when a QR code is found.
-      if (html5QrcodeScannerRef.current && typeof html5QrcodeScannerRef.current.clear === 'function') {
-         // Check state before clearing if possible
-        if (html5QrcodeScannerRef.current.getState && 
-            (html5QrcodeScannerRef.current.getState() === Html5QrcodeScannerState.SCANNING ||
-             html5QrcodeScannerRef.current.getState() === Html5QrcodeScannerState.PAUSED)
-            ) {
-          html5QrcodeScannerRef.current.clear().catch(err => console.error("Error clearing scanner on success:", err));
-        } else if (!html5QrcodeScannerRef.current.getState) {
-          // Fallback if getState is not available
-           html5QrcodeScannerRef.current.clear().catch(err => console.error("Error clearing scanner on success (no state check):", err));
-        }
-      }
-      // It's good practice to nullify the ref after clearing if you intend for it to be re-initialized later,
-      // but since we navigate away, the component unmount will handle it.
-      
+    const onScanSuccess: QrcodeSuccessCallback = async (decodedText, decodedResult) => {
       setSkuInput(decodedText);
       const productExists = products.some(p => p.sku === decodedText.trim());
+
       if (productExists) {
         toast({ title: "QR Code Scanned!", description: `SKU: ${decodedText}. Navigating...` });
+        if (html5QrcodeScannerRef.current && typeof html5QrcodeScannerRef.current.clear === 'function') {
+          const scannerToClear = html5QrcodeScannerRef.current;
+          // Set ref to null *before* awaiting clear and navigating.
+          // This prevents the useEffect cleanup from trying to clear again.
+          html5QrcodeScannerRef.current = null; 
+          try {
+            if (scannerToClear.getState && 
+                (scannerToClear.getState() === Html5QrcodeScannerState.SCANNING ||
+                 scannerToClear.getState() === Html5QrcodeScannerState.PAUSED)
+                ) {
+              await scannerToClear.clear();
+            } else if (!scannerToClear.getState) { // Fallback if getState is not available
+              await scannerToClear.clear();
+            }
+          } catch (error) {
+            console.error("Error clearing scanner on success (before navigation):", error);
+          }
+        }
         router.push(`/products/${decodedText.trim()}`);
       } else {
         toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
-        // Consider re-enabling scanner or providing UI to scan again if product not found.
-        // For now, it stops.
+        // If product not found, scanner remains active for another attempt.
       }
     };
 
@@ -71,6 +73,8 @@ export default function ScanPage() {
       // console.warn(`QR Scan Error: ${error}`); // Can be noisy
     };
 
+    // Only initialize the scanner if the ref is null (i.e., not already initialized or has been cleared)
+    // and the DOM element is present.
     if (document.getElementById(qrReaderElementId) && !html5QrcodeScannerRef.current) {
       const scanner = new Html5QrcodeScanner(
         qrReaderElementId,
@@ -90,8 +94,8 @@ export default function ScanPage() {
 
       try {
         scanner.render(onScanSuccess, onScanFailure);
-        html5QrcodeScannerRef.current = scanner; // Store the instance
-        setHasCameraPermission(true); // Optimistically set true if render() doesn't throw
+        html5QrcodeScannerRef.current = scanner; 
+        setHasCameraPermission(true); 
       } catch (error) {
         console.error("Error calling scanner.render(): ", error);
         toast({
@@ -100,17 +104,20 @@ export default function ScanPage() {
             variant: "destructive"
         });
         setHasCameraPermission(false);
+        // If render fails, ensure the ref is cleared if it was partially set or if an old instance exists
         if (html5QrcodeScannerRef.current && typeof html5QrcodeScannerRef.current.clear === 'function') {
              html5QrcodeScannerRef.current.clear().catch(e => console.error("Error clearing scanner during init failure:", e));
-             html5QrcodeScannerRef.current = null;
         }
+        html5QrcodeScannerRef.current = null; 
       }
     }
 
     return () => {
+      // This cleanup runs when the component unmounts.
+      // It will only attempt to clear if html5QrcodeScannerRef.current is not already null
+      // (which would be the case if onScanSuccess handled the clearing before navigation).
       if (html5QrcodeScannerRef.current && typeof html5QrcodeScannerRef.current.clear === 'function') {
         const scannerInstance = html5QrcodeScannerRef.current;
-         // Check if the scanner is in a state that can be cleared
         if (scannerInstance.getState && 
             (scannerInstance.getState() === Html5QrcodeScannerState.SCANNING ||
              scannerInstance.getState() === Html5QrcodeScannerState.PAUSED)
@@ -119,13 +126,13 @@ export default function ScanPage() {
             console.error("Error clearing scanner on component unmount:", err);
           });
         } else if (!scannerInstance.getState) {
-           // Fallback if getState is not available (e.g. if init was incomplete)
            scannerInstance.clear().catch(err => {
             console.error("Error clearing scanner (no state check) on component unmount:", err);
           });
         }
-        html5QrcodeScannerRef.current = null;
       }
+      // Ensure the ref is null after unmount, regardless of whether clear was called or succeeded.
+      html5QrcodeScannerRef.current = null;
     };
   }, [isHydrated, products, router, toast]);
 
