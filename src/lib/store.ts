@@ -38,7 +38,7 @@ export interface Product {
   wastagePercentage: number;
   makingCharges: number; // Total making charges
   hasDiamonds: boolean;
-  diamondCharges: number;
+  diamondCharges: number; // Total diamond charges
   stoneCharges: number; // For non-diamond stones, total charge
   miscCharges: number;
   qrCodeDataUrl?: string;
@@ -68,25 +68,45 @@ export interface Invoice {
 }
 
 // --- Computed Value Helpers ---
+const DEFAULT_KARAT_VALUE_FOR_CALCULATION: KaratValue = '21k';
+
 const parseKarat = (karat: KaratValue): number => {
   return parseInt(karat.replace('k', ''), 10);
 };
 
 export const calculateProductCosts = (
-  product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & { categoryId?: string, name?: string, karat: KaratValue },
+  product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'imageUrl' | 'name' | 'karat'> & { 
+    categoryId?: string; 
+    name?: string; 
+    karat?: KaratValue; // Make karat optional here to handle old data
+  },
   goldRatePerGram24k: number
 ) => {
-  const karatNumeric = parseKarat(product.karat);
+  const karatToUse = product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION;
+  if (!product.karat) {
+    const productNameForLog = product.name || ((product as any).sku ? `SKU: ${(product as any).sku}` : 'Unknown Product');
+    console.warn(`[GemsTrack] Product "${productNameForLog}" is missing karat value. Defaulting to ${DEFAULT_KARAT_VALUE_FOR_CALCULATION} for cost calculation.`);
+  }
+  
+  const karatNumeric = parseKarat(karatToUse);
   const purityFactor = karatNumeric / 24;
   const effectiveGoldRate = purityFactor * goldRatePerGram24k;
 
   const metalCost = product.metalWeightG * effectiveGoldRate;
   const wastageCost = metalCost * (product.wastagePercentage / 100);
-  const makingCost = product.makingCharges;
+  const makingCost = product.makingCharges; // Already total making charges
   const totalDiamondCharges = product.hasDiamonds ? product.diamondCharges : 0;
-  const totalStoneCharges = product.stoneCharges;
+  const totalStoneCharges = product.stoneCharges; // Already total stone charges
   const totalPrice = metalCost + wastageCost + makingCost + totalDiamondCharges + totalStoneCharges + product.miscCharges;
-  return { metalCost, wastageCost, makingCost, diamondCharges: totalDiamondCharges, stoneCharges: totalStoneCharges, totalPrice };
+  
+  return { 
+    metalCost, 
+    wastageCost, 
+    makingCost, // this is total making charges
+    diamondCharges: totalDiamondCharges, // this is total diamond charges
+    stoneCharges: totalStoneCharges, // this is total other stone charges
+    totalPrice 
+  };
 };
 
 
@@ -145,13 +165,13 @@ const initialCategories: Category[] = [
   { id: 'cat12', title: 'String Sets' },
   { id: 'cat13', title: 'Stone Necklace Sets without Bracelets' },
   { id: 'cat14', title: 'Stone Necklace Sets with Bracelets' },
-  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' },
+  { id: 'cat15', title: 'Gold Necklace Sets with Bracelets' }, // Corrected spelling
   { id: 'cat16', title: 'Gold Necklace Sets without Bracelets' },
 ];
 
 
 const initialSettings: Settings = {
-  goldRatePerGram: 20000, // Assumed to be for 24k gold
+  goldRatePerGram: 20000, 
   shopName: "Taheri",
   shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
@@ -185,11 +205,11 @@ const initialProducts: Product[] = [
     makingCharges: 7200, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png?text=Bracelet"
   },
   {
-    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", karat: '22k', metalWeightG: 15.0, wastagePercentage: 15,
+    sku: "BAN-000001", name: "Bangles - BAN-000001", categoryId: "cat07", karat: '22k', metalWeightG: 15.0, wastagePercentage: 15, // Example of 15% for bangles
     makingCharges: 15000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 22500, miscCharges: 800, imageUrl: "https://placehold.co/300x300.png?text=Bangle"
   },
   {
-    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", karat: '21k', metalWeightG: 20.0, wastagePercentage: 15,
+    sku: "GOL-000001", name: "Gold Necklace Sets with Bracelets - GOL-000001", categoryId: "cat15", karat: '21k', metalWeightG: 20.0, wastagePercentage: 15, // Example of 15% for gold sets
     makingCharges: 30000, hasDiamonds: true, diamondCharges: 50000, stoneCharges: 160000, miscCharges: 2000, imageUrl: "https://placehold.co/300x300.png?text=Gold+Set+Diamond"
   }
 ];
@@ -363,7 +383,21 @@ export const useAppStore = create<AppState>()(
               throw new Error(`Product with SKU ${cartItem.sku} not found for invoice.`);
           }
 
-          const costs = calculateProductCosts(product, goldRateForInvoice);
+          // Ensure product object has all necessary fields for calculateProductCosts
+          const productForCostCalc = {
+            name: product.name, // For logging in calculateProductCosts if needed
+            karat: product.karat,
+            metalWeightG: product.metalWeightG,
+            wastagePercentage: product.wastagePercentage,
+            makingCharges: product.makingCharges,
+            hasDiamonds: product.hasDiamonds,
+            diamondCharges: product.diamondCharges,
+            stoneCharges: product.stoneCharges,
+            miscCharges: product.miscCharges,
+          };
+
+
+          const costs = calculateProductCosts(productForCostCalc, goldRateForInvoice);
           const unitPrice = costs.totalPrice;
           const itemTotal = unitPrice * cartItem.quantity;
           subtotal += itemTotal;
@@ -419,12 +453,12 @@ export const useAppStore = create<AppState>()(
         return (state, error) => {
           if (error) {
             console.error('[GemsTrack] Persist: An error occurred during rehydration:', error);
-          } else if (state) {
+          } else {
             // Use queueMicrotask to ensure this runs after the current event loop cycle
             // and after the store has been fully initialized with the persisted state.
-            queueMicrotask(() => {
-              useAppStore.getState().setHasHydrated(true);
-              console.log('[GemsTrack] Persist: _hasHydrated flag set to true via onRehydrateStorage.');
+             queueMicrotask(() => {
+                if (state) state.setHasHydrated(true);
+                console.log('[GemsTrack] Persist: _hasHydrated flag attempt via onRehydrateStorage.');
             });
           }
         };
@@ -434,7 +468,7 @@ export const useAppStore = create<AppState>()(
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 2, // Increment version if schema changes significantly
+      version: 2, 
     }
   )
 );
@@ -467,7 +501,6 @@ export const selectCartDetails = (state: AppState) => {
   return state.cart.map(cartItem => {
     const product = state.products.find(p => p.sku === cartItem.sku);
     if (!product) return null;
-    // Use the gold rate from settings for cart display (invoice rate is applied at invoice generation)
     const costs = calculateProductCosts(product, state.settings.goldRatePerGram);
     return {
       ...product,
@@ -485,33 +518,6 @@ export const selectCartSubtotal = (state: AppState) => {
 };
 
 export const useIsStoreHydrated = () => {
-  const [isHydrated, setIsHydrated] = React.useState(false);
-
-  React.useEffect(() => {
-    const setHydrated = () => setIsHydrated(true);
-    const store = useAppStore.getState();
-
-    if (store._hasHydrated) {
-      setHydrated();
-    } else {
-      // Subscribe to future hydration
-      const unsub = useAppStore.subscribe(
-        (currentState) => currentState._hasHydrated,
-        (hydrated) => {
-          if (hydrated) {
-            setHydrated();
-            unsub(); // Unsubscribe once hydrated
-          }
-        }
-      );
-      // Check again in case it hydrated between initial check and subscription
-      if (useAppStore.getState()._hasHydrated) {
-        setHydrated();
-        unsub();
-      }
-      return unsub; // Cleanup subscription
-    }
-  }, []);
-
+  const isHydrated = useAppStore(React.useCallback((s: AppState) => s._hasHydrated, []));
   return isHydrated;
 };
