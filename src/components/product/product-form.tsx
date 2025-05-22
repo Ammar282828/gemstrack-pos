@@ -7,19 +7,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; 
-import { Checkbox } from '@/components/ui/checkbox'; 
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAppStore, Product, Category, KaratValue } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Ban, Diamond, Zap } from 'lucide-react'; // Added Zap for Karat
+import { Save, Ban, Diamond, Zap } from 'lucide-react';
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k'];
 
-// Schema for form data
 const productFormSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
   karat: z.enum(karatValues, { required_error: "Karat is required" }),
@@ -37,7 +36,7 @@ type ProductFormData = z.infer<typeof productFormSchema>;
 
 interface ProductFormProps {
   product?: Product;
-  onSubmitSuccess?: () => void;
+  onSubmitSuccess?: () => void; // This prop might become less relevant with "Save & Add Another"
 }
 
 export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess }) => {
@@ -62,9 +61,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       imageUrl: product.imageUrl || "",
     } : {
       categoryId: '',
-      karat: '21k', // Default Karat
+      karat: '21k',
       metalWeightG: 0,
-      wastagePercentage: 10, // Default, will be overridden by category/diamond logic
+      wastagePercentage: 10,
       makingCharges: 0,
       hasDiamonds: false,
       diamondCharges: 0,
@@ -84,28 +83,30 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
          form.setValue('diamondCharges', product?.diamondCharges || 0);
       }
     } else {
-      if (selectedCategoryId) {
-        const category = categories.find(c => c.id === selectedCategoryId);
-        if (category) {
-          let defaultWastage = 10;
-          const lowerCaseTitle = category.title.toLowerCase();
-          const fifteenPercentTriggers = ["chain", "bangle", "gold necklace set"];
-          if (fifteenPercentTriggers.some(trigger => lowerCaseTitle.includes(trigger))) {
-            defaultWastage = 15;
-          }
-          form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
+      // This logic applies when hasDiamonds is false, or when it's unchecked,
+      // or when the form is reset for "Save & Add Another"
+      const category = categories.find(c => c.id === selectedCategoryId);
+      let defaultWastage = 10; // Default for most categories
+      if (category) {
+        const lowerCaseTitle = category.title.toLowerCase();
+        const fifteenPercentTriggers = ["chain", "bangle", "gold necklace set"];
+        if (fifteenPercentTriggers.some(trigger => lowerCaseTitle.includes(trigger))) {
+          defaultWastage = 15;
         }
-      } else {
-        form.setValue('wastagePercentage', 10, { shouldValidate: true });
       }
-      if (form.getValues('diamondCharges') !== 0) {
-        form.setValue('diamondCharges', 0);
+      form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
+      
+      // If diamonds are deselected, ensure diamond charges are reset if they were set
+      if (form.getValues('diamondCharges') !== 0 && !isEditMode && product?.hasDiamonds === undefined) { // only for new product form
+         form.setValue('diamondCharges', 0);
+      } else if (isEditMode && product && product.hasDiamonds && !hasDiamondsValue) { // if editing and unchecking diamonds
+         form.setValue('diamondCharges', 0);
       }
     }
   }, [selectedCategoryId, hasDiamondsValue, isEditMode, categories, form, product]);
 
 
-  const onSubmit = (data: ProductFormData) => {
+  const onSubmitAndClose = async (data: ProductFormData) => {
     try {
       const finalData = {
         ...data,
@@ -131,9 +132,47 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     }
   };
 
+  const onSaveAndAddAnother = async (data: ProductFormData) => {
+    // This handler is only for *adding* new products.
+    try {
+      const finalData = { // Ensure diamondCharges are handled correctly if hasDiamonds is false
+        ...data,
+        diamondCharges: data.hasDiamonds ? data.diamondCharges : 0,
+      };
+      const newProduct = addProduct(finalData as Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>);
+      if (newProduct) {
+        toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added. You can add another product.` });
+        // Reset form, keeping category and karat, defaulting others
+        // The wastagePercentage will be recalculated by the useEffect based on the (retained) category
+        // and hasDiamonds (which is reset to false).
+        form.reset({
+          categoryId: data.categoryId, // Keep current category
+          karat: data.karat,           // Keep current karat
+          metalWeightG: 0,
+          wastagePercentage: 10, // This is a temporary value; useEffect will set the correct one
+          makingCharges: 0,
+          hasDiamonds: false,      // Default to false for the next item
+          diamondCharges: 0,
+          stoneCharges: 0,
+          miscCharges: 0,
+          imageUrl: "",
+        });
+        // Ensure focus goes to a logical first field for the new entry, e.g., category or metal weight.
+        // You might need a ref for this, or just let the browser default.
+      } else {
+        toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to save product (Save & Add Another).", variant: "destructive" });
+      console.error("Failed to save product (Save & Add Another)", error);
+    }
+  };
+
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      {/* Removed onSubmit from form tag to handle submission via button clicks */}
+      <form>
         <Card>
           <CardHeader>
             <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
@@ -162,7 +201,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
@@ -186,7 +225,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4 text-primary" /> Karat</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select Karat" />
@@ -312,7 +351,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               control={form.control}
               name="imageUrl"
               render={({ field }) => (
-                <FormItem className={hasDiamondsValue && selectedCategoryId ? "" : "md:col-span-2"}>
+                <FormItem className={ (hasDiamondsValue && product?.karat) ? "" : "md:col-span-2"}>
                   <FormLabel>Image URL (Optional)</FormLabel>
                   <FormControl>
                     <Input type="url" placeholder="https://example.com/image.png" {...field} />
@@ -331,8 +370,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
             <Button type="button" variant="outline" onClick={() => router.back()}>
               <Ban className="mr-2 h-4 w-4" /> Cancel
             </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              <Save className="mr-2 h-4 w-4" /> {isEditMode ? 'Save Changes' : 'Add Product'}
+            {!isEditMode && (
+                 <Button type="button" onClick={form.handleSubmit(onSaveAndAddAnother)} disabled={form.formState.isSubmitting}>
+                    <Save className="mr-2 h-4 w-4" /> Save & Add Another
+                </Button>
+            )}
+            <Button type="button" onClick={form.handleSubmit(onSubmitAndClose)} disabled={form.formState.isSubmitting}>
+              <Save className="mr-2 h-4 w-4" /> {isEditMode ? 'Save Changes' : 'Add Product & Close'}
             </Button>
           </CardFooter>
         </Card>
@@ -340,3 +384,5 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     </Form>
   );
 };
+
+    
