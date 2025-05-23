@@ -9,13 +9,9 @@ if (typeof window !== 'undefined' && typeof window.structuredClone !== 'function
         return undefined;
     }
     try {
-      // Basic polyfill using JSON stringify/parse.
-      // This won't handle all data types (e.g., Date objects become strings, functions/undefined are lost).
-      // For this app's state (mostly plain objects, arrays, strings, numbers), it should be sufficient.
       return JSON.parse(JSON.stringify(value));
     } catch (e) {
         console.error("TaheriPOS: structuredClone polyfill (JSON.parse(JSON.stringify)) failed:", e);
-        // Fallback to returning the original value if JSON methods fail (e.g., for circular structures not handled by this basic polyfill)
         return value; 
     }
   };
@@ -64,10 +60,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isHydrated = useIsStoreHydrated();
   
-  console.log(`[GemsTrack] AppLayout: Rendering. Store hydrated: ${isHydrated}`);
+  console.log(`[GemsTrack] AppLayout: Rendering. Store hydrated from hook: ${isHydrated}`);
 
   if (!isHydrated) {
-    console.log("[GemsTrack] AppLayout: Store NOT hydrated, rendering null for main content.");
+    console.log("[GemsTrack] AppLayout: Store NOT hydrated according to hook, rendering null for main content.");
     return null; 
   }
   
@@ -128,3 +124,5 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    

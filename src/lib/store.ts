@@ -10,10 +10,10 @@ const DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL: KaratValue = '21k';
 
 // Internal function for parsing Karat, ensuring it returns a number.
 function _parseKaratInternal(karat: KaratValue | string | undefined): number {
-  const karatToUse = karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL; // Use default if undefined or empty
-  const karatString = String(karatToUse).trim(); // Ensure it's a string and trim whitespace
+  const karatToUse = karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
+  const karatString = String(karatToUse).trim();
 
-  if (!karatString) { // Check if it became empty after trimming
+  if (!karatString) {
     return parseInt(DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL.replace('k', ''), 10);
   }
 
@@ -26,12 +26,12 @@ function _parseKaratInternal(karat: KaratValue | string | undefined): number {
   return numericPart;
 }
 
-// Internal function for cost calculation, ensuring all inputs are treated as numbers
+// Internal function for cost calculation
 function _calculateProductCostsInternal(
   product: {
     name?: string;
     metalType: MetalType;
-    karat?: KaratValue | string; // Karat can be string from form, or KaratValue from store
+    karat?: KaratValue | string;
     metalWeightG: number;
     wastagePercentage: number;
     makingCharges: number;
@@ -45,7 +45,6 @@ function _calculateProductCostsInternal(
   let metalCost = 0;
   const currentMetalType = product.metalType || 'gold';
 
-  // Ensure all inputs are numbers, default to 0 if undefined, null, or NaN
   const metalWeightG = Number(product.metalWeightG) || 0;
   const wastagePercentage = Number(product.wastagePercentage) || 0;
   const makingCharges = Number(product.makingCharges) || 0;
@@ -61,11 +60,11 @@ function _calculateProductCostsInternal(
     const karatToUse = product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
     const karatNumeric = _parseKaratInternal(karatToUse);
     if (karatNumeric > 0 && goldRate24k > 0) {
-        const purityFactor = karatNumeric / 24;
-        const effectiveGoldRate = purityFactor * goldRate24k;
-        metalCost = metalWeightG * effectiveGoldRate;
+      const purityFactor = karatNumeric / 24;
+      const effectiveGoldRate = purityFactor * goldRate24k;
+      metalCost = metalWeightG * effectiveGoldRate;
     } else {
-        metalCost = 0; // Ensure metalCost is 0 if rates/karat are invalid
+      metalCost = 0;
     }
   } else if (currentMetalType === 'palladium') {
     if (palladiumRate > 0) metalCost = metalWeightG * palladiumRate;
@@ -73,14 +72,13 @@ function _calculateProductCostsInternal(
     if (platinumRate > 0) metalCost = metalWeightG * platinumRate;
   }
 
-  const validMetalCost = Number(metalCost) || 0; // Ensure metalCost is a number
+  const validMetalCost = Number(metalCost) || 0;
   const wastageCost = validMetalCost * (wastagePercentage / 100);
-  const validWastageCost = Number(wastageCost) || 0; // Ensure wastageCost is a number
+  const validWastageCost = Number(wastageCost) || 0;
 
   const totalPrice = validMetalCost + validWastageCost + makingCharges + diamondChargesValue + stoneChargesValue + miscChargesValue;
-  const finalTotalPrice = Number(totalPrice) || 0; // Ensure final price is a number
+  const finalTotalPrice = Number(totalPrice) || 0;
 
-  // Extensive logging if NaN is produced
   if (isNaN(finalTotalPrice)) {
     console.error("[GemsTrack] _calculateProductCostsInternal produced NaN. Details:", {
         productInputName: product.name,
@@ -91,7 +89,6 @@ function _calculateProductCostsInternal(
         calculatedTotalPrice: totalPrice,
         finalTotalPriceReturned: finalTotalPrice
     });
-    // Return zeroed costs if NaN to prevent propagation
     return { metalCost: 0, wastageCost: 0, makingCharges: 0, diamondCharges: 0, stoneCharges: 0, miscCharges:0, totalPrice: 0 };
   }
 
@@ -105,7 +102,6 @@ function _calculateProductCostsInternal(
     totalPrice: finalTotalPrice,
   };
 }
-
 
 // --- Type Definitions ---
 export type MetalType = 'gold' | 'palladium' | 'platinum';
@@ -201,7 +197,7 @@ const initialSettings: Settings = {
   shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "https://placehold.co/200x80.png?text=Taheri",
-  lastInvoiceNumber: 5,
+  lastInvoiceNumber: 0, // Start from 0, first invoice will be INV-000001
 };
 
 const initialCategories: Category[] = [
@@ -277,7 +273,6 @@ const initialProducts: Product[] = [
     'data-ai-hint': "gold ring" as any
   }
 ];
-
 
 const initialGeneratedInvoices: Invoice[] = (() => {
     const invoices: Invoice[] = [];
@@ -414,7 +409,6 @@ const initialGeneratedInvoices: Invoice[] = (() => {
     return invoices;
 })();
 
-
 const initialKarigars: Karigar[] = [
     { id: 'karigar-001', name: 'Ustad Karim Baksh', contact: '0301-1112233', notes: 'Specializes in intricate gold work.'},
     { id: 'karigar-002', name: 'Ali Bhai', contact: '0302-4445566', notes: 'Good with modern designs and platinum.'},
@@ -484,10 +478,14 @@ export const useAppStore = create<AppState>()(
     immer((set, get) => ({
       _hasHydrated: false,
       setHasHydrated: (hydrated) => {
-        console.log(`[GemsTrack] Store: setHasHydrated ACTION called with: ${hydrated}`);
+        const wasHydrated = get()._hasHydrated;
+        console.log(`[GemsTrack] Store: setHasHydrated ACTION called with: ${hydrated}. Current _hasHydrated: ${wasHydrated}`);
         set((state) => {
           state._hasHydrated = hydrated;
-        }, false, '[GemsTrack] Store: setHasHydrated_INNER_SET_STATE');
+        });
+        if (!wasHydrated && hydrated) {
+            console.log(`[GemsTrack] Store: _hasHydrated changed from false to true.`);
+        }
       },
       settings: initialSettings,
       categories: initialCategories,
@@ -686,7 +684,7 @@ export const useAppStore = create<AppState>()(
                      console.warn(`[GemsTrack] Invoice: Invalid invoiceGoldRate24k (${invoiceGoldRate24k}). Defaulting to store setting: ${settings.goldRatePerGram}`);
                      validInvoiceGoldRate24k = settings.goldRatePerGram;
                  } else {
-                    validInvoiceGoldRate24k = 0; // Not relevant if no gold items
+                    validInvoiceGoldRate24k = 0; 
                  }
             }
 
@@ -799,26 +797,22 @@ export const useAppStore = create<AppState>()(
         }
         return localStorage;
       }),
-      onRehydrateStorage: (_storeInstance) => {
-        console.log("[GemsTrack] Persist: onRehydrateStorage_OPTION_INVOKED (outer). Store instance provided:", !!_storeInstance);
+      onRehydrateStorage: () => {
+        console.log("[GemsTrack] Persist: onRehydrateStorage_OPTION_INVOKED.");
         return (persistedState, error) => {
           if (error) {
-            console.error('[GemsTrack] Persist: REHYDRATION_ERROR (inner):', error);
-            queueMicrotask(() => {
-              useAppStore.getState().setHasHydrated(true);
-              console.log("[GemsTrack] Persist: SET_HAS_HYDRATED_AFTER_ERROR (to true)");
-            });
+            console.error('[GemsTrack] Persist: REHYDRATION_ERROR:', error);
           } else {
             if (persistedState) {
-              console.log('[GemsTrack] Persist: REHYDRATION_SUCCESS_FROM_STORAGE (inner).');
+              console.log('[GemsTrack] Persist: REHYDRATION_SUCCESS_FROM_STORAGE.');
             } else {
-              console.log('[GemsTrack] Persist: NO_PERSISTED_STATE_USING_INITIAL (inner).');
+              console.log('[GemsTrack] Persist: NO_PERSISTED_STATE_USING_INITIAL.');
             }
-            queueMicrotask(() => {
-              useAppStore.getState().setHasHydrated(true);
-              console.log("[GemsTrack] Persist: SET_HAS_HYDRATED_SUCCESS (to true)");
-            });
           }
+          // Always set _hasHydrated to true after attempting rehydration
+          queueMicrotask(() => {
+            useAppStore.getState().setHasHydrated(true);
+          });
         };
       },
       partialize: (state) => {
@@ -826,7 +820,7 @@ export const useAppStore = create<AppState>()(
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 8,
+      version: 4, // Incremented version due to potential schema changes with Karigars etc.
     }
   )
 );
@@ -923,58 +917,45 @@ export const selectCartSubtotal = (state: AppState) => {
 
 
 export const useIsStoreHydrated = () => {
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [isClientHydrated, setIsClientHydrated] = React.useState(false);
 
-  useEffect(() => {
-    const checkHydration = () => {
-      const storeHydrated = useAppStore.getState()._hasHydrated;
-      if (storeHydrated) {
-        setIsHydrated(true);
-        console.log("[GemsTrack] useIsStoreHydrated: Synced with already hydrated store on mount or state change.");
-      }
-      return storeHydrated;
-    };
+  React.useEffect(() => {
+    console.log("[GemsTrack] useIsStoreHydrated: useEffect mounted.");
 
-    if (checkHydration()) {
-      return; // Already hydrated
+    const storeAlreadyHydrated = useAppStore.getState()._hasHydrated;
+    if (storeAlreadyHydrated) {
+      console.log("[GemsTrack] useIsStoreHydrated: Store was already hydrated on mount.");
+      setIsClientHydrated(true);
+    } else {
+      console.log("[GemsTrack] useIsStoreHydrated: Store not hydrated on mount, subscribing...");
     }
 
-    // Subscribe to changes in _hasHydrated
     const unsubscribe = useAppStore.subscribe(
       (state) => state._hasHydrated,
-      (hydratedStoreValue) => {
-        console.log(`[GemsTrack] useIsStoreHydrated: Subscription updated. Store _hasHydrated: ${hydratedStoreValue}.`);
-        if (hydratedStoreValue) {
-          setIsHydrated(true);
-          unsubscribe(); // Unsubscribe once hydrated
+      (storeHasHydratedValue) => {
+        console.log(`[GemsTrack] useIsStoreHydrated: Subscription fired. Store _hasHydrated is now: ${storeHasHydratedValue}`);
+        if (storeHasHydratedValue) {
+          setIsClientHydrated(true);
+          console.log("[GemsTrack] useIsStoreHydrated: Set local isClientHydrated to true via subscription.");
+          // Important: Unsubscribe inside the listener to avoid memory leaks *after* we've acted on the hydration
+          // This ensures this specific subscription doesn't keep running if the component is long-lived.
+          // However, it might be better to let the main cleanup function handle it if the component itself unmounts.
+          // For simplicity, let's ensure the main cleanup is the primary way.
+          // unsubscribe(); // Consider if this is needed here vs. just in cleanup.
         }
       }
     );
     
-    // Fallback check in case of very fast hydration missing the initial sync/subscription.
-    // Also useful if subscribe isn't firing as expected initially.
-    queueMicrotask(() => {
-        if (!useAppStore.getState()._hasHydrated) { // Check again in microtask
-            console.log("[GemsTrack] useIsStoreHydrated: Microtask check found store not yet hydrated.");
-        } else if (!isHydrated) { // Check if local state needs update
-            setIsHydrated(true);
-            console.log("[GemsTrack] useIsStoreHydrated: Synced via microtask check post-mount.");
-            unsubscribe(); // Unsubscribe once hydrated
-        }
-    });
-
-
     return () => {
-      console.log("[GemsTrack] useIsStoreHydrated: Unsubscribing from store changes.");
+      console.log("[GemsTrack] useIsStoreHydrated: useEffect cleanup. Unsubscribing.");
       unsubscribe();
     };
   }, []); // Empty dependency array: runs once on mount, cleans up on unmount.
 
-  console.log(`[GemsTrack] useIsStoreHydrated: HOOK_RENDERING. Returning: ${isHydrated}`);
-  return isHydrated;
+  console.log(`[GemsTrack] useIsStoreHydrated: HOOK_RENDERING. Returning: ${isClientHydrated}`);
+  return isClientHydrated;
 };
 
-// Ensure image URLs for dummy products use placehold.co and have data-ai-hint
 initialProducts.forEach(p => {
     if(!p.imageUrl || !p.imageUrl.startsWith('https://placehold.co')) {
         p.imageUrl = `https://placehold.co/300x300.png?text=${encodeURIComponent(p.sku.substring(0,8))}`;
@@ -989,7 +970,7 @@ initialProducts.forEach(p => {
         else if (p.name.toLowerCase().includes('chain')) hint += " chain";
         else if (p.name.toLowerCase().includes('band')) hint += " band";
         else if (p.name.toLowerCase().includes('locket')) hint += " locket";
-        (p as any)['data-ai-hint'] = hint.trim().substring(0,30); // Ensure max 2 words
+        (p as any)['data-ai-hint'] = hint.trim().substring(0,30);
     }
 });
 
@@ -997,7 +978,6 @@ if (!initialSettings.shopLogoUrl || !initialSettings.shopLogoUrl.startsWith('htt
     initialSettings.shopLogoUrl = "https://placehold.co/200x80.png?text=Taheri";
 }
 
-// Final safety check for calculation functions before initialGeneratedInvoices IIFE
 if (typeof _calculateProductCostsInternal !== 'function') {
   console.error("[GemsTrack] CRITICAL: _calculateProductCostsInternal is not defined before initialGeneratedInvoices IIFE. This is a bug.");
 }
@@ -1008,7 +988,4 @@ if (typeof DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL === 'undefined') {
   console.error("[GemsTrack] CRITICAL: DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL is not defined before initialGeneratedInvoices IIFE. This is a bug.");
 }
 
-// Removed duplicate constant declaration:
-// export const DEFAULT_KARAT_VALUE_FOR_CALCULATION = DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
-// The one above (line 669 in previous version) is sufficient and correctly exported.
-
+    
