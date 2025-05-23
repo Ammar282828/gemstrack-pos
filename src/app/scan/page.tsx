@@ -63,7 +63,7 @@ export default function ScanPOSPage() {
   const html5QrcodeScannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   const onScanFailure: QrcodeErrorCallback = useCallback((error) => {
-    // console.warn(`[GemsTrack] QR Scan Error or Not Found: ${error}`);
+     console.warn(`[GemsTrack] QR Scan Error or Not Found: ${error}`);
   }, []);
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback(async (decodedText, decodedResult) => {
@@ -73,49 +73,17 @@ export default function ScanPOSPage() {
     if (product) {
       addToCart(product.sku);
       toast({ title: "Item Added", description: `${product.name} added to cart.` });
-
-      if (html5QrcodeScannerRef.current) {
-        try {
-          const scannerInstance = html5QrcodeScannerRef.current;
-          // Nullify the ref *before* the async clear operation to prevent race conditions
-          // where the cleanup hook might try to clear an already cleared instance if a rapid state change occurs.
-          html5QrcodeScannerRef.current = null;
-
-          if (scannerInstance.getState && scannerInstance.getState() !== Html5QrcodeScannerState.NOT_STARTED) {
-            await scannerInstance.clear();
-            console.log("[GemsTrack] QR Scanner cleared after successful scan.");
-          }
-        } catch (error) {
-          console.error("[GemsTrack] Error clearing scanner after success:", error);
-        }
-      }
-      setIsScannerActive(false); // Stop scanning and show "Scan Next" button
-
+      // Scanner remains active for continuous scanning
     } else {
       toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
-      // Keep scanner active if product not found to allow retry
     }
   }, [addToCart, toast]);
 
 
   useEffect(() => {
-    if (!isHydrated || !isScannerActive) {
-      // If scanner is meant to be inactive, or store not hydrated, do nothing.
-      // If a scanner instance exists and we want it inactive, it should be cleared.
-      if (!isScannerActive && html5QrcodeScannerRef.current) {
-        const scannerToClear = html5QrcodeScannerRef.current;
-        html5QrcodeScannerRef.current = null; // Nullify ref immediately
-        if (scannerToClear.getState && scannerToClear.getState() !== Html5QrcodeScannerState.NOT_STARTED) {
-          scannerToClear.clear().catch(err => {
-            console.warn("[GemsTrack] Error clearing scanner (isScannerActive false):", err);
-          });
-        }
-      }
-      return;
-    }
+    if (!isHydrated) return;
 
-    // If scanner should be active, but no instance exists, create one.
-    if (isScannerActive && !html5QrcodeScannerRef.current) {
+    if (isScannerActive) {
       const containerElement = document.getElementById(qrReaderElementId);
       if (!containerElement) {
         console.warn(`[GemsTrack] QR Reader container element with ID '${qrReaderElementId}' not found.`);
@@ -127,55 +95,66 @@ export default function ScanPOSPage() {
         containerElement.removeChild(containerElement.firstChild);
       }
 
-      const newScanner = new Html5QrcodeScanner(
-        qrReaderElementId,
-        {
-          fps: 10,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-            const qrboxSize = Math.floor(minEdge * 0.8);
-            return { width: qrboxSize, height: qrboxSize };
+      // Only create a new scanner if one doesn't exist or if it's explicitly being re-activated
+      if (!html5QrcodeScannerRef.current) {
+        const newScanner = new Html5QrcodeScanner(
+          qrReaderElementId,
+          {
+            fps: 10,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+              const qrboxSize = Math.floor(minEdge * 0.8);
+              return { width: qrboxSize, height: qrboxSize };
+            },
+            rememberLastUsedCamera: true,
+            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
           },
-          rememberLastUsedCamera: true,
-          supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
-        },
-        false // verbose
-      );
+          false // verbose
+        );
 
-      try {
-        newScanner.render(onScanSuccess, onScanFailure);
-        html5QrcodeScannerRef.current = newScanner; // Store the instance AFTER successful render call
-        setHasCameraPermission(true);
-      } catch (renderError) {
-        console.error("[GemsTrack] Error calling scanner.render(): ", renderError);
-        setHasCameraPermission(false);
-        if (newScanner && typeof newScanner.clear === 'function') {
-          newScanner.clear().catch(err => {
-            console.warn("[GemsTrack] Error clearing scanner after render fail:", err);
+        try {
+          newScanner.render(onScanSuccess, onScanFailure);
+          html5QrcodeScannerRef.current = newScanner; 
+          setHasCameraPermission(true);
+        } catch (renderError) {
+          console.error("[GemsTrack] Error calling scanner.render(): ", renderError);
+          setHasCameraPermission(false);
+          if (newScanner && typeof newScanner.clear === 'function') {
+            newScanner.clear().catch(err => {
+              console.warn("[GemsTrack] Error clearing scanner after render fail:", err);
+            });
+          }
+          html5QrcodeScannerRef.current = null;
+        }
+      }
+    } else { // If isScannerActive is false
+      if (html5QrcodeScannerRef.current) {
+        const scannerToClear = html5QrcodeScannerRef.current;
+        html5QrcodeScannerRef.current = null; 
+        if (scannerToClear.getState && scannerToClear.getState() !== Html5QrcodeScannerState.NOT_STARTED) {
+          scannerToClear.clear().catch(err => {
+            console.warn("[GemsTrack] Error clearing scanner (isScannerActive false):", err);
           });
         }
-        html5QrcodeScannerRef.current = null;
       }
     }
 
     return () => {
-      // Cleanup when component unmounts or dependencies change leading to cleanup
       const scannerToClear = html5QrcodeScannerRef.current;
-      html5QrcodeScannerRef.current = null; // Nullify ref immediately
+      html5QrcodeScannerRef.current = null; 
       
       if (scannerToClear && typeof scannerToClear.clear === 'function') {
          try {
           if (scannerToClear.getState && scannerToClear.getState() !== Html5QrcodeScannerState.NOT_STARTED) {
             scannerToClear.clear().catch(err => {
-              console.warn("[GemsTrack] Error clearing scanner on cleanup (was active):", err);
+               console.warn("[GemsTrack] Error clearing scanner on cleanup (was active):", err);
             });
           }
         } catch (e) {
              console.warn("[GemsTrack] Error during scanner state check/clear on cleanup:", e);
-             // Fallback clear if getState is not available or throws
              scannerToClear.clear().catch(err_1 => {
-                console.warn("[GemsTrack] Error clearing scanner on cleanup (fallback):", err_1);
+                 console.warn("[GemsTrack] Error clearing scanner on cleanup (fallback):", err_1);
              });
         }
       }
@@ -199,9 +178,8 @@ export default function ScanPOSPage() {
     }
   };
 
-  const handleScanNextItem = () => {
-    setHasCameraPermission(null); // Reset to show "Initializing" message
-    setIsScannerActive(true); // This will trigger the useEffect to re-render the scanner
+  const toggleScanner = () => {
+    setIsScannerActive(prev => !prev);
   };
 
   if (!isHydrated) {
@@ -241,19 +219,17 @@ export default function ScanPOSPage() {
                 <Alert variant="destructive" className="mt-4">
                   <AlertTitle>Camera Access Denied or Scanner Error</AlertTitle>
                   <AlertDescription>
-                    Could not access the camera or start the QR scanner. Please ensure camera permissions are enabled. You can use manual SKU entry.
+                    Could not access the camera or start the QR scanner. Please ensure camera permissions are enabled. You can use manual SKU entry or try toggling the scanner.
                   </AlertDescription>
                 </Alert>
               )}
 
-              {!isScannerActive && hasCameraPermission !== false && (
-                <div className="text-center py-6">
-                  <p className="text-lg text-green-600 dark:text-green-400 mb-4">Item added successfully!</p>
-                  <Button size="lg" onClick={handleScanNextItem} className="w-full md:w-auto">
-                    <ScanLine className="mr-2 h-5 w-5" /> Scan Next Item
-                  </Button>
-                </div>
-              )}
+              <div className="text-center">
+                <Button size="lg" onClick={toggleScanner} variant={isScannerActive ? "outline" : "default"} className="w-full md:w-auto">
+                  {isScannerActive ? <VideoOff className="mr-2 h-5 w-5" /> : <ScanLine className="mr-2 h-5 w-5" />}
+                  {isScannerActive ? "Stop Scanner" : "Start Scanner"}
+                </Button>
+              </div>
 
               <div className="pt-4">
                 <Label htmlFor="sku-input" className="text-sm font-medium">Enter SKU Manually to Add</Label>

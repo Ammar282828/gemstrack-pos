@@ -62,7 +62,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Link href="/scan" passHref>
-                <Button size="xl" className="h-16 px-10 text-xl"> {/* Custom size 'xl' or use existing 'lg' and style */}
+                <Button size="xl" className="h-16 px-10 text-xl">
                   <QrCode className="w-8 h-8 mr-3" />
                   Start New Sale by Scanning
                 </Button>
@@ -128,3 +128,4 @@ export default function HomePage() {
     </div>
   );
 }
+

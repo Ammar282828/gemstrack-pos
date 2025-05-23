@@ -49,8 +49,8 @@ const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: stri
           <Image
             src={product.imageUrl || `https://placehold.co/100x100.png?text=${encodeURIComponent(product.name.substring(0,1))}`}
             alt={product.name}
-            layout="fill"
-            objectFit="cover"
+            fill
+            style={{ objectFit: "cover" }}
             data-ai-hint="jewelry item"
           />
         </div>
@@ -76,10 +76,8 @@ const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: stri
         </Button>
         <div className="flex gap-2">
             <Button asChild size="sm" variant="outline" className="flex-1">
-              <Link href={`/products/${product.sku}/edit`} passHref legacyBehavior>
-                <a>
+              <Link href={`/products/${product.sku}/edit`}>
                   <Edit3 className="w-4 h-4 mr-1" /> Edit
-                </a>
               </Link>
             </Button>
             <Button asChild size="sm" variant="ghost" className="flex-1">
@@ -222,3 +220,4 @@ export default function ProductsPage() {
     </div>
   );
 }
+

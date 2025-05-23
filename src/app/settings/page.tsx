@@ -137,7 +137,7 @@ export default function SettingsPage() {
                   <FormItem>
                     <FormLabel className="text-base">Shop Address</FormLabel>
                      <div className="flex items-start">
-                       <MapPin className="h-5 w-5 mr-2 mt-2.5 text-muted-foreground" />
+                       <MapPin className="h-5 w-5 mr-2 mt-2 text-muted-foreground" />
                         <FormControl>
                           <Textarea placeholder="123 Jewel Street, Sparkle City, SC 12345" {...field} rows={3}/>
                         </FormControl>
@@ -213,3 +213,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+

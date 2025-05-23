@@ -36,11 +36,9 @@ const KarigarRow: React.FC<{ karigar: Karigar; onDelete: (id: string) => void }>
       <TableCell className="text-right">
         <div className="flex justify-end space-x-2">
           <Button asChild size="sm" variant="outline" className="whitespace-nowrap">
-            <Link href={`/karigars/${karigar.id}/edit`} passHref legacyBehavior>
-              <a>
-                <Edit3 className="w-4 h-4 mr-1 md:mr-2" />
-                <span className="hidden md:inline">Edit</span>
-              </a>
+            <Link href={`/karigars/${karigar.id}/edit`}>
+              <Edit3 className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="hidden md:inline">Edit</span>
             </Link>
           </Button>
           <AlertDialog>
@@ -157,3 +155,4 @@ export default function KarigarsPage() {
     </div>
   );
 }
+
