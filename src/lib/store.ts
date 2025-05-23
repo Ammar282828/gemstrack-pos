@@ -188,6 +188,7 @@ export interface Karigar {
   notes?: string;
 }
 
+// Define SKU Prefixes
 const CATEGORY_SKU_PREFIXES: Record<string, string> = {
   'cat001': 'RIN', // Rings
   'cat002': 'TOP', // Tops
@@ -208,7 +209,6 @@ const CATEGORY_SKU_PREFIXES: Record<string, string> = {
   'cat017': 'GCN', // Gold Coins
 };
 
-
 // --- Initial Data Definitions ---
 const initialSettings: Settings = {
   goldRatePerGram: 20000,
@@ -222,12 +222,21 @@ const initialSettings: Settings = {
 };
 
 const initialCategories: Category[] = [
-  { id: 'cat001', title: 'Rings' }, { id: 'cat002', title: 'Tops' }, { id: 'cat003', title: 'Balis' },
-  { id: 'cat004', title: 'Lockets' }, { id: 'cat005', title: 'Bracelets' }, { id: 'cat006', title: 'Bracelet and Ring Set' },
-  { id: 'cat007', title: 'Bangles' }, { id: 'cat008', title: 'Chains' }, { id: 'cat009', title: 'Bands' },
-  { id: 'cat010', title: 'Locket Sets without Bangle' }, { id: 'cat011', title: 'Locket Set with Bangle' },
-  { id: 'cat012', title: 'String Sets' }, { id: 'cat013', title: 'Stone Necklace Sets without Bracelets' },
-  { id: 'cat014', title: 'Stone Necklace Sets with Bracelets' }, { id: 'cat015', title: 'Gold Necklace Sets with Bracelets' },
+  { id: 'cat001', title: 'Rings' },
+  { id: 'cat002', title: 'Tops' },
+  { id: 'cat003', title: 'Balis' },
+  { id: 'cat004', title: 'Lockets' },
+  { id: 'cat005', title: 'Bracelets' },
+  { id: 'cat006', title: 'Bracelet and Ring Set' },
+  { id: 'cat007', title: 'Bangles' },
+  { id: 'cat008', title: 'Chains' },
+  { id: 'cat009', title: 'Bands' },
+  { id: 'cat010', title: 'Locket Sets without Bangle' },
+  { id: 'cat011', title: 'Locket Set with Bangle' },
+  { id: 'cat012', title: 'String Sets' },
+  { id: 'cat013', title: 'Stone Necklace Sets without Bracelets' },
+  { id: 'cat014', title: 'Stone Necklace Sets with Bracelets' },
+  { id: 'cat015', title: 'Gold Necklace Sets with Bracelets' },
   { id: 'cat016', title: 'Gold Necklace Sets without Bracelets' },
   { id: 'cat017', title: 'Gold Coins' },
 ];
@@ -512,13 +521,12 @@ export const useAppStore = create<AppState>()(
     immer((set, get) => ({
       _hasHydrated: false,
       setHasHydrated: (hydrated) => {
-        const wasHydrated = get()._hasHydrated;
-        console.log(`[GemsTrack] Store: setHasHydrated ACTION called with: ${hydrated}. Current _hasHydrated: ${wasHydrated}`);
+        console.log(`[GemsTrack] Store: setHasHydrated ACTION called with: ${hydrated}. Current _hasHydrated: ${get()._hasHydrated}`);
         set((state) => {
           state._hasHydrated = hydrated;
         });
-        if (!wasHydrated && hydrated) {
-            console.log(`[GemsTrack] Store: _hasHydrated changed from false to true.`);
+        if (hydrated) {
+            console.log(`[GemsTrack] Store: _hasHydrated explicitly set to true`);
         }
       },
       settings: initialSettings,
@@ -832,8 +840,10 @@ export const useAppStore = create<AppState>()(
       name: 'gemstrack-pos-storage',
       storage: createJSONStorage(() => {
         if (typeof window === 'undefined') {
+          console.log("[GemsTrack] Persist: Using SSR dummy storage.");
           return ssrDummyStorage;
         }
+        console.log("[GemsTrack] Persist: Using localStorage.");
         return localStorage;
       }),
       onRehydrateStorage: () => {
@@ -841,6 +851,10 @@ export const useAppStore = create<AppState>()(
         return (persistedState, error) => {
           if (error) {
             console.error('[GemsTrack] Persist: REHYDRATION_ERROR:', error);
+             queueMicrotask(() => {
+              useAppStore.getState().setHasHydrated(true); // Still set hydrated to true to unblock UI, even on error
+              console.log('[GemsTrack] Persist: SET_HAS_HYDRATED_TRUE (despite error) via queueMicrotask in onRehydrateStorage.');
+            });
           } else {
             if (persistedState) {
               console.log('[GemsTrack] Persist: REHYDRATION_SUCCESS_FROM_STORAGE.');
@@ -849,7 +863,7 @@ export const useAppStore = create<AppState>()(
             }
             queueMicrotask(() => {
               useAppStore.getState().setHasHydrated(true);
-              console.log('[GemsTrack] Persist: SET_HAS_HYDRATED_SUCCESS (to true) via queueMicrotask in onRehydrateStorage.');
+              console.log('[GemsTrack] Persist: SET_HAS_HYDRATED_TRUE (success) via queueMicrotask in onRehydrateStorage.');
             });
           }
         };
@@ -859,7 +873,7 @@ export const useAppStore = create<AppState>()(
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 4, // Incremented version
+      version: 5,
     }
   )
 );
@@ -954,7 +968,6 @@ export const selectCartSubtotal = (state: AppState) => {
   return cartDetails.reduce((sum, item) => sum + (Number(item.lineItemTotal) || 0), 0);
 };
 
-
 export const useIsStoreHydrated = () => {
   const [isClientHydrated, setIsClientHydrated] = useState(false);
   console.log(`[GemsTrack] useIsStoreHydrated: HOOK_RENDERING. Local isClientHydrated: ${isClientHydrated}`);
@@ -966,16 +979,16 @@ export const useIsStoreHydrated = () => {
     const storeAlreadyHydrated = useAppStore.getState()._hasHydrated;
     if (storeAlreadyHydrated) {
       setIsClientHydrated(true);
-      console.log("[GemsTrack] useIsStoreHydrated: Store was already hydrated on mount.");
-      return; // No need to subscribe if already hydrated
+      console.log("[GemsTrack] useIsStoreHydrated: Store was already hydrated on mount. Local state set to true.");
+      return; // No need to subscribe if already hydrated on first pass
     }
 
     // If not hydrated on mount, subscribe to changes in _hasHydrated
     const unsubscribe = useAppStore.subscribe(
       (state) => state._hasHydrated, // Selector: listen only to _hasHydrated changes
-      (hydrated) => { // Listener: receives the new value of _hasHydrated
-        console.log(`[GemsTrack] useIsStoreHydrated: Subscription fired. Store _hasHydrated is now: ${hydrated}`);
-        if (hydrated) {
+      (newHydratedValue) => { // Listener: receives the new value of _hasHydrated
+        console.log(`[GemsTrack] useIsStoreHydrated: Subscription fired. Store _hasHydrated is now: ${newHydratedValue}`);
+        if (newHydratedValue) {
           setIsClientHydrated(true);
           console.log("[GemsTrack] useIsStoreHydrated: Subscription - Set local isClientHydrated to true. Unsubscribing.");
           unsubscribe(); // Unsubscribe once hydration is confirmed
@@ -992,13 +1005,15 @@ export const useIsStoreHydrated = () => {
     }
 
     return () => {
-      console.log("[GemsTrack] useIsStoreHydrated: useEffect cleanup. Unsubscribing.");
+      console.log("[GemsTrack] useIsStoreHydrated: useEffect cleanup. Attempting to unsubscribe.");
       unsubscribe();
     };
   }, []); // Empty dependency array means this effect runs once on mount and cleans up on unmount
 
+  console.log(`[GemsTrack] useIsStoreHydrated: HOOK_BEFORE_RETURN. Returning: ${isClientHydrated}`);
   return isClientHydrated;
 };
+
 
 // --- Initialize default image URLs and AI hints ---
 initialProducts.forEach(p => {
