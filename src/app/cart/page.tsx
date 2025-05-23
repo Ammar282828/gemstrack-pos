@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import Link from 'next/link'; 
+import Link from 'next/link';
 import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable'; 
+import 'jspdf-autotable';
 import { useIsStoreHydrated } from '@/lib/store';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
@@ -30,26 +30,30 @@ declare module 'jspdf' {
 const WALK_IN_CUSTOMER_VALUE = "__WALK_IN__";
 
 export default function CartPage() {
+  console.log("[GemsTrack] CartPage: Rendering START");
   const { toast } = useToast();
-  
+
   const isHydrated = useIsStoreHydrated();
   const cartItems = useAppStore(selectCartDetails);
-  const cartSubtotal = useAppStore(selectCartSubtotal); 
+  const cartSubtotal = useAppStore(selectCartSubtotal);
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
   const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction } = useAppStore();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
-  
+
   const [invoiceGoldRateInput, setInvoiceGoldRateInput] = useState<string>('');
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
 
   useEffect(() => {
-    if (isHydrated) {
-        setInvoiceGoldRateInput(settings.goldRatePerGram.toString());
+    if (isHydrated && settings && typeof settings.goldRatePerGram === 'number') {
+      setInvoiceGoldRateInput(settings.goldRatePerGram.toString());
+    } else if (isHydrated) {
+      console.warn("[GemsTrack] CartPage: Could not set initial invoiceGoldRateInput because settings or goldRatePerGram was missing/invalid.", settings);
+      setInvoiceGoldRateInput("0"); // Fallback to 0 if settings are not ready
     }
-  }, [isHydrated, settings.goldRatePerGram]);
+  }, [isHydrated, settings]);
 
   const cartContainsNonGoldItems = cartItems.some(item => item.metalType !== 'gold');
 
@@ -66,7 +70,7 @@ export default function CartPage() {
       toast({ title: "Invalid Gold Rate", description: "Please enter a valid positive gold rate for gold items.", variant: "destructive" });
       return;
     }
-    
+
     const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
     if (parsedDiscountAmount < 0) {
       toast({ title: "Invalid Discount", description: "Discount amount cannot be negative.", variant: "destructive" });
@@ -78,9 +82,9 @@ export default function CartPage() {
         const productFromStore = useAppStore.getState().products.find(p => p.sku === item.sku);
         if (productFromStore) {
             const ratesForCalc = {
-                goldRatePerGram24k: item.metalType === 'gold' ? parsedGoldRate : settings.goldRatePerGram,
-                palladiumRatePerGram: settings.palladiumRatePerGram,
-                platinumRatePerGram: settings.platinumRatePerGram,
+                goldRatePerGram24k: item.metalType === 'gold' ? parsedGoldRate : (settings?.goldRatePerGram || 0),
+                palladiumRatePerGram: settings?.palladiumRatePerGram || 0,
+                platinumRatePerGram: settings?.platinumRatePerGram || 0,
             };
             // Directly use the imported calculateProductCosts function
             const costs = calculateProductCosts(productFromStore, ratesForCalc);
@@ -92,7 +96,7 @@ export default function CartPage() {
         toast({ title: "Invalid Discount", description: "Discount cannot be greater than the subtotal.", variant: "destructive" });
         return;
     }
-    
+
     const invoice = generateInvoiceAction(selectedCustomerId, parsedGoldRate, parsedDiscountAmount);
     if (invoice) {
       setGeneratedInvoice(invoice);
@@ -101,7 +105,7 @@ export default function CartPage() {
       toast({ title: "Invoice Generation Failed", description: "Could not generate the invoice. Please check inputs.", variant: "destructive" });
     }
   };
-  
+
   const printInvoice = (invoiceToPrint: InvoiceType) => {
     const doc = new jsPDF();
 
@@ -153,7 +157,7 @@ export default function CartPage() {
         doc.setFontSize(10);
         doc.text("Walk-in Customer", 15, 45);
     }
-    
+
     const tableColumn = ["#", "Item Description", "Qty", "Unit Price (PKR)", "Total (PKR)"];
     const tableRows: any[][] = [];
 
@@ -170,11 +174,11 @@ export default function CartPage() {
       if (item.diamondChargesIfAny > 0) breakdownLines.push(`  Diamonds: ${item.diamondChargesIfAny.toLocaleString()}`);
       if (item.stoneChargesIfAny > 0) breakdownLines.push(`  Stones: ${item.stoneChargesIfAny.toLocaleString()}`);
       if (item.miscChargesIfAny > 0) breakdownLines.push(`  Misc: ${item.miscChargesIfAny.toLocaleString()}`);
-      
+
       const breakdown = breakdownLines.join('\n');
-      
+
       const itemDescription = `${item.name} (SKU: ${item.sku})\nMetal: ${metalDisplay}, Wt: ${item.metalWeightG.toFixed(2)}g\n${breakdown ? breakdown : ''}`;
-      
+
       const itemData = [
         index + 1,
         itemDescription.trim(),
@@ -190,32 +194,32 @@ export default function CartPage() {
       body: tableRows,
       startY: 70,
       theme: 'grid',
-      headStyles: { fillColor: [75, 0, 130] }, 
+      headStyles: { fillColor: [75, 0, 130] },
       styles: { fontSize: 8, cellPadding: 1.5, overflow: 'linebreak' },
       columnStyles: {
-        1: { cellWidth: 'auto' }, 
+        1: { cellWidth: 'auto' },
       },
       didParseCell: function (data) {
         // Potentially adjust row height if content is multi-line, autoTable usually handles this.
       }
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || 100; 
+    const finalY = (doc as any).lastAutoTable.finalY || 100;
     let currentY = finalY + 10;
     doc.setFontSize(10);
     doc.text(`Subtotal:`, 140, currentY);
     doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString()}`, 170, currentY);
-    
+
     currentY += 6;
     doc.text(`Discount:`, 140, currentY);
     doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString()}`, 170, currentY);
-    
+
     currentY += 8;
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text(`Grand Total:`, 140, currentY);
     doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString()}`, 170, currentY);
-    
+
     doc.setFontSize(8);
     doc.text("Thank you for your business!", 15, doc.internal.pageSize.height - 10);
 
@@ -225,23 +229,29 @@ export default function CartPage() {
   };
 
   const handleNewSale = () => {
-    setGeneratedInvoice(null); 
-    clearCart(); 
+    setGeneratedInvoice(null);
+    clearCart();
     setSelectedCustomerId(undefined);
-    setInvoiceGoldRateInput(settings.goldRatePerGram.toString());
+    if (settings && typeof settings.goldRatePerGram === 'number') {
+        setInvoiceGoldRateInput(settings.goldRatePerGram.toString());
+    } else {
+        setInvoiceGoldRateInput("0");
+    }
     setDiscountAmountInput('0');
   }
 
 
   if (!isHydrated) {
+    console.log("[GemsTrack] CartPage: Not hydrated, rendering loading message.");
     return (
       <div className="container mx-auto py-8 px-4">
         <p className="text-center text-muted-foreground">Loading cart...</p>
       </div>
     );
   }
-  
+
   if (generatedInvoice) {
+    console.log("[GemsTrack] CartPage: Rendering generated invoice view.");
     let ratesAppliedMessage = "";
     if (generatedInvoice.goldRateApplied) ratesAppliedMessage += `Gold Rate: PKR ${generatedInvoice.goldRateApplied.toLocaleString()}/g. `;
     if (generatedInvoice.palladiumRateApplied) ratesAppliedMessage += `Palladium Rate: PKR ${generatedInvoice.palladiumRateApplied.toLocaleString()}/g. `;
@@ -286,8 +296,8 @@ export default function CartPage() {
                                         <TableCell>
                                             <p className="font-medium">{item.name}</p>
                                             <p className="text-xs text-muted-foreground">
-                                                SKU: {item.sku} | 
-                                                Metal: {item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''} | 
+                                                SKU: {item.sku} |
+                                                Metal: {item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''} |
                                                 Wt: {item.metalWeightG.toFixed(2)}g
                                             </p>
                                             {breakdownText && <p className="text-xs text-muted-foreground/80 italic">{breakdownText}</p>}
@@ -316,7 +326,7 @@ export default function CartPage() {
     );
   }
 
-
+  console.log("[GemsTrack] CartPage: About to return main cart view JSX. isHydrated:", isHydrated, "GeneratedInvoice exists:", !!generatedInvoice);
   return (
     <div className="container mx-auto py-8 px-4">
       <header className="mb-8">
@@ -346,8 +356,8 @@ export default function CartPage() {
                     {cartItems.map(item => (
                       <div key={item.sku} className="flex items-center space-x-4 p-3 border rounded-md">
                         <Image
-                          src={item.imageUrl || `https://placehold.co/80x80.png?text=${item.name.substring(0,1)}`}
-                          alt={item.name}
+                          src={item.imageUrl || `https://placehold.co/80x80.png?text=${encodeURIComponent(item.name?.substring(0,1) || 'P')}`}
+                          alt={item.name || 'Product Image'}
                           width={60}
                           height={60}
                           className="rounded-md object-cover border"
@@ -360,10 +370,10 @@ export default function CartPage() {
                           <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString()} (at current store rates)</p>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Button 
-                            size="icon" 
-                            variant="outline" 
-                            onClick={() => updateCartQuantity(item.sku, item.quantity - 1)} 
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() => updateCartQuantity(item.sku, item.quantity - 1)}
                             disabled={item.quantity <= 1}
                             aria-label={`Decrease quantity of ${item.name}`}
                           >
@@ -377,19 +387,19 @@ export default function CartPage() {
                             min="1"
                             aria-label={`Quantity of ${item.name}`}
                           />
-                          <Button 
-                            size="icon" 
-                            variant="outline" 
+                          <Button
+                            size="icon"
+                            variant="outline"
                             onClick={() => updateCartQuantity(item.sku, item.quantity + 1)}
                             aria-label={`Increase quantity of ${item.name}`}
                            >
                             <Plus className="h-4 w-4" />
                           </Button>
                         </div>
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10" 
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => removeFromCart(item.sku)}
                           aria-label={`Remove ${item.name} from cart`}
                         >
@@ -414,8 +424,8 @@ export default function CartPage() {
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="customer-select" className="mb-1 block text-sm font-medium">Select Customer (Optional)</Label>
-                  <Select 
-                    value={selectedCustomerId === undefined ? WALK_IN_CUSTOMER_VALUE : selectedCustomerId} 
+                  <Select
+                    value={selectedCustomerId === undefined ? WALK_IN_CUSTOMER_VALUE : selectedCustomerId}
                     onValueChange={(value) => setSelectedCustomerId(value === WALK_IN_CUSTOMER_VALUE ? undefined : value)}
                   >
                     <SelectTrigger id="customer-select">
@@ -445,12 +455,12 @@ export default function CartPage() {
                     className="text-base"
                     step="0.01"
                   />
-                   <p className="text-xs text-muted-foreground mt-1">Current store setting for Gold: PKR {settings.goldRatePerGram.toLocaleString()}/gram.</p>
+                   <p className="text-xs text-muted-foreground mt-1">Current store setting for Gold: PKR {(settings?.goldRatePerGram || 0).toLocaleString()}/gram.</p>
                    {cartContainsNonGoldItems && (
                     <Alert variant="default" className="mt-2 text-xs">
                         <Info className="h-4 w-4" />
                         <AlertDescription>
-                            Palladium and Platinum items in this cart will be priced using their current rates from store settings (Pd: {settings.palladiumRatePerGram.toLocaleString()}, Pt: {settings.platinumRatePerGram.toLocaleString()}).
+                            Palladium and Platinum items in this cart will be priced using their current rates from store settings (Pd: {(settings?.palladiumRatePerGram || 0).toLocaleString()}, Pt: {(settings?.platinumRatePerGram || 0).toLocaleString()}).
                         </AlertDescription>
                     </Alert>
                    )}
@@ -497,4 +507,3 @@ export default function CartPage() {
   );
 }
 
-```
