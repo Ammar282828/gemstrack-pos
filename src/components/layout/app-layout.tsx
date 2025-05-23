@@ -9,9 +9,13 @@ if (typeof window !== 'undefined' && typeof window.structuredClone !== 'function
         return undefined;
     }
     try {
+      // Basic polyfill using JSON stringify/parse.
+      // This won't handle all data types (e.g., Date objects become strings, functions/undefined are lost).
+      // For this app's state (mostly plain objects, arrays, strings, numbers), it should be sufficient.
       return JSON.parse(JSON.stringify(value));
     } catch (e) {
         console.error("TaheriPOS: structuredClone polyfill (JSON.parse(JSON.stringify)) failed:", e);
+        // Fallback to returning the original value if JSON methods fail (e.g., for circular structures not handled by this basic polyfill)
         return value; 
     }
   };
@@ -59,11 +63,11 @@ const navItems: NavItem[] = [
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isHydrated = useIsStoreHydrated();
+  
   console.log(`[GemsTrack] AppLayout: Rendering. Store hydrated: ${isHydrated}`);
 
-
   if (!isHydrated) {
-    console.log("[GemsTrack] AppLayout: Store NOT hydrated, rendering null.");
+    console.log("[GemsTrack] AppLayout: Store NOT hydrated, rendering null for main content.");
     return null; 
   }
   
@@ -114,6 +118,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
           <SidebarTrigger className="md:hidden" />
           <div className="flex-1 text-center md:text-left">
+            {/* Header content can go here if needed in the future */}
           </div>
         </header>
         <main className="flex-1 p-4 overflow-auto md:p-6">
