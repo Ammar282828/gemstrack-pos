@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -14,10 +15,34 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useAppStore, Product, Category, KaratValue, MetalType } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Ban, Diamond, Zap, Shield } from 'lucide-react';
+import { Save, Ban, Diamond, Zap, Shield, Weight } from 'lucide-react';
 
-const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k'];
+const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum'];
+
+const GOLD_COIN_CATEGORY_ID = 'cat017'; // Assuming 'cat017' is Gold Coins
+
+const goldCoinDenominations: Record<string, Array<{ label: string; value: number }>> = {
+  '18k': [
+    { label: '0.5 gram', value: 0.5 },
+    { label: '1 gram', value: 1 },
+    { label: '2 grams', value: 2 },
+    { label: '4 grams', value: 4 },
+    { label: '8 grams', value: 8 },
+  ],
+  '24k': [
+    { label: '1 gram', value: 1 },
+    { label: '2.5 grams', value: 2.5 },
+    { label: '5 grams', value: 5 },
+    { label: 'Half Tola (5.83g)', value: 5.8319 },
+    { label: '10 grams', value: 10 },
+    { label: '1 Tola (11.66g)', value: 11.6638 },
+    { label: '2 Tola (23.33g)', value: 23.3276 },
+    { label: '5 Tola (58.32g)', value: 58.3190 },
+    { label: '10 Tola (116.64g)', value: 116.6380 },
+  ],
+};
+
 
 const productFormSchemaBase = z.object({
   categoryId: z.string().min(1, "Category is required"),
@@ -41,11 +66,6 @@ const productFormSchema = productFormSchemaBase.extend({
       message: "Karat is required for gold items.",
       path: ["karat"],
     });
-  }
-  if (data.metalType !== 'gold' && data.karat) {
-    // Optionally, clear karat if metalType is not gold, or just don't validate it.
-    // For now, we'll rely on conditional rendering in the form.
-    // If strictness is needed, one might clear it here or add a transform.
   }
 });
 
@@ -96,42 +116,52 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   const selectedCategoryId = form.watch('categoryId');
   const hasDiamondsValue = form.watch('hasDiamonds');
   const selectedMetalType = form.watch('metalType');
+  const selectedKarat = form.watch('karat');
+
+  const isGoldCoin = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
+  const showDenominationDropdown = isGoldCoin && (selectedKarat === '18k' || selectedKarat === '24k');
+  const currentDenominations = (isGoldCoin && selectedKarat && goldCoinDenominations[selectedKarat]) ? goldCoinDenominations[selectedKarat] : [];
+
 
   useEffect(() => {
     if (selectedMetalType !== 'gold') {
-      form.setValue('karat', undefined, { shouldValidate: false }); 
+      form.setValue('karat', undefined, { shouldValidate: true }); // Validate to clear potential error if karat was required
     } else if (selectedMetalType === 'gold' && !form.getValues('karat')) {
-      form.setValue('karat', '21k'); 
+      // If switching to gold and no karat is set, default to 21k or let validation handle it
+      form.setValue('karat', '21k', {shouldValidate: true}); 
     }
-  }, [selectedMetalType, form]);
+    // If category changes from gold coins or karat changes for gold coins, reset weight if it came from a denomination
+    if (!showDenominationDropdown && selectedCategoryId !== GOLD_COIN_CATEGORY_ID) {
+        // Could add logic here if needed, but metalWeightG is direct input anyway
+    }
+
+  }, [selectedMetalType, selectedKarat, selectedCategoryId, form, showDenominationDropdown]);
 
   useEffect(() => {
-    if (!isEditMode || (isEditMode && form.getValues('hasDiamonds') !== product?.hasDiamonds) || (isEditMode && form.getValues('categoryId') !== product?.categoryId)) {
-        if (hasDiamondsValue) {
-            form.setValue('wastagePercentage', 25, { shouldValidate: true });
-            if (!isEditMode || (product && !product.hasDiamonds)) {
-                form.setValue('diamondCharges', product?.diamondCharges || 0);
-            }
-        } else {
-            const category = categories.find(c => c.id === selectedCategoryId);
-            let defaultWastage = 10;
-            if (category) {
-                const lowerCaseTitle = category.title.toLowerCase();
-                const fifteenPercentTriggers = ["chain", "bangle", "gold necklace set"];
-                if (fifteenPercentTriggers.some(trigger => lowerCaseTitle.includes(trigger))) {
-                defaultWastage = 15;
-                }
-            }
-            form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
-            
-            if (form.getValues('diamondCharges') !== 0 && !isEditMode && (product?.hasDiamonds === undefined || !product.hasDiamonds) ) {
-                form.setValue('diamondCharges', 0);
-            } else if (isEditMode && product && product.hasDiamonds && !hasDiamondsValue) {
-                form.setValue('diamondCharges', 0);
-            }
+    // This effect for wastage should run after metalType/karat might have changed
+    const category = categories.find(c => c.id === selectedCategoryId);
+    let defaultWastage = 10; // Default for "the rest"
+
+    if (hasDiamondsValue) {
+        defaultWastage = 25;
+    } else if (category) {
+        const lowerCaseTitle = category.title.toLowerCase();
+        const fifteenPercentTriggers = ["chain", "bangle", "gold necklace set"];
+        if (fifteenPercentTriggers.some(trigger => lowerCaseTitle.includes(trigger))) {
+            defaultWastage = 15;
+        }
+        // Specific for Gold Coins - typically 0% wastage or very low, user can override
+        if (selectedCategoryId === GOLD_COIN_CATEGORY_ID) {
+            defaultWastage = product?.wastagePercentage ?? 0; // Default to 0 for new coins, or existing if editing
         }
     }
-  }, [selectedCategoryId, hasDiamondsValue, isEditMode, categories, form, product]);
+    form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
+
+    if (!hasDiamondsValue) {
+        form.setValue('diamondCharges', 0, { shouldValidate: true });
+    }
+
+  }, [selectedCategoryId, hasDiamondsValue, categories, form, product?.wastagePercentage, selectedMetalType]);
 
 
   const processFormData = (data: ProductFormData): Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'> => {
@@ -171,11 +201,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       if (newProduct) {
         toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added. You can add another product.` });
         form.reset({
-          categoryId: data.categoryId,
-          metalType: data.metalType,      
-          karat: data.metalType === 'gold' ? data.karat : undefined, 
-          metalWeightG: 0,
-          wastagePercentage: 10, 
+          categoryId: data.categoryId, // Retain category
+          metalType: data.metalType, // Retain metal type
+          karat: data.metalType === 'gold' ? data.karat : undefined, // Retain karat if gold
+          metalWeightG: 0, // Reset weight
+          wastagePercentage: data.categoryId === GOLD_COIN_CATEGORY_ID ? 0 : 10, // Reset wastage (0 for coins, 10 for others, diamonds will override)
           makingCharges: data.makingCharges, // Retain previous making charges
           hasDiamonds: false,    
           diamondCharges: 0,
@@ -293,12 +323,64 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 )}
               />
             )}
+            
+            {showDenominationDropdown ? (
+                 <FormField
+                    control={form.control}
+                    name="metalWeightG" // This will still be updated by the Select's onChange
+                    render={({ field }) => ( // field here is for metalWeightG, but we use a Select to control it
+                        <FormItem>
+                        <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Denomination / Weight (Gold Coins)</FormLabel>
+                        <Select
+                            // Use a temporary value for the Select if field.value doesn't match any denomination value
+                            // Or, ensure field.value is always one of the denomination values when this dropdown is shown.
+                            // For simplicity, we'll rely on onValueChange to set the correct metalWeightG.
+                            // The `value` prop of Select should match one of the `SelectItem` `value` props.
+                            value={currentDenominations.find(d => d.value === field.value)?.value.toString()}
+                            onValueChange={(valStr) => {
+                                form.setValue('metalWeightG', parseFloat(valStr), { shouldValidate: true });
+                            }}
+                        >
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder={`Select Denomination for ${selectedKarat?.toUpperCase()}`} />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {currentDenominations.map((denom) => (
+                                <SelectItem key={denom.label} value={denom.value.toString()}>
+                                {denom.label}
+                                </SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            ) : (
+                <FormField
+                control={form.control}
+                name="metalWeightG"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Metal Weight (grams)</FormLabel>
+                    <FormControl>
+                        <Input type="number" step="0.01" placeholder="e.g., 5.75" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            )}
+
 
              <FormField
               control={form.control}
               name="hasDiamonds"
               render={({ field }) => (
-                <FormItem className={`flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 ${selectedMetalType === 'gold' ? '' : 'md:col-span-2' }`}>
+                <FormItem className={`flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 ${selectedMetalType === 'gold' && (selectedKarat !== '18k' && selectedKarat !== '24k' || selectedCategoryId !== GOLD_COIN_CATEGORY_ID) ? '' : 'md:col-span-1' } ${(selectedMetalType !== 'gold' || selectedCategoryId === GOLD_COIN_CATEGORY_ID && (selectedKarat === '18k' || selectedKarat === '24k')) ? 'md:col-span-2' : '' }`}>
+                  {/* Conditional col-span to try and keep layout nice */}
                   <FormControl>
                     <Checkbox
                       checked={field.value}
@@ -318,25 +400,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
             />
             <FormField
               control={form.control}
-              name="metalWeightG"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Metal Weight (grams)</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="0.01" placeholder="e.g., 5.75" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="wastagePercentage"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Wastage (%)</FormLabel>
                   <FormControl>
-                    <Input type="number" step="0.1" placeholder="e.g., 10 or 25" {...field} />
+                    <Input type="number" step="0.1" placeholder="e.g., 10 or 0 for coins" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -402,7 +471,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               control={form.control}
               name="imageUrl"
               render={({ field }) => (
-                <FormItem className={ (hasDiamondsValue && (selectedMetalType === 'gold' || product?.karat)) ? "" : "md:col-span-2"}>
+                <FormItem className="md:col-span-2">
                   <FormLabel>Image URL (Optional)</FormLabel>
                   <FormControl>
                     <Input type="url" placeholder="https://example.com/image.png" {...field} />

@@ -58,7 +58,7 @@ function _calculateProductCostsInternal(
     const karatToUse = product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
     const karatNumeric = _parseKaratInternal(karatToUse);
     if (karatNumeric > 0 && goldRate24k > 0) {
-      const purityFactor = karatNumeric / 24;
+      const purityFactor = karatNumeric / 24; // Assumes 24k is pure
       const effectiveGoldRate = purityFactor * goldRate24k;
       metalCost = metalWeightG * effectiveGoldRate;
     } else {
@@ -104,6 +104,8 @@ function _calculateProductCostsInternal(
 
 // --- Type Definitions ---
 export type MetalType = 'gold' | 'palladium' | 'platinum';
+export type KaratValue = '18k' | '21k' | '22k' | '24k';
+
 
 export interface Settings {
   goldRatePerGram: number;
@@ -129,7 +131,6 @@ export interface Customer {
   address?: string;
 }
 
-export type KaratValue = '18k' | '21k' | '22k';
 
 export interface Product {
   sku: string;
@@ -154,7 +155,7 @@ export interface InvoiceItem {
   categoryId: string;
   metalType: MetalType;
   karat?: KaratValue;
-  metalWeightG: number; // Added this
+  metalWeightG: number;
   quantity: number;
   unitPrice: number;
   itemTotal: number;
@@ -204,6 +205,7 @@ const CATEGORY_SKU_PREFIXES: Record<string, string> = {
   'cat014': 'SNB', // Stone Necklace Sets with Bracelets
   'cat015': 'GNX', // Gold Necklace Sets with Bracelets
   'cat016': 'GNW', // Gold Necklace Sets without Bracelets
+  'cat017': 'GCN', // Gold Coins
 };
 
 
@@ -216,7 +218,7 @@ const initialSettings: Settings = {
   shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "https://placehold.co/200x80.png?text=Taheri",
-  lastInvoiceNumber: 5, // Updated to match last dummy invoice
+  lastInvoiceNumber: 5,
 };
 
 const initialCategories: Category[] = [
@@ -227,6 +229,7 @@ const initialCategories: Category[] = [
   { id: 'cat012', title: 'String Sets' }, { id: 'cat013', title: 'Stone Necklace Sets without Bracelets' },
   { id: 'cat014', title: 'Stone Necklace Sets with Bracelets' }, { id: 'cat015', title: 'Gold Necklace Sets with Bracelets' },
   { id: 'cat016', title: 'Gold Necklace Sets without Bracelets' },
+  { id: 'cat017', title: 'Gold Coins' },
 ];
 
 const initialCustomers: Customer[] = [
@@ -274,13 +277,13 @@ const initialProducts: Product[] = [
     'data-ai-hint': "gold chain" as any
   },
   {
-    sku: "RIN-000002", name: "Rings - RIN-000002", categoryId: "cat001", metalType: 'palladium', // No karat
+    sku: "RIN-000002", name: "Rings - RIN-000002", categoryId: "cat001", metalType: 'palladium',
     metalWeightG: 6.0, wastagePercentage: 10, makingCharges: 5000, hasDiamonds: false, diamondCharges: 0,
     stoneCharges: 10000, miscCharges: 300, imageUrl: "https://placehold.co/300x300.png?text=RIN-PD",
     'data-ai-hint': "palladium ring" as any
   },
    {
-    sku: "BND-000001", name: "Bands - BND-000001", categoryId: "cat009", metalType: 'platinum', // No karat
+    sku: "BND-000001", name: "Bands - BND-000001", categoryId: "cat009", metalType: 'platinum',
     metalWeightG: 7.5, wastagePercentage: 25, makingCharges: 6000, hasDiamonds: true, diamondCharges: 15000,
     stoneCharges: 0, miscCharges: 250, imageUrl: "https://placehold.co/300x300.png?text=BND-PT",
     'data-ai-hint': "platinum band" as any
@@ -290,6 +293,18 @@ const initialProducts: Product[] = [
     metalWeightG: 4.5, wastagePercentage: 25, makingCharges: 5000, hasDiamonds: true, diamondCharges: 30000,
     stoneCharges: 0, miscCharges: 200, imageUrl: "https://placehold.co/300x300.png?text=RIN-003",
     'data-ai-hint': "gold ring" as any
+  },
+  {
+    sku: "GCN-000001", name: "Gold Coins - GCN-000001", categoryId: "cat017", metalType: 'gold', karat: '24k',
+    metalWeightG: 11.6638, wastagePercentage: 0, makingCharges: 500, hasDiamonds: false, diamondCharges: 0,
+    stoneCharges: 0, miscCharges: 0, imageUrl: "https://placehold.co/300x300.png?text=GCN-1Tola",
+    'data-ai-hint': "gold coin" as any
+  },
+  {
+    sku: "GCN-000002", name: "Gold Coins - GCN-000002", categoryId: "cat017", metalType: 'gold', karat: '18k',
+    metalWeightG: 1.0, wastagePercentage: 0, makingCharges: 200, hasDiamonds: false, diamondCharges: 0,
+    stoneCharges: 0, miscCharges: 0, imageUrl: "https://placehold.co/300x300.png?text=GCN-1g18k",
+    'data-ai-hint': "gold coin" as any
   }
 ];
 
@@ -832,16 +847,11 @@ export const useAppStore = create<AppState>()(
             } else {
               console.log('[GemsTrack] Persist: NO_PERSISTED_STATE_USING_INITIAL.');
             }
+            queueMicrotask(() => {
+              useAppStore.getState().setHasHydrated(true);
+              console.log('[GemsTrack] Persist: SET_HAS_HYDRATED_SUCCESS (to true) via queueMicrotask in onRehydrateStorage.');
+            });
           }
-          queueMicrotask(() => {
-             const storeState = useAppStore.getState();
-             if(storeState && typeof storeState.setHasHydrated === 'function'){
-                storeState.setHasHydrated(true);
-                console.log('[GemsTrack] Persist: SET_HAS_HYDRATED_SUCCESS (to true)');
-             } else {
-                console.error('[GemsTrack] Persist: FAILED_TO_SET_HAS_HYDRATED - store or setHasHydrated not available.');
-             }
-          });
         };
       },
       partialize: (state) => {
@@ -849,7 +859,7 @@ export const useAppStore = create<AppState>()(
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 4,
+      version: 4, // Incremented version
     }
   )
 );
@@ -952,44 +962,40 @@ export const useIsStoreHydrated = () => {
   useEffect(() => {
     console.log("[GemsTrack] useIsStoreHydrated: useEffect mounted.");
 
-    const checkHydration = () => {
-      const storeAlreadyHydrated = useAppStore.getState()._hasHydrated;
-      console.log(`[GemsTrack] useIsStoreHydrated: checkHydration - Store _hasHydrated: ${storeAlreadyHydrated}`);
-      if (storeAlreadyHydrated) {
-        setIsClientHydrated(true);
-        console.log("[GemsTrack] useIsStoreHydrated: checkHydration - Set local isClientHydrated to true.");
-        return true; // Indicates hydration confirmed
-      }
-      return false; // Indicates not yet hydrated
-    };
-
-    if (checkHydration()) {
-      return; // Already hydrated on mount
+    // Check if store is already hydrated (e.g., by persist middleware)
+    const storeAlreadyHydrated = useAppStore.getState()._hasHydrated;
+    if (storeAlreadyHydrated) {
+      setIsClientHydrated(true);
+      console.log("[GemsTrack] useIsStoreHydrated: Store was already hydrated on mount.");
+      return; // No need to subscribe if already hydrated
     }
 
-    // If not hydrated on initial check, subscribe
+    // If not hydrated on mount, subscribe to changes in _hasHydrated
     const unsubscribe = useAppStore.subscribe(
-      (state) => state._hasHydrated,
-      (storeHasHydratedValue) => {
-        console.log(`[GemsTrack] useIsStoreHydrated: Subscription fired. Store _hasHydrated is now: ${storeHasHydratedValue}`);
-        if (storeHasHydratedValue) {
+      (state) => state._hasHydrated, // Selector: listen only to _hasHydrated changes
+      (hydrated) => { // Listener: receives the new value of _hasHydrated
+        console.log(`[GemsTrack] useIsStoreHydrated: Subscription fired. Store _hasHydrated is now: ${hydrated}`);
+        if (hydrated) {
           setIsClientHydrated(true);
-          console.log("[GemsTrack] useIsStoreHydrated: Subscription - Set local isClientHydrated to true.");
-          unsubscribe(); // Unsubscribe once we've confirmed hydration
+          console.log("[GemsTrack] useIsStoreHydrated: Subscription - Set local isClientHydrated to true. Unsubscribing.");
+          unsubscribe(); // Unsubscribe once hydration is confirmed
         }
       }
     );
     
-    // Final check in case hydration happened between initial check and subscription setup
-    if (checkHydration()) {
-        unsubscribe(); // If somehow hydrated now, unsubscribe
+    // It's possible hydration completes between the initial check and setting up the subscription.
+    // Re-check to catch this.
+    if (useAppStore.getState()._hasHydrated) {
+        setIsClientHydrated(true);
+        console.log("[GemsTrack] useIsStoreHydrated: Store hydrated between initial check and subscription. Unsubscribing.");
+        unsubscribe();
     }
 
     return () => {
       console.log("[GemsTrack] useIsStoreHydrated: useEffect cleanup. Unsubscribing.");
       unsubscribe();
     };
-  }, []); 
+  }, []); // Empty dependency array means this effect runs once on mount and cleans up on unmount
 
   return isClientHydrated;
 };
@@ -1010,6 +1016,7 @@ initialProducts.forEach(p => {
         else if (p.name.toLowerCase().includes('chain')) hint += " chain";
         else if (p.name.toLowerCase().includes('band')) hint += " band";
         else if (p.name.toLowerCase().includes('locket')) hint += " locket";
+        else if (p.name.toLowerCase().includes('coin')) hint += " coin";
         pAsAny['data-ai-hint'] = hint.trim().substring(0,30);
     }
 });
@@ -1037,7 +1044,8 @@ if (typeof initialSettings === 'undefined') {
 if (typeof formatISO !== 'function' || typeof subDays !== 'function') {
     console.error("[GemsTrack] CRITICAL: date-fns functions (formatISO, subDays) are not available for initialGeneratedInvoices.");
 }
-
-    
+if (typeof CATEGORY_SKU_PREFIXES === 'undefined') {
+    console.error("[GemsTrack] CRITICAL: CATEGORY_SKU_PREFIXES is not defined before initialProducts update loop.");
+}
 
     
