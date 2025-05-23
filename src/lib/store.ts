@@ -8,7 +8,6 @@ import { formatISO, subDays } from 'date-fns';
 // --- Helper Functions and Constants ---
 const DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL: KaratValue = '21k';
 
-// Internal function for parsing Karat, ensuring it returns a number.
 function _parseKaratInternal(karat: KaratValue | string | undefined): number {
   const karatToUse = karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
   const karatString = String(karatToUse).trim();
@@ -26,7 +25,6 @@ function _parseKaratInternal(karat: KaratValue | string | undefined): number {
   return numericPart;
 }
 
-// Internal function for cost calculation
 function _calculateProductCostsInternal(
   product: {
     name?: string;
@@ -103,6 +101,7 @@ function _calculateProductCostsInternal(
   };
 }
 
+
 // --- Type Definitions ---
 export type MetalType = 'gold' | 'palladium' | 'platinum';
 
@@ -155,7 +154,7 @@ export interface InvoiceItem {
   categoryId: string;
   metalType: MetalType;
   karat?: KaratValue;
-  metalWeightG: number;
+  metalWeightG: number; // Added this
   quantity: number;
   unitPrice: number;
   itemTotal: number;
@@ -188,6 +187,26 @@ export interface Karigar {
   notes?: string;
 }
 
+const CATEGORY_SKU_PREFIXES: Record<string, string> = {
+  'cat001': 'RIN', // Rings
+  'cat002': 'TOP', // Tops
+  'cat003': 'BAL', // Balis
+  'cat004': 'LCK', // Lockets
+  'cat005': 'BRC', // Bracelets
+  'cat006': 'BRS', // Bracelet and Ring Set
+  'cat007': 'BNG', // Bangles
+  'cat008': 'CHN', // Chains
+  'cat009': 'BND', // Bands
+  'cat010': 'LSW', // Locket Sets without Bangle
+  'cat011': 'LSB', // Locket Set with Bangle
+  'cat012': 'STR', // String Sets
+  'cat013': 'SNX', // Stone Necklace Sets without Bracelets
+  'cat014': 'SNB', // Stone Necklace Sets with Bracelets
+  'cat015': 'GNX', // Gold Necklace Sets with Bracelets
+  'cat016': 'GNW', // Gold Necklace Sets without Bracelets
+};
+
+
 // --- Initial Data Definitions ---
 const initialSettings: Settings = {
   goldRatePerGram: 20000,
@@ -197,7 +216,7 @@ const initialSettings: Settings = {
   shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "https://placehold.co/200x80.png?text=Taheri",
-  lastInvoiceNumber: 0, // Start from 0, first invoice will be INV-000001
+  lastInvoiceNumber: 5, // Updated to match last dummy invoice
 };
 
 const initialCategories: Category[] = [
@@ -225,9 +244,9 @@ const initialProducts: Product[] = [
     'data-ai-hint': "gold ring" as any
   },
   {
-    sku: "SNA-000001", name: "Stone Necklace Sets without Bracelets - SNA-000001", categoryId: "cat013", metalType: 'gold', karat: '22k',
+    sku: "SNX-000001", name: "Stone Necklace Sets without Bracelets - SNX-000001", categoryId: "cat013", metalType: 'gold', karat: '22k',
     metalWeightG: 12.5, wastagePercentage: 10, makingCharges: 15000, hasDiamonds: false, diamondCharges: 0,
-    stoneCharges: 112500, miscCharges: 1500, imageUrl: "https://placehold.co/300x300.png?text=SNA-001",
+    stoneCharges: 112500, miscCharges: 1500, imageUrl: "https://placehold.co/300x300.png?text=SNX-001",
     'data-ai-hint': "gold necklace" as any
   },
   {
@@ -237,21 +256,21 @@ const initialProducts: Product[] = [
     'data-ai-hint': "gold earrings" as any
   },
   {
-    sku: "BRA-000001", name: "Bracelets - BRA-000001", categoryId: "cat005", metalType: 'gold', karat: '21k',
+    sku: "BRC-000001", name: "Bracelets - BRC-000001", categoryId: "cat005", metalType: 'gold', karat: '21k',
     metalWeightG: 8.0, wastagePercentage: 10, makingCharges: 7200, hasDiamonds: false, diamondCharges: 0,
-    stoneCharges: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png?text=BRA-001",
+    stoneCharges: 0, miscCharges: 700, imageUrl: "https://placehold.co/300x300.png?text=BRC-001",
     'data-ai-hint': "gold bracelet" as any
   },
   {
-    sku: "GNB-000001", name: "Gold Necklace Sets with Bracelets - GNB-000001", categoryId: "cat015", metalType: 'gold', karat: '21k',
+    sku: "GNX-000001", name: "Gold Necklace Sets with Bracelets - GNX-000001", categoryId: "cat015", metalType: 'gold', karat: '21k',
     metalWeightG: 20.0, wastagePercentage: 15, makingCharges: 30000, hasDiamonds: false, diamondCharges: 0,
-    stoneCharges: 160000, miscCharges: 2000, imageUrl: "https://placehold.co/300x300.png?text=GNB-001",
+    stoneCharges: 160000, miscCharges: 2000, imageUrl: "https://placehold.co/300x300.png?text=GNX-001",
     'data-ai-hint': "gold necklace" as any
   },
   {
-    sku: "CHA-000001", name: "Chains - CHA-000001", categoryId: "cat008", metalType: 'gold', karat: '22k',
+    sku: "CHN-000001", name: "Chains - CHN-000001", categoryId: "cat008", metalType: 'gold', karat: '22k',
     metalWeightG: 10.0, wastagePercentage: 15, makingCharges: 8000, hasDiamonds: false, diamondCharges: 0,
-    stoneCharges: 0, miscCharges: 400, imageUrl: "https://placehold.co/300x300.png?text=CHA-001",
+    stoneCharges: 0, miscCharges: 400, imageUrl: "https://placehold.co/300x300.png?text=CHN-001",
     'data-ai-hint': "gold chain" as any
   },
   {
@@ -261,9 +280,9 @@ const initialProducts: Product[] = [
     'data-ai-hint': "palladium ring" as any
   },
    {
-    sku: "BAN-000001", name: "Bands - BAN-000001", categoryId: "cat009", metalType: 'platinum', // No karat
+    sku: "BND-000001", name: "Bands - BND-000001", categoryId: "cat009", metalType: 'platinum', // No karat
     metalWeightG: 7.5, wastagePercentage: 25, makingCharges: 6000, hasDiamonds: true, diamondCharges: 15000,
-    stoneCharges: 0, miscCharges: 250, imageUrl: "https://placehold.co/300x300.png?text=BAN-PT",
+    stoneCharges: 0, miscCharges: 250, imageUrl: "https://placehold.co/300x300.png?text=BND-PT",
     'data-ai-hint': "platinum band" as any
   },
   {
@@ -314,8 +333,8 @@ const initialGeneratedInvoices: Invoice[] = (() => {
         });
     }
 
-    const product1_inv2 = initialProducts.find(p => p.sku === "BRA-000001");
-    const product2_inv2 = initialProducts.find(p => p.sku === "RIN-000002");
+    const product1_inv2 = initialProducts.find(p => p.sku === "BRC-000001");
+    const product2_inv2 = initialProducts.find(p => p.sku === "RIN-000002"); // Palladium Ring
      if (product1_inv2 && product2_inv2) {
         const costs1_inv2 = _calculateProductCostsInternal(product1_inv2, ratesForCalc);
         const costs2_inv2 = _calculateProductCostsInternal(product2_inv2, ratesForCalc);
@@ -345,7 +364,7 @@ const initialGeneratedInvoices: Invoice[] = (() => {
         });
     }
 
-    const product1_inv3 = initialProducts.find(p => p.sku === "BAN-000001");
+    const product1_inv3 = initialProducts.find(p => p.sku === "BND-000001"); // Platinum Band
      if (product1_inv3) {
         const costs1_inv3 = _calculateProductCostsInternal(product1_inv3, ratesForCalc);
         const items_inv3: InvoiceItem[] = [
@@ -366,7 +385,7 @@ const initialGeneratedInvoices: Invoice[] = (() => {
         });
     }
 
-    const product1_inv4 = initialProducts.find(p => p.sku === "CHA-000001");
+    const product1_inv4 = initialProducts.find(p => p.sku === "CHN-000001");
      if (product1_inv4) {
         const costs1_inv4 = _calculateProductCostsInternal(product1_inv4, ratesForCalc);
         const items_inv4: InvoiceItem[] = [
@@ -386,7 +405,7 @@ const initialGeneratedInvoices: Invoice[] = (() => {
             goldRateApplied: product1_inv4.metalType === 'gold' ? ratesForCalc.goldRatePerGram24k : undefined,
         });
     }
-    const product1_inv5 = initialProducts.find(p => p.sku === "GNB-000001");
+    const product1_inv5 = initialProducts.find(p => p.sku === "GNX-000001");
     if (product1_inv5) {
         const costs1_inv5 = _calculateProductCostsInternal(product1_inv5, ratesForCalc);
         const items_inv5: InvoiceItem[] = [
@@ -527,18 +546,23 @@ export const useAppStore = create<AppState>()(
             return;
           }
 
-          const prefix = category.title.substring(0, 3).toUpperCase();
+          const prefix = CATEGORY_SKU_PREFIXES[productData.categoryId];
+          if (!prefix) {
+            console.warn(`[GemsTrack] Products: No SKU prefix found for categoryId ${productData.categoryId}. Using 'XXX'. Please define a prefix.`);
+          }
+          const finalPrefix = prefix || "XXX";
+
           let maxNum = 0;
           state.products.forEach(p => {
-            if (p.sku.startsWith(prefix + "-")) {
-              const numPart = parseInt(p.sku.substring(prefix.length + 1), 10);
+            if (p.sku.startsWith(finalPrefix + "-")) {
+              const numPart = parseInt(p.sku.substring(finalPrefix.length + 1), 10);
               if (!isNaN(numPart) && numPart > maxNum) {
                 maxNum = numPart;
               }
             }
           });
           const newNum = (maxNum + 1).toString().padStart(6, '0');
-          const generatedSku = `${prefix}-${newNum}`;
+          const generatedSku = `${finalPrefix}-${newNum}`;
           const autoGeneratedName = `${category.title} - ${generatedSku}`;
 
           const finalProductData = { ...productData };
@@ -809,9 +833,14 @@ export const useAppStore = create<AppState>()(
               console.log('[GemsTrack] Persist: NO_PERSISTED_STATE_USING_INITIAL.');
             }
           }
-          // Always set _hasHydrated to true after attempting rehydration
           queueMicrotask(() => {
-            useAppStore.getState().setHasHydrated(true);
+             const storeState = useAppStore.getState();
+             if(storeState && typeof storeState.setHasHydrated === 'function'){
+                storeState.setHasHydrated(true);
+                console.log('[GemsTrack] Persist: SET_HAS_HYDRATED_SUCCESS (to true)');
+             } else {
+                console.error('[GemsTrack] Persist: FAILED_TO_SET_HAS_HYDRATED - store or setHasHydrated not available.');
+             }
           });
         };
       },
@@ -820,7 +849,7 @@ export const useAppStore = create<AppState>()(
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 4, // Incremented version due to potential schema changes with Karigars etc.
+      version: 4,
     }
   )
 );
@@ -917,50 +946,61 @@ export const selectCartSubtotal = (state: AppState) => {
 
 
 export const useIsStoreHydrated = () => {
-  const [isClientHydrated, setIsClientHydrated] = React.useState(false);
+  const [isClientHydrated, setIsClientHydrated] = useState(false);
+  console.log(`[GemsTrack] useIsStoreHydrated: HOOK_RENDERING. Local isClientHydrated: ${isClientHydrated}`);
 
-  React.useEffect(() => {
+  useEffect(() => {
     console.log("[GemsTrack] useIsStoreHydrated: useEffect mounted.");
 
-    const storeAlreadyHydrated = useAppStore.getState()._hasHydrated;
-    if (storeAlreadyHydrated) {
-      console.log("[GemsTrack] useIsStoreHydrated: Store was already hydrated on mount.");
-      setIsClientHydrated(true);
-    } else {
-      console.log("[GemsTrack] useIsStoreHydrated: Store not hydrated on mount, subscribing...");
+    const checkHydration = () => {
+      const storeAlreadyHydrated = useAppStore.getState()._hasHydrated;
+      console.log(`[GemsTrack] useIsStoreHydrated: checkHydration - Store _hasHydrated: ${storeAlreadyHydrated}`);
+      if (storeAlreadyHydrated) {
+        setIsClientHydrated(true);
+        console.log("[GemsTrack] useIsStoreHydrated: checkHydration - Set local isClientHydrated to true.");
+        return true; // Indicates hydration confirmed
+      }
+      return false; // Indicates not yet hydrated
+    };
+
+    if (checkHydration()) {
+      return; // Already hydrated on mount
     }
 
+    // If not hydrated on initial check, subscribe
     const unsubscribe = useAppStore.subscribe(
       (state) => state._hasHydrated,
       (storeHasHydratedValue) => {
         console.log(`[GemsTrack] useIsStoreHydrated: Subscription fired. Store _hasHydrated is now: ${storeHasHydratedValue}`);
         if (storeHasHydratedValue) {
           setIsClientHydrated(true);
-          console.log("[GemsTrack] useIsStoreHydrated: Set local isClientHydrated to true via subscription.");
-          // Important: Unsubscribe inside the listener to avoid memory leaks *after* we've acted on the hydration
-          // This ensures this specific subscription doesn't keep running if the component is long-lived.
-          // However, it might be better to let the main cleanup function handle it if the component itself unmounts.
-          // For simplicity, let's ensure the main cleanup is the primary way.
-          // unsubscribe(); // Consider if this is needed here vs. just in cleanup.
+          console.log("[GemsTrack] useIsStoreHydrated: Subscription - Set local isClientHydrated to true.");
+          unsubscribe(); // Unsubscribe once we've confirmed hydration
         }
       }
     );
     
+    // Final check in case hydration happened between initial check and subscription setup
+    if (checkHydration()) {
+        unsubscribe(); // If somehow hydrated now, unsubscribe
+    }
+
     return () => {
       console.log("[GemsTrack] useIsStoreHydrated: useEffect cleanup. Unsubscribing.");
       unsubscribe();
     };
-  }, []); // Empty dependency array: runs once on mount, cleans up on unmount.
+  }, []); 
 
-  console.log(`[GemsTrack] useIsStoreHydrated: HOOK_RENDERING. Returning: ${isClientHydrated}`);
   return isClientHydrated;
 };
 
+// --- Initialize default image URLs and AI hints ---
 initialProducts.forEach(p => {
     if(!p.imageUrl || !p.imageUrl.startsWith('https://placehold.co')) {
         p.imageUrl = `https://placehold.co/300x300.png?text=${encodeURIComponent(p.sku.substring(0,8))}`;
     }
-    if (!(p as any)['data-ai-hint']) {
+    const pAsAny = p as any; // Type assertion
+    if (!pAsAny['data-ai-hint']) {
         let hint = "jewelry";
         if (p.name.toLowerCase().includes('ring')) hint += " ring";
         else if (p.name.toLowerCase().includes('necklace')) hint += " necklace";
@@ -970,7 +1010,7 @@ initialProducts.forEach(p => {
         else if (p.name.toLowerCase().includes('chain')) hint += " chain";
         else if (p.name.toLowerCase().includes('band')) hint += " band";
         else if (p.name.toLowerCase().includes('locket')) hint += " locket";
-        (p as any)['data-ai-hint'] = hint.trim().substring(0,30);
+        pAsAny['data-ai-hint'] = hint.trim().substring(0,30);
     }
 });
 
@@ -978,6 +1018,7 @@ if (!initialSettings.shopLogoUrl || !initialSettings.shopLogoUrl.startsWith('htt
     initialSettings.shopLogoUrl = "https://placehold.co/200x80.png?text=Taheri";
 }
 
+// --- Sanity checks for critical functions/variables ---
 if (typeof _calculateProductCostsInternal !== 'function') {
   console.error("[GemsTrack] CRITICAL: _calculateProductCostsInternal is not defined before initialGeneratedInvoices IIFE. This is a bug.");
 }
@@ -987,5 +1028,16 @@ if (typeof _parseKaratInternal !== 'function') {
 if (typeof DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL === 'undefined') {
   console.error("[GemsTrack] CRITICAL: DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL is not defined before initialGeneratedInvoices IIFE. This is a bug.");
 }
+if (typeof initialProducts === 'undefined') {
+    console.error("[GemsTrack] CRITICAL: initialProducts is not defined before initialGeneratedInvoices IIFE.");
+}
+if (typeof initialSettings === 'undefined') {
+    console.error("[GemsTrack] CRITICAL: initialSettings is not defined before initialGeneratedInvoices IIFE.");
+}
+if (typeof formatISO !== 'function' || typeof subDays !== 'function') {
+    console.error("[GemsTrack] CRITICAL: date-fns functions (formatISO, subDays) are not available for initialGeneratedInvoices.");
+}
+
+    
 
     
