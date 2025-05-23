@@ -67,6 +67,17 @@ const productFormSchema = productFormSchemaBase.extend({
       path: ["karat"],
     });
   }
+  // If it's a gold coin scenario, ensure certain fields are effectively zero (they will be hidden so direct validation isn't strictly necessary for UI)
+  if (data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold') {
+    if (data.hasDiamonds) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Gold coins cannot have diamonds.", path: ["hasDiamonds"]});
+    }
+    if (data.wastagePercentage !== 0) {
+        // Optionally, could auto-correct or just validate if UI ensures 0
+    } 
+    // Similar checks for makingCharges, stoneCharges, miscCharges if they MUST be 0 for gold coins.
+    // However, the primary fix is hiding them from the UI.
+  }
 });
 
 
@@ -118,9 +129,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   const selectedMetalType = form.watch('metalType');
   const selectedKarat = form.watch('karat');
 
-  const isGoldCoinCategorySelected = selectedCategoryId === GOLD_COIN_CATEGORY_ID;
-  const isGoldMetalTypeSelected = selectedMetalType === 'gold';
-  const showDenominationDropdown = isGoldCoinCategorySelected && isGoldMetalTypeSelected && (selectedKarat === '18k' || selectedKarat === '24k');
+  const isGoldCoinScenario = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
+  const showDenominationDropdown = isGoldCoinScenario && (selectedKarat === '18k' || selectedKarat === '24k');
   const currentDenominations = (showDenominationDropdown && selectedKarat && goldCoinDenominations[selectedKarat]) ? goldCoinDenominations[selectedKarat] : [];
 
 
@@ -132,26 +142,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     }
   }, [selectedMetalType, form]);
 
-  // Effect for Gold Coin specific defaults
   useEffect(() => {
-    if (isGoldCoinCategorySelected && isGoldMetalTypeSelected) {
-      // Set defaults for Gold Coins
-      form.setValue('hasDiamonds', false, { shouldValidate: true }); // Uncheck diamonds
-      // diamondCharges will be set to 0 by the effect below due to hasDiamonds being false
+    if (isGoldCoinScenario) {
+      form.setValue('hasDiamonds', false, { shouldValidate: true });
       form.setValue('wastagePercentage', 0, { shouldValidate: true });
       form.setValue('makingCharges', 0, { shouldValidate: true });
+      form.setValue('diamondCharges', 0, { shouldValidate: true }); // Also ensures diamond charges are 0
       form.setValue('stoneCharges', 0, { shouldValidate: true });
       form.setValue('miscCharges', 0, { shouldValidate: true });
-    }
-  }, [selectedCategoryId, selectedMetalType, form, isGoldCoinCategorySelected, isGoldMetalTypeSelected]);
-
-  // Effect for general wastage and diamond charges based on hasDiamonds and category (for non-gold coins)
-  useEffect(() => {
-    const isGoldCoinScenario = isGoldCoinCategorySelected && isGoldMetalTypeSelected;
-
-    if (!isGoldCoinScenario) { // Only apply this logic if NOT a gold coin scenario
+    } else {
+      // General wastage and diamond charges logic for non-gold coins
       let defaultWastage = 10;
-      if (hasDiamondsValue) {
+      if (form.getValues('hasDiamonds')) { // Use form.getValues to get current 'hasDiamonds'
         defaultWastage = 25;
       } else {
         const category = categories.find(c => c.id === selectedCategoryId);
@@ -164,21 +166,32 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
         }
       }
       form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
-    }
 
-    // This part applies to all: if no diamonds, diamond charges are 0.
-    // For gold coins, hasDiamondsValue will be false due to the above effect, so this ensures diamondCharges is 0.
-    if (!hasDiamondsValue) {
-      form.setValue('diamondCharges', 0, { shouldValidate: true });
+      if (!form.getValues('hasDiamonds')) {
+        form.setValue('diamondCharges', 0, { shouldValidate: true });
+      }
     }
-  }, [selectedCategoryId, selectedMetalType, hasDiamondsValue, categories, form, isGoldCoinCategorySelected, isGoldMetalTypeSelected]);
+  }, [selectedCategoryId, selectedMetalType, form, categories, isGoldCoinScenario]);
+  
+  // Ensure diamondCharges is zero if hasDiamonds is false (this is an extra safeguard)
+  useEffect(() => {
+      if (!hasDiamondsValue && !isGoldCoinScenario) { // only apply if not gold coin scenario where it's already handled
+          form.setValue('diamondCharges', 0, { shouldValidate: true });
+      }
+  }, [hasDiamondsValue, form, isGoldCoinScenario]);
 
 
   const processFormData = (data: ProductFormData): Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'> => {
+    const isActualGoldCoinScenario = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
     return {
       ...data,
       karat: data.metalType === 'gold' ? data.karat : undefined,
-      diamondCharges: data.hasDiamonds ? data.diamondCharges : 0,
+      hasDiamonds: isActualGoldCoinScenario ? false : data.hasDiamonds,
+      diamondCharges: isActualGoldCoinScenario ? 0 : (data.hasDiamonds ? data.diamondCharges : 0),
+      wastagePercentage: isActualGoldCoinScenario ? 0 : data.wastagePercentage,
+      makingCharges: isActualGoldCoinScenario ? 0 : data.makingCharges,
+      stoneCharges: isActualGoldCoinScenario ? 0 : data.stoneCharges,
+      miscCharges: isActualGoldCoinScenario ? 0 : data.miscCharges,
     } as Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
   };
   
@@ -211,19 +224,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       if (newProduct) {
         toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added. You can add another product.` });
         
-        const isNextItemGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
+        const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
 
         form.reset({
           categoryId: data.categoryId, 
           metalType: data.metalType, 
           karat: data.metalType === 'gold' ? data.karat : undefined, 
           metalWeightG: 0, 
-          wastagePercentage: isNextItemGoldCoin ? 0 : 10, // Base default, useEffects will correct
-          makingCharges: isNextItemGoldCoin ? 0 : data.makingCharges, // Reset for gold coins, retain otherwise
+          wastagePercentage: isNextItemAlsoGoldCoin ? 0 : 10,
+          makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
           hasDiamonds: false,    
           diamondCharges: 0,
-          stoneCharges: isNextItemGoldCoin ? 0 : 0, // Reset, especially for gold coins
-          miscCharges: isNextItemGoldCoin ? 0 : 0,  // Reset, especially for gold coins
+          stoneCharges: isNextItemAlsoGoldCoin ? 0 : 0,
+          miscCharges: isNextItemAlsoGoldCoin ? 0 : 0,
           imageUrl: "",
         });
       } else {
@@ -342,7 +355,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                     control={form.control}
                     name="metalWeightG" 
                     render={({ field }) => ( 
-                        <FormItem>
+                        <FormItem className={selectedMetalType === 'gold' && !selectedKarat ? 'md:col-span-2' : ''}> {/* Span if Karat is not shown/relevant */}
                         <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Denomination / Weight (Gold Coins)</FormLabel>
                         <Select
                             value={currentDenominations.find(d => d.value === field.value)?.value.toString()}
@@ -372,7 +385,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 control={form.control}
                 name="metalWeightG"
                 render={({ field }) => (
-                    <FormItem className={selectedMetalType === 'gold' ? '' : 'md:col-span-2'}> {/* Span if Karat is not shown */}
+                    <FormItem className={selectedMetalType === 'gold' && !selectedKarat ? 'md:col-span-2' : (selectedMetalType !== 'gold' ? '' : '') }>
                     <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Metal Weight (grams)</FormLabel>
                     <FormControl>
                         <Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} />
@@ -383,106 +396,101 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 />
             )}
 
-             <FormField
-              control={form.control}
-              name="hasDiamonds"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 md:col-span-2">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      id="hasDiamonds"
-                      disabled={isGoldCoinCategorySelected && isGoldMetalTypeSelected} // Disable if it's a gold coin
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <Label htmlFor="hasDiamonds" className={`flex items-center cursor-pointer ${ (isGoldCoinCategorySelected && isGoldMetalTypeSelected) ? 'cursor-not-allowed opacity-70' : ''}`}>
-                      <Diamond className="mr-2 h-4 w-4 text-primary" />
-                      Product Contains Diamonds?
-                    </Label>
-                     <FormMessage />
-                  </div>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="wastagePercentage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Wastage (%)</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="0.1" placeholder="e.g., 10 or 0 for coins" {...field} 
-                           disabled={isGoldCoinCategorySelected && isGoldMetalTypeSelected && !hasDiamondsValue} // Disable for non-diamond gold coins
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="makingCharges"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Making Charges</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="1" placeholder="e.g., 5000" {...field} 
-                           disabled={isGoldCoinCategorySelected && isGoldMetalTypeSelected && !hasDiamondsValue} // Disable for non-diamond gold coins
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!isGoldCoinScenario && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="hasDiamonds"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 md:col-span-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          id="hasDiamonds"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <Label htmlFor="hasDiamonds" className="flex items-center cursor-pointer">
+                          <Diamond className="mr-2 h-4 w-4 text-primary" />
+                          Product Contains Diamonds?
+                        </Label>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="wastagePercentage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Wastage (%)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.1" placeholder="e.g., 10" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="makingCharges"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Making Charges</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="1" placeholder="e.g., 5000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {hasDiamondsValue && ( // Only show if hasDiamonds is true
-              <FormField
-                control={form.control}
-                name="diamondCharges"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Diamond Charges</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="1" placeholder="e.g., 50000" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                {hasDiamondsValue && (
+                  <FormField
+                    control={form.control}
+                    name="diamondCharges"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Diamond Charges</FormLabel>
+                        <FormControl>
+                          <Input type="number" step="1" placeholder="e.g., 50000" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
-              />
-            )}
 
-            <FormField
-              control={form.control}
-              name="stoneCharges"
-              render={({ field }) => (
-                <FormItem className={!hasDiamondsValue ? 'md:col-span-2' : ''}> {/* Span if diamond charges hidden */}
-                  <FormLabel>{hasDiamondsValue ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="1" placeholder="e.g., 15000" {...field} 
-                           disabled={isGoldCoinCategorySelected && isGoldMetalTypeSelected && !hasDiamondsValue} // Disable for non-diamond gold coins
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="miscCharges"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Miscellaneous Charges</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="1" placeholder="e.g., 250" {...field} 
-                           disabled={isGoldCoinCategorySelected && isGoldMetalTypeSelected && !hasDiamondsValue} // Disable for non-diamond gold coins
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="stoneCharges"
+                  render={({ field }) => (
+                    <FormItem className={!hasDiamondsValue ? 'md:col-span-2' : ''}>
+                      <FormLabel>{hasDiamondsValue ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="1" placeholder="e.g., 15000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="miscCharges"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Miscellaneous Charges</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="1" placeholder="e.g., 250" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
              <FormField
               control={form.control}
               name="imageUrl"

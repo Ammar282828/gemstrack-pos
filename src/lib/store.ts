@@ -6,7 +6,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { formatISO, subDays } from 'date-fns';
 
 // --- Helper Functions and Constants ---
-const DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL: KaratValue = '21k';
+const DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL: KaratValue = '21k'; // For internal fallback
+const GOLD_COIN_CATEGORY_ID_INTERNAL = 'cat017';
+
 
 function _parseKaratInternal(karat: KaratValue | string | undefined): number {
   const karatToUse = karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
@@ -27,6 +29,7 @@ function _parseKaratInternal(karat: KaratValue | string | undefined): number {
 
 function _calculateProductCostsInternal(
   product: {
+    categoryId?: string; // Add categoryId here
     name?: string;
     metalType: MetalType;
     karat?: KaratValue | string;
@@ -44,11 +47,16 @@ function _calculateProductCostsInternal(
   const currentMetalType = product.metalType || 'gold';
 
   const metalWeightG = Number(product.metalWeightG) || 0;
-  const wastagePercentage = Number(product.wastagePercentage) || 0;
-  const makingCharges = Number(product.makingCharges) || 0;
-  const diamondChargesValue = product.hasDiamonds ? (Number(product.diamondCharges) || 0) : 0;
-  const stoneChargesValue = Number(product.stoneCharges) || 0;
-  const miscChargesValue = Number(product.miscCharges) || 0;
+  
+  const isActualGoldCoin = product.categoryId === GOLD_COIN_CATEGORY_ID_INTERNAL && currentMetalType === 'gold';
+
+  const wastagePercentage = isActualGoldCoin ? 0 : (Number(product.wastagePercentage) || 0);
+  const makingCharges = isActualGoldCoin ? 0 : (Number(product.makingCharges) || 0);
+  const hasDiamondsValue = isActualGoldCoin ? false : product.hasDiamonds;
+  const diamondChargesValue = hasDiamondsValue ? (Number(product.diamondCharges) || 0) : 0;
+  const stoneChargesValue = isActualGoldCoin ? 0 : (Number(product.stoneCharges) || 0);
+  const miscChargesValue = isActualGoldCoin ? 0 : (Number(product.miscCharges) || 0);
+
 
   const goldRate24k = Number(rates.goldRatePerGram24k) || 0;
   const palladiumRate = Number(rates.palladiumRatePerGram) || 0;
@@ -80,7 +88,8 @@ function _calculateProductCostsInternal(
   if (isNaN(finalTotalPrice)) {
     console.error("[GemsTrack] _calculateProductCostsInternal produced NaN. Details:", {
         productInputName: product.name,
-        productProcessed: { metalWeightG, wastagePercentage, makingCharges, hasDiamonds: product.hasDiamonds, diamondChargesValue, stoneChargesValue, miscChargesValue, currentMetalType, karat: product.karat },
+        productCategoryId: product.categoryId,
+        productProcessed: { metalWeightG, wastagePercentage, makingCharges, hasDiamonds: hasDiamondsValue, diamondChargesValue, stoneChargesValue, miscChargesValue, currentMetalType, karat: product.karat },
         ratesInput: rates,
         ratesProcessed: { goldRate24k, palladiumRate, platinumRate },
         derivedCosts: { metalCost: validMetalCost, wastageCost: validWastageCost },
@@ -188,7 +197,7 @@ export interface Karigar {
   notes?: string;
 }
 
-// Define SKU Prefixes
+// --- SKU Prefixes ---
 const CATEGORY_SKU_PREFIXES: Record<string, string> = {
   'cat001': 'RIN', // Rings
   'cat002': 'TOP', // Tops
@@ -286,13 +295,13 @@ const initialProducts: Product[] = [
     'data-ai-hint': "gold chain" as any
   },
   {
-    sku: "RIN-000002", name: "Rings - RIN-000002", categoryId: "cat001", metalType: 'palladium',
+    sku: "RIN-000002", name: "Rings - RIN-000002", categoryId: "cat001", metalType: 'palladium', // No karat for palladium
     metalWeightG: 6.0, wastagePercentage: 10, makingCharges: 5000, hasDiamonds: false, diamondCharges: 0,
     stoneCharges: 10000, miscCharges: 300, imageUrl: "https://placehold.co/300x300.png?text=RIN-PD",
     'data-ai-hint': "palladium ring" as any
   },
    {
-    sku: "BND-000001", name: "Bands - BND-000001", categoryId: "cat009", metalType: 'platinum',
+    sku: "BND-000001", name: "Bands - BND-000001", categoryId: "cat009", metalType: 'platinum', // No karat for platinum
     metalWeightG: 7.5, wastagePercentage: 25, makingCharges: 6000, hasDiamonds: true, diamondCharges: 15000,
     stoneCharges: 0, miscCharges: 250, imageUrl: "https://placehold.co/300x300.png?text=BND-PT",
     'data-ai-hint': "platinum band" as any
@@ -305,13 +314,13 @@ const initialProducts: Product[] = [
   },
   {
     sku: "GCN-000001", name: "Gold Coins - GCN-000001", categoryId: "cat017", metalType: 'gold', karat: '24k',
-    metalWeightG: 11.6638, wastagePercentage: 0, makingCharges: 500, hasDiamonds: false, diamondCharges: 0,
+    metalWeightG: 11.6638, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0,
     stoneCharges: 0, miscCharges: 0, imageUrl: "https://placehold.co/300x300.png?text=GCN-1Tola",
     'data-ai-hint': "gold coin" as any
   },
   {
     sku: "GCN-000002", name: "Gold Coins - GCN-000002", categoryId: "cat017", metalType: 'gold', karat: '18k',
-    metalWeightG: 1.0, wastagePercentage: 0, makingCharges: 200, hasDiamonds: false, diamondCharges: 0,
+    metalWeightG: 1.0, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0,
     stoneCharges: 0, miscCharges: 0, imageUrl: "https://placehold.co/300x300.png?text=GCN-1g18k",
     'data-ai-hint': "gold coin" as any
   }
@@ -521,13 +530,11 @@ export const useAppStore = create<AppState>()(
     immer((set, get) => ({
       _hasHydrated: false,
       setHasHydrated: (hydrated) => {
-        console.log(`[GemsTrack] Store: setHasHydrated ACTION called with: ${hydrated}. Current _hasHydrated: ${get()._hasHydrated}`);
+        // console.log(`[GemsTrack] Store: setHasHydrated ACTION called with: ${hydrated}. Current _hasHydrated before: ${get()._hasHydrated}`);
         set((state) => {
           state._hasHydrated = hydrated;
         });
-        if (hydrated) {
-            console.log(`[GemsTrack] Store: _hasHydrated explicitly set to true`);
-        }
+        // console.log(`[GemsTrack] Store: _hasHydrated set. Current _hasHydrated after: ${get()._hasHydrated}`);
       },
       settings: initialSettings,
       categories: initialCategories,
@@ -588,12 +595,20 @@ export const useAppStore = create<AppState>()(
           const generatedSku = `${finalPrefix}-${newNum}`;
           const autoGeneratedName = `${category.title} - ${generatedSku}`;
 
-          const finalProductData = { ...productData };
+          const isActualGoldCoin = productData.categoryId === GOLD_COIN_CATEGORY_ID_INTERNAL && productData.metalType === 'gold';
+
+          const finalProductData = { 
+            ...productData,
+            hasDiamonds: isActualGoldCoin ? false : productData.hasDiamonds,
+            diamondCharges: isActualGoldCoin ? 0 : (productData.hasDiamonds ? productData.diamondCharges : 0),
+            wastagePercentage: isActualGoldCoin ? 0 : productData.wastagePercentage,
+            makingCharges: isActualGoldCoin ? 0 : productData.makingCharges,
+            stoneCharges: isActualGoldCoin ? 0 : productData.stoneCharges,
+            miscCharges: isActualGoldCoin ? 0 : productData.miscCharges,
+          };
+          
           if (finalProductData.metalType !== 'gold') {
             delete finalProductData.karat;
-          }
-          if (!finalProductData.hasDiamonds) {
-            finalProductData.diamondCharges = 0;
           }
 
 
@@ -610,18 +625,33 @@ export const useAppStore = create<AppState>()(
         set((state) => {
           const productIndex = state.products.findIndex((p) => p.sku === sku);
           if (productIndex !== -1) {
-            const safeUpdateFields = { ...updatedFields };
-            if (safeUpdateFields.hasDiamonds === false) {
-                safeUpdateFields.diamondCharges = 0;
-            }
-            if (safeUpdateFields.metalType !== 'gold' && 'karat' in safeUpdateFields) {
-                 delete safeUpdateFields.karat;
-            } else if (safeUpdateFields.metalType === 'gold' && !safeUpdateFields.karat) {
-                if (!('karat' in safeUpdateFields) && !state.products[productIndex].karat) {
-                    safeUpdateFields.karat = DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
+            const currentProduct = state.products[productIndex];
+            const isActualGoldCoin = updatedFields.categoryId === GOLD_COIN_CATEGORY_ID_INTERNAL && updatedFields.metalType === 'gold';
+
+            let finalUpdatedFields = { ...updatedFields };
+
+            if (isActualGoldCoin) {
+                finalUpdatedFields.hasDiamonds = false;
+                finalUpdatedFields.diamondCharges = 0;
+                finalUpdatedFields.wastagePercentage = 0;
+                finalUpdatedFields.makingCharges = 0;
+                finalUpdatedFields.stoneCharges = 0;
+                finalUpdatedFields.miscCharges = 0;
+            } else {
+                 if (updatedFields.hasDiamonds === false) {
+                    finalUpdatedFields.diamondCharges = 0;
+                }
+                if (updatedFields.metalType !== 'gold' && 'karat' in finalUpdatedFields) {
+                    delete finalUpdatedFields.karat;
+                } else if (updatedFields.metalType === 'gold' && !finalUpdatedFields.karat) {
+                     if (!('karat' in updatedFields) && !currentProduct.karat) {
+                         finalUpdatedFields.karat = DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
+                    }
                 }
             }
-            state.products[productIndex] = { ...state.products[productIndex], ...safeUpdateFields };
+
+
+            state.products[productIndex] = { ...currentProduct, ...finalUpdatedFields };
           }
         }, false, '[GemsTrack] Products: updateProduct'),
       deleteProduct: (sku) =>
@@ -758,6 +788,7 @@ export const useAppStore = create<AppState>()(
 
               const productForCostCalc = {
                 name: product.name,
+                categoryId: product.categoryId,
                 metalType: product.metalType,
                 karat: product.metalType === 'gold' ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL) : undefined,
                 metalWeightG: product.metalWeightG,
@@ -840,49 +871,47 @@ export const useAppStore = create<AppState>()(
       name: 'gemstrack-pos-storage',
       storage: createJSONStorage(() => {
         if (typeof window === 'undefined') {
-          console.log("[GemsTrack] Persist: Using SSR dummy storage.");
+          // console.log("[GemsTrack] Persist: Using SSR dummy storage.");
           return ssrDummyStorage;
         }
-        console.log("[GemsTrack] Persist: Using localStorage.");
+        // console.log("[GemsTrack] Persist: Using localStorage.");
         return localStorage;
       }),
-      onRehydrateStorage: () => {
-        console.log("[GemsTrack] Persist: onRehydrateStorage_OPTION_INVOKED.");
-        return (persistedState, error) => {
-          if (error) {
-            console.error('[GemsTrack] Persist: REHYDRATION_ERROR:', error);
-             queueMicrotask(() => {
-              useAppStore.getState().setHasHydrated(true); // Still set hydrated to true to unblock UI, even on error
-              console.log('[GemsTrack] Persist: SET_HAS_HYDRATED_TRUE (despite error) via queueMicrotask in onRehydrateStorage.');
-            });
+      onRehydrateStorage: () => (state, error) => {
+        // console.log("[GemsTrack] Persist: onRehydrateStorage_OPTION_INVOKED.");
+        if (error) {
+          console.error('[GemsTrack] Persist: REHYDRATION_ERROR:', error);
+        } else {
+          if (state) {
+            // console.log('[GemsTrack] Persist: REHYDRATION_SUCCESS_FROM_STORAGE.');
           } else {
-            if (persistedState) {
-              console.log('[GemsTrack] Persist: REHYDRATION_SUCCESS_FROM_STORAGE.');
-            } else {
-              console.log('[GemsTrack] Persist: NO_PERSISTED_STATE_USING_INITIAL.');
-            }
-            queueMicrotask(() => {
-              useAppStore.getState().setHasHydrated(true);
-              console.log('[GemsTrack] Persist: SET_HAS_HYDRATED_TRUE (success) via queueMicrotask in onRehydrateStorage.');
-            });
+            // console.log('[GemsTrack] Persist: NO_PERSISTED_STATE_USING_INITIAL.');
           }
-        };
+        }
+        // Always set hydrated, regardless of error, to unblock UI.
+        // The _hasHydrated flag in the store will be the source of truth.
+        queueMicrotask(() => {
+          useAppStore.getState().setHasHydrated(true);
+          // console.log(`[GemsTrack] Persist: SET_HAS_HYDRATED_TRUE (via queueMicrotask in onRehydrateStorage). _hasHydrated is now: ${useAppStore.getState()._hasHydrated}`);
+        });
       },
       partialize: (state) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      version: 5,
+      version: 6, // Incremented due to potential schema changes (e.g. new fields in Product)
     }
   )
 );
 
 // --- Exported Helper Functions ---
 export const DEFAULT_KARAT_VALUE_FOR_CALCULATION: KaratValue = DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
+export const GOLD_COIN_CATEGORY_ID: string = GOLD_COIN_CATEGORY_ID_INTERNAL;
+
 
 export function calculateProductCosts(
-  product: Omit<Product, 'sku' | 'categoryId' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & {
+  product: Omit<Product, 'sku' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & {
     categoryId?: string;
     name?: string;
   },
@@ -969,48 +998,44 @@ export const selectCartSubtotal = (state: AppState) => {
 };
 
 export const useIsStoreHydrated = () => {
-  const [isClientHydrated, setIsClientHydrated] = useState(false);
-  console.log(`[GemsTrack] useIsStoreHydrated: HOOK_RENDERING. Local isClientHydrated: ${isClientHydrated}`);
+  // Initialize state from the store's current _hasHydrated value
+  const [isClientHydrated, setIsClientHydrated] = useState(useAppStore.getState()._hasHydrated);
+  // console.log(`[GemsTrack] useIsStoreHydrated: HOOK_RENDERING. Initial isClientHydrated from store: ${isClientHydrated}`);
 
   useEffect(() => {
-    console.log("[GemsTrack] useIsStoreHydrated: useEffect mounted.");
+    // console.log("[GemsTrack] useIsStoreHydrated: useEffect mounted.");
 
-    // Check if store is already hydrated (e.g., by persist middleware)
-    const storeAlreadyHydrated = useAppStore.getState()._hasHydrated;
-    if (storeAlreadyHydrated) {
-      setIsClientHydrated(true);
-      console.log("[GemsTrack] useIsStoreHydrated: Store was already hydrated on mount. Local state set to true.");
-      return; // No need to subscribe if already hydrated on first pass
+    // Sync with store if it wasn't hydrated initially
+    if (!isClientHydrated) {
+      const currentStoreHydration = useAppStore.getState()._hasHydrated;
+      if (currentStoreHydration) {
+        setIsClientHydrated(true);
+        // console.log("[GemsTrack] useIsStoreHydrated: Synced with already hydrated store on mount.");
+        return; // No need to subscribe if already hydrated
+      }
     }
-
-    // If not hydrated on mount, subscribe to changes in _hasHydrated
+    
+    // Subscribe to future changes in _hasHydrated
     const unsubscribe = useAppStore.subscribe(
-      (state) => state._hasHydrated, // Selector: listen only to _hasHydrated changes
-      (newHydratedValue) => { // Listener: receives the new value of _hasHydrated
-        console.log(`[GemsTrack] useIsStoreHydrated: Subscription fired. Store _hasHydrated is now: ${newHydratedValue}`);
+      (state) => state._hasHydrated,
+      (newHydratedValue) => {
+        // console.log(`[GemsTrack] useIsStoreHydrated: Subscription fired. Store _hasHydrated is now: ${newHydratedValue}`);
         if (newHydratedValue) {
           setIsClientHydrated(true);
-          console.log("[GemsTrack] useIsStoreHydrated: Subscription - Set local isClientHydrated to true. Unsubscribing.");
-          unsubscribe(); // Unsubscribe once hydration is confirmed
+          // console.log("[GemsTrack] useIsStoreHydrated: Subscription - Set local isClientHydrated to true. Unsubscribing.");
+          unsubscribe(); // Unsubscribe once confirmed hydrated
         }
       }
     );
-    
-    // It's possible hydration completes between the initial check and setting up the subscription.
-    // Re-check to catch this.
-    if (useAppStore.getState()._hasHydrated) {
-        setIsClientHydrated(true);
-        console.log("[GemsTrack] useIsStoreHydrated: Store hydrated between initial check and subscription. Unsubscribing.");
-        unsubscribe();
-    }
 
+    // Cleanup subscription on unmount
     return () => {
-      console.log("[GemsTrack] useIsStoreHydrated: useEffect cleanup. Attempting to unsubscribe.");
+      // console.log("[GemsTrack] useIsStoreHydrated: useEffect cleanup. Unsubscribing.");
       unsubscribe();
     };
-  }, []); // Empty dependency array means this effect runs once on mount and cleans up on unmount
+  }, [isClientHydrated]); // Re-run effect if isClientHydrated changes (e.g. if initially false, then store hydrates)
 
-  console.log(`[GemsTrack] useIsStoreHydrated: HOOK_BEFORE_RETURN. Returning: ${isClientHydrated}`);
+  // console.log(`[GemsTrack] useIsStoreHydrated: HOOK_BEFORE_RETURN. Returning: ${isClientHydrated}`);
   return isClientHydrated;
 };
 
