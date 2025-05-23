@@ -1,19 +1,12 @@
 
 "use client";
 
-// Polyfill for structuredClone for older browsers like Safari
 if (typeof window !== 'undefined' && typeof window.structuredClone !== 'function') {
   console.log('[TaheriPOS] structuredClone not found. Applying basic polyfill.');
   window.structuredClone = function(value: any) {
-    if (value === undefined) {
-        return undefined;
-    }
-    try {
-      return JSON.parse(JSON.stringify(value));
-    } catch (e) {
-        console.error("TaheriPOS: structuredClone polyfill (JSON.parse(JSON.stringify)) failed:", e);
-        return value; 
-    }
+    if (value === undefined) { return undefined; }
+    try { return JSON.parse(JSON.stringify(value)); }
+    catch (e) { console.error("TaheriPOS: structuredClone polyfill failed:", e); return value; }
   };
 }
 
@@ -21,22 +14,15 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  SidebarProvider,
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarFooter,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarTrigger,
-  SidebarInset,
+  SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter,
+  SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useIsStoreHydrated } from '@/lib/store';
+import { useIsStoreHydrated, useAppStore } from '@/lib/store';
+import { useEffect } from 'react'; // Added useEffect for settings load
 
 interface NavItem {
   href: string;
@@ -58,11 +44,17 @@ const navItems: NavItem[] = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isHydrated = useIsStoreHydrated();
-  
-  console.log(`[GemsTrack] AppLayout: Rendering. Store hydrated from hook: ${isHydrated}`);
+  const isStoreHydrated = useIsStoreHydrated();
+  const loadSettings = useAppStore(state => state.loadSettings);
 
-  if (!isHydrated) {
+  useEffect(() => {
+    console.log("[GemsTrack] AppLayout: Attempting to load settings from Firestore on mount.");
+    loadSettings();
+  }, [loadSettings]);
+  
+  console.log(`[GemsTrack] AppLayout: Rendering. Store hydrated from hook: ${isStoreHydrated}`);
+
+  if (!isStoreHydrated) {
     console.log("[GemsTrack] AppLayout: Store NOT hydrated according to hook, rendering null for main content.");
     return null; 
   }
@@ -124,5 +116,4 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
-
     
