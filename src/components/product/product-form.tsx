@@ -20,7 +20,7 @@ import { Save, Ban, Diamond, Zap, Shield, Weight } from 'lucide-react';
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum'];
 
-const GOLD_COIN_CATEGORY_ID = 'cat017'; // Assuming 'cat017' is Gold Coins
+const GOLD_COIN_CATEGORY_ID = 'cat017'; 
 
 const goldCoinDenominations: Record<string, Array<{ label: string; value: number }>> = {
   '18k': [
@@ -47,7 +47,7 @@ const goldCoinDenominations: Record<string, Array<{ label: string; value: number
 const productFormSchemaBase = z.object({
   categoryId: z.string().min(1, "Category is required"),
   metalType: z.enum(metalTypeValues, { required_error: "Metal type is required" }),
-  metalWeightG: z.coerce.number().min(0, "Metal weight must be non-negative"),
+  metalWeightG: z.coerce.number().min(0.001, "Metal weight must be a positive number"), // Min weight slightly above 0
   wastagePercentage: z.coerce.number().min(0).max(100, "Wastage must be between 0 and 100"),
   makingCharges: z.coerce.number().min(0, "Making charges must be non-negative"),
   hasDiamonds: z.boolean().default(false),
@@ -118,50 +118,60 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   const selectedMetalType = form.watch('metalType');
   const selectedKarat = form.watch('karat');
 
-  const isGoldCoin = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
-  const showDenominationDropdown = isGoldCoin && (selectedKarat === '18k' || selectedKarat === '24k');
-  const currentDenominations = (isGoldCoin && selectedKarat && goldCoinDenominations[selectedKarat]) ? goldCoinDenominations[selectedKarat] : [];
+  const isGoldCoinCategorySelected = selectedCategoryId === GOLD_COIN_CATEGORY_ID;
+  const isGoldMetalTypeSelected = selectedMetalType === 'gold';
+  const showDenominationDropdown = isGoldCoinCategorySelected && isGoldMetalTypeSelected && (selectedKarat === '18k' || selectedKarat === '24k');
+  const currentDenominations = (showDenominationDropdown && selectedKarat && goldCoinDenominations[selectedKarat]) ? goldCoinDenominations[selectedKarat] : [];
 
 
   useEffect(() => {
     if (selectedMetalType !== 'gold') {
-      form.setValue('karat', undefined, { shouldValidate: true }); // Validate to clear potential error if karat was required
+      form.setValue('karat', undefined, { shouldValidate: true }); 
     } else if (selectedMetalType === 'gold' && !form.getValues('karat')) {
-      // If switching to gold and no karat is set, default to 21k or let validation handle it
       form.setValue('karat', '21k', {shouldValidate: true}); 
     }
-    // If category changes from gold coins or karat changes for gold coins, reset weight if it came from a denomination
-    if (!showDenominationDropdown && selectedCategoryId !== GOLD_COIN_CATEGORY_ID) {
-        // Could add logic here if needed, but metalWeightG is direct input anyway
-    }
+  }, [selectedMetalType, form]);
 
-  }, [selectedMetalType, selectedKarat, selectedCategoryId, form, showDenominationDropdown]);
-
+  // Effect for Gold Coin specific defaults
   useEffect(() => {
-    // This effect for wastage should run after metalType/karat might have changed
-    const category = categories.find(c => c.id === selectedCategoryId);
-    let defaultWastage = 10; // Default for "the rest"
+    if (isGoldCoinCategorySelected && isGoldMetalTypeSelected) {
+      // Set defaults for Gold Coins
+      form.setValue('hasDiamonds', false, { shouldValidate: true }); // Uncheck diamonds
+      // diamondCharges will be set to 0 by the effect below due to hasDiamonds being false
+      form.setValue('wastagePercentage', 0, { shouldValidate: true });
+      form.setValue('makingCharges', 0, { shouldValidate: true });
+      form.setValue('stoneCharges', 0, { shouldValidate: true });
+      form.setValue('miscCharges', 0, { shouldValidate: true });
+    }
+  }, [selectedCategoryId, selectedMetalType, form, isGoldCoinCategorySelected, isGoldMetalTypeSelected]);
 
-    if (hasDiamondsValue) {
+  // Effect for general wastage and diamond charges based on hasDiamonds and category (for non-gold coins)
+  useEffect(() => {
+    const isGoldCoinScenario = isGoldCoinCategorySelected && isGoldMetalTypeSelected;
+
+    if (!isGoldCoinScenario) { // Only apply this logic if NOT a gold coin scenario
+      let defaultWastage = 10;
+      if (hasDiamondsValue) {
         defaultWastage = 25;
-    } else if (category) {
-        const lowerCaseTitle = category.title.toLowerCase();
-        const fifteenPercentTriggers = ["chain", "bangle", "gold necklace set"];
-        if (fifteenPercentTriggers.some(trigger => lowerCaseTitle.includes(trigger))) {
+      } else {
+        const category = categories.find(c => c.id === selectedCategoryId);
+        if (category) {
+          const lowerCaseTitle = category.title.toLowerCase();
+          const fifteenPercentTriggers = ["chain", "bangle", "gold necklace set"];
+          if (fifteenPercentTriggers.some(trigger => lowerCaseTitle.includes(trigger))) {
             defaultWastage = 15;
+          }
         }
-        // Specific for Gold Coins - typically 0% wastage or very low, user can override
-        if (selectedCategoryId === GOLD_COIN_CATEGORY_ID) {
-            defaultWastage = product?.wastagePercentage ?? 0; // Default to 0 for new coins, or existing if editing
-        }
+      }
+      form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
     }
-    form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
 
+    // This part applies to all: if no diamonds, diamond charges are 0.
+    // For gold coins, hasDiamondsValue will be false due to the above effect, so this ensures diamondCharges is 0.
     if (!hasDiamondsValue) {
-        form.setValue('diamondCharges', 0, { shouldValidate: true });
+      form.setValue('diamondCharges', 0, { shouldValidate: true });
     }
-
-  }, [selectedCategoryId, hasDiamondsValue, categories, form, product?.wastagePercentage, selectedMetalType]);
+  }, [selectedCategoryId, selectedMetalType, hasDiamondsValue, categories, form, isGoldCoinCategorySelected, isGoldMetalTypeSelected]);
 
 
   const processFormData = (data: ProductFormData): Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'> => {
@@ -200,17 +210,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       const newProduct = addProduct(processedData);
       if (newProduct) {
         toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added. You can add another product.` });
+        
+        const isNextItemGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
+
         form.reset({
-          categoryId: data.categoryId, // Retain category
-          metalType: data.metalType, // Retain metal type
-          karat: data.metalType === 'gold' ? data.karat : undefined, // Retain karat if gold
-          metalWeightG: 0, // Reset weight
-          wastagePercentage: data.categoryId === GOLD_COIN_CATEGORY_ID ? 0 : 10, // Reset wastage (0 for coins, 10 for others, diamonds will override)
-          makingCharges: data.makingCharges, // Retain previous making charges
+          categoryId: data.categoryId, 
+          metalType: data.metalType, 
+          karat: data.metalType === 'gold' ? data.karat : undefined, 
+          metalWeightG: 0, 
+          wastagePercentage: isNextItemGoldCoin ? 0 : 10, // Base default, useEffects will correct
+          makingCharges: isNextItemGoldCoin ? 0 : data.makingCharges, // Reset for gold coins, retain otherwise
           hasDiamonds: false,    
           diamondCharges: 0,
-          stoneCharges: 0,
-          miscCharges: 0,
+          stoneCharges: isNextItemGoldCoin ? 0 : 0, // Reset, especially for gold coins
+          miscCharges: isNextItemGoldCoin ? 0 : 0,  // Reset, especially for gold coins
           imageUrl: "",
         });
       } else {
@@ -233,13 +246,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isEditMode && product && (
               <>
-                <FormItem>
+                <FormItem className="md:col-span-1">
                   <FormLabel>SKU (Read-only)</FormLabel>
                   <FormControl>
                     <Input value={product.sku} disabled className="bg-muted/50" />
                   </FormControl>
                 </FormItem>
-                <FormItem>
+                <FormItem className="md:col-span-1">
                   <FormLabel>Product Name (Auto-generated)</FormLabel>
                   <FormControl>
                     <Input value={product.name} disabled className="bg-muted/50" />
@@ -327,15 +340,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
             {showDenominationDropdown ? (
                  <FormField
                     control={form.control}
-                    name="metalWeightG" // This will still be updated by the Select's onChange
-                    render={({ field }) => ( // field here is for metalWeightG, but we use a Select to control it
+                    name="metalWeightG" 
+                    render={({ field }) => ( 
                         <FormItem>
                         <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Denomination / Weight (Gold Coins)</FormLabel>
                         <Select
-                            // Use a temporary value for the Select if field.value doesn't match any denomination value
-                            // Or, ensure field.value is always one of the denomination values when this dropdown is shown.
-                            // For simplicity, we'll rely on onValueChange to set the correct metalWeightG.
-                            // The `value` prop of Select should match one of the `SelectItem` `value` props.
                             value={currentDenominations.find(d => d.value === field.value)?.value.toString()}
                             onValueChange={(valStr) => {
                                 form.setValue('metalWeightG', parseFloat(valStr), { shouldValidate: true });
@@ -363,10 +372,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 control={form.control}
                 name="metalWeightG"
                 render={({ field }) => (
-                    <FormItem>
+                    <FormItem className={selectedMetalType === 'gold' ? '' : 'md:col-span-2'}> {/* Span if Karat is not shown */}
                     <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Metal Weight (grams)</FormLabel>
                     <FormControl>
-                        <Input type="number" step="0.01" placeholder="e.g., 5.75" {...field} />
+                        <Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -374,22 +383,21 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 />
             )}
 
-
              <FormField
               control={form.control}
               name="hasDiamonds"
               render={({ field }) => (
-                <FormItem className={`flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 ${selectedMetalType === 'gold' && (selectedKarat !== '18k' && selectedKarat !== '24k' || selectedCategoryId !== GOLD_COIN_CATEGORY_ID) ? '' : 'md:col-span-1' } ${(selectedMetalType !== 'gold' || selectedCategoryId === GOLD_COIN_CATEGORY_ID && (selectedKarat === '18k' || selectedKarat === '24k')) ? 'md:col-span-2' : '' }`}>
-                  {/* Conditional col-span to try and keep layout nice */}
+                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 md:col-span-2">
                   <FormControl>
                     <Checkbox
                       checked={field.value}
                       onCheckedChange={field.onChange}
                       id="hasDiamonds"
+                      disabled={isGoldCoinCategorySelected && isGoldMetalTypeSelected} // Disable if it's a gold coin
                     />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <Label htmlFor="hasDiamonds" className="flex items-center cursor-pointer">
+                    <Label htmlFor="hasDiamonds" className={`flex items-center cursor-pointer ${ (isGoldCoinCategorySelected && isGoldMetalTypeSelected) ? 'cursor-not-allowed opacity-70' : ''}`}>
                       <Diamond className="mr-2 h-4 w-4 text-primary" />
                       Product Contains Diamonds?
                     </Label>
@@ -405,7 +413,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 <FormItem>
                   <FormLabel>Wastage (%)</FormLabel>
                   <FormControl>
-                    <Input type="number" step="0.1" placeholder="e.g., 10 or 0 for coins" {...field} />
+                    <Input type="number" step="0.1" placeholder="e.g., 10 or 0 for coins" {...field} 
+                           disabled={isGoldCoinCategorySelected && isGoldMetalTypeSelected && !hasDiamondsValue} // Disable for non-diamond gold coins
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -418,14 +428,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 <FormItem>
                   <FormLabel>Making Charges</FormLabel>
                   <FormControl>
-                    <Input type="number" step="1" placeholder="e.g., 5000" {...field} />
+                    <Input type="number" step="1" placeholder="e.g., 5000" {...field} 
+                           disabled={isGoldCoinCategorySelected && isGoldMetalTypeSelected && !hasDiamondsValue} // Disable for non-diamond gold coins
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {hasDiamondsValue && (
+            {hasDiamondsValue && ( // Only show if hasDiamonds is true
               <FormField
                 control={form.control}
                 name="diamondCharges"
@@ -445,10 +457,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               control={form.control}
               name="stoneCharges"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className={!hasDiamondsValue ? 'md:col-span-2' : ''}> {/* Span if diamond charges hidden */}
                   <FormLabel>{hasDiamondsValue ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
                   <FormControl>
-                    <Input type="number" step="1" placeholder="e.g., 15000" {...field} />
+                    <Input type="number" step="1" placeholder="e.g., 15000" {...field} 
+                           disabled={isGoldCoinCategorySelected && isGoldMetalTypeSelected && !hasDiamondsValue} // Disable for non-diamond gold coins
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -461,7 +475,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 <FormItem>
                   <FormLabel>Miscellaneous Charges</FormLabel>
                   <FormControl>
-                    <Input type="number" step="1" placeholder="e.g., 250" {...field} />
+                    <Input type="number" step="1" placeholder="e.g., 250" {...field} 
+                           disabled={isGoldCoinCategorySelected && isGoldMetalTypeSelected && !hasDiamondsValue} // Disable for non-diamond gold coins
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
