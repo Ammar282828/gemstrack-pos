@@ -1,14 +1,14 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { useAppStore, Karigar, useIsStoreHydrated } from '@/lib/store';
+import { useAppStore, Karigar, useAppReady } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Edit3, Trash2, Briefcase, Phone, StickyNote } from 'lucide-react';
+import { Search, PlusCircle, Edit3, Trash2, Briefcase, Phone, StickyNote, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 
-const KarigarRow: React.FC<{ karigar: Karigar; onDelete: (id: string) => void }> = ({ karigar, onDelete }) => {
+const KarigarRow: React.FC<{ karigar: Karigar; onDelete: (id: string) => Promise<void> }> = ({ karigar, onDelete }) => {
   return (
     <TableRow>
       <TableCell>
@@ -55,7 +55,7 @@ const KarigarRow: React.FC<{ karigar: Karigar; onDelete: (id: string) => void }>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => onDelete(karigar.id)}>Delete</AlertDialogAction>
+                <AlertDialogAction onClick={async () => await onDelete(karigar.id)}>Delete</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -69,28 +69,30 @@ const KarigarRow: React.FC<{ karigar: Karigar; onDelete: (id: string) => void }>
 export default function KarigarsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
   const karigars = useAppStore(state => state.karigars);
   const deleteKarigarAction = useAppStore(state => state.deleteKarigar);
+  const isKarigarsLoading = useAppStore(state => state.isKarigarsLoading);
   const { toast } = useToast();
 
-  const handleDeleteKarigar = (id: string) => {
-    deleteKarigarAction(id);
+  const handleDeleteKarigar = async (id: string) => {
+    await deleteKarigarAction(id);
     toast({ title: "Karigar Deleted", description: `Karigar has been deleted.` });
   };
 
   const filteredKarigars = useMemo(() => {
-    if (!isHydrated) return [];
+    if (!appReady) return [];
     return karigars.filter(karigar =>
       karigar.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (karigar.contact && karigar.contact.includes(searchTerm))
     );
-  }, [karigars, searchTerm, isHydrated]);
+  }, [karigars, searchTerm, appReady]);
 
-  if (!isHydrated) {
+  if (!appReady && isKarigarsLoading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <p className="text-center text-muted-foreground">Loading karigars...</p>
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading karigars...</p>
       </div>
     );
   }
@@ -125,7 +127,12 @@ export default function KarigarsPage() {
         </CardContent>
       </Card>
 
-      {filteredKarigars.length > 0 ? (
+      {isKarigarsLoading && appReady ? (
+         <div className="text-center py-12">
+            <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
+            <p className="text-muted-foreground">Refreshing karigar list...</p>
+         </div>
+      ) : filteredKarigars.length > 0 ? (
         <Card>
           <Table>
             <TableHeader>
@@ -156,3 +163,4 @@ export default function KarigarsPage() {
   );
 }
 
+    

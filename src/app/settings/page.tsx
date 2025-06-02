@@ -5,7 +5,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings } from '@/lib/store';
+import { useAppStore, Settings, useAppReady } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,8 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText } from 'lucide-react';
-import { useIsStoreHydrated } from '@/lib/store';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2 } from 'lucide-react';
 
 const settingsSchema = z.object({
   goldRatePerGram: z.coerce.number().min(0, "Gold rate must be a positive number"),
@@ -31,29 +30,39 @@ type SettingsFormData = z.infer<typeof settingsSchema>;
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
   const currentSettings = useAppStore(state => state.settings);
-  const updateSettings = useAppStore(state => state.updateSettings);
+  const updateSettingsAction = useAppStore(state => state.updateSettings);
+  const isSettingsLoading = useAppStore(state => state.isSettingsLoading);
 
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
-    defaultValues: currentSettings,
+    // Default values will be set by useEffect once currentSettings are confirmed loaded
   });
 
   React.useEffect(() => {
-    if (isHydrated) {
+    if (appReady && currentSettings) { // Ensure settings are loaded before resetting form
       form.reset(currentSettings);
     }
-  }, [currentSettings, form, isHydrated]);
+  }, [currentSettings, form, appReady]);
 
 
-  const onSubmit = (data: SettingsFormData) => {
-    updateSettings(data);
-    toast({ title: "Settings Updated", description: "Your shop settings have been saved." });
+  const onSubmit = async (data: SettingsFormData) => {
+    try {
+        await updateSettingsAction(data);
+        toast({ title: "Settings Updated", description: "Your shop settings have been saved." });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to update settings.", variant: "destructive" });
+    }
   };
 
-  if (!isHydrated) {
-    return <div className="container mx-auto p-4"><p>Loading settings...</p></div>;
+  if (!appReady || (isSettingsLoading && !form.formState.isDirty) ) { // Show loader if app not ready OR settings are loading and form hasn't been touched
+    return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading settings...</p>
+      </div>
+    );
   }
 
   return (
@@ -203,8 +212,9 @@ export default function SettingsPage() {
               />
             </CardContent>
             <CardFooter>
-              <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
-                <Save className="mr-2 h-5 w-5" /> Save Settings
+              <Button type="submit" size="lg" disabled={form.formState.isSubmitting || isSettingsLoading}>
+                {form.formState.isSubmitting || (isSettingsLoading && !appReady) ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" /> }
+                Save Settings
               </Button>
             </CardFooter>
           </Card>
@@ -214,3 +224,4 @@ export default function SettingsPage() {
   );
 }
 
+    

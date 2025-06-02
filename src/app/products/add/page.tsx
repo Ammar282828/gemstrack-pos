@@ -1,13 +1,20 @@
+
 "use client";
 
 import { ProductForm } from '@/components/product/product-form';
-import { useIsStoreHydrated } from '@/lib/store';
+import { useAppReady } from '@/lib/store';
+import { Loader2 } from 'lucide-react';
 
 export default function AddProductPage() {
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
 
-  if (!isHydrated) {
-    return <div className="container mx-auto p-4"><p>Loading form...</p></div>;
+  if (!appReady) {
+     return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading form...</p>
+      </div>
+    );
   }
 
   return (
@@ -16,3 +23,5 @@ export default function AddProductPage() {
     </div>
   );
 }
+
+    

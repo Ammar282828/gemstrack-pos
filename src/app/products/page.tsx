@@ -1,15 +1,15 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAppStore, selectAllProductsWithCosts, selectCategoryTitleById, Product } from '@/lib/store';
+import { useAppStore, selectAllProductsWithCosts, selectCategoryTitleById, Product, useAppReady } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shapes, Search, Tag, Weight, PlusCircle, Eye, Edit3, Trash2, ShoppingCart } from 'lucide-react';
+import { Shapes, Search, Tag, Weight, PlusCircle, Eye, Edit3, Trash2, ShoppingCart, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,11 +22,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { useIsStoreHydrated } from '@/lib/store';
 
 type ProductWithCosts = ReturnType<typeof selectAllProductsWithCosts>[0];
 
-const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: string, onDelete: (sku: string) => void }> = ({ product, categoryTitle, onDelete }) => {
+const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: string, onDelete: (sku: string) => Promise<void> }> = ({ product, categoryTitle, onDelete }) => {
   const { addToCart } = useAppStore();
   const { toast } = useToast();
 
@@ -98,7 +97,7 @@ const ProductListItem: React.FC<{ product: ProductWithCosts, categoryTitle: stri
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => onDelete(product.sku)}>Delete</AlertDialogAction>
+                <AlertDialogAction onClick={async () => await onDelete(product.sku)}>Delete</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
             </AlertDialog>
@@ -112,24 +111,26 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
   const products = useAppStore(selectAllProductsWithCosts);
-  const categories = useAppStore(state => state.categories);
+  const categories = useAppStore(state => state.categories); // Categories are local
+  const deleteProductAction = useAppStore(state => state.deleteProduct);
+  const isProductsLoading = useAppStore(state => state.isProductsLoading);
+
+  const { toast } = useToast();
+
   const getCategoryTitle = (categoryId: string) => {
-    if (!isHydrated) return 'Loading...'; // Or handle appropriately
     const category = categories.find(c => c.id === categoryId);
     return category ? category.title : 'Uncategorized';
   };
-  const deleteProductAction = useAppStore(state => state.deleteProduct);
-  const { toast } = useToast();
-
-  const handleDeleteProduct = (sku: string) => {
-    deleteProductAction(sku);
+  
+  const handleDeleteProduct = async (sku: string) => {
+    await deleteProductAction(sku);
     toast({ title: "Product Deleted", description: `Product with SKU ${sku} has been deleted.` });
   };
 
   const filteredProducts = useMemo(() => {
-    if (!isHydrated) return [];
+    if (!appReady) return [];
     return products
       .filter(product =>
         selectedCategory ? product.categoryId === selectedCategory : true
@@ -138,12 +139,13 @@ export default function ProductsPage() {
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.sku.toLowerCase().includes(searchTerm.toLowerCase())
       );
-  }, [products, selectedCategory, searchTerm, isHydrated]);
+  }, [products, selectedCategory, searchTerm, appReady]);
 
-  if (!isHydrated) {
+  if (!appReady && isProductsLoading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <p className="text-center text-muted-foreground">Loading products...</p>
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading products...</p>
       </div>
     );
   }
@@ -202,7 +204,12 @@ export default function ProductsPage() {
         </CardContent>
       </Card>
 
-      {filteredProducts.length > 0 ? (
+      {isProductsLoading && appReady ? (
+         <div className="text-center py-12">
+            <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
+            <p className="text-muted-foreground">Refreshing product list...</p>
+         </div>
+      ): filteredProducts.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredProducts.map((product) => (
             <ProductListItem key={product.sku} product={product} categoryTitle={getCategoryTitle(product.categoryId)} onDelete={handleDeleteProduct} />
@@ -221,3 +228,4 @@ export default function ProductsPage() {
   );
 }
 
+    

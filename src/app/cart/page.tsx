@@ -4,18 +4,17 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, useAppReady } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import { useIsStoreHydrated } from '@/lib/store';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -33,12 +32,13 @@ export default function CartPage() {
   console.log("[GemsTrack] CartPage: Rendering START");
   const { toast } = useToast();
 
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
   const cartItems = useAppStore(selectCartDetails);
   const cartSubtotal = useAppStore(selectCartSubtotal);
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
   const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction } = useAppStore();
+  const products = useAppStore(state => state.products); // Needed for invoice generation logic
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
@@ -47,18 +47,18 @@ export default function CartPage() {
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
 
   useEffect(() => {
-    if (isHydrated && settings && typeof settings.goldRatePerGram === 'number') {
+    if (appReady && settings && typeof settings.goldRatePerGram === 'number') {
       setInvoiceGoldRateInput(settings.goldRatePerGram.toString());
-    } else if (isHydrated) {
+    } else if (appReady) {
       console.warn("[GemsTrack] CartPage: Could not set initial invoiceGoldRateInput because settings or goldRatePerGram was missing/invalid.", settings);
       setInvoiceGoldRateInput("0"); // Fallback to 0 if settings are not ready
     }
-  }, [isHydrated, settings]);
+  }, [appReady, settings]);
 
   const cartContainsNonGoldItems = cartItems.some(item => item.metalType !== 'gold');
 
 
-  const handleGenerateInvoice = () => {
+  const handleGenerateInvoice = async () => {
     if (cartItems.length === 0) {
       toast({ title: "Cart Empty", description: "Cannot generate invoice for an empty cart.", variant: "destructive" });
       return;
@@ -79,14 +79,13 @@ export default function CartPage() {
 
     let currentSubtotalForValidation = 0;
     cartItems.forEach(item => {
-        const productFromStore = useAppStore.getState().products.find(p => p.sku === item.sku);
+        const productFromStore = products.find(p => p.sku === item.sku);
         if (productFromStore) {
             const ratesForCalc = {
                 goldRatePerGram24k: item.metalType === 'gold' ? parsedGoldRate : (settings?.goldRatePerGram || 0),
                 palladiumRatePerGram: settings?.palladiumRatePerGram || 0,
                 platinumRatePerGram: settings?.platinumRatePerGram || 0,
             };
-            // Directly use the imported calculateProductCosts function
             const costs = calculateProductCosts(productFromStore, ratesForCalc);
             currentSubtotalForValidation += costs.totalPrice * item.quantity;
         }
@@ -97,7 +96,7 @@ export default function CartPage() {
         return;
     }
 
-    const invoice = generateInvoiceAction(selectedCustomerId, parsedGoldRate, parsedDiscountAmount);
+    const invoice = await generateInvoiceAction(selectedCustomerId, parsedGoldRate, parsedDiscountAmount);
     if (invoice) {
       setGeneratedInvoice(invoice);
       toast({ title: "Invoice Generated", description: `Invoice ${invoice.id} created successfully.` });
@@ -241,11 +240,12 @@ export default function CartPage() {
   }
 
 
-  if (!isHydrated) {
-    console.log("[GemsTrack] CartPage: Not hydrated, rendering loading message.");
+  if (!appReady) {
+    console.log("[GemsTrack] CartPage: App not ready, rendering loading message.");
     return (
-      <div className="container mx-auto py-8 px-4">
-        <p className="text-center text-muted-foreground">Loading cart...</p>
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading cart...</p>
       </div>
     );
   }
@@ -326,7 +326,7 @@ export default function CartPage() {
     );
   }
 
-  console.log("[GemsTrack] CartPage: About to return main cart view JSX. isHydrated:", isHydrated, "GeneratedInvoice exists:", !!generatedInvoice);
+  console.log("[GemsTrack] CartPage: About to return main cart view JSX. appReady:", appReady, "GeneratedInvoice exists:", !!generatedInvoice);
   return (
     <div className="container mx-auto py-8 px-4">
       <header className="mb-8">
@@ -507,3 +507,4 @@ export default function CartPage() {
   );
 }
 
+    

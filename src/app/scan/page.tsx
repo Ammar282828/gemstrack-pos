@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal, Product } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal, Product, useAppReady } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,9 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { QrCode, X, VideoOff, ShoppingCart, Trash2, ExternalLink, ListPlus, ScanLine } from 'lucide-react';
+import { QrCode, X, VideoOff, ShoppingCart, Trash2, ExternalLink, ListPlus, ScanLine, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useIsStoreHydrated } from '@/lib/store';
 import {
   Html5QrcodeScanner,
   Html5QrcodeScanType,
@@ -52,9 +51,13 @@ const ScannedItemDisplay: React.FC<{ item: NonNullable<ReturnType<typeof selectC
 export default function ScanPOSPage() {
   const { toast } = useToast();
   const [skuInput, setSkuInput] = useState('');
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
 
-  const { addToCart, removeFromCart: removeFromCartAction } = useAppStore();
+  const { addToCart, removeFromCart: removeFromCartAction, products } = useAppStore(state => ({
+      addToCart: state.addToCart,
+      removeFromCart: state.removeFromCart,
+      products: state.products
+  }));
   const cartItems = useAppStore(selectCartDetails);
   const cartSubtotal = useAppStore(selectCartSubtotal);
 
@@ -67,21 +70,19 @@ export default function ScanPOSPage() {
   }, []);
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback(async (decodedText, decodedResult) => {
-    const allProducts = useAppStore.getState().products;
-    const product = allProducts.find(p => p.sku === decodedText.trim());
+    const product = products.find(p => p.sku === decodedText.trim());
 
     if (product) {
       addToCart(product.sku);
       toast({ title: "Item Added", description: `${product.name} added to cart.` });
-      // Scanner remains active for continuous scanning
     } else {
       toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
     }
-  }, [addToCart, toast]);
+  }, [addToCart, toast, products]);
 
 
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!appReady) return; // Don't initialize scanner until app data (products) is ready
 
     if (isScannerActive) {
       const containerElement = document.getElementById(qrReaderElementId);
@@ -90,12 +91,10 @@ export default function ScanPOSPage() {
         setHasCameraPermission(false);
         return;
       }
-      // Explicitly empty the container before rendering a new scanner.
       while (containerElement.firstChild) {
         containerElement.removeChild(containerElement.firstChild);
       }
 
-      // Only create a new scanner if one doesn't exist or if it's explicitly being re-activated
       if (!html5QrcodeScannerRef.current) {
         const newScanner = new Html5QrcodeScanner(
           qrReaderElementId,
@@ -110,7 +109,7 @@ export default function ScanPOSPage() {
             supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
             formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
           },
-          false // verbose
+          false 
         );
 
         try {
@@ -128,7 +127,7 @@ export default function ScanPOSPage() {
           html5QrcodeScannerRef.current = null;
         }
       }
-    } else { // If isScannerActive is false
+    } else { 
       if (html5QrcodeScannerRef.current) {
         const scannerToClear = html5QrcodeScannerRef.current;
         html5QrcodeScannerRef.current = null; 
@@ -159,15 +158,14 @@ export default function ScanPOSPage() {
         }
       }
     };
-  }, [isHydrated, isScannerActive, onScanSuccess, onScanFailure]);
+  }, [appReady, isScannerActive, onScanSuccess, onScanFailure]);
 
   const handleManualSkuAdd = () => {
     if (!skuInput.trim()) {
       toast({ title: "Input SKU", description: "Please enter a SKU to add.", variant: "destructive" });
       return;
     }
-    const allProducts = useAppStore.getState().products;
-    const product = allProducts.find(p => p.sku === skuInput.trim());
+    const product = products.find(p => p.sku === skuInput.trim());
 
     if (product) {
       addToCart(product.sku);
@@ -182,10 +180,11 @@ export default function ScanPOSPage() {
     setIsScannerActive(prev => !prev);
   };
 
-  if (!isHydrated) {
+  if (!appReady) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <p className="text-center text-muted-foreground">Loading POS Scanner...</p>
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading POS Scanner...</p>
       </div>
     );
   }
@@ -307,4 +306,5 @@ export default function ScanPOSPage() {
     </div>
   );
 }
+
     

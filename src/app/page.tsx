@@ -3,11 +3,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal, useAppReady } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, ShoppingCart, Trash2, ExternalLink, QrCode } from 'lucide-react';
-import { useIsStoreHydrated } from '@/lib/store';
+import { PlusCircle, ShoppingCart, Trash2, ExternalLink, QrCode, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
@@ -36,16 +35,17 @@ const CartSummaryItem: React.FC<{ item: NonNullable<ReturnType<typeof selectCart
 
 
 export default function HomePage() {
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
   const cartItems = useAppStore(selectCartDetails);
   const cartSubtotal = useAppStore(selectCartSubtotal);
   const { removeFromCart: removeFromCartAction } = useAppStore();
 
 
-  if (!isHydrated) {
+  if (!appReady) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <p className="text-center text-muted-foreground">Loading POS...</p>
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading POS...</p>
       </div>
     );
   }
@@ -129,3 +129,4 @@ export default function HomePage() {
   );
 }
 
+    

@@ -1,20 +1,28 @@
+
 "use client";
 
 import { useParams } from 'next/navigation';
-import { useAppStore, Customer, useIsStoreHydrated } from '@/lib/store';
+import { useAppStore, Customer, useAppReady } from '@/lib/store';
 import { CustomerForm } from '@/components/customer/customer-form';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 export default function EditCustomerPage() {
   const params = useParams();
   const customerId = params.id as string;
   
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
   const customer = useAppStore(state => state.customers.find(c => c.id === customerId));
+  const isCustomersLoading = useAppStore(state => state.isCustomersLoading);
 
-  if (!isHydrated) {
-    return <div className="container mx-auto p-4"><p>Loading customer data...</p></div>;
+  if (!appReady || (isCustomersLoading && !customer) ) {
+    return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading customer data...</p>
+      </div>
+    );
   }
 
   if (!customer) {
@@ -35,3 +43,5 @@ export default function EditCustomerPage() {
     </div>
   );
 }
+
+    

@@ -1,20 +1,28 @@
+
 "use client";
 
 import { useParams } from 'next/navigation';
-import { useAppStore, Product, useIsStoreHydrated } from '@/lib/store';
+import { useAppStore, Product, useAppReady } from '@/lib/store';
 import { ProductForm } from '@/components/product/product-form';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 export default function EditProductPage() {
   const params = useParams();
   const sku = params.sku as string;
   
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
   const product = useAppStore(state => state.products.find(p => p.sku === sku));
+  const isProductsLoading = useAppStore(state => state.isProductsLoading);
 
-  if (!isHydrated) {
-    return <div className="container mx-auto p-4"><p>Loading product data...</p></div>;
+  if (!appReady || (isProductsLoading && !product)) {
+    return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading product data...</p>
+      </div>
+    );
   }
 
   if (!product) {
@@ -35,3 +43,5 @@ export default function EditProductPage() {
     </div>
   );
 }
+
+    

@@ -19,10 +19,10 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase } from 'lucide-react';
+import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useIsStoreHydrated, useAppStore } from '@/lib/store';
-import { useEffect } from 'react'; // Added useEffect for settings load
+import { useZustandRehydrated, useAppReady, useAppStore } from '@/lib/store';
+import { useEffect } from 'react';
 
 interface NavItem {
   href: string;
@@ -44,22 +44,39 @@ const navItems: NavItem[] = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isStoreHydrated = useIsStoreHydrated();
-  const loadSettings = useAppStore(state => state.loadSettings);
+  const zustandRehydrated = useZustandRehydrated();
+  const appReady = useAppReady();
+  const fetchAllInitialData = useAppStore(state => state.fetchAllInitialData);
+  const isInitialDataLoadedFromFirestore = useAppStore(state => state.isInitialDataLoadedFromFirestore);
+
 
   useEffect(() => {
-    console.log("[GemsTrack] AppLayout: Attempting to load settings from Firestore on mount.");
-    loadSettings();
-  }, [loadSettings]);
+    if (zustandRehydrated && !isInitialDataLoadedFromFirestore) {
+      console.log("[GemsTrack] AppLayout: Zustand rehydrated, store not yet fully loaded from Firestore. Fetching all initial data.");
+      fetchAllInitialData();
+    } else if (zustandRehydrated && isInitialDataLoadedFromFirestore) {
+        console.log("[GemsTrack] AppLayout: Zustand rehydrated AND Firestore data already loaded.");
+    } else if (!zustandRehydrated) {
+        console.log("[GemsTrack] AppLayout: Zustand not yet rehydrated.");
+    }
+  }, [zustandRehydrated, isInitialDataLoadedFromFirestore, fetchAllInitialData]);
   
-  console.log(`[GemsTrack] AppLayout: Rendering. Store hydrated from hook: ${isStoreHydrated}`);
-
-  if (!isStoreHydrated) {
-    console.log("[GemsTrack] AppLayout: Store NOT hydrated according to hook, rendering null for main content.");
+  if (!zustandRehydrated) {
+    console.log("[GemsTrack] AppLayout: Zustand not rehydrated, rendering null.");
     return null; 
   }
   
-  console.log("[GemsTrack] AppLayout: Store IS hydrated, rendering layout.");
+  if (!appReady) {
+    console.log("[GemsTrack] AppLayout: App not ready (Firestore data not loaded), rendering global loader.");
+    return (
+        <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mr-3" />
+            <p className="text-xl">Loading application data...</p>
+        </div>
+    );
+  }
+  
+  console.log("[GemsTrack] AppLayout: Store IS hydrated AND app is ready, rendering layout.");
   return (
     <SidebarProvider defaultOpen={true}>
       <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
@@ -116,4 +133,5 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
     

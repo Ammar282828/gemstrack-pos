@@ -2,20 +2,27 @@
 "use client";
 
 import { useParams } from 'next/navigation';
-import { useAppStore, Karigar, useIsStoreHydrated } from '@/lib/store';
+import { useAppStore, Karigar, useAppReady } from '@/lib/store';
 import { KarigarForm } from '@/components/karigar/karigar-form';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 
 export default function EditKarigarPage() {
   const params = useParams();
   const karigarId = params.id as string;
   
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
   const karigar = useAppStore(state => state.karigars.find(k => k.id === karigarId));
+  const isKarigarsLoading = useAppStore(state => state.isKarigarsLoading);
 
-  if (!isHydrated) {
-    return <div className="container mx-auto p-4"><p>Loading karigar data...</p></div>;
+  if (!appReady || (isKarigarsLoading && !karigar)) {
+     return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading karigar data...</p>
+      </div>
+    );
   }
 
   if (!karigar) {
@@ -36,3 +43,5 @@ export default function EditKarigarPage() {
     </div>
   );
 }
+
+    

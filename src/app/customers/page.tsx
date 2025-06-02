@@ -1,14 +1,14 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { useAppStore, Customer } from '@/lib/store';
+import { useAppStore, Customer, useAppReady } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users } from 'lucide-react'; // Added Users import
+import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,9 +21,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { useIsStoreHydrated } from '@/lib/store';
 
-const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => void }> = ({ customer, onDelete }) => {
+const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void> }> = ({ customer, onDelete }) => {
   return (
     <TableRow>
       <TableCell>
@@ -56,7 +55,7 @@ const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => void
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => onDelete(customer.id)}>Delete</AlertDialogAction>
+                <AlertDialogAction onClick={async () => await onDelete(customer.id)}>Delete</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -70,29 +69,31 @@ const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => void
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
   const customers = useAppStore(state => state.customers);
   const deleteCustomerAction = useAppStore(state => state.deleteCustomer);
+  const isCustomersLoading = useAppStore(state => state.isCustomersLoading);
   const { toast } = useToast();
 
-  const handleDeleteCustomer = (id: string) => {
-    deleteCustomerAction(id);
+  const handleDeleteCustomer = async (id: string) => {
+    await deleteCustomerAction(id);
     toast({ title: "Customer Deleted", description: `Customer has been deleted.` });
   };
 
   const filteredCustomers = useMemo(() => {
-    if (!isHydrated) return [];
+    if (!appReady) return [];
     return customers.filter(customer =>
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (customer.phone && customer.phone.includes(searchTerm)) ||
       (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-  }, [customers, searchTerm, isHydrated]);
+  }, [customers, searchTerm, appReady]);
 
-  if (!isHydrated) {
+  if (!appReady && isCustomersLoading) { // Show loader if app isn't fully ready but this specific data is loading
     return (
-      <div className="container mx-auto py-8 px-4">
-        <p className="text-center text-muted-foreground">Loading customers...</p>
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading customers...</p>
       </div>
     );
   }
@@ -127,7 +128,12 @@ export default function CustomersPage() {
         </CardContent>
       </Card>
 
-      {filteredCustomers.length > 0 ? (
+      {isCustomersLoading && appReady ? (
+         <div className="text-center py-12">
+            <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
+            <p className="text-muted-foreground">Refreshing customer list...</p>
+         </div>
+      ) : filteredCustomers.length > 0 ? (
         <Card>
           <Table>
             <TableHeader>
@@ -158,3 +164,5 @@ export default function CustomersPage() {
     </div>
   );
 }
+
+    

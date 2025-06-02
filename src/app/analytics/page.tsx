@@ -1,15 +1,15 @@
 
 "use client";
 
-import React, { useMemo, useState } from 'react';
-import { useAppStore, Invoice, Product, Category, Customer, useIsStoreHydrated } from '@/lib/store';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useAppStore, Invoice, Product, Category, Customer, useAppReady } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { format, parseISO, startOfDay, subDays, isWithinInterval } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2 } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 
 // Helper types for chart data
@@ -20,11 +20,15 @@ type TopCustomerData = { customerId?: string; customerName: string; totalSpent: 
 
 
 export default function AnalyticsPage() {
-  const isHydrated = useIsStoreHydrated();
+  const appReady = useAppReady();
   const allInvoices = useAppStore(state => state.generatedInvoices);
   const products = useAppStore(state => state.products);
   const categories = useAppStore(state => state.categories);
   const customers = useAppStore(state => state.customers);
+  const isLoading = useAppStore(state => 
+    state.isInvoicesLoading || state.isProductsLoading || state.isCustomersLoading
+  );
+
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 29), // Default to last 30 days
@@ -32,19 +36,19 @@ export default function AnalyticsPage() {
   });
 
   const filteredInvoices = useMemo(() => {
-    if (!isHydrated) return [];
-    if (!dateRange || !dateRange.from) return allInvoices; // Return all if no date range selected
+    if (!appReady) return [];
+    if (!dateRange || !dateRange.from) return allInvoices; 
 
     return allInvoices.filter(invoice => {
       const invoiceDate = parseISO(invoice.createdAt);
-      const toDate = dateRange.to ? startOfDay(dateRange.to) : startOfDay(new Date()); // Ensure 'to' is inclusive of the full day
+      const toDate = dateRange.to ? startOfDay(dateRange.to) : startOfDay(new Date()); 
       return isWithinInterval(invoiceDate, { start: startOfDay(dateRange.from!), end: toDate });
     });
-  }, [allInvoices, dateRange, isHydrated]);
+  }, [allInvoices, dateRange, appReady]);
 
 
   const analyticsData = useMemo(() => {
-    if (!isHydrated || filteredInvoices.length === 0) {
+    if (!appReady || filteredInvoices.length === 0) {
       return {
         totalSales: 0,
         totalOrders: 0,
@@ -76,10 +80,9 @@ export default function AnalyticsPage() {
       if (!salesByDate[dateKey]) {
         salesByDate[dateKey] = { sales: 0, orders: 0 };
       }
-      salesByDate[dateKey].sales += invoice.grandTotal; // Using grandTotal for sales for consistency
+      salesByDate[dateKey].sales += invoice.grandTotal; 
       salesByDate[dateKey].orders += 1;
 
-      // Customer Performance
       const customerKey = invoice.customerId || 'walk-in';
       if (!customerPerformance[customerKey]) {
         customerPerformance[customerKey] = { totalSpent: 0, orderCount: 0 };
@@ -163,9 +166,6 @@ export default function AnalyticsPage() {
       .sort((a, b) => b.totalSpent - a.totalSpent)
       .slice(0, 10);
       
-    console.log('[AnalyticsPage] Rendering. isHydrated:', isHydrated, 'Filtered Invoices count:', filteredInvoices.length);
-
-
     return {
       totalSales,
       totalOrders,
@@ -179,10 +179,15 @@ export default function AnalyticsPage() {
       salesByCategory,
       topCustomers,
     };
-  }, [filteredInvoices, products, categories, customers, isHydrated]);
+  }, [filteredInvoices, products, categories, customers, appReady]);
 
-  if (!isHydrated) {
-    return <div className="container mx-auto p-4"><p>Loading analytics...</p></div>;
+  if (!appReady || isLoading) {
+    return (
+        <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+            <p className="text-lg text-muted-foreground">Loading analytics...</p>
+        </div>
+    );
   }
 
   return (
@@ -195,7 +200,7 @@ export default function AnalyticsPage() {
         <DateRangePicker date={dateRange} onDateChange={setDateRange} />
       </header>
 
-      {filteredInvoices.length === 0 && dateRange?.from ? ( // Check if date range is set to differentiate from initial no data
+      {filteredInvoices.length === 0 && dateRange?.from ? ( 
         <Card>
           <CardHeader>
             <CardTitle>No Data Available for Selected Range</CardTitle>
@@ -204,7 +209,7 @@ export default function AnalyticsPage() {
             <p className="text-muted-foreground">There are no invoices in the selected date range. Try adjusting the dates or make some sales!</p>
           </CardContent>
         </Card>
-      ) : allInvoices.length === 0 && !dateRange?.from ? ( // No invoices at all in the store
+      ) : allInvoices.length === 0 && !dateRange?.from ? ( 
         <Card>
           <CardHeader>
             <CardTitle>No Data Available</CardTitle>
@@ -452,3 +457,5 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+    
