@@ -4,15 +4,16 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
-// These values are sourced from your .env.local file.
-// IMPORTANT:
-// 1. Ensure these environment variables are correctly set in .env.local
-//    at the ROOT of your project.
-// 2. The API key (NEXT_PUBLIC_FIREBASE_API_KEY) must be correct and have the
-//    necessary permissions and no overly restrictive application/API restrictions
-//    in the Google Cloud Console / Firebase project settings.
-// 3. After creating or updating .env.local, YOU MUST RESTART your Next.js development server.
+// --- Your web app's Firebase configuration ---
+// These values MUST be sourced from your .env.local file at the ROOT of your project.
+// Example .env.local content:
+// NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyC...
+// NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+// NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+// NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+// NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=1234567890
+// NEXT_PUBLIC_FIREBASE_APP_ID=1:1234567890:web:abcdef123456
+// NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-ABCDEFGHIJ (optional)
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -21,57 +22,81 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Optional
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // --- BEGIN CRITICAL DIAGNOSTIC LOGS ---
 console.log(
-  "\n\n[GemsTrack Firebase Setup] Attempting to initialize Firebase. Verifying environment variables..."
+  "\n\n[GemsTrack Firebase Setup] Initializing Firebase. Verifying environment variables..."
 );
 console.log("----------------------------------------------------------------------");
-console.log("NEXT_PUBLIC_FIREBASE_API_KEY (expected):", process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "******** (loaded)" : "!!!!!!!! MISSING OR UNDEFINED !!!!!!!!" );
-console.log("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN (expected):", process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN);
-console.log("NEXT_PUBLIC_FIREBASE_PROJECT_ID (expected):", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
-// Add more logs for other variables if needed for debugging
+
+let allConfigValuesPresent = true;
+const requiredKeys: (keyof typeof firebaseConfig)[] = [
+  'apiKey', 
+  'authDomain', 
+  'projectId', 
+  'storageBucket', 
+  'messagingSenderId', 
+  'appId'
+];
+
+requiredKeys.forEach(key => {
+  const envVarName = `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`;
+  if (!firebaseConfig[key]) {
+    console.error(
+      `[GemsTrack Firebase Setup] CRITICAL ERROR: Firebase config key "${key}" (expected from env var ${envVarName}) is MISSING or UNDEFINED.`
+    );
+    allConfigValuesPresent = false;
+  } else if (firebaseConfig[key]?.includes("YOUR_") || firebaseConfig[key] === "YOUR_API_KEY_HERE" || (key === 'apiKey' && firebaseConfig[key]?.length < 10)) {
+    console.warn(
+      `[GemsTrack Firebase Setup] WARNING: Firebase config key "${key}" (from env var ${envVarName}) appears to be a PLACEHOLDER value ("${firebaseConfig[key]}"). Please replace it with your actual Firebase value in .env.local.`
+    );
+    // It's a placeholder, but for initialization purposes, it's "present" so don't set allConfigValuesPresent to false unless it was also empty.
+    if (!firebaseConfig[key]) allConfigValuesPresent = false;
+  } else {
+    // Mask sensitive keys like apiKey for general logging, but confirm presence.
+    const valueToLog = key === 'apiKey' ? '******** (loaded)' : firebaseConfig[key];
+    console.log(`[GemsTrack Firebase Setup] ${envVarName}: ${valueToLog}`);
+  }
+});
+
+if (!allConfigValuesPresent) {
+  console.error(
+    "\n[GemsTrack Firebase Setup] ONE OR MORE CRITICAL FIREBASE CONFIG VALUES ARE MISSING.\n" +
+    "This means the corresponding NEXT_PUBLIC_FIREBASE_... environment variables were not found or are empty.\n" +
+    "Please ensure:\n" +
+    "  1. You have a file named exactly '.env.local' at the ROOT of your project (NOT inside 'src').\n" +
+    "  2. The '.env.local' file contains all necessary lines like: NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id (check spelling and case of variable names).\n" +
+    "  3. You have RESTARTED your Next.js development server (e.g., 'npm run dev') after creating or modifying the '.env.local' file.\n\n" +
+    "The application WILL NOT be able to connect to Firebase services correctly.\n"
+  );
+} else {
+  console.log("[GemsTrack Firebase Setup] All required Firebase config values appear to be present from environment variables.");
+}
+console.log("[GemsTrack Firebase Setup] Full Firebase configuration object being used (sensitive values like apiKey will be seen here if .env.local is misconfigured or not read):", firebaseConfig);
 console.log("----------------------------------------------------------------------\n");
-
-if (!firebaseConfig.apiKey) {
-  console.error(
-    `\n\n[GemsTrack Firebase Setup] CRITICAL ERROR: Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is MISSING or UNDEFINED in the environment variables when constructing firebaseConfig.\n` +
-    `This means the NEXT_PUBLIC_FIREBASE_API_KEY environment variable was not found or is empty when the firebase.ts module was loaded.\n` +
-    `Please ensure:\n` +
-    `  1. You have a file named exactly '.env.local' at the ROOT of your project (NOT inside 'src').\n` +
-    `  2. The '.env.local' file contains a line like: NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_ACTUAL_API_KEY (check spelling and case of the variable name).\n` +
-    `  3. You have RESTARTED your Next.js development server (e.g., 'npm run dev') after creating or modifying the '.env.local' file.\n\n` +
-    `The application WILL NOT be able to connect to Firebase services without a valid API key.\n`
-  );
-} else if (firebaseConfig.apiKey === "YOUR_API_KEY_HERE" || firebaseConfig.apiKey.includes("YOUR_") || firebaseConfig.apiKey.length < 10) {
-  console.warn(
-    `\n\n[GemsTrack Firebase Setup] WARNING: The Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) appears to be a PLACEHOLDER value ("${firebaseConfig.apiKey}") or is very short.\n` +
-    `Please replace it with your actual Firebase API key from your Firebase project settings in your .env.local file.\n` +
-    `If you have already replaced it, ensure your .env.local file is saved and you have RESTARTED your development server.\n`
-  );
-}
-
-if (!firebaseConfig.projectId) {
-  console.error(
-    `\n\n[GemsTrack Firebase Setup] CRITICAL ERROR: Firebase Project ID (NEXT_PUBLIC_FIREBASE_PROJECT_ID) is MISSING or UNDEFINED in the environment variables.\n` +
-    `Please ensure this is correctly set in your .env.local file and you have RESTARTED your server.\n`
-  );
-}
 // --- END CRITICAL DIAGNOSTIC LOGS ---
+
 
 // Initialize Firebase
 let app: FirebaseApp;
 if (!getApps().length) {
-  // Only initialize if no apps exist and all critical configs are present
-  if (firebaseConfig.apiKey && firebaseConfig.projectId) {
-    console.log("[GemsTrack Firebase Setup] Initializing new Firebase app with config:", firebaseConfig);
-    app = initializeApp(firebaseConfig);
+  // Only initialize if all critical configs are present and seem valid (not just placeholders for critical ones)
+  if (allConfigValuesPresent && firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("YOUR_") && firebaseConfig.projectId && !firebaseConfig.projectId.includes("YOUR_")) {
+    try {
+        app = initializeApp(firebaseConfig);
+        console.log("[GemsTrack Firebase Setup] Firebase app initialized successfully.");
+    } catch (error) {
+        console.error("[GemsTrack Firebase Setup] ERROR INITIALIZING FIREBASE APP:", error);
+        console.error("[GemsTrack Firebase Setup] This usually means that even if environment variables were found, some values might be incorrect (e.g., malformed projectId, authDomain) or the Firebase project itself has issues.");
+        // @ts-ignore 
+        app = {} as FirebaseApp; // Assign a dummy app to prevent further crashes down the line
+    }
   } else {
-    console.error("[GemsTrack Firebase Setup] Firebase initialization SKIPPED due to missing critical configuration (apiKey or projectId). The app will likely fail.");
-    // @ts-ignore // Fallback to a dummy app to prevent further crashes if possible, though functionality will be broken
-    app = {}; 
+    console.error("[GemsTrack Firebase Setup] Firebase initialization SKIPPED due to missing or placeholder critical configuration. The app WILL NOT function correctly with Firebase.");
+    // @ts-ignore 
+    app = {} as FirebaseApp; // Fallback to a dummy app
   }
 } else {
   app = getApp();
@@ -83,15 +108,24 @@ let auth: Auth;
 let db: Firestore;
 
 // @ts-ignore
-if (app && app.name) { // Check if app is a real FirebaseApp instance
-  auth = getAuth(app);
-  db = getFirestore(app);
+if (app && app.name && app.options?.apiKey) { // Check if app is a real FirebaseApp instance with an apiKey
+  try {
+    auth = getAuth(app);
+    db = getFirestore(app);
+    console.log("[GemsTrack Firebase Setup] Firebase Auth and Firestore services obtained.");
+  } catch (error) {
+    console.error("[GemsTrack Firebase Setup] Error getting Auth or Firestore service AFTER app initialization. This could be due to an invalid API key that passed initial checks, or service enablement issues in Firebase console.", error);
+     // @ts-ignore
+    auth = {} as Auth; 
+     // @ts-ignore
+    db = {} as Firestore;
+  }
 } else {
-  console.error("[GemsTrack Firebase Setup] Firebase Auth and Firestore NOT initialized due to app initialization failure.");
-  // @ts-ignore
-  auth = {}; 
-  // @ts-ignore
-  db = {};
+  console.error("[GemsTrack Firebase Setup] Firebase Auth and Firestore NOT initialized because the Firebase app instance appears invalid or unconfigured.");
+   // @ts-ignore
+  auth = {} as Auth; 
+   // @ts-ignore
+  db = {} as Firestore;
 }
 
 export { app, auth, db };
