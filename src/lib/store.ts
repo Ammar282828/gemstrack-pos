@@ -2,7 +2,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
-import React, { useEffect, useState, useCallback } from 'react';
 import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -327,6 +326,13 @@ export interface AppState {
   setHasHydrated: (hydrated: boolean) => void;
 }
 
+// NEW: Define the structure of the enriched cart item
+export type EnrichedCartItem = Product & {
+  quantity: number;
+  totalPrice: number; // This is the unit price calculated with current store rates
+  lineItemTotal: number;
+};
+
 const ssrDummyStorage: StateStorage = {
   getItem: () => null,
   setItem: () => {},
@@ -633,6 +639,10 @@ export function calculateProductCosts(
 }
 
 // --- Hydration Hook ---
+// IMPORTANT: Ensure React is imported if using its types or useEffect/useState directly here.
+// For this hook, only useState and useEffect from React are strictly needed.
+import React, { useEffect, useState } from 'react';
+
 export const useIsStoreHydrated = () => {
   console.log("[GemsTrack] useIsStoreHydrated: HOOK_INVOKED. Getting initial _hasHydrated from store.");
   const [isHydrated, setIsHydrated] = useState(useAppStore.getState()._hasHydrated);
@@ -640,23 +650,22 @@ export const useIsStoreHydrated = () => {
 
   useEffect(() => {
     console.log("[GemsTrack] useIsStoreHydrated: useEffect mounted.");
-    // Check if store is already hydrated by the time effect runs
     const storeAlreadyHydrated = useAppStore.getState()._hasHydrated;
     if (storeAlreadyHydrated) {
       setIsHydrated(true);
       console.log("[GemsTrack] useIsStoreHydrated: Store was already hydrated on mount. Set local isHydrated to true.");
-      return; // No need to subscribe if already hydrated
+      return; 
     }
 
     console.log("[GemsTrack] useIsStoreHydrated: Subscribing to store's _hasHydrated changes.");
     const unsubscribe = useAppStore.subscribe(
-      (state) => state._hasHydrated,
-      (newHydratedValue) => {
+      (currentState) => currentState._hasHydrated, // Select the value to listen to
+      (newHydratedValue) => { // Callback when the selected value changes
         console.log(`[GemsTrack] useIsStoreHydrated: Subscription fired. Store _hasHydrated is now: ${newHydratedValue}`);
         if (newHydratedValue) {
           setIsHydrated(true);
           console.log("[GemsTrack] useIsStoreHydrated: Subscription - Set local isHydrated to true. Unsubscribing.");
-          unsubscribe(); // Unsubscribe once confirmed hydrated
+          unsubscribe(); 
         }
       }
     );
@@ -665,7 +674,7 @@ export const useIsStoreHydrated = () => {
       console.log("[GemsTrack] useIsStoreHydrated: useEffect cleanup. Unsubscribing.");
       unsubscribe();
     };
-  }, []); // Empty dependency array: run only on mount and unmount
+  }, []); 
 
   console.log(`[GemsTrack] useIsStoreHydrated: HOOK_RENDERING. Returning: ${isHydrated}`);
   return isHydrated;
@@ -705,4 +714,96 @@ if (typeof initialSettings === 'undefined') { console.error("[GemsTrack] CRITICA
 if (typeof formatISO !== 'function' || typeof subDays !== 'function') { console.error("[GemsTrack] CRITICAL: date-fns functions are not available for IIFE."); }
 if (typeof CATEGORY_SKU_PREFIXES === 'undefined') { console.error("[GemsTrack] CRITICAL: CATEGORY_SKU_PREFIXES is not defined."); }
 
+// --- SELECTOR DEFINITIONS ---
+export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
+  if (!state.cart || !Array.isArray(state.cart)) {
+    // This case should ideally not happen if the store is initialized correctly.
+    console.warn("[GemsTrack] selectCartDetails: state.cart is not an array. Returning empty array.", state.cart);
+    return [];
+  }
+  if (!state.products || !Array.isArray(state.products)) {
+    // Products might not be hydrated yet, or an error occurred.
+    console.warn("[GemsTrack] selectCartDetails: state.products is not an array. Returning empty array.", state.products);
+    return [];
+  }
+  if (!state.settings) {
+    // Settings might not be loaded from Firestore yet.
+    console.warn("[GemsTrack] selectCartDetails: state.settings is missing. Returning empty array.");
+    return [];
+  }
+
+  return state.cart
+    .map((cartItem) => {
+      const product = state.products.find((p) => p.sku === cartItem.sku);
+      if (!product) {
+        console.warn(`[GemsTrack] Product with SKU ${cartItem.sku} not found in cart for selectCartDetails.`);
+        return null; 
+      }
+
+      const ratesForCalc = {
+        goldRatePerGram24k: state.settings.goldRatePerGram,
+        palladiumRatePerGram: state.settings.palladiumRatePerGram,
+        platinumRatePerGram: state.settings.platinumRatePerGram,
+      };
+      
+      const costs = calculateProductCosts(product, ratesForCalc);
+
+      return {
+        ...product,
+        quantity: cartItem.quantity,
+        totalPrice: costs.totalPrice, // This is the unit price based on current store settings
+        lineItemTotal: costs.totalPrice * cartItem.quantity,
+      };
+    })
+    .filter((item): item is EnrichedCartItem => item !== null); // Type guard to filter out nulls
+};
+
+export const selectCartSubtotal = (state: AppState): number => {
+  const detailedCartItems = selectCartDetails(state);
+  if (!Array.isArray(detailedCartItems)) {
+    // This should not happen if selectCartDetails is correctly implemented
+    console.error("[GemsTrack] selectCartSubtotal: selectCartDetails did not return an array.");
+    return 0;
+  }
+  return detailedCartItems.reduce((total, item) => total + item.lineItemTotal, 0);
+};
+
+
+// --- Store Selector Exports ---
+// (No specific selectors like selectProductWithCosts are explicitly defined for export here,
+// they are used internally or would be page-specific if needed more broadly)
+export const selectCategoryTitleById = (categoryId: string, state: AppState): string => {
+    const category = state.categories.find(c => c.id === categoryId);
+    return category ? category.title : 'Uncategorized';
+};
+
+export const selectProductWithCosts = (sku: string, state: AppState): (Product & ReturnType<typeof calculateProductCosts>) | undefined => {
+    const product = state.products.find(p => p.sku === sku);
+    if (!product) return undefined;
+    const rates = {
+        goldRatePerGram24k: state.settings.goldRatePerGram,
+        palladiumRatePerGram: state.settings.palladiumRatePerGram,
+        platinumRatePerGram: state.settings.platinumRatePerGram,
+    };
+    const costs = calculateProductCosts(product, rates);
+    return { ...product, ...costs };
+};
+
+export const selectAllProductsWithCosts = (state: AppState): (Product & ReturnType<typeof calculateProductCosts>)[] => {
+    if (!state.products || !Array.isArray(state.products) || !state.settings) {
+        return [];
+    }
+    const rates = {
+        goldRatePerGram24k: state.settings.goldRatePerGram,
+        palladiumRatePerGram: state.settings.palladiumRatePerGram,
+        platinumRatePerGram: state.settings.platinumRatePerGram,
+    };
+    return state.products.map(product => {
+        const costs = calculateProductCosts(product, rates);
+        return { ...product, ...costs };
+    });
+};
+
+
 console.log("[GemsTrack] store.ts: Module fully evaluated.");
+

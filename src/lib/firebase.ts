@@ -3,8 +3,6 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
 // These values are sourced from your .env.local file.
@@ -15,6 +13,7 @@ import { getFirestore, type Firestore } from "firebase/firestore";
 //    necessary permissions and no overly restrictive application/API restrictions
 //    in the Google Cloud Console / Firebase project settings.
 // 3. After creating or updating .env.local, YOU MUST RESTART your Next.js development server.
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -25,21 +24,16 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Optional
 };
 
-// Log the config to the server console for debugging.
-// Check your terminal where `npm run dev` is running.
+// --- BEGIN CRITICAL DIAGNOSTIC LOGS ---
 console.log(
-  "\n\n[GemsTrack Firebase Setup] Attempting to initialize Firebase with the following configuration:"
+  "\n\n[GemsTrack Firebase Setup] Attempting to initialize Firebase. Verifying environment variables..."
 );
 console.log("----------------------------------------------------------------------");
-console.log("NEXT_PUBLIC_FIREBASE_API_KEY:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
-console.log("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:", process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN);
-console.log("NEXT_PUBLIC_FIREBASE_PROJECT_ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
-console.log("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:", process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
-console.log("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:", process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID);
-console.log("NEXT_PUBLIC_FIREBASE_APP_ID:", process.env.NEXT_PUBLIC_FIREBASE_APP_ID);
-console.log("NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID:", process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID);
+console.log("NEXT_PUBLIC_FIREBASE_API_KEY (expected):", process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "******** (loaded)" : "!!!!!!!! MISSING OR UNDEFINED !!!!!!!!" );
+console.log("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN (expected):", process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN);
+console.log("NEXT_PUBLIC_FIREBASE_PROJECT_ID (expected):", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+// Add more logs for other variables if needed for debugging
 console.log("----------------------------------------------------------------------\n");
-
 
 if (!firebaseConfig.apiKey) {
   console.error(
@@ -58,23 +52,46 @@ if (!firebaseConfig.apiKey) {
     `If you have already replaced it, ensure your .env.local file is saved and you have RESTARTED your development server.\n`
   );
 }
+
 if (!firebaseConfig.projectId) {
   console.error(
     `\n\n[GemsTrack Firebase Setup] CRITICAL ERROR: Firebase Project ID (NEXT_PUBLIC_FIREBASE_PROJECT_ID) is MISSING or UNDEFINED in the environment variables.\n` +
     `Please ensure this is correctly set in your .env.local file and you have RESTARTED your server.\n`
   );
 }
-
+// --- END CRITICAL DIAGNOSTIC LOGS ---
 
 // Initialize Firebase
 let app: FirebaseApp;
 if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
+  // Only initialize if no apps exist and all critical configs are present
+  if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+    console.log("[GemsTrack Firebase Setup] Initializing new Firebase app with config:", firebaseConfig);
+    app = initializeApp(firebaseConfig);
+  } else {
+    console.error("[GemsTrack Firebase Setup] Firebase initialization SKIPPED due to missing critical configuration (apiKey or projectId). The app will likely fail.");
+    // @ts-ignore // Fallback to a dummy app to prevent further crashes if possible, though functionality will be broken
+    app = {}; 
+  }
 } else {
   app = getApp();
+  console.log("[GemsTrack Firebase Setup] Using existing Firebase app instance.");
 }
 
-const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app);
+// Conditionally initialize Auth and Firestore only if the app seems valid
+let auth: Auth;
+let db: Firestore;
+
+// @ts-ignore
+if (app && app.name) { // Check if app is a real FirebaseApp instance
+  auth = getAuth(app);
+  db = getFirestore(app);
+} else {
+  console.error("[GemsTrack Firebase Setup] Firebase Auth and Firestore NOT initialized due to app initialization failure.");
+  // @ts-ignore
+  auth = {}; 
+  // @ts-ignore
+  db = {};
+}
 
 export { app, auth, db };
