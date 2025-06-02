@@ -1,11 +1,11 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, useAppReady } from '@/lib/store';
+import { useAppStore, Settings, useAppReady, Product, GOLD_COIN_CATEGORY_ID } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +13,19 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2 } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import type { KaratValue, MetalType } from '@/lib/store';
 
 const settingsSchema = z.object({
   goldRatePerGram: z.coerce.number().min(0, "Gold rate must be a positive number"),
@@ -27,21 +39,92 @@ const settingsSchema = z.object({
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
+type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
+
+
+const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
+  {
+    categoryId: 'cat001', // Rings
+    metalType: 'gold' as MetalType,
+    karat: '22k' as KaratValue,
+    metalWeightG: 5.5,
+    wastagePercentage: 12,
+    makingCharges: 8000,
+    hasDiamonds: true,
+    diamondCharges: 25000,
+    stoneCharges: 0,
+    miscCharges: 500,
+    imageUrl: 'https://placehold.co/400x400.png?text=Gold+Ring',
+  },
+  {
+    categoryId: 'cat009', // Bands
+    metalType: 'platinum' as MetalType,
+    metalWeightG: 7.0,
+    wastagePercentage: 8,
+    makingCharges: 6000,
+    hasDiamonds: false,
+    diamondCharges: 0,
+    stoneCharges: 500,
+    miscCharges: 200,
+    imageUrl: 'https://placehold.co/400x400.png?text=Platinum+Band',
+  },
+  { 
+    categoryId: GOLD_COIN_CATEGORY_ID, // Gold Coins
+    metalType: 'gold' as MetalType,
+    karat: '24k' as KaratValue,
+    metalWeightG: 10,
+    wastagePercentage: 0, 
+    makingCharges: 0,    
+    hasDiamonds: false,  
+    diamondCharges: 0,   
+    stoneCharges: 0,     
+    miscCharges: 0,      
+    imageUrl: 'https://placehold.co/400x400.png?text=Gold+Coin',
+  },
+  {
+    categoryId: 'cat004', // Lockets
+    metalType: 'palladium' as MetalType,
+    metalWeightG: 12.0,
+    wastagePercentage: 10,
+    makingCharges: 7500,
+    hasDiamonds: false,
+    diamondCharges: 0,
+    stoneCharges: 1200,
+    miscCharges: 300,
+    imageUrl: 'https://placehold.co/400x400.png?text=Palladium+Locket',
+  },
+  {
+    categoryId: 'cat007', // Bangles
+    metalType: 'gold' as MetalType,
+    karat: '21k' as KaratValue,
+    metalWeightG: 25.0,
+    wastagePercentage: 15,
+    makingCharges: 15000,
+    hasDiamonds: false,
+    diamondCharges: 0,
+    stoneCharges: 3000, // e.g. enamel work or small stones
+    miscCharges: 1000,
+    imageUrl: 'https://placehold.co/400x400.png?text=Gold+Bangle',
+  }
+];
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const appReady = useAppReady();
   const currentSettings = useAppStore(state => state.settings);
   const updateSettingsAction = useAppStore(state => state.updateSettings);
+  const addProductAction = useAppStore(state => state.addProduct);
   const isSettingsLoading = useAppStore(state => state.isSettingsLoading);
+
+  const [isSeeding, setIsSeeding] = useState(false);
 
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
-    // Default values will be set by useEffect once currentSettings are confirmed loaded
   });
 
   React.useEffect(() => {
-    if (appReady && currentSettings) { // Ensure settings are loaded before resetting form
+    if (appReady && currentSettings) { 
       form.reset(currentSettings);
     }
   }, [currentSettings, form, appReady]);
@@ -56,7 +139,56 @@ export default function SettingsPage() {
     }
   };
 
-  if (!appReady || (isSettingsLoading && !form.formState.isDirty) ) { // Show loader if app not ready OR settings are loading and form hasn't been touched
+  const handleSeedProducts = async () => {
+    setIsSeeding(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    toast({
+      title: "Seeding Started",
+      description: `Attempting to add ${DUMMY_PRODUCTS_TO_SEED.length} dummy products...`,
+    });
+
+    for (const productData of DUMMY_PRODUCTS_TO_SEED) {
+      try {
+        const newProduct = await addProductAction(productData);
+        if (newProduct) {
+          toast({
+            title: "Product Added",
+            description: `Successfully added: ${newProduct.name} (SKU: ${newProduct.sku})`,
+          });
+          successCount++;
+        } else {
+          toast({
+            title: "Seeding Error",
+            description: `Failed to add product (Category ID: ${productData.categoryId}, Weight: ${productData.metalWeightG}g). Category might be missing or invalid.`,
+            variant: "destructive",
+          });
+          errorCount++;
+        }
+      } catch (error) {
+        console.error("Error seeding product:", error);
+        toast({
+          title: "Seeding Exception",
+          description: `An error occurred while adding a product: ${ (error as Error).message || 'Unknown error' }`,
+          variant: "destructive",
+        });
+        errorCount++;
+      }
+      // Small delay to allow toasts to be seen and avoid overwhelming Firestore writes if many products
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    toast({
+      title: "Seeding Complete",
+      description: `Finished adding dummy products. Success: ${successCount}, Errors: ${errorCount}.`,
+      variant: errorCount > 0 ? "destructive" : "default",
+    });
+    setIsSeeding(false);
+  };
+
+
+  if (!appReady || (isSettingsLoading && !form.formState.isDirty) ) { 
     return (
       <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
@@ -66,7 +198,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 space-y-8">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <Card>
@@ -220,6 +352,42 @@ export default function SettingsPage() {
           </Card>
         </form>
       </Form>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Database Tools</CardTitle>
+          <CardDescription>Use these tools for development or data management. Be cautious with actions that modify data.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" disabled={isSeeding}>
+                  {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                  Seed Dummy Products
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive" />Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will add {DUMMY_PRODUCTS_TO_SEED.length} pre-defined dummy products to your Firestore database.
+                    This is intended for development and testing. Running this multiple times will create duplicate products (with different SKUs).
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleSeedProducts} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                    Yes, Seed Products
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <p className="text-sm text-muted-foreground mt-2">
+              Adds sample products for testing (Rings, Bands, Gold Coins, etc.).
+            </p>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }

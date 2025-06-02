@@ -20,6 +20,9 @@ import { Save, Ban, Diamond, Zap, Shield, Weight } from 'lucide-react';
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum'];
 
+// Note: This is GOLD_COIN_CATEGORY_ID from store.ts, not a new local const.
+// const GOLD_COIN_CATEGORY_ID_INTERNAL = 'cat017'; // Example, ensure it matches store
+
 const goldCoinDenominations: Record<string, Array<{ label: string; value: number }>> = {
   '18k': [
     { label: '0.5 gram', value: 0.5 },
@@ -27,6 +30,16 @@ const goldCoinDenominations: Record<string, Array<{ label: string; value: number
     { label: '2 grams', value: 2 },
     { label: '4 grams', value: 4 },
     { label: '8 grams', value: 8 },
+  ],
+  '21k': [ // Added 21k for completeness, though not common for coins typically
+    { label: '1 gram', value: 1 },
+    { label: '5 grams', value: 5 },
+  ],
+  '22k': [ // Added 22k
+    { label: '1 gram', value: 1 },
+    { label: 'Half Sovereign (approx 3.66g of 22k gold in a ~4g coin)', value: 3.657 },
+    { label: 'Full Sovereign (approx 7.32g of 22k gold in a ~8g coin)', value: 7.322 },
+    { label: '8 grams (Guinea)', value: 8 },
   ],
   '24k': [
     { label: '1 gram', value: 1 },
@@ -65,7 +78,6 @@ const productFormSchema = productFormSchemaBase.extend({
       path: ["karat"],
     });
   }
-  // If it's a gold coin scenario, ensure certain fields are effectively zero (they will be hidden so direct validation isn't strictly necessary for UI)
   if (data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold') {
     if (data.hasDiamonds) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Gold coins cannot have diamonds.", path: ["hasDiamonds"]});
@@ -75,6 +87,7 @@ const productFormSchema = productFormSchemaBase.extend({
 
 
 type ProductFormData = z.infer<typeof productFormSchema>;
+type ProductDataForActualAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
 
 interface ProductFormProps {
   product?: Product;
@@ -123,8 +136,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   const selectedKarat = form.watch('karat');
 
   const isGoldCoinScenario = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
-  const showDenominationDropdown = isGoldCoinScenario && (selectedKarat === '18k' || selectedKarat === '24k');
-  const currentDenominations = (showDenominationDropdown && selectedKarat && goldCoinDenominations[selectedKarat]) ? goldCoinDenominations[selectedKarat] : [];
+  
+  const availableDenominations = (selectedKarat && goldCoinDenominations[selectedKarat]) 
+                                 ? goldCoinDenominations[selectedKarat] 
+                                 : [];
+  const showDenominationDropdown = isGoldCoinScenario && availableDenominations.length > 0;
 
 
   useEffect(() => {
@@ -135,7 +151,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     }
   }, [selectedMetalType, form]);
 
-  // Effect for gold coin specific defaults
   useEffect(() => {
     if (isGoldCoinScenario) {
       form.setValue('hasDiamonds', false, { shouldValidate: true });
@@ -147,11 +162,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     }
   }, [isGoldCoinScenario, form]);
   
-  // Effect for general wastage calculation and diamond charges based on hasDiamonds flag
   useEffect(() => {
-    if (!isGoldCoinScenario) { // Only run for non-gold coin scenarios
+    if (!isGoldCoinScenario) { 
       let defaultWastage = 10;
-      const currentHasDiamonds = form.getValues('hasDiamonds'); // Get current value
+      const currentHasDiamonds = form.getValues('hasDiamonds'); 
 
       if (currentHasDiamonds) {
         defaultWastage = 25;
@@ -165,37 +179,48 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
           }
         }
       }
+      // Only set wastage if it's not already user-modified (if form is dirty for this field)
+      // This check is a bit naive, a more robust way would be to track if user explicitly changed it.
+      // For simplicity, we'll overwrite if not gold coin. User can change it back.
       form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
 
       if (!currentHasDiamonds) {
         form.setValue('diamondCharges', 0, { shouldValidate: true });
       }
     }
-  }, [selectedCategoryId, form, categories, isGoldCoinScenario, hasDiamondsValue]); // hasDiamondsValue is watched to re-trigger this
+  }, [selectedCategoryId, form, categories, isGoldCoinScenario, hasDiamondsValue]);
 
-  const processFormData = (data: ProductFormData): Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'> => {
+  const processFormData = (data: ProductFormData): ProductDataForActualAdd => {
     const isActualGoldCoinScenario = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
-    return {
-      ...data,
+    const processed: ProductDataForActualAdd = {
+      categoryId: data.categoryId,
+      metalType: data.metalType,
       karat: data.metalType === 'gold' ? data.karat : undefined,
-      hasDiamonds: isActualGoldCoinScenario ? false : data.hasDiamonds,
-      diamondCharges: isActualGoldCoinScenario ? 0 : (data.hasDiamonds ? data.diamondCharges : 0),
+      metalWeightG: data.metalWeightG,
       wastagePercentage: isActualGoldCoinScenario ? 0 : data.wastagePercentage,
       makingCharges: isActualGoldCoinScenario ? 0 : data.makingCharges,
+      hasDiamonds: isActualGoldCoinScenario ? false : data.hasDiamonds,
+      diamondCharges: isActualGoldCoinScenario ? 0 : (data.hasDiamonds ? data.diamondCharges : 0),
       stoneCharges: isActualGoldCoinScenario ? 0 : data.stoneCharges,
       miscCharges: isActualGoldCoinScenario ? 0 : data.miscCharges,
-    } as Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
+      imageUrl: data.imageUrl,
+    };
+    // Ensure Karat is undefined if not gold
+    if (processed.metalType !== 'gold') {
+      processed.karat = undefined;
+    }
+    return processed;
   };
   
   const onSubmitAndClose = async (data: ProductFormData) => {
     try {
       const processedData = processFormData(data);
       if (isEditMode && product) {
-        updateProduct(product.sku, processedData);
+        await updateProduct(product.sku, processedData);
         toast({ title: "Success", description: "Product updated successfully." });
         if (onSubmitSuccess) onSubmitSuccess(); else router.push(`/products/${product.sku}`);
       } else {
-        const newProduct = addProduct(processedData);
+        const newProduct = await addProduct(processedData);
         if (newProduct) {
             toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added successfully.` });
             if (onSubmitSuccess) onSubmitSuccess(); else router.push('/products');
@@ -204,7 +229,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
         }
       }
     } catch (error) {
-      toast({ title: "Error", description: "Failed to save product.", variant: "destructive" });
+      toast({ title: "Error", description: `Failed to save product: ${(error as Error).message}`, variant: "destructive" });
       console.error("Failed to save product", error);
     }
   };
@@ -212,19 +237,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   const onSaveAndAddAnother = async (data: ProductFormData) => {
     try {
       const processedData = processFormData(data);
-      const newProduct = addProduct(processedData);
+      const newProduct = await addProduct(processedData);
       if (newProduct) {
         toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added. You can add another product.` });
         
         const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
+        const nextWastage = isNextItemAlsoGoldCoin ? 0 : (categories.find(c => c.id === data.categoryId)?.title.toLowerCase().includes("diamond") ? 25 : 10);
 
         form.reset({
           categoryId: data.categoryId, 
           metalType: data.metalType, 
           karat: data.metalType === 'gold' ? data.karat : undefined, 
           metalWeightG: 0, 
-          wastagePercentage: isNextItemAlsoGoldCoin ? 0 : 10,
-          makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges, // Retain making charges
+          wastagePercentage: nextWastage,
+          makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
           hasDiamonds: false,    
           diamondCharges: 0,
           stoneCharges: isNextItemAlsoGoldCoin ? 0 : 0,
@@ -235,7 +261,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
         toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
       }
     } catch (error) {
-      toast({ title: "Error", description: "Failed to save product (Save & Add Another).", variant: "destructive" });
+      toast({ title: "Error", description: `Failed to save product (Save & Add Another): ${(error as Error).message}`, variant: "destructive" });
       console.error("Failed to save product (Save & Add Another)", error);
     }
   };
@@ -350,9 +376,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                         <FormItem className={selectedMetalType === 'gold' && !selectedKarat ? 'md:col-span-2' : ''}>
                         <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Denomination / Weight (Gold Coins)</FormLabel>
                         <Select
-                            value={currentDenominations.find(d => d.value === field.value)?.value.toString()}
+                            value={availableDenominations.find(d => d.value === field.value)?.value.toString()}
                             onValueChange={(valStr) => {
-                                form.setValue('metalWeightG', parseFloat(valStr), { shouldValidate: true });
+                                if (valStr) {
+                                   form.setValue('metalWeightG', parseFloat(valStr), { shouldValidate: true });
+                                }
                             }}
                         >
                             <FormControl>
@@ -361,7 +389,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                            {currentDenominations.map((denom) => (
+                            {availableDenominations.map((denom) => (
                                 <SelectItem key={denom.label} value={denom.value.toString()}>
                                 {denom.label}
                                 </SelectItem>
@@ -439,7 +467,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                   )}
                 />
 
-                {hasDiamondsValue && (
+                {hasDiamondsValue && !isGoldCoinScenario && (
                   <FormField
                     control={form.control}
                     name="diamondCharges"
@@ -459,8 +487,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                   control={form.control}
                   name="stoneCharges"
                   render={({ field }) => (
-                    <FormItem className={!hasDiamondsValue ? 'md:col-span-2' : ''}>
-                      <FormLabel>{hasDiamondsValue ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
+                    <FormItem className={!hasDiamondsValue && !isGoldCoinScenario ? 'md:col-span-2' : ''}>
+                      <FormLabel>{hasDiamondsValue && !isGoldCoinScenario ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
                       <FormControl>
                         <Input type="number" step="1" placeholder="e.g., 15000" {...field} />
                       </FormControl>
@@ -521,3 +549,4 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   );
 };
 
+    
