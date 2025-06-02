@@ -112,12 +112,14 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const appReady = useAppReady();
-  const products = useAppStore(selectAllProductsWithCosts);
-  const categories = useAppStore(state => state.categories); // Categories are local
+  const allStoreProducts = useAppStore(selectAllProductsWithCosts);
+  const categories = useAppStore(state => state.categories);
   const deleteProductAction = useAppStore(state => state.deleteProduct);
   const isProductsLoading = useAppStore(state => state.isProductsLoading);
 
   const { toast } = useToast();
+
+  console.log(`[ProductsPage] Rendering. AppReady: ${appReady}, isProductsLoading: ${isProductsLoading}, StoreProductsCount: ${allStoreProducts.length}`);
 
   const getCategoryTitle = (categoryId: string) => {
     const category = categories.find(c => c.id === categoryId);
@@ -131,7 +133,7 @@ export default function ProductsPage() {
 
   const filteredProducts = useMemo(() => {
     if (!appReady) return [];
-    return products
+    const filtered = allStoreProducts
       .filter(product =>
         selectedCategory ? product.categoryId === selectedCategory : true
       )
@@ -139,9 +141,12 @@ export default function ProductsPage() {
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.sku.toLowerCase().includes(searchTerm.toLowerCase())
       );
-  }, [products, selectedCategory, searchTerm, appReady]);
+    console.log(`[ProductsPage] Filtering: SelectedCategory: ${selectedCategory}, SearchTerm: "${searchTerm}", FilteredProductsCount: ${filtered.length}`);
+    return filtered;
+  }, [allStoreProducts, selectedCategory, searchTerm, appReady]);
 
   if (!appReady && isProductsLoading) {
+    console.log("[ProductsPage] Showing main loading screen (app not ready AND products loading).");
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
@@ -220,12 +225,14 @@ export default function ProductsPage() {
           <Tag className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Products Found</h3>
           <p className="text-muted-foreground">
-            {searchTerm || selectedCategory ? "Try adjusting your search or filter." : "Add some products to get started!"}
+            { appReady ? 
+              (searchTerm || selectedCategory ? "Try adjusting your search or filter, or ensure products exist in the database." : "Add some products to get started or seed dummy data in Settings.") :
+              "Still loading application data. Please wait..."
+            }
           </p>
+          {!appReady && <Loader2 className="w-8 h-8 mx-auto text-primary animate-spin mt-4" />}
         </div>
       )}
     </div>
   );
 }
-
-    

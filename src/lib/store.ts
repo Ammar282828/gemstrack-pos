@@ -92,7 +92,7 @@ function _calculateProductCostsInternal(
   const finalTotalPrice = Number(totalPrice) || 0;
 
   if (isNaN(finalTotalPrice)) {
-    console.error("[GemsTrack] _calculateProductCostsInternal produced NaN. Details:", {
+    console.error("[GemsTrack Store _calculateProductCostsInternal] Produced NaN. Details:", {
         productInputName: product.name,
         productCategoryId: product.categoryId,
         productProcessed: { metalWeightG, wastagePercentage, makingCharges, hasDiamonds: hasDiamondsValue, diamondChargesValue, stoneChargesValue, miscChargesValue, currentMetalType, karat: product.karat },
@@ -301,8 +301,8 @@ export interface AppState {
 
 export type EnrichedCartItem = Product & {
   quantity: number;
-  totalPrice: number;
-  lineItemTotal: number;
+  totalPrice: number; // Price for one unit at current store rates
+  lineItemTotal: number; // totalPrice * quantity
 };
 
 const ssrDummyStorage: StateStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {}, };
@@ -312,6 +312,7 @@ export const useAppStore = create<AppState>()(
     immer((set, get) => ({
       _zustandHasRehydrated: false,
       setZustandHasRehydrated: (hydrated) => {
+        console.log(`[GemsTrack Store] Setting _zustandHasRehydrated to: ${hydrated}`);
         set((state) => { state._zustandHasRehydrated = hydrated; });
       },
       settings: initialSettingsData, // Fallback, will be overwritten by loadSettings
@@ -330,7 +331,7 @@ export const useAppStore = create<AppState>()(
       isInitialDataLoadedFromFirestore: false,
 
       fetchAllInitialData: async () => {
-        console.log("[GemsTrack Store] Fetching all initial data from Firestore...");
+        console.log("[GemsTrack Store fetchAllInitialData] Attempting to fetch all initial data...");
         set({
           isSettingsLoading: true, isProductsLoading: true, isCustomersLoading: true,
           isKarigarsLoading: true, isInvoicesLoading: true, isInitialDataLoadedFromFirestore: false
@@ -344,12 +345,12 @@ export const useAppStore = create<AppState>()(
             get().loadGeneratedInvoices(),
           ]);
           set({ isInitialDataLoadedFromFirestore: true });
-          console.log("[GemsTrack Store] All initial data fetched successfully.");
+          console.log("[GemsTrack Store fetchAllInitialData] SUCCESSFULLY fetched all initial data.");
         } catch (error) {
-          console.error("[GemsTrack Store] Error fetching all initial data:", error);
-          // Individual loading flags will remain false if their specific load failed
+          console.error("[GemsTrack Store fetchAllInitialData] CRITICAL ERROR fetching all initial data:", error);
+          set({ isInitialDataLoadedFromFirestore: false }); // Ensure it's false on error
         } finally {
-            // Ensure all individual loading flags are false regardless of overall success/failure
+            console.log("[GemsTrack Store fetchAllInitialData] Finalizing loading states.");
             set(state => {
                 state.isSettingsLoading = false;
                 state.isProductsLoading = false;
@@ -361,6 +362,7 @@ export const useAppStore = create<AppState>()(
       },
 
       loadSettings: async () => {
+        console.log("[GemsTrack Store loadSettings] Attempting to load settings...");
         set({ isSettingsLoading: true });
         try {
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
@@ -368,12 +370,14 @@ export const useAppStore = create<AppState>()(
           if (docSnap.exists()) {
             const firestoreSettings = docSnap.data() as Settings;
             set((state) => { state.settings = { ...initialSettingsData, ...firestoreSettings }; });
+            console.log("[GemsTrack Store loadSettings] Settings loaded successfully from Firestore:", firestoreSettings);
           } else {
+            console.log("[GemsTrack Store loadSettings] No settings found in Firestore, creating with initial data.");
             await setDoc(settingsDocRef, initialSettingsData);
             set((state) => { state.settings = initialSettingsData; });
           }
         } catch (error) {
-          console.error("Error loading settings from Firestore:", error);
+          console.error("[GemsTrack Store loadSettings] Error loading settings from Firestore:", error);
           set((state) => { state.settings = initialSettingsData; }); // Fallback
         } finally {
           set({ isSettingsLoading: false });
@@ -382,12 +386,14 @@ export const useAppStore = create<AppState>()(
       updateSettings: async (newSettings) => {
         const currentSettings = get().settings;
         const updatedSettings = { ...currentSettings, ...newSettings };
+        console.log("[GemsTrack Store updateSettings] Attempting to update settings:", updatedSettings);
         set((state) => { state.settings = updatedSettings; });
         try {
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           await setDoc(settingsDocRef, updatedSettings, { merge: true });
+          console.log("[GemsTrack Store updateSettings] Settings updated successfully in Firestore.");
         } catch (error) {
-          console.error("Error updating settings in Firestore:", error);
+          console.error("[GemsTrack Store updateSettings] Error updating settings in Firestore:", error);
           set((state) => { state.settings = currentSettings; }); // Revert on error
           throw error;
         }
@@ -396,34 +402,39 @@ export const useAppStore = create<AppState>()(
       addCategory: (title) => set((state) => {
           const newCategory: Category = { id: `cat-${Date.now()}`, title };
           state.categories.push(newCategory);
+          console.log("[GemsTrack Store addCategory] Added category:", newCategory);
       }),
       updateCategory: (id, title) => set((state) => {
           const category = state.categories.find((c) => c.id === id);
           if (category) category.title = title;
+          console.log("[GemsTrack Store updateCategory] Updated category:", category);
       }),
       deleteCategory: (id) => set((state) => {
           state.categories = state.categories.filter((c) => c.id !== id);
-          // Optionally update products linked to this category if needed
+          console.log("[GemsTrack Store deleteCategory] Deleted category with ID:", id);
       }),
 
       loadProducts: async () => {
+        console.log("[GemsTrack Store loadProducts] Attempting to load products...");
         set({ isProductsLoading: true });
         try {
           const q = query(collection(db, FIRESTORE_COLLECTIONS.PRODUCTS), orderBy("sku"));
           const snapshot = await getDocs(q);
           const productList = snapshot.docs.map(doc => doc.data() as Product);
           set({ products: productList });
+          console.log(`[GemsTrack Store loadProducts] Successfully loaded ${productList.length} products from Firestore.`);
         } catch (error) {
-          console.error("Error loading products:", error);
+          console.error("[GemsTrack Store loadProducts] Error loading products from Firestore:", error);
+          set({ products: [] }); // Ensure products is an empty array on error
         } finally {
-          set({ isProductsLoading: false });
+          set({ isProductsLoading: false }); // Ensure this is set false even if part of Promise.all
         }
       },
       addProduct: async (productData) => {
         const { categories, products } = get();
         const category = categories.find(c => c.id === productData.categoryId);
         if (!category) {
-          console.error(`Category with id ${productData.categoryId} not found.`);
+          console.error(`[GemsTrack Store addProduct] Category with id ${productData.categoryId} not found.`);
           return null;
         }
         const prefix = CATEGORY_SKU_PREFIXES[productData.categoryId] || "XXX";
@@ -451,23 +462,25 @@ export const useAppStore = create<AppState>()(
         if (finalProductData.metalType !== 'gold') { delete finalProductData.karat; }
 
         const newProduct: Product = { ...finalProductData, name: autoGeneratedName, sku: generatedSku };
+        console.log("[GemsTrack Store addProduct] Attempting to add product:", newProduct);
 
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, newProduct.sku), newProduct);
           set(state => { state.products.push(newProduct); state.products.sort((a,b) => a.sku.localeCompare(b.sku)); });
+          console.log("[GemsTrack Store addProduct] Product added successfully to Firestore and store:", newProduct.sku);
           return newProduct;
         } catch (error) {
-          console.error("Error adding product to Firestore:", error);
+          console.error("[GemsTrack Store addProduct] Error adding product to Firestore:", error);
           return null;
         }
       },
       updateProduct: async (sku, updatedProductData) => {
         const productRef = doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, sku);
+        console.log(`[GemsTrack Store updateProduct] Attempting to update product SKU ${sku} with:`, updatedProductData);
         try {
             const currentProduct = get().products.find(p => p.sku === sku);
             if (!currentProduct) throw new Error("Product not found for update");
 
-            // Merge carefully to handle undefined fields from partial updates
             const mergedData = {...currentProduct, ...updatedProductData};
             
             const isActualGoldCoin = (mergedData.categoryId) === GOLD_COIN_CATEGORY_ID_INTERNAL && 
@@ -483,41 +496,41 @@ export const useAppStore = create<AppState>()(
                 };
             } else {
                  if (updatedProductData.hasDiamonds === false) { finalUpdatedFields.diamondCharges = 0; }
-                 // If metal type changed away from gold, ensure karat is removed or undefined
                  if (updatedProductData.metalType && updatedProductData.metalType !== 'gold' && 'karat' in finalUpdatedFields) {
                     finalUpdatedFields.karat = undefined;
                  } else if (updatedProductData.metalType === 'gold' && !finalUpdatedFields.karat) {
-                     // If metal type is gold and karat isn't being set, preserve current or default
                      if (!('karat' in updatedProductData) && !currentProduct.karat) {
                          finalUpdatedFields.karat = DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
                     }
                  }
             }
-            // Remove 'sku' and 'name' from the update payload to Firestore if they were accidentally included
             const { sku: _s, name: _n, ...payloadToFirestore } = finalUpdatedFields;
-
 
           await setDoc(productRef, payloadToFirestore, { merge: true });
           set(state => {
             const index = state.products.findIndex(p => p.sku === sku);
             if (index !== -1) state.products[index] = { ...state.products[index], ...finalUpdatedFields };
           });
+          console.log(`[GemsTrack Store updateProduct] Product SKU ${sku} updated successfully.`);
         } catch (error) {
-          console.error("Error updating product in Firestore:", error);
+          console.error(`[GemsTrack Store updateProduct] Error updating product SKU ${sku} in Firestore:`, error);
         }
       },
       deleteProduct: async (sku) => {
+        console.log(`[GemsTrack Store deleteProduct] Attempting to delete product SKU ${sku}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, sku));
           set(state => {
             state.products = state.products.filter(p => p.sku !== sku);
             state.cart = state.cart.filter(item => item.sku !== sku);
           });
+          console.log(`[GemsTrack Store deleteProduct] Product SKU ${sku} deleted successfully.`);
         } catch (error) {
-          console.error("Error deleting product from Firestore:", error);
+          console.error(`[GemsTrack Store deleteProduct] Error deleting product SKU ${sku} from Firestore:`, error);
         }
       },
        setProductQrCode: async (sku, qrCodeDataUrl) => {
+        console.log(`[GemsTrack Store setProductQrCode] Setting QR for SKU ${sku}.`);
         try {
             await setDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, sku), { qrCodeDataUrl }, { merge: true });
             set(state => {
@@ -525,19 +538,22 @@ export const useAppStore = create<AppState>()(
                 if (product) product.qrCodeDataUrl = qrCodeDataUrl;
             });
         } catch (error) {
-            console.error("Error saving QR code URL to Firestore:", error);
+            console.error(`[GemsTrack Store setProductQrCode] Error saving QR code URL for SKU ${sku} to Firestore:`, error);
         }
       },
 
       loadCustomers: async () => {
+        console.log("[GemsTrack Store loadCustomers] Attempting to load customers...");
         set({ isCustomersLoading: true });
         try {
           const q = query(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS), orderBy("name"));
           const snapshot = await getDocs(q);
           const customerList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer));
           set({ customers: customerList });
+          console.log(`[GemsTrack Store loadCustomers] Successfully loaded ${customerList.length} customers.`);
         } catch (error) {
-          console.error("Error loading customers:", error);
+          console.error("[GemsTrack Store loadCustomers] Error loading customers:", error);
+          set({ customers: [] });
         } finally {
           set({ isCustomersLoading: false });
         }
@@ -545,44 +561,53 @@ export const useAppStore = create<AppState>()(
       addCustomer: async (customerData) => {
         const newCustomerId = `cust-${Date.now()}`;
         const newCustomer: Customer = { ...customerData, id: newCustomerId };
+        console.log("[GemsTrack Store addCustomer] Attempting to add customer:", newCustomer);
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustomerId), newCustomer);
           set(state => { state.customers.push(newCustomer); state.customers.sort((a,b) => a.name.localeCompare(b.name)); });
+          console.log("[GemsTrack Store addCustomer] Customer added successfully:", newCustomerId);
           return newCustomer;
         } catch (error) {
-          console.error("Error adding customer to Firestore:", error);
+          console.error("[GemsTrack Store addCustomer] Error adding customer to Firestore:", error);
           return null;
         }
       },
       updateCustomer: async (id, updatedCustomerData) => {
+        console.log(`[GemsTrack Store updateCustomer] Attempting to update customer ID ${id} with:`, updatedCustomerData);
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), updatedCustomerData, { merge: true });
           set(state => {
             const index = state.customers.findIndex(c => c.id === id);
             if (index !== -1) state.customers[index] = { ...state.customers[index], ...updatedCustomerData };
           });
+          console.log(`[GemsTrack Store updateCustomer] Customer ID ${id} updated successfully.`);
         } catch (error) {
-          console.error("Error updating customer in Firestore:", error);
+          console.error(`[GemsTrack Store updateCustomer] Error updating customer ID ${id} in Firestore:`, error);
         }
       },
       deleteCustomer: async (id) => {
+        console.log(`[GemsTrack Store deleteCustomer] Attempting to delete customer ID ${id}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id));
           set(state => { state.customers = state.customers.filter(c => c.id !== id); });
+          console.log(`[GemsTrack Store deleteCustomer] Customer ID ${id} deleted successfully.`);
         } catch (error) {
-          console.error("Error deleting customer from Firestore:", error);
+          console.error(`[GemsTrack Store deleteCustomer] Error deleting customer ID ${id} from Firestore:`, error);
         }
       },
 
       loadKarigars: async () => {
+        console.log("[GemsTrack Store loadKarigars] Attempting to load karigars...");
         set({ isKarigarsLoading: true });
         try {
           const q = query(collection(db, FIRESTORE_COLLECTIONS.KARIGARS), orderBy("name"));
           const snapshot = await getDocs(q);
           const karigarList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Karigar));
           set({ karigars: karigarList });
+          console.log(`[GemsTrack Store loadKarigars] Successfully loaded ${karigarList.length} karigars.`);
         } catch (error) {
-          console.error("Error loading karigars:", error);
+          console.error("[GemsTrack Store loadKarigars] Error loading karigars:", error);
+          set({ karigars: [] });
         } finally {
           set({ isKarigarsLoading: false });
         }
@@ -590,32 +615,38 @@ export const useAppStore = create<AppState>()(
       addKarigar: async (karigarData) => {
         const newKarigarId = `karigar-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
         const newKarigar: Karigar = { ...karigarData, id: newKarigarId };
+        console.log("[GemsTrack Store addKarigar] Attempting to add karigar:", newKarigar);
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, newKarigarId), newKarigar);
           set(state => { state.karigars.push(newKarigar); state.karigars.sort((a,b) => a.name.localeCompare(b.name));});
+          console.log("[GemsTrack Store addKarigar] Karigar added successfully:", newKarigarId);
           return newKarigar;
         } catch (error) {
-          console.error("Error adding karigar to Firestore:", error);
+          console.error("[GemsTrack Store addKarigar] Error adding karigar to Firestore:", error);
           return null;
         }
       },
       updateKarigar: async (id, updatedKarigarData) => {
+        console.log(`[GemsTrack Store updateKarigar] Attempting to update karigar ID ${id} with:`, updatedKarigarData);
          try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id), updatedKarigarData, { merge: true });
           set(state => {
             const index = state.karigars.findIndex(k => k.id === id);
             if (index !== -1) state.karigars[index] = { ...state.karigars[index], ...updatedKarigarData };
           });
+          console.log(`[GemsTrack Store updateKarigar] Karigar ID ${id} updated successfully.`);
         } catch (error) {
-          console.error("Error updating karigar in Firestore:", error);
+          console.error(`[GemsTrack Store updateKarigar] Error updating karigar ID ${id} in Firestore:`, error);
         }
       },
       deleteKarigar: async (id) => {
+        console.log(`[GemsTrack Store deleteKarigar] Attempting to delete karigar ID ${id}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id));
           set(state => { state.karigars = state.karigars.filter(k => k.id !== id); });
+          console.log(`[GemsTrack Store deleteKarigar] Karigar ID ${id} deleted successfully.`);
         } catch (error) {
-          console.error("Error deleting karigar from Firestore:", error);
+          console.error(`[GemsTrack Store deleteKarigar] Error deleting karigar ID ${id} from Firestore:`, error);
         }
       },
 
@@ -633,29 +664,37 @@ export const useAppStore = create<AppState>()(
       clearCart: () => set((state) => { state.cart = []; }),
 
       loadGeneratedInvoices: async () => {
+        console.log("[GemsTrack Store loadGeneratedInvoices] Attempting to load invoices...");
         set({ isInvoicesLoading: true });
         try {
           const q = query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), orderBy("createdAt", "desc"));
           const snapshot = await getDocs(q);
           const invoiceList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Invoice));
           set({ generatedInvoices: invoiceList });
+          console.log(`[GemsTrack Store loadGeneratedInvoices] Successfully loaded ${invoiceList.length} invoices.`);
         } catch (error) {
-          console.error("Error loading invoices:", error);
+          console.error("[GemsTrack Store loadGeneratedInvoices] Error loading invoices:", error);
+          set({ generatedInvoices: [] });
         } finally {
           set({ isInvoicesLoading: false });
         }
       },
       generateInvoice: async (customerId, invoiceGoldRate24k, discountAmount) => {
-        const { products, cart, customers, settings, generatedInvoices } = get();
+        const { products, cart, customers, settings } = get();
         if (cart.length === 0) return null;
+        console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
 
         let validInvoiceGoldRate24k = Number(invoiceGoldRate24k);
         if (isNaN(validInvoiceGoldRate24k) || validInvoiceGoldRate24k <= 0) {
             if (cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'gold')) {
-                if (settings.goldRatePerGram <= 0) return null;
+                if (settings.goldRatePerGram <= 0) {
+                    console.error("[GemsTrack Store generateInvoice] Gold items in cart but store gold rate is invalid and no valid invoice rate provided.");
+                    return null;
+                }
                 validInvoiceGoldRate24k = settings.goldRatePerGram;
+                console.log(`[GemsTrack Store generateInvoice] Using store gold rate: ${validInvoiceGoldRate24k}`);
             } else {
-                validInvoiceGoldRate24k = 0;
+                validInvoiceGoldRate24k = 0; // No gold items, so invoice rate for gold can be 0.
             }
         }
 
@@ -666,6 +705,7 @@ export const useAppStore = create<AppState>()(
         };
 
         if (isNaN(ratesForInvoice.goldRatePerGram24k) || isNaN(ratesForInvoice.palladiumRatePerGram) || isNaN(ratesForInvoice.platinumRatePerGram)) {
+            console.error("[GemsTrack Store generateInvoice] One or more metal rates are NaN:", ratesForInvoice);
             return null;
         }
 
@@ -674,7 +714,10 @@ export const useAppStore = create<AppState>()(
 
         for (const cartItem of cart) {
             const product = products.find(p => p.sku === cartItem.sku);
-            if (!product) continue;
+            if (!product) {
+                console.warn(`[GemsTrack Store generateInvoice] Product SKU ${cartItem.sku} not found in store for invoice.`);
+                continue;
+            }
             const productForCostCalc = {
                 name: product.name, categoryId: product.categoryId, metalType: product.metalType,
                 karat: product.metalType === 'gold' ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL) : undefined,
@@ -682,7 +725,10 @@ export const useAppStore = create<AppState>()(
                 hasDiamonds: product.hasDiamonds, diamondCharges: product.diamondCharges, stoneCharges: product.stoneCharges, miscCharges: product.miscCharges,
             };
             const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice);
-            if (isNaN(costs.totalPrice)) continue;
+            if (isNaN(costs.totalPrice)) {
+                console.error(`[GemsTrack Store generateInvoice] Calculated cost for product ${product.sku} is NaN.`);
+                continue;
+            }
             const unitPrice = costs.totalPrice;
             const itemTotal = unitPrice * cartItem.quantity;
             subtotal += itemTotal;
@@ -692,8 +738,11 @@ export const useAppStore = create<AppState>()(
             });
         }
 
-        if (invoiceItems.length === 0 && cart.length > 0) return null;
-
+        if (invoiceItems.length === 0 && cart.length > 0) {
+            console.error("[GemsTrack Store generateInvoice] No valid items could be added to invoice, though cart was not empty.");
+            return null;
+        }
+        
         const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
         const grandTotal = subtotal - calculatedDiscountAmount;
         const customer = customers.find(c => c.id === customerId);
@@ -709,6 +758,7 @@ export const useAppStore = create<AppState>()(
             palladiumRateApplied: cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'palladium') ? ratesForInvoice.palladiumRatePerGram : undefined,
             platinumRateApplied: cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'platinum') ? ratesForInvoice.platinumRatePerGram : undefined,
         };
+        console.log("[GemsTrack Store generateInvoice] Generated invoice object:", newInvoice);
 
         try {
             const batch = writeBatch(db);
@@ -719,14 +769,15 @@ export const useAppStore = create<AppState>()(
             batch.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
             
             await batch.commit();
+            console.log("[GemsTrack Store generateInvoice] Invoice and settings successfully committed to Firestore.");
 
             set(state => {
-                state.generatedInvoices.unshift(newInvoice); // Add to start for descending order
+                state.generatedInvoices.unshift(newInvoice); 
                 state.settings.lastInvoiceNumber = nextInvoiceNumber;
             });
             return newInvoice;
         } catch (error) {
-            console.error("Error generating invoice and saving to Firestore:", error);
+            console.error("[GemsTrack Store generateInvoice] Error committing invoice batch to Firestore:", error);
             return null;
         }
       },
@@ -738,9 +789,9 @@ export const useAppStore = create<AppState>()(
         return localStorage;
       }),
       onRehydrateStorage: () => (state, error) => {
-        if (error) console.error('[GemsTrack Store] Persist: REHYDRATION_ERROR:', error);
-        else if (state) console.log('[GemsTrack Store] Persist: REHYDRATION_SUCCESS_FROM_STORAGE.');
-        else console.log('[GemsTrack Store] Persist: NO_PERSISTED_STATE_USING_INITIAL.');
+        if (error) console.error('[GemsTrack Store Persist] REHYDRATION_ERROR:', error);
+        else if (state) console.log('[GemsTrack Store Persist] REHYDRATION_SUCCESS_FROM_STORAGE.');
+        else console.log('[GemsTrack Store Persist] NO_PERSISTED_STATE_USING_INITIAL.');
         
         queueMicrotask(() => {
           useAppStore.getState().setZustandHasRehydrated(true);
@@ -750,7 +801,7 @@ export const useAppStore = create<AppState>()(
         cart: state.cart,
         _zustandHasRehydrated: state._zustandHasRehydrated,
       }),
-      version: 8, // Incremented due to Firestore migration for most data
+      version: 8, 
     }
   )
 );
@@ -788,7 +839,11 @@ export const useZustandRehydrated = () => {
         }
       }
     );
-    return () => unsubscribe();
+    // console.log(`[GemsTrack useZustandRehydrated] Hook mounted. Initial _zustandHasRehydrated: ${storeAlreadyHydrated}. Initial isHydrated: ${isHydrated}`);
+    return () => {
+        // console.log("[GemsTrack useZustandRehydrated] Hook unmounted. Unsubscribing.");
+        unsubscribe();
+    }
   }, []); 
   return isHydrated;
 };
@@ -796,21 +851,22 @@ export const useZustandRehydrated = () => {
 export const useAppReady = () => {
     const isFirestoreDataLoaded = useAppStore(state => state.isInitialDataLoadedFromFirestore);
     const isZustandRehydrated = useZustandRehydrated();
+    // console.log(`[GemsTrack useAppReady] Zustand rehydrated: ${isZustandRehydrated}, Firestore data loaded: ${isFirestoreDataLoaded}`);
     return isZustandRehydrated && isFirestoreDataLoaded;
 }
 
 // --- SELECTOR DEFINITIONS ---
 export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
   if (!state.cart || !Array.isArray(state.cart)) {
-    console.warn("[GemsTrack] selectCartDetails: state.cart is not an array.", state.cart);
+    console.warn("[GemsTrack selectCartDetails] state.cart is not an array or undefined:", state.cart);
     return [];
   }
   if (!state.products || !Array.isArray(state.products)) {
-    console.warn("[GemsTrack] selectCartDetails: state.products is not an array.", state.products);
+    console.warn("[GemsTrack selectCartDetails] state.products is not an array or undefined:", state.products);
     return [];
   }
   if (!state.settings) {
-    console.warn("[GemsTrack] selectCartDetails: state.settings is missing.");
+    console.warn("[GemsTrack selectCartDetails] state.settings is missing.");
     return [];
   }
 
@@ -818,7 +874,7 @@ export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
     .map((cartItem) => {
       const product = state.products.find((p) => p.sku === cartItem.sku);
       if (!product) {
-        console.warn(`[GemsTrack] Product with SKU ${cartItem.sku} not found in cart for selectCartDetails.`);
+        console.warn(`[GemsTrack selectCartDetails] Product with SKU ${cartItem.sku} not found in cart.`);
         return null; 
       }
       const ratesForCalc = {
@@ -827,6 +883,10 @@ export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
         platinumRatePerGram: state.settings.platinumRatePerGram,
       };
       const costs = calculateProductCosts(product, ratesForCalc);
+      if (isNaN(costs.totalPrice)) {
+        console.error(`[GemsTrack selectCartDetails] Calculated cost for product ${product.sku} in cart is NaN.`);
+        return null;
+      }
       return {
         ...product,
         quantity: cartItem.quantity,
@@ -840,7 +900,7 @@ export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
 export const selectCartSubtotal = (state: AppState): number => {
   const detailedCartItems = selectCartDetails(state);
   if (!Array.isArray(detailedCartItems)) {
-    console.error("[GemsTrack] selectCartSubtotal: selectCartDetails did not return an array.");
+    console.error("[GemsTrack selectCartSubtotal] selectCartDetails did not return an array.");
     return 0;
   }
   return detailedCartItems.reduce((total, item) => total + item.lineItemTotal, 0);
@@ -865,6 +925,7 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 
 export const selectAllProductsWithCosts = (state: AppState): (Product & ReturnType<typeof calculateProductCosts>)[] => {
     if (!state.products || !Array.isArray(state.products) || !state.settings) {
+        // console.warn("[GemsTrack selectAllProductsWithCosts] Products or settings not available. Returning empty array.");
         return [];
     }
     const rates = {
@@ -878,5 +939,3 @@ export const selectAllProductsWithCosts = (state: AppState): (Product & ReturnTy
     });
 };
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
-
-    
