@@ -181,9 +181,21 @@ export default function SettingsPage() {
 
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
+    defaultValues: { // Initialize with defined values from currentSettings (which starts as initialSettingsData)
+      goldRatePerGram: currentSettings.goldRatePerGram,
+      palladiumRatePerGram: currentSettings.palladiumRatePerGram,
+      platinumRatePerGram: currentSettings.platinumRatePerGram,
+      shopName: currentSettings.shopName,
+      shopAddress: currentSettings.shopAddress || "",
+      shopContact: currentSettings.shopContact || "",
+      shopLogoUrl: currentSettings.shopLogoUrl || "",
+      lastInvoiceNumber: currentSettings.lastInvoiceNumber,
+    },
   });
 
   React.useEffect(() => {
+    // This effect updates the form if currentSettings changes after initial mount
+    // (e.g., after async load from Firestore).
     if (appReady && currentSettings) { 
       form.reset({
         goldRatePerGram: currentSettings.goldRatePerGram,
@@ -569,7 +581,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
-
-    
