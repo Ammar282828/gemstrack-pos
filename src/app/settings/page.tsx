@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, useAppReady, Product, GOLD_COIN_CATEGORY_ID } from '@/lib/store';
+import { useAppStore, Settings, useAppReady, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +40,8 @@ const settingsSchema = z.object({
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
+type CustomerDataForAdd = Omit<Customer, 'id'>;
+type KarigarDataForAdd = Omit<Karigar, 'id'>;
 
 
 const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
@@ -147,6 +149,21 @@ const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
   },
 ];
 
+const DUMMY_CUSTOMERS_TO_SEED: CustomerDataForAdd[] = [
+  { name: "Aisha Khan", phone: "0300-1234567", email: "aisha.khan@example.com", address: "12B, Gulshan-e-Iqbal, Karachi" },
+  { name: "Bilal Ahmed", phone: "0333-9876543", email: "bilal.ahmed@example.com", address: "House 45, Street 10, F-8/3, Islamabad" },
+  { name: "Fatima Ali", email: "fatima.ali@example.com", address: "789, Model Town, Lahore" },
+  { name: "Osman Malik", phone: "0321-5550000" },
+  { name: "Sana Javed", address: "Apt 3C, Clifton Block 2, Karachi" }
+];
+
+const DUMMY_KARIGARS_TO_SEED: KarigarDataForAdd[] = [
+  { name: "Ustad Karim Baksh", contact: "0301-7654321", notes: "Specializes in intricate gold work and setting." },
+  { name: "Rehmat Ali & Sons", contact: "0345-1122334", notes: "General purpose, good for platinum and bands." },
+  { name: "Diamond Cutters Co.", notes: "Only diamond setting and polishing. Very precise." },
+  { name: "Haji Murad", contact: "0311-0009988" }
+];
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -154,9 +171,13 @@ export default function SettingsPage() {
   const currentSettings = useAppStore(state => state.settings);
   const updateSettingsAction = useAppStore(state => state.updateSettings);
   const addProductAction = useAppStore(state => state.addProduct);
+  const addCustomerAction = useAppStore(state => state.addCustomer);
+  const addKarigarAction = useAppStore(state => state.addKarigar);
   const isSettingsLoading = useAppStore(state => state.isSettingsLoading);
 
-  const [isSeeding, setIsSeeding] = useState(false);
+  const [isSeedingProducts, setIsSeedingProducts] = useState(false);
+  const [isSeedingCustomers, setIsSeedingCustomers] = useState(false);
+  const [isSeedingKarigars, setIsSeedingKarigars] = useState(false);
 
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
@@ -179,35 +200,18 @@ export default function SettingsPage() {
   };
 
   const handleSeedProducts = async () => {
-    setIsSeeding(true);
+    setIsSeedingProducts(true);
     let successCount = 0;
     let errorCount = 0;
 
     toast({
-      title: "Seeding Started",
+      title: "Product Seeding Started",
       description: `Attempting to add ${DUMMY_PRODUCTS_TO_SEED.length} dummy products...`,
     });
 
     for (const productData of DUMMY_PRODUCTS_TO_SEED) {
       try {
-        // Ensure imageUrl has a data-ai-hint if it's a placeholder
-        let finalProductData = {...productData};
-        if (productData.imageUrl && productData.imageUrl.startsWith('https://placehold.co')) {
-            const placeholderImage = new Image();
-            placeholderImage.src = productData.imageUrl;
-            // Basic hint based on category or metal type if possible, or generic jewelry
-            let hint = "jewelry piece";
-            if (productData.categoryId.includes("ring")) hint = "gold ring";
-            else if (productData.categoryId.includes("coin")) hint = "gold coin";
-            else if (productData.categoryId.includes("necklace") || productData.categoryId.includes("locket")) hint = "gold necklace";
-            else if (productData.categoryId.includes("bangle")) hint = "gold bangle";
-            else if (productData.categoryId.includes("chain")) hint = "gold chain";
-            // Add data-ai-hint attribute logic if needed here, though it's primarily for display components
-            // For seeding, the URL is what's stored. The hint is applied when <Image> is used.
-        }
-
-
-        const newProduct = await addProductAction(finalProductData);
+        const newProduct = await addProductAction(productData);
         if (newProduct) {
           toast({
             title: "Product Added",
@@ -216,7 +220,7 @@ export default function SettingsPage() {
           successCount++;
         } else {
           toast({
-            title: "Seeding Error",
+            title: "Product Seeding Error",
             description: `Failed to add product (Category ID: ${productData.categoryId}, Weight: ${productData.metalWeightG}g). Category might be missing or invalid.`,
             variant: "destructive",
           });
@@ -225,22 +229,73 @@ export default function SettingsPage() {
       } catch (error) {
         console.error("Error seeding product:", error);
         toast({
-          title: "Seeding Exception",
+          title: "Product Seeding Exception",
           description: `An error occurred while adding a product: ${ (error as Error).message || 'Unknown error' }`,
           variant: "destructive",
         });
         errorCount++;
       }
-      // Small delay to allow toasts to be seen and avoid overwhelming Firestore writes if many products
       await new Promise(resolve => setTimeout(resolve, 300));
     }
 
     toast({
-      title: "Seeding Complete",
-      description: `Finished adding dummy products. Success: ${successCount}, Errors: ${errorCount}.`,
+      title: "Product Seeding Complete",
+      description: `Finished. Success: ${successCount}, Errors: ${errorCount}.`,
       variant: errorCount > 0 ? "destructive" : "default",
     });
-    setIsSeeding(false);
+    setIsSeedingProducts(false);
+  };
+
+  const handleSeedCustomers = async () => {
+    setIsSeedingCustomers(true);
+    let successCount = 0;
+    let errorCount = 0;
+    toast({ title: "Customer Seeding Started", description: `Attempting to add ${DUMMY_CUSTOMERS_TO_SEED.length} dummy customers...`});
+
+    for (const customerData of DUMMY_CUSTOMERS_TO_SEED) {
+      try {
+        const newCustomer = await addCustomerAction(customerData);
+        if (newCustomer) {
+          toast({ title: "Customer Added", description: `Added: ${newCustomer.name}` });
+          successCount++;
+        } else {
+          toast({ title: "Customer Seeding Error", description: `Failed to add customer: ${customerData.name}`, variant: "destructive" });
+          errorCount++;
+        }
+      } catch (e) {
+        toast({ title: "Customer Seeding Exception", description: `Error adding ${customerData.name}: ${(e as Error).message}`, variant: "destructive" });
+        errorCount++;
+      }
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    toast({ title: "Customer Seeding Complete", description: `Finished. Success: ${successCount}, Errors: ${errorCount}.`, variant: errorCount > 0 ? "destructive" : "default"});
+    setIsSeedingCustomers(false);
+  };
+
+  const handleSeedKarigars = async () => {
+    setIsSeedingKarigars(true);
+    let successCount = 0;
+    let errorCount = 0;
+    toast({ title: "Karigar Seeding Started", description: `Attempting to add ${DUMMY_KARIGARS_TO_SEED.length} dummy karigars...`});
+
+    for (const karigarData of DUMMY_KARIGARS_TO_SEED) {
+      try {
+        const newKarigar = await addKarigarAction(karigarData);
+        if (newKarigar) {
+          toast({ title: "Karigar Added", description: `Added: ${newKarigar.name}` });
+          successCount++;
+        } else {
+          toast({ title: "Karigar Seeding Error", description: `Failed to add karigar: ${karigarData.name}`, variant: "destructive" });
+          errorCount++;
+        }
+      } catch (e) {
+        toast({ title: "Karigar Seeding Exception", description: `Error adding ${karigarData.name}: ${(e as Error).message}`, variant: "destructive" });
+        errorCount++;
+      }
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    toast({ title: "Karigar Seeding Complete", description: `Finished. Success: ${successCount}, Errors: ${errorCount}.`, variant: errorCount > 0 ? "destructive" : "default"});
+    setIsSeedingKarigars(false);
   };
 
 
@@ -414,38 +469,98 @@ export default function SettingsPage() {
           <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Database Tools</CardTitle>
           <CardDescription>Use these tools for development or data management. Be cautious with actions that modify data.</CardDescription>
         </CardHeader>
-        <CardContent>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" disabled={isSeeding}>
-                  {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-                  Seed Dummy Products
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive" />Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will add {DUMMY_PRODUCTS_TO_SEED.length} pre-defined dummy products to your Firestore database.
-                    This is intended for development and testing. Running this multiple times will create duplicate products (with different SKUs).
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleSeedProducts} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                    Yes, Seed Products
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <p className="text-sm text-muted-foreground mt-2">
-              Adds sample products for testing (Rings, Bands, Gold Coins, etc.).
-            </p>
+        <CardContent className="space-y-4">
+            <div>
+                <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={isSeedingProducts}>
+                    {isSeedingProducts ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                    Seed Dummy Products ({DUMMY_PRODUCTS_TO_SEED.length})
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive" />Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will add {DUMMY_PRODUCTS_TO_SEED.length} pre-defined dummy products to your Firestore database.
+                        This is intended for development and testing. Running this multiple times will create duplicate products (with different SKUs).
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSeedProducts} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                        Yes, Seed Products
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+                </AlertDialog>
+                <p className="text-sm text-muted-foreground mt-1">
+                Adds sample products for testing (Rings, Bands, Gold Coins, etc.).
+                </p>
+            </div>
+            <div>
+                <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={isSeedingCustomers}>
+                    {isSeedingCustomers ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
+                    Seed Dummy Customers ({DUMMY_CUSTOMERS_TO_SEED.length})
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive" />Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will add {DUMMY_CUSTOMERS_TO_SEED.length} pre-defined dummy customers to your Firestore database.
+                        Running this multiple times will create duplicate customers (with different IDs).
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSeedCustomers} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                        Yes, Seed Customers
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+                </AlertDialog>
+                <p className="text-sm text-muted-foreground mt-1">
+                Adds sample customer profiles.
+                </p>
+            </div>
+             <div>
+                <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={isSeedingKarigars}>
+                    {isSeedingKarigars ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Briefcase className="mr-2 h-4 w-4" />}
+                    Seed Dummy Karigars ({DUMMY_KARIGARS_TO_SEED.length})
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive" />Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will add {DUMMY_KARIGARS_TO_SEED.length} pre-defined dummy karigars to your Firestore database.
+                        Running this multiple times will create duplicate karigars (with different IDs).
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSeedKarigars} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                        Yes, Seed Karigars
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+                </AlertDialog>
+                <p className="text-sm text-muted-foreground mt-1">
+                Adds sample karigar (artisan) profiles.
+                </p>
+            </div>
         </CardContent>
       </Card>
 
     </div>
   );
 }
+
+    
 
     
