@@ -72,7 +72,7 @@ const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
     categoryId: GOLD_COIN_CATEGORY_ID, // Gold Coins
     metalType: 'gold' as MetalType,
     karat: '24k' as KaratValue,
-    metalWeightG: 10,
+    metalWeightG: 10, // 10 gram 24k coin
     wastagePercentage: 0, 
     makingCharges: 0,    
     hasDiamonds: false,  
@@ -105,7 +105,46 @@ const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
     stoneCharges: 3000, // e.g. enamel work or small stones
     miscCharges: 1000,
     imageUrl: 'https://placehold.co/400x400.png?text=Gold+Bangle',
-  }
+  },
+  {
+    categoryId: 'cat002', // Tops (Earrings)
+    metalType: 'gold' as MetalType,
+    karat: '18k' as KaratValue,
+    metalWeightG: 3.2,
+    wastagePercentage: 10,
+    makingCharges: 4500,
+    hasDiamonds: false, // Assuming small, non-diamond stones
+    diamondCharges: 0,
+    stoneCharges: 8000, // e.g. for colored gemstones
+    miscCharges: 150,
+    imageUrl: 'https://placehold.co/400x400.png?text=Gold+Tops',
+  },
+  {
+    categoryId: 'cat008', // Chains
+    metalType: 'gold' as MetalType,
+    karat: '22k' as KaratValue,
+    metalWeightG: 15.0,
+    wastagePercentage: 8, // Chains might have lower wastage
+    makingCharges: 10000,
+    hasDiamonds: false,
+    diamondCharges: 0,
+    stoneCharges: 0,
+    miscCharges: 0,
+    imageUrl: 'https://placehold.co/400x400.png?text=Gold+Chain',
+  },
+  {
+    categoryId: 'cat010', // Locket Sets without Bangle
+    metalType: 'gold' as MetalType,
+    karat: '21k' as KaratValue,
+    metalWeightG: 18.5,
+    wastagePercentage: 18, // Sets can have higher wastage due to complexity
+    makingCharges: 20000,
+    hasDiamonds: true,
+    diamondCharges: 40000,
+    stoneCharges: 5000, // Accent stones
+    miscCharges: 800,
+    imageUrl: 'https://placehold.co/400x400.png?text=Locket+Set',
+  },
 ];
 
 
@@ -151,7 +190,24 @@ export default function SettingsPage() {
 
     for (const productData of DUMMY_PRODUCTS_TO_SEED) {
       try {
-        const newProduct = await addProductAction(productData);
+        // Ensure imageUrl has a data-ai-hint if it's a placeholder
+        let finalProductData = {...productData};
+        if (productData.imageUrl && productData.imageUrl.startsWith('https://placehold.co')) {
+            const placeholderImage = new Image();
+            placeholderImage.src = productData.imageUrl;
+            // Basic hint based on category or metal type if possible, or generic jewelry
+            let hint = "jewelry piece";
+            if (productData.categoryId.includes("ring")) hint = "gold ring";
+            else if (productData.categoryId.includes("coin")) hint = "gold coin";
+            else if (productData.categoryId.includes("necklace") || productData.categoryId.includes("locket")) hint = "gold necklace";
+            else if (productData.categoryId.includes("bangle")) hint = "gold bangle";
+            else if (productData.categoryId.includes("chain")) hint = "gold chain";
+            // Add data-ai-hint attribute logic if needed here, though it's primarily for display components
+            // For seeding, the URL is what's stored. The hint is applied when <Image> is used.
+        }
+
+
+        const newProduct = await addProductAction(finalProductData);
         if (newProduct) {
           toast({
             title: "Product Added",
