@@ -185,7 +185,16 @@ export default function SettingsPage() {
 
   React.useEffect(() => {
     if (appReady && currentSettings) { 
-      form.reset(currentSettings);
+      form.reset({
+        goldRatePerGram: currentSettings.goldRatePerGram,
+        palladiumRatePerGram: currentSettings.palladiumRatePerGram,
+        platinumRatePerGram: currentSettings.platinumRatePerGram,
+        shopName: currentSettings.shopName,
+        shopAddress: currentSettings.shopAddress || "",
+        shopContact: currentSettings.shopContact || "",
+        shopLogoUrl: currentSettings.shopLogoUrl || "",
+        lastInvoiceNumber: currentSettings.lastInvoiceNumber,
+      });
     }
   }, [currentSettings, form, appReady]);
 
@@ -327,7 +336,7 @@ export default function SettingsPage() {
                         <DollarSign className="h-5 w-5 mr-2 text-muted-foreground" /> Current Gold Rate (PKR per gram for 24k)
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="e.g., 20000.00" {...field} className="text-lg"/>
+                      <Input type="number" step="0.01" placeholder="e.g., 20000.00" {...field} />
                     </FormControl>
                     <FormDescription>
                         This rate is for 24 Karat gold. Gold product prices are adjusted based on their selected Karat.
@@ -345,7 +354,7 @@ export default function SettingsPage() {
                         <Shield className="h-5 w-5 mr-2 text-muted-foreground" /> Current Palladium Rate (PKR per gram)
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="e.g., 22000.00" {...field} className="text-lg"/>
+                      <Input type="number" step="0.01" placeholder="e.g., 22000.00" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -360,7 +369,7 @@ export default function SettingsPage() {
                         <Shield className="h-5 w-5 mr-2 text-muted-foreground" /> Current Platinum Rate (PKR per gram)
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="e.g., 25000.00" {...field} className="text-lg"/>
+                      <Input type="number" step="0.01" placeholder="e.g., 25000.00" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
