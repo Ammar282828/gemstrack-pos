@@ -1,14 +1,7 @@
 
 "use client";
 
-if (typeof window !== 'undefined' && typeof window.structuredClone !== 'function') {
-  console.log('[TaheriPOS] structuredClone not found. Applying basic polyfill.');
-  window.structuredClone = function(value: any) {
-    if (value === undefined) { return undefined; }
-    try { return JSON.parse(JSON.stringify(value)); }
-    catch (e) { console.error("TaheriPOS: structuredClone polyfill failed:", e); return value; }
-  };
-}
+// Removed structuredClone polyfill
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
@@ -133,5 +126,3 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
-
-    
