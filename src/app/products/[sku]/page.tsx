@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -71,28 +70,26 @@ export async function drawTagContentOnDoc(
   return new Promise((resolve, reject) => {
     const drawActualContent = (logoImage?: HTMLImageElement) => {
       try {
-        // DIAGNOSTIC LINES - START
-        doc.setDrawColor(255, 0, 0); // Red border
-        doc.rect(startX, startY, format.widthMillimeters, format.heightMillimeters);
-        doc.setTextColor(0, 0, 255); // Blue text
-        doc.setFontSize(Math.min(6, format.widthMillimeters / 3)); // Fixed large size for diagnostics, relative to tag width
-        doc.text(`SKU: ${product.sku}`, startX + 0.5, startY + 2, {maxWidth: format.widthMillimeters - 1, align: 'left'});
-        doc.text(`Layout: ${format.layoutType.substring(0,4)}`, startX + 0.5, startY + 4, {maxWidth: format.widthMillimeters - 1, align: 'left'});
-        doc.setTextColor(0,0,0); // Reset text color for actual content
-        // DIAGNOSTIC LINES - END
+        doc.setTextColor(0,0,0); // Ensure text color is black for actual content
 
         if (format.layoutType === 'dumbbell') {
-          const connectorHeight = 8; 
-          const panelHeight = (format.heightMillimeters - connectorHeight) / 2;
+          const panelWidth = format.widthMillimeters;
+          const connectorStripVisualHeightOnCanvas = 8; // Height of the middle (connector) section on the PDF
+          const panelHeight = (format.heightMillimeters - connectorStripVisualHeightOnCanvas) / 2;
           const padding = 1.5; 
-          const contentWidth = format.widthMillimeters - (padding * 2);
+          const contentWidth = panelWidth - (padding * 2);
 
+          // --- Top Panel Drawing ---
           let currentYTop = startY + padding;
-          const logoMaxHeight = Math.min(6, panelHeight * 0.45);
-          
-          if (logoImage && settingsData.shopLogoUrl) {
+          const topPanelStartY = startY;
+          const topPanelEndY = startY + panelHeight;
+
+          // Logo or Shop Name on Top Panel
+          const logoMaxHeight = Math.min(6, panelHeight * 0.4); // Max 40% of panel height for logo
+          if (logoImage && settingsData.shopLogoUrl && panelHeight > logoMaxHeight + 3) { // Ensure enough space
             let logoDisplayWidth = logoImage.width;
             let logoDisplayHeight = logoImage.height;
+            // Resize logo to fit
             if (logoDisplayHeight > logoMaxHeight) {
               logoDisplayWidth = (logoMaxHeight / logoDisplayHeight) * logoDisplayWidth;
               logoDisplayHeight = logoMaxHeight;
@@ -101,159 +98,193 @@ export async function drawTagContentOnDoc(
               logoDisplayHeight = (contentWidth / logoDisplayWidth) * logoDisplayHeight;
               logoDisplayWidth = contentWidth;
             }
-            const logoX = startX + (format.widthMillimeters - logoDisplayWidth) / 2;
+            const logoX = startX + (panelWidth - logoDisplayWidth) / 2;
             doc.addImage(logoImage, 'PNG', logoX, currentYTop, logoDisplayWidth, logoDisplayHeight);
-            currentYTop += logoDisplayHeight + 0.5;
-          } else {
-            doc.setFontSize(Math.max(3, Math.min(6, panelHeight * 0.2)));
+            currentYTop += logoDisplayHeight + 0.5; // Space after logo
+          } else if (panelHeight > 5) { // Fallback to shop name if no logo or not enough space
+            doc.setFontSize(Math.max(3, Math.min(5, panelHeight * 0.18)));
             doc.setFont("helvetica", "bold");
             const shopNameLines = doc.splitTextToSize(settingsData.shopName, contentWidth);
-            doc.text(shopNameLines, startX + format.widthMillimeters / 2, currentYTop + (shopNameLines.length > 1 ? 1.5 : 2.5) , { align: 'center', maxWidth: contentWidth });
-            currentYTop += (shopNameLines.length * (doc.getFontSize() / 2.5)) + 1;
+            const shopNameTextHeight = shopNameLines.length * (doc.getFontSize() / 2.5);
+            const shopNameY = currentYTop + (shopNameLines.length > 1 ? (doc.getFontSize() * 0.2) : (doc.getFontSize() * 0.4));
+            if (shopNameY + shopNameTextHeight < topPanelEndY - padding) {
+                doc.text(shopNameLines, startX + panelWidth / 2, shopNameY , { align: 'center', maxWidth: contentWidth, baseline: 'top' });
+                currentYTop += shopNameTextHeight + 1;
+            }
           }
-
-          doc.setFontSize(Math.max(3, Math.min(5, panelHeight * 0.18)));
+          
+          // SKU on Top Panel (at the bottom of the top panel)
+          doc.setFontSize(Math.max(3, Math.min(5, panelHeight * 0.16)));
           doc.setFont("helvetica", "normal");
           const skuText = `SKU: ${product.sku}`;
           const skuLines = doc.splitTextToSize(skuText, contentWidth);
-          const skuYPos = startY + padding + panelHeight - (skuLines.length * (doc.getFontSize() / 2.8)) - padding / 2;
-          if (skuYPos > currentYTop) {
-               doc.text(skuLines, startX + format.widthMillimeters / 2, skuYPos, { align: 'center', maxWidth: contentWidth });
-          } else {
-              doc.text(skuLines, startX + format.widthMillimeters / 2, currentYTop + 1, { align: 'center', maxWidth: contentWidth });
+          const skuTextHeight = skuLines.length * (doc.getFontSize() / 2.8);
+          const skuYPos = topPanelEndY - skuTextHeight - padding / 2;
+
+          if (skuYPos > currentYTop) { // Check if SKU fits below logo/shop name
+               doc.text(skuLines, startX + panelWidth / 2, skuYPos, { align: 'center', maxWidth: contentWidth, baseline: 'alphabetic' });
+          } else if (panelHeight > skuTextHeight + padding) { // Try to fit SKU if panel is high enough, even if it overlaps a bit
+               doc.text(skuLines, startX + panelWidth / 2, topPanelEndY - padding /2 , { align: 'center', maxWidth: contentWidth, baseline: 'bottom' });
           }
 
-          let currentYBottom = startY + panelHeight + connectorHeight + padding;
-          const qrMaxHeight = panelHeight * 0.7;
-          const qrMaxWidth = contentWidth * 0.8;
-          const qrIdealSize = Math.min(qrMaxHeight, qrMaxWidth, 12); 
-          const qrX = startX + (format.widthMillimeters - qrIdealSize) / 2;
+
+          // --- Bottom Panel Drawing ---
+          const bottomPanelStartY = startY + panelHeight + connectorStripVisualHeightOnCanvas;
+          const bottomPanelEndY = startY + format.heightMillimeters;
+          let currentYBottom = bottomPanelStartY + padding;
+
+          // QR Code on Bottom Panel (centered, occupying significant portion)
+          const qrMaxHeight = panelHeight * 0.65;
+          const qrMaxWidth = contentWidth * 0.7;
+          const qrIdealSize = Math.min(qrMaxHeight, qrMaxWidth, panelWidth * 0.7, 15); 
+          const qrX = startX + (panelWidth - qrIdealSize) / 2;
           
-          if (qrDataUrl && qrDataUrl.startsWith("data:image/png")) {
+          if (qrDataUrl && qrDataUrl.startsWith("data:image/png") && panelHeight > qrIdealSize + 3) {
             doc.addImage(qrDataUrl, 'PNG', qrX, currentYBottom, qrIdealSize, qrIdealSize);
-          } else {
-            doc.rect(qrX, currentYBottom, qrIdealSize, qrIdealSize);
-            doc.setFontSize(Math.max(2, qrIdealSize / 3));
-            doc.text("QR?", qrX + qrIdealSize / 2, currentYBottom + qrIdealSize / 2, { align: 'center', baseline: 'middle' });
+            currentYBottom += qrIdealSize + 0.5; // Space after QR
+          } else if (panelHeight > 5) { // Placeholder if no QR or not enough space
+            const phSize = Math.min(qrIdealSize, panelHeight * 0.4, 8);
+            doc.rect(startX + (panelWidth - phSize)/2, currentYBottom, phSize, phSize);
+            doc.setFontSize(Math.max(2, phSize / 3));
+            doc.text("QR?", startX + panelWidth/2 , currentYBottom + phSize/2, { align: 'center', baseline: 'middle' });
+            currentYBottom += phSize + 0.5;
           }
-          currentYBottom += qrIdealSize + 1;
 
-          doc.setFontSize(Math.max(3, Math.min(5, panelHeight * 0.18)));
+          // Weight and Karat on Bottom Panel (at the bottom of the bottom panel)
+          doc.setFontSize(Math.max(3, Math.min(5, panelHeight * 0.16)));
           const weightText = `Wt: ${product.metalWeightG.toFixed(2)}g`;
           const karatText = (product.metalType === 'gold' && product.karat) ? product.karat.toUpperCase() : "";
           
-          const textYPos = currentYBottom + (doc.getFontSize() / 2.5);
-          if (textYPos < startY + format.heightMillimeters - padding) {
-              doc.text(weightText, startX + padding, textYPos, {maxWidth: contentWidth * (karatText ? 0.6 : 0.9)});
-              if (karatText) {
-                  doc.text(karatText, startX + format.widthMillimeters - padding, textYPos, { align: 'right', maxWidth: contentWidth * 0.35 });
-              }
+          const detailsLine = `${weightText}${karatText ? ` ${karatText}` : ''}`;
+          const detailLines = doc.splitTextToSize(detailsLine, contentWidth);
+          const detailTextHeight = detailLines.length * (doc.getFontSize() / 2.8);
+          const detailYPos = bottomPanelEndY - detailTextHeight - padding / 2;
+
+
+          if (detailYPos > currentYBottom) {
+             doc.text(detailLines, startX + panelWidth / 2, detailYPos, { align: 'center', maxWidth: contentWidth, baseline: 'alphabetic' });
+          } else if (panelHeight > detailTextHeight + padding) {
+             doc.text(detailLines, startX + panelWidth / 2, bottomPanelEndY - padding/2, { align: 'center', maxWidth: contentWidth, baseline: 'bottom' });
           }
+
         } else if (format.layoutType === 'rectangle') {
           const padding = 1;
           const contentWidth = format.widthMillimeters - (padding * 2);
           const contentHeight = format.heightMillimeters - (padding * 2);
           let currentY = startY + padding;
 
-          const qrIdealSize = Math.min(contentWidth * 0.45, contentHeight * 0.7, 12);
+          const qrIdealSize = Math.min(contentWidth * 0.45, contentHeight * 0.6, 12); // Slightly smaller QR for more text space
           let qrActualSize = 0;
           if (qrDataUrl && qrDataUrl.startsWith("data:image/png")) {
               qrActualSize = qrIdealSize;
           }
           
-          doc.setFontSize(Math.max(3, Math.min(5.5, contentHeight * 0.15, contentWidth * 0.18)));
+          const baseFontSize = Math.max(2.5, Math.min(5, contentHeight * 0.13, contentWidth * 0.15));
+          doc.setFontSize(baseFontSize);
 
           const skuText = `SKU: ${product.sku}`;
           const weightTextLine = `Wt: ${product.metalWeightG.toFixed(2)}g` + ((product.metalType === 'gold' && product.karat) ? ` ${product.karat.toUpperCase()}` : "");
           
-          const shopNameFontSize = Math.max(2.5, Math.min(4.5, contentHeight * 0.12));
+          const shopNameFontSize = Math.max(2.5, Math.min(4, contentHeight * 0.11));
           let shopNameYOffset = currentY;
 
-          if (logoImage && settingsData.shopLogoUrl && contentHeight > 8) {
-              const logoMaxH = Math.min(shopNameFontSize * 1.5, contentHeight * 0.2);
-              const logoMaxW = contentWidth * 0.7;
+          // Try to fit logo OR shop name
+          if (logoImage && settingsData.shopLogoUrl && contentHeight > 7) { // If tag is reasonably tall
+              const logoMaxH = Math.min(shopNameFontSize * 1.2, contentHeight * 0.18);
+              const logoMaxW = contentWidth * 0.6;
               let logoDisplayWidth = logoImage.width;
               let logoDisplayHeight = logoImage.height;
               if (logoDisplayHeight > logoMaxH) { logoDisplayWidth = (logoMaxH / logoDisplayHeight) * logoDisplayWidth; logoDisplayHeight = logoMaxH; }
-              if (logoDisplayWidth > logoMaxW) { logoDisplayHeight = (logoMaxW / logoDisplayWidth) * logoDisplayHeight; logoDisplayWidth = logoMaxW; }
+              if (logoDisplayWidth > logoMaxW) { logoDisplayHeight = (logoMaxW / logoDisplayWidth) * logoDisplayWidth; logoDisplayWidth = logoMaxW; }
 
               doc.addImage(logoImage, 'PNG', startX + (format.widthMillimeters - logoDisplayWidth)/2 , currentY, logoDisplayWidth, logoDisplayHeight);
-              currentY += logoDisplayHeight + 0.5;
+              currentY += logoDisplayHeight + 0.5; // Small gap
               shopNameYOffset = currentY;
-          } else if (contentHeight > 6) {
+          } else if (contentHeight > 5) { // Else, if enough space for shop name
               doc.setFontSize(shopNameFontSize);
               doc.setFont("helvetica", "bold");
               const shopNameLines = doc.splitTextToSize(settingsData.shopName, contentWidth);
-              doc.text(shopNameLines[0], startX + format.widthMillimeters/2, currentY + (shopNameFontSize/2.5), {align: 'center', maxWidth: contentWidth});
+              doc.text(shopNameLines[0], startX + format.widthMillimeters/2, currentY + (shopNameFontSize/2.8), {align: 'center', maxWidth: contentWidth, baseline:'top'});
               currentY += (shopNameFontSize/2.5) + 0.5;
               shopNameYOffset = currentY;
-              doc.setFontSize(Math.max(3, Math.min(5.5, contentHeight * 0.15, contentWidth * 0.18)));
+              doc.setFontSize(baseFontSize); // Reset font size
               doc.setFont("helvetica", "normal");
           }
 
-          if (qrActualSize > 0 && contentWidth > qrActualSize + (doc.getTextWidth(skuText.substring(0,5))) && contentHeight > qrActualSize * 0.8) {
-              const qrYPos = shopNameYOffset + (contentHeight - (shopNameYOffset - (startY + padding)) - qrActualSize) / 2 ;
-              doc.addImage(qrDataUrl!, 'PNG', startX + padding, Math.max(qrYPos, shopNameYOffset), qrActualSize, qrActualSize);
+          // Attempt to place QR and text side-by-side if wide enough
+          if (qrActualSize > 0 && contentWidth > qrActualSize + (doc.getTextWidth(skuText.substring(0,6))) * (baseFontSize/3) && contentHeight > qrActualSize * 0.7) {
+              const textBlockStartY = shopNameYOffset;
+              const qrYPos = textBlockStartY + ( (startY + format.heightMillimeters - padding) - textBlockStartY - qrActualSize) / 2 ; // Vertically center QR in remaining space
+              
+              doc.addImage(qrDataUrl!, 'PNG', startX + padding, Math.max(qrYPos, textBlockStartY), qrActualSize, qrActualSize);
               
               let textX = startX + padding + qrActualSize + padding / 2;
               let textBlockWidth = format.widthMillimeters - (textX - startX) - padding;
-              let textY = shopNameYOffset + (doc.getFontSize() / 2.5);
+              let textY = textBlockStartY + (baseFontSize / 2.8); // Start text near top of available block
 
               const skuLinesRect = doc.splitTextToSize(skuText, textBlockWidth);
-              doc.text(skuLinesRect, textX, textY, {maxWidth: textBlockWidth});
-              textY += (skuLinesRect.length * (doc.getFontSize()/2.5)) + 0.5;
+              if (textY + (skuLinesRect.length * (baseFontSize/2.5)) < startY + format.heightMillimeters - padding * 2) {
+                doc.text(skuLinesRect, textX, textY, {maxWidth: textBlockWidth, baseline: 'top'});
+                textY += (skuLinesRect.length * (baseFontSize/2.5)) + 0.5; // Small gap
+              }
 
               const weightLinesRect = doc.splitTextToSize(weightTextLine, textBlockWidth);
-              if (textY + (weightLinesRect.length * (doc.getFontSize()/2.5)) <= startY + format.heightMillimeters - padding) {
-                   doc.text(weightLinesRect, textX, textY, {maxWidth: textBlockWidth});
+              if (textY + (weightLinesRect.length * (baseFontSize/2.5)) <= startY + format.heightMillimeters - padding) {
+                   doc.text(weightLinesRect, textX, textY, {maxWidth: textBlockWidth, baseline: 'top'});
               }
-          } else { 
-              if (qrActualSize > 0 && (currentY + qrActualSize + (doc.getFontSize()/2.5 * 2) < startY + format.heightMillimeters - padding )) {
+          } else { // Stack QR and text
+              if (qrActualSize > 0 && (currentY + qrActualSize + (baseFontSize/2.5 * 1.5) < startY + format.heightMillimeters - padding )) {
                   doc.addImage(qrDataUrl!, 'PNG', startX + (format.widthMillimeters - qrActualSize)/2, currentY, qrActualSize, qrActualSize);
                   currentY += qrActualSize + 0.5;
-              } else if (qrActualSize === 0 && contentHeight > 5) { // Placeholder for QR if no image
-                  doc.rect(startX + (format.widthMillimeters - Math.min(contentWidth * 0.4, 8))/2, currentY, Math.min(contentWidth * 0.4, 8), Math.min(contentHeight*0.3, 8) );
-                  doc.text("QR?", startX + format.widthMillimeters/2, currentY + Math.min(contentHeight*0.3, 8)/2, {align:'center', baseline:'middle'});
-                  currentY += Math.min(contentHeight*0.3, 8) + 0.5;
+              } else if (qrActualSize === 0 && contentHeight > 5) { 
+                  const phSize = Math.min(contentWidth * 0.4, contentHeight*0.3, 6);
+                  doc.rect(startX + (format.widthMillimeters - phSize)/2, currentY, phSize, phSize );
+                  doc.setFontSize(Math.max(2, phSize / 2.5));
+                  doc.text("QR?", startX + format.widthMillimeters/2, currentY + phSize/2, {align:'center', baseline:'middle'});
+                  currentY += phSize + 0.5;
+                  doc.setFontSize(baseFontSize); // Reset font size
               }
-              currentY += (doc.getFontSize()/3); 
+              
+              currentY += (baseFontSize/3.5); // Small gap before text
               const skuLinesRectSt = doc.splitTextToSize(skuText, contentWidth);
-              doc.text(skuLinesRectSt, startX + format.widthMillimeters/2, currentY, {align: 'center', maxWidth: contentWidth});
-              currentY += (skuLinesRectSt.length * (doc.getFontSize()/2.5)) + 0.5;
+              if (currentY + (skuLinesRectSt.length * (baseFontSize/2.5)) < startY + format.heightMillimeters - padding * 2) {
+                doc.text(skuLinesRectSt, startX + format.widthMillimeters/2, currentY, {align: 'center', maxWidth: contentWidth, baseline: 'top'});
+                currentY += (skuLinesRectSt.length * (baseFontSize/2.5)) + 0.5;
+              }
 
               const weightLinesRectSt = doc.splitTextToSize(weightTextLine, contentWidth);
-               if (currentY + (weightLinesRectSt.length * (doc.getFontSize()/2.5)) <= startY + format.heightMillimeters - padding) {
-                  doc.text(weightLinesRectSt, startX + format.widthMillimeters/2, currentY, {align: 'center', maxWidth: contentWidth});
+               if (currentY + (weightLinesRectSt.length * (baseFontSize/2.5)) <= startY + format.heightMillimeters - padding) {
+                  doc.text(weightLinesRectSt, startX + format.widthMillimeters/2, currentY, {align: 'center', maxWidth: contentWidth, baseline: 'top'});
               }
           }
         } else {
           doc.text(`Unsupported layout: ${format.layoutType}`, startX + 5, startY + 10);
         }
-        resolve(); // Resolve the promise once drawing is done
+        resolve(); 
       } catch (e) {
         console.error("Error during PDF drawing:", e);
-        reject(e); // Reject the promise if drawing fails
+        reject(e); 
       }
     };
 
     const needsLogo = settingsData.shopLogoUrl && (
-        format.layoutType === 'dumbbell' ||
-        (format.layoutType === 'rectangle' && format.heightMillimeters > 8)
+        (format.layoutType === 'dumbbell' && format.heightMillimeters > 15) || // Dumbbell panels need some height
+        (format.layoutType === 'rectangle' && format.heightMillimeters > 7) // Rectangles need some height
     );
 
     if (needsLogo && settingsData.shopLogoUrl) {
         const img = new window.Image();
-        img.crossOrigin = "Anonymous";
+        img.crossOrigin = "Anonymous"; // Important for tainted canvas in some environments
         img.onload = () => {
             drawActualContent(img);
         };
-        img.onerror = () => {
-            console.warn("Failed to load logo for PDF tag content. Drawing without logo.");
-            drawActualContent(); // Draw without logo
+        img.onerror = (e) => {
+            console.warn("Failed to load logo for PDF tag content. Drawing without logo. Error:", e);
+            drawActualContent(); 
         };
         img.src = settingsData.shopLogoUrl;
     } else {
-        drawActualContent(); // Draw without logo if not needed or no URL
+        drawActualContent(); 
     }
   });
 }
@@ -291,16 +322,17 @@ export default function ProductDetailPage() {
         const timerId = setTimeout(() => {
           try {
             const dataUrl = canvas.toDataURL('image/png');
-            if (dataUrl && dataUrl.length > 100 && dataUrl !== 'data:,') {
-              setProductQrCodeDataUrlAction(sku, dataUrl);
+            if (dataUrl && dataUrl.length > 100 && dataUrl !== 'data:,') { // Basic check for valid data URL
+              setProductQrCodeDataUrlAction(sku, dataUrl); // This updates state and Firestore
             } else {
-              console.warn(`[GemsTrack] QR Canvas for ${sku} was blank or toDataURL returned minimal data. Generation skipped.`);
+              console.warn(`[GemsTrack] QR Canvas for ${sku} was blank or toDataURL returned minimal data. Generation skipped for store update.`);
             }
           } catch (e) {
-            console.error("Error generating QR code data URL for store:", e);
-            toast({ title: "QR Code Error", description: "Failed to generate and save QR code image.", variant: "destructive"});
+            console.error("Error generating QR code data URL for store update:", e);
+            // Optionally toast, but might be too noisy if it happens often
+            // toast({ title: "QR Code Error", description: "Failed to generate and save QR code image for store.", variant: "destructive"});
           }
-        }, 150);
+        }, 150); // Delay to ensure canvas is rendered
         return () => clearTimeout(timerId);
       }
     }
@@ -319,33 +351,40 @@ export default function ProductDetailPage() {
     settingsData: Settings,
     format: ProductTagFormat
   ) => {
-    if (!qrDataUrlFromState && format.layoutType !== 'rectangle' /* rectangles might try to draw without QR if small */) {
-        toast({ title: "QR Code Not Ready", description: "QR code image is not yet available for this tag. Please wait or refresh.", variant: "destructive" });
-        // Forcing a QR generation attempt if it's absolutely critical and missing
+    
+    let finalQrDataUrl = qrDataUrlFromState;
+    if (!finalQrDataUrl && format.layoutType !== 'rectangle') { // Rectangles might attempt to draw without QR if very small
+        // Attempt to generate QR on-the-fly if missing for critical formats
         const canvas = document.getElementById(`qr-${sku}`) as HTMLCanvasElement;
         if (canvas) {
           try {
             const dataUrl = canvas.toDataURL('image/png');
             if (dataUrl && dataUrl.length > 100 && dataUrl !== 'data:,') {
-              await setProductQrCodeDataUrlAction(sku, dataUrl);
-              qrDataUrlFromState = dataUrl; // Try to use it immediately
+              await setProductQrCodeDataUrlAction(sku, dataUrl); // Save it to store/Firestore
+              finalQrDataUrl = dataUrl; // Use it immediately
             }
-          } catch(e) {/* ignore error here, will proceed without */}
+          } catch(e) {
+             console.warn(`[GemsTrack generateSingleTagPDF] On-the-fly QR generation failed for ${sku}:`, e);
+          }
         }
-        if (!qrDataUrlFromState) return; // Still no QR, then bail
+        if (!finalQrDataUrl) { // If still no QR after trying
+            toast({ title: "QR Code Not Ready", description: "QR code image is not yet available for this tag. Please wait or refresh.", variant: "destructive" });
+            return;
+        }
     }
+
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: [format.widthMillimeters, format.heightMillimeters],
     });
-    if (doc.getNumberOfPages() > 0) {
+    if (doc.getNumberOfPages() > 0) { // Ensure we start with a fresh PDF if re-generating
         doc.deletePage(1);
     }
     doc.addPage([format.widthMillimeters, format.heightMillimeters], 'portrait');
 
     try {
-      await drawTagContentOnDoc(doc, product, qrDataUrlFromState, settingsData, format, 0, 0);
+      await drawTagContentOnDoc(doc, product, finalQrDataUrl, settingsData, format, 0, 0);
       doc.autoPrint();
       window.open(doc.output('bloburl'), '_blank');
       toast({ title: "Tag Ready", description: `Product tag PDF generated using format: ${format.name}` });
@@ -362,15 +401,10 @@ export default function ProductDetailPage() {
       return;
     }
     
-    let currentQrCodeUrl = qrCodeDataUrl;
     const selectedFormat = AVAILABLE_TAG_FORMATS.find(f => f.id === selectedTagFormatId) || AVAILABLE_TAG_FORMATS[0];
-
-    if (!currentQrCodeUrl) {
-      toast({ title: "QR Code Not Ready", description: "QR code image is not yet available. Please wait a moment or try refreshing.", variant: "destructive" });
-      return; // Don't attempt to generate if QR is missing.
-    }
     
-    await generateSingleTagPDF(productData, currentQrCodeUrl, settings, selectedFormat);
+    // qrCodeDataUrl is reactive state, should be up-to-date from useEffect
+    await generateSingleTagPDF(productData, qrCodeDataUrl, settings, selectedFormat);
   };
 
   const handleAddToCart = () => {
@@ -446,7 +480,7 @@ export default function ProductDetailPage() {
                     fill
                     style={{ objectFit: "cover" }}
                     data-ai-hint="jewelry piece"
-                    priority={false}
+                    priority={false} // Can be false if not critical for LCP
                     />
                 </div>
               </CardContent>
@@ -458,6 +492,7 @@ export default function ProductDetailPage() {
                 <QrCodeIcon className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center p-4 space-y-3">
+                {/* Hidden QRCode component to generate data URL */}
                 {productData && <QRCode id={`qr-${sku}`} value={productData.sku} size={128} level="H" style={{ display: 'none' }} />}
                 
                 {qrCodeDataUrl ? (
@@ -480,7 +515,7 @@ export default function ProductDetailPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button variant="outline" size="sm" onClick={handlePrintTag} className="w-full">
+                <Button variant="outline" size="sm" onClick={handlePrintTag} className="w-full" disabled={!qrCodeDataUrl && selectedTagFormatId !== 'rectangle-25x15' && selectedTagFormatId !== 'rectangle-30x20' /* Allow printing small rects without QR for now */}>
                   <Printer className="mr-2 h-4 w-4" /> Print Product Tag
                 </Button>
               </CardContent>
