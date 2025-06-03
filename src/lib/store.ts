@@ -200,6 +200,46 @@ export interface Karigar {
   notes?: string;
 }
 
+// --- Product Tag Format Definitions ---
+export interface ProductTagFormat {
+  id: string;
+  name: string;
+  widthMillimeters: number;
+  heightMillimeters: number;
+  layoutType: 'dumbbell' | 'rectangle';
+  // Future enhancements:
+  // includePrice?: boolean;
+  // includeLogo?: boolean; // Can be inferred if shopLogoUrl exists and space permits
+  // qrCodeSize?: number; // Could be a proportion of tag size
+}
+
+export const DEFAULT_TAG_FORMAT_ID = 'dumbbell-20x50';
+
+export const AVAILABLE_TAG_FORMATS: ProductTagFormat[] = [
+  {
+    id: 'dumbbell-20x50',
+    name: 'Dumbbell Tag (20mm x 50mm)',
+    widthMillimeters: 20,
+    heightMillimeters: 50,
+    layoutType: 'dumbbell',
+  },
+  {
+    id: 'rectangle-25x15',
+    name: 'Small Rectangular Label (25mm x 15mm)',
+    widthMillimeters: 25,
+    heightMillimeters: 15,
+    layoutType: 'rectangle',
+  },
+  {
+    id: 'rectangle-30x20',
+    name: 'Medium Rectangular Label (30mm x 20mm)',
+    widthMillimeters: 30,
+    heightMillimeters: 20,
+    layoutType: 'rectangle',
+  },
+];
+
+
 // --- SKU Prefixes ---
 const CATEGORY_SKU_PREFIXES: Record<string, string> = {
   'cat001': 'RIN', 'cat002': 'TOP', 'cat003': 'BAL', 'cat004': 'LCK',
@@ -726,7 +766,7 @@ export const useAppStore = create<AppState>()(
             };
             const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice);
             if (isNaN(costs.totalPrice)) {
-                console.error(`[GemsTrack Store generateInvoice] Calculated cost for product ${product.sku} is NaN.`);
+                console.error(`[GemsTrack Store generateInvoice] Calculated cost for product ${product.sku} in cart is NaN.`);
                 continue;
             }
             const unitPrice = costs.totalPrice;
@@ -939,3 +979,9 @@ export const selectAllProductsWithCosts = (state: AppState): (Product & ReturnTy
     });
 };
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
+
+// Hook to check hydration status, useful for client-side only rendering logic or avoiding hydration mismatches.
+// DEPRECATED in favor of useZustandRehydrated & useAppReady
+export const useIsStoreHydrated = useZustandRehydrated;
+
+    
