@@ -59,180 +59,203 @@ const DetailItem: React.FC<{ label: string; value: string | number | undefined |
 );
 
 // Reusable function to draw content of a single tag onto a jsPDF document at specified coordinates
-export function drawTagContentOnDoc(
+export async function drawTagContentOnDoc(
   doc: jsPDF,
-  product: NonNullable<ProductWithCalculatedCosts> | Product, // Can be Product or enriched product
+  product: NonNullable<ProductWithCalculatedCosts> | Product,
   qrDataUrl: string | undefined,
   settingsData: Settings,
   format: ProductTagFormat,
   startX: number,
   startY: number
-) {
-  const drawActualContent = (logoImage?: HTMLImageElement) => {
-    // All drawing commands are now offset by startX, startY
-    if (format.layoutType === 'dumbbell') {
-      const connectorHeight = 8; // mm, fixed for this layout
-      const panelHeight = (format.heightMillimeters - connectorHeight) / 2;
-      const padding = 1.5; // mm
-      const contentWidth = format.widthMillimeters - (padding * 2);
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const drawActualContent = (logoImage?: HTMLImageElement) => {
+      try {
+        // DIAGNOSTIC LINES - START
+        doc.setDrawColor(255, 0, 0); // Red border
+        doc.rect(startX, startY, format.widthMillimeters, format.heightMillimeters);
+        doc.setTextColor(0, 0, 255); // Blue text
+        doc.setFontSize(Math.min(6, format.widthMillimeters / 3)); // Fixed large size for diagnostics, relative to tag width
+        doc.text(`SKU: ${product.sku}`, startX + 0.5, startY + 2, {maxWidth: format.widthMillimeters - 1, align: 'left'});
+        doc.text(`Layout: ${format.layoutType.substring(0,4)}`, startX + 0.5, startY + 4, {maxWidth: format.widthMillimeters - 1, align: 'left'});
+        doc.setTextColor(0,0,0); // Reset text color for actual content
+        // DIAGNOSTIC LINES - END
 
-      // --- Top Panel (Logo & SKU) ---
-      let currentYTop = startY + padding;
-      const logoMaxHeight = Math.min(6, panelHeight * 0.45);
-      
-      if (logoImage && settingsData.shopLogoUrl) {
-        let logoDisplayWidth = logoImage.width;
-        let logoDisplayHeight = logoImage.height;
-        if (logoDisplayHeight > logoMaxHeight) {
-          logoDisplayWidth = (logoMaxHeight / logoDisplayHeight) * logoDisplayWidth;
-          logoDisplayHeight = logoMaxHeight;
-        }
-        if (logoDisplayWidth > contentWidth) {
-          logoDisplayHeight = (contentWidth / logoDisplayWidth) * logoDisplayHeight;
-          logoDisplayWidth = contentWidth;
-        }
-        const logoX = startX + (format.widthMillimeters - logoDisplayWidth) / 2;
-        doc.addImage(logoImage, 'PNG', logoX, currentYTop, logoDisplayWidth, logoDisplayHeight);
-        currentYTop += logoDisplayHeight + 0.5;
-      } else {
-        doc.setFontSize(Math.min(6, panelHeight * 0.2));
-        doc.setFont("helvetica", "bold");
-        const shopNameLines = doc.splitTextToSize(settingsData.shopName, contentWidth);
-        doc.text(shopNameLines, startX + format.widthMillimeters / 2, currentYTop + (shopNameLines.length > 1 ? 1.5 : 2.5) , { align: 'center', maxWidth: contentWidth });
-        currentYTop += (shopNameLines.length * (doc.getFontSize() / 2.5)) + 1;
-      }
+        if (format.layoutType === 'dumbbell') {
+          const connectorHeight = 8; 
+          const panelHeight = (format.heightMillimeters - connectorHeight) / 2;
+          const padding = 1.5; 
+          const contentWidth = format.widthMillimeters - (padding * 2);
 
-      doc.setFontSize(Math.min(5, panelHeight * 0.18));
-      doc.setFont("helvetica", "normal");
-      const skuText = `SKU: ${product.sku}`;
-      const skuLines = doc.splitTextToSize(skuText, contentWidth);
-      const skuYPos = startY + padding + panelHeight - (skuLines.length * (doc.getFontSize() / 2.8)) - padding / 2;
-      if (skuYPos > currentYTop) {
-           doc.text(skuLines, startX + format.widthMillimeters / 2, skuYPos, { align: 'center', maxWidth: contentWidth });
-      } else {
-          doc.text(skuLines, startX + format.widthMillimeters / 2, currentYTop + 1, { align: 'center', maxWidth: contentWidth });
-      }
-
-      // --- Bottom Panel (QR, Weight, Karat) ---
-      let currentYBottom = startY + panelHeight + connectorHeight + padding;
-      const qrMaxHeight = panelHeight * 0.7;
-      const qrMaxWidth = contentWidth * 0.8;
-      const qrIdealSize = Math.min(qrMaxHeight, qrMaxWidth, 12); // Cap QR size at 12mm
-      const qrX = startX + (format.widthMillimeters - qrIdealSize) / 2;
-      
-      if (qrDataUrl && qrDataUrl.startsWith("data:image/png")) {
-        doc.addImage(qrDataUrl, 'PNG', qrX, currentYBottom, qrIdealSize, qrIdealSize);
-      } else {
-        doc.rect(qrX, currentYBottom, qrIdealSize, qrIdealSize);
-        doc.setFontSize(4);
-        doc.text("QR", qrX + qrIdealSize / 2, currentYBottom + qrIdealSize / 2, { align: 'center', baseline: 'middle' });
-      }
-      currentYBottom += qrIdealSize + 1;
-
-      doc.setFontSize(Math.min(5, panelHeight * 0.18));
-      const weightText = `Wt: ${product.metalWeightG.toFixed(2)}g`;
-      const karatText = (product.metalType === 'gold' && product.karat) ? product.karat.toUpperCase() : "";
-      
-      const textYPos = currentYBottom + (doc.getFontSize() / 2.5);
-      // Ensure text stays within the bottom panel bounds
-      if (textYPos < startY + format.heightMillimeters - padding) {
-          doc.text(weightText, startX + padding, textYPos, {maxWidth: contentWidth * (karatText ? 0.6 : 0.9)});
-          if (karatText) {
-              doc.text(karatText, startX + format.widthMillimeters - padding, textYPos, { align: 'right', maxWidth: contentWidth * 0.35 });
-          }
-      }
-    } else if (format.layoutType === 'rectangle') {
-      const padding = 1;
-      const contentWidth = format.widthMillimeters - (padding * 2);
-      const contentHeight = format.heightMillimeters - (padding * 2);
-      let currentY = startY + padding;
-
-      const qrIdealSize = Math.min(contentWidth * 0.45, contentHeight * 0.7, 12);
-      let qrActualSize = 0;
-      if (qrDataUrl && qrDataUrl.startsWith("data:image/png")) {
-          qrActualSize = qrIdealSize;
-      }
-      
-      doc.setFontSize(Math.min(5.5, contentHeight * 0.15, contentWidth * 0.18));
-
-      const skuText = `SKU: ${product.sku}`;
-      const weightTextLine = `Wt: ${product.metalWeightG.toFixed(2)}g` + ((product.metalType === 'gold' && product.karat) ? ` ${product.karat.toUpperCase()}` : "");
-      
-      const shopNameFontSize = Math.min(4.5, contentHeight * 0.12);
-      let shopNameYOffset = currentY;
-
-      if (logoImage && settingsData.shopLogoUrl && contentHeight > 8) {
-          const logoMaxH = Math.min(shopNameFontSize * 1.5, contentHeight * 0.2);
-          const logoMaxW = contentWidth * 0.7;
-          let logoDisplayWidth = logoImage.width;
-          let logoDisplayHeight = logoImage.height;
-          if (logoDisplayHeight > logoMaxH) { logoDisplayWidth = (logoMaxH / logoDisplayHeight) * logoDisplayWidth; logoDisplayHeight = logoMaxH; }
-          if (logoDisplayWidth > logoMaxW) { logoDisplayHeight = (logoMaxW / logoDisplayWidth) * logoDisplayHeight; logoDisplayWidth = logoMaxW; }
-
-          doc.addImage(logoImage, 'PNG', startX + (format.widthMillimeters - logoDisplayWidth)/2 , currentY, logoDisplayWidth, logoDisplayHeight);
-          currentY += logoDisplayHeight + 0.5;
-          shopNameYOffset = currentY;
-      } else if (contentHeight > 6) {
-          doc.setFontSize(shopNameFontSize);
-          doc.setFont("helvetica", "bold");
-          const shopNameLines = doc.splitTextToSize(settingsData.shopName, contentWidth);
-          doc.text(shopNameLines[0], startX + format.widthMillimeters/2, currentY + (shopNameFontSize/2.5), {align: 'center', maxWidth: contentWidth});
-          currentY += (shopNameFontSize/2.5) + 0.5;
-          shopNameYOffset = currentY;
-          doc.setFontSize(Math.min(5.5, contentHeight * 0.15, contentWidth * 0.18));
-          doc.setFont("helvetica", "normal");
-      }
-
-      if (qrActualSize > 0 && contentWidth > qrActualSize + (doc.getTextWidth(skuText.substring(0,5))) && contentHeight > qrActualSize * 0.8) {
-          const qrYPos = shopNameYOffset + (contentHeight - (shopNameYOffset - (startY + padding)) - qrActualSize) / 2 ;
-          doc.addImage(qrDataUrl, 'PNG', startX + padding, Math.max(qrYPos, shopNameYOffset), qrActualSize, qrActualSize);
+          let currentYTop = startY + padding;
+          const logoMaxHeight = Math.min(6, panelHeight * 0.45);
           
-          let textX = startX + padding + qrActualSize + padding / 2;
-          let textBlockWidth = format.widthMillimeters - (textX - startX) - padding;
-          let textY = shopNameYOffset + (doc.getFontSize() / 2.5);
-
-          const skuLinesRect = doc.splitTextToSize(skuText, textBlockWidth);
-          doc.text(skuLinesRect, textX, textY, {maxWidth: textBlockWidth});
-          textY += (skuLinesRect.length * (doc.getFontSize()/2.5)) + 0.5;
-
-          const weightLinesRect = doc.splitTextToSize(weightTextLine, textBlockWidth);
-          if (textY + (weightLinesRect.length * (doc.getFontSize()/2.5)) <= startY + format.heightMillimeters - padding) {
-               doc.text(weightLinesRect, textX, textY, {maxWidth: textBlockWidth});
+          if (logoImage && settingsData.shopLogoUrl) {
+            let logoDisplayWidth = logoImage.width;
+            let logoDisplayHeight = logoImage.height;
+            if (logoDisplayHeight > logoMaxHeight) {
+              logoDisplayWidth = (logoMaxHeight / logoDisplayHeight) * logoDisplayWidth;
+              logoDisplayHeight = logoMaxHeight;
+            }
+            if (logoDisplayWidth > contentWidth) {
+              logoDisplayHeight = (contentWidth / logoDisplayWidth) * logoDisplayHeight;
+              logoDisplayWidth = contentWidth;
+            }
+            const logoX = startX + (format.widthMillimeters - logoDisplayWidth) / 2;
+            doc.addImage(logoImage, 'PNG', logoX, currentYTop, logoDisplayWidth, logoDisplayHeight);
+            currentYTop += logoDisplayHeight + 0.5;
+          } else {
+            doc.setFontSize(Math.max(3, Math.min(6, panelHeight * 0.2)));
+            doc.setFont("helvetica", "bold");
+            const shopNameLines = doc.splitTextToSize(settingsData.shopName, contentWidth);
+            doc.text(shopNameLines, startX + format.widthMillimeters / 2, currentYTop + (shopNameLines.length > 1 ? 1.5 : 2.5) , { align: 'center', maxWidth: contentWidth });
+            currentYTop += (shopNameLines.length * (doc.getFontSize() / 2.5)) + 1;
           }
-      } else { 
-          if (qrActualSize > 0 && (currentY + qrActualSize + (doc.getFontSize()/2.5 * 2) < startY + format.heightMillimeters - padding )) {
-              doc.addImage(qrDataUrl, 'PNG', startX + (format.widthMillimeters - qrActualSize)/2, currentY, qrActualSize, qrActualSize);
-              currentY += qrActualSize + 0.5;
-          }
-          currentY += (doc.getFontSize()/3); 
-          const skuLinesRectSt = doc.splitTextToSize(skuText, contentWidth);
-          doc.text(skuLinesRectSt, startX + format.widthMillimeters/2, currentY, {align: 'center', maxWidth: contentWidth});
-          currentY += (skuLinesRectSt.length * (doc.getFontSize()/2.5)) + 0.5;
 
-          const weightLinesRectSt = doc.splitTextToSize(weightTextLine, contentWidth);
-           if (currentY + (weightLinesRectSt.length * (doc.getFontSize()/2.5)) <= startY + format.heightMillimeters - padding) {
-              doc.text(weightLinesRectSt, startX + format.widthMillimeters/2, currentY, {align: 'center', maxWidth: contentWidth});
+          doc.setFontSize(Math.max(3, Math.min(5, panelHeight * 0.18)));
+          doc.setFont("helvetica", "normal");
+          const skuText = `SKU: ${product.sku}`;
+          const skuLines = doc.splitTextToSize(skuText, contentWidth);
+          const skuYPos = startY + padding + panelHeight - (skuLines.length * (doc.getFontSize() / 2.8)) - padding / 2;
+          if (skuYPos > currentYTop) {
+               doc.text(skuLines, startX + format.widthMillimeters / 2, skuYPos, { align: 'center', maxWidth: contentWidth });
+          } else {
+              doc.text(skuLines, startX + format.widthMillimeters / 2, currentYTop + 1, { align: 'center', maxWidth: contentWidth });
           }
+
+          let currentYBottom = startY + panelHeight + connectorHeight + padding;
+          const qrMaxHeight = panelHeight * 0.7;
+          const qrMaxWidth = contentWidth * 0.8;
+          const qrIdealSize = Math.min(qrMaxHeight, qrMaxWidth, 12); 
+          const qrX = startX + (format.widthMillimeters - qrIdealSize) / 2;
+          
+          if (qrDataUrl && qrDataUrl.startsWith("data:image/png")) {
+            doc.addImage(qrDataUrl, 'PNG', qrX, currentYBottom, qrIdealSize, qrIdealSize);
+          } else {
+            doc.rect(qrX, currentYBottom, qrIdealSize, qrIdealSize);
+            doc.setFontSize(Math.max(2, qrIdealSize / 3));
+            doc.text("QR?", qrX + qrIdealSize / 2, currentYBottom + qrIdealSize / 2, { align: 'center', baseline: 'middle' });
+          }
+          currentYBottom += qrIdealSize + 1;
+
+          doc.setFontSize(Math.max(3, Math.min(5, panelHeight * 0.18)));
+          const weightText = `Wt: ${product.metalWeightG.toFixed(2)}g`;
+          const karatText = (product.metalType === 'gold' && product.karat) ? product.karat.toUpperCase() : "";
+          
+          const textYPos = currentYBottom + (doc.getFontSize() / 2.5);
+          if (textYPos < startY + format.heightMillimeters - padding) {
+              doc.text(weightText, startX + padding, textYPos, {maxWidth: contentWidth * (karatText ? 0.6 : 0.9)});
+              if (karatText) {
+                  doc.text(karatText, startX + format.widthMillimeters - padding, textYPos, { align: 'right', maxWidth: contentWidth * 0.35 });
+              }
+          }
+        } else if (format.layoutType === 'rectangle') {
+          const padding = 1;
+          const contentWidth = format.widthMillimeters - (padding * 2);
+          const contentHeight = format.heightMillimeters - (padding * 2);
+          let currentY = startY + padding;
+
+          const qrIdealSize = Math.min(contentWidth * 0.45, contentHeight * 0.7, 12);
+          let qrActualSize = 0;
+          if (qrDataUrl && qrDataUrl.startsWith("data:image/png")) {
+              qrActualSize = qrIdealSize;
+          }
+          
+          doc.setFontSize(Math.max(3, Math.min(5.5, contentHeight * 0.15, contentWidth * 0.18)));
+
+          const skuText = `SKU: ${product.sku}`;
+          const weightTextLine = `Wt: ${product.metalWeightG.toFixed(2)}g` + ((product.metalType === 'gold' && product.karat) ? ` ${product.karat.toUpperCase()}` : "");
+          
+          const shopNameFontSize = Math.max(2.5, Math.min(4.5, contentHeight * 0.12));
+          let shopNameYOffset = currentY;
+
+          if (logoImage && settingsData.shopLogoUrl && contentHeight > 8) {
+              const logoMaxH = Math.min(shopNameFontSize * 1.5, contentHeight * 0.2);
+              const logoMaxW = contentWidth * 0.7;
+              let logoDisplayWidth = logoImage.width;
+              let logoDisplayHeight = logoImage.height;
+              if (logoDisplayHeight > logoMaxH) { logoDisplayWidth = (logoMaxH / logoDisplayHeight) * logoDisplayWidth; logoDisplayHeight = logoMaxH; }
+              if (logoDisplayWidth > logoMaxW) { logoDisplayHeight = (logoMaxW / logoDisplayWidth) * logoDisplayHeight; logoDisplayWidth = logoMaxW; }
+
+              doc.addImage(logoImage, 'PNG', startX + (format.widthMillimeters - logoDisplayWidth)/2 , currentY, logoDisplayWidth, logoDisplayHeight);
+              currentY += logoDisplayHeight + 0.5;
+              shopNameYOffset = currentY;
+          } else if (contentHeight > 6) {
+              doc.setFontSize(shopNameFontSize);
+              doc.setFont("helvetica", "bold");
+              const shopNameLines = doc.splitTextToSize(settingsData.shopName, contentWidth);
+              doc.text(shopNameLines[0], startX + format.widthMillimeters/2, currentY + (shopNameFontSize/2.5), {align: 'center', maxWidth: contentWidth});
+              currentY += (shopNameFontSize/2.5) + 0.5;
+              shopNameYOffset = currentY;
+              doc.setFontSize(Math.max(3, Math.min(5.5, contentHeight * 0.15, contentWidth * 0.18)));
+              doc.setFont("helvetica", "normal");
+          }
+
+          if (qrActualSize > 0 && contentWidth > qrActualSize + (doc.getTextWidth(skuText.substring(0,5))) && contentHeight > qrActualSize * 0.8) {
+              const qrYPos = shopNameYOffset + (contentHeight - (shopNameYOffset - (startY + padding)) - qrActualSize) / 2 ;
+              doc.addImage(qrDataUrl!, 'PNG', startX + padding, Math.max(qrYPos, shopNameYOffset), qrActualSize, qrActualSize);
+              
+              let textX = startX + padding + qrActualSize + padding / 2;
+              let textBlockWidth = format.widthMillimeters - (textX - startX) - padding;
+              let textY = shopNameYOffset + (doc.getFontSize() / 2.5);
+
+              const skuLinesRect = doc.splitTextToSize(skuText, textBlockWidth);
+              doc.text(skuLinesRect, textX, textY, {maxWidth: textBlockWidth});
+              textY += (skuLinesRect.length * (doc.getFontSize()/2.5)) + 0.5;
+
+              const weightLinesRect = doc.splitTextToSize(weightTextLine, textBlockWidth);
+              if (textY + (weightLinesRect.length * (doc.getFontSize()/2.5)) <= startY + format.heightMillimeters - padding) {
+                   doc.text(weightLinesRect, textX, textY, {maxWidth: textBlockWidth});
+              }
+          } else { 
+              if (qrActualSize > 0 && (currentY + qrActualSize + (doc.getFontSize()/2.5 * 2) < startY + format.heightMillimeters - padding )) {
+                  doc.addImage(qrDataUrl!, 'PNG', startX + (format.widthMillimeters - qrActualSize)/2, currentY, qrActualSize, qrActualSize);
+                  currentY += qrActualSize + 0.5;
+              } else if (qrActualSize === 0 && contentHeight > 5) { // Placeholder for QR if no image
+                  doc.rect(startX + (format.widthMillimeters - Math.min(contentWidth * 0.4, 8))/2, currentY, Math.min(contentWidth * 0.4, 8), Math.min(contentHeight*0.3, 8) );
+                  doc.text("QR?", startX + format.widthMillimeters/2, currentY + Math.min(contentHeight*0.3, 8)/2, {align:'center', baseline:'middle'});
+                  currentY += Math.min(contentHeight*0.3, 8) + 0.5;
+              }
+              currentY += (doc.getFontSize()/3); 
+              const skuLinesRectSt = doc.splitTextToSize(skuText, contentWidth);
+              doc.text(skuLinesRectSt, startX + format.widthMillimeters/2, currentY, {align: 'center', maxWidth: contentWidth});
+              currentY += (skuLinesRectSt.length * (doc.getFontSize()/2.5)) + 0.5;
+
+              const weightLinesRectSt = doc.splitTextToSize(weightTextLine, contentWidth);
+               if (currentY + (weightLinesRectSt.length * (doc.getFontSize()/2.5)) <= startY + format.heightMillimeters - padding) {
+                  doc.text(weightLinesRectSt, startX + format.widthMillimeters/2, currentY, {align: 'center', maxWidth: contentWidth});
+              }
+          }
+        } else {
+          doc.text(`Unsupported layout: ${format.layoutType}`, startX + 5, startY + 10);
+        }
+        resolve(); // Resolve the promise once drawing is done
+      } catch (e) {
+        console.error("Error during PDF drawing:", e);
+        reject(e); // Reject the promise if drawing fails
       }
+    };
+
+    const needsLogo = settingsData.shopLogoUrl && (
+        format.layoutType === 'dumbbell' ||
+        (format.layoutType === 'rectangle' && format.heightMillimeters > 8)
+    );
+
+    if (needsLogo && settingsData.shopLogoUrl) {
+        const img = new window.Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+            drawActualContent(img);
+        };
+        img.onerror = () => {
+            console.warn("Failed to load logo for PDF tag content. Drawing without logo.");
+            drawActualContent(); // Draw without logo
+        };
+        img.src = settingsData.shopLogoUrl;
     } else {
-      doc.text(`Unsupported layout: ${format.layoutType}`, startX + 5, startY + 10);
+        drawActualContent(); // Draw without logo if not needed or no URL
     }
-  };
-
-  const needsLogo = settingsData.shopLogoUrl && (
-      format.layoutType === 'dumbbell' ||
-      (format.layoutType === 'rectangle' && format.heightMillimeters > 8)
-  );
-
-  if (needsLogo) {
-      const img = new window.Image();
-      img.crossOrigin = "Anonymous";
-      img.onload = () => { drawActualContent(img); };
-      img.onerror = () => { console.warn("Failed to load logo for PDF tag content."); drawActualContent(); };
-      img.src = settingsData.shopLogoUrl!;
-  } else {
-      drawActualContent();
-  }
+  });
 }
 
 
@@ -290,15 +313,26 @@ export default function ProductDetailPage() {
     router.push('/products');
   };
 
-  const generateSingleTagPDF = (
+  const generateSingleTagPDF = async (
     product: NonNullable<ProductWithCalculatedCosts>,
     qrDataUrlFromState: string | undefined,
     settingsData: Settings,
     format: ProductTagFormat
   ) => {
-    if (!qrDataUrlFromState) {
+    if (!qrDataUrlFromState && format.layoutType !== 'rectangle' /* rectangles might try to draw without QR if small */) {
         toast({ title: "QR Code Not Ready", description: "QR code image is not yet available for this tag. Please wait or refresh.", variant: "destructive" });
-        return;
+        // Forcing a QR generation attempt if it's absolutely critical and missing
+        const canvas = document.getElementById(`qr-${sku}`) as HTMLCanvasElement;
+        if (canvas) {
+          try {
+            const dataUrl = canvas.toDataURL('image/png');
+            if (dataUrl && dataUrl.length > 100 && dataUrl !== 'data:,') {
+              await setProductQrCodeDataUrlAction(sku, dataUrl);
+              qrDataUrlFromState = dataUrl; // Try to use it immediately
+            }
+          } catch(e) {/* ignore error here, will proceed without */}
+        }
+        if (!qrDataUrlFromState) return; // Still no QR, then bail
     }
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -310,26 +344,33 @@ export default function ProductDetailPage() {
     }
     doc.addPage([format.widthMillimeters, format.heightMillimeters], 'portrait');
 
-    drawTagContentOnDoc(doc, product, qrDataUrlFromState, settingsData, format, 0, 0);
-    
-    doc.autoPrint();
-    window.open(doc.output('bloburl'), '_blank');
-    toast({ title: "Tag Ready", description: `Product tag PDF generated using format: ${format.name}` });
+    try {
+      await drawTagContentOnDoc(doc, product, qrDataUrlFromState, settingsData, format, 0, 0);
+      doc.autoPrint();
+      window.open(doc.output('bloburl'), '_blank');
+      toast({ title: "Tag Ready", description: `Product tag PDF generated using format: ${format.name}` });
+    } catch (error) {
+      console.error("Error generating single tag PDF:", error);
+      toast({ title: "PDF Generation Error", description: "Could not draw tag content.", variant: "destructive" });
+    }
   };
 
 
-  const handlePrintTag = () => {
+  const handlePrintTag = async () => {
     if (!productData) {
       toast({ title: "Error", description: "Product data not available for printing.", variant: "destructive" });
       return;
     }
-    // For single tag print, we use the qrCodeDataUrl from component state, which syncs with store
-    if (!qrCodeDataUrl) {
-      toast({ title: "QR Code Not Ready", description: "QR code image is not yet available. Please wait a moment or try refreshing.", variant: "destructive" });
-      return;
-    }
+    
+    let currentQrCodeUrl = qrCodeDataUrl;
     const selectedFormat = AVAILABLE_TAG_FORMATS.find(f => f.id === selectedTagFormatId) || AVAILABLE_TAG_FORMATS[0];
-    generateSingleTagPDF(productData, qrCodeDataUrl, settings, selectedFormat);
+
+    if (!currentQrCodeUrl) {
+      toast({ title: "QR Code Not Ready", description: "QR code image is not yet available. Please wait a moment or try refreshing.", variant: "destructive" });
+      return; // Don't attempt to generate if QR is missing.
+    }
+    
+    await generateSingleTagPDF(productData, currentQrCodeUrl, settings, selectedFormat);
   };
 
   const handleAddToCart = () => {
@@ -512,5 +553,3 @@ export default function ProductDetailPage() {
     </div>
   );
 }
-
-    

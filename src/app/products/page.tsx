@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import QRCode from 'qrcode.react'; // Import QRCode for on-the-fly generation
 import { useAppStore, selectAllProductsWithCosts, selectCategoryTitleById, Product, useAppReady, Settings, ProductTagFormat, AVAILABLE_TAG_FORMATS, DEFAULT_TAG_FORMAT_ID } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { drawTagContentOnDoc } from './[sku]/page'; // Import the refactored drawing function
+import { drawTagContentOnDoc } from './[sku]/page'; 
 
 type ProductWithCosts = ReturnType<typeof selectAllProductsWithCosts>[0];
 
@@ -154,7 +155,7 @@ export default function ProductsPage() {
   
   const handleDeleteProduct = async (sku: string) => {
     await deleteProductAction(sku);
-    setSelectedProductSkus(prev => prev.filter(s => s !== sku)); // Remove from selection if deleted
+    setSelectedProductSkus(prev => prev.filter(s => s !== sku)); 
     toast({ title: "Product Deleted", description: `Product with SKU ${sku} has been deleted.` });
   };
 
@@ -180,11 +181,17 @@ export default function ProductsPage() {
   const generateAndStoreQrCode = async (productSku: string): Promise<string | undefined> => {
     try {
       const tempCanvas = document.createElement('canvas');
-      await QRCode.toCanvas(tempCanvas, productSku, { errorCorrectionLevel: 'H', width: 256 });
-      const dataUrl = tempCanvas.toDataURL('image/png');
-      if (dataUrl && dataUrl.length > 100 && dataUrl !== 'data:,') {
-        await setProductQrCodeAction(productSku, dataUrl); // This updates Firestore and local store
-        return dataUrl;
+      // Ensure QRCode.toCanvas is available or handle appropriately
+      if (typeof QRCode.toCanvas === 'function') {
+        await QRCode.toCanvas(tempCanvas, productSku, { errorCorrectionLevel: 'H', width: 256 });
+        const dataUrl = tempCanvas.toDataURL('image/png');
+        if (dataUrl && dataUrl.length > 100 && dataUrl !== 'data:,') {
+          await setProductQrCodeAction(productSku, dataUrl); 
+          return dataUrl;
+        }
+      } else {
+        console.error("QRCode.toCanvas is not a function. Ensure qrcode.react is correctly installed and imported.");
+        return undefined;
       }
       return undefined;
     } catch (e) {
@@ -212,14 +219,14 @@ export default function ProductsPage() {
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    // Define sheet layout for A4 with 7 dumbbell tags per column
-    const tagsPerRow = 1; // For the provided sheet
+    
+    const tagsPerRow = 1; 
     const tagsPerCol = 7;
-    const marginTop = 10; // mm
-    const marginLeft = (pageWidth - selectedFormat.widthMillimeters * tagsPerRow) / 2; // Center the column
-    const tagSlotHeight = (pageHeight - 2 * marginTop) / tagsPerCol; // Effective height for each tag slot
+    const marginTop = 10; 
+    const marginLeft = (pageWidth - selectedFormat.widthMillimeters * tagsPerRow) / 2; 
+    const tagSlotHeight = (pageHeight - 2 * marginTop) / tagsPerCol; 
 
-    let currentTagIndex = 0;
+    let currentTagDrawnCount = 0;
     let pageNumber = 1;
     
     for (const sku of selectedProductSkus) {
@@ -239,33 +246,33 @@ export default function ProductsPage() {
         }
       }
 
-      if (currentTagIndex > 0 && currentTagIndex % (tagsPerRow * tagsPerCol) === 0) {
+      if (currentTagDrawnCount > 0 && currentTagDrawnCount % (tagsPerRow * tagsPerCol) === 0) {
         doc.addPage();
         pageNumber++;
       }
 
-      const tagIndexOnPage = currentTagIndex % (tagsPerRow * tagsPerCol);
+      const tagIndexOnPage = currentTagDrawnCount % (tagsPerRow * tagsPerCol);
       const rowIndex = Math.floor(tagIndexOnPage / tagsPerRow);
-      // const colIndex = tagIndexOnPage % tagsPerRow; // Not used for single column
-
-      const x = marginLeft; // + colIndex * selectedFormat.widthMillimeters; (if multiple columns)
+      
+      const x = marginLeft; 
       const y = marginTop + rowIndex * tagSlotHeight;
       
-      // Center the 50mm dumbbell tag content within the ~39.57mm slot height
-      // This means our 50mm is logical height, actual printed content needs to be compact
-      // For dumbbell, the content is at the ends. The startY should be where the top of the 50mm logical tag starts.
       const drawY = y + (tagSlotHeight - selectedFormat.heightMillimeters) / 2;
 
-
-      drawTagContentOnDoc(doc, product, qrDataUrl, settings, selectedFormat, x, Math.max(y, drawY)); // Ensure not drawing above y
-
-      currentTagIndex++;
+      try {
+        await drawTagContentOnDoc(doc, product, qrDataUrl, settings, selectedFormat, x, Math.max(y, drawY)); 
+      } catch (error) {
+        console.error(`Error drawing tag for SKU ${sku}:`, error);
+        toast({ title: "Tag Drawing Error", description: `Could not draw tag for ${sku}.`, variant: "destructive"});
+        // Optionally, decide if you want to skip this tag or stop the whole process
+      }
+      currentTagDrawnCount++;
     }
 
-    if (currentTagIndex > 0) {
+    if (currentTagDrawnCount > 0) {
         doc.autoPrint();
         window.open(doc.output('bloburl'), '_blank');
-        toast({ title: "Bulk Tags Ready", description: `${currentTagIndex} tags generated on ${pageNumber} page(s).` });
+        toast({ title: "Bulk Tags Ready", description: `${currentTagDrawnCount} tags generated on ${pageNumber} page(s).` });
     } else {
         toast({ title: "No Tags Printed", description: "Could not generate any tags. Check QR codes or product data.", variant: "destructive" });
     }
@@ -329,7 +336,7 @@ export default function ProductsPage() {
                         <SelectValue placeholder="Select Tag Format for Bulk Print" />
                     </SelectTrigger>
                     <SelectContent>
-                        {AVAILABLE_TAG_FORMATS.filter(f => f.layoutType === 'dumbbell').map(format => ( // Only show dumbbell for now
+                        {AVAILABLE_TAG_FORMATS.filter(f => f.layoutType === 'dumbbell').map(format => ( 
                         <SelectItem key={format.id} value={format.id}>
                             {format.name}
                         </SelectItem>
@@ -422,4 +429,3 @@ export default function ProductsPage() {
     </div>
   );
 }
-
