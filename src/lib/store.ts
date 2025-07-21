@@ -297,8 +297,8 @@ export interface AppState {
   isInitialDataLoadedFromFirestore: boolean; // True after all initial loads complete
 
   // Zustand specific hydration state
-  _zustandHasRehydrated: boolean;
-  setZustandHasRehydrated: (hydrated: boolean) => void;
+  _hasHydrated: boolean;
+  setHasHydrated: (hydrated: boolean) => void;
 
   // Actions
   loadSettings: () => Promise<void>;
@@ -350,10 +350,11 @@ const ssrDummyStorage: StateStorage = { getItem: () => null, setItem: () => {}, 
 export const useAppStore = create<AppState>()(
   persist(
     immer((set, get) => ({
-      _zustandHasRehydrated: false,
-      setZustandHasRehydrated: (hydrated) => {
-        console.log(`[GemsTrack Store] Setting _zustandHasRehydrated to: ${hydrated}`);
-        set((state) => { state._zustandHasRehydrated = hydrated; });
+      _hasHydrated: false,
+      setHasHydrated: (hydrated) => {
+        set({
+          _hasHydrated: hydrated,
+        });
       },
       settings: initialSettingsData, // Fallback, will be overwritten by loadSettings
       categories: staticCategories, // Categories remain local for now
@@ -828,18 +829,11 @@ export const useAppStore = create<AppState>()(
         if (typeof window === 'undefined') return ssrDummyStorage;
         return localStorage;
       }),
-      onRehydrateStorage: () => (state, error) => {
-        if (error) console.error('[GemsTrack Store Persist] REHYDRATION_ERROR:', error);
-        else if (state) console.log('[GemsTrack Store Persist] REHYDRATION_SUCCESS_FROM_STORAGE.');
-        else console.log('[GemsTrack Store Persist] NO_PERSISTED_STATE_USING_INITIAL.');
-        
-        queueMicrotask(() => {
-          useAppStore.getState().setZustandHasRehydrated(true);
-        });
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
       },
       partialize: (state) => ({
         cart: state.cart,
-        _zustandHasRehydrated: state._zustandHasRehydrated,
       }),
       version: 8, 
     }
@@ -860,40 +854,22 @@ export function calculateProductCosts(
 }
 
 // --- Hydration Hooks ---
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 
-export const useZustandRehydrated = () => {
-  const [isHydrated, setIsHydrated] = useState(useAppStore.getState()._zustandHasRehydrated);
-  useEffect(() => {
-    const storeAlreadyHydrated = useAppStore.getState()._zustandHasRehydrated;
-    if (storeAlreadyHydrated) {
-      setIsHydrated(true);
-      return; 
-    }
-    const unsubscribe = useAppStore.subscribe(
-      (currentState) => currentState._zustandHasRehydrated,
-      (newHydratedValue) => {
-        if (newHydratedValue) {
-          setIsHydrated(true);
-          unsubscribe(); 
-        }
-      }
+function useZustandRehydrated() {
+    const hasHydrated = useSyncExternalStore(
+        useAppStore.subscribe,
+        () => useAppStore.getState()._hasHydrated,
+        () => false
     );
-    // console.log(`[GemsTrack useZustandRehydrated] Hook mounted. Initial _zustandHasRehydrated: ${storeAlreadyHydrated}. Initial isHydrated: ${isHydrated}`);
-    return () => {
-        // console.log("[GemsTrack useZustandRehydrated] Hook unmounted. Unsubscribing.");
-        unsubscribe();
-    }
-  }, []); 
-  return isHydrated;
-};
+    return hasHydrated;
+}
 
 export const useAppReady = () => {
     const isFirestoreDataLoaded = useAppStore(state => state.isInitialDataLoadedFromFirestore);
     const isZustandRehydrated = useZustandRehydrated();
-    // console.log(`[GemsTrack useAppReady] Zustand rehydrated: ${isZustandRehydrated}, Firestore data loaded: ${isFirestoreDataLoaded}`);
     return isZustandRehydrated && isFirestoreDataLoaded;
-}
+};
 
 // --- SELECTOR DEFINITIONS ---
 export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
@@ -981,7 +957,10 @@ export const selectAllProductsWithCosts = (state: AppState): (Product & ReturnTy
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
 
 // Hook to check hydration status, useful for client-side only rendering logic or avoiding hydration mismatches.
-// DEPRECATED in favor of useZustandRehydrated & useAppReady
-export const useIsStoreHydrated = useZustandRehydrated;
-
-    
+export const useIsStoreHydrated = () => {
+    return useSyncExternalStore(
+        useAppStore.subscribe,
+        () => useAppStore.getState()._hasHydrated,
+        () => false
+    );
+};

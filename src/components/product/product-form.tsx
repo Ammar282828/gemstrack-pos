@@ -202,64 +202,54 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     return processed;
   };
   
-  const onSubmitAndClose = async (data: ProductFormData) => {
-    try {
+  const onSubmit = (data: ProductFormData) => {
+    if (isEditMode) {
+      // Logic for editing
       const processedData = processFormData(data);
-      if (isEditMode && product) {
-        await updateProduct(product.sku, processedData);
+      if (product) {
+        updateProduct(product.sku, processedData);
         toast({ title: "Success", description: "Product updated successfully." });
-        if (onSubmitSuccess) onSubmitSuccess(); else router.push(`/products/${product.sku}`);
-      } else {
-        const newProduct = await addProduct(processedData);
-        if (newProduct) {
-            toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added successfully.` });
-            if (onSubmitSuccess) onSubmitSuccess(); else router.push('/products');
+        if (onSubmitSuccess) {
+          onSubmitSuccess();
         } else {
-            toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
+          router.push(`/products/${product.sku}`);
         }
       }
-    } catch (error) {
-      toast({ title: "Error", description: `Failed to save product: ${(error as Error).message}`, variant: "destructive" });
-      console.error("Failed to save product", error);
-    }
-  };
-
-  const onSaveAndAddAnother = async (data: ProductFormData) => {
-    try {
+    } else {
+      // Logic for adding
       const processedData = processFormData(data);
-      const newProduct = await addProduct(processedData);
-      if (newProduct) {
-        toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added. You can add another product.` });
-        
-        const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
-        const nextWastage = isNextItemAlsoGoldCoin ? 0 : (categories.find(c => c.id === data.categoryId)?.title.toLowerCase().includes("diamond") ? 25 : 10);
-
-        form.reset({
-          categoryId: data.categoryId, 
-          metalType: data.metalType, 
-          karat: data.metalType === 'gold' ? data.karat : undefined, 
-          metalWeightG: 0, 
-          wastagePercentage: nextWastage,
-          makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
-          hasDiamonds: false,    
-          diamondCharges: 0,
-          stoneCharges: isNextItemAlsoGoldCoin ? 0 : 0,
-          miscCharges: isNextItemAlsoGoldCoin ? 0 : 0,
-          imageUrl: "",
-        });
-      } else {
-        toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
-      }
-    } catch (error) {
-      toast({ title: "Error", description: `Failed to save product (Save & Add Another): ${(error as Error).message}`, variant: "destructive" });
-      console.error("Failed to save product (Save & Add Another)", error);
+      addProduct(processedData).then(newProduct => {
+        if (newProduct) {
+          toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added. You can add another product.` });
+          // Reset form for next entry
+          const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
+          const nextWastage = isNextItemAlsoGoldCoin ? 0 : (categories.find(c => c.id === data.categoryId)?.title.toLowerCase().includes("diamond") ? 25 : 10);
+          form.reset({
+            categoryId: data.categoryId,
+            metalType: data.metalType,
+            karat: data.metalType === 'gold' ? data.karat : undefined,
+            metalWeightG: 0,
+            wastagePercentage: nextWastage,
+            makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
+            hasDiamonds: false,
+            diamondCharges: 0,
+            stoneCharges: isNextItemAlsoGoldCoin ? 0 : 0,
+            miscCharges: isNextItemAlsoGoldCoin ? 0 : 0,
+            imageUrl: "",
+          });
+        } else {
+          toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
+        }
+      }).catch(error => {
+        toast({ title: "Error", description: `Failed to save product: ${(error as Error).message}`, variant: "destructive" });
+        console.error("Failed to save product", error);
+      });
     }
   };
-
 
   return (
     <Form {...form}>
-      <form>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
             <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
@@ -526,11 +516,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               <Ban className="mr-2 h-4 w-4" /> Cancel
             </Button>
             {!isEditMode && (
-                 <Button type="button" onClick={form.handleSubmit(onSaveAndAddAnother)} disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
+                 <Button type="submit" disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
                     <Save className="mr-2 h-4 w-4" /> Save & Add Another
                 </Button>
             )}
-            <Button type="button" onClick={form.handleSubmit(onSubmitAndClose)} disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
+            <Button type="submit" disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
               <Save className="mr-2 h-4 w-4" /> {isEditMode ? 'Save Changes' : 'Add Product & Close'}
             </Button>
           </CardFooter>
