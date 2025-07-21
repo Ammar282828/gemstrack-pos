@@ -415,7 +415,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 )}
                 />
             )}
-             <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {!isGoldCoinScenario && (
                 <>
@@ -423,7 +423,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                     control={form.control}
                     name="hasDiamonds"
                     render={({ field }) => (
-                        <FormItem className="sm:col-span-2 flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                        <FormItem className="md:col-span-2 flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
                         <FormControl>
                             <Checkbox
                             checked={field.value}
@@ -488,7 +488,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                     control={form.control}
                     name="stoneCharges"
                     render={({ field }) => (
-                        <FormItem className={!hasDiamondsValue && !isGoldCoinScenario ? 'sm:col-span-2' : ''}>
+                        <FormItem className={!hasDiamondsValue && !isGoldCoinScenario ? 'md:col-span-2' : ''}>
                         <FormLabel>{hasDiamondsValue && !isGoldCoinScenario ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
                         <FormControl>
                             <Input type="number" step="1" placeholder="e.g., 15000" {...field} />
