@@ -163,32 +163,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   }, [isGoldCoinScenario, form]);
   
   useEffect(() => {
-    if (!isGoldCoinScenario) { 
-      let defaultWastage = 10;
-      const currentHasDiamonds = form.getValues('hasDiamonds'); 
-
-      if (currentHasDiamonds) {
-        defaultWastage = 25;
-      } else {
-        const category = categories.find(c => c.id === selectedCategoryId);
-        if (category) {
-          const lowerCaseTitle = category.title.toLowerCase();
-          const fifteenPercentTriggers = ["chain", "bangle", "gold necklace set"];
-          if (fifteenPercentTriggers.some(trigger => lowerCaseTitle.includes(trigger))) {
-            defaultWastage = 15;
-          }
-        }
-      }
-      // Only set wastage if it's not already user-modified (if form is dirty for this field)
-      // This check is a bit naive, a more robust way would be to track if user explicitly changed it.
-      // For simplicity, we'll overwrite if not gold coin. User can change it back.
-      form.setValue('wastagePercentage', defaultWastage, { shouldValidate: true });
-
-      if (!currentHasDiamonds) {
-        form.setValue('diamondCharges', 0, { shouldValidate: true });
-      }
+    if (isGoldCoinScenario) {
+      // Gold coin logic takes precedence
+      form.setValue('wastagePercentage', 0, { shouldValidate: true });
+      form.setValue('diamondCharges', 0, { shouldValidate: true });
+      return;
     }
-  }, [selectedCategoryId, form, categories, isGoldCoinScenario, hasDiamondsValue]);
+
+    if (hasDiamondsValue) {
+      // If product has diamonds, set wastage to 25% and ensure diamond charges are not zero if they were previously.
+      form.setValue('wastagePercentage', 25, { shouldValidate: true });
+    } else {
+      // If product does not have diamonds, set wastage to a default (e.g., 10%) and zero out diamond charges.
+      form.setValue('wastagePercentage', 10, { shouldValidate: true });
+      form.setValue('diamondCharges', 0, { shouldValidate: true });
+    }
+  }, [isGoldCoinScenario, hasDiamondsValue, form]);
 
   const processFormData = (data: ProductFormData): ProductDataForActualAdd => {
     const isActualGoldCoinScenario = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
@@ -530,8 +520,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                   <FormMessage />
                 </FormItem>
               )}
-            />
-          </CardContent>
+            </CardContent>
           <CardFooter className="flex flex-col sm:flex-row justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
               <Ban className="mr-2 h-4 w-4" /> Cancel
