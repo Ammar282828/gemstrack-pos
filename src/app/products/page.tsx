@@ -306,8 +306,8 @@ export default function ProductsPage() {
     <div className="container mx-auto py-8 px-4">
       <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Manage Products</h1>
-          <p className="text-muted-foreground">View, add, edit, or delete your jewellery items. Select products for bulk tag printing.</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-primary">Manage Products</h1>
+          <p className="text-muted-foreground">View, add, edit, or delete your jewellery items.</p>
         </div>
         <Link href="/products/add" passHref>
           <Button size="lg">
@@ -319,8 +319,8 @@ export default function ProductsPage() {
 
       <Card className="mb-6">
         <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative flex-grow w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-grow w-full">
               <Input
                 type="search"
                 placeholder="Search by name or SKU..."
@@ -330,9 +330,9 @@ export default function ProductsPage() {
               />
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             </div>
-            <div className="w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <ShadSelect value={bulkPrintTagFormatId} onValueChange={setBulkPrintTagFormatId}>
-                    <SelectTrigger className="w-full md:w-[250px]">
+                    <SelectTrigger className="w-full sm:w-[250px]">
                         <SelectValue placeholder="Select Tag Format for Bulk Print" />
                     </SelectTrigger>
                     <SelectContent>
@@ -343,14 +343,14 @@ export default function ProductsPage() {
                         ))}
                     </SelectContent>
                 </ShadSelect>
+                <Button 
+                    onClick={handleBulkPrintTags} 
+                    disabled={selectedProductSkus.length === 0}
+                    className="w-full sm:w-auto"
+                >
+                <Printer className="w-4 h-4 mr-2" /> Print Tags ({selectedProductSkus.length})
+                </Button>
             </div>
-            <Button 
-                onClick={handleBulkPrintTags} 
-                disabled={selectedProductSkus.length === 0}
-                className="w-full md:w-auto"
-            >
-              <Printer className="w-4 h-4 mr-2" /> Print Tags for Selected ({selectedProductSkus.length})
-            </Button>
           </div>
 
            <div className="flex flex-wrap gap-2 items-center">
@@ -360,7 +360,7 @@ export default function ProductsPage() {
                 onClick={handleSelectAllFiltered}
                 disabled={filteredProducts.length === 0}
             >
-                Select All Filtered ({filteredProducts.length})
+                Select All ({filteredProducts.length})
             </Button>
             <Button
                 variant="outline"
@@ -368,7 +368,7 @@ export default function ProductsPage() {
                 onClick={handleDeselectAll}
                 disabled={selectedProductSkus.length === 0}
             >
-                Deselect All ({selectedProductSkus.length})
+                Deselect ({selectedProductSkus.length})
             </Button>
           </div>
 
@@ -401,7 +401,7 @@ export default function ProductsPage() {
             <p className="text-muted-foreground">Refreshing product list...</p>
          </div>
       ): filteredProducts.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredProducts.map((product) => (
             <ProductListItem 
                 key={product.sku} 

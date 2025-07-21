@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -46,11 +47,11 @@ declare module 'jspdf' {
 
 const DetailItem: React.FC<{ label: string; value: string | number | undefined | boolean; icon?: React.ReactNode, unit?: string, currency?: string }> = ({ label, value, icon, unit, currency }) => (
   <div className="flex justify-between items-center py-2">
-    <div className="flex items-center text-muted-foreground">
+    <div className="flex items-center text-sm text-muted-foreground">
       {icon && <span className="mr-2">{icon}</span>}
       <span>{label}</span>
     </div>
-    <span className="font-medium text-foreground">
+    <span className="font-medium text-foreground text-sm">
       {currency && value !== undefined && typeof value !== 'boolean' && <span className="mr-0.5">{currency}</span>}
       {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : typeof value === 'number' ? value.toLocaleString() : value || '-'} {unit}
     </span>
@@ -438,16 +439,16 @@ export default function ProductDetailPage() {
       </Button>
 
       <Card className="overflow-hidden">
-        <CardHeader className="bg-muted/30">
+        <CardHeader className="bg-muted/30 p-4 md:p-6">
           <div className="flex flex-col md:flex-row justify-between items-start gap-4">
             <div>
               <Badge variant="secondary" className="mb-2">
                 <Shapes className="w-3 h-3 mr-1" /> {categoryTitle}
               </Badge>
-              <CardTitle className="text-3xl">{productData.name}</CardTitle>
+              <CardTitle className="text-2xl md:text-3xl">{productData.name}</CardTitle>
               <CardDescription>SKU: {productData.sku}</CardDescription>
             </div>
-            <div className="flex space-x-2 mt-2 md:mt-0">
+            <div className="flex space-x-2 mt-2 md:mt-0 self-start md:self-center">
                <Button asChild variant="outline" className="whitespace-nowrap">
                 <Link href={`/products/${sku}/edit`} passHref legacyBehavior>
                   <a>
@@ -468,7 +469,7 @@ export default function ProductDetailPage() {
           </div>
         </CardHeader>
 
-        <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <CardContent className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-1 space-y-6">
             <Card>
               <CardHeader><CardTitle className="text-lg">Product Image</CardTitle></CardHeader>
@@ -528,7 +529,7 @@ export default function ProductDetailPage() {
               <CardContent>
                 <div className="bg-primary/10 p-4 rounded-lg mb-4 text-center">
                   <p className="text-sm text-primary font-medium">TOTAL PRICE</p>
-                  <p className="text-4xl font-bold text-primary flex items-center justify-center">
+                  <p className="text-3xl md:text-4xl font-bold text-primary flex items-center justify-center">
                     <span className="mr-1">PKR </span>
                     {productData.totalPrice.toLocaleString()}
                   </p>

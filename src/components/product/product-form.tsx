@@ -415,102 +415,104 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 )}
                 />
             )}
+             <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
 
-            {!isGoldCoinScenario && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="hasDiamonds"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          id="hasDiamonds"
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <Label htmlFor="hasDiamonds" className="flex items-center cursor-pointer">
-                          <Diamond className="mr-2 h-4 w-4 text-primary" />
-                          Product Contains Diamonds?
-                        </Label>
-                        <FormMessage />
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="wastagePercentage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Wastage (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.1" placeholder="e.g., 10" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="makingCharges"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Making Charges</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="1" placeholder="e.g., 5000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {hasDiamondsValue && !isGoldCoinScenario && (
-                  <FormField
+                {!isGoldCoinScenario && (
+                <>
+                    <FormField
                     control={form.control}
-                    name="diamondCharges"
+                    name="hasDiamonds"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Diamond Charges</FormLabel>
+                        <FormItem className="sm:col-span-2 flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
                         <FormControl>
-                          <Input type="number" step="1" placeholder="e.g., 50000" {...field} />
+                            <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            id="hasDiamonds"
+                            />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                            <Label htmlFor="hasDiamonds" className="flex items-center cursor-pointer">
+                            <Diamond className="mr-2 h-4 w-4 text-primary" />
+                            Product Contains Diamonds?
+                            </Label>
+                            <FormMessage />
+                        </div>
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="wastagePercentage"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Wastage (%)</FormLabel>
+                        <FormControl>
+                            <Input type="number" step="0.1" placeholder="e.g., 10" {...field} />
                         </FormControl>
                         <FormMessage />
-                      </FormItem>
+                        </FormItem>
                     )}
-                  />
-                )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="makingCharges"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Making Charges</FormLabel>
+                        <FormControl>
+                            <Input type="number" step="1" placeholder="e.g., 5000" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="stoneCharges"
-                  render={({ field }) => (
-                    <FormItem className={!hasDiamondsValue && !isGoldCoinScenario ? 'md:col-span-2' : ''}>
-                      <FormLabel>{hasDiamondsValue && !isGoldCoinScenario ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="1" placeholder="e.g., 15000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="miscCharges"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Miscellaneous Charges</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="1" placeholder="e.g., 250" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
+                    {hasDiamondsValue && !isGoldCoinScenario && (
+                    <FormField
+                        control={form.control}
+                        name="diamondCharges"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Diamond Charges</FormLabel>
+                            <FormControl>
+                            <Input type="number" step="1" placeholder="e.g., 50000" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    )}
+
+                    <FormField
+                    control={form.control}
+                    name="stoneCharges"
+                    render={({ field }) => (
+                        <FormItem className={!hasDiamondsValue && !isGoldCoinScenario ? 'sm:col-span-2' : ''}>
+                        <FormLabel>{hasDiamondsValue && !isGoldCoinScenario ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
+                        <FormControl>
+                            <Input type="number" step="1" placeholder="e.g., 15000" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="miscCharges"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Miscellaneous Charges</FormLabel>
+                        <FormControl>
+                            <Input type="number" step="1" placeholder="e.g., 250" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                </>
+                )}
+            </div>
              <FormField
               control={form.control}
               name="imageUrl"
@@ -530,16 +532,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               )}
             />
           </CardContent>
-          <CardFooter className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+          <CardFooter className="flex flex-col sm:flex-row justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
               <Ban className="mr-2 h-4 w-4" /> Cancel
             </Button>
             {!isEditMode && (
-                 <Button type="button" onClick={form.handleSubmit(onSaveAndAddAnother)} disabled={form.formState.isSubmitting}>
+                 <Button type="button" onClick={form.handleSubmit(onSaveAndAddAnother)} disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
                     <Save className="mr-2 h-4 w-4" /> Save & Add Another
                 </Button>
             )}
-            <Button type="button" onClick={form.handleSubmit(onSubmitAndClose)} disabled={form.formState.isSubmitting}>
+            <Button type="button" onClick={form.handleSubmit(onSubmitAndClose)} disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
               <Save className="mr-2 h-4 w-4" /> {isEditMode ? 'Save Changes' : 'Add Product & Close'}
             </Button>
           </CardFooter>
@@ -548,5 +550,3 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     </Form>
   );
 };
-
-    

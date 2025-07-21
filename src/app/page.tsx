@@ -57,14 +57,14 @@ export default function HomePage() {
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-lg text-center">
             <CardHeader>
-              <CardTitle className="text-3xl font-bold text-primary mb-2">Taheri Point of Sale</CardTitle>
-              <CardDescription className="text-lg text-muted-foreground">Begin a new transaction by scanning product QR codes.</CardDescription>
+              <CardTitle className="text-2xl md:text-3xl font-bold text-primary mb-2">Taheri Point of Sale</CardTitle>
+              <CardDescription className="text-base md:text-lg text-muted-foreground">Begin a new transaction by scanning product QR codes.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Link href="/scan" passHref>
-                <Button size="xl" className="h-16 px-10 text-xl">
-                  <QrCode className="w-8 h-8 mr-3" />
-                  Start New Sale by Scanning
+                <Button size="lg" className="h-14 px-8 text-lg md:h-16 md:px-10 md:text-xl">
+                  <QrCode className="w-6 h-6 md:w-8 md:h-8 mr-3" />
+                  Start New Sale
                 </Button>
               </Link>
               <p className="text-muted-foreground mt-6">or</p>
@@ -128,5 +128,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

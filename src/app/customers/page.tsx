@@ -102,7 +102,7 @@ export default function CustomersPage() {
     <div className="container mx-auto py-8 px-4">
       <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Manage Customers</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-primary">Manage Customers</h1>
           <p className="text-muted-foreground">Keep track of your valuable clients.</p>
         </div>
         <Link href="/customers/add" passHref>
@@ -164,5 +164,3 @@ export default function CustomersPage() {
     </div>
   );
 }
-
-    
