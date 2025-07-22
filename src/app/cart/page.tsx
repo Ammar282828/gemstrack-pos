@@ -266,23 +266,23 @@ export default function CartPage() {
     const finalY = (doc as any).lastAutoTable.finalY || pageHeight - 100;
     let currentY = finalY + 10;
     
-    const totalsX = pageWidth - margin;
-    const totalsLabelX = totalsX - 50;
+    const totalsValueX = pageWidth - margin;
+    const totalsLabelX = totalsValueX - 35; // Position for the labels
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Subtotal:`, totalsLabelX, currentY, { align: 'left'});
-    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    doc.text(`Subtotal:`, totalsLabelX, currentY, { align: 'right'});
+    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
     currentY += 6;
     
-    doc.text(`Discount:`, totalsLabelX, currentY, { align: 'left'});
-    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    doc.text(`Discount:`, totalsLabelX, currentY, { align: 'right'});
+    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
     currentY += 8;
 
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text(`Grand Total:`, totalsLabelX, currentY, { align: 'left' });
-    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    doc.text(`Grand Total:`, totalsLabelX, currentY, { align: 'right' });
+    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
 
     // --- Guarantees & Thank You Section ---
     const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
@@ -626,5 +626,5 @@ export default function CartPage() {
         </div>
       )}
     </div>
-    );
+  );
 }
