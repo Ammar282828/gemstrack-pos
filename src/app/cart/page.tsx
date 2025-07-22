@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, useAppReady } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, useAppReady, Product } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,7 +46,7 @@ export default function CartPage() {
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
   const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction } = useAppStore();
-  const productsInCart = useAppStore(state => state.cart.map(ci => state.products.find(p => p.sku === ci.sku)).filter(Boolean) as InvoiceType['items']);
+  const productsInCart = useAppStore(state => state.cart.map(ci => state.products.find(p => p.sku === ci.sku)).filter(Boolean) as Product[]);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
@@ -163,7 +163,9 @@ export default function CartPage() {
     // Logo
     if (settings.shopLogoUrl) {
         try {
-            doc.addImage(settings.shopLogoUrl, 'PNG', 15, 12, 50, 12.5);
+            // Using a placeholder that doesn't have text
+            const logoUrl = 'https://placehold.co/150x40/FFFFFF/FFFFFF.png?text=%20';
+            doc.addImage(logoUrl, 'PNG', 15, 12, 50, 13);
         } catch(e) { console.error("Error adding image to PDF:", e) }
     }
 
@@ -189,11 +191,7 @@ export default function CartPage() {
     let rateYPos = 32;
     if (invoiceToPrint.goldRateApplied) {
         const goldRate21k = invoiceToPrint.goldRateApplied * (21/24);
-        doc.text(`Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, { maximumFractionDigits: 2 })}/g`, 140, rateYPos);
-        rateYPos += 5;
-    }
-    if (invoiceToPrint.palladiumRateApplied) {
-        doc.text(`Palladium Rate: PKR ${invoiceToPrint.palladiumRateApplied.toLocaleString()}/g`, 140, rateYPos);
+        doc.text(`Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/g`, 140, rateYPos);
         rateYPos += 5;
     }
     
@@ -252,48 +250,48 @@ export default function CartPage() {
       body: tableRows,
       startY: 80,
       theme: 'grid',
-      headStyles: { fillColor: [0, 100, 0] },
+      headStyles: { fillColor: [0, 100, 0], fontStyle: 'bold' },
       styles: { fontSize: 8, cellPadding: 1.5, overflow: 'linebreak' },
       columnStyles: {
         1: { cellWidth: 'auto' },
       },
-      didParseCell: function (data: any) {
-        if(data.column.index === 0 && data.section === 'head') data.cell.styles.fontStyle = 'bold';
-        if(data.column.index === 1 && data.section === 'head') data.cell.styles.fontStyle = 'bold';
-        if(data.column.index === 2 && data.section === 'head') data.cell.styles.fontStyle = 'bold';
-        if(data.column.index === 3 && data.section === 'head') data.cell.styles.fontStyle = 'bold';
-        if(data.column.index === 4 && data.section === 'head') data.cell.styles.fontStyle = 'bold';
-      }
     });
 
     // Totals Section
     const finalY = (doc as any).lastAutoTable.finalY || 100;
     let currentY = finalY + 10;
+    
+    // Subtotal
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text(`Subtotal:`, 140, currentY);
     doc.setFont("helvetica", "normal");
-    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 170, currentY, { align: 'right', maxWidth: 35 });
-
+    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 205, currentY, { align: 'right' });
+    
     currentY += 6;
+    
+    // Discount
     doc.setFont("helvetica", "bold");
     doc.text(`Discount:`, 140, currentY);
     doc.setFont("helvetica", "normal");
-    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 170, currentY, { align: 'right', maxWidth: 35 });
+    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 205, currentY, { align: 'right' });
 
     currentY += 8;
+
+    // Grand Total
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text(`Grand Total:`, 140, currentY);
-    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 170, currentY, { align: 'right', maxWidth: 35 });
+    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 205, currentY, { align: 'right' });
     doc.setFont("helvetica", "normal");
 
-    currentY += 15;
+    // Guarantees text positioning
+    let guaranteesY = finalY + 10;
     doc.setFontSize(8);
-    doc.text("Gold used is 100% as per described Karats & purity.", 15, currentY);
-    currentY += 4;
+    doc.text("Gold used is 100% as per described Karats & purity.", 15, guaranteesY);
+    guaranteesY += 4;
     doc.setFont("helvetica", "bold");
-    doc.text("Lab Tested Guarantees by ARY Assay Lab", 15, currentY);
+    doc.text("Lab Tested Guarantees by ARY Assay Lab", 15, guaranteesY);
     doc.setFont("helvetica", "normal");
 
 
@@ -305,13 +303,13 @@ export default function CartPage() {
     const qrYPos = doc.internal.pageSize.height - 22;
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
+    
+    if (instaQrCanvas) {
+      doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', doc.internal.pageSize.width - (qrCodeSize * 2) - 25, qrYPos, qrCodeSize, qrCodeSize);
+    }
     if (waQrCanvas) {
       doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', doc.internal.pageSize.width - qrCodeSize - 15, qrYPos, qrCodeSize, qrCodeSize);
     }
-     if (instaQrCanvas) {
-      doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', doc.internal.pageSize.width - (qrCodeSize*2) - 20, qrYPos, qrCodeSize, qrCodeSize);
-    }
-
 
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
@@ -344,7 +342,10 @@ export default function CartPage() {
   if (generatedInvoice) {
     console.log("[GemsTrack] CartPage: Rendering generated invoice view.");
     let ratesAppliedMessage = "";
-    if (generatedInvoice.goldRateApplied) ratesAppliedMessage += `Gold Rate: PKR ${generatedInvoice.goldRateApplied.toLocaleString()}/g. `;
+    if (generatedInvoice.goldRateApplied) {
+      const goldRate21k = generatedInvoice.goldRateApplied * (21/24);
+      ratesAppliedMessage += `Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}/g. `;
+    }
     if (generatedInvoice.palladiumRateApplied) ratesAppliedMessage += `Palladium Rate: PKR ${generatedInvoice.palladiumRateApplied.toLocaleString()}/g. `;
     if (generatedInvoice.platinumRateApplied) ratesAppliedMessage += `Platinum Rate: PKR ${generatedInvoice.platinumRateApplied.toLocaleString()}/g.`;
 
