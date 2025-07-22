@@ -772,10 +772,15 @@ export const useAppStore = create<AppState>()(
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
 
         let validInvoiceGoldRate24k = Number(invoiceGoldRate24k) || 0;
-        const hasGoldItems = cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'gold');
+        const cartProducts = cart.map(ci => products.find(p => p.sku === ci.sku)).filter(Boolean) as Product[];
+
+        const hasGoldItems = cartProducts.some(p => p.metalType === 'gold');
+        const hasPalladiumItems = cartProducts.some(p => p.metalType === 'palladium');
+        const hasPlatinumItems = cartProducts.some(p => p.metalType === 'platinum');
+
         if (hasGoldItems && validInvoiceGoldRate24k <= 0) {
             console.error("[GemsTrack Store generateInvoice] Gold items in cart but provided gold rate is invalid.");
-            return null; // A valid rate MUST be provided if gold items exist.
+            return null;
         }
 
         const ratesForInvoice = {
@@ -817,7 +822,6 @@ export const useAppStore = create<AppState>()(
         
         const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
         const grandTotal = subtotal - calculatedDiscountAmount;
-        const customer = customers.find(c => c.id === customerId);
         
         const currentSettings = get().settings;
         const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
@@ -829,16 +833,20 @@ export const useAppStore = create<AppState>()(
           discountAmount: calculatedDiscountAmount, 
           grandTotal: Number(grandTotal) || 0, 
           createdAt: new Date().toISOString(),
-          goldRateApplied: hasGoldItems ? ratesForInvoice.goldRatePerGram24k : undefined,
-          palladiumRateApplied: cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'palladium') ? ratesForInvoice.palladiumRatePerGram : undefined,
-          platinumRateApplied: cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'platinum') ? ratesForInvoice.platinumRatePerGram : undefined,
         };
 
-        if (customer) {
-          newInvoiceData.customerId = customer.id;
-          newInvoiceData.customerName = customer.name;
-        }
+        if (hasGoldItems) newInvoiceData.goldRateApplied = ratesForInvoice.goldRatePerGram24k;
+        if (hasPalladiumItems) newInvoiceData.palladiumRateApplied = ratesForInvoice.palladiumRatePerGram;
+        if (hasPlatinumItems) newInvoiceData.platinumRateApplied = ratesForInvoice.platinumRatePerGram;
 
+        if (customerId) {
+          const customer = customers.find(c => c.id === customerId);
+          if (customer) {
+            newInvoiceData.customerId = customer.id;
+            newInvoiceData.customerName = customer.name;
+          }
+        }
+        
         const newInvoice: Invoice = {
             id: invoiceId,
             ...newInvoiceData
