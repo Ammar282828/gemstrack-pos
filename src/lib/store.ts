@@ -771,17 +771,10 @@ export const useAppStore = create<AppState>()(
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
 
         let validInvoiceGoldRate24k = Number(invoiceGoldRate24k);
-        if (isNaN(validInvoiceGoldRate24k) || validInvoiceGoldRate24k <= 0) {
-            if (cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'gold')) {
-                if (settings.goldRatePerGram <= 0) {
-                    console.error("[GemsTrack Store generateInvoice] Gold items in cart but store gold rate is invalid and no valid invoice rate provided.");
-                    return null;
-                }
-                validInvoiceGoldRate24k = settings.goldRatePerGram;
-                console.log(`[GemsTrack Store generateInvoice] Using store gold rate: ${validInvoiceGoldRate24k}`);
-            } else {
-                validInvoiceGoldRate24k = 0; // No gold items, so invoice rate for gold can be 0.
-            }
+        const hasGoldItems = cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'gold');
+        if (hasGoldItems && (isNaN(validInvoiceGoldRate24k) || validInvoiceGoldRate24k <= 0)) {
+            console.error("[GemsTrack Store generateInvoice] Gold items in cart but provided gold rate is invalid.");
+            return null; // A valid rate MUST be provided if gold items exist.
         }
 
         const ratesForInvoice = {
@@ -789,11 +782,8 @@ export const useAppStore = create<AppState>()(
             palladiumRatePerGram: Number(settings.palladiumRatePerGram) || 0,
             platinumRatePerGram: Number(settings.platinumRatePerGram) || 0,
         };
-
-        if (isNaN(ratesForInvoice.goldRatePerGram24k) || isNaN(ratesForInvoice.palladiumRatePerGram) || isNaN(ratesForInvoice.platinumRatePerGram)) {
-            console.error("[GemsTrack Store generateInvoice] One or more metal rates are NaN:", ratesForInvoice);
-            return null;
-        }
+        
+        console.log("[GemsTrack Store generateInvoice] Using rates for calculation:", ratesForInvoice);
 
         let subtotal = 0;
         const invoiceItems: InvoiceItem[] = [];
@@ -822,11 +812,6 @@ export const useAppStore = create<AppState>()(
                 sku: product.sku, name: product.name, categoryId: product.categoryId, metalType: product.metalType, karat: productForCostCalc.karat, metalWeightG: product.metalWeightG, quantity: cartItem.quantity, unitPrice, itemTotal,
                 metalCost: costs.metalCost, wastageCost: costs.wastageCost, makingCharges: costs.makingCharges, diamondChargesIfAny: costs.diamondCharges, stoneChargesIfAny: costs.stoneCharges, miscChargesIfAny: costs.miscCharges,
             });
-        }
-
-        if (invoiceItems.length === 0 && cart.length > 0) {
-            console.error("[GemsTrack Store generateInvoice] No valid items could be added to invoice, though cart was not empty.");
-            return null;
         }
         
         const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));

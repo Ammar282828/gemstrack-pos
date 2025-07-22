@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, useAppReady } from '@/lib/store';
@@ -28,70 +28,120 @@ declare module 'jspdf' {
 
 const WALK_IN_CUSTOMER_VALUE = "__WALK_IN__";
 
+// A temporary structure to hold the real-time calculated invoice preview
+type EstimatedInvoice = {
+    subtotal: number;
+    grandTotal: number;
+    items: (InvoiceItem & { originalPrice: number })[];
+};
+
+
 export default function CartPage() {
   console.log("[GemsTrack] CartPage: Rendering START");
   const { toast } = useToast();
 
   const appReady = useAppReady();
-  const cartItems = useAppStore(selectCartDetails);
-  const cartSubtotal = useAppStore(selectCartSubtotal);
+  const cartItemsFromStore = useAppStore(selectCartDetails);
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
   const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction } = useAppStore();
-  const products = useAppStore(state => state.products); // Needed for invoice generation logic
+  const productsInCart = useAppStore(state => state.cart.map(ci => state.products.find(p => p.sku === ci.sku)).filter(Boolean) as InvoiceType['items']);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
 
   const [invoiceGoldRateInput, setInvoiceGoldRateInput] = useState<string>('');
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
-
+  
   useEffect(() => {
     if (appReady && settings && typeof settings.goldRatePerGram === 'number') {
       setInvoiceGoldRateInput(settings.goldRatePerGram.toString());
     } else if (appReady) {
       console.warn("[GemsTrack] CartPage: Could not set initial invoiceGoldRateInput because settings or goldRatePerGram was missing/invalid.", settings);
-      setInvoiceGoldRateInput("0"); // Fallback to 0 if settings are not ready
+      setInvoiceGoldRateInput("0");
     }
   }, [appReady, settings]);
 
-  const cartContainsNonGoldItems = cartItems.some(item => item.metalType !== 'gold');
+  const cartContainsNonGoldItems = cartItemsFromStore.some(item => item.metalType !== 'gold');
+  
+  const estimatedInvoice = useMemo((): EstimatedInvoice | null => {
+    if (!appReady || !settings || cartItemsFromStore.length === 0) return null;
+    
+    const parsedGoldRate = parseFloat(invoiceGoldRateInput);
+    const hasGoldItems = cartItemsFromStore.some(item => item.metalType === 'gold');
+    
+    if (hasGoldItems && (isNaN(parsedGoldRate) || parsedGoldRate <= 0)) {
+        return null; // Don't calculate if gold rate is invalid for a cart with gold items
+    }
+    
+    const ratesForCalc = {
+        goldRatePerGram24k: parsedGoldRate || 0,
+        palladiumRatePerGram: settings.palladiumRatePerGram || 0,
+        platinumRatePerGram: settings.platinumRatePerGram || 0,
+    };
+    
+    let currentSubtotal = 0;
+    const estimatedItems: EstimatedInvoice['items'] = [];
+
+    cartItemsFromStore.forEach(cartItem => {
+        const productForCalc = productsInCart.find(p => p.sku === cartItem.sku);
+        if (productForCalc) {
+            const costs = calculateProductCosts(productForCalc, ratesForCalc);
+            const itemTotal = costs.totalPrice * cartItem.quantity;
+            currentSubtotal += itemTotal;
+            
+            estimatedItems.push({
+                ...cartItem,
+                unitPrice: costs.totalPrice,
+                itemTotal: itemTotal,
+                metalCost: costs.metalCost,
+                wastageCost: costs.wastageCost,
+                makingCharges: costs.makingCharges,
+                diamondChargesIfAny: costs.diamondCharges,
+                stoneChargesIfAny: costs.stoneCharges,
+                miscChargesIfAny: costs.miscCharges,
+                originalPrice: cartItem.totalPrice,
+            });
+        }
+    });
+
+    const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
+    const grandTotal = currentSubtotal - parsedDiscountAmount;
+
+    return {
+        subtotal: currentSubtotal,
+        grandTotal: grandTotal,
+        items: estimatedItems,
+    };
+  }, [appReady, settings, cartItemsFromStore, productsInCart, invoiceGoldRateInput, discountAmountInput]);
 
 
   const handleGenerateInvoice = async () => {
-    if (cartItems.length === 0) {
+    if (cartItemsFromStore.length === 0) {
       toast({ title: "Cart Empty", description: "Cannot generate invoice for an empty cart.", variant: "destructive" });
       return;
     }
+    
+    if (!estimatedInvoice) {
+        toast({ title: "Invalid Input", description: "Please ensure all rates and values are correct before generating the invoice.", variant: "destructive" });
+        return;
+    }
 
     const parsedGoldRate = parseFloat(invoiceGoldRateInput);
-    const hasGoldItems = cartItems.some(item => item.metalType === 'gold');
+    const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
+
+    const hasGoldItems = cartItemsFromStore.some(item => item.metalType === 'gold');
     if (hasGoldItems && (isNaN(parsedGoldRate) || parsedGoldRate <= 0)) {
       toast({ title: "Invalid Gold Rate", description: "Please enter a valid positive gold rate for gold items.", variant: "destructive" });
       return;
     }
 
-    const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
     if (parsedDiscountAmount < 0) {
       toast({ title: "Invalid Discount", description: "Discount amount cannot be negative.", variant: "destructive" });
       return;
     }
-
-    let currentSubtotalForValidation = 0;
-    cartItems.forEach(item => {
-        const productFromStore = products.find(p => p.sku === item.sku);
-        if (productFromStore) {
-            const ratesForCalc = {
-                goldRatePerGram24k: item.metalType === 'gold' ? parsedGoldRate : (settings?.goldRatePerGram || 0),
-                palladiumRatePerGram: settings?.palladiumRatePerGram || 0,
-                platinumRatePerGram: settings?.platinumRatePerGram || 0,
-            };
-            const costs = calculateProductCosts(productFromStore, ratesForCalc);
-            currentSubtotalForValidation += costs.totalPrice * item.quantity;
-        }
-    });
-
-    if (parsedDiscountAmount > currentSubtotalForValidation) {
+    
+    if (parsedDiscountAmount > estimatedInvoice.subtotal) {
         toast({ title: "Invalid Discount", description: "Discount cannot be greater than the subtotal.", variant: "destructive" });
         return;
     }
@@ -101,7 +151,7 @@ export default function CartPage() {
       setGeneratedInvoice(invoice);
       toast({ title: "Invoice Generated", description: `Invoice ${invoice.id} created successfully.` });
     } else {
-      toast({ title: "Invoice Generation Failed", description: "Could not generate the invoice. Please check inputs.", variant: "destructive" });
+      toast({ title: "Invoice Generation Failed", description: "Could not generate the invoice. Please check inputs and logs.", variant: "destructive" });
     }
   };
 
@@ -344,7 +394,7 @@ export default function CartPage() {
         <p className="text-muted-foreground">Review items, set invoice parameters, and generate an invoice.</p>
       </header>
 
-      {cartItems.length === 0 ? (
+      {cartItemsFromStore.length === 0 ? (
         <Card className="text-center py-12">
           <CardContent>
             <ShoppingCart className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
@@ -358,12 +408,12 @@ export default function CartPage() {
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
-                <CardTitle>Cart Items ({cartItems.length})</CardTitle>
+                <CardTitle>Cart Items ({cartItemsFromStore.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[400px] pr-3">
                   <div className="space-y-4">
-                    {cartItems.map(item => (
+                    {cartItemsFromStore.map(item => (
                       <div key={item.sku} className="flex items-center space-x-4 p-3 border rounded-md">
                         <Image
                           src={item.imageUrl || `https://placehold.co/80x80.png?text=${encodeURIComponent(item.name?.substring(0,1) || 'P')}`}
@@ -377,7 +427,14 @@ export default function CartPage() {
                           <h4 className="font-medium">{item.name}</h4>
                           <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
                           <p className="text-xs text-muted-foreground">Metal: {item.metalType}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: {item.metalWeightG.toFixed(2)}g</p>
-                          <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString()} (at current store rates)</p>
+                           {estimatedInvoice?.items.find(i => i.sku === item.sku)?.unitPrice !== item.totalPrice ? (
+                                <>
+                                 <p className="text-sm font-semibold text-primary">PKR {estimatedInvoice?.items.find(i => i.sku === item.sku)?.unitPrice.toLocaleString() || '...'}</p>
+                                 <p className="text-xs text-muted-foreground line-through">PKR {item.totalPrice.toLocaleString()} (at store rate)</p>
+                                </>
+                           ) : (
+                             <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString()}</p>
+                           )}
                         </div>
                         <div className="flex items-center space-x-2">
                           <Button
@@ -491,21 +548,27 @@ export default function CartPage() {
                 </div>
 
                 <Separator />
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Cart Subtotal (est.):</span>
-                  <span className="font-semibold text-lg">PKR {cartSubtotal.toLocaleString()}</span>
+                <div className="space-y-2 p-3 bg-muted/50 rounded-md">
+                    <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Subtotal:</span>
+                        <span className="font-semibold text-lg">PKR {estimatedInvoice ? estimatedInvoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '...'}</span>
+                    </div>
+                     <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Discount:</span>
+                        <span className="font-semibold text-lg text-destructive">- PKR {(parseFloat(discountAmountInput) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between items-center text-xl font-bold">
+                        <span>Grand Total:</span>
+                        <span className="text-primary">PKR {estimatedInvoice ? estimatedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '...'}</span>
+                    </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  (Estimated using current store metal rates. Final invoice will use the Gold rate entered above for gold items, and store rates for Palladium/Platinum.)
+                 <p className="text-xs text-muted-foreground">
+                  (Final price is calculated using the rates and discount entered above.)
                 </p>
-                <Separator />
-                <div className="flex justify-between items-center text-xl font-bold">
-                  <span>Grand Total (est.):</span>
-                  <span className="text-primary">PKR {(cartSubtotal - (parseFloat(discountAmountInput) || 0)).toLocaleString()}</span>
-                </div>
               </CardContent>
               <CardFooter>
-                <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={cartItems.length === 0}>
+                <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={cartItemsFromStore.length === 0 || !estimatedInvoice}>
                   <FileText className="mr-2 h-5 w-5" /> Generate Invoice
                 </Button>
               </CardFooter>
@@ -516,5 +579,3 @@ export default function CartPage() {
     </div>
   );
 }
-
-    
