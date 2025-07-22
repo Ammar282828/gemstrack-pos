@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, useAppReady, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MetalType, KaratValue } from '@/lib/store';
+import { useAppStore, Settings, useAppReady, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MetalType, KaratValue, AVAILABLE_THEMES, ThemeKey } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +27,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
 const settingsSchema = z.object({
   goldRatePerGram: z.coerce.number().min(0, "Gold rate must be a positive number"),
@@ -38,6 +41,7 @@ const settingsSchema = z.object({
   shopLogoUrl: z.string().optional(),
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
   allowedDeviceIds: z.array(z.object({ id: z.string().min(1, "Device ID cannot be empty.") })).optional(),
+  theme: z.enum(themeKeys).default('default'),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -194,6 +198,7 @@ export default function SettingsPage() {
       shopLogoUrl: "",
       lastInvoiceNumber: 0,
       allowedDeviceIds: [],
+      theme: 'default',
     },
   });
 
@@ -214,6 +219,7 @@ export default function SettingsPage() {
         shopLogoUrl: currentSettings.shopLogoUrl || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
         allowedDeviceIds: currentSettings.allowedDeviceIds?.map(id => ({ id })) || [],
+        theme: currentSettings.theme || 'default',
       });
       if (currentSettings.shopLogoUrl) {
         setLogoPreview(currentSettings.shopLogoUrl);
@@ -376,6 +382,36 @@ export default function SettingsPage() {
               <CardDescription>Manage global settings for your shop, including metal rates, invoice numbering, and device access.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <FormField
+                  control={form.control}
+                  name="theme"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base flex items-center"><Palette className="h-5 w-5 mr-2 text-muted-foreground" /> Color Theme</FormLabel>
+                       <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a color theme" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {AVAILABLE_THEMES.map(theme => (
+                            <SelectItem key={theme.key} value={theme.key}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: `hsl(${theme.primaryColorHsl})` }} />
+                                {theme.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Choose the color palette for the application interface.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+              />
               <FormField
                 control={form.control}
                 name="goldRatePerGram"

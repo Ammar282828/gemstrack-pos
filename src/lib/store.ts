@@ -119,6 +119,27 @@ function _calculateProductCostsInternal(
 // --- Type Definitions ---
 export type MetalType = 'gold' | 'palladium' | 'platinum';
 export type KaratValue = '18k' | '21k' | '22k' | '24k';
+export type ThemeKey = 'default' | 'forest' | 'ocean' | 'sunset' | 'amethyst' | 'quartz' | 'slate' | 'latte' | 'mint' | 'gold';
+
+export interface Theme {
+  key: ThemeKey;
+  name: string;
+  primaryColorHsl: string;
+}
+
+export const AVAILABLE_THEMES: Theme[] = [
+    { key: 'default', name: 'Default Dark', primaryColorHsl: '210 40% 98%' },
+    { key: 'forest', name: 'Forest', primaryColorHsl: '130 65% 60%' },
+    { key: 'ocean', name: 'Ocean', primaryColorHsl: '185 70% 55%' },
+    { key: 'sunset', name: 'Sunset', primaryColorHsl: '30 90% 60%' },
+    { key: 'amethyst', name: 'Amethyst', primaryColorHsl: '260 80% 70%' },
+    { key: 'quartz', name: 'Quartz', primaryColorHsl: '340 85% 70%' },
+    { key: 'slate', name: 'Slate', primaryColorHsl: '210 90% 75%' },
+    { key: 'latte', name: 'Latte', primaryColorHsl: '40 80% 70%' },
+    { key: 'mint', name: 'Mint', primaryColorHsl: '155 80% 65%' },
+    { key: 'gold', name: 'Gold', primaryColorHsl: '45 90% 65%' },
+];
+
 
 export interface Settings {
   goldRatePerGram: number;
@@ -130,6 +151,7 @@ export interface Settings {
   shopLogoUrl?: string;
   lastInvoiceNumber: number;
   allowedDeviceIds: string[];
+  theme: ThemeKey;
 }
 
 export interface Category {
@@ -257,6 +279,7 @@ const initialSettingsData: Settings = {
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "https://placehold.co/200x80.png?text=Taheri", lastInvoiceNumber: 0,
   allowedDeviceIds: [],
+  theme: 'default',
 };
 
 const staticCategories: Category[] = [
@@ -419,6 +442,7 @@ export const useAppStore = create<AppState>()(
               allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
                 ? firestoreSettings.allowedDeviceIds
                 : [],
+              theme: firestoreSettings.theme || 'default',
             };
             set((state) => { state.settings = finalSettings; });
             console.log("[GemsTrack Store loadSettings] Settings loaded successfully from Firestore:", finalSettings);
@@ -844,8 +868,24 @@ export const useAppStore = create<AppState>()(
       },
       partialize: (state) => ({
         cart: state.cart,
+        settings: { // Persist only a subset of settings
+            ...state.settings,
+            // Don't persist sensitive or heavyweight data that should be fetched
+            allowedDeviceIds: state.settings.allowedDeviceIds || [], 
+            theme: state.settings.theme || 'default',
+        }
       }),
-      version: 8, 
+      version: 9,
+      migrate: (persistedState, version) => {
+        if (version < 9) {
+          // If migrating from a version without theme settings, add it.
+          const oldState = persistedState as any;
+          if (oldState.settings && !oldState.settings.theme) {
+            oldState.settings.theme = 'default';
+          }
+        }
+        return persistedState as AppState;
+      },
     }
   )
 );
