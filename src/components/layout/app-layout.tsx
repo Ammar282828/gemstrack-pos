@@ -24,7 +24,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/', label: 'Home', icon: <Home /> },
   { href: '/scan', label: 'Scan QR / POS', icon: <ScanQrCode /> },
-  { href: '/cart', label: 'Cart / Invoice', icon: <ShoppingCart /> },
+  { href: '/cart', label: 'Cart / Estimate', icon: <ShoppingCart /> },
   { href: '/products', label: 'Products', icon: <Gem /> },
   { href: '/products/add', label: 'Add Product', icon: <PackagePlus /> },
   { href: '/customers', label: 'Customers', icon: <Users /> },
@@ -50,7 +50,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4">
             <Link href="/" className="flex items-center gap-2">
-              <Image src="https://placehold.co/100x25/F1F1E8/081818.png?text=Taheri" alt="Taheri Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden" data-ai-hint="logo" />
+              <Image src="https://placehold.co/100x25/F1F1E8/081818.png" alt="Taheri Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden" data-ai-hint="logo" />
               <Gem className="w-8 h-8 text-primary hidden group-data-[collapsible=icon]:block" />
             </Link>
           </SidebarHeader>

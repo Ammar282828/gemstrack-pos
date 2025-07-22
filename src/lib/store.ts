@@ -203,6 +203,7 @@ export interface InvoiceItem {
   itemTotal: number;
   metalCost: number;
   wastageCost: number;
+  wastagePercentage: number;
   makingCharges: number;
   diamondChargesIfAny: number;
   stoneChargesIfAny: number;
@@ -284,7 +285,7 @@ const initialSettingsData: Settings = {
   goldRatePerGram: 20000, palladiumRatePerGram: 22000, platinumRatePerGram: 25000,
   shopName: "Taheri", shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
-  shopLogoUrl: "https://placehold.co/200x80.png?text=Taheri", lastInvoiceNumber: 0,
+  shopLogoUrl: "https://placehold.co/200x80.png", lastInvoiceNumber: 0,
   allowedDeviceIds: [],
   theme: 'forest',
   firebaseConfig: {
@@ -827,6 +828,7 @@ export const useAppStore = create<AppState>()(
                 itemTotal,
                 metalCost: costs.metalCost,
                 wastageCost: costs.wastageCost,
+                wastagePercentage: product.wastagePercentage,
                 makingCharges: costs.makingCharges,
                 diamondChargesIfAny: costs.diamondCharges,
                 stoneChargesIfAny: costs.stoneCharges,

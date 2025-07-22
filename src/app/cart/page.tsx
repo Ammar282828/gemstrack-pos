@@ -18,6 +18,7 @@ import 'jspdf-autotable';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import QRCode from 'qrcode.react';
 
 
 declare module 'jspdf' {
@@ -96,6 +97,7 @@ export default function CartPage() {
                 itemTotal: itemTotal,
                 metalCost: costs.metalCost,
                 wastageCost: costs.wastageCost,
+                wastagePercentage: productForCalc.wastagePercentage,
                 makingCharges: costs.makingCharges,
                 diamondChargesIfAny: costs.diamondCharges,
                 stoneChargesIfAny: costs.stoneCharges,
@@ -118,12 +120,12 @@ export default function CartPage() {
 
   const handleGenerateInvoice = async () => {
     if (cartItemsFromStore.length === 0) {
-      toast({ title: "Cart Empty", description: "Cannot generate invoice for an empty cart.", variant: "destructive" });
+      toast({ title: "Cart Empty", description: "Cannot generate estimate for an empty cart.", variant: "destructive" });
       return;
     }
     
     if (!estimatedInvoice) {
-        toast({ title: "Invalid Input", description: "Please ensure all rates and values are correct before generating the invoice.", variant: "destructive" });
+        toast({ title: "Invalid Input", description: "Please ensure all rates and values are correct before generating the estimate.", variant: "destructive" });
         return;
     }
 
@@ -149,9 +151,9 @@ export default function CartPage() {
     const invoice = await generateInvoiceAction(selectedCustomerId, parsedGoldRate, parsedDiscountAmount);
     if (invoice) {
       setGeneratedInvoice(invoice);
-      toast({ title: "Invoice Generated", description: `Invoice ${invoice.id} created successfully.` });
+      toast({ title: "Estimate Generated", description: `Estimate ${invoice.id} created successfully.` });
     } else {
-      toast({ title: "Invoice Generation Failed", description: "Could not generate the invoice. Please check inputs and logs.", variant: "destructive" });
+      toast({ title: "Estimate Generation Failed", description: "Could not generate the estimate. Please check inputs and logs.", variant: "destructive" });
     }
   };
 
@@ -167,48 +169,49 @@ export default function CartPage() {
 
     // Shop Info
     doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
     doc.text(settings.shopName, 15, 32);
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.text(settings.shopAddress, 15, 39);
     doc.text(settings.shopContact, 15, 44);
 
     // Invoice Info
     doc.setFontSize(22);
-    doc.text('INVOICE', 140, 15);
+    doc.setFont("helvetica", "bold");
+    doc.text('ESTIMATE', 140, 15);
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(12);
-    doc.text(`Invoice #: ${invoiceToPrint.id}`, 140, 22);
+    doc.text(`Estimate #: ${invoiceToPrint.id}`, 140, 22);
     doc.text(`Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`, 140, 27);
 
     // Metal Rates
     let rateYPos = 32;
     if (invoiceToPrint.goldRateApplied) {
-        doc.text(`Gold Rate: PKR ${invoiceToPrint.goldRateApplied.toLocaleString()}/g (24k)`, 140, rateYPos);
+        const goldRate21k = invoiceToPrint.goldRateApplied * (21/24);
+        doc.text(`Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, { maximumFractionDigits: 2 })}/g`, 140, rateYPos);
         rateYPos += 5;
     }
     if (invoiceToPrint.palladiumRateApplied) {
         doc.text(`Palladium Rate: PKR ${invoiceToPrint.palladiumRateApplied.toLocaleString()}/g`, 140, rateYPos);
         rateYPos += 5;
     }
-    if (invoiceToPrint.platinumRateApplied) {
-        doc.text(`Platinum Rate: PKR ${invoiceToPrint.platinumRateApplied.toLocaleString()}/g`, 140, rateYPos);
-    }
-
+    
     // Customer Info
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text('Bill To:', 15, 52);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
     if (invoiceToPrint.customerId) {
       const customer = customers.find(c => c.id === invoiceToPrint.customerId);
       if (customer) {
-        doc.setFontSize(12);
-        doc.text('Bill To:', 15, 52);
-        doc.setFontSize(10);
         doc.text(customer.name, 15, 57);
         if(customer.address) doc.text(customer.address, 15, 62);
         if(customer.phone) doc.text(`Phone: ${customer.phone}`, 15, 67);
         if(customer.email) doc.text(`Email: ${customer.email}`, 15, 72);
       }
     } else {
-        doc.setFontSize(12);
-        doc.text('Bill To:', 15, 52);
-        doc.setFontSize(10);
         doc.text("Walk-in Customer", 15, 57);
     }
 
@@ -222,19 +225,13 @@ export default function CartPage() {
         metalDisplay += ` (${item.karat.toUpperCase()})`;
       }
 
-      const chargesTotal = item.wastageCost + item.makingCharges + item.diamondChargesIfAny + item.stoneChargesIfAny + item.miscChargesIfAny;
-      
       let breakdownLines = [];
       breakdownLines.push(`  Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.wastageCost > 0) breakdownLines.push(`  + Wastage Cost: ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
       if (item.makingCharges > 0) breakdownLines.push(`  + Making Charges: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
       if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
       if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
       if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      
-      if (chargesTotal > 0) {
-        breakdownLines.push(`  = Charges Total: ${chargesTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      }
 
       const breakdown = breakdownLines.join('\n');
 
@@ -255,13 +252,17 @@ export default function CartPage() {
       body: tableRows,
       startY: 80,
       theme: 'grid',
-      headStyles: { fillColor: [75, 0, 130] },
+      headStyles: { fillColor: [0, 100, 0] },
       styles: { fontSize: 8, cellPadding: 1.5, overflow: 'linebreak' },
       columnStyles: {
         1: { cellWidth: 'auto' },
       },
       didParseCell: function (data: any) {
-        // Potentially adjust row height if content is multi-line, autoTable usually handles this.
+        if(data.column.index === 0 && data.section === 'head') data.cell.styles.fontStyle = 'bold';
+        if(data.column.index === 1 && data.section === 'head') data.cell.styles.fontStyle = 'bold';
+        if(data.column.index === 2 && data.section === 'head') data.cell.styles.fontStyle = 'bold';
+        if(data.column.index === 3 && data.section === 'head') data.cell.styles.fontStyle = 'bold';
+        if(data.column.index === 4 && data.section === 'head') data.cell.styles.fontStyle = 'bold';
       }
     });
 
@@ -269,11 +270,15 @@ export default function CartPage() {
     const finalY = (doc as any).lastAutoTable.finalY || 100;
     let currentY = finalY + 10;
     doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
     doc.text(`Subtotal:`, 140, currentY);
+    doc.setFont("helvetica", "normal");
     doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 170, currentY, { align: 'right', maxWidth: 35 });
 
     currentY += 6;
+    doc.setFont("helvetica", "bold");
     doc.text(`Discount:`, 140, currentY);
+    doc.setFont("helvetica", "normal");
     doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 170, currentY, { align: 'right', maxWidth: 35 });
 
     currentY += 8;
@@ -281,13 +286,36 @@ export default function CartPage() {
     doc.setFont("helvetica", "bold");
     doc.text(`Grand Total:`, 140, currentY);
     doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 170, currentY, { align: 'right', maxWidth: 35 });
+    doc.setFont("helvetica", "normal");
+
+    currentY += 15;
+    doc.setFontSize(8);
+    doc.text("Gold used is 100% as per described Karats & purity.", 15, currentY);
+    currentY += 4;
+    doc.setFont("helvetica", "bold");
+    doc.text("Lab Tested Guarantees by ARY Assay Lab", 15, currentY);
+    doc.setFont("helvetica", "normal");
+
 
     doc.setFontSize(8);
-    doc.text("Thank you for your business!", 15, doc.internal.pageSize.height - 10);
+    doc.text("Thank you for your business!", 15, doc.internal.pageSize.height - 25);
+
+    // QR Codes
+    const qrCodeSize = 20;
+    const qrYPos = doc.internal.pageSize.height - 22;
+    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
+    const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
+    if (waQrCanvas) {
+      doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', doc.internal.pageSize.width - qrCodeSize - 15, qrYPos, qrCodeSize, qrCodeSize);
+    }
+     if (instaQrCanvas) {
+      doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', doc.internal.pageSize.width - (qrCodeSize*2) - 20, qrYPos, qrCodeSize, qrCodeSize);
+    }
+
 
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
-    toast({ title: "Invoice Printing", description: "Invoice PDF sent to print dialog." });
+    toast({ title: "Estimate Printing", description: "Estimate PDF sent to print dialog." });
   };
 
   const handleNewSale = () => {
@@ -324,9 +352,9 @@ export default function CartPage() {
         <div className="container mx-auto py-8 px-4">
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-2xl">Invoice Generated: {generatedInvoice.id}</CardTitle>
+                    <CardTitle className="text-2xl">Estimate Generated: {generatedInvoice.id}</CardTitle>
                     <CardDescription>
-                        Invoice for {generatedInvoice.customerName || "Walk-in Customer"} created on {new Date(generatedInvoice.createdAt).toLocaleString()}.
+                        Estimate for {generatedInvoice.customerName || "Walk-in Customer"} created on {new Date(generatedInvoice.createdAt).toLocaleString()}.
                         <br/>
                         {ratesAppliedMessage.trim()}
                     </CardDescription>
@@ -346,9 +374,12 @@ export default function CartPage() {
                             <TableBody>
                                 {generatedInvoice.items.map(item => {
                                     let breakdownLines = [];
-                                    const chargesTotal = item.wastageCost + item.makingCharges + item.diamondChargesIfAny + item.stoneChargesIfAny + item.miscChargesIfAny;
                                     breakdownLines.push(`Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    if (chargesTotal > 0) breakdownLines.push(`Charges Total: ${chargesTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (item.wastageCost > 0) breakdownLines.push(`+ Wastage (${item.wastagePercentage}%): ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (item.makingCharges > 0) breakdownLines.push(`+ Making: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (item.diamondChargesIfAny > 0) breakdownLines.push(`+ Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (item.stoneChargesIfAny > 0) breakdownLines.push(`+ Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (item.miscChargesIfAny > 0) breakdownLines.push(`+ Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
                                     
                                     const breakdownText = breakdownLines.join(', ');
 
@@ -380,9 +411,13 @@ export default function CartPage() {
                 </CardContent>
                 <CardFooter className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={handleNewSale}>New Sale / Clear</Button>
-                    <Button onClick={() => printInvoice(generatedInvoice)}><Printer className="mr-2 h-4 w-4"/> Print Invoice</Button>
+                    <Button onClick={() => printInvoice(generatedInvoice)}><Printer className="mr-2 h-4 w-4"/> Print Estimate</Button>
                 </CardFooter>
             </Card>
+            <div style={{ display: 'none' }}>
+                <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl?mode=ac_t" size={128} />
+                <QRCode id="insta-qr-code" value="https://www.instagram.com/collectionstaheri?igsh=bWs4YWgydjJ1cXBz&utm_source=qr" size={128} />
+            </div>
         </div>
     );
   }
@@ -391,8 +426,8 @@ export default function CartPage() {
   return (
     <div className="container mx-auto py-8 px-4">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-primary">Shopping Cart &amp; Invoice</h1>
-        <p className="text-muted-foreground">Review items, set invoice parameters, and generate an invoice.</p>
+        <h1 className="text-3xl font-bold text-primary">Shopping Cart &amp; Estimate</h1>
+        <p className="text-muted-foreground">Review items, set estimate parameters, and generate an estimate.</p>
       </header>
 
       {cartItemsFromStore.length === 0 ? (
@@ -487,7 +522,7 @@ export default function CartPage() {
           <div>
             <Card>
               <CardHeader>
-                <CardTitle>Order Summary &amp; Invoice Details</CardTitle>
+                <CardTitle>Order Summary &amp; Estimate Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -512,7 +547,7 @@ export default function CartPage() {
                 <Separator />
                 <div>
                   <Label htmlFor="invoice-gold-rate" className="flex items-center mb-1 text-sm font-medium">
-                    <SettingsIcon className="w-4 h-4 mr-1 text-muted-foreground" /> Gold Rate for this Invoice (PKR/gram, 24k)
+                    <SettingsIcon className="w-4 h-4 mr-1 text-muted-foreground" /> Gold Rate for this Estimate (PKR/gram, 24k)
                   </Label>
                   <Input
                     id="invoice-gold-rate"
@@ -570,7 +605,7 @@ export default function CartPage() {
               </CardContent>
               <CardFooter>
                 <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={cartItemsFromStore.length === 0 || !estimatedInvoice}>
-                  <FileText className="mr-2 h-5 w-5" /> Generate Invoice
+                  <FileText className="mr-2 h-5 w-5" /> Generate Estimate
                 </Button>
               </CardFooter>
             </Card>
@@ -580,5 +615,3 @@ export default function CartPage() {
     </div>
   );
 }
-
-    
