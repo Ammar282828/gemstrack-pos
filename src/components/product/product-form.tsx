@@ -198,42 +198,42 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     const processedData = processFormData(data);
 
     try {
-        if (isEditMode && product) {
-            await updateProduct(product.sku, processedData);
-            toast({ title: "Success", description: "Product updated successfully." });
-            if (onSubmitSuccess) {
-                onSubmitSuccess();
-            } else {
-                router.push(`/products/${product.sku}`);
-            }
+      if (isEditMode && product) {
+        await updateProduct(product.sku, processedData);
+        toast({ title: "Success", description: "Product updated successfully." });
+        if (onSubmitSuccess) {
+          onSubmitSuccess();
         } else {
-            const newProduct = await addProduct(processedData);
-            if (newProduct) {
-                toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
-                if (data.submitAction === 'saveAndAddAnother') {
-                    const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
-                    const nextWastage = isNextItemAlsoGoldCoin ? 0 : (data.hasDiamonds ? 25 : 10);
-                    
-                    form.reset({
-                        categoryId: data.categoryId,
-                        metalType: data.metalType,
-                        karat: data.metalType === 'gold' ? data.karat : undefined,
-                        metalWeightG: 0,
-                        wastagePercentage: nextWastage,
-                        makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
-                        hasDiamonds: false,
-                        diamondCharges: 0,
-                        stoneCharges: 0,
-                        miscCharges: 0,
-                        imageUrl: "",
-                    });
-                } else {
-                    router.push('/products');
-                }
-            } else {
-                toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
-            }
+          router.push(`/products/${product.sku}`);
         }
+      } else {
+        const newProduct = await addProduct(processedData);
+        if (newProduct) {
+          toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
+          if (data.submitAction === 'saveAndAddAnother') {
+            const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
+            const nextWastage = isNextItemAlsoGoldCoin ? 0 : (data.hasDiamonds ? 25 : 10);
+            
+            form.reset({
+                categoryId: data.categoryId,
+                metalType: data.metalType,
+                karat: data.metalType === 'gold' ? data.karat : undefined,
+                metalWeightG: 0,
+                wastagePercentage: nextWastage,
+                makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
+                hasDiamonds: false,
+                diamondCharges: 0,
+                stoneCharges: 0,
+                miscCharges: 0,
+                imageUrl: "",
+            });
+          } else {
+            router.push('/products');
+          }
+        } else {
+          toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
+        }
+      }
     } catch (error) {
         toast({ title: "Error", description: `Failed to save product: ${(error as Error).message}`, variant: "destructive" });
         console.error("Failed to save product", error);
