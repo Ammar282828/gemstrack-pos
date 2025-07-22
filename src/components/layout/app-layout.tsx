@@ -11,11 +11,9 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, Loader2 } from 'lucide-react';
+import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useIsStoreHydrated, useAppReady, useAppStore } from '@/lib/store';
-import { useEffect } from 'react';
-import { AuthorizationProvider } from '@/components/auth/authorization-provider';
+import { useIsStoreHydrated } from '@/lib/store';
 
 interface NavItem {
   href: string;
@@ -38,38 +36,20 @@ const navItems: NavItem[] = [
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isStoreHydrated = useIsStoreHydrated();
-  const appReady = useAppReady();
-  const fetchAllInitialData = useAppStore(state => state.fetchAllInitialData);
-  const isInitialDataLoadedFromFirestore = useAppStore(state => state.isInitialDataLoadedFromFirestore);
 
-
-  useEffect(() => {
-    if (isStoreHydrated && !isInitialDataLoadedFromFirestore) {
-      console.log("[GemsTrack AppLayout] Store hydrated, now fetching initial data from Firestore.");
-      fetchAllInitialData();
-    }
-  }, [isStoreHydrated, isInitialDataLoadedFromFirestore, fetchAllInitialData]);
-  
+  // We only render the layout shell. Data loading and authorization happen inside.
   if (!isStoreHydrated) {
+    // Render nothing until the persisted state (cart) is rehydrated from localStorage
+    // This prevents a flash of empty cart on page load.
     return null; 
   }
   
-  if (!appReady) {
-    return (
-        <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mr-3" />
-            <p className="text-xl">Loading application data...</p>
-        </div>
-    );
-  }
-  
   return (
-    <AuthorizationProvider>
       <SidebarProvider defaultOpen={true}>
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4">
             <Link href="/" className="flex items-center gap-2">
-              <Image src="https://placehold.co/100x25/FFFFFF/081818.png?text=Taheri" alt="Taheri Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden" />
+              <Image src="https://placehold.co/100x25/F1F1E8/081818.png?text=Taheri" alt="Taheri Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden" data-ai-hint="logo" />
               <Gem className="w-8 h-8 text-primary hidden group-data-[collapsible=icon]:block" />
             </Link>
           </SidebarHeader>
@@ -116,6 +96,5 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </main>
         </SidebarInset>
       </SidebarProvider>
-    </AuthorizationProvider>
   );
 }

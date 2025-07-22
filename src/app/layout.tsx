@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'; // Changed from Geist to Inter
 import './globals.css';
 import AppLayout from '@/components/layout/app-layout';
 import { Toaster } from "@/components/ui/toaster";
+import { MainApp } from '@/components/layout/main-app';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -24,7 +25,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   // Theme color for browsers that support it
-  themeColor: "#200080",
+  themeColor: "#081818", // Corresponds to --sidebar-background from the theme
 };
 
 
@@ -45,7 +46,9 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <AppLayout>
-          {children}
+            <MainApp>
+              {children}
+            </MainApp>
         </AppLayout>
         <Toaster />
       </body>
