@@ -823,8 +823,7 @@ export const useAppStore = create<AppState>()(
         const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
         const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
         
-        const newInvoiceData: Omit<Invoice, 'id'> = {
-          customerName: customer?.name, 
+        const newInvoiceData: Partial<Omit<Invoice, 'id'>> = {
           items: invoiceItems, 
           subtotal: Number(subtotal) || 0,
           discountAmount: calculatedDiscountAmount, 
@@ -835,8 +834,9 @@ export const useAppStore = create<AppState>()(
           platinumRateApplied: cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'platinum') ? ratesForInvoice.platinumRatePerGram : undefined,
         };
 
-        if (customerId) {
-          (newInvoiceData as Invoice).customerId = customerId;
+        if (customer) {
+          newInvoiceData.customerId = customer.id;
+          newInvoiceData.customerName = customer.name;
         }
 
         const newInvoice: Invoice = {
@@ -882,8 +882,8 @@ export const useAppStore = create<AppState>()(
         settings: { // Persist only a subset of settings
             ...state.settings,
             // Don't persist sensitive or heavyweight data that should be fetched
-            allowedDeviceIds: state.settings.allowedDeviceIds || [], 
-            theme: state.settings.theme || 'default',
+            allowedDeviceIds: Array.isArray(state.settings?.allowedDeviceIds) ? state.settings.allowedDeviceIds : [], 
+            theme: state.settings?.theme || 'default',
         }
       }),
       version: 9,
