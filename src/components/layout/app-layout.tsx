@@ -15,6 +15,7 @@ import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsStoreHydrated, useAppReady, useAppStore } from '@/lib/store';
 import { useEffect } from 'react';
+import { AuthorizationProvider } from '@/components/auth/authorization-provider';
 
 interface NavItem {
   href: string;
@@ -63,58 +64,58 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
   
   return (
-    <SidebarProvider defaultOpen={true}>
-      <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
-        <SidebarHeader className="p-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="https://placehold.co/100x25/FFFFFF/081818.png?text=Taheri" alt="Taheri Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden" />
-            <Gem className="w-8 h-8 text-primary hidden group-data-[collapsible=icon]:block" />
-          </Link>
-        </SidebarHeader>
-        <Separator />
-        <SidebarContent asChild>
-          <ScrollArea className="h-full">
-            <SidebarMenu className="p-2">
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <Link href={item.href} legacyBehavior passHref>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))}
-                      tooltip={{ children: item.label, className: "group-data-[collapsible=icon]:block hidden" }}
-                      className="justify-start"
-                    >
-                      <a>
-                        {item.icon}
-                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                      </a>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </ScrollArea>
-        </SidebarContent>
-        <Separator />
-        <SidebarFooter className="p-4 group-data-[collapsible=icon]:p-2">
-          <div className="group-data-[collapsible=icon]:hidden text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Taheri
-          </div>
-        </SidebarFooter>
-      </Sidebar>
-      <SidebarInset>
-        <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
-          <SidebarTrigger className="md:hidden" />
-          <div className="flex-1 text-center md:text-left">
-            {/* Header content can go here if needed in the future */}
-          </div>
-        </header>
-        <main className="flex-1 p-4 overflow-auto md:p-6">
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    <AuthorizationProvider>
+      <SidebarProvider defaultOpen={true}>
+        <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
+          <SidebarHeader className="p-4">
+            <Link href="/" className="flex items-center gap-2">
+              <Image src="https://placehold.co/100x25/FFFFFF/081818.png?text=Taheri" alt="Taheri Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden" />
+              <Gem className="w-8 h-8 text-primary hidden group-data-[collapsible=icon]:block" />
+            </Link>
+          </SidebarHeader>
+          <Separator />
+          <SidebarContent asChild>
+            <ScrollArea className="h-full">
+              <SidebarMenu className="p-2">
+                {navItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <Link href={item.href} legacyBehavior passHref>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))}
+                        tooltip={{ children: item.label, className: "group-data-[collapsible=icon]:block hidden" }}
+                        className="justify-start"
+                      >
+                        <a>
+                          {item.icon}
+                          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                        </a>
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </ScrollArea>
+          </SidebarContent>
+          <Separator />
+          <SidebarFooter className="p-4 group-data-[collapsible=icon]:p-2">
+            <div className="group-data-[collapsible=icon]:hidden text-xs text-muted-foreground">
+              © {new Date().getFullYear()} Taheri
+            </div>
+          </SidebarFooter>
+        </Sidebar>
+        <SidebarInset>
+          <header className="sticky top-0 z-40 flex items-center justify-between h-16 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
+            <SidebarTrigger className="md:hidden" />
+            <div className="flex-1 text-center md:text-left">
+              {/* Header content can go here if needed in the future */}
+            </div>
+          </header>
+          <main className="flex-1 p-4 overflow-auto md:p-6">
+            {children}
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </AuthorizationProvider>
   );
 }
-
-    

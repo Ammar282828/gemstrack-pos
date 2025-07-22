@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAppStore, Settings, useAppReady, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID } from '@/lib/store';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { KaratValue, MetalType } from '@/lib/store';
 import Image from 'next/image';
+import { Separator } from '@/components/ui/separator';
 
 const settingsSchema = z.object({
   goldRatePerGram: z.coerce.number().min(0, "Gold rate must be a positive number"),
@@ -37,6 +38,7 @@ const settingsSchema = z.object({
   shopContact: z.string().optional(),
   shopLogoUrl: z.string().optional(),
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
+  allowedDeviceIds: z.array(z.object({ id: z.string().min(1, "Device ID cannot be empty.") })).optional(),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -184,15 +186,21 @@ export default function SettingsPage() {
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
-      goldRatePerGram: currentSettings.goldRatePerGram,
-      palladiumRatePerGram: currentSettings.palladiumRatePerGram,
-      platinumRatePerGram: currentSettings.platinumRatePerGram,
-      shopName: currentSettings.shopName,
-      shopAddress: currentSettings.shopAddress || "",
-      shopContact: currentSettings.shopContact || "",
-      shopLogoUrl: currentSettings.shopLogoUrl || "",
-      lastInvoiceNumber: currentSettings.lastInvoiceNumber,
+      goldRatePerGram: 0,
+      palladiumRatePerGram: 0,
+      platinumRatePerGram: 0,
+      shopName: "",
+      shopAddress: "",
+      shopContact: "",
+      shopLogoUrl: "",
+      lastInvoiceNumber: 0,
+      allowedDeviceIds: [],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "allowedDeviceIds",
   });
 
   React.useEffect(() => {
@@ -206,6 +214,7 @@ export default function SettingsPage() {
         shopContact: currentSettings.shopContact || "",
         shopLogoUrl: currentSettings.shopLogoUrl || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
+        allowedDeviceIds: currentSettings.allowedDeviceIds?.map(id => ({ id })) || [],
       });
       if (currentSettings.shopLogoUrl) {
         setLogoPreview(currentSettings.shopLogoUrl);
@@ -238,7 +247,11 @@ export default function SettingsPage() {
 
   const onSubmit = async (data: SettingsFormData) => {
     try {
-        await updateSettingsAction(data);
+        const settingsToSave: Partial<Settings> = {
+            ...data,
+            allowedDeviceIds: data.allowedDeviceIds?.map(item => item.id).filter(Boolean) || []
+        };
+        await updateSettingsAction(settingsToSave);
         toast({ title: "Settings Updated", description: "Your shop settings have been saved." });
     } catch (error) {
         toast({ title: "Error", description: "Failed to update settings.", variant: "destructive" });
@@ -360,8 +373,8 @@ export default function SettingsPage() {
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl">Shop Settings</CardTitle>
-              <CardDescription>Manage your shop's global settings, including metal rates and invoice numbering.</CardDescription>
+              <CardTitle className="text-2xl">Shop &amp; Security Settings</CardTitle>
+              <CardDescription>Manage global settings for your shop, including metal rates, invoice numbering, and device access.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <FormField
@@ -506,6 +519,46 @@ export default function SettingsPage() {
                   </FormItem>
                 )}
               />
+              <Separator />
+               <div>
+                  <FormLabel className="text-base flex items-center"><TabletSmartphone className="h-5 w-5 mr-2 text-muted-foreground" /> Authorized Device IDs</FormLabel>
+                  <FormDescription className="mb-4">
+                    Only devices with an ID on this whitelist will be able to access the app.
+                    Add a new device by visiting the app from it and copying the ID it displays.
+                  </FormDescription>
+                  <div className="space-y-3">
+                    {fields.map((field, index) => (
+                      <FormField
+                        key={field.id}
+                        control={form.control}
+                        name={`allowedDeviceIds.${index}.id`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex items-center gap-2">
+                              <FormControl>
+                                <Input {...field} placeholder="Enter a unique device ID" />
+                              </FormControl>
+                              <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Remove Device ID</span>
+                              </Button>
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => append({ id: '' })}
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Device ID
+                    </Button>
+                  </div>
+               </div>
             </CardContent>
             <CardFooter>
               <Button type="submit" size="lg" disabled={form.formState.isSubmitting || isSettingsLoading}>

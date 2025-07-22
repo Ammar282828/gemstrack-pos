@@ -129,6 +129,7 @@ export interface Settings {
   shopContact: string;
   shopLogoUrl?: string;
   lastInvoiceNumber: number;
+  allowedDeviceIds: string[];
 }
 
 export interface Category {
@@ -255,6 +256,7 @@ const initialSettingsData: Settings = {
   shopName: "Taheri", shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "https://placehold.co/200x80.png?text=Taheri", lastInvoiceNumber: 0,
+  allowedDeviceIds: [],
 };
 
 const staticCategories: Category[] = [
