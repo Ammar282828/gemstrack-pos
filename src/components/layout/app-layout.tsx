@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase } from 'lucide-react';
+import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsStoreHydrated } from '@/lib/store';
 
@@ -31,6 +31,7 @@ const navItems: NavItem[] = [
   { href: '/karigars', label: 'Karigars', icon: <Briefcase /> },
   { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
   { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
+  { href: '/settings/backups', label: 'Backups & Restore', icon: <ArchiveRestore /> },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

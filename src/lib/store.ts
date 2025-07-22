@@ -140,6 +140,11 @@ export const AVAILABLE_THEMES: Theme[] = [
     { key: 'gold', name: 'Gold', primaryColorHsl: '45 90% 65%' },
 ];
 
+export interface FirebaseConfigStub {
+  apiKey?: string;
+  authDomain?: string;
+  projectId?: string;
+}
 
 export interface Settings {
   goldRatePerGram: number;
@@ -152,6 +157,7 @@ export interface Settings {
   lastInvoiceNumber: number;
   allowedDeviceIds: string[];
   theme: ThemeKey;
+  firebaseConfig?: FirebaseConfigStub;
 }
 
 export interface Category {
@@ -280,6 +286,11 @@ const initialSettingsData: Settings = {
   shopLogoUrl: "https://placehold.co/200x80.png?text=Taheri", lastInvoiceNumber: 0,
   allowedDeviceIds: [],
   theme: 'default',
+  firebaseConfig: {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+  }
 };
 
 const staticCategories: Category[] = [
@@ -467,7 +478,7 @@ export const useAppStore = create<AppState>()(
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           await setDoc(settingsDocRef, updatedSettings, { merge: true });
           console.log("[GemsTrack Store updateSettings] Settings updated successfully in Firestore.");
-        } catch (error) {
+        } catch (error)
           console.error("[GemsTrack Store updateSettings] Error updating settings in Firestore:", error);
           set((state) => { state.settings = currentSettings; }); // Revert on error
           throw error;
