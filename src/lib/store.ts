@@ -285,7 +285,7 @@ const initialSettingsData: Settings = {
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "https://placehold.co/200x80.png?text=Taheri", lastInvoiceNumber: 0,
   allowedDeviceIds: [],
-  theme: 'default',
+  theme: 'forest',
   firebaseConfig: {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -453,7 +453,7 @@ export const useAppStore = create<AppState>()(
               allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
                 ? firestoreSettings.allowedDeviceIds
                 : [],
-              theme: firestoreSettings.theme || 'default',
+              theme: firestoreSettings.theme || 'forest',
             };
             set((state) => { state.settings = finalSettings; });
             console.log("[GemsTrack Store loadSettings] Settings loaded successfully from Firestore:", finalSettings);
@@ -770,9 +770,9 @@ export const useAppStore = create<AppState>()(
         if (cart.length === 0) return null;
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
 
-        let validInvoiceGoldRate24k = Number(invoiceGoldRate24k);
+        let validInvoiceGoldRate24k = Number(invoiceGoldRate24k) || 0;
         const hasGoldItems = cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'gold');
-        if (hasGoldItems && (isNaN(validInvoiceGoldRate24k) || validInvoiceGoldRate24k <= 0)) {
+        if (hasGoldItems && validInvoiceGoldRate24k <= 0) {
             console.error("[GemsTrack Store generateInvoice] Gold items in cart but provided gold rate is invalid.");
             return null; // A valid rate MUST be provided if gold items exist.
         }
