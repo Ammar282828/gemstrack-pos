@@ -22,10 +22,6 @@ export const viewport: Viewport = {
   initialScale: 1,
   // Theme color for browsers that support it
   themeColor: "#081818", // Corresponds to --sidebar-background from the theme
-  // Apple specific meta tags for PWA
-  appleWebAppCapable: "yes",
-  appleWebAppStatusBarStyle: "default", // or "black", "black-translucent"
-  appleWebAppTitle: "Taheri POS",
 };
 
 
