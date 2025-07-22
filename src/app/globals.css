@@ -28,20 +28,21 @@ body {
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 224 71.4% 4.1%;
-    --radius: 0.75rem;
     --chart-1: 220.9 39.3% 11%;
     --chart-2: 160 60% 45%;
     --chart-3: 35.2 91.4% 58.4%;
     --chart-4: 280.7 80% 59.8%;
     --chart-5: 340.8 82.2% 61.6%;
-    --sidebar-background: 222.2 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 210 40% 98%;
-    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 215 20.2% 65.1%;
+    
+    /* Unified sidebar variables, default to main theme colors */
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
 
   .dark {
@@ -89,6 +90,15 @@ body {
     --ring: 130 65% 60%;
     --chart-1: 130 65% 60%;
     --chart-2: 150 50% 50%;
+
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
 
   /* Theme: Ocean */
@@ -114,6 +124,15 @@ body {
     --ring: 185 70% 55%;
     --chart-1: 185 70% 55%;
     --chart-2: 210 60% 65%;
+    
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
   
   /* Theme: Sunset */
@@ -139,6 +158,15 @@ body {
     --ring: 30 90% 60%;
     --chart-1: 30 90% 60%;
     --chart-2: 50 85% 65%;
+
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
 
   /* Theme: Amethyst */
@@ -164,6 +192,15 @@ body {
     --ring: 260 80% 70%;
     --chart-1: 260 80% 70%;
     --chart-2: 280 60% 75%;
+
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
 
   /* Theme: Quartz */
@@ -189,6 +226,15 @@ body {
     --ring: 340 85% 70%;
     --chart-1: 340 85% 70%;
     --chart-2: 5 70% 65%;
+
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
   
   /* Theme: Slate */
@@ -214,6 +260,15 @@ body {
     --ring: 210 90% 75%;
     --chart-1: 210 90% 75%;
     --chart-2: 200 80% 70%;
+
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
   
   /* Theme: Latte */
@@ -239,6 +294,15 @@ body {
     --ring: 40 80% 70%;
     --chart-1: 40 80% 70%;
     --chart-2: 25 70% 65%;
+
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
   
   /* Theme: Mint */
@@ -264,6 +328,15 @@ body {
     --ring: 155 80% 65%;
     --chart-1: 155 80% 65%;
     --chart-2: 175 60% 60%;
+
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
   
   /* Theme: Gold */
@@ -289,6 +362,15 @@ body {
     --ring: 45 90% 65%;
     --chart-1: 45 90% 65%;
     --chart-2: 50 80% 60%;
+
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
 
 }
