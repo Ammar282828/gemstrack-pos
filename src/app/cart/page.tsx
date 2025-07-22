@@ -159,61 +159,60 @@ export default function CartPage() {
 
   const printInvoice = (invoiceToPrint: InvoiceType) => {
     const doc = new jsPDF();
-    
-    // Logo
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+
+    // --- Header Section ---
     if (settings.shopLogoUrl) {
         try {
-            // Using a placeholder that doesn't have text
             const logoUrl = 'https://placehold.co/150x40/FFFFFF/FFFFFF.png?text=%20';
-            doc.addImage(logoUrl, 'PNG', 15, 12, 50, 13);
+            doc.addImage(logoUrl, 'PNG', margin, 12, 50, 13);
         } catch(e) { console.error("Error adding image to PDF:", e) }
     }
 
-    // Shop Info
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
-    doc.text(settings.shopName, 15, 32);
+    doc.text(settings.shopName, margin, 32);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(settings.shopAddress, 15, 39);
-    doc.text(settings.shopContact, 15, 44);
+    doc.text(settings.shopAddress, margin, 39);
+    doc.text(settings.shopContact, margin, 44);
 
-    // Invoice Info
+    // --- Estimate Info Section ---
     doc.setFontSize(22);
     doc.setFont("helvetica", "bold");
-    doc.text('ESTIMATE', 140, 15);
+    doc.text('ESTIMATE', pageWidth - margin, 15, { align: 'right' });
     doc.setFont("helvetica", "normal");
     doc.setFontSize(12);
-    doc.text(`Estimate #: ${invoiceToPrint.id}`, 140, 22);
-    doc.text(`Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`, 140, 27);
+    doc.text(`Estimate #: ${invoiceToPrint.id}`, pageWidth - margin, 22, { align: 'right' });
+    doc.text(`Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`, pageWidth - margin, 27, { align: 'right' });
 
-    // Metal Rates
     let rateYPos = 32;
     if (invoiceToPrint.goldRateApplied) {
         const goldRate21k = invoiceToPrint.goldRateApplied * (21/24);
-        doc.text(`Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/g`, 140, rateYPos);
+        doc.text(`Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/g`, pageWidth - margin, rateYPos, { align: 'right' });
         rateYPos += 5;
     }
-    
-    // Customer Info
+
+    // --- Customer Info Section ---
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text('Bill To:', 15, 52);
+    doc.text('Bill To:', margin, 60);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    if (invoiceToPrint.customerId) {
+    let customerYPos = 65;
+    if (invoiceToPrint.customerId && invoiceToPrint.customerName) {
       const customer = customers.find(c => c.id === invoiceToPrint.customerId);
-      if (customer) {
-        doc.text(customer.name, 15, 57);
-        if(customer.address) doc.text(customer.address, 15, 62);
-        if(customer.phone) doc.text(`Phone: ${customer.phone}`, 15, 67);
-        if(customer.email) doc.text(`Email: ${customer.email}`, 15, 72);
-      }
+      doc.text(invoiceToPrint.customerName, margin, customerYPos); customerYPos += 5;
+      if(customer?.address) { doc.text(customer.address, margin, customerYPos); customerYPos += 5; }
+      if(customer?.phone) { doc.text(`Phone: ${customer.phone}`, margin, customerYPos); customerYPos += 5; }
+      if(customer?.email) { doc.text(`Email: ${customer.email}`, margin, customerYPos); customerYPos += 5; }
     } else {
-        doc.text("Walk-in Customer", 15, 57);
+        doc.text("Walk-in Customer", margin, customerYPos);
     }
 
-    // Items Table
+    // --- Items Table ---
     const tableColumn = ["#", "Item Description", "Qty", "Unit Price (PKR)", "Total (PKR)"];
     const tableRows: any[][] = [];
 
@@ -232,7 +231,6 @@ export default function CartPage() {
       if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
 
       const breakdown = breakdownLines.join('\n');
-
       const itemDescription = `${item.name} (SKU: ${item.sku})\nMetal: ${metalDisplay}, Wt: ${item.metalWeightG.toFixed(2)}g\n${breakdown ? breakdown : ''}`;
 
       const itemData = [
@@ -248,69 +246,67 @@ export default function CartPage() {
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
-      startY: 80,
+      startY: 85,
       theme: 'grid',
-      headStyles: { fillColor: [0, 100, 0], fontStyle: 'bold' },
-      styles: { fontSize: 8, cellPadding: 1.5, overflow: 'linebreak' },
-      columnStyles: {
-        1: { cellWidth: 'auto' },
-      },
+      headStyles: { fillColor: [0, 60, 0], fontStyle: 'bold' },
+      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+      columnStyles: { 1: { cellWidth: 'auto' } },
     });
 
-    // Totals Section
-    const finalY = (doc as any).lastAutoTable.finalY || 100;
+    // --- Totals Section ---
+    const finalY = (doc as any).lastAutoTable.finalY || pageHeight - 100;
     let currentY = finalY + 10;
     
-    // Subtotal
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text(`Subtotal:`, 140, currentY);
     doc.setFont("helvetica", "normal");
-    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 205, currentY, { align: 'right' });
-    
+    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
     currentY += 6;
     
-    // Discount
     doc.setFont("helvetica", "bold");
     doc.text(`Discount:`, 140, currentY);
     doc.setFont("helvetica", "normal");
-    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 205, currentY, { align: 'right' });
-
+    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
     currentY += 8;
 
-    // Grand Total
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text(`Grand Total:`, 140, currentY);
-    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 205, currentY, { align: 'right' });
+    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
     doc.setFont("helvetica", "normal");
 
-    // Guarantees text positioning
-    let guaranteesY = finalY + 10;
+    // --- Guarantees & Thank You Section ---
+    const guaranteesY = finalY + 10;
     doc.setFontSize(8);
-    doc.text("Gold used is 100% as per described Karats & purity.", 15, guaranteesY);
-    guaranteesY += 4;
+    doc.text("Gold used is 100% as per described Karats & purity.", margin, guaranteesY);
     doc.setFont("helvetica", "bold");
-    doc.text("Lab Tested Guarantees by ARY Assay Lab", 15, guaranteesY);
+    doc.text("Lab Tested Guarantees by ARY Assay Lab", margin, guaranteesY + 4);
     doc.setFont("helvetica", "normal");
+    doc.text("Thank you for your business!", margin, pageHeight - 35);
 
-
-    doc.setFontSize(8);
-    doc.text("Thank you for your business!", 15, doc.internal.pageSize.height - 25);
-
-    // QR Codes
-    const qrCodeSize = 20;
-    const qrYPos = doc.internal.pageSize.height - 22;
-    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
+    // --- QR Codes Section ---
+    const qrCodeSize = 22;
+    const qrYPos = pageHeight - 30;
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
+    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     
+    const qrSectionWidth = (qrCodeSize * 2) + 15;
+    const qrStartX = pageWidth - margin - qrSectionWidth;
+
     if (instaQrCanvas) {
-      doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', doc.internal.pageSize.width - (qrCodeSize * 2) - 25, qrYPos, qrCodeSize, qrCodeSize);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.text("Follow us on Instagram", qrStartX + qrCodeSize / 2, qrYPos - 2, { align: 'center' });
+        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, qrYPos, qrCodeSize, qrCodeSize);
     }
     if (waQrCanvas) {
-      doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', doc.internal.pageSize.width - qrCodeSize - 15, qrYPos, qrCodeSize, qrCodeSize);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.text("Join our WhatsApp Community", qrStartX + qrCodeSize + 15 + qrCodeSize / 2, qrYPos - 2, { align: 'center' });
+        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX + qrCodeSize + 15, qrYPos, qrCodeSize, qrCodeSize);
     }
-
+    
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
     toast({ title: "Estimate Printing", description: "Estimate PDF sent to print dialog." });
@@ -375,14 +371,14 @@ export default function CartPage() {
                             <TableBody>
                                 {generatedInvoice.items.map(item => {
                                     let breakdownLines = [];
-                                    breakdownLines.push(`Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (item.metalCost > 0) breakdownLines.push(`Metal: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
                                     if (item.wastageCost > 0) breakdownLines.push(`+ Wastage (${item.wastagePercentage}%): ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
                                     if (item.makingCharges > 0) breakdownLines.push(`+ Making: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
                                     if (item.diamondChargesIfAny > 0) breakdownLines.push(`+ Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
                                     if (item.stoneChargesIfAny > 0) breakdownLines.push(`+ Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
                                     if (item.miscChargesIfAny > 0) breakdownLines.push(`+ Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
                                     
-                                    const breakdownText = breakdownLines.join(', ');
+                                    const breakdownText = breakdownLines.join(' / ');
 
                                     return (
                                     <TableRow key={item.sku}>
