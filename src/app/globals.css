@@ -9,99 +9,97 @@ body {
 
 @layer base {
   :root {
-    --background: 240 67% 97%; /* #E6E6FA - Light Lavender */
-    --foreground: 275 100% 10%; /* Darker Indigo for text */
+    --background: 47 65% 91%; /* #F5F5DC - Beige */
+    --foreground: 180 44% 6%; /* #081818 - Dark Teal */
 
-    --card: 240 50% 99%; /* Slightly off-white lavender */
-    --card-foreground: 275 100% 10%;
+    --card: 47 60% 95%; /* Lighter Beige */
+    --card-foreground: 180 44% 6%;
 
-    --popover: 240 50% 99%;
-    --popover-foreground: 275 100% 10%;
+    --popover: 47 60% 95%;
+    --popover-foreground: 180 44% 6%;
 
-    --primary: 275 100% 25%; /* #4B0082 - Deep Indigo */
-    --primary-foreground: 240 67% 97%; /* Light Lavender text on Primary */
+    --primary: 30 41% 64%; /* #C4A484 - Earthy Gold */
+    --primary-foreground: 180 44% 6%; /* Dark Teal text on Gold */
 
-    --secondary: 240 20% 65%; /* #9999b3 - Muted Gray-Blue */
-    --secondary-foreground: 275 100% 10%;
+    --secondary: 180 15% 65%; /* #9AB2B2 - Muted Teal */
+    --secondary-foreground: 180 44% 6%;
 
-    --muted: 240 30% 90%; /* #dde0f1 - Lighter Lavender-Gray */
-    --muted-foreground: 240 15% 45%; /* #676779 - Darker Muted Text */
+    --muted: 47 40% 93%; /* #F1F1E8 - Lighter muted beige */
+    --muted-foreground: 180 25% 35%; /* #4A5C5C - Darker Muted Teal */
 
-    --accent: 43 91% 38%; /* #B8860B - Muted Gold */
-    --accent-foreground: 275 100% 10%; 
+    --accent: 47 25% 88%; /* #E5E5DB - Beige for hovers */
+    --accent-foreground: 180 44% 6%; 
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 30% 88%; /* Lavender-based border */
-    --input: 240 30% 92%; /* Lavender-based input background */
-    --ring: 275 100% 25%; /* Deep Indigo for focus rings */
-
-    --radius: 0.5rem;
+    --border: 47 30% 88%; /* #E8E8DE */
+    --input: 47 30% 90%; /* #ECECE2 */
+    --ring: 30 41% 64%; /* Earthy Gold for focus rings */
 
     /* Chart colors */
-    --chart-1: 275 100% 25%; /* Deep Indigo */
-    --chart-2: 43 91% 38%; /* Muted Gold */
-    --chart-3: 240 20% 65%; /* Muted Gray-Blue */
-    --chart-4: 275 80% 45%; /* Lighter Indigo */
-    --chart-5: 43 70% 55%; /* Lighter Gold */
+    --chart-1: 30 41% 64%; /* Earthy Gold */
+    --chart-2: 180 44% 12%; /* Darker Teal */
+    --chart-3: 180 15% 55%; /* Darker Muted Teal */
+    --chart-4: 30 35% 54%; /* Darker Gold */
+    --chart-5: 180 30% 50%; /* Medium Teal */
 
     /* Sidebar specific theme adjustments */
-    --sidebar-background: 275 100% 12%; /* #170027 - Very Dark Indigo */
-    --sidebar-foreground: 240 30% 90%; /* Light Lavender-Gray */
-    --sidebar-primary: 43 91% 38%; /* Muted Gold for active/hover */
-    --sidebar-primary-foreground: 240 50% 99%;
-    --sidebar-accent: 275 100% 18%; /* Darker Indigo for hover */
-    --sidebar-accent-foreground: 240 30% 90%;
-    --sidebar-border: 275 100% 20%;
-    --sidebar-ring: 43 91% 38%;
+    --sidebar-background: 180 44% 6%; /* #081818 - Dark Teal */
+    --sidebar-foreground: 47 40% 93%; /* #F1F1E8 - Light Muted Beige */
+    --sidebar-primary: 30 41% 64%; /* Earthy Gold for active/hover */
+    --sidebar-primary-foreground: 180 44% 6%;
+    --sidebar-accent: 180 44% 12%; /* #102929 - Slightly Lighter Teal */
+    --sidebar-accent-foreground: 47 40% 93%;
+    --sidebar-border: 180 44% 10%;
+    --sidebar-ring: 30 41% 64%;
   }
 
   .dark {
-    --background: 275 100% 8%; /* #11001f - Very Dark Indigo */
-    --foreground: 240 30% 90%; /* Light Lavender-Gray */
+    --background: 180 44% 5%; /* #071515 - Very Dark Teal */
+    --foreground: 47 40% 93%; /* #F1F1E8 - Light Muted Beige */
 
-    --card: 275 100% 12%; /* #170027 - Slightly lighter dark indigo */
-    --card-foreground: 240 30% 90%;
+    --card: 180 44% 8%; /* #0D1E1E - Slightly lighter dark teal */
+    --card-foreground: 47 40% 93%;
 
-    --popover: 275 100% 12%;
-    --popover-foreground: 240 30% 90%;
+    --popover: 180 44% 8%;
+    --popover-foreground: 47 40% 93%;
 
-    --primary: 275 90% 65%; /* Brighter Indigo */
-    --primary-foreground: 275 100% 10%;
+    --primary: 30 41% 70%; /* #CCA88A - Brighter Earthy Gold */
+    --primary-foreground: 180 44% 6%;
     
-    --secondary: 240 15% 50%; /* #717189 - Darker Gray-Blue */
-    --secondary-foreground: 240 30% 90%;
+    --secondary: 180 15% 50%; /* #718989 - Darker Muted Teal */
+    --secondary-foreground: 47 40% 93%;
 
-    --muted: 275 100% 15%; /* Lighter Dark Indigo */
-    --muted-foreground: 240 20% 65%; 
+    --muted: 180 44% 12%; /* #102929 - Lighter Dark Teal */
+    --muted-foreground: 180 15% 65%; /* #9AB2B2 - Lighter Muted Teal Text */
 
-    --accent: 43 80% 55%; /* Brighter Gold */
-    --accent-foreground: 275 100% 10%;
+    --accent: 180 44% 15%; /* #143232 - Dark teal for hovers */
+    --accent-foreground: 47 40% 93%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 275 100% 20%;
-    --input: 275 100% 15%; 
-    --ring: 275 90% 65%; /* Brighter Indigo */
+    --border: 180 44% 15%;
+    --input: 180 44% 12%; 
+    --ring: 30 41% 70%; /* Brighter Gold */
 
     /* Chart colors for dark mode */
-    --chart-1: 275 90% 65%; /* Brighter Indigo */
-    --chart-2: 43 80% 55%; /* Brighter Gold */
-    --chart-3: 240 15% 50%; /* Darker Gray-Blue */
-    --chart-4: 275 80% 75%; /* Even Lighter Indigo */
-    --chart-5: 43 70% 65%; /* Even Lighter Gold */
+    --chart-1: 30 41% 70%; /* Brighter Gold */
+    --chart-2: 180 20% 70%; /* Lighter Teal */
+    --chart-3: 180 15% 50%; /* Darker Muted Teal */
+    --chart-4: 30 35% 60%; /* Lighter Gold */
+    --chart-5: 180 30% 60%; /* Medium Teal */
 
     /* Sidebar dark theme variables */
-    --sidebar-background: 275 100% 8%;
-    --sidebar-foreground: 240 30% 90%;
-    --sidebar-primary: 43 80% 55%; /* Brighter Gold */
-    --sidebar-primary-foreground: 275 100% 10%;
-    --sidebar-accent: 275 100% 15%;
-    --sidebar-accent-foreground: 240 30% 90%;
-    --sidebar-border: 275 100% 12%;
-    --sidebar-ring: 43 80% 55%;
+    --sidebar-background: 180 44% 5%;
+    --sidebar-foreground: 47 40% 93%;
+    --sidebar-primary: 30 41% 70%; /* Brighter Gold */
+    --sidebar-primary-foreground: 180 44% 6%;
+    --sidebar-accent: 180 44% 12%;
+    --sidebar-accent-foreground: 47 40% 93%;
+    --sidebar-border: 180 44% 8%;
+    --sidebar-ring: 30 41% 70%;
   }
 }
 
