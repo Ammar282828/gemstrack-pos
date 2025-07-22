@@ -105,29 +105,34 @@ export default function CartPage() {
     }
   };
 
-  const printInvoice = async (invoiceToPrint: InvoiceType) => {
+  const printInvoice = (invoiceToPrint: InvoiceType) => {
     const doc = new jsPDF();
-
-    if (settings.shopLogoUrl && settings.shopLogoUrl.endsWith('.svg')) {
-      try {
-        const response = await fetch(settings.shopLogoUrl);
-        const svgText = await response.text();
-        doc.addSvgAsImage(svgText, 15, 12, 50, 12.5);
-      } catch (e) { console.error("Error adding SVG logo to PDF:", e); }
+    
+    // Logo
+    if (settings.shopLogoUrl) {
+        try {
+            // Using a placeholder or a default image for PDF generation
+            // as direct SVG rendering can be complex in jsPDF without extra libraries.
+            // For a real app, you might use a PNG version of the logo here.
+            doc.addImage(settings.shopLogoUrl, 'PNG', 15, 12, 50, 12.5);
+        } catch(e) { console.error("Error adding image to PDF:", e) }
     }
 
+    // Shop Info
     doc.setFontSize(18);
     doc.text(settings.shopName, 15, 32);
     doc.setFontSize(10);
     doc.text(settings.shopAddress, 15, 39);
     doc.text(settings.shopContact, 15, 44);
 
+    // Invoice Info
     doc.setFontSize(22);
     doc.text('INVOICE', 140, 15);
     doc.setFontSize(12);
     doc.text(`Invoice #: ${invoiceToPrint.id}`, 140, 22);
     doc.text(`Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`, 140, 27);
 
+    // Metal Rates
     let rateYPos = 32;
     if (invoiceToPrint.goldRateApplied) {
         doc.text(`Gold Rate: PKR ${invoiceToPrint.goldRateApplied.toLocaleString()}/g (24k)`, 140, rateYPos);
@@ -141,7 +146,7 @@ export default function CartPage() {
         doc.text(`Platinum Rate: PKR ${invoiceToPrint.platinumRateApplied.toLocaleString()}/g`, 140, rateYPos);
     }
 
-
+    // Customer Info
     if (invoiceToPrint.customerId) {
       const customer = customers.find(c => c.id === invoiceToPrint.customerId);
       if (customer) {
@@ -160,6 +165,7 @@ export default function CartPage() {
         doc.text("Walk-in Customer", 15, 57);
     }
 
+    // Items Table
     const tableColumn = ["#", "Item Description", "Qty", "Unit Price (PKR)", "Total (PKR)"];
     const tableRows: any[][] = [];
 
@@ -206,6 +212,7 @@ export default function CartPage() {
       }
     });
 
+    // Totals Section
     const finalY = (doc as any).lastAutoTable.finalY || 100;
     let currentY = finalY + 10;
     doc.setFontSize(10);
@@ -509,3 +516,5 @@ export default function CartPage() {
     </div>
   );
 }
+
+    

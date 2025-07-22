@@ -205,7 +205,7 @@ export default function SettingsPage() {
         shopName: currentSettings.shopName,
         shopAddress: currentSettings.shopAddress || "",
         shopContact: currentSettings.shopContact || "",
-        shopLogoUrl: currentSettings.shopLogoUrl || "/logo-white.svg",
+        shopLogoUrl: currentSettings.shopLogoUrl || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
       });
     }
@@ -445,11 +445,11 @@ export default function SettingsPage() {
                      <div className="flex items-center">
                        <ImageIcon className="h-5 w-5 mr-2 text-muted-foreground" />
                         <FormControl>
-                          <Input type="url" placeholder="/logo-white.svg" {...field} />
+                          <Input type="url" placeholder="https://example.com/logo.png" {...field} />
                         </FormControl>
                      </div>
                      {field.value && (
-                        <div className="mt-2 p-2 border rounded-md w-fit bg-primary/10">
+                        <div className="mt-2 p-2 border rounded-md w-fit">
                             <Image src={field.value} alt="Shop Logo Preview" width={150} height={40} className="object-contain" data-ai-hint="logo store" />
                         </div>
                      )}
@@ -582,3 +582,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    

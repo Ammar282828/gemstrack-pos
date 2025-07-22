@@ -67,7 +67,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
         <SidebarHeader className="p-4">
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo-white.svg" alt="Taheri Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden" />
+            <Image src="https://placehold.co/100x25/FFFFFF/081818.png?text=Taheri" alt="Taheri Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden" />
             <Gem className="w-8 h-8 text-primary hidden group-data-[collapsible=icon]:block" />
           </Link>
         </SidebarHeader>
@@ -116,3 +116,5 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
+    
