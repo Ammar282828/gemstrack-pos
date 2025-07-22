@@ -166,8 +166,7 @@ export default function CartPage() {
     // --- Header Section ---
     if (settings.shopLogoUrl) {
         try {
-            const logoUrl = 'https://placehold.co/150x40/FFFFFF/FFFFFF.png?text=%20';
-            doc.addImage(logoUrl, 'PNG', margin, 12, 50, 13);
+            doc.addImage(settings.shopLogoUrl, 'PNG', margin, 12, 50, 13);
         } catch(e) { console.error("Error adding image to PDF:", e) }
     }
 
@@ -277,34 +276,41 @@ export default function CartPage() {
     doc.setFont("helvetica", "normal");
 
     // --- Guarantees & Thank You Section ---
-    const guaranteesY = finalY + 10;
+    const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
     doc.setFontSize(8);
-    doc.text("Gold used is 100% as per described Karats & purity.", margin, guaranteesY);
     doc.setFont("helvetica", "bold");
-    doc.text("Lab Tested Guarantees by ARY Assay Lab", margin, guaranteesY + 4);
+    doc.text(guaranteesText, margin, pageHeight - 45, { maxWidth: pageWidth / 2 });
+    
     doc.setFont("helvetica", "normal");
-    doc.text("Thank you for your business!", margin, pageHeight - 35);
+    doc.text("Thank you for your business!", margin, pageHeight - 30);
 
     // --- QR Codes Section ---
-    const qrCodeSize = 22;
-    const qrYPos = pageHeight - 30;
+    const qrCodeSize = 25;
+    const qrYPos = pageHeight - 35;
+    const qrSectionWidth = (qrCodeSize * 2) + 25;
+    const qrStartX = pageWidth - margin - qrSectionWidth;
+
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     
-    const qrSectionWidth = (qrCodeSize * 2) + 15;
-    const qrStartX = pageWidth - margin - qrSectionWidth;
+    // Add logos (using placeholders for now, can be replaced with actual images)
+    const instaLogoUrl = 'https://placehold.co/20x20.png?text=I';
+    const waLogoUrl = 'https://placehold.co/20x20.png?text=W';
 
     if (instaQrCanvas) {
+        doc.addImage(instaLogoUrl, 'PNG', qrStartX, qrYPos - 7, 5, 5);
         doc.setFontSize(8);
         doc.setFont("helvetica", "bold");
-        doc.text("Follow us on Instagram", qrStartX + qrCodeSize / 2, qrYPos - 2, { align: 'center' });
+        doc.text("Follow on Instagram", qrStartX + 7, qrYPos - 3);
         doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, qrYPos, qrCodeSize, qrCodeSize);
     }
     if (waQrCanvas) {
+        const secondQrX = qrStartX + qrCodeSize + 15;
+        doc.addImage(waLogoUrl, 'PNG', secondQrX, qrYPos - 7, 5, 5);
         doc.setFontSize(8);
         doc.setFont("helvetica", "bold");
-        doc.text("Join our WhatsApp Community", qrStartX + qrCodeSize + 15 + qrCodeSize / 2, qrYPos - 2, { align: 'center' });
-        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX + qrCodeSize + 15, qrYPos, qrCodeSize, qrCodeSize);
+        doc.text("Join WhatsApp Community", secondQrX + 7, qrYPos - 3);
+        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, qrYPos, qrCodeSize, qrCodeSize);
     }
     
     doc.autoPrint();
@@ -342,8 +348,6 @@ export default function CartPage() {
       const goldRate21k = generatedInvoice.goldRateApplied * (21/24);
       ratesAppliedMessage += `Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}/g. `;
     }
-    if (generatedInvoice.palladiumRateApplied) ratesAppliedMessage += `Palladium Rate: PKR ${generatedInvoice.palladiumRateApplied.toLocaleString()}/g. `;
-    if (generatedInvoice.platinumRateApplied) ratesAppliedMessage += `Platinum Rate: PKR ${generatedInvoice.platinumRateApplied.toLocaleString()}/g.`;
 
     return (
         <div className="container mx-auto py-8 px-4">
@@ -560,7 +564,7 @@ export default function CartPage() {
                     <Alert variant="default" className="mt-2 text-xs">
                         <Info className="h-4 w-4" />
                         <AlertDescription>
-                            Palladium and Platinum items in this cart will be priced using their current rates from store settings (Pd: {(settings?.palladiumRatePerGram || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}, Pt: {(settings?.platinumRatePerGram || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }).
+                            Palladium and Platinum items in this cart will be priced using their current rates from store settings (Pd: {(settings?.palladiumRatePerGram || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }, Pt: {(settings?.platinumRatePerGram || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }).
                         </AlertDescription>
                     </Alert>
                    )}
@@ -593,7 +597,7 @@ export default function CartPage() {
                     <Separator />
                     <div className="flex justify-between items-center text-xl font-bold">
                         <span>Grand Total:</span>
-                        <span className="text-primary">PKR {estimatedInvoice ? estimatedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '...'}</span>
+                        <span className="text-primary">PKR {estimatedInvoice ? estimatedInvoice.grandTotal.toLocaleString(undefined, { minimumFraction Digits: 2, maximumFractionDigits: 2 }) : '...'}</span>
                     </div>
                 </div>
                  <p className="text-xs text-muted-foreground">
@@ -612,3 +616,5 @@ export default function CartPage() {
     </div>
   );
 }
+
+    
