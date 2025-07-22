@@ -1,4 +1,5 @@
 
+
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -822,19 +823,33 @@ export const useAppStore = create<AppState>()(
         const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
         const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
         
-        const newInvoice: Invoice = {
-            id: invoiceId, customerId, customerName: customer?.name, items: invoiceItems, subtotal: Number(subtotal) || 0,
-            discountAmount: calculatedDiscountAmount, grandTotal: Number(grandTotal) || 0, createdAt: new Date().toISOString(),
-            goldRateApplied: cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'gold') ? ratesForInvoice.goldRatePerGram24k : undefined,
-            palladiumRateApplied: cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'palladium') ? ratesForInvoice.palladiumRatePerGram : undefined,
-            platinumRateApplied: cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'platinum') ? ratesForInvoice.platinumRatePerGram : undefined,
+        const newInvoiceData: Omit<Invoice, 'id'> = {
+          customerName: customer?.name, 
+          items: invoiceItems, 
+          subtotal: Number(subtotal) || 0,
+          discountAmount: calculatedDiscountAmount, 
+          grandTotal: Number(grandTotal) || 0, 
+          createdAt: new Date().toISOString(),
+          goldRateApplied: hasGoldItems ? ratesForInvoice.goldRatePerGram24k : undefined,
+          palladiumRateApplied: cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'palladium') ? ratesForInvoice.palladiumRatePerGram : undefined,
+          platinumRateApplied: cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'platinum') ? ratesForInvoice.platinumRatePerGram : undefined,
         };
+
+        if (customerId) {
+          (newInvoiceData as Invoice).customerId = customerId;
+        }
+
+        const newInvoice: Invoice = {
+            id: invoiceId,
+            ...newInvoiceData
+        } as Invoice;
+        
         console.log("[GemsTrack Store generateInvoice] Generated invoice object:", newInvoice);
 
         try {
             const batch = writeBatch(db);
             const invoiceDocRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
-            batch.set(invoiceDocRef, newInvoice);
+            batch.set(invoiceDocRef, newInvoiceData);
 
             const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
             batch.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
