@@ -194,7 +194,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     return processed;
   };
 
-  const onSubmit = async (data: ProductFormData) => {
+  const processAndSubmit = async (data: ProductFormData) => {
     const processedData = processFormData(data);
 
     try {
@@ -242,7 +242,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      <form onSubmit={form.handleSubmit(processAndSubmit)}>
         <Card>
           <CardHeader>
             <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
