@@ -1,5 +1,5 @@
 
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google'; // Changed from Geist to Inter
 import './globals.css';
 import AppLayout from '@/components/layout/app-layout';
@@ -14,17 +14,19 @@ export const metadata: Metadata = {
   title: 'Taheri POS',
   description: 'Jewellery Inventory & Point-of-Sale System',
   manifest: '/manifest.json', // Link to the manifest file
-  viewport: { 
-    width: 'device-width',
-    initialScale: 1,
-  },
   // Apple specific meta tags for PWA
   appleWebAppCapable: "yes",
   appleWebAppStatusBarStyle: "default", // or "black", "black-translucent"
   appleWebAppTitle: "Taheri POS",
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
   // Theme color for browsers that support it
   themeColor: "#200080",
 };
+
 
 export default function RootLayout({
   children,
