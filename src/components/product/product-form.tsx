@@ -222,7 +222,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
             // Reset form for next entry
             const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
             const currentCategory = categories.find(c => c.id === data.categoryId);
-            const nextWastage = isNextItemAlsoGoldCoin ? 0 : (currentCategory?.title.toLowerCase().includes("diamond") ? 25 : 10);
+            const nextWastage = isNextItemAlsoGoldCoin ? 0 : (hasDiamondsValue ? 25 : 10);
             
             form.reset({
               categoryId: data.categoryId,
@@ -258,16 +258,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
           <CardHeader>
             <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isEditMode && product && (
               <>
-                <FormItem className="sm:col-span-1">
+                <FormItem className="md:col-span-1">
                   <FormLabel>SKU (Read-only)</FormLabel>
                   <FormControl>
                     <Input value={product.sku} disabled className="bg-muted/50" />
                   </FormControl>
                 </FormItem>
-                <FormItem className="sm:col-span-1">
+                <FormItem className="md:col-span-1">
                   <FormLabel>Product Name (Auto-generated)</FormLabel>
                   <FormControl>
                     <Input value={product.name} disabled className="bg-muted/50" />
@@ -357,7 +357,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                     control={form.control}
                     name="metalWeightG" 
                     render={({ field }) => ( 
-                        <FormItem className={selectedMetalType === 'gold' && !selectedKarat ? 'sm:col-span-2' : ''}>
+                        <FormItem className={selectedMetalType === 'gold' && !selectedKarat ? 'md:col-span-2' : ''}>
                         <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Denomination / Weight (Gold Coins)</FormLabel>
                         <Select
                             value={availableDenominations.find(d => d.value === field.value)?.value.toString()}
@@ -389,7 +389,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 control={form.control}
                 name="metalWeightG"
                 render={({ field }) => (
-                    <FormItem className={selectedMetalType !== 'gold' ? 'sm:col-span-2' : '' }>
+                    <FormItem className={selectedMetalType !== 'gold' ? 'md:col-span-2' : '' }>
                     <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Metal Weight (grams)</FormLabel>
                     <FormControl>
                         <Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} />
@@ -399,7 +399,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 )}
                 />
             )}
-             <div className="sm:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {!isGoldCoinScenario && (
                 <>
@@ -501,7 +501,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               control={form.control}
               name="imageUrl"
               render={({ field }) => (
-                <FormItem className="sm:col-span-2">
+                <FormItem className="md:col-span-2">
                   <FormLabel>Image URL (Optional)</FormLabel>
                   <FormControl>
                     <Input type="url" placeholder="https://example.com/image.png" {...field} />
@@ -532,5 +532,4 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       </form>
     </Form>
   );
-
-    
+};
