@@ -411,9 +411,17 @@ export const useAppStore = create<AppState>()(
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           const docSnap = await getDoc(settingsDocRef);
           if (docSnap.exists()) {
-            const firestoreSettings = docSnap.data() as Settings;
-            set((state) => { state.settings = { ...initialSettingsData, ...firestoreSettings }; });
-            console.log("[GemsTrack Store loadSettings] Settings loaded successfully from Firestore:", firestoreSettings);
+            const firestoreSettings = docSnap.data() as Partial<Settings>;
+            // Ensure allowedDeviceIds is always an array
+            const finalSettings = {
+              ...initialSettingsData,
+              ...firestoreSettings,
+              allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
+                ? firestoreSettings.allowedDeviceIds
+                : [],
+            };
+            set((state) => { state.settings = finalSettings; });
+            console.log("[GemsTrack Store loadSettings] Settings loaded successfully from Firestore:", finalSettings);
           } else {
             console.log("[GemsTrack Store loadSettings] No settings found in Firestore, creating with initial data.");
             await setDoc(settingsDocRef, initialSettingsData);

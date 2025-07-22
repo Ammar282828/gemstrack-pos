@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, useAppReady } from '@/lib/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,22 +28,32 @@ export function AuthorizationProvider({ children }: { children: React.ReactNode 
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const { toast } = useToast();
   
+  const appReady = useAppReady();
   const allowedDeviceIds = useAppStore(state => state.settings.allowedDeviceIds);
 
   useEffect(() => {
+    // Only perform authorization check once the app is fully ready
+    if (!appReady) return;
+
     const id = getDeviceId();
     setDeviceId(id);
 
     if (id) {
+        // Ensure allowedDeviceIds is an array before checking its length
+        const whitelist = Array.isArray(allowedDeviceIds) ? allowedDeviceIds : [];
+
         // If there are no whitelisted IDs, any device is allowed. 
         // This is important for the first-time setup.
-      if (allowedDeviceIds.length === 0) {
-        setIsAuthorized(true);
-      } else {
-        setIsAuthorized(allowedDeviceIds.includes(id));
-      }
+        if (whitelist.length === 0) {
+            setIsAuthorized(true);
+        } else {
+            setIsAuthorized(whitelist.includes(id));
+        }
+    } else {
+        // If we can't get a device ID for some reason, deny access by default.
+        setIsAuthorized(false);
     }
-  }, [allowedDeviceIds]);
+  }, [appReady, allowedDeviceIds]);
 
   const handleCopyToClipboard = () => {
     if (deviceId) {
@@ -54,6 +64,11 @@ export function AuthorizationProvider({ children }: { children: React.ReactNode 
       });
     }
   };
+
+  // Do not render children until app is ready and authorization check is complete
+  if (!appReady) {
+    return null;
+  }
 
   if (isAuthorized) {
     return <>{children}</>;
