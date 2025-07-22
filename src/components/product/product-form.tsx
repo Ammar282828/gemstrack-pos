@@ -163,22 +163,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   }, [isGoldCoinScenario, form]);
   
   useEffect(() => {
-    if (isGoldCoinScenario) {
-      // Gold coin logic takes precedence
-      form.setValue('wastagePercentage', 0, { shouldValidate: true });
-      form.setValue('diamondCharges', 0, { shouldValidate: true });
-      return;
+    const currentCategory = categories.find((c) => c.id === selectedCategoryId);
+    if (!isGoldCoinScenario && currentCategory) {
+        if (hasDiamondsValue) {
+            form.setValue('wastagePercentage', 25, { shouldValidate: true });
+        } else {
+            form.setValue('wastagePercentage', 10, { shouldValidate: true });
+            form.setValue('diamondCharges', 0, { shouldValidate: true });
+        }
     }
-
-    if (hasDiamondsValue) {
-      // If product has diamonds, set wastage to 25% and ensure diamond charges are not zero if they were previously.
-      form.setValue('wastagePercentage', 25, { shouldValidate: true });
-    } else {
-      // If product does not have diamonds, set wastage to a default (e.g., 10%) and zero out diamond charges.
-      form.setValue('wastagePercentage', 10, { shouldValidate: true });
-      form.setValue('diamondCharges', 0, { shouldValidate: true });
-    }
-  }, [isGoldCoinScenario, hasDiamondsValue, form]);
+  }, [isGoldCoinScenario, hasDiamondsValue, selectedCategoryId, form, categories]);
 
   const processFormData = (data: ProductFormData): ProductDataForActualAdd => {
     const isActualGoldCoinScenario = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
@@ -223,7 +217,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
           toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added. You can add another product.` });
           // Reset form for next entry
           const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
-          const nextWastage = isNextItemAlsoGoldCoin ? 0 : (categories.find(c => c.id === data.categoryId)?.title.toLowerCase().includes("diamond") ? 25 : 10);
+          
+          const currentCategory = categories.find(c => c.id === data.categoryId);
+          const nextWastage = isNextItemAlsoGoldCoin ? 0 : (currentCategory?.title.toLowerCase().includes("diamond") ? 25 : 10);
+
           form.reset({
             categoryId: data.categoryId,
             metalType: data.metalType,
