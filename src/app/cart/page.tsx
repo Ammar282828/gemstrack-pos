@@ -105,19 +105,22 @@ export default function CartPage() {
     }
   };
 
-  const printInvoice = (invoiceToPrint: InvoiceType) => {
+  const printInvoice = async (invoiceToPrint: InvoiceType) => {
     const doc = new jsPDF();
 
-    if (settings.shopLogoUrl) {
+    if (settings.shopLogoUrl && settings.shopLogoUrl.endsWith('.svg')) {
       try {
-        // Consider pre-loading or ensuring CORS compliance for logo
-      } catch (e) { console.error("Error adding logo to PDF:", e); }
+        const response = await fetch(settings.shopLogoUrl);
+        const svgText = await response.text();
+        doc.addSvgAsImage(svgText, 15, 12, 50, 12.5);
+      } catch (e) { console.error("Error adding SVG logo to PDF:", e); }
     }
+
     doc.setFontSize(18);
-    doc.text(settings.shopName, 15, 15);
+    doc.text(settings.shopName, 15, 32);
     doc.setFontSize(10);
-    doc.text(settings.shopAddress, 15, 22);
-    doc.text(settings.shopContact, 15, 27);
+    doc.text(settings.shopAddress, 15, 39);
+    doc.text(settings.shopContact, 15, 44);
 
     doc.setFontSize(22);
     doc.text('INVOICE', 140, 15);
@@ -143,18 +146,18 @@ export default function CartPage() {
       const customer = customers.find(c => c.id === invoiceToPrint.customerId);
       if (customer) {
         doc.setFontSize(12);
-        doc.text('Bill To:', 15, 40);
+        doc.text('Bill To:', 15, 52);
         doc.setFontSize(10);
-        doc.text(customer.name, 15, 45);
-        if(customer.address) doc.text(customer.address, 15, 50);
-        if(customer.phone) doc.text(`Phone: ${customer.phone}`, 15, 55);
-        if(customer.email) doc.text(`Email: ${customer.email}`, 15, 60);
+        doc.text(customer.name, 15, 57);
+        if(customer.address) doc.text(customer.address, 15, 62);
+        if(customer.phone) doc.text(`Phone: ${customer.phone}`, 15, 67);
+        if(customer.email) doc.text(`Email: ${customer.email}`, 15, 72);
       }
     } else {
         doc.setFontSize(12);
-        doc.text('Bill To:', 15, 40);
+        doc.text('Bill To:', 15, 52);
         doc.setFontSize(10);
-        doc.text("Walk-in Customer", 15, 45);
+        doc.text("Walk-in Customer", 15, 57);
     }
 
     const tableColumn = ["#", "Item Description", "Qty", "Unit Price (PKR)", "Total (PKR)"];
@@ -191,7 +194,7 @@ export default function CartPage() {
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
-      startY: 70,
+      startY: 80,
       theme: 'grid',
       headStyles: { fillColor: [75, 0, 130] },
       styles: { fontSize: 8, cellPadding: 1.5, overflow: 'linebreak' },
@@ -506,5 +509,3 @@ export default function CartPage() {
     </div>
   );
 }
-
-    

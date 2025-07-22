@@ -26,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { KaratValue, MetalType } from '@/lib/store';
+import Image from 'next/image';
 
 const settingsSchema = z.object({
   goldRatePerGram: z.coerce.number().min(0, "Gold rate must be a positive number"),
@@ -204,7 +205,7 @@ export default function SettingsPage() {
         shopName: currentSettings.shopName,
         shopAddress: currentSettings.shopAddress || "",
         shopContact: currentSettings.shopContact || "",
-        shopLogoUrl: currentSettings.shopLogoUrl || "",
+        shopLogoUrl: currentSettings.shopLogoUrl || "/logo-white.svg",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
       });
     }
@@ -444,12 +445,12 @@ export default function SettingsPage() {
                      <div className="flex items-center">
                        <ImageIcon className="h-5 w-5 mr-2 text-muted-foreground" />
                         <FormControl>
-                          <Input type="url" placeholder="https://placehold.co/200x80.png?text=Taheri+Logo" {...field} />
+                          <Input type="url" placeholder="/logo-white.svg" {...field} />
                         </FormControl>
                      </div>
                      {field.value && (
-                        <div className="mt-2 p-2 border rounded-md w-fit">
-                            <img src={field.value} alt="Shop Logo Preview" className="h-16 object-contain" data-ai-hint="logo store" />
+                        <div className="mt-2 p-2 border rounded-md w-fit bg-primary/10">
+                            <Image src={field.value} alt="Shop Logo Preview" width={150} height={40} className="object-contain" data-ai-hint="logo store" />
                         </div>
                      )}
                     <FormMessage />
