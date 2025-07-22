@@ -15,10 +15,6 @@ export const metadata: Metadata = {
   title: 'Taheri POS',
   description: 'Jewellery Inventory & Point-of-Sale System',
   manifest: '/manifest.json', // Link to the manifest file
-  // Apple specific meta tags for PWA
-  appleWebAppCapable: "yes",
-  appleWebAppStatusBarStyle: "default", // or "black", "black-translucent"
-  appleWebAppTitle: "Taheri POS",
 };
 
 export const viewport: Viewport = {
@@ -26,6 +22,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   // Theme color for browsers that support it
   themeColor: "#081818", // Corresponds to --sidebar-background from the theme
+  // Apple specific meta tags for PWA
+  appleWebAppCapable: "yes",
+  appleWebAppStatusBarStyle: "default", // or "black", "black-translucent"
+  appleWebAppTitle: "Taheri POS",
 };
 
 
