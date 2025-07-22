@@ -172,28 +172,33 @@ export default function CartPage() {
     // --- Header Section ---
     if (settings.shopLogoUrl) {
         try {
-            doc.addImage(settings.shopLogoUrl, 'PNG', margin, 12, 50, 13);
+            // Using a placeholder for the logo as the URL points to a text-based one
+             doc.setFontSize(26);
+             doc.setFont("helvetica", "bold");
+             doc.text(settings.shopName, margin, 22);
         } catch(e) { console.error("Error adding image to PDF:", e) }
+    } else {
+        doc.setFontSize(26);
+        doc.setFont("helvetica", "bold");
+        doc.text(settings.shopName, margin, 22);
     }
-
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text(settings.shopName, margin, 32);
+    
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(settings.shopAddress, margin, 39);
-    doc.text(settings.shopContact, margin, 44);
+    doc.text(settings.shopAddress, margin, 30);
+    doc.text(settings.shopContact, margin, 35);
+
 
     // --- Estimate Info Section ---
     doc.setFontSize(22);
     doc.setFont("helvetica", "bold");
-    doc.text('ESTIMATE', pageWidth - margin, 15, { align: 'right' });
+    doc.text('ESTIMATE', pageWidth - margin, 22, { align: 'right' });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.text(`Estimate #: ${invoiceToPrint.id}`, pageWidth - margin, 22, { align: 'right' });
-    doc.text(`Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`, pageWidth - margin, 27, { align: 'right' });
+    doc.setFontSize(10);
+    doc.text(`Estimate #: ${invoiceToPrint.id}`, pageWidth - margin, 29, { align: 'right' });
+    doc.text(`Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`, pageWidth - margin, 34, { align: 'right' });
 
-    let rateYPos = 32;
+    let rateYPos = 39;
     if (invoiceToPrint.goldRateApplied) {
         const goldRate21k = invoiceToPrint.goldRateApplied * (21/24);
         doc.text(`Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/g`, pageWidth - margin, rateYPos, { align: 'right' });
@@ -203,10 +208,10 @@ export default function CartPage() {
     // --- Customer Info Section ---
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.text('Bill To:', margin, 60);
+    doc.text('Bill To:', margin, 50);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    let customerYPos = 65;
+    let customerYPos = 56;
     if (invoiceToPrint.customerId && invoiceToPrint.customerName) {
       const customer = customers.find(c => c.id === invoiceToPrint.customerId);
       doc.text(invoiceToPrint.customerName, margin, customerYPos); customerYPos += 5;
@@ -228,12 +233,12 @@ export default function CartPage() {
       }
 
       let breakdownLines = [];
-      breakdownLines.push(`  Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.makingCharges > 0) breakdownLines.push(`  + Making Charges: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      breakdownLines.push(`Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.wastageCost > 0) breakdownLines.push(`+ Wastage (${item.wastagePercentage}%): ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.makingCharges > 0) breakdownLines.push(`+ Making Charges: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.diamondChargesIfAny > 0) breakdownLines.push(`+ Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.stoneChargesIfAny > 0) breakdownLines.push(`+ Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.miscChargesIfAny > 0) breakdownLines.push(`+ Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
 
       const breakdown = breakdownLines.join('\n');
       const itemDescription = `${item.name} (SKU: ${item.sku})\nMetal: ${metalDisplay}, Wt: ${item.metalWeightG.toFixed(2)}g\n${breakdown ? breakdown : ''}`;
@@ -242,8 +247,8 @@ export default function CartPage() {
         index + 1,
         itemDescription.trim(),
         item.quantity,
-        item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }),
-        item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+        item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       ];
       tableRows.push(itemData);
     });
@@ -251,7 +256,7 @@ export default function CartPage() {
     doc.autoTable({
       head: [tableColumn],
       body: tableRows,
-      startY: 85,
+      startY: 70,
       theme: 'grid',
       headStyles: { fillColor: [0, 60, 0], fontStyle: 'bold' },
       styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
@@ -262,30 +267,29 @@ export default function CartPage() {
     const finalY = (doc as any).lastAutoTable.finalY || pageHeight - 100;
     let currentY = finalY + 10;
     
+    const totalsX = pageWidth - margin;
+    const totalsLabelX = totalsX - 40;
+
     doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Subtotal:`, 140, currentY);
     doc.setFont("helvetica", "normal");
-    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
+    doc.text(`Subtotal:`, totalsLabelX, currentY, { align: 'left'});
+    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 6;
     
-    doc.setFont("helvetica", "bold");
-    doc.text(`Discount:`, 140, currentY);
-    doc.setFont("helvetica", "normal");
-    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
+    doc.text(`Discount:`, totalsLabelX, currentY, { align: 'left'});
+    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 8;
 
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text(`Grand Total:`, 140, currentY);
-    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY, { align: 'right' });
-    doc.setFont("helvetica", "normal");
+    doc.text(`Grand Total:`, totalsLabelX, currentY, { align: 'left' });
+    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
 
     // --- Guarantees & Thank You Section ---
     const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
-    doc.text(guaranteesText, margin, pageHeight - 45, { maxWidth: pageWidth / 2 });
+    doc.text(guaranteesText, margin, pageHeight - 45, { maxWidth: pageWidth / 2.5 });
     
     doc.setFont("helvetica", "normal");
     doc.text("Thank you for your business!", margin, pageHeight - 30);
@@ -299,7 +303,6 @@ export default function CartPage() {
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     
-    // Add logos (using placeholders for now, can be replaced with actual images)
     const instaLogoUrl = 'https://placehold.co/20x20.png?text=I';
     const waLogoUrl = 'https://placehold.co/20x20.png?text=W';
 
@@ -402,8 +405,8 @@ export default function CartPage() {
                                             {breakdownText && <p className="text-xs text-muted-foreground/80 italic">{breakdownText}</p>}
                                         </TableCell>
                                         <TableCell className="text-right">{item.quantity}</TableCell>
-                                        <TableCell className="text-right">{item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="text-right">{item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right">{item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right">{item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                     </TableRow>
                                 );
                             })}
@@ -411,9 +414,9 @@ export default function CartPage() {
                         </Table>
                     </div>
                     <div className="text-right mt-4 space-y-1">
-                        <p>Subtotal: <span className="font-semibold">PKR {generatedInvoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
-                        <p>Discount: <span className="font-semibold text-destructive">- PKR {generatedInvoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
-                        <p className="text-xl font-bold">Grand Total: <span className="text-primary">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                        <p>Subtotal: <span className="font-semibold">PKR {generatedInvoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
+                        <p>Discount: <span className="font-semibold text-destructive">- PKR {generatedInvoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
+                        <p className="text-xl font-bold">Grand Total: <span className="text-primary">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end space-x-2">
