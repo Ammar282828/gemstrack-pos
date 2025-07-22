@@ -814,10 +814,30 @@ export const useAppStore = create<AppState>()(
             const unitPrice = costs.totalPrice;
             const itemTotal = unitPrice * cartItem.quantity;
             subtotal += itemTotal;
-            invoiceItems.push({
-                sku: product.sku, name: product.name, categoryId: product.categoryId, metalType: product.metalType, karat: productForCostCalc.karat, metalWeightG: product.metalWeightG, quantity: cartItem.quantity, unitPrice, itemTotal,
-                metalCost: costs.metalCost, wastageCost: costs.wastageCost, makingCharges: costs.makingCharges, diamondChargesIfAny: costs.diamondCharges, stoneChargesIfAny: costs.stoneCharges, miscChargesIfAny: costs.miscCharges,
-            });
+            
+            // Build the item object carefully, excluding undefined karat
+            const finalItem: InvoiceItem = {
+                sku: product.sku,
+                name: product.name,
+                categoryId: product.categoryId,
+                metalType: product.metalType,
+                metalWeightG: product.metalWeightG,
+                quantity: cartItem.quantity,
+                unitPrice,
+                itemTotal,
+                metalCost: costs.metalCost,
+                wastageCost: costs.wastageCost,
+                makingCharges: costs.makingCharges,
+                diamondChargesIfAny: costs.diamondCharges,
+                stoneChargesIfAny: costs.stoneCharges,
+                miscChargesIfAny: costs.miscCharges,
+            };
+
+            if (product.metalType === 'gold' && productForCostCalc.karat) {
+                finalItem.karat = productForCostCalc.karat;
+            }
+
+            invoiceItems.push(finalItem);
         }
         
         const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
@@ -827,7 +847,8 @@ export const useAppStore = create<AppState>()(
         const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
         const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
         
-        const newInvoiceData: Partial<Omit<Invoice, 'id'>> = {
+        // Build the main invoice object carefully, excluding undefined optional fields
+        const newInvoiceData: { [key: string]: any } = {
           items: invoiceItems, 
           subtotal: Number(subtotal) || 0,
           discountAmount: calculatedDiscountAmount, 
@@ -835,15 +856,21 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
 
-        if (hasGoldItems) newInvoiceData.goldRateApplied = ratesForInvoice.goldRatePerGram24k;
-        if (hasPalladiumItems) newInvoiceData.palladiumRateApplied = ratesForInvoice.palladiumRatePerGram;
-        if (hasPlatinumItems) newInvoiceData.platinumRateApplied = ratesForInvoice.platinumRatePerGram;
+        if (hasGoldItems && ratesForInvoice.goldRatePerGram24k > 0) {
+            newInvoiceData.goldRateApplied = ratesForInvoice.goldRatePerGram24k;
+        }
+        if (hasPalladiumItems && ratesForInvoice.palladiumRatePerGram > 0) {
+            newInvoiceData.palladiumRateApplied = ratesForInvoice.palladiumRatePerGram;
+        }
+        if (hasPlatinumItems && ratesForInvoice.platinumRatePerGram > 0) {
+            newInvoiceData.platinumRateApplied = ratesForInvoice.platinumRatePerGram;
+        }
 
         if (customerId) {
           const customer = customers.find(c => c.id === customerId);
           if (customer) {
             newInvoiceData.customerId = customer.id;
-            newInvoiceData.customerName = customer.name;
+            if (customer.name) newInvoiceData.customerName = customer.name;
           }
         }
         
@@ -852,7 +879,7 @@ export const useAppStore = create<AppState>()(
             ...newInvoiceData
         } as Invoice;
         
-        console.log("[GemsTrack Store generateInvoice] Generated invoice object:", newInvoice);
+        console.log("[GemsTrack Store generateInvoice] Generated invoice object for Firestore:", newInvoiceData);
 
         try {
             const batch = writeBatch(db);
