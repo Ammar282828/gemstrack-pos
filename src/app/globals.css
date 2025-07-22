@@ -9,99 +9,99 @@ body {
 
 @layer base {
   :root {
-    --background: 240 67% 94%; /* Light Lavender */
-    --foreground: 240 10% 10%; /* Dark Gray for text */
+    --background: 43 33% 83%; /* #e2dac7 - Light Beige */
+    --foreground: 180 44% 7%; /* #081818 - Dark Teal/Black */
 
-    --card: 240 60% 97%; /* Lighter Lavender */
-    --card-foreground: 240 10% 10%;
+    --card: 0 0% 97%; /* #f8f8f8 - Off-White */
+    --card-foreground: 180 44% 7%;
 
-    --popover: 240 60% 97%;
-    --popover-foreground: 240 10% 10%;
+    --popover: 0 0% 97%;
+    --popover-foreground: 180 44% 7%;
 
-    --primary: 276 100% 25%; /* Deep Indigo */
-    --primary-foreground: 240 67% 97%; /* Light Lavender (lighter for contrast) */
+    --primary: 35 44% 58%; /* #c19a66 - Muted Gold */
+    --primary-foreground: 180 44% 7%; /* #081818 - Dark Teal/Black for contrast on Gold */
 
-    --secondary: 276 100% 35%; /* Slightly lighter Indigo for secondary elements */
-    --secondary-foreground: 240 67% 96%;
+    --secondary: 150 33% 76%; /* #acd3bd - Light Mint Green */
+    --secondary-foreground: 180 44% 7%;
 
-    --muted: 240 30% 88%; /* Muted Lavender */
-    --muted-foreground: 240 10% 35%; /* Darker muted text */
+    --muted: 43 33% 88%; /* Lighter beige */
+    --muted-foreground: 180 44% 20%; /* Darker muted text */
 
-    --accent: 40 60% 45%; /* Warmer, Softer Muted Gold */
-    --accent-foreground: 40 60% 95%; /* Very light for contrast on Softer Gold */
+    --accent: 150 33% 76%; /* #acd3bd - Light Mint Green */
+    --accent-foreground: 180 44% 7%; 
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 30% 85%; /* Lavender-based border */
-    --input: 240 30% 90%; /* Lavender-based input background */
-    --ring: 40 60% 45%; /* Warmer, Softer Muted Gold for focus rings */
+    --border: 43 20% 75%; /* Beige-based border */
+    --input: 43 25% 80%; /* Beige-based input background */
+    --ring: 35 44% 58%; /* Muted Gold for focus rings */
 
     --radius: 0.5rem;
 
     /* Chart colors */
-    --chart-1: 276 70% 50%; 
-    --chart-2: 40 55% 50%; /* Adjusted gold-based chart color */
-    --chart-3: 240 50% 60%;
-    --chart-4: 276 50% 70%;
-    --chart-5: 40 40% 70%; /* Adjusted gold-based chart color */
+    --chart-1: 35 44% 58%; /* Muted Gold */
+    --chart-2: 150 33% 66%; /* Slightly darker Mint Green */
+    --chart-3: 180 44% 30%; /* Darker Teal */
+    --chart-4: 35 44% 70%; /* Lighter Gold */
+    --chart-5: 150 33% 80%; /* Lighter Mint Green */
 
     /* Sidebar specific theme adjustments */
-    --sidebar-background: 276 100% 25%; /* Deep Indigo */
-    --sidebar-foreground: 240 67% 94%; /* Light Lavender */
-    --sidebar-primary: 40 60% 45%; /* Warmer, Softer Muted Gold for active/hover items */
-    --sidebar-primary-foreground: 276 100% 15%; /* Dark Indigo for text on Gold */
-    --sidebar-accent: 276 100% 30%; /* Slightly lighter Indigo for hover */
-    --sidebar-accent-foreground: 240 67% 94%;
-    --sidebar-border: 276 100% 20%; /* Darker Indigo border */
-    --sidebar-ring: 40 60% 50%; /* Slightly brighter Warmer Softer Gold for ring */
+    --sidebar-background: 180 44% 7%; /* #081818 - Dark Teal/Black */
+    --sidebar-foreground: 43 33% 83%; /* #e2dac7 - Light Beige */
+    --sidebar-primary: 35 44% 58%; /* Muted Gold for active/hover */
+    --sidebar-primary-foreground: 180 44% 7%;
+    --sidebar-accent: 0 0% 10%; /* #1a1a1a - Dark Grey */
+    --sidebar-accent-foreground: 43 33% 83%;
+    --sidebar-border: 0 0% 15%; /* Darker Grey border */
+    --sidebar-ring: 35 44% 58%;
   }
 
   .dark {
-    --background: 276 25% 12%; /* Dark Indigo/Purple base */
-    --foreground: 240 60% 88%; /* Lighter Lavender/Gray for text */
+    --background: 180 44% 7%; /* #081818 - Dark Teal/Black */
+    --foreground: 43 33% 83%; /* #e2dac7 - Light Beige */
 
-    --card: 276 25% 17%; /* Slightly lighter than background */
-    --card-foreground: 240 60% 88%;
+    --card: 0 0% 10%; /* #1a1a1a - Dark Grey */
+    --card-foreground: 43 33% 83%;
 
-    --popover: 276 25% 17%;
-    --popover-foreground: 240 60% 88%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 43 33% 83%;
 
-    --primary: 40 65% 60%; /* Warmer, Softer Muted Gold (brighter in dark mode) */
-    --primary-foreground: 40 65% 10%; /* Dark brown/black for contrast on Softer Gold */
+    --primary: 35 44% 68%; /* Brighter Gold */
+    --primary-foreground: 180 44% 7%;
     
-    --secondary: 40 60% 50%;  /* Slightly darker/desaturated Warmer Softer Gold */
-    --secondary-foreground: 40 60% 90%; /* Light text on secondary Softer gold */
+    --secondary: 150 33% 76%; /* Light Mint Green */
+    --secondary-foreground: 180 44% 7%;
 
-    --muted: 276 20% 28%; /* Muted, slightly lighter than card */
-    --muted-foreground: 240 40% 75%; /* Muted text color */
+    --muted: 0 0% 15%; /* Lighter Grey */
+    --muted-foreground: 43 33% 70%; 
 
-    --accent: 276 80% 70%; /* Brighter Indigo/Purple for general accents */
-    --accent-foreground: 276 80% 10%; /* Dark text on accent */
+    --accent: 35 44% 58%; /* Muted Gold */
+    --accent-foreground: 180 44% 7%;
 
-    --destructive: 0 72% 51%; /* Adjusted destructive red */
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 276 20% 30%;
-    --input: 276 20% 22%; /* Darker input fields */
-    --ring: 40 65% 65%; /* Ring color to match new primary (Warmer Softer Gold) */
+    --border: 0 0% 15%;
+    --input: 0 0% 12%; 
+    --ring: 35 44% 68%; /* Brighter Gold */
 
     /* Chart colors for dark mode */
-    --chart-1: 276 70% 60%;
-    --chart-2: 40 55% 60%; /* Adjusted gold-based chart color */
-    --chart-3: 240 50% 70%;
-    --chart-4: 276 50% 80%;
-    --chart-5: 40 40% 80%; /* Adjusted gold-based chart color */
+    --chart-1: 35 44% 68%; /* Brighter Gold */
+    --chart-2: 150 33% 76%; /* Light Mint Green */
+    --chart-3: 180 44% 60%; /* Lighter Teal */
+    --chart-4: 35 44% 80%; /* Even Lighter Gold */
+    --chart-5: 150 33% 85%; /* Even Lighter Mint Green */
 
     /* Sidebar dark theme variables */
-    --sidebar-background: 276 25% 12%; /* Consistent with main dark background */
-    --sidebar-foreground: 240 60% 88%; /* Consistent with main dark foreground */
-    --sidebar-primary: 40 65% 60%; /* Warmer Softer Muted Gold for active/hover items */
-    --sidebar-primary-foreground: 276 100% 8%; /* Dark Indigo for text on Softer Gold */
-    --sidebar-accent: 276 25% 18%; /* Slightly lighter Indigo for hover */
-    --sidebar-accent-foreground: 240 60% 88%;
-    --sidebar-border: 276 25% 10%; /* Darker Indigo border for sidebar */
-    --sidebar-ring: 40 65% 65%; /* Ring color for sidebar focus (Warmer Softer Gold) */
+    --sidebar-background: 180 44% 7%;
+    --sidebar-foreground: 43 33% 83%;
+    --sidebar-primary: 35 44% 68%; /* Brighter Gold */
+    --sidebar-primary-foreground: 180 44% 7%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 43 33% 83%;
+    --sidebar-border: 0 0% 5%;
+    --sidebar-ring: 35 44% 68%;
   }
 }
 
