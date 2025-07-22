@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +35,7 @@ const settingsSchema = z.object({
   shopName: z.string().min(1, "Shop name is required"),
   shopAddress: z.string().optional(),
   shopContact: z.string().optional(),
-  shopLogoUrl: z.string().url("Must be a valid URL for logo").optional().or(z.literal('')),
+  shopLogoUrl: z.string().optional(),
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
 });
 
@@ -179,10 +179,11 @@ export default function SettingsPage() {
   const [isSeedingProducts, setIsSeedingProducts] = useState(false);
   const [isSeedingCustomers, setIsSeedingCustomers] = useState(false);
   const [isSeedingKarigars, setIsSeedingKarigars] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
-    defaultValues: { // Initialize with defined values from currentSettings (which starts as initialSettingsData)
+    defaultValues: {
       goldRatePerGram: currentSettings.goldRatePerGram,
       palladiumRatePerGram: currentSettings.palladiumRatePerGram,
       platinumRatePerGram: currentSettings.platinumRatePerGram,
@@ -195,8 +196,6 @@ export default function SettingsPage() {
   });
 
   React.useEffect(() => {
-    // This effect updates the form if currentSettings changes after initial mount
-    // (e.g., after async load from Firestore).
     if (appReady && currentSettings) { 
       form.reset({
         goldRatePerGram: currentSettings.goldRatePerGram,
@@ -208,9 +207,34 @@ export default function SettingsPage() {
         shopLogoUrl: currentSettings.shopLogoUrl || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
       });
+      if (currentSettings.shopLogoUrl) {
+        setLogoPreview(currentSettings.shopLogoUrl);
+      }
     }
   }, [currentSettings, form, appReady]);
 
+
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 200 * 1024) { // 200KB size limit
+      toast({
+        title: "File Too Large",
+        description: "Please choose a logo file smaller than 200KB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      setLogoPreview(dataUrl);
+      form.setValue('shopLogoUrl', dataUrl, { shouldValidate: true, shouldDirty: true });
+    };
+    reader.readAsDataURL(file);
+  };
 
   const onSubmit = async (data: SettingsFormData) => {
     try {
@@ -436,27 +460,34 @@ export default function SettingsPage() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="shopLogoUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base">Shop Logo URL</FormLabel>
-                     <div className="flex items-center">
-                       <ImageIcon className="h-5 w-5 mr-2 text-muted-foreground" />
-                        <FormControl>
-                          <Input type="url" placeholder="https://example.com/logo.png" {...field} />
-                        </FormControl>
-                     </div>
-                     {field.value && (
-                        <div className="mt-2 p-2 border rounded-md w-fit">
-                            <Image src={field.value} alt="Shop Logo Preview" width={150} height={40} className="object-contain" data-ai-hint="logo store" />
+                <FormItem>
+                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Shop Logo</FormLabel>
+                  <div className="flex items-center gap-4">
+                    <FormControl>
+                       <Button asChild variant="outline" className="relative">
+                          <div>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload Logo
+                            <Input
+                              type="file"
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              accept="image/png, image/jpeg, image/svg+xml, image/webp"
+                              onChange={handleLogoUpload}
+                            />
+                          </div>
+                        </Button>
+                    </FormControl>
+                     {logoPreview && (
+                        <div className="p-2 border rounded-md w-fit bg-muted">
+                            <Image src={logoPreview} alt="Shop Logo Preview" width={150} height={40} className="object-contain" data-ai-hint="logo store" />
                         </div>
                      )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  </div>
+                   <FormDescription>
+                     Upload your shop logo. Recommended max size: 200KB.
+                   </FormDescription>
+                  <FormMessage />
+                </FormItem>
               <FormField
                 control={form.control}
                 name="lastInvoiceNumber"
@@ -582,5 +613,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
