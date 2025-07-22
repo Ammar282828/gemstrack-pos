@@ -226,12 +226,12 @@ export default function CartPage() {
       }
 
       let breakdownLines = [];
-      if (item.metalCost > 0) breakdownLines.push(`  Metal Cost: ${item.metalCost.toLocaleString()}`);
-      if (item.wastageCost > 0) breakdownLines.push(`  Wastage Cost: ${item.wastageCost.toLocaleString()}`);
-      if (item.makingCharges > 0) breakdownLines.push(`  Making Charges: ${item.makingCharges.toLocaleString()}`);
-      if (item.diamondChargesIfAny > 0) breakdownLines.push(`  Diamonds: ${item.diamondChargesIfAny.toLocaleString()}`);
-      if (item.stoneChargesIfAny > 0) breakdownLines.push(`  Stones: ${item.stoneChargesIfAny.toLocaleString()}`);
-      if (item.miscChargesIfAny > 0) breakdownLines.push(`  Misc: ${item.miscChargesIfAny.toLocaleString()}`);
+      if (item.metalCost > 0) breakdownLines.push(`  Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.wastageCost > 0) breakdownLines.push(`  Wastage Cost: ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.makingCharges > 0) breakdownLines.push(`  Making Charges: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.diamondChargesIfAny > 0) breakdownLines.push(`  Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.stoneChargesIfAny > 0) breakdownLines.push(`  Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.miscChargesIfAny > 0) breakdownLines.push(`  Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
 
       const breakdown = breakdownLines.join('\n');
 
@@ -579,3 +579,5 @@ export default function CartPage() {
     </div>
   );
 }
+
+    
