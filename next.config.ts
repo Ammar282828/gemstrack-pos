@@ -19,7 +19,6 @@ const nextConfig: NextConfig = {
 const withPWA = withPWAInit({
   dest: 'public',
   register: true,
-  skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   // You can add more PWA options here, like runtime caching strategies
   // sw: "service-worker.js", // custom service worker name (optional)
