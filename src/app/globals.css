@@ -36,6 +36,8 @@ body {
     --border: 47 30% 88%; /* #E8E8DE */
     --input: 47 30% 90%; /* #ECECE2 */
     --ring: 30 41% 64%; /* Earthy Gold for focus rings */
+    
+    --radius: 0.75rem;
 
     /* Chart colors */
     --chart-1: 30 41% 64%; /* Earthy Gold */
@@ -83,6 +85,8 @@ body {
     --border: 180 44% 15%;
     --input: 180 44% 12%; 
     --ring: 30 41% 70%; /* Brighter Gold */
+
+    --radius: 0.75rem;
 
     /* Chart colors for dark mode */
     --chart-1: 30 41% 70%; /* Brighter Gold */
