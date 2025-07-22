@@ -207,7 +207,7 @@ export default function CartPage() {
       columnStyles: {
         1: { cellWidth: 'auto' },
       },
-      didParseCell: function (data) {
+      didParseCell: function (data: any) {
         // Potentially adjust row height if content is multi-line, autoTable usually handles this.
       }
     });
@@ -284,7 +284,7 @@ export default function CartPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Product & Breakdown</TableHead>
+                                    <TableHead>Product &amp; Breakdown</TableHead>
                                     <TableHead className="text-right">Qty</TableHead>
                                     <TableHead className="text-right">Unit Price (PKR)</TableHead>
                                     <TableHead className="text-right">Total (PKR)</TableHead>
@@ -340,7 +340,7 @@ export default function CartPage() {
   return (
     <div className="container mx-auto py-8 px-4">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-primary">Shopping Cart & Invoice</h1>
+        <h1 className="text-3xl font-bold text-primary">Shopping Cart &amp; Invoice</h1>
         <p className="text-muted-foreground">Review items, set invoice parameters, and generate an invoice.</p>
       </header>
 
@@ -429,7 +429,7 @@ export default function CartPage() {
           <div>
             <Card>
               <CardHeader>
-                <CardTitle>Order Summary & Invoice Details</CardTitle>
+                <CardTitle>Order Summary &amp; Invoice Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
