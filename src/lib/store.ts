@@ -960,7 +960,7 @@ console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
 
 // Hook to check hydration status, useful for client-side only rendering logic or avoiding hydration mismatches.
 export const useIsStoreHydrated = () => {
-    return useSyncExternalStore(
+    return useSyncExternalStore<boolean>(
         useAppStore.subscribe,
         () => useAppStore.getState()._hasHydrated,
         () => false

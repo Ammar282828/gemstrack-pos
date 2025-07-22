@@ -45,7 +45,6 @@ const productFormSchema = z.object({
 });
 
 type ProductFormData = z.infer<typeof productFormSchema>;
-type ProductDataForActualAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
 
 interface ProductFormProps {
   product?: Product;
@@ -114,7 +113,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
 
 
   const processAndSubmit = async (data: ProductFormData) => {
-    const processedData: ProductDataForActualAdd = {
+    const processedData: Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'> = {
       ...data,
       karat: data.metalType === 'gold' ? data.karat : undefined,
     };
