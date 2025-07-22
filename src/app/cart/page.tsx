@@ -161,9 +161,6 @@ export default function CartPage() {
     // Logo
     if (settings.shopLogoUrl) {
         try {
-            // Using a placeholder or a default image for PDF generation
-            // as direct SVG rendering can be complex in jsPDF without extra libraries.
-            // For a real app, you might use a PNG version of the logo here.
             doc.addImage(settings.shopLogoUrl, 'PNG', 15, 12, 50, 12.5);
         } catch(e) { console.error("Error adding image to PDF:", e) }
     }
@@ -225,13 +222,19 @@ export default function CartPage() {
         metalDisplay += ` (${item.karat.toUpperCase()})`;
       }
 
+      const chargesTotal = item.wastageCost + item.makingCharges + item.diamondChargesIfAny + item.stoneChargesIfAny + item.miscChargesIfAny;
+      
       let breakdownLines = [];
-      if (item.metalCost > 0) breakdownLines.push(`  Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.wastageCost > 0) breakdownLines.push(`  Wastage Cost: ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.makingCharges > 0) breakdownLines.push(`  Making Charges: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.diamondChargesIfAny > 0) breakdownLines.push(`  Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.stoneChargesIfAny > 0) breakdownLines.push(`  Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.miscChargesIfAny > 0) breakdownLines.push(`  Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      breakdownLines.push(`  Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.wastageCost > 0) breakdownLines.push(`  + Wastage Cost: ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.makingCharges > 0) breakdownLines.push(`  + Making Charges: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      
+      if (chargesTotal > 0) {
+        breakdownLines.push(`  = Charges Total: ${chargesTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+      }
 
       const breakdown = breakdownLines.join('\n');
 
@@ -343,12 +346,10 @@ export default function CartPage() {
                             <TableBody>
                                 {generatedInvoice.items.map(item => {
                                     let breakdownLines = [];
-                                    if (item.metalCost > 0) breakdownLines.push(`Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    if (item.wastageCost > 0) breakdownLines.push(`Wastage Cost: ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    if (item.makingCharges > 0) breakdownLines.push(`Making Charges: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    if (item.diamondChargesIfAny > 0) breakdownLines.push(`Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    if (item.stoneChargesIfAny > 0) breakdownLines.push(`Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    if (item.miscChargesIfAny > 0) breakdownLines.push(`Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    const chargesTotal = item.wastageCost + item.makingCharges + item.diamondChargesIfAny + item.stoneChargesIfAny + item.miscChargesIfAny;
+                                    breakdownLines.push(`Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (chargesTotal > 0) breakdownLines.push(`Charges Total: ${chargesTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    
                                     const breakdownText = breakdownLines.join(', ');
 
                                     return (
