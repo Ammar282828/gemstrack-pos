@@ -66,6 +66,8 @@ const productFormSchemaBase = z.object({
   stoneCharges: z.coerce.number().min(0, "Stone charges must be non-negative"),
   miscCharges: z.coerce.number().min(0, "Misc charges must be non-negative"),
   imageUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
+  // A hidden field to know which button was clicked.
+  submitAction: z.enum(['saveAndClose', 'saveAndAddAnother']).optional(),
 });
 
 const productFormSchema = productFormSchemaBase.extend({
@@ -195,13 +197,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
     }
     return processed;
   };
-  
-  const onSubmit = (data: ProductFormData) => {
+
+  const onSubmit = async (data: ProductFormData) => {
+    const processedData = processFormData(data);
+
     if (isEditMode) {
-      // Logic for editing
-      const processedData = processFormData(data);
       if (product) {
-        updateProduct(product.sku, processedData);
+        await updateProduct(product.sku, processedData);
         toast({ title: "Success", description: "Product updated successfully." });
         if (onSubmitSuccess) {
           onSubmitSuccess();
@@ -210,40 +212,45 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
         }
       }
     } else {
-      // Logic for adding
-      const processedData = processFormData(data);
-      addProduct(processedData).then(newProduct => {
+      // Logic for adding a new product
+      try {
+        const newProduct = await addProduct(processedData);
         if (newProduct) {
-          toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added. You can add another product.` });
-          // Reset form for next entry
-          const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
-          
-          const currentCategory = categories.find(c => c.id === data.categoryId);
-          const nextWastage = isNextItemAlsoGoldCoin ? 0 : (currentCategory?.title.toLowerCase().includes("diamond") ? 25 : 10);
+          toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
 
-          form.reset({
-            categoryId: data.categoryId,
-            metalType: data.metalType,
-            karat: data.metalType === 'gold' ? data.karat : undefined,
-            metalWeightG: 0,
-            wastagePercentage: nextWastage,
-            makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
-            hasDiamonds: false,
-            diamondCharges: 0,
-            stoneCharges: isNextItemAlsoGoldCoin ? 0 : 0,
-            miscCharges: isNextItemAlsoGoldCoin ? 0 : 0,
-            imageUrl: "",
-          });
+          if (data.submitAction === 'saveAndAddAnother') {
+            // Reset form for next entry
+            const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
+            const currentCategory = categories.find(c => c.id === data.categoryId);
+            const nextWastage = isNextItemAlsoGoldCoin ? 0 : (currentCategory?.title.toLowerCase().includes("diamond") ? 25 : 10);
+            
+            form.reset({
+              categoryId: data.categoryId,
+              metalType: data.metalType,
+              karat: data.metalType === 'gold' ? data.karat : undefined,
+              metalWeightG: 0,
+              wastagePercentage: nextWastage,
+              makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
+              hasDiamonds: false,
+              diamondCharges: 0,
+              stoneCharges: 0,
+              miscCharges: 0,
+              imageUrl: "",
+            });
+          } else {
+            // "Save and Close" was clicked, so navigate away
+            router.push('/products');
+          }
         } else {
           toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
         }
-      }).catch(error => {
+      } catch (error) {
         toast({ title: "Error", description: `Failed to save product: ${(error as Error).message}`, variant: "destructive" });
         console.error("Failed to save product", error);
-      });
+      }
     }
   };
-
+  
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -251,16 +258,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
           <CardHeader>
             <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {isEditMode && product && (
               <>
-                <FormItem className="md:col-span-1">
+                <FormItem className="sm:col-span-1">
                   <FormLabel>SKU (Read-only)</FormLabel>
                   <FormControl>
                     <Input value={product.sku} disabled className="bg-muted/50" />
                   </FormControl>
                 </FormItem>
-                <FormItem className="md:col-span-1">
+                <FormItem className="sm:col-span-1">
                   <FormLabel>Product Name (Auto-generated)</FormLabel>
                   <FormControl>
                     <Input value={product.name} disabled className="bg-muted/50" />
@@ -350,7 +357,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                     control={form.control}
                     name="metalWeightG" 
                     render={({ field }) => ( 
-                        <FormItem className={selectedMetalType === 'gold' && !selectedKarat ? 'md:col-span-2' : ''}>
+                        <FormItem className={selectedMetalType === 'gold' && !selectedKarat ? 'sm:col-span-2' : ''}>
                         <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Denomination / Weight (Gold Coins)</FormLabel>
                         <Select
                             value={availableDenominations.find(d => d.value === field.value)?.value.toString()}
@@ -382,7 +389,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 control={form.control}
                 name="metalWeightG"
                 render={({ field }) => (
-                    <FormItem className={selectedMetalType !== 'gold' ? 'md:col-span-2' : '' }>
+                    <FormItem className={selectedMetalType !== 'gold' ? 'sm:col-span-2' : '' }>
                     <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Metal Weight (grams)</FormLabel>
                     <FormControl>
                         <Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} />
@@ -392,7 +399,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 )}
                 />
             )}
-             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="sm:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {!isGoldCoinScenario && (
                 <>
@@ -494,7 +501,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               control={form.control}
               name="imageUrl"
               render={({ field }) => (
-                <FormItem className="md:col-span-2">
+                <FormItem className="sm:col-span-2">
                   <FormLabel>Image URL (Optional)</FormLabel>
                   <FormControl>
                     <Input type="url" placeholder="https://example.com/image.png" {...field} />
@@ -513,11 +520,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               <Ban className="mr-2 h-4 w-4" /> Cancel
             </Button>
             {!isEditMode && (
-                 <Button type="submit" disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
+                 <Button type="submit" disabled={form.formState.isSubmitting} onClick={() => form.setValue('submitAction', 'saveAndAddAnother')} className="w-full sm:w-auto">
                     <Save className="mr-2 h-4 w-4" /> Save & Add Another
                 </Button>
             )}
-            <Button type="submit" disabled={form.formState.isSubmitting} className="w-full sm:w-auto">
+            <Button type="submit" disabled={form.formState.isSubmitting} onClick={() => form.setValue('submitAction', 'saveAndClose')} className="w-full sm:w-auto">
               <Save className="mr-2 h-4 w-4" /> {isEditMode ? 'Save Changes' : 'Add Product & Close'}
             </Button>
           </CardFooter>
@@ -525,4 +532,5 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       </form>
     </Form>
   );
-};
+
+    
