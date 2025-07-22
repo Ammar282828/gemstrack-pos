@@ -438,27 +438,88 @@ export default function ProductDetailPage() {
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to List
       </Button>
 
-      <Card className="overflow-hidden">
-        <CardHeader className="bg-muted/30 p-4 md:p-6">
-          <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-            <div>
-              <Badge variant="secondary" className="mb-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+        {/* Main Content Area - ordered first for mobile */}
+        <div className="md:col-span-2 space-y-6 order-2 md:order-1">
+          <Card>
+            <CardHeader>
+              <Badge variant="secondary" className="mb-2 w-fit">
                 <Shapes className="w-3 h-3 mr-1" /> {categoryTitle}
               </Badge>
               <CardTitle className="text-2xl md:text-3xl">{productData.name}</CardTitle>
               <CardDescription>SKU: {productData.sku}</CardDescription>
-            </div>
-            <div className="flex space-x-2 mt-2 md:mt-0 self-start md:self-center">
-               <Button asChild variant="outline" className="whitespace-nowrap">
+            </CardHeader>
+            <CardContent>
+              <div className="bg-primary/10 p-4 rounded-lg mb-4 text-center">
+                <p className="text-sm text-primary font-medium">TOTAL PRICE</p>
+                <p className="text-3xl md:text-4xl font-bold text-primary flex items-center justify-center">
+                  <span className="mr-1">PKR </span>
+                  {productData.totalPrice.toLocaleString()}
+                </p>
+              </div>
+              <Button size="lg" className="w-full mb-4" onClick={handleAddToCart}>
+                  <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
+              </Button>
+              {productData.metalType === 'gold' && (
+                  <DetailItem label="Gold Rate (Store Setting, 24k)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR " />
+              )}
+              {productData.metalType === 'palladium' && (
+                  <DetailItem label="Palladium Rate (Store Setting)" value={settings.palladiumRatePerGram} unit="/ gram" currency="PKR " />
+              )}
+              {productData.metalType === 'platinum' && (
+                  <DetailItem label="Platinum Rate (Store Setting)" value={settings.platinumRatePerGram} unit="/ gram" currency="PKR " />
+              )}
+              <Separator className="my-1" />
+              <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR " />
+              <Separator className="my-1" />
+              <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR " />
+              <Separator className="my-1" />
+              <DetailItem label="Making Charges" value={productData.makingCharges} currency="PKR " />
+              {productData.hasDiamonds && (
+                <>
+                  <Separator className="my-1" />
+                  <DetailItem label="Diamond Charges" value={productData.diamondCharges} currency="PKR " icon={<Diamond className="w-4 h-4" />}/>
+                </>
+              )}
+               <Separator className="my-1" />
+              <DetailItem label={productData.hasDiamonds ? "Other Stone Charges" : "Stone Charges"} value={productData.stoneCharges} currency="PKR " />
+               <Separator className="my-1" />
+              <DetailItem label="Misc. Charges" value={productData.miscCharges} currency="PKR " />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader><CardTitle className="text-xl">Specifications</CardTitle></CardHeader>
+            <CardContent>
+              <DetailItem label="Metal Type" value={productData.metalType.charAt(0).toUpperCase() + productData.metalType.slice(1)} icon={<Shield className="w-4 h-4" />} />
+              {productData.metalType === 'gold' && productData.karat && (
+                  <>
+                  <Separator className="my-1" />
+                  <DetailItem label="Karat" value={productData.karat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
+                  </>
+              )}
+              <Separator className="my-1" />
+              <DetailItem label="Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
+              <Separator className="my-1" />
+              <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
+              <Separator className="my-1" />
+              <DetailItem label="Contains Diamonds" value={productData.hasDiamonds} icon={<Diamond className="w-4 h-4" />} />
+            </CardContent>
+          </Card>
+
+        </div>
+
+        {/* Sidebar Area - ordered second for mobile */}
+        <div className="md:col-span-1 space-y-6 order-1 md:order-2">
+           <div className="flex md:flex-col gap-2">
+             <Button asChild variant="outline" className="w-full">
                 <Link href={`/products/${sku}/edit`} passHref legacyBehavior>
-                  <a>
-                    <Edit3 className="mr-2 h-4 w-4" /> Edit
-                  </a>
+                  <a><Edit3 className="mr-2 h-4 w-4" /> Edit</a>
                 </Link>
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+                  <Button variant="destructive" className="w-full"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the product.</AlertDialogDescription></AlertDialogHeader>
@@ -466,11 +527,7 @@ export default function ProductDetailPage() {
                 </AlertDialogContent>
               </AlertDialog>
             </div>
-          </div>
-        </CardHeader>
 
-        <CardContent className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-1 space-y-6">
             <Card>
               <CardHeader><CardTitle className="text-lg">Product Image</CardTitle></CardHeader>
               <CardContent>
@@ -481,7 +538,7 @@ export default function ProductDetailPage() {
                     fill
                     style={{ objectFit: "cover" }}
                     data-ai-hint="jewelry piece"
-                    priority={false} // Can be false if not critical for LCP
+                    priority={false}
                     />
                 </div>
               </CardContent>
@@ -493,8 +550,7 @@ export default function ProductDetailPage() {
                 <QrCodeIcon className="h-5 w-5 text-muted-foreground" />
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center p-4 space-y-3">
-                {/* Hidden QRCode component to generate data URL */}
-                {productData && <QRCode id={`qr-${sku}`} value={productData.sku} size={128} level="H" style={{ display: 'none' }} />}
+                <QRCode id={`qr-${sku}`} value={productData.sku} size={128} level="H" style={{ display: 'none' }} />
                 
                 {qrCodeDataUrl ? (
                   <Image src={qrCodeDataUrl} alt={`QR Code for ${productData.sku}`} width={128} height={128} />
@@ -516,76 +572,13 @@ export default function ProductDetailPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button variant="outline" size="sm" onClick={handlePrintTag} className="w-full" disabled={!qrCodeDataUrl && selectedTagFormatId !== 'rectangle-25x15' && selectedTagFormatId !== 'rectangle-30x20' /* Allow printing small rects without QR for now */}>
+                <Button variant="outline" size="sm" onClick={handlePrintTag} className="w-full" disabled={!qrCodeDataUrl && selectedTagFormatId !== 'rectangle-25x15' && selectedTagFormatId !== 'rectangle-30x20'}>
                   <Printer className="mr-2 h-4 w-4" /> Print Product Tag
                 </Button>
               </CardContent>
             </Card>
-          </div>
-
-          <div className="md:col-span-2 space-y-6">
-            <Card>
-              <CardHeader><CardTitle className="text-xl">Pricing Details</CardTitle></CardHeader>
-              <CardContent>
-                <div className="bg-primary/10 p-4 rounded-lg mb-4 text-center">
-                  <p className="text-sm text-primary font-medium">TOTAL PRICE</p>
-                  <p className="text-3xl md:text-4xl font-bold text-primary flex items-center justify-center">
-                    <span className="mr-1">PKR </span>
-                    {productData.totalPrice.toLocaleString()}
-                  </p>
-                </div>
-                 <Button size="lg" className="w-full mb-4" onClick={handleAddToCart}>
-                    <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
-                </Button>
-                {productData.metalType === 'gold' && (
-                    <DetailItem label="Gold Rate (Store Setting, 24k)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR " />
-                )}
-                {productData.metalType === 'palladium' && (
-                    <DetailItem label="Palladium Rate (Store Setting)" value={settings.palladiumRatePerGram} unit="/ gram" currency="PKR " />
-                )}
-                {productData.metalType === 'platinum' && (
-                    <DetailItem label="Platinum Rate (Store Setting)" value={settings.platinumRatePerGram} unit="/ gram" currency="PKR " />
-                )}
-                <Separator className="my-1" />
-                <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR " />
-                <Separator className="my-1" />
-                <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR " />
-                <Separator className="my-1" />
-                <DetailItem label="Making Charges" value={productData.makingCharges} currency="PKR " />
-                {productData.hasDiamonds && (
-                  <>
-                    <Separator className="my-1" />
-                    <DetailItem label="Diamond Charges" value={productData.diamondCharges} currency="PKR " icon={<Diamond className="w-4 h-4" />}/>
-                  </>
-                )}
-                 <Separator className="my-1" />
-                <DetailItem label={productData.hasDiamonds ? "Other Stone Charges" : "Stone Charges"} value={productData.stoneCharges} currency="PKR " />
-                 <Separator className="my-1" />
-                <DetailItem label="Misc. Charges" value={productData.miscCharges} currency="PKR " />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle className="text-xl">Specifications</CardTitle></CardHeader>
-              <CardContent>
-                <DetailItem label="Metal Type" value={productData.metalType.charAt(0).toUpperCase() + productData.metalType.slice(1)} icon={<Shield className="w-4 h-4" />} />
-                {productData.metalType === 'gold' && productData.karat && (
-                    <>
-                    <Separator className="my-1" />
-                    <DetailItem label="Karat" value={productData.karat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
-                    </>
-                )}
-                <Separator className="my-1" />
-                <DetailItem label="Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
-                <Separator className="my-1" />
-                <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
-                <Separator className="my-1" />
-                <DetailItem label="Contains Diamonds" value={productData.hasDiamonds} icon={<Diamond className="w-4 h-4" />} />
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
