@@ -158,6 +158,12 @@ export default function CartPage() {
   };
 
   const printInvoice = (invoiceToPrint: InvoiceType) => {
+    // This function must only be called on the client-side.
+    if (typeof window === 'undefined') {
+      toast({ title: "Error", description: "PDF generation is only available in the browser.", variant: "destructive" });
+      return;
+    }
+
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -597,7 +603,7 @@ export default function CartPage() {
                     <Separator />
                     <div className="flex justify-between items-center text-xl font-bold">
                         <span>Grand Total:</span>
-                        <span className="text-primary">PKR {estimatedInvoice ? estimatedInvoice.grandTotal.toLocaleString(undefined, { minimumFraction Digits: 2, maximumFractionDigits: 2 }) : '...'}</span>
+                        <span className="text-primary">PKR {estimatedInvoice ? estimatedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '...'}</span>
                     </div>
                 </div>
                  <p className="text-xs text-muted-foreground">
@@ -616,5 +622,3 @@ export default function CartPage() {
     </div>
   );
 }
-
-    
