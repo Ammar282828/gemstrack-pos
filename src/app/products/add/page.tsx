@@ -3,7 +3,6 @@
 import { ProductForm } from '@/components/product/product-form';
 import { useAppReady } from '@/lib/store';
 import { Loader2 } from 'lucide-react';
-import React from 'react';
 
 export default function AddProductPage() {
   const appReady = useAppReady();
