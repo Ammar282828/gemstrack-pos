@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect } from 'react';
@@ -7,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -17,22 +15,17 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, Diamond, Zap, Shield, Weight } from 'lucide-react';
 import Image from 'next/image';
+import { Label } from '../ui/label';
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum'];
 
 const goldCoinDenominations: Record<string, Array<{ label: string; value: number }>> = {
   '18k': [
-    { label: '0.5 gram', value: 0.5 },
-    { label: '1 gram', value: 1 },
-    { label: '2 grams', value: 2 },
-    { label: '4 grams', value: 4 },
-    { label: '8 grams', value: 8 },
+    { label: '0.5 gram', value: 0.5 }, { label: '1 gram', value: 1 }, { label: '2 grams', value: 2 },
+    { label: '4 grams', value: 4 }, { label: '8 grams', value: 8 },
   ],
-  '21k': [
-    { label: '1 gram', value: 1 },
-    { label: '5 grams', value: 5 },
-  ],
+  '21k': [ { label: '1 gram', value: 1 }, { label: '5 grams', value: 5 }, ],
   '22k': [
     { label: '1 gram', value: 1 },
     { label: 'Half Sovereign (approx 3.66g of 22k gold in a ~4g coin)', value: 3.657 },
@@ -40,15 +33,10 @@ const goldCoinDenominations: Record<string, Array<{ label: string; value: number
     { label: '8 grams (Guinea)', value: 8 },
   ],
   '24k': [
-    { label: '1 gram', value: 1 },
-    { label: '2.5 grams', value: 2.5 },
-    { label: '5 grams', value: 5 },
-    { label: 'Half Tola (5.83g)', value: 5.8319 },
-    { label: '10 grams', value: 10 },
-    { label: '1 Tola (11.66g)', value: 11.6638 },
-    { label: '2 Tola (23.33g)', value: 23.3276 },
-    { label: '5 Tola (58.32g)', value: 58.3190 },
-    { label: '10 Tola (116.64g)', value: 116.6380 },
+    { label: '1 gram', value: 1 }, { label: '2.5 grams', value: 2.5 }, { label: '5 grams', value: 5 },
+    { label: 'Half Tola (5.83g)', value: 5.8319 }, { label: '10 grams', value: 10 },
+    { label: '1 Tola (11.66g)', value: 11.6638 }, { label: '2 Tola (23.33g)', value: 23.3276 },
+    { label: '5 Tola (58.32g)', value: 58.3190 }, { label: '10 Tola (116.64g)', value: 116.6380 },
   ],
 };
 
@@ -90,14 +78,12 @@ type ProductDataForActualAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
 
 interface ProductFormProps {
   product?: Product;
-  onSubmitSuccess?: () => void;
 }
 
-export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSuccess }) => {
+export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   const router = useRouter();
   const { toast } = useToast();
   const { categories, addProduct, updateProduct } = useAppStore();
-
   const isEditMode = !!product;
 
   const form = useForm<ProductFormData>({
@@ -133,14 +119,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   const hasDiamondsValue = form.watch('hasDiamonds');
   const selectedMetalType = form.watch('metalType');
   const selectedKarat = form.watch('karat');
-
   const isGoldCoinScenario = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
-  
-  const availableDenominations = (selectedKarat && goldCoinDenominations[selectedKarat]) 
-                                 ? goldCoinDenominations[selectedKarat] 
-                                 : [];
+  const availableDenominations = (selectedKarat && goldCoinDenominations[selectedKarat]) ? goldCoinDenominations[selectedKarat] : [];
   const showDenominationDropdown = isGoldCoinScenario && availableDenominations.length > 0;
-
 
   useEffect(() => {
     if (selectedMetalType !== 'gold') {
@@ -162,8 +143,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   }, [isGoldCoinScenario, form]);
   
   useEffect(() => {
-    const selectedCategoryDetails = categories.find(c => c.id === selectedCategoryId);
-    if (!selectedCategoryDetails || isGoldCoinScenario) return;
+    if (isGoldCoinScenario) return;
   
     if (hasDiamondsValue) {
       form.setValue('wastagePercentage', 25, { shouldValidate: true });
@@ -171,14 +151,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       form.setValue('wastagePercentage', 10, { shouldValidate: true });
       form.setValue('diamondCharges', 0, { shouldValidate: true });
     }
-  }, [isGoldCoinScenario, hasDiamondsValue, selectedCategoryId, form, categories]);
+  }, [isGoldCoinScenario, hasDiamondsValue, form]);
 
 
   const processFormData = (data: ProductFormData): ProductDataForActualAdd => {
     const isActualGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
     const processed: ProductDataForActualAdd = {
-      categoryId: data.categoryId,
-      metalType: data.metalType,
+      categoryId: data.categoryId, metalType: data.metalType,
       karat: data.metalType === 'gold' ? data.karat : undefined,
       metalWeightG: data.metalWeightG,
       wastagePercentage: isActualGoldCoin ? 0 : data.wastagePercentage,
@@ -189,9 +168,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       miscCharges: isActualGoldCoin ? 0 : data.miscCharges,
       imageUrl: data.imageUrl,
     };
-    if (processed.metalType !== 'gold') {
-      processed.karat = undefined;
-    }
+    if (processed.metalType !== 'gold') { processed.karat = undefined; }
     return processed;
   };
 
@@ -202,11 +179,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       if (isEditMode && product) {
         await updateProduct(product.sku, processedData);
         toast({ title: "Success", description: "Product updated successfully." });
-        if (onSubmitSuccess) {
-          onSubmitSuccess();
-        } else {
-          router.push(`/products/${product.sku}`);
-        }
+        router.push(`/products/${product.sku}`);
       } else {
         const newProduct = await addProduct(processedData);
         if (newProduct) {
@@ -216,17 +189,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
             const nextWastage = isNextItemAlsoGoldCoin ? 0 : (data.hasDiamonds ? 25 : 10);
             
             form.reset({
-                categoryId: data.categoryId,
-                metalType: data.metalType,
+                categoryId: data.categoryId, metalType: data.metalType,
                 karat: data.metalType === 'gold' ? data.karat : undefined,
-                metalWeightG: 0,
-                wastagePercentage: nextWastage,
+                metalWeightG: 0, wastagePercentage: nextWastage,
                 makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
-                hasDiamonds: false,
-                diamondCharges: 0,
-                stoneCharges: 0,
-                miscCharges: 0,
-                imageUrl: "",
+                hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: "",
             });
           } else {
             router.push('/products');
@@ -267,22 +234,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
             )}
 
             <FormField
-              control={form.control}
-              name="categoryId"
+              control={form.control} name="categoryId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                    </FormControl>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
                     <SelectContent>
                       {categories.map((category: Category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.title}
-                        </SelectItem>
+                        <SelectItem key={category.id} value={category.id}>{category.title}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -291,22 +251,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
               )}
             />
              <FormField
-              control={form.control}
-              name="metalType"
+              control={form.control} name="metalType"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center"><Shield className="mr-2 h-4 w-4 text-primary" /> Metal Type</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Metal Type" />
-                      </SelectTrigger>
-                    </FormControl>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select Metal Type" /></SelectTrigger></FormControl>
                     <SelectContent>
                       {metalTypeValues.map((mVal) => (
-                        <SelectItem key={mVal} value={mVal}>
-                          {mVal.charAt(0).toUpperCase() + mVal.slice(1)}
-                        </SelectItem>
+                        <SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -317,23 +270,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
             
             {selectedMetalType === 'gold' && (
               <FormField
-                control={form.control}
-                name="karat"
+                control={form.control} name="karat"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4 text-primary" /> Karat (for Gold)</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Karat for Gold" />
-                        </SelectTrigger>
-                      </FormControl>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select Karat for Gold" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {karatValues.map((kVal) => (
-                          <SelectItem key={kVal} value={kVal}>
-                            {kVal.toUpperCase()}
-                          </SelectItem>
-                        ))}
+                        {karatValues.map((kVal) => (<SelectItem key={kVal} value={kVal}>{kVal.toUpperCase()}</SelectItem>))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -344,29 +288,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
             
             {showDenominationDropdown ? (
                  <FormField
-                    control={form.control}
-                    name="metalWeightG" 
+                    control={form.control} name="metalWeightG" 
                     render={({ field }) => ( 
                         <FormItem className={selectedMetalType === 'gold' && !selectedKarat ? 'md:col-span-2' : ''}>
-                        <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Denomination / Weight (Gold Coins)</FormLabel>
+                        <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Denomination</FormLabel>
                         <Select
                             value={availableDenominations.find(d => d.value === field.value)?.value.toString()}
                             onValueChange={(valStr) => {
-                                if (valStr) {
-                                   form.setValue('metalWeightG', parseFloat(valStr), { shouldValidate: true });
-                                }
+                                if (valStr) { form.setValue('metalWeightG', parseFloat(valStr), { shouldValidate: true }); }
                             }}
                         >
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder={`Select Denomination for ${selectedKarat?.toUpperCase()}`} />
-                            </SelectTrigger>
-                            </FormControl>
+                            <FormControl><SelectTrigger><SelectValue placeholder={`Select for ${selectedKarat?.toUpperCase()}`} /></SelectTrigger></FormControl>
                             <SelectContent>
                             {availableDenominations.map((denom) => (
-                                <SelectItem key={denom.label} value={denom.value.toString()}>
-                                {denom.label}
-                                </SelectItem>
+                                <SelectItem key={denom.label} value={denom.value.toString()}>{denom.label}</SelectItem>
                             ))}
                             </SelectContent>
                         </Select>
@@ -376,14 +311,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 />
             ) : (
                 <FormField
-                control={form.control}
-                name="metalWeightG"
+                control={form.control} name="metalWeightG"
                 render={({ field }) => (
                     <FormItem className={selectedMetalType !== 'gold' ? 'md:col-span-2' : '' }>
                     <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Metal Weight (grams)</FormLabel>
-                    <FormControl>
-                        <Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} />
-                    </FormControl>
+                    <FormControl><Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -394,49 +326,35 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 {!isGoldCoinScenario && (
                 <>
                     <FormField
-                    control={form.control}
-                    name="hasDiamonds"
+                    control={form.control} name="hasDiamonds"
                     render={({ field }) => (
                         <FormItem className="md:col-span-2 flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
-                        <FormControl>
-                            <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            id="hasDiamonds"
-                            />
-                        </FormControl>
+                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasDiamonds" /></FormControl>
                         <div className="space-y-1 leading-none">
                             <Label htmlFor="hasDiamonds" className="flex items-center cursor-pointer">
-                            <Diamond className="mr-2 h-4 w-4 text-primary" />
-                            Product Contains Diamonds?
+                            <Diamond className="mr-2 h-4 w-4 text-primary" /> Product Contains Diamonds?
                             </Label>
-                            <FormMessage />
                         </div>
-                        </FormItem>
-                    )}
-                    />
-                    <FormField
-                    control={form.control}
-                    name="wastagePercentage"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Wastage (%)</FormLabel>
-                        <FormControl>
-                            <Input type="number" step="0.1" placeholder="e.g., 10" {...field} />
-                        </FormControl>
                         <FormMessage />
                         </FormItem>
                     )}
                     />
                     <FormField
-                    control={form.control}
-                    name="makingCharges"
+                    control={form.control} name="wastagePercentage"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Wastage (%)</FormLabel>
+                        <FormControl><Input type="number" step="0.1" placeholder="e.g., 10" {...field} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={form.control} name="makingCharges"
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Making Charges</FormLabel>
-                        <FormControl>
-                            <Input type="number" step="1" placeholder="e.g., 5000" {...field} />
-                        </FormControl>
+                        <FormControl><Input type="number" step="1" placeholder="e.g., 5000" {...field} /></FormControl>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -444,14 +362,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
 
                     {hasDiamondsValue && !isGoldCoinScenario && (
                     <FormField
-                        control={form.control}
-                        name="diamondCharges"
+                        control={form.control} name="diamondCharges"
                         render={({ field }) => (
                         <FormItem>
                             <FormLabel>Diamond Charges</FormLabel>
-                            <FormControl>
-                            <Input type="number" step="1" placeholder="e.g., 50000" {...field} />
-                            </FormControl>
+                            <FormControl><Input type="number" step="1" placeholder="e.g., 50000" {...field} /></FormControl>
                             <FormMessage />
                         </FormItem>
                         )}
@@ -459,27 +374,21 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                     )}
 
                     <FormField
-                    control={form.control}
-                    name="stoneCharges"
+                    control={form.control} name="stoneCharges"
                     render={({ field }) => (
                         <FormItem className={!hasDiamondsValue && !isGoldCoinScenario ? 'md:col-span-2' : ''}>
                         <FormLabel>{hasDiamondsValue && !isGoldCoinScenario ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
-                        <FormControl>
-                            <Input type="number" step="1" placeholder="e.g., 15000" {...field} />
-                        </FormControl>
+                        <FormControl><Input type="number" step="1" placeholder="e.g., 15000" {...field} /></FormControl>
                         <FormMessage />
                         </FormItem>
                     )}
                     />
                     <FormField
-                    control={form.control}
-                    name="miscCharges"
+                    control={form.control} name="miscCharges"
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Miscellaneous Charges</FormLabel>
-                        <FormControl>
-                            <Input type="number" step="1" placeholder="e.g., 250" {...field} />
-                        </FormControl>
+                        <FormControl><Input type="number" step="1" placeholder="e.g., 250" {...field} /></FormControl>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -488,19 +397,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                 )}
             </div>
              <FormField
-              control={form.control}
-              name="imageUrl"
+              control={form.control} name="imageUrl"
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
                   <FormLabel>Image URL (Optional)</FormLabel>
-                  <FormControl>
-                    <Input type="url" placeholder="https://example.com/image.png" {...field} />
-                  </FormControl>
-                   {field.value && (
-                        <div className="mt-2 p-2 border rounded-md w-fit bg-muted">
-                            <Image src={field.value} alt="Product Preview" width={80} height={80} className="h-20 w-20 object-contain" data-ai-hint="product jewelry"/>
-                        </div>
-                     )}
+                  <FormControl><Input type="url" placeholder="https://example.com/image.png" {...field} /></FormControl>
+                   {field.value && (<div className="mt-2 p-2 border rounded-md w-fit bg-muted"><Image src={field.value} alt="Product Preview" width={80} height={80} className="h-20 w-20 object-contain" data-ai-hint="product jewelry"/></div>)}
                   <FormMessage />
                 </FormItem>
               )}
