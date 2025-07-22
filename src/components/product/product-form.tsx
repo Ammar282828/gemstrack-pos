@@ -20,30 +20,11 @@ import { Label } from '../ui/label';
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum'];
 
-const goldCoinDenominations: Record<string, Array<{ label: string; value: number }>> = {
-  '18k': [
-    { label: '0.5 gram', value: 0.5 }, { label: '1 gram', value: 1 }, { label: '2 grams', value: 2 },
-    { label: '4 grams', value: 4 }, { label: '8 grams', value: 8 },
-  ],
-  '21k': [ { label: '1 gram', value: 1 }, { label: '5 grams', value: 5 }, ],
-  '22k': [
-    { label: '1 gram', value: 1 },
-    { label: 'Half Sovereign (approx 3.66g of 22k gold in a ~4g coin)', value: 3.657 },
-    { label: 'Full Sovereign (approx 7.32g of 22k gold in a ~8g coin)', value: 7.322 },
-    { label: '8 grams (Guinea)', value: 8 },
-  ],
-  '24k': [
-    { label: '1 gram', value: 1 }, { label: '2.5 grams', value: 2.5 }, { label: '5 grams', value: 5 },
-    { label: 'Half Tola (5.83g)', value: 5.8319 }, { label: '10 grams', value: 10 },
-    { label: '1 Tola (11.66g)', value: 11.6638 }, { label: '2 Tola (23.33g)', value: 23.3276 },
-    { label: '5 Tola (58.32g)', value: 58.3190 }, { label: '10 Tola (116.64g)', value: 116.6380 },
-  ],
-};
-
-
-const productFormSchemaBase = z.object({
+// Schema for the form data
+const productFormSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
   metalType: z.enum(metalTypeValues, { required_error: "Metal type is required" }),
+  karat: z.enum(karatValues).optional(),
   metalWeightG: z.coerce.number().min(0.001, "Metal weight must be a positive number"),
   wastagePercentage: z.coerce.number().min(0).max(100, "Wastage must be between 0 and 100"),
   makingCharges: z.coerce.number().min(0, "Making charges must be non-negative"),
@@ -53,10 +34,6 @@ const productFormSchemaBase = z.object({
   miscCharges: z.coerce.number().min(0, "Misc charges must be non-negative"),
   imageUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
   submitAction: z.enum(['saveAndClose', 'saveAndAddAnother']).optional(),
-});
-
-const productFormSchema = productFormSchemaBase.extend({
-  karat: z.enum(karatValues).optional(),
 }).superRefine((data, ctx) => {
   if (data.metalType === 'gold' && !data.karat) {
     ctx.addIssue({
@@ -65,13 +42,7 @@ const productFormSchema = productFormSchemaBase.extend({
       path: ["karat"],
     });
   }
-  if (data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold') {
-    if (data.hasDiamonds) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Gold coins cannot have diamonds.", path: ["hasDiamonds"]});
-    }
-  }
 });
-
 
 type ProductFormData = z.infer<typeof productFormSchema>;
 type ProductDataForActualAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
@@ -90,20 +61,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
     resolver: zodResolver(productFormSchema),
     defaultValues: product ? {
       categoryId: product.categoryId,
-      metalType: product.metalType || 'gold',
-      karat: product.metalType === 'gold' ? product.karat : undefined,
+      metalType: product.metalType,
+      karat: product.karat,
       metalWeightG: product.metalWeightG,
       wastagePercentage: product.wastagePercentage,
       makingCharges: product.makingCharges,
-      hasDiamonds: product.hasDiamonds || false,
-      diamondCharges: product.diamondCharges || 0,
+      hasDiamonds: product.hasDiamonds,
+      diamondCharges: product.diamondCharges,
       stoneCharges: product.stoneCharges,
       miscCharges: product.miscCharges,
       imageUrl: product.imageUrl || "",
     } : {
       categoryId: '',
-      metalType: 'gold', 
-      karat: '21k',      
+      metalType: 'gold',
+      karat: '21k',
       metalWeightG: 0,
       wastagePercentage: 10,
       makingCharges: 0,
@@ -116,64 +87,37 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   });
 
   const selectedCategoryId = form.watch('categoryId');
-  const hasDiamondsValue = form.watch('hasDiamonds');
   const selectedMetalType = form.watch('metalType');
-  const selectedKarat = form.watch('karat');
-  const isGoldCoinScenario = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
-  const availableDenominations = (selectedKarat && goldCoinDenominations[selectedKarat]) ? goldCoinDenominations[selectedKarat] : [];
-  const showDenominationDropdown = isGoldCoinScenario && availableDenominations.length > 0;
+  const hasDiamondsValue = form.watch('hasDiamonds');
+  const isGoldCoin = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
 
   useEffect(() => {
     if (selectedMetalType !== 'gold') {
-      form.setValue('karat', undefined, { shouldValidate: true }); 
-    } else if (selectedMetalType === 'gold' && !form.getValues('karat')) {
-      form.setValue('karat', '21k', {shouldValidate: true}); 
+      form.setValue('karat', undefined);
+    } else if (!form.getValues('karat')) {
+      form.setValue('karat', '21k');
     }
   }, [selectedMetalType, form]);
-
-  useEffect(() => {
-    if (isGoldCoinScenario) {
-      form.setValue('hasDiamonds', false, { shouldValidate: true });
-      form.setValue('wastagePercentage', 0, { shouldValidate: true });
-      form.setValue('makingCharges', 0, { shouldValidate: true });
-      form.setValue('diamondCharges', 0, { shouldValidate: true }); 
-      form.setValue('stoneCharges', 0, { shouldValidate: true });
-      form.setValue('miscCharges', 0, { shouldValidate: true });
-    }
-  }, [isGoldCoinScenario, form]);
   
   useEffect(() => {
-    if (isGoldCoinScenario) return;
-  
-    if (hasDiamondsValue) {
-      form.setValue('wastagePercentage', 25, { shouldValidate: true });
-    } else {
-      form.setValue('wastagePercentage', 10, { shouldValidate: true });
-      form.setValue('diamondCharges', 0, { shouldValidate: true });
+    if (isGoldCoin) {
+      form.setValue('hasDiamonds', false);
+      form.setValue('diamondCharges', 0);
+      form.setValue('wastagePercentage', 0);
+      form.setValue('makingCharges', 0);
+      form.setValue('stoneCharges', 0);
+      form.setValue('miscCharges', 0);
+    } else if (hasDiamondsValue === false) {
+       form.setValue('diamondCharges', 0);
     }
-  }, [isGoldCoinScenario, hasDiamondsValue, form]);
+  }, [isGoldCoin, hasDiamondsValue, form]);
 
-
-  const processFormData = (data: ProductFormData): ProductDataForActualAdd => {
-    const isActualGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
-    const processed: ProductDataForActualAdd = {
-      categoryId: data.categoryId, metalType: data.metalType,
-      karat: data.metalType === 'gold' ? data.karat : undefined,
-      metalWeightG: data.metalWeightG,
-      wastagePercentage: isActualGoldCoin ? 0 : data.wastagePercentage,
-      makingCharges: isActualGoldCoin ? 0 : data.makingCharges,
-      hasDiamonds: isActualGoldCoin ? false : data.hasDiamonds,
-      diamondCharges: isActualGoldCoin ? 0 : (data.hasDiamonds ? data.diamondCharges : 0),
-      stoneCharges: isActualGoldCoin ? 0 : data.stoneCharges,
-      miscCharges: isActualGoldCoin ? 0 : data.miscCharges,
-      imageUrl: data.imageUrl,
-    };
-    if (processed.metalType !== 'gold') { processed.karat = undefined; }
-    return processed;
-  };
 
   const processAndSubmit = async (data: ProductFormData) => {
-    const processedData = processFormData(data);
+    const processedData: ProductDataForActualAdd = {
+      ...data,
+      karat: data.metalType === 'gold' ? data.karat : undefined,
+    };
 
     try {
       if (isEditMode && product) {
@@ -185,26 +129,24 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
         if (newProduct) {
           toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
           if (data.submitAction === 'saveAndAddAnother') {
-            const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
-            const nextWastage = isNextItemAlsoGoldCoin ? 0 : (data.hasDiamonds ? 25 : 10);
-            
             form.reset({
-                categoryId: data.categoryId, metalType: data.metalType,
-                karat: data.metalType === 'gold' ? data.karat : undefined,
-                metalWeightG: 0, wastagePercentage: nextWastage,
-                makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
-                hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: "",
+                ...data, // Keep some fields for next entry
+                metalWeightG: 0,
+                hasDiamonds: false,
+                diamondCharges: 0,
+                stoneCharges: 0,
+                miscCharges: 0,
+                imageUrl: "",
             });
           } else {
             router.push('/products');
           }
         } else {
-          toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
+          toast({ title: "Error", description: "Failed to add product. Check logs for details.", variant: "destructive" });
         }
       }
     } catch (error) {
         toast({ title: "Error", description: `Failed to save product: ${(error as Error).message}`, variant: "destructive" });
-        console.error("Failed to save product", error);
     }
   };
   
@@ -286,117 +228,91 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
               />
             )}
             
-            {showDenominationDropdown ? (
-                 <FormField
-                    control={form.control} name="metalWeightG" 
-                    render={({ field }) => ( 
-                        <FormItem className={selectedMetalType === 'gold' && !selectedKarat ? 'md:col-span-2' : ''}>
-                        <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Denomination</FormLabel>
-                        <Select
-                            value={availableDenominations.find(d => d.value === field.value)?.value.toString()}
-                            onValueChange={(valStr) => {
-                                if (valStr) { form.setValue('metalWeightG', parseFloat(valStr), { shouldValidate: true }); }
-                            }}
-                        >
-                            <FormControl><SelectTrigger><SelectValue placeholder={`Select for ${selectedKarat?.toUpperCase()}`} /></SelectTrigger></FormControl>
-                            <SelectContent>
-                            {availableDenominations.map((denom) => (
-                                <SelectItem key={denom.label} value={denom.value.toString()}>{denom.label}</SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            ) : (
+            <FormField
+              control={form.control} name="metalWeightG"
+              render={({ field }) => (
+                <FormItem className={selectedMetalType !== 'gold' ? 'md:col-span-2' : '' }>
+                  <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Metal Weight (grams)</FormLabel>
+                  <FormControl><Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {!isGoldCoin && (
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
-                control={form.control} name="metalWeightG"
-                render={({ field }) => (
-                    <FormItem className={selectedMetalType !== 'gold' ? 'md:col-span-2' : '' }>
-                    <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Metal Weight (grams)</FormLabel>
-                    <FormControl><Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} /></FormControl>
-                    <FormMessage />
+                  control={form.control} name="hasDiamonds"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2 flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasDiamonds" /></FormControl>
+                      <div className="space-y-1 leading-none">
+                        <Label htmlFor="hasDiamonds" className="flex items-center cursor-pointer">
+                          <Diamond className="mr-2 h-4 w-4 text-primary" /> Product Contains Diamonds?
+                        </Label>
+                      </div>
+                      <FormMessage />
                     </FormItem>
-                )}
+                  )}
                 />
-            )}
-             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control} name="wastagePercentage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Wastage (%)</FormLabel>
+                      <FormControl><Input type="number" step="0.1" placeholder="e.g., 10" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control} name="makingCharges"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Making Charges</FormLabel>
+                      <FormControl><Input type="number" step="1" placeholder="e.g., 5000" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                {!isGoldCoinScenario && (
-                <>
-                    <FormField
-                    control={form.control} name="hasDiamonds"
+                {hasDiamondsValue && (
+                  <FormField
+                    control={form.control} name="diamondCharges"
                     render={({ field }) => (
-                        <FormItem className="md:col-span-2 flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
-                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasDiamonds" /></FormControl>
-                        <div className="space-y-1 leading-none">
-                            <Label htmlFor="hasDiamonds" className="flex items-center cursor-pointer">
-                            <Diamond className="mr-2 h-4 w-4 text-primary" /> Product Contains Diamonds?
-                            </Label>
-                        </div>
+                      <FormItem>
+                        <FormLabel>Diamond Charges</FormLabel>
+                        <FormControl><Input type="number" step="1" placeholder="e.g., 50000" {...field} /></FormControl>
                         <FormMessage />
-                        </FormItem>
+                      </FormItem>
                     )}
-                    />
-                    <FormField
-                    control={form.control} name="wastagePercentage"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Wastage (%)</FormLabel>
-                        <FormControl><Input type="number" step="0.1" placeholder="e.g., 10" {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                    <FormField
-                    control={form.control} name="makingCharges"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Making Charges</FormLabel>
-                        <FormControl><Input type="number" step="1" placeholder="e.g., 5000" {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-
-                    {hasDiamondsValue && !isGoldCoinScenario && (
-                    <FormField
-                        control={form.control} name="diamondCharges"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Diamond Charges</FormLabel>
-                            <FormControl><Input type="number" step="1" placeholder="e.g., 50000" {...field} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    )}
-
-                    <FormField
-                    control={form.control} name="stoneCharges"
-                    render={({ field }) => (
-                        <FormItem className={!hasDiamondsValue && !isGoldCoinScenario ? 'md:col-span-2' : ''}>
-                        <FormLabel>{hasDiamondsValue && !isGoldCoinScenario ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
-                        <FormControl><Input type="number" step="1" placeholder="e.g., 15000" {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                    <FormField
-                    control={form.control} name="miscCharges"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Miscellaneous Charges</FormLabel>
-                        <FormControl><Input type="number" step="1" placeholder="e.g., 250" {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                </>
+                  />
                 )}
-            </div>
-             <FormField
+
+                <FormField
+                  control={form.control} name="stoneCharges"
+                  render={({ field }) => (
+                    <FormItem className={!hasDiamondsValue ? 'md:col-span-2' : ''}>
+                      <FormLabel>{hasDiamondsValue ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
+                      <FormControl><Input type="number" step="1" placeholder="e.g., 15000" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control} name="miscCharges"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Miscellaneous Charges</FormLabel>
+                      <FormControl><Input type="number" step="1" placeholder="e.g., 250" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
+            <FormField
               control={form.control} name="imageUrl"
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
