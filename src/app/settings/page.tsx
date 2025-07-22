@@ -208,7 +208,11 @@ export default function SettingsPage() {
   });
 
   React.useEffect(() => {
-    if (appReady && currentSettings) { 
+    if (appReady && currentSettings) {
+      const deviceIdsForForm = Array.isArray(currentSettings.allowedDeviceIds) 
+        ? currentSettings.allowedDeviceIds.map(id => ({ id })) 
+        : [];
+
       form.reset({
         goldRatePerGram: currentSettings.goldRatePerGram,
         palladiumRatePerGram: currentSettings.palladiumRatePerGram,
@@ -218,7 +222,7 @@ export default function SettingsPage() {
         shopContact: currentSettings.shopContact || "",
         shopLogoUrl: currentSettings.shopLogoUrl || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
-        allowedDeviceIds: currentSettings.allowedDeviceIds?.map(id => ({ id })) || [],
+        allowedDeviceIds: deviceIdsForForm,
         theme: currentSettings.theme || 'default',
       });
       if (currentSettings.shopLogoUrl) {
@@ -388,7 +392,7 @@ export default function SettingsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-base flex items-center"><Palette className="h-5 w-5 mr-2 text-muted-foreground" /> Color Theme</FormLabel>
-                       <Select onValueChange={field.onChange} defaultValue={field.value}>
+                       <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a color theme" />

@@ -478,7 +478,7 @@ export const useAppStore = create<AppState>()(
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           await setDoc(settingsDocRef, updatedSettings, { merge: true });
           console.log("[GemsTrack Store updateSettings] Settings updated successfully in Firestore.");
-        } catch (error)
+        } catch (error) {
           console.error("[GemsTrack Store updateSettings] Error updating settings in Firestore:", error);
           set((state) => { state.settings = currentSettings; }); // Revert on error
           throw error;
