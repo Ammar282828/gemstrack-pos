@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -20,9 +19,6 @@ import { Save, Ban, Diamond, Zap, Shield, Weight } from 'lucide-react';
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum'];
 
-// Note: This is GOLD_COIN_CATEGORY_ID from store.ts, not a new local const.
-// const GOLD_COIN_CATEGORY_ID_INTERNAL = 'cat017'; // Example, ensure it matches store
-
 const goldCoinDenominations: Record<string, Array<{ label: string; value: number }>> = {
   '18k': [
     { label: '0.5 gram', value: 0.5 },
@@ -31,11 +27,11 @@ const goldCoinDenominations: Record<string, Array<{ label: string; value: number
     { label: '4 grams', value: 4 },
     { label: '8 grams', value: 8 },
   ],
-  '21k': [ // Added 21k for completeness, though not common for coins typically
+  '21k': [
     { label: '1 gram', value: 1 },
     { label: '5 grams', value: 5 },
   ],
-  '22k': [ // Added 22k
+  '22k': [
     { label: '1 gram', value: 1 },
     { label: 'Half Sovereign (approx 3.66g of 22k gold in a ~4g coin)', value: 3.657 },
     { label: 'Full Sovereign (approx 7.32g of 22k gold in a ~8g coin)', value: 7.322 },
@@ -66,7 +62,6 @@ const productFormSchemaBase = z.object({
   stoneCharges: z.coerce.number().min(0, "Stone charges must be non-negative"),
   miscCharges: z.coerce.number().min(0, "Misc charges must be non-negative"),
   imageUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
-  // A hidden field to know which button was clicked.
   submitAction: z.enum(['saveAndClose', 'saveAndAddAnother']).optional(),
 });
 
@@ -165,16 +160,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   }, [isGoldCoinScenario, form]);
   
   useEffect(() => {
-    const currentCategory = categories.find((c) => c.id === selectedCategoryId);
-    if (!isGoldCoinScenario && currentCategory) {
-        if (hasDiamondsValue) {
-            form.setValue('wastagePercentage', 25, { shouldValidate: true });
-        } else {
-            form.setValue('wastagePercentage', 10, { shouldValidate: true });
-            form.setValue('diamondCharges', 0, { shouldValidate: true });
-        }
+    const selectedCategoryDetails = categories.find(c => c.id === selectedCategoryId);
+    if (!selectedCategoryDetails || isGoldCoinScenario) return;
+  
+    if (hasDiamondsValue) {
+      form.setValue('wastagePercentage', 25, { shouldValidate: true });
+    } else {
+      form.setValue('wastagePercentage', 10, { shouldValidate: true });
+      form.setValue('diamondCharges', 0, { shouldValidate: true });
     }
   }, [isGoldCoinScenario, hasDiamondsValue, selectedCategoryId, form, categories]);
+
 
   const processFormData = (data: ProductFormData): ProductDataForActualAdd => {
     const isActualGoldCoinScenario = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
@@ -191,7 +187,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
       miscCharges: isActualGoldCoinScenario ? 0 : data.miscCharges,
       imageUrl: data.imageUrl,
     };
-    // Ensure Karat is undefined if not gold
     if (processed.metalType !== 'gold') {
       processed.karat = undefined;
     }
@@ -201,53 +196,46 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
   const onSubmit = async (data: ProductFormData) => {
     const processedData = processFormData(data);
 
-    if (isEditMode) {
-      if (product) {
-        await updateProduct(product.sku, processedData);
-        toast({ title: "Success", description: "Product updated successfully." });
-        if (onSubmitSuccess) {
-          onSubmitSuccess();
+    try {
+        if (isEditMode && product) {
+            await updateProduct(product.sku, processedData);
+            toast({ title: "Success", description: "Product updated successfully." });
+            if (onSubmitSuccess) {
+                onSubmitSuccess();
+            } else {
+                router.push(`/products/${product.sku}`);
+            }
         } else {
-          router.push(`/products/${product.sku}`);
+            const newProduct = await addProduct(processedData);
+            if (newProduct) {
+                toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
+                if (data.submitAction === 'saveAndAddAnother') {
+                    const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
+                    const nextWastage = isNextItemAlsoGoldCoin ? 0 : (data.hasDiamonds ? 25 : 10);
+                    
+                    form.reset({
+                        categoryId: data.categoryId,
+                        metalType: data.metalType,
+                        karat: data.metalType === 'gold' ? data.karat : undefined,
+                        metalWeightG: 0,
+                        wastagePercentage: nextWastage,
+                        makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
+                        hasDiamonds: false,
+                        diamondCharges: 0,
+                        stoneCharges: 0,
+                        miscCharges: 0,
+                        imageUrl: "",
+                    });
+                } else {
+                    router.push('/products');
+                }
+            } else {
+                toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
+            }
         }
-      }
-    } else {
-      // Logic for adding a new product
-      try {
-        const newProduct = await addProduct(processedData);
-        if (newProduct) {
-          toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
-
-          if (data.submitAction === 'saveAndAddAnother') {
-            // Reset form for next entry
-            const isNextItemAlsoGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
-            const currentCategory = categories.find(c => c.id === data.categoryId);
-            const nextWastage = isNextItemAlsoGoldCoin ? 0 : (hasDiamondsValue ? 25 : 10);
-            
-            form.reset({
-              categoryId: data.categoryId,
-              metalType: data.metalType,
-              karat: data.metalType === 'gold' ? data.karat : undefined,
-              metalWeightG: 0,
-              wastagePercentage: nextWastage,
-              makingCharges: isNextItemAlsoGoldCoin ? 0 : data.makingCharges,
-              hasDiamonds: false,
-              diamondCharges: 0,
-              stoneCharges: 0,
-              miscCharges: 0,
-              imageUrl: "",
-            });
-          } else {
-            // "Save and Close" was clicked, so navigate away
-            router.push('/products');
-          }
-        } else {
-          toast({ title: "Error", description: "Failed to add product. Category might be missing or other issue.", variant: "destructive" });
-        }
-      } catch (error) {
+    } catch (error) {
         toast({ title: "Error", description: `Failed to save product: ${(error as Error).message}`, variant: "destructive" });
         console.error("Failed to save product", error);
-      }
     }
   };
   
