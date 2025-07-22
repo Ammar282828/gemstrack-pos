@@ -1,21 +1,16 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import QRCode from 'qrcode.react'; // Import QRCode for on-the-fly generation
-import { useAppStore, selectAllProductsWithCosts, selectCategoryTitleById, Product, useAppReady, Settings, ProductTagFormat, AVAILABLE_TAG_FORMATS, DEFAULT_TAG_FORMAT_ID } from '@/lib/store';
+import { useAppStore, selectAllProductsWithCosts, selectCategoryTitleById, useAppReady, Settings, Product } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import { Select as ShadSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Renamed to avoid conflict
-import { Shapes, Search, Tag, Weight, PlusCircle, Eye, Edit3, Trash2, ShoppingCart, Loader2, Printer } from 'lucide-react';
+import { Checkbox } from "@/components/ui/checkbox";
+import { Shapes, Search, Tag, Weight, PlusCircle, Eye, Edit3, Trash2, ShoppingCart, Loader2, Download } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { drawTagContentOnDoc } from './[sku]/page'; 
+import { generateProductCsv } from '@/lib/csv';
 
 type ProductWithCosts = ReturnType<typeof selectAllProductsWithCosts>[0];
 
@@ -135,8 +130,6 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedProductSkus, setSelectedProductSkus] = useState<string[]>([]);
-  const [bulkPrintTagFormatId, setBulkPrintTagFormatId] = useState<string>(DEFAULT_TAG_FORMAT_ID);
-
 
   const appReady = useAppReady();
   const allStoreProducts = useAppStore(selectAllProductsWithCosts);
@@ -144,7 +137,6 @@ export default function ProductsPage() {
   const settings = useAppStore(state => state.settings);
   const deleteProductAction = useAppStore(state => state.deleteProduct);
   const isProductsLoading = useAppStore(state => state.isProductsLoading);
-  const setProductQrCodeAction = useAppStore(state => state.setProductQrCode);
 
   const { toast } = useToast();
 
@@ -177,108 +169,16 @@ export default function ProductsPage() {
     setSelectedProductSkus([]);
   };
 
-
-  const generateAndStoreQrCode = async (productSku: string): Promise<string | undefined> => {
-    try {
-      const tempCanvas = document.createElement('canvas');
-      // Ensure QRCode.toCanvas is available or handle appropriately
-      if (typeof QRCode.toCanvas === 'function') {
-        await QRCode.toCanvas(tempCanvas, productSku, { errorCorrectionLevel: 'H', width: 256 });
-        const dataUrl = tempCanvas.toDataURL('image/png');
-        if (dataUrl && dataUrl.length > 100 && dataUrl !== 'data:,') {
-          await setProductQrCodeAction(productSku, dataUrl); 
-          return dataUrl;
-        }
-      } else {
-        console.error("QRCode.toCanvas is not a function. Ensure qrcode.react is correctly installed and imported.");
-        return undefined;
-      }
-      return undefined;
-    } catch (e) {
-      console.error(`Error generating QR code for ${productSku}:`, e);
-      return undefined;
-    }
-  };
-
-
-  const handleBulkPrintTags = async () => {
+  const handleBulkExportCsv = () => {
     if (selectedProductSkus.length === 0) {
-      toast({ title: "No Products Selected", description: "Please select products to print tags for.", variant: "destructive" });
+      toast({ title: "No Products Selected", description: "Please select products to export.", variant: "destructive" });
       return;
     }
-
-    toast({ title: "Bulk Print Started", description: `Preparing to print ${selectedProductSkus.length} tags. Please wait...` });
-
-    const selectedFormat = AVAILABLE_TAG_FORMATS.find(f => f.id === bulkPrintTagFormatId) || AVAILABLE_TAG_FORMATS[0];
-    if (selectedFormat.layoutType !== 'dumbbell') {
-        toast({ title: "Unsupported Format", description: "Bulk printing is currently optimized for dumbbell tags on A4 sheets.", variant: "destructive"});
-        return;
-    }
-
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    
-    const tagsPerRow = 1; 
-    const tagsPerCol = 7;
-    const marginTop = 10; 
-    const marginLeft = (pageWidth - selectedFormat.widthMillimeters * tagsPerRow) / 2; 
-    const tagSlotHeight = (pageHeight - 2 * marginTop) / tagsPerCol; 
-
-    let currentTagDrawnCount = 0;
-    let pageNumber = 1;
-    
-    for (const sku of selectedProductSkus) {
-      const product = allStoreProducts.find(p => p.sku === sku);
-      if (!product) {
-        toast({ title: "Product Not Found", description: `SKU ${sku} not found, skipping.`, variant: "destructive"});
-        continue;
-      }
-
-      let qrDataUrl = product.qrCodeDataUrl;
-      if (!qrDataUrl) {
-        toast({ description: `Generating QR for ${sku}...`, duration: 1500 });
-        qrDataUrl = await generateAndStoreQrCode(sku);
-        if (!qrDataUrl) {
-          toast({ title: "QR Generation Failed", description: `Could not generate QR for ${sku}, skipping.`, variant: "destructive"});
-          continue;
-        }
-      }
-
-      if (currentTagDrawnCount > 0 && currentTagDrawnCount % (tagsPerRow * tagsPerCol) === 0) {
-        doc.addPage();
-        pageNumber++;
-      }
-
-      const tagIndexOnPage = currentTagDrawnCount % (tagsPerRow * tagsPerCol);
-      const rowIndex = Math.floor(tagIndexOnPage / tagsPerRow);
-      
-      const x = marginLeft; 
-      const y = marginTop + rowIndex * tagSlotHeight;
-      
-      const drawY = y + (tagSlotHeight - selectedFormat.heightMillimeters) / 2;
-
-      try {
-        await drawTagContentOnDoc(doc, product, qrDataUrl, settings, selectedFormat, x, Math.max(y, drawY)); 
-      } catch (error) {
-        console.error(`Error drawing tag for SKU ${sku}:`, error);
-        toast({ title: "Tag Drawing Error", description: `Could not draw tag for ${sku}.`, variant: "destructive"});
-        // Optionally, decide if you want to skip this tag or stop the whole process
-      }
-      currentTagDrawnCount++;
-    }
-
-    if (currentTagDrawnCount > 0) {
-        doc.autoPrint();
-        window.open(doc.output('bloburl'), '_blank');
-        toast({ title: "Bulk Tags Ready", description: `${currentTagDrawnCount} tags generated on ${pageNumber} page(s).` });
-    } else {
-        toast({ title: "No Tags Printed", description: "Could not generate any tags. Check QR codes or product data.", variant: "destructive" });
-    }
+    const productsToExport = allStoreProducts.filter(p => selectedProductSkus.includes(p.sku));
+    generateProductCsv(productsToExport, settings);
+    toast({ title: "CSV Exported", description: `${productsToExport.length} products exported to CSV.` });
   };
-
-
+  
   const filteredProducts = useMemo(() => {
     if (!appReady) return [];
     const filtered = allStoreProducts
@@ -331,24 +231,12 @@ export default function ProductsPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <ShadSelect value={bulkPrintTagFormatId} onValueChange={setBulkPrintTagFormatId}>
-                    <SelectTrigger className="w-full sm:w-[250px]">
-                        <SelectValue placeholder="Select Tag Format for Bulk Print" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {AVAILABLE_TAG_FORMATS.filter(f => f.layoutType === 'dumbbell').map(format => ( 
-                        <SelectItem key={format.id} value={format.id}>
-                            {format.name}
-                        </SelectItem>
-                        ))}
-                    </SelectContent>
-                </ShadSelect>
                 <Button 
-                    onClick={handleBulkPrintTags} 
+                    onClick={handleBulkExportCsv} 
                     disabled={selectedProductSkus.length === 0}
                     className="w-full sm:w-auto"
                 >
-                <Printer className="w-4 h-4 mr-2" /> Print Tags ({selectedProductSkus.length})
+                <Download className="w-4 h-4 mr-2" /> Export CSV for WEPrint ({selectedProductSkus.length})
                 </Button>
             </div>
           </div>
@@ -429,3 +317,5 @@ export default function ProductsPage() {
     </div>
   );
 }
+
+    
