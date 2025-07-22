@@ -11,7 +11,7 @@ export default function AddProductPage() {
      return (
       <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-        <p className="text-lg text-muted-foreground">Loading form...</p>
+        <p className="text-lg text-muted-foreground">Loading Product Form...</p>
       </div>
     );
   }

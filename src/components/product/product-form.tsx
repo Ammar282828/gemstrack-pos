@@ -13,7 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Ban, Diamond, Zap, Shield, Weight } from 'lucide-react';
+import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '../ui/label';
 
@@ -130,7 +130,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
           toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
           if (data.submitAction === 'saveAndAddAnother') {
             form.reset({
-                ...data, // Keep some fields for next entry
+                ...form.getValues(),
                 metalWeightG: 0,
                 hasDiamonds: false,
                 diamondCharges: 0,
@@ -138,6 +138,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                 miscCharges: 0,
                 imageUrl: "",
             });
+            // Manually trigger revalidation if needed
+            form.trigger();
           } else {
             router.push('/products');
           }
@@ -317,19 +319,24 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
                   <FormLabel>Image URL (Optional)</FormLabel>
-                  <FormControl><Input type="url" placeholder="https://example.com/image.png" {...field} /></FormControl>
-                   {field.value && (<div className="mt-2 p-2 border rounded-md w-fit bg-muted"><Image src={field.value} alt="Product Preview" width={80} height={80} className="h-20 w-20 object-contain" data-ai-hint="product jewelry"/></div>)}
+                  <FormControl><Input type="url" placeholder="https://placehold.co/400x400.png" {...field} /></FormControl>
+                   {field.value && (
+                    <div className="mt-2 p-2 border rounded-md w-fit bg-muted">
+                        <Image src={field.value} alt="Product Preview" width={80} height={80} className="h-20 w-20 object-contain" data-ai-hint="product jewelry" unoptimized/>
+                    </div>
+                   )}
                   <FormMessage />
                 </FormItem>
               )}
-            </CardContent>
+            />
+          </CardContent>
           <CardFooter className="flex flex-col sm:flex-row justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
               <Ban className="mr-2 h-4 w-4" /> Cancel
             </Button>
             {!isEditMode && (
-                 <Button type="submit" disabled={form.formState.isSubmitting} onClick={() => form.setValue('submitAction', 'saveAndAddAnother')} className="w-full sm:w-auto">
-                    <Save className="mr-2 h-4 w-4" /> Save & Add Another
+                <Button type="submit" disabled={form.formState.isSubmitting} onClick={() => form.setValue('submitAction', 'saveAndAddAnother')} className="w-full sm:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Save & Add Another
                 </Button>
             )}
             <Button type="submit" disabled={form.formState.isSubmitting} onClick={() => form.setValue('submitAction', 'saveAndClose')} className="w-full sm:w-auto">
