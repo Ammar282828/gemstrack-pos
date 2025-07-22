@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -48,14 +47,18 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
 
   const isEditMode = !!karigar;
 
-  const onSubmit = (data: KarigarFormData) => {
+  const onSubmit = async (data: KarigarFormData) => {
     try {
       if (isEditMode && karigar) {
-        updateKarigar(karigar.id, data);
+        await updateKarigar(karigar.id, data);
         toast({ title: "Success", description: "Karigar details updated successfully." });
       } else {
-        const newKarigar = addKarigar(data);
-        toast({ title: "Success", description: `Karigar "${newKarigar.name}" added successfully.` });
+        const newKarigar = await addKarigar(data);
+        if (newKarigar) {
+          toast({ title: "Success", description: `Karigar "${newKarigar.name}" added successfully.` });
+        } else {
+           toast({ title: "Error", description: "Failed to create new karigar.", variant: "destructive" });
+        }
       }
       if (onSubmitSuccess) {
         onSubmitSuccess();
