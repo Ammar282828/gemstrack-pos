@@ -18,7 +18,7 @@ import { useIsStoreHydrated } from '@/lib/store';
 interface NavItem {
   href: string;
   label: string;
-  icon: ReactNode;
+  icon: React.ReactNode;
 }
 
 const navItems: NavItem[] = [
@@ -33,7 +33,7 @@ const navItems: NavItem[] = [
   { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
 ];
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isStoreHydrated = useIsStoreHydrated();
 
