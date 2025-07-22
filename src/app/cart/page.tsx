@@ -241,8 +241,8 @@ export default function CartPage() {
         index + 1,
         itemDescription.trim(),
         item.quantity,
-        item.unitPrice.toLocaleString(),
-        item.itemTotal.toLocaleString(),
+        item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+        item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }),
       ];
       tableRows.push(itemData);
     });
@@ -267,17 +267,17 @@ export default function CartPage() {
     let currentY = finalY + 10;
     doc.setFontSize(10);
     doc.text(`Subtotal:`, 140, currentY);
-    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString()}`, 170, currentY);
+    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 170, currentY, { align: 'right', maxWidth: 35 });
 
     currentY += 6;
     doc.text(`Discount:`, 140, currentY);
-    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString()}`, 170, currentY);
+    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 170, currentY, { align: 'right', maxWidth: 35 });
 
     currentY += 8;
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text(`Grand Total:`, 140, currentY);
-    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString()}`, 170, currentY);
+    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 170, currentY, { align: 'right', maxWidth: 35 });
 
     doc.setFontSize(8);
     doc.text("Thank you for your business!", 15, doc.internal.pageSize.height - 10);
@@ -343,12 +343,12 @@ export default function CartPage() {
                             <TableBody>
                                 {generatedInvoice.items.map(item => {
                                     let breakdownLines = [];
-                                    if (item.metalCost > 0) breakdownLines.push(`Metal Cost: ${item.metalCost.toLocaleString()}`);
-                                    if (item.wastageCost > 0) breakdownLines.push(`Wastage Cost: ${item.wastageCost.toLocaleString()}`);
-                                    if (item.makingCharges > 0) breakdownLines.push(`Making Charges: ${item.makingCharges.toLocaleString()}`);
-                                    if (item.diamondChargesIfAny > 0) breakdownLines.push(`Diamonds: ${item.diamondChargesIfAny.toLocaleString()}`);
-                                    if (item.stoneChargesIfAny > 0) breakdownLines.push(`Stones: ${item.stoneChargesIfAny.toLocaleString()}`);
-                                    if (item.miscChargesIfAny > 0) breakdownLines.push(`Misc: ${item.miscChargesIfAny.toLocaleString()}`);
+                                    if (item.metalCost > 0) breakdownLines.push(`Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (item.wastageCost > 0) breakdownLines.push(`Wastage Cost: ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (item.makingCharges > 0) breakdownLines.push(`Making Charges: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (item.diamondChargesIfAny > 0) breakdownLines.push(`Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (item.stoneChargesIfAny > 0) breakdownLines.push(`Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+                                    if (item.miscChargesIfAny > 0) breakdownLines.push(`Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
                                     const breakdownText = breakdownLines.join(', ');
 
                                     return (
@@ -363,8 +363,8 @@ export default function CartPage() {
                                             {breakdownText && <p className="text-xs text-muted-foreground/80 italic">{breakdownText}</p>}
                                         </TableCell>
                                         <TableCell className="text-right">{item.quantity}</TableCell>
-                                        <TableCell className="text-right">{item.unitPrice.toLocaleString()}</TableCell>
-                                        <TableCell className="text-right">{item.itemTotal.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">{item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell className="text-right">{item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                                     </TableRow>
                                 );
                             })}
@@ -372,9 +372,9 @@ export default function CartPage() {
                         </Table>
                     </div>
                     <div className="text-right mt-4 space-y-1">
-                        <p>Subtotal: <span className="font-semibold">PKR {generatedInvoice.subtotal.toLocaleString()}</span></p>
-                        <p>Discount: <span className="font-semibold text-destructive">- PKR {generatedInvoice.discountAmount.toLocaleString()}</span></p>
-                        <p className="text-xl font-bold">Grand Total: <span className="text-primary">PKR {generatedInvoice.grandTotal.toLocaleString()}</span></p>
+                        <p>Subtotal: <span className="font-semibold">PKR {generatedInvoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                        <p>Discount: <span className="font-semibold text-destructive">- PKR {generatedInvoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
+                        <p className="text-xl font-bold">Grand Total: <span className="text-primary">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></p>
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end space-x-2">
@@ -429,11 +429,11 @@ export default function CartPage() {
                           <p className="text-xs text-muted-foreground">Metal: {item.metalType}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: {item.metalWeightG.toFixed(2)}g</p>
                            {estimatedInvoice?.items.find(i => i.sku === item.sku)?.unitPrice !== item.totalPrice ? (
                                 <>
-                                 <p className="text-sm font-semibold text-primary">PKR {estimatedInvoice?.items.find(i => i.sku === item.sku)?.unitPrice.toLocaleString() || '...'}</p>
-                                 <p className="text-xs text-muted-foreground line-through">PKR {item.totalPrice.toLocaleString()} (at store rate)</p>
+                                 <p className="text-sm font-semibold text-primary">PKR {estimatedInvoice?.items.find(i => i.sku === item.sku)?.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '...'}</p>
+                                 <p className="text-xs text-muted-foreground line-through">PKR {item.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })} (at store rate)</p>
                                 </>
                            ) : (
-                             <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString()}</p>
+                             <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                            )}
                         </div>
                         <div className="flex items-center space-x-2">
@@ -522,12 +522,12 @@ export default function CartPage() {
                     className="text-base"
                     step="0.01"
                   />
-                   <p className="text-xs text-muted-foreground mt-1">Current store setting for Gold: PKR {(settings?.goldRatePerGram || 0).toLocaleString()}/gram.</p>
+                   <p className="text-xs text-muted-foreground mt-1">Current store setting for Gold: PKR {(settings?.goldRatePerGram || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}/gram.</p>
                    {cartContainsNonGoldItems && (
                     <Alert variant="default" className="mt-2 text-xs">
                         <Info className="h-4 w-4" />
                         <AlertDescription>
-                            Palladium and Platinum items in this cart will be priced using their current rates from store settings (Pd: {(settings?.palladiumRatePerGram || 0).toLocaleString()}, Pt: {(settings?.platinumRatePerGram || 0).toLocaleString()}).
+                            Palladium and Platinum items in this cart will be priced using their current rates from store settings (Pd: {(settings?.palladiumRatePerGram || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}, Pt: {(settings?.platinumRatePerGram || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }).
                         </AlertDescription>
                     </Alert>
                    )}
