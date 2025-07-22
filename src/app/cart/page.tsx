@@ -172,7 +172,6 @@ export default function CartPage() {
     // --- Header Section ---
     if (settings.shopLogoUrl) {
         try {
-            // Using a placeholder for the logo as the URL points to a text-based one
              doc.setFontSize(26);
              doc.setFont("helvetica", "bold");
              doc.text(settings.shopName, margin, 22);
@@ -268,7 +267,7 @@ export default function CartPage() {
     let currentY = finalY + 10;
     
     const totalsX = pageWidth - margin;
-    const totalsLabelX = totalsX - 40;
+    const totalsLabelX = totalsX - 50;
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
@@ -436,6 +435,7 @@ export default function CartPage() {
     );
   }
 
+  console.log("[GemsTrack] CartPage: About to return main cart view JSX. appReady:", appReady, "GeneratedInvoice exists:", !!generatedInvoice);
   return (
     <div className="container mx-auto py-8 px-4">
       <header className="mb-8">
