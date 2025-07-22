@@ -7,6 +7,7 @@ import { ProductForm } from '@/components/product/product-form';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import React from 'react';
 
 export default function EditProductPage() {
   const params = useParams();
@@ -43,5 +44,3 @@ export default function EditProductPage() {
     </div>
   );
 }
-
-    

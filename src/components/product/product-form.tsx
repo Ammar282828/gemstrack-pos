@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,6 +16,7 @@ import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGO
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, Diamond, Zap, Shield, Weight } from 'lucide-react';
+import Image from 'next/image';
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum'];
@@ -55,7 +56,7 @@ const goldCoinDenominations: Record<string, Array<{ label: string; value: number
 const productFormSchemaBase = z.object({
   categoryId: z.string().min(1, "Category is required"),
   metalType: z.enum(metalTypeValues, { required_error: "Metal type is required" }),
-  metalWeightG: z.coerce.number().min(0.001, "Metal weight must be a positive number"), // Min weight slightly above 0
+  metalWeightG: z.coerce.number().min(0.001, "Metal weight must be a positive number"),
   wastagePercentage: z.coerce.number().min(0).max(100, "Wastage must be between 0 and 100"),
   makingCharges: z.coerce.number().min(0, "Making charges must be non-negative"),
   hasDiamonds: z.boolean().default(false),
@@ -174,18 +175,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
 
 
   const processFormData = (data: ProductFormData): ProductDataForActualAdd => {
-    const isActualGoldCoinScenario = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
+    const isActualGoldCoin = data.categoryId === GOLD_COIN_CATEGORY_ID && data.metalType === 'gold';
     const processed: ProductDataForActualAdd = {
       categoryId: data.categoryId,
       metalType: data.metalType,
       karat: data.metalType === 'gold' ? data.karat : undefined,
       metalWeightG: data.metalWeightG,
-      wastagePercentage: isActualGoldCoinScenario ? 0 : data.wastagePercentage,
-      makingCharges: isActualGoldCoinScenario ? 0 : data.makingCharges,
-      hasDiamonds: isActualGoldCoinScenario ? false : data.hasDiamonds,
-      diamondCharges: isActualGoldCoinScenario ? 0 : (data.hasDiamonds ? data.diamondCharges : 0),
-      stoneCharges: isActualGoldCoinScenario ? 0 : data.stoneCharges,
-      miscCharges: isActualGoldCoinScenario ? 0 : data.miscCharges,
+      wastagePercentage: isActualGoldCoin ? 0 : data.wastagePercentage,
+      makingCharges: isActualGoldCoin ? 0 : data.makingCharges,
+      hasDiamonds: isActualGoldCoin ? false : data.hasDiamonds,
+      diamondCharges: isActualGoldCoin ? 0 : (data.hasDiamonds ? data.diamondCharges : 0),
+      stoneCharges: isActualGoldCoin ? 0 : data.stoneCharges,
+      miscCharges: isActualGoldCoin ? 0 : data.miscCharges,
       imageUrl: data.imageUrl,
     };
     if (processed.metalType !== 'gold') {
@@ -496,8 +497,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmitSucce
                     <Input type="url" placeholder="https://example.com/image.png" {...field} />
                   </FormControl>
                    {field.value && (
-                        <div className="mt-2 p-2 border rounded-md w-fit">
-                            <img src={field.value} alt="Product Preview" className="h-24 object-contain" data-ai-hint="product jewelry"/>
+                        <div className="mt-2 p-2 border rounded-md w-fit bg-muted">
+                            <Image src={field.value} alt="Product Preview" width={80} height={80} className="h-20 w-20 object-contain" data-ai-hint="product jewelry"/>
                         </div>
                      )}
                   <FormMessage />
