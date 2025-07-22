@@ -421,7 +421,11 @@ export default function CartPage() {
                 </CardContent>
                 <CardFooter className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={handleNewSale}>New Sale / Clear</Button>
-                    <Button onClick={() => printInvoice(generatedInvoice)}><Printer className="mr-2 h-4 w-4"/> Print Estimate</Button>
+                    <Button onClick={() => {
+                        if (typeof window !== 'undefined') {
+                            printInvoice(generatedInvoice);
+                        }
+                    }}><Printer className="mr-2 h-4 w-4"/> Print Estimate</Button>
                 </CardFooter>
             </Card>
             <div style={{ display: 'none' }}>
@@ -432,7 +436,6 @@ export default function CartPage() {
     );
   }
 
-  console.log("[GemsTrack] CartPage: About to return main cart view JSX. appReady:", appReady, "GeneratedInvoice exists:", !!generatedInvoice);
   return (
     <div className="container mx-auto py-8 px-4">
       <header className="mb-8">
@@ -623,5 +626,5 @@ export default function CartPage() {
         </div>
       )}
     </div>
-  );
+    );
 }
