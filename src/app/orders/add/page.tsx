@@ -51,6 +51,7 @@ const orderFormSchema = z.object({
     items: z.array(orderItemSchema).min(1, "You must add at least one item to the estimate."),
     goldRate: z.coerce.number().min(1, "Gold rate must be positive"),
     advancePayment: z.coerce.number().min(0).default(0),
+    advanceGoldDetails: z.string().optional(),
 });
 
 
@@ -71,6 +72,7 @@ export default function CustomOrderPage() {
       items: [],
       goldRate: settings.goldRatePerGram || 0,
       advancePayment: 0,
+      advanceGoldDetails: '',
     },
   });
   
@@ -204,6 +206,16 @@ export default function CustomOrderPage() {
     doc.setFontSize(12).setFont("helvetica", "bold");
     doc.text(`Balance Due:`, totalsLabelX, currentY, { align: 'right' });
     doc.text(`PKR ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
+
+    if (estimate.advanceGoldDetails) {
+        currentY += 10;
+        doc.setFontSize(9).setFont("helvetica", "bold");
+        doc.text("Advance Gold Details:", margin, currentY);
+        currentY += 5;
+        doc.setFontSize(9).setFont("helvetica", "normal");
+        const detailsLines = doc.splitTextToSize(estimate.advanceGoldDetails, pageWidth - margin * 2);
+        doc.text(detailsLines, margin, currentY);
+    }
 
 
     // Footer
@@ -365,6 +377,15 @@ export default function CustomOrderPage() {
                                 <FormControl><Input type="number" {...field} /></FormControl><FormMessage />
                             </FormItem>
                         )}/>
+                        <FormField control={form.control} name="advanceGoldDetails" render={({ field }) => (
+                           <FormItem>
+                                <FormLabel>Advance Gold Details (Optional)</FormLabel>
+                                <FormControl>
+                                    <Textarea placeholder="e.g., 10g old gold (21k) given by customer" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
                         <Separator/>
                         <div className="space-y-2 p-3 bg-muted/50 rounded-md">
                             <div className="flex justify-between items-center">
@@ -426,6 +447,12 @@ export default function CustomOrderPage() {
                  <div className="space-y-2 p-4 bg-muted rounded-md text-lg">
                     <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {liveEstimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                     <div className="flex justify-between"><span>Advance Payment:</span> <span className="font-semibold text-destructive">- PKR {generatedEstimate.advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                    {generatedEstimate.advanceGoldDetails && (
+                        <div className="pt-2">
+                           <p className="text-sm font-semibold">Advance Gold Details:</p>
+                           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{generatedEstimate.advanceGoldDetails}</p>
+                        </div>
+                    )}
                     <Separator className="my-2 bg-muted-foreground/20"/>
                     <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {liveEstimate.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                 </div>
@@ -441,4 +468,3 @@ export default function CustomOrderPage() {
     </div>
   );
 }
-
