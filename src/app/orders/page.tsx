@@ -112,68 +112,6 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
   );
 };
 
-const OrderCard: React.FC<{ order: Order, summary: string | undefined }> = ({ order, summary }) => {
-    const completedItems = order.items.filter(item => item.isCompleted).length;
-    const totalItems = order.items.length;
-
-    return (
-        <Card>
-            <CardHeader className="p-4">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle className="text-base">
-                            <Link href={`/orders/${order.id}`} className="text-primary hover:underline">{order.id}</Link>
-                        </CardTitle>
-                        <div className="text-xs text-muted-foreground mt-1 flex items-center">
-                            <Calendar className="w-3 h-3 mr-1" /> {format(parseISO(order.createdAt), 'MMM dd, yyyy')}
-                        </div>
-                    </div>
-                     <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
-                </div>
-                <div className="text-xs text-muted-foreground pt-2 flex items-start gap-1.5">
-                    <MessageSquareQuote className="w-4 h-4 mt-0.5 flex-shrink-0"/>
-                    <span>{summary || 'Generating summary...'}</span>
-                </div>
-            </CardHeader>
-            <CardContent className="p-4 pt-0 space-y-3">
-                 <div>
-                    <div className="flex items-center text-sm">
-                        <User className="w-4 h-4 mr-2 text-muted-foreground"/> 
-                        <span>{order.customerName || 'Walk-in'}</span>
-                    </div>
-                    {order.customerContact && (
-                         <div className="flex items-center text-xs text-muted-foreground mt-1">
-                            <Phone className="w-3 h-3 mr-2 ml-0.5"/> 
-                            <span>{order.customerContact}</span>
-                        </div>
-                    )}
-                 </div>
-                 <div className="text-right text-lg font-bold text-foreground">
-                    PKR {(order.grandTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                 </div>
-            </CardContent>
-            <CardFooter className="p-4 border-t flex items-center justify-between">
-                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {totalItems > 1 ? (
-                        <>
-                            {completedItems === totalItems ? <CheckCircle2 className="w-4 h-4 text-green-500"/> : <Circle className="w-4 h-4 text-yellow-500"/>}
-                            <span>{completedItems} of {totalItems} items complete</span>
-                        </>
-                    ) : (
-                         <>
-                            {order.items[0]?.isCompleted ? <CheckCircle2 className="w-4 h-4 text-green-500"/> : <Circle className="w-4 h-4 text-yellow-500"/>}
-                            <span>{order.items[0]?.isCompleted ? 'Item Complete' : 'Item Pending'}</span>
-                         </>
-                    )}
-                </div>
-                <Button asChild size="sm" variant="outline">
-                    <Link href={`/orders/${order.id}`}><Eye className="w-4 h-4 mr-2"/>View Details</Link>
-                </Button>
-            </CardFooter>
-        </Card>
-    )
-}
-
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
@@ -303,34 +241,25 @@ export default function OrdersPage() {
             <p className="text-muted-foreground">Refreshing order list...</p>
          </div>
       ) : filteredOrders.length > 0 ? (
-        <>
-            {/* Desktop View */}
-            <Card className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order Details</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Status & Progress</TableHead>
-                    <TableHead className="text-right">Total (PKR)</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredOrders.map((order) => (
-                    <OrderRow key={order.id} order={order} summary={orderSummaries[order.id]} />
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-            {/* Mobile View */}
-            <div className="md:hidden grid grid-cols-1 gap-4">
+        <Card>
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead>Order Details</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Status & Progress</TableHead>
+                <TableHead className="text-right">Total (PKR)</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
                 {filteredOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} summary={orderSummaries[order.id]} />
+                <OrderRow key={order.id} order={order} summary={orderSummaries[order.id]} />
                 ))}
-            </div>
-        </>
+            </TableBody>
+            </Table>
+        </Card>
       ) : (
         <div className="text-center py-12 bg-card rounded-lg shadow">
           <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
