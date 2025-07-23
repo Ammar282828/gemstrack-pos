@@ -53,6 +53,11 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
   const completedItems = safeItems.filter(item => item.isCompleted).length;
   const totalItems = safeItems.length;
   const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+  
+  // Robust check for financial values to prevent crashes
+  const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
+  const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
+  const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
 
   return (
     <TableRow>
@@ -71,9 +76,9 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
       </TableCell>
        <TableCell className="hidden md:table-cell text-right">
         <div className="flex flex-col items-end">
-            <div className="text-xs text-muted-foreground">Bal: <span className="font-semibold text-foreground">{(Number(order.grandTotal) || 0).toLocaleString()}</span></div>
-            <div className="text-xs text-muted-foreground">Adv: <span className="font-semibold text-foreground">{(Number(order.advancePayment) || 0).toLocaleString()}</span></div>
-            <div className="text-xs text-muted-foreground border-t mt-1 pt-1">Total: <span className="font-bold text-foreground">{(Number(order.subtotal) || 0).toLocaleString()}</span></div>
+            <div className="text-xs text-muted-foreground">Bal: <span className="font-semibold text-foreground">{grandTotal.toLocaleString()}</span></div>
+            <div className="text-xs text-muted-foreground">Adv: <span className="font-semibold text-foreground">{advancePayment.toLocaleString()}</span></div>
+            <div className="text-xs text-muted-foreground border-t mt-1 pt-1">Total: <span className="font-bold text-foreground">{subtotal.toLocaleString()}</span></div>
         </div>
       </TableCell>
       <TableCell>

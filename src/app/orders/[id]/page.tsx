@@ -98,6 +98,12 @@ export default function OrderDetailPage() {
     );
   }
 
+  // Robustly handle potentially missing financial data
+  const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
+  const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
+  const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
+
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <Button variant="outline" onClick={() => router.back()} className="mb-0">
@@ -167,12 +173,12 @@ export default function OrderDetailPage() {
                                         </div>
                                     )}
                                     <div className="text-sm mt-2 p-2 bg-background rounded-md">
-                                        <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                        <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {(item.metalCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                                         {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                                         {item.diamondCharges > 0 && <div className="flex justify-between"><span>+ Diamond Charges:</span> <span className="font-semibold">PKR {item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                                         {item.stoneCharges > 0 && <div className="flex justify-between"><span>+ Other Stone Charges:</span> <span className="font-semibold">PKR {item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                                         <Separator className="my-1"/>
-                                        <div className="flex justify-between font-bold"><span>Item Total:</span> <span>PKR {item.totalEstimate?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                        <div className="flex justify-between font-bold"><span>Item Total:</span> <span>PKR {(item.totalEstimate ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -196,8 +202,8 @@ export default function OrderDetailPage() {
 
                  <div className="flex justify-end">
                     <div className="w-full max-w-sm space-y-2 p-4 text-lg">
-                        <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {order.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                        <div className="flex justify-between"><span>Advance Payment:</span> <span className="font-semibold text-destructive">- PKR {order.advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                        <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                        <div className="flex justify-between"><span>Advance Payment:</span> <span className="font-semibold text-destructive">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                         {order.advanceGoldDetails && (
                             <div className="pt-2 text-sm">
                             <p className="font-semibold">Advance Gold Details:</p>
@@ -205,7 +211,7 @@ export default function OrderDetailPage() {
                             </div>
                         )}
                         <Separator className="my-2 bg-muted-foreground/20"/>
-                        <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {order.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                        <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                     </div>
                 </div>
 
