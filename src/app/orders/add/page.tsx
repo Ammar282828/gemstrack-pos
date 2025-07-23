@@ -2,10 +2,11 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, KaratValue, useAppReady, calculateProductCosts } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, useAppReady, calculateProductCosts, Order, OrderItem } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,11 +55,17 @@ const orderFormSchema = z.object({
     goldRate: z.coerce.number().min(1, "Gold rate must be positive"),
     advancePayment: z.coerce.number().min(0).default(0),
     advanceGoldDetails: z.string().optional(),
+    customerId: z.string().optional(),
 });
 
 
 type OrderItemData = z.infer<typeof orderItemSchema>;
 type OrderFormData = z.infer<typeof orderFormSchema>;
+
+type EnrichedOrderFormData = OrderFormData & {
+    subtotal: number;
+    grandTotal: number;
+};
 
 
 const ImageCapture: React.FC<{
@@ -174,11 +181,14 @@ const ImageCapture: React.FC<{
 
 export default function CustomOrderPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const appReady = useAppReady();
   const settings = useAppStore(state => state.settings);
+  const customers = useAppStore(state => state.customers);
+  const addOrderAction = useAppStore(state => state.addOrder);
   const isLoading = useAppStore(state => state.isSettingsLoading);
 
-  const [generatedEstimate, setGeneratedEstimate] = useState<OrderFormData | null>(null);
+  const [generatedEstimate, setGeneratedEstimate] = useState<EnrichedOrderFormData | null>(null);
 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderFormSchema),
@@ -187,6 +197,7 @@ export default function CustomOrderPage() {
       goldRate: settings.goldRatePerGram || 0,
       advancePayment: 0,
       advanceGoldDetails: '',
+      customerId: undefined,
     },
   });
   
@@ -208,7 +219,7 @@ export default function CustomOrderPage() {
     formValues.items.forEach(item => {
         const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges } = item;
         const goldRate = formValues.goldRate;
-        if (estimatedWeightG <= 0 || goldRate <= 0) return;
+        if (!estimatedWeightG || estimatedWeightG <= 0 || !goldRate || goldRate <= 0) return;
 
         const productForCalc = {
           metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
@@ -221,14 +232,16 @@ export default function CustomOrderPage() {
         subtotal += costs.totalPrice;
     });
 
-    const grandTotal = subtotal - formValues.advancePayment;
+    const grandTotal = subtotal - (formValues.advancePayment || 0);
     
     return { subtotal, grandTotal };
   }, [formValues]);
 
 
-  const onSubmit = (data: OrderFormData) => {
-    const enrichedItems = data.items.map(item => {
+  const onSubmit = async (data: OrderFormData) => {
+    const { subtotal, grandTotal } = liveEstimate;
+    
+    const enrichedItems = data.items.map((item): OrderItem => {
         const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges } = item;
         const productForCalc = {
           metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
@@ -240,11 +253,24 @@ export default function CustomOrderPage() {
         return { ...item, metalCost: costs.metalCost, totalEstimate: costs.totalPrice };
     });
 
-    setGeneratedEstimate({ ...data, items: enrichedItems });
-    toast({ title: "Estimate Ready", description: "Custom order estimate is ready to be printed." });
+    const orderToSave: Omit<Order, 'id' | 'createdAt' | 'status'> = {
+        ...data,
+        items: enrichedItems,
+        subtotal,
+        grandTotal,
+    };
+
+    const newOrder = await addOrderAction(orderToSave, data.customerId);
+
+    if (newOrder) {
+        setGeneratedEstimate({ ...data, subtotal, grandTotal });
+        toast({ title: `Order ${newOrder.id} Created`, description: "Custom order has been saved and is ready to be printed." });
+    } else {
+        toast({ title: "Error", description: "Failed to save the custom order.", variant: "destructive" });
+    }
   };
   
-  const printEstimate = (estimate: OrderFormData) => {
+  const printEstimate = (estimate: EnrichedOrderFormData) => {
     if (typeof window === 'undefined' || !estimate) return;
 
     const doc = new jsPDF();
@@ -306,7 +332,7 @@ export default function CustomOrderPage() {
     const totalsValueX = pageWidth - margin;
     const totalsLabelX = totalsValueX - 40;
 
-    const { subtotal, grandTotal } = liveEstimate;
+    const { subtotal, grandTotal } = estimate;
     
     doc.setFontSize(10).setFont("helvetica", "normal");
     doc.text(`Subtotal:`, totalsLabelX, currentY, { align: 'right'});
@@ -486,6 +512,29 @@ export default function CustomOrderPage() {
                         <CardTitle className="flex items-center"><List className="mr-2 h-5 w-5"/>Estimate Summary</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="customerId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Select Customer (Optional)</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a customer" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="">None (Walk-in)</SelectItem>
+                                            {customers.map(c => (
+                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <FormField control={form.control} name="goldRate" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rate (PKR/gram, 24k)</FormLabel>
@@ -516,7 +565,7 @@ export default function CustomOrderPage() {
                             </div>
                             <div className="flex justify-between items-center text-destructive">
                                 <span className="text-muted-foreground">Advance:</span>
-                                <span className="font-semibold text-base">- PKR {formValues.advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span className="font-semibold text-base">- PKR {(formValues.advancePayment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between items-center text-xl font-bold">
@@ -526,8 +575,9 @@ export default function CustomOrderPage() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <Button type="submit" size="lg" className="w-full" disabled={!form.formState.isValid || fields.length === 0}>
-                        <FileText className="mr-2 h-5 w-5" /> Generate Estimate
+                        <Button type="submit" size="lg" className="w-full" disabled={!form.formState.isValid || fields.length === 0 || form.formState.isSubmitting}>
+                            {form.formState.isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <FileText className="mr-2 h-5 w-5" />}
+                             {form.formState.isSubmitting ? "Saving Order..." : "Save Order & Generate Estimate"}
                         </Button>
                     </CardFooter>
                 </Card>
@@ -539,7 +589,7 @@ export default function CustomOrderPage() {
             <CardHeader>
                 <CardTitle>Custom Order Estimate Generated</CardTitle>
                 <CardDescription>
-                    The following estimate has been prepared. You can print it or create a new one.
+                    The order has been saved. You can print the estimate or create a new one.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -574,7 +624,7 @@ export default function CustomOrderPage() {
                  </ScrollArea>
                  <Separator className="my-4"/>
                  <div className="space-y-2 p-4 bg-muted rounded-md text-lg">
-                    <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {liveEstimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                    <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {generatedEstimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                     <div className="flex justify-between"><span>Advance Payment:</span> <span className="font-semibold text-destructive">- PKR {generatedEstimate.advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                     {generatedEstimate.advanceGoldDetails && (
                         <div className="pt-2">
@@ -583,11 +633,11 @@ export default function CustomOrderPage() {
                         </div>
                     )}
                     <Separator className="my-2 bg-muted-foreground/20"/>
-                    <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {liveEstimate.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                    <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {generatedEstimate.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                 </div>
             </CardContent>
             <CardFooter className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setGeneratedEstimate(null)}>Create New Estimate</Button>
+                <Button variant="outline" onClick={() => router.push('/orders')}>Go to Orders Dashboard</Button>
                 <Button onClick={() => printEstimate(generatedEstimate)}>
                     <Printer className="mr-2 h-4 w-4"/> Print Estimate
                 </Button>
@@ -597,5 +647,3 @@ export default function CustomOrderPage() {
     </div>
   );
 }
-
-    

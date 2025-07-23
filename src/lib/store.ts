@@ -14,6 +14,7 @@ const FIRESTORE_COLLECTIONS = {
   CUSTOMERS: "customers",
   KARIGARS: "karigars",
   INVOICES: "invoices",
+  ORDERS: "orders",
   CATEGORIES: "categories", // Note: Categories are still managed locally for now
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
@@ -156,6 +157,7 @@ export interface Settings {
   shopContact: string;
   shopLogoUrl?: string;
   lastInvoiceNumber: number;
+  lastOrderNumber: number;
   allowedDeviceIds: string[];
   theme: ThemeKey;
   firebaseConfig?: FirebaseConfigStub;
@@ -231,6 +233,37 @@ export interface Karigar {
   notes?: string;
 }
 
+export const ORDER_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled'] as const;
+export type OrderStatus = typeof ORDER_STATUSES[number];
+
+export interface OrderItem {
+  description: string;
+  karat: KaratValue;
+  estimatedWeightG: number;
+  makingCharges: number;
+  diamondCharges: number;
+  stoneCharges: number;
+  sampleImageDataUri?: string;
+  referenceSku?: string;
+  sampleGiven: boolean;
+  metalCost?: number;
+  totalEstimate?: number;
+}
+
+export interface Order {
+  id: string; // Firestore document ID, e.g., ORD-000001
+  createdAt: string; // ISO string
+  status: OrderStatus;
+  items: OrderItem[];
+  goldRate: number;
+  subtotal: number;
+  advancePayment: number;
+  advanceGoldDetails?: string;
+  grandTotal: number;
+  customerId?: string;
+  customerName?: string;
+}
+
 // --- Product Tag Format Definitions ---
 export interface ProductTagFormat {
   id: string;
@@ -286,6 +319,7 @@ const initialSettingsData: Settings = {
   shopName: "Taheri", shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "https://placehold.co/200x80.png", lastInvoiceNumber: 0,
+  lastOrderNumber: 0,
   allowedDeviceIds: [],
   theme: 'forest',
   firebaseConfig: {
@@ -325,6 +359,7 @@ export interface AppState {
   cart: CartItem[]; // Persisted locally
   generatedInvoices: Invoice[];
   karigars: Karigar[];
+  orders: Order[];
 
   // Loading states
   isSettingsLoading: boolean;
@@ -332,6 +367,7 @@ export interface AppState {
   isCustomersLoading: boolean;
   isKarigarsLoading: boolean;
   isInvoicesLoading: boolean;
+  isOrdersLoading: boolean;
   isInitialDataLoadedFromFirestore: boolean; // True after all initial loads complete
 
   // Zustand specific hydration state
@@ -374,6 +410,10 @@ export interface AppState {
     discountAmount: number
   ) => Promise<Invoice | null>;
   
+  loadOrders: () => Promise<void>;
+  addOrder: (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>, customerId?: string) => Promise<Order | null>;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+
   fetchAllInitialData: () => Promise<void>;
 }
 
@@ -401,19 +441,22 @@ export const useAppStore = create<AppState>()(
       cart: [], // This will be persisted
       generatedInvoices: [],
       karigars: [],
+      orders: [],
 
       isSettingsLoading: true,
       isProductsLoading: true,
       isCustomersLoading: true,
       isKarigarsLoading: true,
       isInvoicesLoading: true,
+      isOrdersLoading: true,
       isInitialDataLoadedFromFirestore: false,
 
       fetchAllInitialData: async () => {
         console.log("[GemsTrack Store fetchAllInitialData] Attempting to fetch all initial data...");
         set({
           isSettingsLoading: true, isProductsLoading: true, isCustomersLoading: true,
-          isKarigarsLoading: true, isInvoicesLoading: true, isInitialDataLoadedFromFirestore: false
+          isKarigarsLoading: true, isInvoicesLoading: true, isOrdersLoading: true, 
+          isInitialDataLoadedFromFirestore: false
         });
         try {
           await Promise.all([
@@ -422,6 +465,7 @@ export const useAppStore = create<AppState>()(
             get().loadCustomers(),
             get().loadKarigars(),
             get().loadGeneratedInvoices(),
+            get().loadOrders(),
           ]);
           set({ isInitialDataLoadedFromFirestore: true });
           console.log("[GemsTrack Store fetchAllInitialData] SUCCESSFULLY fetched all initial data.");
@@ -436,6 +480,7 @@ export const useAppStore = create<AppState>()(
                 state.isCustomersLoading = false;
                 state.isKarigarsLoading = false;
                 state.isInvoicesLoading = false;
+                state.isOrdersLoading = false;
             });
         }
       },
@@ -904,6 +949,86 @@ export const useAppStore = create<AppState>()(
             return null;
         }
       },
+
+      loadOrders: async () => {
+        console.log("[GemsTrack Store loadOrders] Attempting to load orders...");
+        set({ isOrdersLoading: true });
+        try {
+          const q = query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), orderBy("createdAt", "desc"));
+          const snapshot = await getDocs(q);
+          const orderList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order));
+          set({ orders: orderList });
+          console.log(`[GemsTrack Store loadOrders] Successfully loaded ${orderList.length} orders.`);
+        } catch (error) {
+          console.error("[GemsTrack Store loadOrders] Error loading orders:", error);
+          set({ orders: [] });
+        } finally {
+          set({ isOrdersLoading: false });
+        }
+      },
+
+      addOrder: async (orderData, customerId) => {
+        const { settings, customers } = get();
+        const nextOrderNumber = (settings.lastOrderNumber || 0) + 1;
+        const newOrderId = `ORD-${nextOrderNumber.toString().padStart(6, '0')}`;
+
+        const newOrder: Order = {
+          ...orderData,
+          id: newOrderId,
+          createdAt: new Date().toISOString(),
+          status: 'Pending',
+        };
+
+        if (customerId) {
+          const customer = customers.find(c => c.id === customerId);
+          if (customer) {
+            newOrder.customerId = customer.id;
+            newOrder.customerName = customer.name;
+          }
+        }
+        
+        console.log("[GemsTrack Store addOrder] Attempting to save order:", newOrder);
+
+        try {
+          const batch = writeBatch(db);
+          const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, newOrderId);
+          batch.set(orderDocRef, newOrder);
+
+          const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
+          batch.update(settingsDocRef, { lastOrderNumber: nextOrderNumber });
+
+          await batch.commit();
+          console.log(`[GemsTrack Store addOrder] Order ${newOrderId} and settings successfully committed.`);
+          
+          set(state => {
+            state.orders.unshift(newOrder);
+            state.settings.lastOrderNumber = nextOrderNumber;
+          });
+          return newOrder;
+        } catch (error) {
+          console.error(`[GemsTrack Store addOrder] Error saving order ${newOrderId} to Firestore:`, error);
+          return null;
+        }
+      },
+
+      updateOrderStatus: async (orderId, status) => {
+        console.log(`[GemsTrack Store updateOrderStatus] Updating order ${orderId} to status: ${status}`);
+        try {
+          const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
+          await setDoc(orderDocRef, { status }, { merge: true });
+          set(state => {
+            const order = state.orders.find(o => o.id === orderId);
+            if (order) {
+              order.status = status;
+            }
+          });
+          console.log(`[GemsTrack Store updateOrderStatus] Successfully updated status for order ${orderId}.`);
+        } catch (error) {
+          console.error(`[GemsTrack Store updateOrderStatus] Error updating status for order ${orderId}:`, error);
+          throw error;
+        }
+      },
+
     })),
     {
       name: 'gemstrack-pos-storage',
@@ -923,16 +1048,20 @@ export const useAppStore = create<AppState>()(
             theme: state.settings?.theme || 'default',
         }
       }),
-      version: 9,
+      version: 10,
       migrate: (persistedState, version) => {
+        const oldState = persistedState as any;
         if (version < 9) {
-          // If migrating from a version without theme settings, add it.
-          const oldState = persistedState as any;
           if (oldState.settings && !oldState.settings.theme) {
             oldState.settings.theme = 'default';
           }
         }
-        return persistedState as AppState;
+        if (version < 10) {
+            if (oldState.settings && typeof oldState.settings.lastOrderNumber === 'undefined') {
+                oldState.settings.lastOrderNumber = 0;
+            }
+        }
+        return oldState as AppState;
       },
     }
   )

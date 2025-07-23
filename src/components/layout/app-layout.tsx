@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, PencilRuler } from 'lucide-react';
+import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, PencilRuler, ClipboardList } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsStoreHydrated } from '@/lib/store';
 
@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { href: '/', label: 'Home', icon: <Home /> },
   { href: '/scan', label: 'Scan QR / POS', icon: <ScanQrCode /> },
   { href: '/cart', label: 'Cart / Estimate', icon: <ShoppingCart /> },
+  { href: '/orders', label: 'Orders', icon: <ClipboardList /> },
   { href: '/orders/add', label: 'Custom Order', icon: <PencilRuler /> },
   { href: '/products', label: 'Products', icon: <Gem /> },
   { href: '/products/add', label: 'Add Product', icon: <PackagePlus /> },

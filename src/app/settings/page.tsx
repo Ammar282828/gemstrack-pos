@@ -40,6 +40,7 @@ const settingsSchema = z.object({
   shopContact: z.string().optional(),
   shopLogoUrl: z.string().optional(),
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
+  lastOrderNumber: z.coerce.number().int().min(0, "Last order number must be a non-negative integer"),
   allowedDeviceIds: z.array(z.object({ id: z.string().min(1, "Device ID cannot be empty.") })).optional(),
   theme: z.enum(themeKeys).default('default'),
 });
@@ -197,6 +198,7 @@ export default function SettingsPage() {
       shopContact: "",
       shopLogoUrl: "",
       lastInvoiceNumber: 0,
+      lastOrderNumber: 0,
       allowedDeviceIds: [],
       theme: 'default',
     },
@@ -222,6 +224,7 @@ export default function SettingsPage() {
         shopContact: currentSettings.shopContact || "",
         shopLogoUrl: currentSettings.shopLogoUrl || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
+        lastOrderNumber: currentSettings.lastOrderNumber || 0,
         allowedDeviceIds: deviceIdsForForm,
         theme: currentSettings.theme || 'default',
       });
@@ -553,6 +556,24 @@ export default function SettingsPage() {
                     </FormControl>
                     <FormDescription>
                         The system will increment this number for the next invoice. Set this if you are migrating or need to adjust the sequence.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="lastOrderNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-muted-foreground" /> Last Order Number (Sequence)
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="number" step="1" placeholder="e.g., 100" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                        The system will increment this number for the next custom order.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
