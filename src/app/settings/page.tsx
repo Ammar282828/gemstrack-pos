@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, useAppReady, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MetalType, KaratValue, AVAILABLE_THEMES, ThemeKey } from '@/lib/store';
+import { useAppStore, Settings, useAppReady, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MetalType, KaratValue, AVAILABLE_THEMES, ThemeKey, Order } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +49,7 @@ type SettingsFormData = z.infer<typeof settingsSchema>;
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
 type CustomerDataForAdd = Omit<Customer, 'id'>;
 type KarigarDataForAdd = Omit<Karigar, 'id'>;
+type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status' | 'subtotal' | 'grandTotal'>;
 
 
 const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
@@ -171,6 +172,65 @@ const DUMMY_KARIGARS_TO_SEED: KarigarDataForAdd[] = [
   { name: "Haji Murad", contact: "0311-0009988" }
 ];
 
+const DUMMY_ORDERS_TO_SEED: OrderDataForAdd[] = [
+    {
+        items: [{
+            description: "Custom bridal necklace set with pearls",
+            karat: "22k",
+            estimatedWeightG: 45.5,
+            makingCharges: 50000,
+            diamondCharges: 0,
+            stoneCharges: 15000,
+            sampleGiven: false,
+        }],
+        goldRate: 21500,
+        advancePayment: 100000,
+        customerName: "Sana Javed",
+    },
+    {
+        items: [{
+            description: "Platinum wedding bands, matching pair",
+            karat: "21k", // Will be ignored as not gold
+            estimatedWeightG: 12.0,
+            makingCharges: 12000,
+            diamondCharges: 0,
+            stoneCharges: 0,
+            sampleGiven: false,
+        }],
+        goldRate: 21500, // Gold rate still needed for potential gold items
+        advancePayment: 20000,
+        customerName: "Walk-in",
+        customerContact: "0301-1112222",
+    },
+    {
+        items: [
+            {
+                description: "Re-creation of antique jhumka earrings",
+                karat: "21k",
+                estimatedWeightG: 15.0,
+                makingCharges: 18000,
+                diamondCharges: 0,
+                stoneCharges: 2500,
+                sampleGiven: true,
+                referenceSku: "TOP-000012"
+            },
+            {
+                description: "Simple gold chain to match",
+                karat: "21k",
+                estimatedWeightG: 10.0,
+                makingCharges: 8000,
+                diamondCharges: 0,
+                stoneCharges: 0,
+                sampleGiven: false,
+            }
+        ],
+        goldRate: 21800,
+        advancePayment: 50000,
+        customerName: "Aisha Khan",
+        advanceGoldDetails: "Customer gave 5g old 21k gold. To be adjusted in final bill."
+    }
+];
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -180,11 +240,13 @@ export default function SettingsPage() {
   const addProductAction = useAppStore(state => state.addProduct);
   const addCustomerAction = useAppStore(state => state.addCustomer);
   const addKarigarAction = useAppStore(state => state.addKarigar);
+  const addOrderAction = useAppStore(state => state.addOrder);
   const isSettingsLoading = useAppStore(state => state.isSettingsLoading);
 
   const [isSeedingProducts, setIsSeedingProducts] = useState(false);
   const [isSeedingCustomers, setIsSeedingCustomers] = useState(false);
   const [isSeedingKarigars, setIsSeedingKarigars] = useState(false);
+  const [isSeedingOrders, setIsSeedingOrders] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const form = useForm<SettingsFormData>({
@@ -367,6 +429,32 @@ export default function SettingsPage() {
     }
     toast({ title: "Karigar Seeding Complete", description: `Finished. Success: ${successCount}, Errors: ${errorCount}.`, variant: errorCount > 0 ? "destructive" : "default"});
     setIsSeedingKarigars(false);
+  };
+
+  const handleSeedOrders = async () => {
+    setIsSeedingOrders(true);
+    let successCount = 0;
+    let errorCount = 0;
+    toast({ title: "Order Seeding Started", description: `Attempting to add ${DUMMY_ORDERS_TO_SEED.length} dummy orders...`});
+
+    for (const orderData of DUMMY_ORDERS_TO_SEED) {
+      try {
+        const newOrder = await addOrderAction(orderData);
+        if (newOrder) {
+          toast({ title: "Order Added", description: `Added: ${newOrder.id} for ${newOrder.customerName}` });
+          successCount++;
+        } else {
+          toast({ title: "Order Seeding Error", description: `Failed to add order for: ${orderData.customerName}`, variant: "destructive" });
+          errorCount++;
+        }
+      } catch (e) {
+        toast({ title: "Order Seeding Exception", description: `Error adding order for ${orderData.customerName}: ${(e as Error).message}`, variant: "destructive" });
+        errorCount++;
+      }
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    toast({ title: "Order Seeding Complete", description: `Finished. Success: ${successCount}, Errors: ${errorCount}.`, variant: errorCount > 0 ? "destructive" : "default"});
+    setIsSeedingOrders(false);
   };
 
 
@@ -718,6 +806,34 @@ export default function SettingsPage() {
                 </AlertDialog>
                 <p className="text-sm text-muted-foreground mt-1">
                 Adds sample karigar (artisan) profiles.
+                </p>
+            </div>
+            <div>
+                <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={isSeedingOrders}>
+                    {isSeedingOrders ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ClipboardList className="mr-2 h-4 w-4" />}
+                    Seed Dummy Orders ({DUMMY_ORDERS_TO_SEED.length})
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive" />Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will add {DUMMY_ORDERS_TO_SEED.length} pre-defined dummy orders to your Firestore database.
+                        Running this multiple times will create duplicate orders (with different IDs).
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSeedOrders} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                        Yes, Seed Orders
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+                </AlertDialog>
+                <p className="text-sm text-muted-foreground mt-1">
+                Adds sample custom orders for testing the order dashboard.
                 </p>
             </div>
         </CardContent>
