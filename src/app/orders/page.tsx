@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
     switch (status) {
@@ -29,8 +31,23 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
   };
 
 const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
+  const { toast } = useToast();
   const safeGrandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
-  
+  const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  const handleStatusChange = async (newStatus: OrderStatus) => {
+    setIsUpdatingStatus(true);
+    try {
+        await updateOrderStatus(order.id, newStatus);
+        toast({ title: "Status Updated", description: `Order ${order.id} status changed to "${newStatus}".` });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
+    } finally {
+        setIsUpdatingStatus(false);
+    }
+  };
+
   return (
     <TableRow>
       <TableCell>
@@ -44,7 +61,24 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
         {order.customerContact && <p className="text-xs text-muted-foreground">{order.customerContact}</p>}
       </TableCell>
        <TableCell>
-         <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
+          {isUpdatingStatus ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Select onValueChange={(val) => handleStatusChange(val as OrderStatus)} defaultValue={order.status}>
+                <SelectTrigger className="w-[150px] h-8 text-xs focus:ring-0 focus:ring-offset-0" id={`status-update-${order.id}`}>
+                    <SelectValue>
+                       <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
+                    </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                    {ORDER_STATUSES.map(status => (
+                        <SelectItem key={status} value={status}>
+                          <Badge className={cn("border-transparent w-full justify-center", getStatusBadgeVariant(status))}>{status}</Badge>
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+          )}
       </TableCell>
       <TableCell className="text-right">
         PKR {safeGrandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -79,7 +113,7 @@ export default function OrdersPage() {
             (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (order.customerContact && order.customerContact.includes(searchTerm))
         )
-    );
+    ).sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime()); // Sort by most recent
   }, [orders, searchTerm, appReady, statusFilter]);
 
   if (!appReady || isOrdersLoading) {
@@ -133,6 +167,12 @@ export default function OrdersPage() {
                 variant={statusFilter === status ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setStatusFilter(status)}
+                className={cn(statusFilter !== status && "hover:bg-muted/50", {
+                    'bg-yellow-500/20 border-yellow-500/50 text-yellow-800 hover:bg-yellow-500/30': statusFilter === 'Pending' && status === 'Pending',
+                    'bg-blue-500/20 border-blue-500/50 text-blue-800 hover:bg-blue-500/30': statusFilter === 'In Progress' && status === 'In Progress',
+                    'bg-green-500/20 border-green-500/50 text-green-800 hover:bg-green-500/30': statusFilter === 'Completed' && status === 'Completed',
+                    'bg-red-500/20 border-red-500/50 text-red-800 hover:bg-red-500/30': statusFilter === 'Cancelled' && status === 'Cancelled',
+                })}
               >
                 {status}
               </Button>
