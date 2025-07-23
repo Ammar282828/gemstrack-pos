@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList } from 'lucide-react';
+import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsStoreHydrated } from '@/lib/store';
 
@@ -23,15 +23,23 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
+  // Point of Sale
   { href: '/', label: 'Home', icon: <Home /> },
   { href: '/scan', label: 'Scan / POS', icon: <ScanQrCode /> },
   { href: '/cart', label: 'Cart / Estimate', icon: <ShoppingCart /> },
-  { isSeparator: true, href: '#', label: '' , icon: <></> }, // Separator
+
+  { isSeparator: true, href: '#', label: '', icon: <></> },
+
+  // Management
   { href: '/orders', label: 'Orders', icon: <ClipboardList /> },
+  { href: '/calendar', label: 'Calendar', icon: <Calendar /> },
   { href: '/products', label: 'Products', icon: <Gem /> },
   { href: '/customers', label: 'Customers', icon: <Users /> },
   { href: '/karigars', label: 'Karigars', icon: <Briefcase /> },
-  { isSeparator: true, href: '#', label: '' , icon: <></> }, // Separator
+
+  { isSeparator: true, href: '#', label: '', icon: <></> },
+  
+  // System
   { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
   { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
   { href: '/settings/backups', label: 'Backups', icon: <ArchiveRestore /> },
@@ -63,7 +71,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <SidebarMenu className="p-2">
                 {navItems.map((item, index) => (
                    item.isSeparator ? (
-                    <Separator key={`sep-${index}`} className="my-2" />
+                    <SidebarMenuItem key={`sep-${index}`} className="my-1">
+                      <Separator />
+                    </SidebarMenuItem>
                   ) : (
                   <SidebarMenuItem key={item.href}>
                     <Link href={item.href} legacyBehavior passHref>
