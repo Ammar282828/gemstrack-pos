@@ -60,19 +60,19 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
           {order.id}
         </Link>
         <div className="text-xs text-muted-foreground flex items-center mt-1">
-            <MessageSquareQuote className="w-3 h-3 mr-1.5"/>
-            <span>{summary || 'Generating summary...'}</span>
+            <MessageSquareQuote className="w-3 h-3 mr-1.5 flex-shrink-0"/>
+            <span className="truncate">{summary || 'Generating summary...'}</span>
         </div>
       </TableCell>
-      <TableCell>{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</TableCell>
+      <TableCell className="hidden md:table-cell">{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</TableCell>
       <TableCell>
         <p>{order.customerName || 'Walk-in'}</p>
-        {order.customerContact && <p className="text-xs text-muted-foreground">{order.customerContact}</p>}
+        {order.customerContact && <p className="text-xs text-muted-foreground hidden md:block">{order.customerContact}</p>}
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
             {totalItems > 1 && (
-                <div className="flex flex-col w-20">
+                <div className="hidden md:flex flex-col w-20">
                     <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items</span>
                     <Progress value={progressPercentage} className="h-1.5 mt-1" />
                 </div>
@@ -97,14 +97,14 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
             )}
         </div>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="text-right hidden md:table-cell">
         PKR {(order.grandTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
       </TableCell>
       <TableCell className="text-right">
         <Button asChild size="sm" variant="outline">
             <Link href={`/orders/${order.id}`}>
-              <Eye className="w-4 h-4 mr-1 md:mr-2" />
-              <span className="hidden md:inline">View</span>
+              <Eye className="w-4 h-4" />
+              <span className="sr-only md:not-sr-only md:ml-2">View</span>
             </Link>
           </Button>
       </TableCell>
@@ -222,10 +222,10 @@ export default function OrdersPage() {
                 size="sm"
                 onClick={() => setStatusFilter(status)}
                 className={cn(statusFilter !== status && "hover:bg-muted/50", {
-                    'bg-yellow-500/20 border-yellow-500/50 text-yellow-800 hover:bg-yellow-500/30': statusFilter === 'Pending' && status === 'Pending',
-                    'bg-blue-500/20 border-blue-500/50 text-blue-800 hover:bg-blue-500/30': statusFilter === 'In Progress' && status === 'In Progress',
-                    'bg-green-500/20 border-green-500/50 text-green-800 hover:bg-green-500/30': statusFilter === 'Completed' && status === 'Completed',
-                    'bg-red-500/20 border-red-500/50 text-red-800 hover:bg-red-500/30': statusFilter === 'Cancelled' && status === 'Cancelled',
+                    'bg-yellow-500/20 border-yellow-500/50 text-yellow-800 hover:bg-yellow-500/30 dark:text-yellow-200': statusFilter === 'Pending' && status === 'Pending',
+                    'bg-blue-500/20 border-blue-500/50 text-blue-800 hover:bg-blue-500/30 dark:text-blue-200': statusFilter === 'In Progress' && status === 'In Progress',
+                    'bg-green-500/20 border-green-500/50 text-green-800 hover:bg-green-500/30 dark:text-green-200': statusFilter === 'Completed' && status === 'Completed',
+                    'bg-red-500/20 border-red-500/50 text-red-800 hover:bg-red-500/30 dark:text-red-200': statusFilter === 'Cancelled' && status === 'Cancelled',
                 })}
               >
                 {status}
@@ -246,10 +246,10 @@ export default function OrdersPage() {
             <TableHeader>
                 <TableRow>
                 <TableHead>Order Details</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead className="hidden md:table-cell">Date</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Status & Progress</TableHead>
-                <TableHead className="text-right">Total (PKR)</TableHead>
+                <TableHead className="text-right hidden md:table-cell">Total (PKR)</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
