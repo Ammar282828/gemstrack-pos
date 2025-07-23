@@ -44,6 +44,9 @@ const orderItemSchema = z.object({
   sampleImageDataUri: z.string().optional(),
   referenceSku: z.string().optional(),
   sampleGiven: z.boolean().default(false),
+  hasDiamonds: z.boolean().default(false),
+  stoneDetails: z.string().optional(),
+  diamondDetails: z.string().optional(),
   // Calculated fields, not part of the form itself but useful for state
   metalCost: z.number().optional(),
   totalEstimate: z.number().optional(),
@@ -236,13 +239,13 @@ export default function CustomOrderPage() {
   const liveEstimate = useMemo(() => {
     let subtotal = 0;
     formValues.items.forEach(item => {
-        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges } = item;
+        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds } = item;
         const goldRate = formValues.goldRate;
         if (!estimatedWeightG || estimatedWeightG <= 0 || !goldRate || goldRate <= 0) return;
 
         const productForCalc = {
           metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
-          wastagePercentage: 0, makingCharges, hasDiamonds: diamondCharges > 0,
+          wastagePercentage: 0, makingCharges, hasDiamonds,
           diamondCharges, stoneCharges, miscCharges: 0
         };
         const ratesForCalc = { goldRatePerGram24k: goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
@@ -261,10 +264,10 @@ export default function CustomOrderPage() {
     const { subtotal, grandTotal } = liveEstimate;
     
     const enrichedItems = data.items.map((item): OrderItem => {
-        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges } = item;
+        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds } = item;
         const productForCalc = {
           metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
-          wastagePercentage: 0, makingCharges, hasDiamonds: diamondCharges > 0,
+          wastagePercentage: 0, makingCharges, hasDiamonds,
           diamondCharges, stoneCharges, miscCharges: 0
         };
         const ratesForCalc = { goldRatePerGram24k: data.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
@@ -329,8 +332,13 @@ export default function CustomOrderPage() {
         item.diamondCharges > 0 ? `+ Diamond Charges: PKR ${item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null,
         item.stoneCharges > 0 ? `+ Other Stone Charges: PKR ${item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null
       ].filter(Boolean).join('\n');
+      
+      let specialDetails = '';
+      if(item.stoneDetails) specialDetails += `\nStone Details: ${item.stoneDetails}`;
+      if(item.diamondDetails) specialDetails += `\nDiamond Details: ${item.diamondDetails}`;
 
-      const fullDescription = `${description}\n\nCost Breakdown:\n${itemBreakdown}`;
+
+      const fullDescription = `${description}\n\nCost Breakdown:\n${itemBreakdown}${specialDetails}`;
 
       const itemData = [
         index + 1,
@@ -437,6 +445,9 @@ export default function CustomOrderPage() {
         sampleImageDataUri: '',
         referenceSku: '',
         sampleGiven: false,
+        hasDiamonds: false,
+        stoneDetails: '',
+        diamondDetails: '',
     });
   };
 
@@ -483,19 +494,32 @@ export default function CustomOrderPage() {
                                         </Select><FormMessage /></FormItem>
                                     )}/>
                                  </div>
-                                 <Separator />
-                                <p className="font-medium text-sm">Additional Charges</p>
+                                <Separator />
+                                <p className="font-medium text-sm">Additional Charges & Details</p>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <FormField control={control} name={`items.${index}.makingCharges`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Making</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <FormField control={control} name={`items.${index}.diamondCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamonds</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamonds</FormLabel><FormControl><Input type="number" {...field} disabled={!form.watch(`items.${index}.hasDiamonds`)} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <FormField control={control} name={`items.${index}.stoneCharges`} render={({ field }) => (
                                         <FormItem><FormLabel>Stones</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </div>
+                                 <FormField control={form.control} name={`items.${index}.hasDiamonds`} render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer">Item Contains Diamonds?</FormLabel></div></FormItem>
+                                )}/>
+                                <FormField control={control} name={`items.${index}.stoneDetails`} render={({ field }) => (
+                                   <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Stone Details</FormLabel><FormControl><Textarea placeholder="e.g., 1x Ruby (2ct), 4x Sapphire (0.5ct each)" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                {form.watch(`items.${index}.hasDiamonds`) &&
+                                  <FormField control={control} name={`items.${index}.diamondDetails`} render={({ field }) => (
+                                     <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamond Details</FormLabel><FormControl><Textarea placeholder="e.g., Center: 1ct VVS1, Side: 12x 0.05ct VS2" {...field} /></FormControl><FormMessage /></FormItem>
+                                  )}/>
+                                }
+
                                 <Separator />
                                 <p className="font-medium text-sm">Reference Details (Optional)</p>
                                  <div>
@@ -646,6 +670,18 @@ export default function CustomOrderPage() {
                                     {item.referenceSku && ` | Ref: ${item.referenceSku}`}
                                     {item.sampleGiven && ` | Sample Provided`}
                                 </p>
+                                 {item.stoneDetails && (
+                                    <div className="mt-2 text-xs p-2 bg-muted/50 rounded-md border">
+                                        <p className="font-semibold flex items-center"><GemIcon className="w-3 h-3 mr-1.5"/>Stone Details:</p>
+                                        <p className="text-muted-foreground whitespace-pre-wrap">{item.stoneDetails}</p>
+                                    </div>
+                                )}
+                                {item.diamondDetails && (
+                                    <div className="mt-2 text-xs p-2 bg-muted/50 rounded-md border">
+                                        <p className="font-semibold flex items-center"><Diamond className="w-3 h-3 mr-1.5"/>Diamond Details:</p>
+                                        <p className="text-muted-foreground whitespace-pre-wrap">{item.diamondDetails}</p>
+                                    </div>
+                                )}
                                 <div className="text-sm mt-2 p-2 bg-muted/50 rounded-md">
                                     <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                                     {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect } from 'react';
@@ -6,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -13,12 +15,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle } from 'lucide-react';
+import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum'];
+const CATEGORIES_WITH_STONES = ['cat001', 'cat002', 'cat003', 'cat005', 'cat006', 'cat010', 'cat011', 'cat012', 'cat013', 'cat014', 'cat015', 'cat016'];
 
 // Schema for the form data
 const productFormSchema = z.object({
@@ -33,6 +36,8 @@ const productFormSchema = z.object({
   stoneCharges: z.coerce.number().min(0, "Stone charges must be non-negative"),
   miscCharges: z.coerce.number().min(0, "Misc charges must be non-negative"),
   imageUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
+  stoneDetails: z.string().optional(),
+  diamondDetails: z.string().optional(),
   submitAction: z.enum(['saveAndClose', 'saveAndAddAnother']).optional(),
 }).superRefine((data, ctx) => {
   if (data.metalType === 'gold' && !data.karat) {
@@ -70,6 +75,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
       stoneCharges: product.stoneCharges,
       miscCharges: product.miscCharges,
       imageUrl: product.imageUrl || "",
+      stoneDetails: product.stoneDetails || "",
+      diamondDetails: product.diamondDetails || "",
     } : {
       categoryId: '',
       metalType: 'gold',
@@ -82,6 +89,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
       stoneCharges: 0,
       miscCharges: 0,
       imageUrl: "",
+      stoneDetails: "",
+      diamondDetails: "",
     },
   });
 
@@ -89,6 +98,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   const selectedMetalType = form.watch('metalType');
   const hasDiamondsValue = form.watch('hasDiamonds');
   const isGoldCoin = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
+  const showStoneDetails = CATEGORIES_WITH_STONES.includes(selectedCategoryId);
+
 
   useEffect(() => {
     if (selectedMetalType !== 'gold') {
@@ -106,10 +117,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
       form.setValue('makingCharges', 0);
       form.setValue('stoneCharges', 0);
       form.setValue('miscCharges', 0);
+      form.setValue('stoneDetails', '');
+      form.setValue('diamondDetails', '');
     } else if (hasDiamondsValue === false) {
        form.setValue('diamondCharges', 0);
+       form.setValue('diamondDetails', '');
     }
-  }, [isGoldCoin, hasDiamondsValue, form]);
+    if(!showStoneDetails) {
+        form.setValue('stoneDetails', '');
+    }
+  }, [isGoldCoin, hasDiamondsValue, showStoneDetails, form]);
 
 
   const processAndSubmit = async (data: ProductFormData) => {
@@ -136,6 +153,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                 stoneCharges: 0,
                 miscCharges: 0,
                 imageUrl: "",
+                stoneDetails: "",
+                diamondDetails: "",
             });
             // Manually trigger revalidation if needed
             form.trigger();
@@ -310,6 +329,31 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                     </FormItem>
                   )}
                 />
+                
+                {showStoneDetails && (
+                  <FormField
+                    control={form.control} name="stoneDetails"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel className="flex items-center"><Gem className="mr-2 h-4 w-4 text-primary" /> Stone Details</FormLabel>
+                        <FormControl><Textarea placeholder="e.g., 1x Ruby (2ct), 4x Sapphire (0.5ct each)" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                {hasDiamondsValue && (
+                  <FormField
+                    control={form.control} name="diamondDetails"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4 text-primary" /> Diamond Details</FormLabel>
+                        <FormControl><Textarea placeholder="e.g., Center: 1ct VVS1, Side: 12x 0.05ct VS2" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
             )}
 

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, Download, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond, Zap, Shield } from 'lucide-react';
+import { Edit3, Trash2, Download, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond, Zap, Shield, Gem } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -187,7 +187,7 @@ export default function ProductDetailPage() {
           </Card>
           
           <Card>
-            <CardHeader><CardTitle className="text-xl">Specifications</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-xl">Specifications & Details</CardTitle></CardHeader>
             <CardContent>
               <DetailItem label="Metal Type" value={productData.metalType.charAt(0).toUpperCase() + productData.metalType.slice(1)} icon={<Shield className="w-4 h-4" />} />
               {productData.metalType === 'gold' && productData.karat && (
@@ -202,6 +202,19 @@ export default function ProductDetailPage() {
               <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
               <Separator className="my-1" />
               <DetailItem label="Contains Diamonds" value={productData.hasDiamonds} icon={<Diamond className="w-4 h-4" />} />
+               {(productData.stoneDetails || productData.diamondDetails) && <Separator className="my-1" />}
+              {productData.stoneDetails && (
+                 <div className="py-2">
+                    <p className="text-sm text-muted-foreground flex items-center mb-1"><Gem className="w-4 h-4 mr-2" /> Stone Details</p>
+                    <p className="text-sm whitespace-pre-wrap font-medium bg-muted/50 p-2 rounded-md">{productData.stoneDetails}</p>
+                 </div>
+              )}
+               {productData.diamondDetails && (
+                 <div className="py-2">
+                    <p className="text-sm text-muted-foreground flex items-center mb-1"><Diamond className="w-4 h-4 mr-2" /> Diamond Details</p>
+                    <p className="text-sm whitespace-pre-wrap font-medium bg-muted/50 p-2 rounded-md">{productData.diamondDetails}</p>
+                 </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -264,5 +277,3 @@ export default function ProductDetailPage() {
     </div>
   );
 }
-
-    

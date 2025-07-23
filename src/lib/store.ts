@@ -191,6 +191,8 @@ export interface Product {
   miscCharges: number;
   qrCodeDataUrl?: string;
   imageUrl?: string;
+  stoneDetails?: string;
+  diamondDetails?: string;
 }
 
 export interface InvoiceItem {
@@ -210,6 +212,8 @@ export interface InvoiceItem {
   diamondChargesIfAny: number;
   stoneChargesIfAny: number;
   miscChargesIfAny: number;
+  stoneDetails?: string;
+  diamondDetails?: string;
 }
 
 export interface Invoice {
@@ -247,6 +251,9 @@ export interface OrderItem {
   referenceSku?: string;
   sampleGiven: boolean;
   isCompleted: boolean;
+  hasDiamonds: boolean;
+  stoneDetails?: string;
+  diamondDetails?: string;
   metalCost?: number;
   totalEstimate?: number;
 }
@@ -884,6 +891,8 @@ export const useAppStore = create<AppState>()(
                 diamondChargesIfAny: costs.diamondCharges,
                 stoneChargesIfAny: costs.stoneCharges,
                 miscChargesIfAny: costs.miscCharges,
+                stoneDetails: product.stoneDetails,
+                diamondDetails: product.diamondDetails,
             };
 
             if (product.metalType === 'gold' && productForCostCalc.karat) {

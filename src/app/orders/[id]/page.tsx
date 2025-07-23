@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2 } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -154,6 +154,18 @@ export default function OrderDetailPage() {
                                         {item.referenceSku && ` | Ref: ${item.referenceSku}`}
                                         {item.sampleGiven && ` | Sample Provided`}
                                     </p>
+                                     {item.stoneDetails && (
+                                        <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
+                                            <p className="font-semibold flex items-center"><Gem className="w-3 h-3 mr-1.5"/>Stone Details:</p>
+                                            <p className="text-muted-foreground whitespace-pre-wrap">{item.stoneDetails}</p>
+                                        </div>
+                                    )}
+                                    {item.diamondDetails && (
+                                        <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
+                                            <p className="font-semibold flex items-center"><Diamond className="w-3 h-3 mr-1.5"/>Diamond Details:</p>
+                                            <p className="text-muted-foreground whitespace-pre-wrap">{item.diamondDetails}</p>
+                                        </div>
+                                    )}
                                     <div className="text-sm mt-2 p-2 bg-background rounded-md">
                                         <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                                         {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
