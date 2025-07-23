@@ -231,20 +231,16 @@ export default function CartPage() {
         metalDisplay += ` (${item.karat.toUpperCase()})`;
       }
 
-      let breakdownLines = [];
-      breakdownLines.push(`Metal Cost: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.wastageCost > 0) breakdownLines.push(`+ Wastage (${item.wastagePercentage}%): ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.makingCharges > 0) breakdownLines.push(`+ Making Charges: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.diamondChargesIfAny > 0) breakdownLines.push(`+ Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.stoneChargesIfAny > 0) breakdownLines.push(`+ Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-      if (item.miscChargesIfAny > 0) breakdownLines.push(`+ Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-
-      const breakdown = breakdownLines.join('\n');
-      const itemDescription = `${item.name} (SKU: ${item.sku})\nMetal: ${metalDisplay}, Wt: ${item.metalWeightG.toFixed(2)}g\n${breakdown ? breakdown : ''}`;
+      // We pass the raw item to the cell's meta for custom rendering
+      const itemDescription = {
+        name: `${item.name} (SKU: ${item.sku})`,
+        details: `Metal: ${metalDisplay}, Wt: ${item.metalWeightG.toFixed(2)}g`,
+        breakdown: item // Pass the full item for breakdown rendering
+      };
 
       const itemData = [
         index + 1,
-        itemDescription.trim(),
+        itemDescription, // Pass the object
         item.quantity,
         item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -260,6 +256,55 @@ export default function CartPage() {
       headStyles: { fillColor: [0, 60, 0], fontStyle: 'bold' },
       styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
       columnStyles: { 1: { cellWidth: 'auto' } },
+      didDrawCell: (data) => {
+        // Custom rendering for the 'Item Description' column
+        if (data.column.index === 1 && data.cell.section === 'body') {
+            const cellData = data.cell.raw;
+            if (typeof cellData === 'object' && cellData !== null && 'breakdown' in cellData) {
+                const item = cellData.breakdown as InvoiceItem;
+                const doc = data.doc;
+                const cell = data.cell;
+                let y = cell.y + 4;
+
+                // Main Item Name & Details
+                doc.setFont('helvetica', 'bold');
+                doc.text(cellData.name, cell.x + 2, y);
+                y += 4;
+                doc.setFont('helvetica', 'normal');
+                doc.text(cellData.details, cell.x + 2, y);
+                y += 5;
+                
+                // Cost Breakdown
+                const renderLine = (label: string, value: number) => {
+                    if (value > 0) {
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(label, cell.x + 4, y);
+                        const valueText = value.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(valueText, cell.x + 4 + doc.getTextWidth(label), y);
+                        y += 4;
+                    }
+                };
+                 const renderLineWithPrefix = (prefix: string, label: string, value: number) => {
+                    if (value > 0) {
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(`${prefix} ${label}`, cell.x + 4, y);
+                        const valueText = value.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(valueText, cell.x + 4 + doc.getTextWidth(`${prefix} ${label}`), y);
+                        y += 4;
+                    }
+                };
+
+                renderLine('Metal Cost: ', item.metalCost);
+                if (item.wastageCost > 0) renderLineWithPrefix('+', `Wastage (${item.wastagePercentage}%): `, item.wastageCost);
+                if (item.makingCharges > 0) renderLineWithPrefix('+', 'Making Charges: ', item.makingCharges);
+                if (item.diamondChargesIfAny > 0) renderLineWithPrefix('+', 'Diamonds: ', item.diamondChargesIfAny);
+                if (item.stoneChargesIfAny > 0) renderLineWithPrefix('+', 'Stones: ', item.stoneChargesIfAny);
+                if (item.miscChargesIfAny > 0) renderLineWithPrefix('+', 'Misc: ', item.miscChargesIfAny);
+            }
+        }
+      }
     });
 
     // --- Totals Section ---
@@ -267,10 +312,11 @@ export default function CartPage() {
     let currentY = finalY + 10;
     
     const totalsValueX = pageWidth - margin;
-    const totalsLabelX = totalsValueX - 35; // Position for the labels
+    const totalsLabelX = totalsValueX - 40; // Position for the labels
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
+    
     doc.text(`Subtotal:`, totalsLabelX, currentY, { align: 'right'});
     doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
     currentY += 6;
