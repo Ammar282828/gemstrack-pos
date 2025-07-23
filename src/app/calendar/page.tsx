@@ -64,7 +64,7 @@ export default function CalendarPage() {
   const selectedDateString = selectedDate ? format(startOfDay(selectedDate), 'yyyy-MM-dd') : undefined;
   const eventsForSelectedDay = selectedDateString ? eventsByDate[selectedDateString]?.events : undefined;
 
-  const handleDayClick = (day: Date) => {
+  const handleDayClick = (day: Date | undefined) => {
     setSelectedDate(day);
   };
 
