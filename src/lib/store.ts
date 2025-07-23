@@ -848,12 +848,14 @@ export const useAppStore = create<AppState>()(
                 console.warn(`[GemsTrack Store generateInvoice] Product SKU ${cartItem.sku} not found in store for invoice.`);
                 continue;
             }
-            const productForCostCalc = {
+            // Deep copy the product object to avoid mutating the original store state
+            const productForCostCalc = JSON.parse(JSON.stringify({
                 name: product.name, categoryId: product.categoryId, metalType: product.metalType,
                 karat: product.metalType === 'gold' ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL) : undefined,
                 metalWeightG: product.metalWeightG, wastagePercentage: product.wastagePercentage, makingCharges: product.makingCharges,
                 hasDiamonds: product.hasDiamonds, diamondCharges: product.diamondCharges, stoneCharges: product.stoneCharges, miscCharges: product.miscCharges,
-            };
+            }));
+            
             const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice);
             if (isNaN(costs.totalPrice)) {
                 console.error(`[GemsTrack Store generateInvoice] Calculated cost for product ${product.sku} in cart is NaN.`);
@@ -863,7 +865,6 @@ export const useAppStore = create<AppState>()(
             const itemTotal = unitPrice * cartItem.quantity;
             subtotal += itemTotal;
             
-            // Build the item object carefully, excluding undefined karat
             const finalItem: InvoiceItem = {
                 sku: product.sku,
                 name: product.name,
@@ -896,7 +897,6 @@ export const useAppStore = create<AppState>()(
         const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
         const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
         
-        // Build the main invoice object carefully, excluding undefined optional fields
         const newInvoiceData: { [key: string]: any } = {
           items: invoiceItems, 
           subtotal: Number(subtotal) || 0,
@@ -983,9 +983,13 @@ export const useAppStore = create<AppState>()(
           }
         }
         
-        // This is the important fix: ensure subtotal and grandTotal are numbers
         const finalSubtotal = Number(orderData.subtotal) || 0;
         const finalGrandTotal = Number(orderData.grandTotal) || 0;
+
+        if (isNaN(finalSubtotal) || isNaN(finalGrandTotal)) {
+            console.error(`[GemsTrack Store addOrder] CRITICAL ERROR: Calculated totals are NaN for new order ${newOrderId}.`, {subtotal: orderData.subtotal, grandTotal: orderData.grandTotal});
+            return null;
+        }
 
         const newOrder: Order = {
           ...orderData,
