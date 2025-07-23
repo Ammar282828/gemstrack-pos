@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useAppStore, Order, useAppReady, ORDER_STATUSES, OrderStatus, OrderItem } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar } from 'lucide-react';
