@@ -346,6 +346,7 @@ const staticCategories: Category[] = [
 
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
+type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
 
 export interface CartItem {
   sku: string;
@@ -412,7 +413,7 @@ export interface AppState {
   ) => Promise<Invoice | null>;
   
   loadOrders: () => Promise<void>;
-  addOrder: (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>) => Promise<Order | null>;
+  addOrder: (orderData: OrderDataForAdd) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
 
   fetchAllInitialData: () => Promise<void>;
@@ -981,9 +982,15 @@ export const useAppStore = create<AppState>()(
             customerNameToSave = customer.name;
           }
         }
+        
+        // This is the important fix: ensure subtotal and grandTotal are numbers
+        const finalSubtotal = Number(orderData.subtotal) || 0;
+        const finalGrandTotal = Number(orderData.grandTotal) || 0;
 
         const newOrder: Order = {
           ...orderData,
+          subtotal: finalSubtotal,
+          grandTotal: finalGrandTotal,
           customerName: customerNameToSave,
           id: newOrderId,
           createdAt: new Date().toISOString(),
