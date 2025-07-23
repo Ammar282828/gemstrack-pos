@@ -49,7 +49,7 @@ type SettingsFormData = z.infer<typeof settingsSchema>;
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
 type CustomerDataForAdd = Omit<Customer, 'id'>;
 type KarigarDataForAdd = Omit<Karigar, 'id'>;
-type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status' | 'subtotal' | 'grandTotal'>;
+type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
 
 
 const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [];
@@ -829,5 +829,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
