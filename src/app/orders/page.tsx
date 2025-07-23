@@ -49,8 +49,9 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
     }
   };
 
-  const completedItems = order.items.filter(item => item.isCompleted).length;
-  const totalItems = order.items.length;
+  const safeItems = Array.isArray(order.items) ? order.items : [];
+  const completedItems = safeItems.filter(item => item.isCompleted).length;
+  const totalItems = safeItems.length;
   const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
 
   return (
@@ -128,7 +129,7 @@ export default function OrdersPage() {
 
     const fetchSummaries = async () => {
         const summariesToFetch = orders
-            .filter(order => !orderSummaries[order.id]) // Only fetch for orders without a summary
+            .filter(order => !orderSummaries[order.id] && Array.isArray(order.items) && order.items.length > 0) // Only fetch for orders without a summary and with items
             .map(async (order) => {
                 try {
                     const input: SummarizeOrderItemsInput = {
@@ -144,12 +145,14 @@ export default function OrdersPage() {
                 }
             });
 
-        const newSummaries = await Promise.all(summariesToFetch);
-        if (newSummaries.length > 0) {
-            setOrderSummaries(prev => ({
-                ...prev,
-                ...Object.fromEntries(newSummaries.map(s => [s.id, s.summary])),
-            }));
+        if (summariesToFetch.length > 0) {
+            const newSummaries = await Promise.all(summariesToFetch);
+            if (newSummaries.length > 0) {
+                setOrderSummaries(prev => ({
+                    ...prev,
+                    ...Object.fromEntries(newSummaries.map(s => [s.id, s.summary])),
+                }));
+            }
         }
     };
 
@@ -275,4 +278,3 @@ export default function OrdersPage() {
     </div>
   );
 }
-
