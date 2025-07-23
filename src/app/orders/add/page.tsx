@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,7 +15,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -39,7 +40,7 @@ const orderItemSchema = z.object({
   makingCharges: z.coerce.number().min(0).default(0),
   diamondCharges: z.coerce.number().min(0).default(0),
   stoneCharges: z.coerce.number().min(0).default(0),
-  sampleImageUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  sampleImageDataUri: z.string().optional(),
   referenceSku: z.string().optional(),
   sampleGiven: z.boolean().default(false),
   // Calculated fields, not part of the form itself but useful for state
@@ -59,6 +60,118 @@ const orderFormSchema = z.object({
 type OrderItemData = z.infer<typeof orderItemSchema>;
 type OrderFormData = z.infer<typeof orderFormSchema>;
 
+
+const ImageCapture: React.FC<{
+  itemIndex: number;
+  onImageSelect: (dataUri: string) => void;
+  onImageRemove: () => void;
+  currentImage?: string;
+}> = ({ itemIndex, onImageSelect, onImageRemove, currentImage }) => {
+  const { toast } = useToast();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({ title: "Image too large", description: "Please select an image smaller than 5MB.", variant: "destructive" });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        onImageSelect(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (error) {
+      console.error("Error accessing camera:", error);
+      toast({ title: "Camera Error", description: "Could not access the camera. Please check permissions.", variant: "destructive" });
+      setIsCameraOpen(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+  };
+  
+  const handleCapture = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+        const dataUri = canvas.toDataURL('image/jpeg');
+        onImageSelect(dataUri);
+        setIsCameraOpen(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isCameraOpen) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => stopCamera();
+  }, [isCameraOpen]);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+          <Upload className="mr-2 h-4 w-4" /> Upload Image
+        </Button>
+        <Input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
+        
+        <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
+            <DialogTrigger asChild>
+                <Button type="button" variant="outline" size="sm"><Camera className="mr-2 h-4 w-4"/> Take Photo</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Take a Photo</DialogTitle></DialogHeader>
+                <video ref={videoRef} autoPlay playsInline className="w-full rounded-md border bg-muted"></video>
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
+                <DialogFooter>
+                    <Button onClick={handleCapture} disabled={!stream}>Capture</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+      </div>
+
+      {currentImage && (
+        <div className="relative w-32 h-32 mt-2 p-1 border rounded-md">
+          <Image src={currentImage} alt={`Sample for item ${itemIndex + 1}`} fill className="object-contain" />
+          <Button type="button" size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={onImageRemove}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 export default function CustomOrderPage() {
   const { toast } = useToast();
   const appReady = useAppReady();
@@ -77,7 +190,7 @@ export default function CustomOrderPage() {
     },
   });
   
-  const { fields, append, remove } = useFieldArray({
+  const { control, fields, append, remove, setValue } = useFieldArray({
     control: form.control,
     name: "items",
   });
@@ -269,7 +382,7 @@ export default function CustomOrderPage() {
         makingCharges: 0,
         diamondCharges: 0,
         stoneCharges: 0,
-        sampleImageUrl: '',
+        sampleImageDataUri: '',
         referenceSku: '',
         sampleGiven: false,
     });
@@ -304,14 +417,14 @@ export default function CustomOrderPage() {
                                     <Trash2 className="h-4 w-4" />
                                     <span className="sr-only">Remove Item</span>
                                 </Button>
-                                <FormField control={form.control} name={`items.${index}.description`} render={({ field }) => (
+                                <FormField control={control} name={`items.${index}.description`} render={({ field }) => (
                                     <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g., Custom 22k gold ring with ruby stone" {...field} rows={2}/></FormControl><FormMessage /></FormItem>
                                 )}/>
                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <FormField control={form.control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
+                                    <FormField control={control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>Est. Gold Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
-                                    <FormField control={form.control} name={`items.${index}.karat`} render={({ field }) => (
+                                    <FormField control={control} name={`items.${index}.karat`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4"/>Gold Karat</FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                             <SelectContent>{karatValues.map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
@@ -321,27 +434,35 @@ export default function CustomOrderPage() {
                                  <Separator />
                                 <p className="font-medium text-sm">Additional Charges</p>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <FormField control={form.control} name={`items.${index}.makingCharges`} render={({ field }) => (
+                                    <FormField control={control} name={`items.${index}.makingCharges`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Making</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
-                                    <FormField control={form.control} name={`items.${index}.diamondCharges`} render={({ field }) => (
+                                    <FormField control={control} name={`items.${index}.diamondCharges`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamonds</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
-                                    <FormField control={form.control} name={`items.${index}.stoneCharges`} render={({ field }) => (
+                                    <FormField control={control} name={`items.${index}.stoneCharges`} render={({ field }) => (
                                         <FormItem><FormLabel>Stones</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </div>
                                 <Separator />
                                 <p className="font-medium text-sm">Reference Details (Optional)</p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                     <FormField control={form.control} name={`items.${index}.sampleImageUrl`} render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center"><Camera className="mr-2 h-4 w-4"/>Sample Picture URL</FormLabel><FormControl><Input type="url" placeholder="https://example.com/image.png" {...field} /></FormControl><FormMessage /></FormItem>
+                                 <div>
+                                    <FormLabel className="flex items-center"><Camera className="mr-2 h-4 w-4"/>Sample Picture</FormLabel>
+                                    <FormField control={control} name={`items.${index}.sampleImageDataUri`} render={({ field }) => (
+                                        <ImageCapture
+                                            itemIndex={index}
+                                            currentImage={field.value}
+                                            onImageSelect={(dataUri) => setValue(`items.${index}.sampleImageDataUri`, dataUri, { shouldValidate: true, shouldDirty: true })}
+                                            onImageRemove={() => setValue(`items.${index}.sampleImageDataUri`, '', { shouldValidate: true, shouldDirty: true })}
+                                        />
                                     )}/>
-                                     <FormField control={form.control} name={`items.${index}.referenceSku`} render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center"><LinkIcon className="mr-2 h-4 w-4"/>Reference SKU</FormLabel><FormControl><Input placeholder="e.g., RIN-123456" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                </div>
-                                <FormField control={form.control} name={`items.${index}.sampleGiven`} render={({ field }) => (
+                                 </div>
+
+                                <FormField control={control} name={`items.${index}.referenceSku`} render={({ field }) => (
+                                   <FormItem><FormLabel className="flex items-center"><LinkIcon className="mr-2 h-4 w-4"/>Reference SKU</FormLabel><FormControl><Input placeholder="e.g., RIN-123456" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+
+                                <FormField control={control} name={`items.${index}.sampleGiven`} render={({ field }) => (
                                     <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                     <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer"><Hand className="mr-2 h-4 w-4"/>Customer provided a physical sample</FormLabel></div></FormItem>
                                 )}/>
@@ -425,21 +546,28 @@ export default function CustomOrderPage() {
                  <ScrollArea className="h-[50vh]">
                      <div className="space-y-4">
                         {generatedEstimate.items.map((item, index) => (
-                        <div key={index} className="p-4 border rounded-lg">
-                            <p className="font-bold">Item #{index+1}: {item.description}</p>
-                            <p className="text-sm text-muted-foreground">
-                                Est. Wt: {item.estimatedWeightG}g ({item.karat.toUpperCase()})
-                                {item.referenceSku && ` | Ref: ${item.referenceSku}`}
-                                {item.sampleGiven && ` | Sample Provided`}
-                            </p>
-                             <div className="text-sm mt-2 p-2 bg-muted/50 rounded-md">
-                                <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                                {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                {item.diamondCharges > 0 && <div className="flex justify-between"><span>+ Diamond Charges:</span> <span className="font-semibold">PKR {item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                {item.stoneCharges > 0 && <div className="flex justify-between"><span>+ Other Stone Charges:</span> <span className="font-semibold">PKR {item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                <Separator className="my-1"/>
-                                <div className="flex justify-between font-bold"><span>Item Total:</span> <span>PKR {item.totalEstimate?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                             </div>
+                        <div key={index} className="p-4 border rounded-lg flex gap-4">
+                            {item.sampleImageDataUri && (
+                                <div className="relative w-24 h-24 flex-shrink-0">
+                                    <Image src={item.sampleImageDataUri} alt={`Sample for ${item.description}`} fill className="object-contain rounded-md border bg-muted" />
+                                </div>
+                            )}
+                            <div className="flex-grow">
+                                <p className="font-bold">Item #{index+1}: {item.description}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Est. Wt: {item.estimatedWeightG}g ({item.karat.toUpperCase()})
+                                    {item.referenceSku && ` | Ref: ${item.referenceSku}`}
+                                    {item.sampleGiven && ` | Sample Provided`}
+                                </p>
+                                <div className="text-sm mt-2 p-2 bg-muted/50 rounded-md">
+                                    <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                    {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                    {item.diamondCharges > 0 && <div className="flex justify-between"><span>+ Diamond Charges:</span> <span className="font-semibold">PKR {item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                    {item.stoneCharges > 0 && <div className="flex justify-between"><span>+ Other Stone Charges:</span> <span className="font-semibold">PKR {item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                    <Separator className="my-1"/>
+                                    <div className="flex justify-between font-bold"><span>Item Total:</span> <span>PKR {item.totalEstimate?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                </div>
+                            </div>
                         </div>
                         ))}
                     </div>
@@ -469,3 +597,5 @@ export default function CustomOrderPage() {
     </div>
   );
 }
+
+    
