@@ -28,7 +28,7 @@ body {
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 224 71.4% 4.1%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
     --chart-1: 220.9 39.3% 11%;
     --chart-2: 160 60% 45%;
     --chart-3: 35.2 91.4% 58.4%;
@@ -66,7 +66,7 @@ body {
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 215 20.2% 65.1%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   /* Theme: Forest */
@@ -388,7 +388,7 @@ body {
   }
   /* Ensure elegant typography by default */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
+    @apply font-bold tracking-tight;
   }
   h1 { @apply text-3xl; }
   h2 { @apply text-2xl; }

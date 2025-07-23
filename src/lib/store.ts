@@ -131,12 +131,12 @@ export interface Theme {
 
 export const AVAILABLE_THEMES: Theme[] = [
     { key: 'default', name: 'Default Dark', primaryColorHsl: '210 40% 98%' },
+    { key: 'slate', name: 'Slate', primaryColorHsl: '210 90% 75%' },
     { key: 'forest', name: 'Forest', primaryColorHsl: '130 65% 60%' },
     { key: 'ocean', name: 'Ocean', primaryColorHsl: '185 70% 55%' },
     { key: 'sunset', name: 'Sunset', primaryColorHsl: '30 90% 60%' },
     { key: 'amethyst', name: 'Amethyst', primaryColorHsl: '260 80% 70%' },
     { key: 'quartz', name: 'Quartz', primaryColorHsl: '340 85% 70%' },
-    { key: 'slate', name: 'Slate', primaryColorHsl: '210 90% 75%' },
     { key: 'latte', name: 'Latte', primaryColorHsl: '40 80% 70%' },
     { key: 'mint', name: 'Mint', primaryColorHsl: '155 80% 65%' },
     { key: 'gold', name: 'Gold', primaryColorHsl: '45 90% 65%' },
@@ -322,7 +322,7 @@ const initialSettingsData: Settings = {
   shopLogoUrl: "https://placehold.co/200x80.png", lastInvoiceNumber: 0,
   lastOrderNumber: 0,
   allowedDeviceIds: [],
-  theme: 'forest',
+  theme: 'slate',
   firebaseConfig: {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -502,7 +502,7 @@ export const useAppStore = create<AppState>()(
               allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
                 ? firestoreSettings.allowedDeviceIds
                 : [],
-              theme: firestoreSettings.theme || 'forest',
+              theme: firestoreSettings.theme || 'slate',
             };
             set((state) => { state.settings = finalSettings; });
             console.log("[GemsTrack Store loadSettings] Settings loaded successfully from Firestore:", finalSettings);
