@@ -91,19 +91,19 @@ function _calculateProductCostsInternal(
   const wastageCost = validMetalCost * (wastagePercentage / 100);
   const validWastageCost = Number(wastageCost) || 0;
   const totalPrice = validMetalCost + validWastageCost + makingCharges + diamondChargesValue + stoneChargesValue + miscChargesValue;
-  const finalTotalPrice = Number(totalPrice) || 0;
-
-  if (isNaN(finalTotalPrice)) {
-    console.error("[GemsTrack Store _calculateProductCostsInternal] Produced NaN. Details:", {
+  
+  // CRITICAL FIX: Ensure totalPrice is never NaN.
+  if (isNaN(totalPrice)) {
+    console.error("[GemsTrack Store _calculateProductCostsInternal] CRITICAL: Produced NaN. Details:", {
         productInputName: product.name,
         productCategoryId: product.categoryId,
         productProcessed: { metalWeightG, wastagePercentage, makingCharges, hasDiamonds: hasDiamondsValue, diamondChargesValue, stoneChargesValue, miscChargesValue, currentMetalType, karat: product.karat },
         ratesInput: rates,
         ratesProcessed: { goldRate24k, palladiumRate, platinumRate },
         derivedCosts: { metalCost: validMetalCost, wastageCost: validWastageCost },
-        calculatedTotalPrice: totalPrice,
-        finalTotalPriceReturned: finalTotalPrice
+        calculatedTotalPrice: totalPrice
     });
+    // Return a safe, zeroed-out object if NaN is detected.
     return { metalCost: 0, wastageCost: 0, makingCharges: 0, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, totalPrice: 0 };
   }
 
@@ -114,7 +114,7 @@ function _calculateProductCostsInternal(
     diamondCharges: diamondChargesValue,
     stoneCharges: stoneChargesValue,
     miscCharges: miscChargesValue,
-    totalPrice: finalTotalPrice,
+    totalPrice: totalPrice,
   };
 }
 
@@ -857,8 +857,9 @@ export const useAppStore = create<AppState>()(
             }));
             
             const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice);
+            // CRITICAL NaN Check
             if (isNaN(costs.totalPrice)) {
-                console.error(`[GemsTrack Store generateInvoice] Calculated cost for product ${product.sku} in cart is NaN.`);
+                console.error(`[GemsTrack Store generateInvoice] Calculated cost for product ${product.sku} in cart is NaN. Skipping item.`);
                 continue;
             }
             const unitPrice = costs.totalPrice;
@@ -983,13 +984,9 @@ export const useAppStore = create<AppState>()(
           }
         }
         
+        // CRITICAL FIX: Ensure totals are always numbers before saving.
         const finalSubtotal = Number(orderData.subtotal) || 0;
         const finalGrandTotal = Number(orderData.grandTotal) || 0;
-
-        if (isNaN(finalSubtotal) || isNaN(finalGrandTotal)) {
-            console.error(`[GemsTrack Store addOrder] CRITICAL ERROR: Calculated totals are NaN for new order ${newOrderId}.`, {subtotal: orderData.subtotal, grandTotal: orderData.grandTotal});
-            return null;
-        }
 
         const newOrder: Order = {
           ...orderData,

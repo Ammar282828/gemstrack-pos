@@ -29,6 +29,8 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
   };
 
 const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
+  const safeGrandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
+  
   return (
     <TableRow>
       <TableCell>
@@ -45,7 +47,7 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
          <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
       </TableCell>
       <TableCell className="text-right">
-        PKR {order.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        PKR {safeGrandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
       </TableCell>
       <TableCell className="text-right">
         <Button asChild size="sm" variant="outline">
