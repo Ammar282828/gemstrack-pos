@@ -52,184 +52,13 @@ type KarigarDataForAdd = Omit<Karigar, 'id'>;
 type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status' | 'subtotal' | 'grandTotal'>;
 
 
-const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
-  {
-    categoryId: 'cat001', // Rings
-    metalType: 'gold' as MetalType,
-    karat: '22k' as KaratValue,
-    metalWeightG: 5.5,
-    wastagePercentage: 12,
-    makingCharges: 8000,
-    hasDiamonds: true,
-    diamondCharges: 25000,
-    stoneCharges: 0,
-    miscCharges: 500,
-    imageUrl: 'https://placehold.co/400x400.png?text=Gold+Ring',
-  },
-  {
-    categoryId: 'cat009', // Bands
-    metalType: 'platinum' as MetalType,
-    metalWeightG: 7.0,
-    wastagePercentage: 8,
-    makingCharges: 6000,
-    hasDiamonds: false,
-    diamondCharges: 0,
-    stoneCharges: 500,
-    miscCharges: 200,
-    imageUrl: 'https://placehold.co/400x400.png?text=Platinum+Band',
-  },
-  { 
-    categoryId: GOLD_COIN_CATEGORY_ID, // Gold Coins
-    metalType: 'gold' as MetalType,
-    karat: '24k' as KaratValue,
-    metalWeightG: 10, // 10 gram 24k coin
-    wastagePercentage: 0, 
-    makingCharges: 0,    
-    hasDiamonds: false,  
-    diamondCharges: 0,   
-    stoneCharges: 0,     
-    miscCharges: 0,      
-    imageUrl: 'https://placehold.co/400x400.png?text=Gold+Coin',
-  },
-  {
-    categoryId: 'cat004', // Lockets
-    metalType: 'palladium' as MetalType,
-    metalWeightG: 12.0,
-    wastagePercentage: 10,
-    makingCharges: 7500,
-    hasDiamonds: false,
-    diamondCharges: 0,
-    stoneCharges: 1200,
-    miscCharges: 300,
-    imageUrl: 'https://placehold.co/400x400.png?text=Palladium+Locket',
-  },
-  {
-    categoryId: 'cat007', // Bangles
-    metalType: 'gold' as MetalType,
-    karat: '21k' as KaratValue,
-    metalWeightG: 25.0,
-    wastagePercentage: 15,
-    makingCharges: 15000,
-    hasDiamonds: false,
-    diamondCharges: 0,
-    stoneCharges: 3000, // e.g. enamel work or small stones
-    miscCharges: 1000,
-    imageUrl: 'https://placehold.co/400x400.png?text=Gold+Bangle',
-  },
-  {
-    categoryId: 'cat002', // Tops (Earrings)
-    metalType: 'gold' as MetalType,
-    karat: '18k' as KaratValue,
-    metalWeightG: 3.2,
-    wastagePercentage: 10,
-    makingCharges: 4500,
-    hasDiamonds: false, // Assuming small, non-diamond stones
-    diamondCharges: 0,
-    stoneCharges: 8000, // e.g. for colored gemstones
-    miscCharges: 150,
-    imageUrl: 'https://placehold.co/400x400.png?text=Gold+Tops',
-  },
-  {
-    categoryId: 'cat008', // Chains
-    metalType: 'gold' as MetalType,
-    karat: '22k' as KaratValue,
-    metalWeightG: 15.0,
-    wastagePercentage: 8, // Chains might have lower wastage
-    makingCharges: 10000,
-    hasDiamonds: false,
-    diamondCharges: 0,
-    stoneCharges: 0,
-    miscCharges: 0,
-    imageUrl: 'https://placehold.co/400x400.png?text=Gold+Chain',
-  },
-  {
-    categoryId: 'cat010', // Locket Sets without Bangle
-    metalType: 'gold' as MetalType,
-    karat: '21k' as KaratValue,
-    metalWeightG: 18.5,
-    wastagePercentage: 18, // Sets can have higher wastage due to complexity
-    makingCharges: 20000,
-    hasDiamonds: true,
-    diamondCharges: 40000,
-    stoneCharges: 5000, // Accent stones
-    miscCharges: 800,
-    imageUrl: 'https://placehold.co/400x400.png?text=Locket+Set',
-  },
-];
+const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [];
 
-const DUMMY_CUSTOMERS_TO_SEED: CustomerDataForAdd[] = [
-  { name: "Aisha Khan", phone: "0300-1234567", email: "aisha.khan@example.com", address: "12B, Gulshan-e-Iqbal, Karachi" },
-  { name: "Bilal Ahmed", phone: "0333-9876543", email: "bilal.ahmed@example.com", address: "House 45, Street 10, F-8/3, Islamabad" },
-  { name: "Fatima Ali", email: "fatima.ali@example.com", address: "789, Model Town, Lahore" },
-  { name: "Osman Malik", phone: "0321-5550000" },
-  { name: "Sana Javed", address: "Apt 3C, Clifton Block 2, Karachi" }
-];
+const DUMMY_CUSTOMERS_TO_SEED: CustomerDataForAdd[] = [];
 
-const DUMMY_KARIGARS_TO_SEED: KarigarDataForAdd[] = [
-  { name: "Ustad Karim Baksh", contact: "0301-7654321", notes: "Specializes in intricate gold work and setting." },
-  { name: "Rehmat Ali & Sons", contact: "0345-1122334", notes: "General purpose, good for platinum and bands." },
-  { name: "Diamond Cutters Co.", notes: "Only diamond setting and polishing. Very precise." },
-  { name: "Haji Murad", contact: "0311-0009988" }
-];
+const DUMMY_KARIGARS_TO_SEED: KarigarDataForAdd[] = [];
 
-const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] = [
-    {
-        items: [{
-            description: "Custom bridal necklace set with pearls",
-            karat: "22k",
-            estimatedWeightG: 45.5,
-            makingCharges: 50000,
-            diamondCharges: 0,
-            stoneCharges: 15000,
-            sampleGiven: false,
-        }],
-        goldRate: 21500,
-        advancePayment: 100000,
-        customerName: "Sana Javed",
-    },
-    {
-        items: [{
-            description: "Platinum wedding bands, matching pair",
-            karat: "21k", // Will be ignored as not gold, placeholder
-            estimatedWeightG: 12.0,
-            makingCharges: 12000,
-            diamondCharges: 0,
-            stoneCharges: 0,
-            sampleGiven: false,
-        }],
-        goldRate: 21500, // Gold rate still needed for potential gold items
-        advancePayment: 20000,
-        customerName: "Walk-in",
-        customerContact: "0301-1112222",
-    },
-    {
-        items: [
-            {
-                description: "Re-creation of antique jhumka earrings",
-                karat: "21k",
-                estimatedWeightG: 15.0,
-                makingCharges: 18000,
-                diamondCharges: 0,
-                stoneCharges: 2500,
-                sampleGiven: true,
-                referenceSku: "TOP-000012"
-            },
-            {
-                description: "Simple gold chain to match",
-                karat: "21k",
-                estimatedWeightG: 10.0,
-                makingCharges: 8000,
-                diamondCharges: 0,
-                stoneCharges: 0,
-                sampleGiven: false,
-            }
-        ],
-        goldRate: 21800,
-        advancePayment: 50000,
-        customerName: "Aisha Khan",
-        advanceGoldDetails: "Customer gave 5g old 21k gold. To be adjusted in final bill."
-    }
-];
+const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] = [];
 
 
 export default function SettingsPage() {
@@ -333,6 +162,10 @@ export default function SettingsPage() {
   };
 
   const handleSeedProducts = async () => {
+    if (DUMMY_PRODUCTS_TO_SEED.length === 0) {
+        toast({ title: "No Data to Seed", description: "The dummy product list is empty.", variant: "default" });
+        return;
+    }
     setIsSeedingProducts(true);
     let successCount = 0;
     let errorCount = 0;
@@ -380,6 +213,10 @@ export default function SettingsPage() {
   };
 
   const handleSeedCustomers = async () => {
+    if (DUMMY_CUSTOMERS_TO_SEED.length === 0) {
+        toast({ title: "No Data to Seed", description: "The dummy customer list is empty.", variant: "default" });
+        return;
+    }
     setIsSeedingCustomers(true);
     let successCount = 0;
     let errorCount = 0;
@@ -406,6 +243,10 @@ export default function SettingsPage() {
   };
 
   const handleSeedKarigars = async () => {
+    if (DUMMY_KARIGARS_TO_SEED.length === 0) {
+        toast({ title: "No Data to Seed", description: "The dummy karigar list is empty.", variant: "default" });
+        return;
+    }
     setIsSeedingKarigars(true);
     let successCount = 0;
     let errorCount = 0;
@@ -432,6 +273,10 @@ export default function SettingsPage() {
   };
 
   const handleSeedOrders = async () => {
+     if (DUMMY_ORDERS_TO_SEED.length === 0) {
+        toast({ title: "No Data to Seed", description: "The dummy order list is empty.", variant: "default" });
+        return;
+    }
     setIsSeedingOrders(true);
     let successCount = 0;
     let errorCount = 0;
@@ -442,7 +287,7 @@ export default function SettingsPage() {
         // Calculate subtotal and grandTotal for the dummy order
         let subtotal = 0;
         const enrichedItems = orderData.items.map((item) => {
-          const itemAsProduct = { ...item, metalType: 'gold' as MetalType, hasDiamonds: item.diamondCharges > 0, miscCharges: 0 };
+          const itemAsProduct = { ...item, metalType: 'gold' as MetalType, hasDiamonds: item.diamondCharges > 0, miscCharges: 0, categoryId: '' };
           const ratesForCalc = { goldRatePerGram24k: orderData.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
           const costs = calculateProductCosts(itemAsProduct, ratesForCalc);
           subtotal += costs.totalPrice;
