@@ -2,22 +2,24 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAppStore, Settings, KaratValue, useAppReady, calculateProductCosts } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler } from 'lucide-react';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, ScrollArea } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
+import Image from 'next/image';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -28,23 +30,32 @@ declare module 'jspdf' {
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 
-// Schema for the custom order form
-const orderFormSchema = z.object({
+// Schema for a single custom order item
+const orderItemSchema = z.object({
   description: z.string().min(3, "Description is required"),
   karat: z.enum(karatValues),
   estimatedWeightG: z.coerce.number().min(0.1, "Weight must be a positive number"),
   makingCharges: z.coerce.number().min(0).default(0),
   diamondCharges: z.coerce.number().min(0).default(0),
   stoneCharges: z.coerce.number().min(0).default(0),
-  goldRate: z.coerce.number().min(1, "Gold rate must be positive"),
+  sampleImageUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  referenceSku: z.string().optional(),
+  sampleGiven: z.boolean().default(false),
+  // Calculated fields, not part of the form itself but useful for state
+  metalCost: z.number().optional(),
+  totalEstimate: z.number().optional(),
 });
 
-type OrderFormData = z.infer<typeof orderFormSchema>;
+// Schema for the main form which contains multiple items
+const orderFormSchema = z.object({
+    items: z.array(orderItemSchema).min(1, "You must add at least one item to the estimate."),
+    goldRate: z.coerce.number().min(1, "Gold rate must be positive"),
+    advancePayment: z.coerce.number().min(0).default(0),
+});
 
-type GeneratedEstimate = OrderFormData & {
-  metalCost: number;
-  totalEstimate: number;
-};
+
+type OrderItemData = z.infer<typeof orderItemSchema>;
+type OrderFormData = z.infer<typeof orderFormSchema>;
 
 export default function CustomOrderPage() {
   const { toast } = useToast();
@@ -52,19 +63,20 @@ export default function CustomOrderPage() {
   const settings = useAppStore(state => state.settings);
   const isLoading = useAppStore(state => state.isSettingsLoading);
 
-  const [generatedEstimate, setGeneratedEstimate] = useState<GeneratedEstimate | null>(null);
+  const [generatedEstimate, setGeneratedEstimate] = useState<OrderFormData | null>(null);
 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderFormSchema),
     defaultValues: {
-      description: '',
-      karat: '21k',
-      estimatedWeightG: 0,
-      makingCharges: 0,
-      diamondCharges: 0,
-      stoneCharges: 0,
+      items: [],
       goldRate: settings.goldRatePerGram || 0,
+      advancePayment: 0,
     },
+  });
+  
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "items",
   });
 
   useEffect(() => {
@@ -76,44 +88,48 @@ export default function CustomOrderPage() {
   const formValues = form.watch();
 
   const liveEstimate = useMemo(() => {
-    const { estimatedWeightG, karat, goldRate, makingCharges, diamondCharges, stoneCharges } = form.getValues();
-    if (estimatedWeightG <= 0 || goldRate <= 0) return { metalCost: 0, totalEstimate: 0 };
-    
-    const productForCalc = {
-      metalType: 'gold' as const,
-      karat: karat,
-      metalWeightG: estimatedWeightG,
-      wastagePercentage: 0, // Wastage is not part of this custom form
-      makingCharges,
-      hasDiamonds: diamondCharges > 0,
-      diamondCharges,
-      stoneCharges,
-      miscCharges: 0
-    };
+    let subtotal = 0;
+    formValues.items.forEach(item => {
+        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges } = item;
+        const goldRate = formValues.goldRate;
+        if (estimatedWeightG <= 0 || goldRate <= 0) return;
 
-    const ratesForCalc = {
-      goldRatePerGram24k: goldRate,
-      palladiumRatePerGram: 0,
-      platinumRatePerGram: 0,
-    };
-    
-    const costs = calculateProductCosts(productForCalc, ratesForCalc);
+        const productForCalc = {
+          metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
+          wastagePercentage: 0, makingCharges, hasDiamonds: diamondCharges > 0,
+          diamondCharges, stoneCharges, miscCharges: 0
+        };
+        const ratesForCalc = { goldRatePerGram24k: goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
+        
+        const costs = calculateProductCosts(productForCalc, ratesForCalc);
+        subtotal += costs.totalPrice;
+    });
 
-    return {
-      metalCost: costs.metalCost,
-      totalEstimate: costs.totalPrice,
-    };
-  }, [formValues, form]);
+    const grandTotal = subtotal - formValues.advancePayment;
+    
+    return { subtotal, grandTotal };
+  }, [formValues]);
 
 
   const onSubmit = (data: OrderFormData) => {
-    const { metalCost, totalEstimate } = liveEstimate;
-    setGeneratedEstimate({ ...data, metalCost, totalEstimate });
+    const enrichedItems = data.items.map(item => {
+        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges } = item;
+        const productForCalc = {
+          metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
+          wastagePercentage: 0, makingCharges, hasDiamonds: diamondCharges > 0,
+          diamondCharges, stoneCharges, miscCharges: 0
+        };
+        const ratesForCalc = { goldRatePerGram24k: data.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
+        const costs = calculateProductCosts(productForCalc, ratesForCalc);
+        return { ...item, metalCost: costs.metalCost, totalEstimate: costs.totalPrice };
+    });
+
+    setGeneratedEstimate({ ...data, items: enrichedItems });
     toast({ title: "Estimate Ready", description: "Custom order estimate is ready to be printed." });
   };
   
-  const printEstimate = (estimate: GeneratedEstimate) => {
-    if (typeof window === 'undefined') return;
+  const printEstimate = (estimate: OrderFormData) => {
+    if (typeof window === 'undefined' || !estimate) return;
 
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -133,68 +149,66 @@ export default function CustomOrderPage() {
     const goldRate21k = estimate.goldRate * (21/24);
     doc.text(`Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/g`, pageWidth - margin, 34, { align: 'right' });
 
+    // --- Items Table ---
+    const tableColumn = ["#", "Item Description & Details", "Est. Wt.", "Total (PKR)"];
+    const tableRows: any[][] = [];
 
-    // Body
-    let yPos = 55;
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("Estimate Details", margin, yPos);
-    yPos += 8;
+    estimate.items.forEach((item, index) => {
+      const description = `${item.description}\nKarat: ${item.karat.toUpperCase()}${item.referenceSku ? ` | Ref SKU: ${item.referenceSku}` : ''}${item.sampleGiven ? ` | Sample Provided` : ''}`;
+      const itemBreakdown = [
+        `Metal Cost: PKR ${item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+        item.makingCharges > 0 ? `+ Making Charges: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null,
+        item.diamondCharges > 0 ? `+ Diamond Charges: PKR ${item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null,
+        item.stoneCharges > 0 ? `+ Other Stone Charges: PKR ${item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null
+      ].filter(Boolean).join('\n');
 
-    const addLineItem = (label: string, value: string) => {
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.text(label, margin, yPos);
-      doc.setFont("helvetica", "normal");
-      doc.text(value, margin + 50, yPos);
-      yPos += 7;
-    };
+      const fullDescription = `${description}\n\nCost Breakdown:\n${itemBreakdown}`;
+
+      const itemData = [
+        index + 1,
+        fullDescription,
+        `${item.estimatedWeightG.toFixed(2)}g`,
+        item.totalEstimate?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      ];
+      tableRows.push(itemData);
+    });
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 50,
+      theme: 'grid',
+      headStyles: { fillColor: [0, 60, 0], fontStyle: 'bold' },
+      styles: { fontSize: 8, cellPadding: 2, valign: 'top' },
+      columnStyles: { 1: { cellWidth: 'auto' } },
+    });
+
+    // --- Totals Section ---
+    const finalY = (doc as any).lastAutoTable.finalY || pageHeight - 100;
+    let currentY = finalY + 10;
     
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    doc.text(estimate.description, margin, yPos);
-    yPos += 10;
+    const totalsValueX = pageWidth - margin;
+    const totalsLabelX = totalsValueX - 40;
+
+    const { subtotal, grandTotal } = liveEstimate;
     
-    addLineItem("Karat:", estimate.karat.toUpperCase());
-    addLineItem("Est. Gold Weight:", `${estimate.estimatedWeightG.toFixed(2)} g`);
-
-    yPos += 5;
-    doc.setLineDashPattern([1, 1], 0);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 10;
+    doc.setFontSize(10).setFont("helvetica", "normal");
+    doc.text(`Subtotal:`, totalsLabelX, currentY, { align: 'right'});
+    doc.text(`PKR ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
+    currentY += 6;
     
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("Cost Breakdown", margin, yPos);
-    yPos += 8;
+    doc.text(`Advance:`, totalsLabelX, currentY, { align: 'right'});
+    doc.text(`- PKR ${estimate.advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
+    currentY += 8;
 
-    const addCostLine = (label: string, amount: number) => {
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "normal");
-      doc.text(label, margin, yPos);
-      doc.text(`PKR ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageWidth - margin, yPos, { align: 'right' });
-      yPos += 7;
-    };
+    doc.setFontSize(12).setFont("helvetica", "bold");
+    doc.text(`Balance Due:`, totalsLabelX, currentY, { align: 'right' });
+    doc.text(`PKR ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
 
-    addCostLine("Estimated Metal Cost", estimate.metalCost);
-    if(estimate.makingCharges > 0) addCostLine("Making Charges", estimate.makingCharges);
-    if(estimate.diamondCharges > 0) addCostLine("Diamond Charges", estimate.diamondCharges);
-    if(estimate.stoneCharges > 0) addCostLine("Other Stone Charges", estimate.stoneCharges);
-    
-    yPos += 3;
-    doc.setLineDashPattern([], 0);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 10;
-
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text("Grand Total:", margin, yPos);
-    doc.text(`PKR ${estimate.totalEstimate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageWidth - margin, yPos, { align: 'right' });
 
     // Footer
     const guaranteesText = "This is to certify that all 21k gold used in our Jewelry has been independently tested and verified by Swiss Lab Ltd., confirming a purity of 0.875 fineness (21 karat). We further guarantee that every piece is crafted exclusively from premium ARY GOLD.";
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8).setFont("helvetica", "bold");
     doc.text(guaranteesText, margin, pageHeight - 45, { maxWidth: pageWidth / 2.5 });
     
     doc.setFont("helvetica", "normal");
@@ -233,6 +247,20 @@ export default function CustomOrderPage() {
       </div>
     );
   }
+  
+  const handleAddNewItem = () => {
+    append({
+        description: '',
+        karat: '21k',
+        estimatedWeightG: 0,
+        makingCharges: 0,
+        diamondCharges: 0,
+        stoneCharges: 0,
+        sampleImageUrl: '',
+        referenceSku: '',
+        sampleGiven: false,
+    });
+  };
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -248,119 +276,114 @@ export default function CustomOrderPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center"><PencilRuler className="mr-3 h-6 w-6 text-primary"/>Create Custom Order Estimate</CardTitle>
-                  <CardDescription>Enter the details for a new custom piece to generate a price estimate.</CardDescription>
+                  <CardDescription>Add one or more items to generate a combined price estimate.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <FormField
-                    control={form.control} name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Item Description</FormLabel>
-                        <FormControl><Textarea placeholder="e.g., Custom 22k gold ring with ruby stone" {...field} rows={3}/></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control} name="estimatedWeightG"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>Estimated Gold Weight (grams)</FormLabel>
-                          <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control} name="karat"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4"/>Gold Karat</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                            <SelectContent>
-                              {karatValues.map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <Separator />
-                  <p className="font-medium">Additional Charges</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FormField
-                      control={form.control} name="makingCharges"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Making Charges</FormLabel>
-                          <FormControl><Input type="number" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control} name="diamondCharges"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamond Charges</FormLabel>
-                          <FormControl><Input type="number" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                     <FormField
-                      control={form.control} name="stoneCharges"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Other Stone Charges</FormLabel>
-                          <FormControl><Input type="number" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <Separator />
-                   <FormField
-                      control={form.control} name="goldRate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rate for this Estimate (PKR per gram, 24k)</FormLabel>
-                          <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                          <FormDescription>Defaults to the current store setting but can be overridden here.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                <CardContent>
+                    <ScrollArea className="h-[60vh] pr-4 -mr-4">
+                    <div className="space-y-6">
+                    {fields.map((field, index) => (
+                        <Card key={field.id} className="p-4 relative bg-muted/30">
+                            <CardHeader className="p-0 pb-4">
+                               <CardTitle className="text-lg">Item #{index + 1}</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0 space-y-4">
+                                <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => remove(index)}>
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Remove Item</span>
+                                </Button>
+                                <FormField control={form.control} name={`items.${index}.description`} render={({ field }) => (
+                                    <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g., Custom 22k gold ring with ruby stone" {...field} rows={2}/></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>Est. Gold Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name={`items.${index}.karat`} render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4"/>Gold Karat</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                            <SelectContent>{karatValues.map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
+                                        </Select><FormMessage /></FormItem>
+                                    )}/>
+                                 </div>
+                                 <Separator />
+                                <p className="font-medium text-sm">Additional Charges</p>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <FormField control={form.control} name={`items.${index}.makingCharges`} render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Making</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name={`items.${index}.diamondCharges`} render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamonds</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name={`items.${index}.stoneCharges`} render={({ field }) => (
+                                        <FormItem><FormLabel>Stones</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                </div>
+                                <Separator />
+                                <p className="font-medium text-sm">Reference Details (Optional)</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                     <FormField control={form.control} name={`items.${index}.sampleImageUrl`} render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center"><Camera className="mr-2 h-4 w-4"/>Sample Picture URL</FormLabel><FormControl><Input type="url" placeholder="https://example.com/image.png" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                     <FormField control={form.control} name={`items.${index}.referenceSku`} render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center"><LinkIcon className="mr-2 h-4 w-4"/>Reference SKU</FormLabel><FormControl><Input placeholder="e.g., RIN-123456" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                </div>
+                                <FormField control={form.control} name={`items.${index}.sampleGiven`} render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer"><Hand className="mr-2 h-4 w-4"/>Customer provided a physical sample</FormLabel></div></FormItem>
+                                )}/>
+                            </CardContent>
+                        </Card>
+                    ))}
+                    </div>
+                    </ScrollArea>
                 </CardContent>
+                <CardFooter>
+                    <Button type="button" variant="outline" onClick={handleAddNewItem}>
+                        <PlusCircle className="mr-2 h-4 w-4"/> Add Another Item
+                    </Button>
+                </CardFooter>
               </Card>
             </div>
             
             <div className="lg:col-span-1">
                 <Card className="sticky top-8">
                     <CardHeader>
-                        <CardTitle>Live Estimate</CardTitle>
+                        <CardTitle className="flex items-center"><List className="mr-2 h-5 w-5"/>Estimate Summary</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <FormField control={form.control} name="goldRate" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rate (PKR/gram, 24k)</FormLabel>
+                                <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                                <FormDescription>This rate applies to all items in this estimate.</FormDescription><FormMessage />
+                            </FormItem>
+                        )}/>
+                        <FormField control={form.control} name="advancePayment" render={({ field }) => (
+                           <FormItem>
+                                <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Advance Payment (PKR)</FormLabel>
+                                <FormControl><Input type="number" {...field} /></FormControl><FormMessage />
+                            </FormItem>
+                        )}/>
+                        <Separator/>
                         <div className="space-y-2 p-3 bg-muted/50 rounded-md">
                             <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Est. Metal Cost:</span>
-                                <span className="font-semibold text-lg">PKR {liveEstimate.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span className="text-muted-foreground">Subtotal:</span>
+                                <span className="font-semibold text-base">PKR {liveEstimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-destructive">
+                                <span className="text-muted-foreground">Advance:</span>
+                                <span className="font-semibold text-base">- PKR {formValues.advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between items-center text-xl font-bold">
-                                <span>Grand Total:</span>
-                                <span className="text-primary">PKR {liveEstimate.totalEstimate.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                <span>Balance Due:</span>
+                                <span className="text-primary">PKR {liveEstimate.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
                         </div>
-                         <p className="text-xs text-muted-foreground">
-                          Total is calculated based on all values entered in the form.
-                        </p>
                     </CardContent>
                     <CardFooter>
-                        <Button type="submit" size="lg" className="w-full" disabled={!form.formState.isValid}>
+                        <Button type="submit" size="lg" className="w-full" disabled={!form.formState.isValid || fields.length === 0}>
                         <FileText className="mr-2 h-5 w-5" /> Generate Estimate
                         </Button>
                     </CardFooter>
@@ -373,21 +396,38 @@ export default function CustomOrderPage() {
             <CardHeader>
                 <CardTitle>Custom Order Estimate Generated</CardTitle>
                 <CardDescription>
-                    The following estimate has been prepared based on your inputs.
+                    The following estimate has been prepared. You can print it or create a new one.
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="space-y-2 mb-6">
-                    <p><strong>Description:</strong> {generatedEstimate.description}</p>
-                    <p><strong>Est. Weight:</strong> {generatedEstimate.estimatedWeightG}g ({generatedEstimate.karat.toUpperCase()})</p>
-                </div>
+                 <ScrollArea className="h-[50vh]">
+                     <div className="space-y-4">
+                        {generatedEstimate.items.map((item, index) => (
+                        <div key={index} className="p-4 border rounded-lg">
+                            <p className="font-bold">Item #{index+1}: {item.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                                Est. Wt: {item.estimatedWeightG}g ({item.karat.toUpperCase()})
+                                {item.referenceSku && ` | Ref: ${item.referenceSku}`}
+                                {item.sampleGiven && ` | Sample Provided`}
+                            </p>
+                             <div className="text-sm mt-2 p-2 bg-muted/50 rounded-md">
+                                <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                {item.diamondCharges > 0 && <div className="flex justify-between"><span>+ Diamond Charges:</span> <span className="font-semibold">PKR {item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                {item.stoneCharges > 0 && <div className="flex justify-between"><span>+ Other Stone Charges:</span> <span className="font-semibold">PKR {item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                <Separator className="my-1"/>
+                                <div className="flex justify-between font-bold"><span>Item Total:</span> <span>PKR {item.totalEstimate?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                             </div>
+                        </div>
+                        ))}
+                    </div>
+                 </ScrollArea>
+                 <Separator className="my-4"/>
                  <div className="space-y-2 p-4 bg-muted rounded-md text-lg">
-                    <div className="flex justify-between"><span>Est. Metal Cost:</span> <span className="font-semibold">PKR {generatedEstimate.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                    {generatedEstimate.makingCharges > 0 && <div className="flex justify-between"><span>Making Charges:</span> <span className="font-semibold">PKR {generatedEstimate.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                    {generatedEstimate.diamondCharges > 0 && <div className="flex justify-between"><span>Diamond Charges:</span> <span className="font-semibold">PKR {generatedEstimate.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                    {generatedEstimate.stoneCharges > 0 && <div className="flex justify-between"><span>Other Stone Charges:</span> <span className="font-semibold">PKR {generatedEstimate.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                    <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {liveEstimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                    <div className="flex justify-between"><span>Advance Payment:</span> <span className="font-semibold text-destructive">- PKR {generatedEstimate.advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                     <Separator className="my-2 bg-muted-foreground/20"/>
-                    <div className="flex justify-between font-bold text-xl"><span className="text-primary">Grand Total:</span> <span className="text-primary">PKR {generatedEstimate.totalEstimate.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                    <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {liveEstimate.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                 </div>
             </CardContent>
             <CardFooter className="flex justify-end gap-2">
@@ -401,3 +441,4 @@ export default function CustomOrderPage() {
     </div>
   );
 }
+
