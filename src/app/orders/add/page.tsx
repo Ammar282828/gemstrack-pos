@@ -67,6 +67,7 @@ type EnrichedOrderFormData = OrderFormData & {
     grandTotal: number;
 };
 
+const WALK_IN_CUSTOMER_VALUE = "__WALK_IN__";
 
 const ImageCapture: React.FC<{
   itemIndex: number;
@@ -253,14 +254,17 @@ export default function CustomOrderPage() {
         return { ...item, metalCost: costs.metalCost, totalEstimate: costs.totalPrice };
     });
 
+    const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
+
     const orderToSave: Omit<Order, 'id' | 'createdAt' | 'status'> = {
         ...data,
         items: enrichedItems,
         subtotal,
         grandTotal,
+        customerId: finalCustomerId,
     };
 
-    const newOrder = await addOrderAction(orderToSave, data.customerId);
+    const newOrder = await addOrderAction(orderToSave, finalCustomerId);
 
     if (newOrder) {
         setGeneratedEstimate({ ...data, subtotal, grandTotal });
@@ -525,7 +529,7 @@ export default function CustomOrderPage() {
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            <SelectItem value="">None (Walk-in)</SelectItem>
+                                            <SelectItem value={WALK_IN_CUSTOMER_VALUE}>None (Walk-in)</SelectItem>
                                             {customers.map(c => (
                                                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                                             ))}
@@ -647,5 +651,3 @@ export default function CustomOrderPage() {
     </div>
   );
 }
-
-    
