@@ -209,7 +209,7 @@ export default function CustomOrderPage() {
     },
   });
   
-  const { control, fields, append, remove, setValue } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "items",
   });
@@ -480,14 +480,14 @@ export default function CustomOrderPage() {
                                     <Trash2 className="h-4 w-4" />
                                     <span className="sr-only">Remove Item</span>
                                 </Button>
-                                <FormField control={control} name={`items.${index}.description`} render={({ field }) => (
+                                <FormField control={form.control} name={`items.${index}.description`} render={({ field }) => (
                                     <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g., Custom 22k gold ring with ruby stone" {...field} rows={2}/></FormControl><FormMessage /></FormItem>
                                 )}/>
                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <FormField control={control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
+                                    <FormField control={form.control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>Est. Gold Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
-                                    <FormField control={control} name={`items.${index}.karat`} render={({ field }) => (
+                                    <FormField control={form.control} name={`items.${index}.karat`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4"/>Gold Karat</FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                             <SelectContent>{karatValues.map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
@@ -497,13 +497,13 @@ export default function CustomOrderPage() {
                                 <Separator />
                                 <p className="font-medium text-sm">Additional Charges & Details</p>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <FormField control={control} name={`items.${index}.makingCharges`} render={({ field }) => (
+                                    <FormField control={form.control} name={`items.${index}.makingCharges`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Making</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
-                                    <FormField control={control} name={`items.${index}.diamondCharges`} render={({ field }) => (
+                                    <FormField control={form.control} name={`items.${index}.diamondCharges`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamonds</FormLabel><FormControl><Input type="number" {...field} disabled={!form.watch(`items.${index}.hasDiamonds`)} /></FormControl><FormMessage /></FormItem>
                                     )}/>
-                                    <FormField control={control} name={`items.${index}.stoneCharges`} render={({ field }) => (
+                                    <FormField control={form.control} name={`items.${index}.stoneCharges`} render={({ field }) => (
                                         <FormItem><FormLabel>Stones</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </div>
@@ -511,11 +511,11 @@ export default function CustomOrderPage() {
                                     <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                     <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer">Item Contains Diamonds?</FormLabel></div></FormItem>
                                 )}/>
-                                <FormField control={control} name={`items.${index}.stoneDetails`} render={({ field }) => (
+                                <FormField control={form.control} name={`items.${index}.stoneDetails`} render={({ field }) => (
                                    <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Stone Details</FormLabel><FormControl><Textarea placeholder="e.g., 1x Ruby (2ct), 4x Sapphire (0.5ct each)" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                                 {form.watch(`items.${index}.hasDiamonds`) &&
-                                  <FormField control={control} name={`items.${index}.diamondDetails`} render={({ field }) => (
+                                  <FormField control={form.control} name={`items.${index}.diamondDetails`} render={({ field }) => (
                                      <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamond Details</FormLabel><FormControl><Textarea placeholder="e.g., Center: 1ct VVS1, Side: 12x 0.05ct VS2" {...field} /></FormControl><FormMessage /></FormItem>
                                   )}/>
                                 }
@@ -524,21 +524,21 @@ export default function CustomOrderPage() {
                                 <p className="font-medium text-sm">Reference Details (Optional)</p>
                                  <div>
                                     <FormLabel className="flex items-center"><Camera className="mr-2 h-4 w-4"/>Sample Picture</FormLabel>
-                                    <FormField control={control} name={`items.${index}.sampleImageDataUri`} render={({ field }) => (
+                                    <FormField control={form.control} name={`items.${index}.sampleImageDataUri`} render={({ field }) => (
                                         <ImageCapture
                                             itemIndex={index}
                                             currentImage={field.value}
-                                            onImageSelect={(dataUri) => setValue(`items.${index}.sampleImageDataUri`, dataUri, { shouldValidate: true, shouldDirty: true })}
-                                            onImageRemove={() => setValue(`items.${index}.sampleImageDataUri`, '', { shouldValidate: true, shouldDirty: true })}
+                                            onImageSelect={(dataUri) => form.setValue(`items.${index}.sampleImageDataUri`, dataUri, { shouldValidate: true, shouldDirty: true })}
+                                            onImageRemove={() => form.setValue(`items.${index}.sampleImageDataUri`, '', { shouldValidate: true, shouldDirty: true })}
                                         />
                                     )}/>
                                  </div>
 
-                                <FormField control={control} name={`items.${index}.referenceSku`} render={({ field }) => (
+                                <FormField control={form.control} name={`items.${index}.referenceSku`} render={({ field }) => (
                                    <FormItem><FormLabel className="flex items-center"><LinkIcon className="mr-2 h-4 w-4"/>Reference SKU</FormLabel><FormControl><Input placeholder="e.g., RIN-123456" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>
 
-                                <FormField control={control} name={`items.${index}.sampleGiven`} render={({ field }) => (
+                                <FormField control={form.control} name={`items.${index}.sampleGiven`} render={({ field }) => (
                                     <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                     <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer"><Hand className="mr-2 h-4 w-4"/>Customer provided a physical sample</FormLabel></div></FormItem>
                                 )}/>
