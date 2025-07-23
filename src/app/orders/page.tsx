@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar } from 'lucide-react';
+import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, DollarSign } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -59,18 +59,21 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
         <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
           {order.id}
         </Link>
-        <div className="text-xs text-muted-foreground flex items-center mt-1 md:hidden">
-            <span>{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</span>
-        </div>
-        <div className="text-xs text-muted-foreground flex items-center mt-1 hidden md:flex">
-            <MessageSquareQuote className="w-3 h-3 mr-1.5 flex-shrink-0"/>
-            <div className="truncate w-40" title={summary}>{summary || 'Generating summary...'}</div>
+        <div className="text-xs text-muted-foreground truncate w-40 mt-1" title={summary}>
+            {summary || 'Generating summary...'}
         </div>
       </TableCell>
       <TableCell className="hidden md:table-cell">{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</TableCell>
       <TableCell>
         <p>{order.customerName || 'Walk-in'}</p>
         <p className="text-xs text-muted-foreground">{order.customerContact}</p>
+      </TableCell>
+       <TableCell className="hidden md:table-cell text-right">
+        <div className="flex flex-col items-end">
+            <div className="text-xs text-muted-foreground">Bal: <span className="font-semibold text-foreground">{(Number(order.grandTotal) || 0).toLocaleString()}</span></div>
+            <div className="text-xs text-muted-foreground">Adv: <span className="font-semibold text-foreground">{(Number(order.advancePayment) || 0).toLocaleString()}</span></div>
+            <div className="text-xs text-muted-foreground border-t mt-1 pt-1">Total: <span className="font-bold text-foreground">{(Number(order.subtotal) || 0).toLocaleString()}</span></div>
+        </div>
       </TableCell>
       <TableCell>
          <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
@@ -97,9 +100,6 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
                 </Select>
             )}
         </div>
-      </TableCell>
-      <TableCell className="text-right hidden md:table-cell">
-        PKR {(Number(order.grandTotal) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
       </TableCell>
       <TableCell className="text-right">
         <Button asChild size="sm" variant="outline">
@@ -247,8 +247,12 @@ export default function OrdersPage() {
                 <TableHead>Order Details</TableHead>
                 <TableHead className="hidden md:table-cell">Date</TableHead>
                 <TableHead>Customer</TableHead>
+                <TableHead className="hidden md:table-cell text-right">
+                  <div className="flex items-center justify-end">
+                    <DollarSign className="w-4 h-4 mr-1"/> Financials (PKR)
+                  </div>
+                </TableHead>
                 <TableHead>Status & Progress</TableHead>
-                <TableHead className="text-right hidden md:table-cell">Balance (PKR)</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
