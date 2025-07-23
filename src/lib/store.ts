@@ -24,6 +24,35 @@ const GLOBAL_SETTINGS_DOC_ID = "global";
 const DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL: KaratValue = '21k';
 const GOLD_COIN_CATEGORY_ID_INTERNAL = 'cat017';
 
+async function deleteCollection(collectionName: string) {
+  if (!db || typeof db.app === 'undefined') {
+    console.error(`Firestore instance is not available. Cannot delete collection ${collectionName}.`);
+    return;
+  }
+  const collectionRef = collection(db, collectionName);
+  const snapshot = await getDocs(collectionRef);
+  
+  if (snapshot.empty) {
+    console.log(`Collection '${collectionName}' is already empty.`);
+    return;
+  }
+
+  // Firestore allows a maximum of 500 operations in a single batch.
+  const batchSize = 500;
+  const batches = [];
+  for (let i = 0; i < snapshot.docs.length; i += batchSize) {
+    const batch = writeBatch(db);
+    snapshot.docs.slice(i, i + batchSize).forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    batches.push(batch);
+  }
+
+  await Promise.all(batches.map(b => b.commit()));
+  console.log(`All documents in collection '${collectionName}' have been deleted.`);
+}
+
+
 function _parseKaratInternal(karat: KaratValue | string | undefined): number {
   const karatToUse = karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
   const karatString = String(karatToUse).trim();
@@ -426,6 +455,14 @@ export interface AppState {
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
 
   fetchAllInitialData: () => Promise<void>;
+  
+  // Data clearing actions
+  clearAllProducts: () => Promise<void>;
+  clearAllCustomers: () => Promise<void>;
+  clearAllKarigars: () => Promise<void>;
+  clearAllInvoices: () => Promise<void>;
+  clearAllOrders: () => Promise<void>;
+  clearAllData: () => Promise<void>;
 }
 
 export type EnrichedCartItem = Product & {
@@ -1080,6 +1117,67 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
+      
+      // Data Clearing Actions
+      clearAllProducts: async () => {
+        set({ isProductsLoading: true });
+        try {
+            await deleteCollection(FIRESTORE_COLLECTIONS.PRODUCTS);
+            set({ products: [] });
+        } finally {
+            set({ isProductsLoading: false });
+        }
+      },
+      clearAllCustomers: async () => {
+          set({ isCustomersLoading: true });
+          try {
+              await deleteCollection(FIRESTORE_COLLECTIONS.CUSTOMERS);
+              set({ customers: [] });
+          } finally {
+              set({ isCustomersLoading: false });
+          }
+      },
+      clearAllKarigars: async () => {
+          set({ isKarigarsLoading: true });
+          try {
+              await deleteCollection(FIRESTORE_COLLECTIONS.KARIGARS);
+              set({ karigars: [] });
+          } finally {
+              set({ isKarigarsLoading: false });
+          }
+      },
+      clearAllInvoices: async () => {
+          set({ isInvoicesLoading: true });
+          try {
+              await deleteCollection(FIRESTORE_COLLECTIONS.INVOICES);
+              set({ generatedInvoices: [] });
+          } finally {
+              set({ isInvoicesLoading: false });
+          }
+      },
+      clearAllOrders: async () => {
+          set({ isOrdersLoading: true });
+          try {
+              await deleteCollection(FIRESTORE_COLLECTIONS.ORDERS);
+              set({ orders: [] });
+          } finally {
+              set({ isOrdersLoading: false });
+          }
+      },
+      clearAllData: async () => {
+          console.warn("CLEARING ALL APPLICATION DATA");
+          // Resetting settings does not happen here, only transactional data.
+          await Promise.all([
+              get().clearAllProducts(),
+              get().clearAllCustomers(),
+              get().clearAllKarigars(),
+              get().clearAllInvoices(),
+              get().clearAllOrders(),
+          ]);
+          get().clearCart();
+          console.warn("ALL APPLICATION DATA CLEARED.");
+      },
+
 
     })),
     {

@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +61,52 @@ const DUMMY_KARIGARS_TO_SEED: KarigarDataForAdd[] = [];
 const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] = [];
 
 
+const DataDeletionButton: React.FC<{
+    action: () => Promise<void>;
+    buttonText: string;
+    description: string;
+    children: React.ReactNode;
+}> = ({ action, buttonText, description, children }) => {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleAction = async () => {
+        setIsLoading(true);
+        try {
+            await action();
+            toast({ title: "Success", description: `${buttonText} action completed.` });
+        } catch (error) {
+            toast({ title: "Error", description: `Failed to complete ${buttonText.toLowerCase()} action.`, variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : children}
+                    {isLoading ? 'Processing...' : buttonText}
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5" />Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>{description}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleAction} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                        Yes, I'm sure
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+};
+
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const appReady = useAppReady();
@@ -71,6 +117,15 @@ export default function SettingsPage() {
   const addKarigarAction = useAppStore(state => state.addKarigar);
   const addOrderAction = useAppStore(state => state.addOrder);
   const isSettingsLoading = useAppStore(state => state.isSettingsLoading);
+
+  const {
+    clearAllProducts,
+    clearAllCustomers,
+    clearAllKarigars,
+    clearAllInvoices,
+    clearAllOrders,
+    clearAllData,
+  } = useAppStore();
 
   const [isSeedingProducts, setIsSeedingProducts] = useState(false);
   const [isSeedingCustomers, setIsSeedingCustomers] = useState(false);
@@ -584,8 +639,8 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Database Tools</CardTitle>
-          <CardDescription>Use these tools for development or data management. Be cautious with actions that modify data.</CardDescription>
+          <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Development Tools</CardTitle>
+          <CardDescription>Use these tools for development or to seed initial data. Be cautious with actions that modify data.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
             <div>
@@ -702,7 +757,68 @@ export default function SettingsPage() {
             </div>
         </CardContent>
       </Card>
-
+      
+      <Card className="border-destructive">
+        <CardHeader>
+            <CardTitle className="text-xl text-destructive flex items-center"><AlertTriangle className="mr-2 h-5 w-5" /> Danger Zone</CardTitle>
+            <CardDescription>
+                These actions are irreversible. Once data is deleted, it cannot be recovered. Be absolutely certain before proceeding.
+            </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+             <div className="flex flex-wrap gap-4 items-center p-4 border border-destructive/20 rounded-lg bg-destructive/5">
+                <DataDeletionButton
+                    action={clearAllProducts}
+                    buttonText="Clear Products"
+                    description="This will permanently delete all product data from the database. This action cannot be undone."
+                >
+                    <Trash className="mr-2 h-4 w-4" />
+                </DataDeletionButton>
+                 <DataDeletionButton
+                    action={clearAllCustomers}
+                    buttonText="Clear Customers"
+                    description="This will permanently delete all customer data from the database. This action cannot be undone."
+                >
+                    <Trash className="mr-2 h-4 w-4" />
+                </DataDeletionButton>
+                <DataDeletionButton
+                    action={clearAllKarigars}
+                    buttonText="Clear Karigars"
+                    description="This will permanently delete all karigar data from the database. This action cannot be undone."
+                >
+                    <Trash className="mr-2 h-4 w-4" />
+                </DataDeletionButton>
+                <DataDeletionButton
+                    action={clearAllInvoices}
+                    buttonText="Clear Invoices"
+                    description="This will permanently delete all invoice data from the database. This action cannot be undone."
+                >
+                    <Trash className="mr-2 h-4 w-4" />
+                </DataDeletionButton>
+                 <DataDeletionButton
+                    action={clearAllOrders}
+                    buttonText="Clear Orders"
+                    description="This will permanently delete all order data from the database. This action cannot be undone."
+                >
+                    <Trash className="mr-2 h-4 w-4" />
+                </DataDeletionButton>
+             </div>
+             <Separator />
+             <div className="flex items-center justify-between p-4 border border-destructive rounded-lg">
+                <div>
+                    <h4 className="font-semibold text-destructive">Delete All Application Data</h4>
+                    <p className="text-sm text-destructive/80">This will wipe all products, customers, karigars, invoices, and orders.</p>
+                </div>
+                <DataDeletionButton
+                    action={clearAllData}
+                    buttonText="Clear All Data"
+                    description="This is the final warning. You are about to permanently delete ALL transactional data (products, customers, karigars, invoices, orders) from the database. This action cannot be undone."
+                >
+                    <Trash className="mr-2 h-4 w-4" />
+                </DataDeletionButton>
+             </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
