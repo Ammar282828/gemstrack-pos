@@ -256,7 +256,7 @@ export default function CartPage() {
       headStyles: { fillColor: [0, 60, 0], fontStyle: 'bold' },
       styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
       columnStyles: { 1: { cellWidth: 'auto' } },
-      didDrawCell: (data) => {
+      didDrawCell: (data: any) => {
         // Custom rendering for the 'Item Description' column
         if (data.column.index === 1 && data.cell.section === 'body') {
             const cellData = data.cell.raw;
