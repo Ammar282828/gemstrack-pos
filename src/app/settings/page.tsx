@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, useAppReady, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MetalType, KaratValue, AVAILABLE_THEMES, ThemeKey, Order } from '@/lib/store';
+import { useAppStore, Settings, useAppReady, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MetalType, KaratValue, AVAILABLE_THEMES, ThemeKey, Order, OrderItem, calculateProductCosts } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -172,7 +172,7 @@ const DUMMY_KARIGARS_TO_SEED: KarigarDataForAdd[] = [
   { name: "Haji Murad", contact: "0311-0009988" }
 ];
 
-const DUMMY_ORDERS_TO_SEED: OrderDataForAdd[] = [
+const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] = [
     {
         items: [{
             description: "Custom bridal necklace set with pearls",
@@ -190,7 +190,7 @@ const DUMMY_ORDERS_TO_SEED: OrderDataForAdd[] = [
     {
         items: [{
             description: "Platinum wedding bands, matching pair",
-            karat: "21k", // Will be ignored as not gold
+            karat: "21k", // Will be ignored as not gold, placeholder
             estimatedWeightG: 12.0,
             makingCharges: 12000,
             diamondCharges: 0,
@@ -439,7 +439,26 @@ export default function SettingsPage() {
 
     for (const orderData of DUMMY_ORDERS_TO_SEED) {
       try {
-        const newOrder = await addOrderAction(orderData);
+        // Calculate subtotal and grandTotal for the dummy order
+        let subtotal = 0;
+        const enrichedItems = orderData.items.map((item) => {
+          const itemAsProduct = { ...item, metalType: 'gold' as MetalType, hasDiamonds: item.diamondCharges > 0, miscCharges: 0 };
+          const ratesForCalc = { goldRatePerGram24k: orderData.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
+          const costs = calculateProductCosts(itemAsProduct, ratesForCalc);
+          subtotal += costs.totalPrice;
+          return { ...item, metalCost: costs.metalCost, totalEstimate: costs.totalPrice };
+        });
+
+        const grandTotal = subtotal - (orderData.advancePayment || 0);
+
+        const fullOrderData: OrderDataForAdd = {
+          ...orderData,
+          items: enrichedItems,
+          subtotal,
+          grandTotal,
+        };
+        
+        const newOrder = await addOrderAction(fullOrderData);
         if (newOrder) {
           toast({ title: "Order Added", description: `Added: ${newOrder.id} for ${newOrder.customerName}` });
           successCount++;
