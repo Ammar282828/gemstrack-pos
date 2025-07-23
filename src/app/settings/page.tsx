@@ -342,7 +342,15 @@ export default function SettingsPage() {
         // Calculate subtotal and grandTotal for the dummy order
         let subtotal = 0;
         const enrichedItems = orderData.items.map((item) => {
-          const itemAsProduct = { ...item, metalType: 'gold' as MetalType, hasDiamonds: item.diamondCharges > 0, miscCharges: 0, categoryId: '' };
+          const itemAsProduct = {
+            ...item,
+            metalType: 'gold' as MetalType,
+            hasDiamonds: item.diamondCharges > 0,
+            miscCharges: 0,
+            categoryId: '',
+            metalWeightG: item.estimatedWeightG, // Fix: Use correct property name
+            wastagePercentage: 10, // Fix: Add a default wastage
+          };
           const ratesForCalc = { goldRatePerGram24k: orderData.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
           const costs = calculateProductCosts(itemAsProduct, ratesForCalc);
           subtotal += costs.totalPrice;
@@ -822,3 +830,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
