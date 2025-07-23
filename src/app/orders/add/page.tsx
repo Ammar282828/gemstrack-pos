@@ -244,6 +244,7 @@ export default function CustomOrderPage() {
         if (!estimatedWeightG || estimatedWeightG <= 0 || !goldRate || goldRate <= 0) return;
 
         const productForCalc = {
+          categoryId: '', // Custom orders don't have a category, but the function needs it.
           metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
           wastagePercentage: 0, makingCharges, hasDiamonds,
           diamondCharges, stoneCharges, miscCharges: 0
@@ -266,13 +267,14 @@ export default function CustomOrderPage() {
     const enrichedItems = data.items.map((item): OrderItem => {
         const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds } = item;
         const productForCalc = {
+          categoryId: '', // Custom orders don't have a category
           metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
           wastagePercentage: 0, makingCharges, hasDiamonds,
           diamondCharges, stoneCharges, miscCharges: 0
         };
         const ratesForCalc = { goldRatePerGram24k: data.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
         const costs = calculateProductCosts(productForCalc, ratesForCalc);
-        return { ...item, metalCost: costs.metalCost, totalEstimate: costs.totalPrice };
+        return { ...item, isCompleted: false, metalCost: costs.metalCost, totalEstimate: costs.totalPrice };
     });
 
     const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
