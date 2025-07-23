@@ -24,7 +24,7 @@ const SummarizeOrderItemsInputSchema = z.object({
 export type SummarizeOrderItemsInput = z.infer<typeof SummarizeOrderItemsInputSchema>;
 
 const SummarizeOrderItemsOutputSchema = z.object({
-    summary: z.string().describe("A concise, single-sentence summary of all the items, suitable for a dashboard view. Example: 'A custom 22k bridal necklace and a pair of platinum wedding bands.'"),
+    summary: z.string().describe("A newline-separated list of item descriptions. Example: 'Custom bridal necklace\\nMatching earrings'"),
 });
 export type SummarizeOrderItemsOutput = z.infer<typeof SummarizeOrderItemsOutputSchema>;
 
@@ -40,17 +40,17 @@ const prompt = ai.definePrompt({
   name: 'summarizeOrderItemsPrompt',
   input: { schema: SummarizeOrderItemsInputSchema },
   output: { schema: SummarizeOrderItemsOutputSchema },
-  prompt: `You are a jewelry production manager. Your task is to create a very concise, single-sentence summary for a list of custom order items. This summary will be displayed on a dashboard, so it must be as brief and elegant as possible.
+  prompt: `You are a data extractor. Your task is to extract the descriptions for a list of custom order items and list them, separated by newlines.
 
 List of Items:
 {{#each items}}
 - {{this.description}}{{#if this.karat}} ({{this.karat}}){{/if}}{{#if this.estimatedWeightG}} - ~{{this.estimatedWeightG}}g{{/if}}
 {{/each}}
 
-Based on this list, generate the summary. Do not list the items again. Combine them into a natural-sounding sentence.
-For example, if the items are "Custom bridal necklace" and "Matching earrings", the summary should be "A custom bridal necklace and matching earrings."
-If there's only one item, just state what it is, e.g., "A platinum wedding band with custom engraving."
-Make it as short as possible.
+Based on this list, extract only the descriptions and list each one on a new line.
+For example, if the items are "Custom bridal necklace" and "Matching earrings", the summary should be:
+"Custom bridal necklace
+Matching earrings"
 `,
 });
 
@@ -68,3 +68,4 @@ const summarizeOrderItemsFlow = ai.defineFlow(
     return output;
   }
 );
+
