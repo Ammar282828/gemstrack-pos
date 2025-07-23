@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview An AI flow to summarize a list of custom order items.
@@ -39,7 +40,7 @@ const prompt = ai.definePrompt({
   name: 'summarizeOrderItemsPrompt',
   input: { schema: SummarizeOrderItemsInputSchema },
   output: { schema: SummarizeOrderItemsOutputSchema },
-  prompt: `You are a jewelry production manager. Your task is to create a very concise, single-sentence summary for a list of custom order items. This summary will be displayed on a dashboard, so it must be short and clear.
+  prompt: `You are a jewelry production manager. Your task is to create a very concise, single-sentence summary for a list of custom order items. This summary will be displayed on a dashboard, so it must be as brief and elegant as possible.
 
 List of Items:
 {{#each items}}
@@ -49,7 +50,7 @@ List of Items:
 Based on this list, generate the summary. Do not list the items again. Combine them into a natural-sounding sentence.
 For example, if the items are "Custom bridal necklace" and "Matching earrings", the summary should be "A custom bridal necklace and matching earrings."
 If there's only one item, just state what it is, e.g., "A platinum wedding band with custom engraving."
-Keep it brief and elegant.
+Make it as short as possible.
 `,
 });
 
