@@ -59,7 +59,10 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
         <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
           {order.id}
         </Link>
-        <div className="text-xs text-muted-foreground flex items-center mt-1">
+        <div className="text-xs text-muted-foreground flex items-center mt-1 md:hidden">
+            <span>{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</span>
+        </div>
+        <div className="text-xs text-muted-foreground flex items-center mt-1 hidden md:flex">
             <MessageSquareQuote className="w-3 h-3 mr-1.5 flex-shrink-0"/>
             <div className="truncate w-40" title={summary}>{summary || 'Generating summary...'}</div>
         </div>
@@ -67,16 +70,14 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
       <TableCell className="hidden md:table-cell">{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</TableCell>
       <TableCell>
         <p>{order.customerName || 'Walk-in'}</p>
-        <p className="text-xs text-muted-foreground hidden md:block">{order.customerContact}</p>
+        <p className="text-xs text-muted-foreground">{order.customerContact}</p>
       </TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
-            {totalItems > 1 && (
-                <div className="hidden md:flex flex-col w-20">
-                    <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items</span>
-                    <Progress value={progressPercentage} className="h-1.5 mt-1" />
-                </div>
-            )}
+         <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+            <div className="flex flex-col w-28">
+                {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items</span>}
+                <Progress value={progressPercentage} className="h-1.5 mt-1" />
+            </div>
             {isUpdatingStatus ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -133,8 +134,6 @@ export default function OrdersPage() {
                     const input: SummarizeOrderItemsInput = {
                         items: order.items.map(item => ({
                             description: item.description,
-                            karat: item.karat,
-                            estimatedWeightG: item.estimatedWeightG,
                         })),
                     };
                     const result = await summarizeOrderItems(input);
@@ -149,7 +148,7 @@ export default function OrdersPage() {
         if (newSummaries.length > 0) {
             setOrderSummaries(prev => ({
                 ...prev,
-                ...Object.fromEntries(newSummaries.map(s => [s.id, s.summary.replace(/\n/g, ' / ')])),
+                ...Object.fromEntries(newSummaries.map(s => [s.id, s.summary])),
             }));
         }
     };
