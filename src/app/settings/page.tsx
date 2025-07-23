@@ -339,17 +339,16 @@ export default function SettingsPage() {
 
     for (const orderData of DUMMY_ORDERS_TO_SEED) {
       try {
-        // Calculate subtotal and grandTotal for the dummy order
         let subtotal = 0;
         const enrichedItems = orderData.items.map((item) => {
           const itemAsProduct = {
             ...item,
             metalType: 'gold' as MetalType,
+            metalWeightG: item.estimatedWeightG,
+            wastagePercentage: 10, // Default wastage for dummy data
             hasDiamonds: item.diamondCharges > 0,
             miscCharges: 0,
             categoryId: '',
-            metalWeightG: item.estimatedWeightG, // Fix: Use correct property name
-            wastagePercentage: 10, // Fix: Add a default wastage
           };
           const ratesForCalc = { goldRatePerGram24k: orderData.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
           const costs = calculateProductCosts(itemAsProduct, ratesForCalc);
