@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Home, PackagePlus, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, PencilRuler, ClipboardList } from 'lucide-react';
+import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsStoreHydrated } from '@/lib/store';
 
@@ -19,21 +19,22 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
+  isSeparator?: boolean;
 }
 
 const navItems: NavItem[] = [
   { href: '/', label: 'Home', icon: <Home /> },
-  { href: '/scan', label: 'Scan QR / POS', icon: <ScanQrCode /> },
+  { href: '/scan', label: 'Scan / POS', icon: <ScanQrCode /> },
   { href: '/cart', label: 'Cart / Estimate', icon: <ShoppingCart /> },
+  { isSeparator: true, href: '#', label: '' , icon: <></> }, // Separator
   { href: '/orders', label: 'Orders', icon: <ClipboardList /> },
-  { href: '/orders/add', label: 'Custom Order', icon: <PencilRuler /> },
   { href: '/products', label: 'Products', icon: <Gem /> },
-  { href: '/products/add', label: 'Add Product', icon: <PackagePlus /> },
   { href: '/customers', label: 'Customers', icon: <Users /> },
   { href: '/karigars', label: 'Karigars', icon: <Briefcase /> },
+  { isSeparator: true, href: '#', label: '' , icon: <></> }, // Separator
   { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
   { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
-  { href: '/settings/backups', label: 'Backups & Restore', icon: <ArchiveRestore /> },
+  { href: '/settings/backups', label: 'Backups', icon: <ArchiveRestore /> },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -60,7 +61,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarContent asChild>
             <ScrollArea className="h-full">
               <SidebarMenu className="p-2">
-                {navItems.map((item) => (
+                {navItems.map((item, index) => (
+                   item.isSeparator ? (
+                    <Separator key={`sep-${index}`} className="my-2" />
+                  ) : (
                   <SidebarMenuItem key={item.href}>
                     <Link href={item.href} legacyBehavior passHref>
                       <SidebarMenuButton
@@ -76,6 +80,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>
+                  )
                 ))}
               </SidebarMenu>
             </ScrollArea>
