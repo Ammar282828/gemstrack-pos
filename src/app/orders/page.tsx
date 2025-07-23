@@ -61,13 +61,13 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
         </Link>
         <div className="text-xs text-muted-foreground flex items-center mt-1">
             <MessageSquareQuote className="w-3 h-3 mr-1.5 flex-shrink-0"/>
-            <span className="truncate">{summary || 'Generating summary...'}</span>
+            <div className="truncate w-40" title={summary}>{summary || 'Generating summary...'}</div>
         </div>
       </TableCell>
       <TableCell className="hidden md:table-cell">{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</TableCell>
       <TableCell>
         <p>{order.customerName || 'Walk-in'}</p>
-        {order.customerContact && <p className="text-xs text-muted-foreground hidden md:block">{order.customerContact}</p>}
+        <p className="text-xs text-muted-foreground hidden md:block">{order.customerContact}</p>
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
@@ -98,7 +98,7 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
         </div>
       </TableCell>
       <TableCell className="text-right hidden md:table-cell">
-        PKR {(order.grandTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        PKR {(Number(order.grandTotal) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
       </TableCell>
       <TableCell className="text-right">
         <Button asChild size="sm" variant="outline">
@@ -149,7 +149,7 @@ export default function OrdersPage() {
         if (newSummaries.length > 0) {
             setOrderSummaries(prev => ({
                 ...prev,
-                ...Object.fromEntries(newSummaries.map(s => [s.id, s.summary])),
+                ...Object.fromEntries(newSummaries.map(s => [s.id, s.summary.replace(/\n/g, ' / ')])),
             }));
         }
     };
@@ -249,7 +249,7 @@ export default function OrdersPage() {
                 <TableHead className="hidden md:table-cell">Date</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Status & Progress</TableHead>
-                <TableHead className="text-right hidden md:table-cell">Total (PKR)</TableHead>
+                <TableHead className="text-right hidden md:table-cell">Balance (PKR)</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
             </TableHeader>
