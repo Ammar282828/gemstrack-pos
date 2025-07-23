@@ -1,19 +1,21 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { useAppStore, Order, useAppReady, ORDER_STATUSES, OrderStatus } from '@/lib/store';
+import { useAppStore, Order, useAppReady, ORDER_STATUSES, OrderStatus, OrderItem } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter } from 'lucide-react';
+import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { summarizeOrderItems, SummarizeOrderItemsInput } from '@/ai/flows/summarize-order-items-flow';
+import { Progress } from '@/components/ui/progress';
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
     switch (status) {
@@ -30,9 +32,8 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
     }
   };
 
-const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
+const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ order, summary }) => {
   const { toast } = useToast();
-  const safeGrandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
   const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
@@ -48,40 +49,56 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
     }
   };
 
+  const completedItems = order.items.filter(item => item.isCompleted).length;
+  const totalItems = order.items.length;
+  const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+
   return (
     <TableRow>
-      <TableCell>
-        <Link href={`/orders/${order.id}`} className="font-medium text-primary hover:underline">
+      <TableCell className="font-medium">
+        <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
           {order.id}
         </Link>
+        <div className="text-xs text-muted-foreground flex items-center mt-1">
+            <MessageSquareQuote className="w-3 h-3 mr-1.5"/>
+            <span>{summary || 'Generating summary...'}</span>
+        </div>
       </TableCell>
       <TableCell>{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</TableCell>
       <TableCell>
         <p>{order.customerName || 'Walk-in'}</p>
         {order.customerContact && <p className="text-xs text-muted-foreground">{order.customerContact}</p>}
       </TableCell>
-       <TableCell>
-          {isUpdatingStatus ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Select onValueChange={(val) => handleStatusChange(val as OrderStatus)} defaultValue={order.status}>
-                <SelectTrigger className="w-[150px] h-8 text-xs focus:ring-0 focus:ring-offset-0" id={`status-update-${order.id}`}>
-                    <SelectValue>
-                       <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
-                    </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                    {ORDER_STATUSES.map(status => (
-                        <SelectItem key={status} value={status}>
-                          <Badge className={cn("border-transparent w-full justify-center", getStatusBadgeVariant(status))}>{status}</Badge>
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-          )}
+      <TableCell>
+        <div className="flex items-center gap-2">
+            {totalItems > 1 && (
+                <div className="flex flex-col w-20">
+                    <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items</span>
+                    <Progress value={progressPercentage} className="h-1.5 mt-1" />
+                </div>
+            )}
+            {isUpdatingStatus ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+                <Select onValueChange={(val) => handleStatusChange(val as OrderStatus)} defaultValue={order.status}>
+                    <SelectTrigger className="w-[150px] h-8 text-xs focus:ring-0 focus:ring-offset-0" id={`status-update-${order.id}`}>
+                        <SelectValue>
+                           <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
+                        </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                        {ORDER_STATUSES.map(status => (
+                            <SelectItem key={status} value={status}>
+                              <Badge className={cn("border-transparent w-full justify-center", getStatusBadgeVariant(status))}>{status}</Badge>
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )}
+        </div>
       </TableCell>
       <TableCell className="text-right">
-        PKR {safeGrandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+        PKR {(order.grandTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
       </TableCell>
       <TableCell className="text-right">
         <Button asChild size="sm" variant="outline">
@@ -95,6 +112,67 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
   );
 };
 
+const OrderCard: React.FC<{ order: Order, summary: string | undefined }> = ({ order, summary }) => {
+    const completedItems = order.items.filter(item => item.isCompleted).length;
+    const totalItems = order.items.length;
+
+    return (
+        <Card>
+            <CardHeader className="p-4">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle className="text-base">
+                            <Link href={`/orders/${order.id}`} className="text-primary hover:underline">{order.id}</Link>
+                        </CardTitle>
+                        <div className="text-xs text-muted-foreground mt-1 flex items-center">
+                            <Calendar className="w-3 h-3 mr-1" /> {format(parseISO(order.createdAt), 'MMM dd, yyyy')}
+                        </div>
+                    </div>
+                     <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
+                </div>
+                <div className="text-xs text-muted-foreground pt-2 flex items-start gap-1.5">
+                    <MessageSquareQuote className="w-4 h-4 mt-0.5 flex-shrink-0"/>
+                    <span>{summary || 'Generating summary...'}</span>
+                </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-3">
+                 <div>
+                    <div className="flex items-center text-sm">
+                        <User className="w-4 h-4 mr-2 text-muted-foreground"/> 
+                        <span>{order.customerName || 'Walk-in'}</span>
+                    </div>
+                    {order.customerContact && (
+                         <div className="flex items-center text-xs text-muted-foreground mt-1">
+                            <Phone className="w-3 h-3 mr-2 ml-0.5"/> 
+                            <span>{order.customerContact}</span>
+                        </div>
+                    )}
+                 </div>
+                 <div className="text-right text-lg font-bold text-foreground">
+                    PKR {(order.grandTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                 </div>
+            </CardContent>
+            <CardFooter className="p-4 border-t flex items-center justify-between">
+                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    {totalItems > 1 ? (
+                        <>
+                            {completedItems === totalItems ? <CheckCircle2 className="w-4 h-4 text-green-500"/> : <Circle className="w-4 h-4 text-yellow-500"/>}
+                            <span>{completedItems} of {totalItems} items complete</span>
+                        </>
+                    ) : (
+                         <>
+                            {order.items[0]?.isCompleted ? <CheckCircle2 className="w-4 h-4 text-green-500"/> : <Circle className="w-4 h-4 text-yellow-500"/>}
+                            <span>{order.items[0]?.isCompleted ? 'Item Complete' : 'Item Pending'}</span>
+                         </>
+                    )}
+                </div>
+                <Button asChild size="sm" variant="outline">
+                    <Link href={`/orders/${order.id}`}><Eye className="w-4 h-4 mr-2"/>View Details</Link>
+                </Button>
+            </CardFooter>
+        </Card>
+    )
+}
 
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -104,6 +182,44 @@ export default function OrdersPage() {
   const orders = useAppStore(state => state.orders);
   const isOrdersLoading = useAppStore(state => state.isOrdersLoading);
   
+  const [orderSummaries, setOrderSummaries] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!appReady || orders.length === 0) return;
+
+    const fetchSummaries = async () => {
+        const summariesToFetch = orders
+            .filter(order => !orderSummaries[order.id]) // Only fetch for orders without a summary
+            .map(async (order) => {
+                try {
+                    const input: SummarizeOrderItemsInput = {
+                        items: order.items.map(item => ({
+                            description: item.description,
+                            karat: item.karat,
+                            estimatedWeightG: item.estimatedWeightG,
+                        })),
+                    };
+                    const result = await summarizeOrderItems(input);
+                    return { id: order.id, summary: result.summary };
+                } catch (error) {
+                    console.error(`Failed to get summary for order ${order.id}:`, error);
+                    return { id: order.id, summary: "Could not generate summary." };
+                }
+            });
+
+        const newSummaries = await Promise.all(summariesToFetch);
+        if (newSummaries.length > 0) {
+            setOrderSummaries(prev => ({
+                ...prev,
+                ...Object.fromEntries(newSummaries.map(s => [s.id, s.summary])),
+            }));
+        }
+    };
+
+    fetchSummaries();
+  }, [appReady, orders, orderSummaries]);
+
+
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
     return orders.filter(order =>
@@ -187,25 +303,34 @@ export default function OrdersPage() {
             <p className="text-muted-foreground">Refreshing order list...</p>
          </div>
       ) : filteredOrders.length > 0 ? (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Total (PKR)</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrders.map((order) => (
-                <OrderRow key={order.id} order={order} />
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+        <>
+            {/* Desktop View */}
+            <Card className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order Details</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Status & Progress</TableHead>
+                    <TableHead className="text-right">Total (PKR)</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredOrders.map((order) => (
+                    <OrderRow key={order.id} order={order} summary={orderSummaries[order.id]} />
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+            {/* Mobile View */}
+            <div className="md:hidden grid grid-cols-1 gap-4">
+                {filteredOrders.map((order) => (
+                    <OrderCard key={order.id} order={order} summary={orderSummaries[order.id]} />
+                ))}
+            </div>
+        </>
       ) : (
         <div className="text-center py-12 bg-card rounded-lg shadow">
           <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground mb-4" />

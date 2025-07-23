@@ -246,6 +246,7 @@ export interface OrderItem {
   sampleImageDataUri?: string;
   referenceSku?: string;
   sampleGiven: boolean;
+  isCompleted: boolean;
   metalCost?: number;
   totalEstimate?: number;
 }
@@ -415,6 +416,7 @@ export interface AppState {
   loadOrders: () => Promise<void>;
   addOrder: (orderData: OrderDataForAdd) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+  updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
 
   fetchAllInitialData: () => Promise<void>;
 }
@@ -990,6 +992,7 @@ export const useAppStore = create<AppState>()(
 
         const newOrder: Order = {
           ...orderData,
+          items: orderData.items.map(item => ({...item, isCompleted: false })), // Ensure isCompleted is set
           subtotal: finalSubtotal,
           grandTotal: finalGrandTotal,
           customerName: customerNameToSave,
@@ -1040,6 +1043,35 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      updateOrderItemStatus: async (orderId, itemIndex, isCompleted) => {
+        const order = get().orders.find(o => o.id === orderId);
+        if (!order) {
+          console.error(`Order with ID ${orderId} not found.`);
+          throw new Error("Order not found");
+        }
+        const updatedItems = [...order.items];
+        if (updatedItems[itemIndex]) {
+          updatedItems[itemIndex].isCompleted = isCompleted;
+        } else {
+            throw new Error("Item index out of bounds");
+        }
+    
+        try {
+          const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
+          await setDoc(orderDocRef, { items: updatedItems }, { merge: true });
+          set(state => {
+            const storeOrder = state.orders.find(o => o.id === orderId);
+            if (storeOrder) {
+              storeOrder.items = updatedItems;
+            }
+          });
+          console.log(`Successfully updated item #${itemIndex} status for order ${orderId}.`);
+        } catch (error) {
+          console.error(`Error updating item status for order ${orderId}:`, error);
+          throw error;
+        }
+      },
+
     })),
     {
       name: 'gemstrack-pos-storage',
@@ -1059,21 +1091,11 @@ export const useAppStore = create<AppState>()(
             theme: state.settings?.theme || 'default',
         }
       }),
-      version: 11,
+      version: 12,
       migrate: (persistedState, version) => {
         const oldState = persistedState as any;
-        if (version < 9) {
-          if (oldState.settings && !oldState.settings.theme) {
-            oldState.settings.theme = 'default';
-          }
-        }
-        if (version < 10) {
-            if (oldState.settings && typeof oldState.settings.lastOrderNumber === 'undefined') {
-                oldState.settings.lastOrderNumber = 0;
-            }
-        }
-        if (version < 11) {
-            // This is just to satisfy the migration logic, no changes needed for this version.
+        if (version < 12) {
+          // No specific migration needed from v11 to v12, but this structure allows for future changes.
         }
         return oldState as AppState;
       },

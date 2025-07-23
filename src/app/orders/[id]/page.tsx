@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAppStore, Order, OrderStatus, useIsStoreHydrated, ORDER_STATUSES, KaratValue } from '@/lib/store';
+import { useAppStore, Order, OrderStatus, useIsStoreHydrated, ORDER_STATUSES, KaratValue, OrderItem } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -15,6 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
     switch (status) {
@@ -44,9 +46,10 @@ export default function OrderDetailPage() {
 
   const isHydrated = useIsStoreHydrated();
   const order = useAppStore(state => state.orders.find(o => o.id === orderId));
-  const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
+  const { updateOrderStatus, updateOrderItemStatus } = useAppStore();
   
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isUpdatingItem, setIsUpdatingItem] = useState<number | null>(null);
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
     if (!order) return;
@@ -58,6 +61,19 @@ export default function OrderDetailPage() {
         toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
     } finally {
         setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleItemStatusChange = async (itemIndex: number, isCompleted: boolean) => {
+    if (!order) return;
+    setIsUpdatingItem(itemIndex);
+    try {
+        await updateOrderItemStatus(order.id, itemIndex, isCompleted);
+        toast({ title: "Item Status Updated", description: `Item #${itemIndex + 1} status updated.` });
+    } catch (error) {
+        toast({ title: "Error", description: "Failed to update item status.", variant: "destructive" });
+    } finally {
+        setIsUpdatingItem(null);
     }
   };
 
@@ -121,30 +137,44 @@ export default function OrderDetailPage() {
 
                 <Separator className="my-6" />
 
-                <h3 className="text-lg font-semibold mb-4">Order Items</h3>
+                <h3 className="text-lg font-semibold mb-4">Order Items Checklist</h3>
                 <div className="space-y-4">
                     {order.items.map((item, index) => (
                         <div key={index} className="p-4 border rounded-lg flex flex-col md:flex-row gap-4 bg-muted/30">
-                            {item.sampleImageDataUri && (
-                                <div className="relative w-full md:w-24 h-24 flex-shrink-0">
-                                    <Image src={item.sampleImageDataUri} alt={`Sample for ${item.description}`} fill className="object-contain rounded-md border bg-muted" />
+                            <div className="flex items-start gap-4 flex-grow">
+                                {item.sampleImageDataUri && (
+                                    <div className="relative w-24 h-24 flex-shrink-0">
+                                        <Image src={item.sampleImageDataUri} alt={`Sample for ${item.description}`} fill className="object-contain rounded-md border bg-muted" />
+                                    </div>
+                                )}
+                                <div className="flex-grow">
+                                    <p className="font-bold">{item.description}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Est. Wt: {item.estimatedWeightG}g ({item.karat.toUpperCase()})
+                                        {item.referenceSku && ` | Ref: ${item.referenceSku}`}
+                                        {item.sampleGiven && ` | Sample Provided`}
+                                    </p>
+                                    <div className="text-sm mt-2 p-2 bg-background rounded-md">
+                                        <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                        {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                        {item.diamondCharges > 0 && <div className="flex justify-between"><span>+ Diamond Charges:</span> <span className="font-semibold">PKR {item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                        {item.stoneCharges > 0 && <div className="flex justify-between"><span>+ Other Stone Charges:</span> <span className="font-semibold">PKR {item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                        <Separator className="my-1"/>
+                                        <div className="flex justify-between font-bold"><span>Item Total:</span> <span>PKR {item.totalEstimate?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                    </div>
                                 </div>
-                            )}
-                            <div className="flex-grow">
-                                <p className="font-bold">{item.description}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    Est. Wt: {item.estimatedWeightG}g ({item.karat.toUpperCase()})
-                                    {item.referenceSku && ` | Ref: ${item.referenceSku}`}
-                                    {item.sampleGiven && ` | Sample Provided`}
-                                </p>
-                                <div className="text-sm mt-2 p-2 bg-background rounded-md">
-                                    <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                                    {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                    {item.diamondCharges > 0 && <div className="flex justify-between"><span>+ Diamond Charges:</span> <span className="font-semibold">PKR {item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                    {item.stoneCharges > 0 && <div className="flex justify-between"><span>+ Other Stone Charges:</span> <span className="font-semibold">PKR {item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                    <Separator className="my-1"/>
-                                    <div className="flex justify-between font-bold"><span>Item Total:</span> <span>PKR {item.totalEstimate?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                                </div>
+                            </div>
+                             <div className="flex items-center space-x-2 flex-shrink-0">
+                                {isUpdatingItem === index ? <Loader2 className="h-4 w-4 animate-spin"/> : (
+                                <Checkbox
+                                    id={`item-${index}`}
+                                    checked={item.isCompleted}
+                                    onCheckedChange={(checked) => handleItemStatusChange(index, !!checked)}
+                                />
+                                )}
+                                <Label htmlFor={`item-${index}`} className={cn("font-medium", item.isCompleted && "line-through text-muted-foreground")}>
+                                    Mark as Complete
+                                </Label>
                             </div>
                         </div>
                     ))}
