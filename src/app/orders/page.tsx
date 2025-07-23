@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Eye, ClipboardList, Loader2 } from 'lucide-react';
+import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -37,7 +37,10 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
         </Link>
       </TableCell>
       <TableCell>{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</TableCell>
-      <TableCell>{order.customerName || 'Walk-in'}</TableCell>
+      <TableCell>
+        <p>{order.customerName || 'Walk-in'}</p>
+        {order.customerContact && <p className="text-xs text-muted-foreground">{order.customerContact}</p>}
+      </TableCell>
        <TableCell>
          <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
       </TableCell>
@@ -59,6 +62,7 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
 
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
   
   const appReady = useAppReady();
   const orders = useAppStore(state => state.orders);
@@ -67,10 +71,14 @@ export default function OrdersPage() {
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
     return orders.filter(order =>
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase()))
+        (statusFilter === 'All' || order.status === statusFilter) &&
+        (
+            order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (order.customerContact && order.customerContact.includes(searchTerm))
+        )
     );
-  }, [orders, searchTerm, appReady]);
+  }, [orders, searchTerm, appReady, statusFilter]);
 
   if (!appReady || isOrdersLoading) {
     return (
@@ -97,16 +105,36 @@ export default function OrdersPage() {
       </header>
 
       <Card className="mb-6">
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-4">
           <div className="relative flex-grow w-full">
             <Input
               type="search"
-              placeholder="Search by Order ID or Customer Name..."
+              placeholder="Search by Order ID, Customer Name, or Contact..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          </div>
+           <div className="flex flex-wrap gap-2 items-center">
+             <span className="text-sm font-medium text-muted-foreground mr-2 flex items-center"><Filter className="w-4 h-4 mr-1"/>Status:</span>
+            <Button
+              variant={statusFilter === 'All' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('All')}
+            >
+              All
+            </Button>
+            {ORDER_STATUSES.map((status) => (
+              <Button
+                key={status}
+                variant={statusFilter === status ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter(status)}
+              >
+                {status}
+              </Button>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -141,7 +169,7 @@ export default function OrdersPage() {
           <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Orders Found</h3>
           <p className="text-muted-foreground">
-            {searchTerm ? "Try adjusting your search term." : "Create a custom order to get started!"}
+            {searchTerm || statusFilter !== 'All' ? "Try adjusting your search or filter." : "Create a custom order to get started!"}
           </p>
         </div>
       )}

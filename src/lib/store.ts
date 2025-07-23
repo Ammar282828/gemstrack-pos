@@ -262,6 +262,7 @@ export interface Order {
   grandTotal: number;
   customerId?: string;
   customerName?: string;
+  customerContact?: string;
 }
 
 // --- Product Tag Format Definitions ---
@@ -411,7 +412,7 @@ export interface AppState {
   ) => Promise<Invoice | null>;
   
   loadOrders: () => Promise<void>;
-  addOrder: (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>, customerId?: string) => Promise<Order | null>;
+  addOrder: (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
 
   fetchAllInitialData: () => Promise<void>;
@@ -967,25 +968,27 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      addOrder: async (orderData, customerId) => {
+      addOrder: async (orderData) => {
         const { settings, customers } = get();
         const nextOrderNumber = (settings.lastOrderNumber || 0) + 1;
         const newOrderId = `ORD-${nextOrderNumber.toString().padStart(6, '0')}`;
 
+        let customerNameToSave = orderData.customerName;
+
+        if (orderData.customerId) {
+          const customer = customers.find(c => c.id === orderData.customerId);
+          if (customer) {
+            customerNameToSave = customer.name;
+          }
+        }
+
         const newOrder: Order = {
           ...orderData,
+          customerName: customerNameToSave,
           id: newOrderId,
           createdAt: new Date().toISOString(),
           status: 'Pending',
         };
-
-        if (customerId) {
-          const customer = customers.find(c => c.id === customerId);
-          if (customer) {
-            newOrder.customerId = customer.id;
-            newOrder.customerName = customer.name;
-          }
-        }
         
         console.log("[GemsTrack Store addOrder] Attempting to save order:", newOrder);
 
@@ -1048,7 +1051,7 @@ export const useAppStore = create<AppState>()(
             theme: state.settings?.theme || 'default',
         }
       }),
-      version: 10,
+      version: 11,
       migrate: (persistedState, version) => {
         const oldState = persistedState as any;
         if (version < 9) {
@@ -1060,6 +1063,9 @@ export const useAppStore = create<AppState>()(
             if (oldState.settings && typeof oldState.settings.lastOrderNumber === 'undefined') {
                 oldState.settings.lastOrderNumber = 0;
             }
+        }
+        if (version < 11) {
+            // This is just to satisfy the migration logic, no changes needed for this version.
         }
         return oldState as AppState;
       },

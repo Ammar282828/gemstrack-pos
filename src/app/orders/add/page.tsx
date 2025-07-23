@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X } from 'lucide-react';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -56,6 +56,8 @@ const orderFormSchema = z.object({
     advancePayment: z.coerce.number().min(0).default(0),
     advanceGoldDetails: z.string().optional(),
     customerId: z.string().optional(),
+    customerName: z.string().optional(),
+    customerContact: z.string().optional(),
 });
 
 
@@ -198,7 +200,9 @@ export default function CustomOrderPage() {
       goldRate: settings.goldRatePerGram || 0,
       advancePayment: 0,
       advanceGoldDetails: '',
-      customerId: undefined,
+      customerId: WALK_IN_CUSTOMER_VALUE,
+      customerName: '',
+      customerContact: '',
     },
   });
   
@@ -214,6 +218,20 @@ export default function CustomOrderPage() {
   }, [settings.goldRatePerGram, form]);
 
   const formValues = form.watch();
+  const selectedCustomerId = form.watch('customerId');
+
+  useEffect(() => {
+    if (selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE) {
+        const customer = customers.find(c => c.id === selectedCustomerId);
+        if (customer) {
+            form.setValue('customerName', customer.name);
+            form.setValue('customerContact', customer.phone || '');
+        }
+    } else {
+        // Clear fields if switching back to walk-in, unless they were manually entered
+        // This might need more complex logic if we want to preserve manual entries
+    }
+  }, [selectedCustomerId, customers, form]);
 
   const liveEstimate = useMemo(() => {
     let subtotal = 0;
@@ -257,14 +275,18 @@ export default function CustomOrderPage() {
     const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
 
     const orderToSave: Omit<Order, 'id' | 'createdAt' | 'status'> = {
-        ...data,
         items: enrichedItems,
+        goldRate: data.goldRate,
+        advancePayment: data.advancePayment,
+        advanceGoldDetails: data.advanceGoldDetails,
         subtotal,
         grandTotal,
         customerId: finalCustomerId,
+        customerName: data.customerName,
+        customerContact: data.customerContact,
     };
 
-    const newOrder = await addOrderAction(orderToSave, finalCustomerId);
+    const newOrder = await addOrderAction(orderToSave);
 
     if (newOrder) {
         setGeneratedEstimate({ ...data, subtotal, grandTotal });
@@ -521,15 +543,15 @@ export default function CustomOrderPage() {
                             name="customerId"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Select Customer (Optional)</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormLabel>Customer</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                         <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select a customer" />
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            <SelectItem value={WALK_IN_CUSTOMER_VALUE}>None (Walk-in)</SelectItem>
+                                            <SelectItem value={WALK_IN_CUSTOMER_VALUE}>Walk-in Customer</SelectItem>
                                             {customers.map(c => (
                                                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                                             ))}
@@ -539,6 +561,17 @@ export default function CustomOrderPage() {
                                 </FormItem>
                             )}
                         />
+                         {selectedCustomerId === WALK_IN_CUSTOMER_VALUE && (
+                            <div className="space-y-4 pt-2">
+                                <FormField control={form.control} name="customerName" render={({ field }) => (
+                                   <FormItem><FormLabel className="flex items-center"><User className="mr-2 h-4 w-4"/>Walk-in Customer Name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                 <FormField control={form.control} name="customerContact" render={({ field }) => (
+                                   <FormItem><FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4"/>Walk-in Customer Contact</FormLabel><FormControl><Input placeholder="e.g., 03001234567" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                            </div>
+                         )}
+
                         <FormField control={form.control} name="goldRate" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rate (PKR/gram, 24k)</FormLabel>
