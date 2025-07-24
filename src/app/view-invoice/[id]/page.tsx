@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -6,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Invoice, Settings, Customer } from '@/lib/store';
-import { Loader2, Download, FileText, CheckCircle } from 'lucide-react';
+import { Loader2, Download, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
@@ -79,7 +78,6 @@ export default function ViewInvoicePage() {
   const handlePrint = () => {
     if (!invoice || !settings) return;
     
-    // FIX: Renamed 'doc' to 'pdfDoc' to avoid conflict with firestore's 'doc' function
     const pdfDoc = new jsPDF();
     const pageHeight = pdfDoc.internal.pageSize.getHeight();
     const pageWidth = pdfDoc.internal.pageSize.getWidth();
@@ -89,7 +87,6 @@ export default function ViewInvoicePage() {
     function drawHeader(pageNum: number) {
         if (logoUrl) {
             try {
-                // This is a synchronous operation for jsPDF, no need for onload
                  pdfDoc.addImage(logoUrl, 'PNG', margin, 15, 40, 10, undefined, 'FAST');
             } catch (e) {
                  console.error("Error adding logo to PDF:", e);
@@ -200,10 +197,8 @@ export default function ViewInvoicePage() {
         didDrawPage: (data) => {
             if (data.pageNumber > 1) {
                 pdfDoc.setPage(data.pageNumber);
-                // FIX: Use a safe startY for subsequent pages
                 data.settings.startY = 40; 
             }
-             // Always draw header, including on page 1
             drawHeader(data.pageNumber);
         },
     });
@@ -211,12 +206,12 @@ export default function ViewInvoicePage() {
     let finalY = pdfDoc.lastAutoTable.finalY || 0;
     
     let totalsAndFooterStartY = finalY + 15;
-    const footerHeight = 75; // Estimated height for totals and footer sections
+    const footerHeight = 75;
 
     if (totalsAndFooterStartY + footerHeight > pageHeight - margin) {
         pdfDoc.addPage();
         drawHeader(pdfDoc.getNumberOfPages());
-        totalsAndFooterStartY = 40; // Start fresh on the new page
+        totalsAndFooterStartY = 40;
     }
     
     let currentY = totalsAndFooterStartY;
@@ -241,7 +236,6 @@ export default function ViewInvoicePage() {
     pdfDoc.text(`Grand Total:`, totalsX - 60, currentY, { align: 'right' });
     pdfDoc.text(`PKR ${invoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
 
-    // --- Dynamic Footer ---
     const footerStartY = pageHeight - 45;
     const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
     

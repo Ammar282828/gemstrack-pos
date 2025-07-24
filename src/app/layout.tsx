@@ -1,7 +1,6 @@
-
 "use client";
 
-import type { Metadata, Viewport } from 'next';
+import { usePathname } from 'next/navigation';
 import { Inter } from 'next/font/google'; 
 import './globals.css';
 import AppLayout from '@/components/layout/app-layout';
@@ -15,21 +14,13 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
-// We can't use the metadata object for dynamic theme-color, so we'll handle it in the component.
-// export const metadata: Metadata = {
-//   title: 'Taheri POS',
-//   description: 'Jewellery Inventory & Point-of-Sale System',
-//   manifest: '/manifest.json',
-// };
-
-// export const viewport: Viewport = {
-//   width: 'device-width',
-//   initialScale: 1,
-// };
-
 function AppBody({ children }: { children: React.ReactNode }) {
   const isHydrated = useIsStoreHydrated();
   const theme = useAppStore(state => state.settings.theme);
+  const pathname = usePathname();
+
+  // Determine if the current page is the public invoice view
+  const isPublicInvoicePage = pathname.startsWith('/view-invoice');
 
   // Render a placeholder or nothing until hydration is complete to avoid flash
   if (!isHydrated) {
@@ -42,12 +33,21 @@ function AppBody({ children }: { children: React.ReactNode }) {
 
   return (
     <body className={`${inter.variable} font-sans antialiased theme-${theme}`}>
-      <AppLayout>
-          <MainApp>
-            {children}
-          </MainApp>
-      </AppLayout>
-      <Toaster />
+      {isPublicInvoicePage ? (
+        // For public pages, render children directly without the main app layout
+        <>
+          {children}
+          <Toaster />
+        </>
+      ) : (
+        // For internal app pages, wrap with the full layout and auth providers
+        <AppLayout>
+            <MainApp>
+              {children}
+            </MainApp>
+        </AppLayout>
+      )}
+      {!isPublicInvoicePage && <Toaster />}
     </body>
   );
 }
