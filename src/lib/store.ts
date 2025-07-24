@@ -1242,21 +1242,6 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
     return { ...product, ...costs };
 };
 
-export const selectAllProductsWithCosts = (state: AppState): (Product & ReturnType<typeof calculateProductCosts>)[] => {
-    if (!state.products || !Array.isArray(state.products) || !state.settings) {
-        // console.warn("[GemsTrack selectAllProductsWithCosts] Products or settings not available. Returning empty array.");
-        return [];
-    }
-    const rates = {
-        goldRatePerGram24k: state.settings.goldRatePerGram,
-        palladiumRatePerGram: state.settings.palladiumRatePerGram,
-        platinumRatePerGram: state.settings.platinumRatePerGram,
-    };
-    return state.products.map(product => {
-        const costs = calculateProductCosts(product, rates);
-        return { ...product, ...costs };
-    });
-};
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
 
 // Hook to check hydration status, useful for client-side only rendering logic or avoiding hydration mismatches.
