@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -53,6 +53,7 @@ export default function CartPage() {
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
+  const [whatsAppNumber, setWhatsAppNumber] = useState('');
 
   const [invoiceGoldRateInput, setInvoiceGoldRateInput] = useState<string>('');
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
@@ -154,11 +155,48 @@ export default function CartPage() {
     const invoice = await generateInvoiceAction(selectedCustomerId, parsedGoldRate, parsedDiscountAmount);
     if (invoice) {
       setGeneratedInvoice(invoice);
+       // Pre-fill WhatsApp number if a customer with a phone number is selected
+      if(invoice.customerId) {
+        const customer = customers.find(c => c.id === invoice.customerId);
+        if(customer?.phone) {
+          setWhatsAppNumber(customer.phone);
+        }
+      }
       toast({ title: "Estimate Generated", description: `Estimate ${invoice.id} created successfully.` });
     } else {
       toast({ title: "Estimate Generation Failed", description: "Could not generate the estimate. Please check inputs and logs.", variant: "destructive" });
     }
   };
+
+  const handleSendWhatsApp = (invoiceToSend: InvoiceType) => {
+    if (!whatsAppNumber) {
+      toast({ title: "No Phone Number", description: "Please enter a customer's phone number.", variant: "destructive" });
+      return;
+    }
+
+    let message = `*Estimate from ${settings.shopName}*\n\n`;
+    message += `*Estimate ID:* ${invoiceToSend.id}\n`;
+    message += `*Date:* ${new Date(invoiceToSend.createdAt).toLocaleDateString()}\n`;
+    if(invoiceToSend.customerName) {
+      message += `*Customer:* ${invoiceToSend.customerName}\n\n`;
+    }
+    
+    message += "*Items:*\n";
+    invoiceToSend.items.forEach((item, index) => {
+      message += `${index + 1}. ${item.name} (Qty: ${item.quantity})\n`;
+      message += `   Total: PKR ${item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n`;
+    });
+    
+    message += `\n*Subtotal:* PKR ${invoiceToSend.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    message += `\n*Discount:* -PKR ${invoiceToSend.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    message += `\n\n*GRAND TOTAL: PKR ${invoiceToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}*`;
+
+    message += `\n\nThank you for your business!`;
+
+    const whatsappUrl = `https://wa.me/${whatsAppNumber.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
 
   const printInvoice = (invoiceToPrint: InvoiceType) => {
     if (typeof window === 'undefined') {
@@ -172,25 +210,20 @@ export default function CartPage() {
     const margin = 15;
     const logoUrl = settings.shopLogoUrlBlack;
 
-    function drawHeader() {
-        if (logoUrl) {
+    function drawHeader(pageNum: number) {
+        if (pageNum === 1 && logoUrl) {
             try {
                 const img = new window.Image();
                 img.src = logoUrl;
-                const aspectRatio = img.width / img.height;
-                const imgHeight = 15;
-                const imgWidth = imgHeight * aspectRatio;
-                doc.addImage(img, 'PNG', margin, 15, imgWidth, imgHeight);
+                img.onload = () => {
+                    const aspectRatio = img.width / img.height;
+                    const imgHeight = 15;
+                    const imgWidth = imgHeight * aspectRatio;
+                    doc.addImage(img, 'PNG', margin, 15, imgWidth, imgHeight);
+                }
             } catch (e) {
-                console.error("Error adding logo to PDF:", e);
-                doc.setFont("helvetica", "bold");
-                doc.setFontSize(20);
-                doc.text(settings.shopName, margin, 22);
+                 console.error("Error adding logo to PDF:", e);
             }
-        } else {
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(20);
-            doc.text(settings.shopName, margin, 22);
         }
         
         doc.setFont("helvetica", "bold");
@@ -199,9 +232,15 @@ export default function CartPage() {
         
         doc.setLineWidth(0.5);
         doc.line(margin, 35, pageWidth - margin, 35);
+
+        if (pageNum > 1) {
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 10, {align: 'right'});
+        }
     }
     
-    drawHeader();
+    drawHeader(1);
     
     let infoY = 50;
     doc.setFontSize(10);
@@ -290,19 +329,22 @@ export default function CartPage() {
         didDrawPage: (data) => {
             if (data.pageNumber > 1) {
                 doc.setPage(data.pageNumber);
-                drawHeader();
-                data.settings.startY = 40; // New page start Y below the header
             }
+            // Draw header on all pages
+            drawHeader(data.pageNumber);
+            // Reset startY for new pages
+            data.settings.startY = 40; 
         },
     });
 
     let finalY = doc.lastAutoTable.finalY || 0;
     
     const footerAndTotalsHeight = 75; // Combined estimated height
-    
-    if (finalY + footerAndTotalsHeight > pageHeight - margin) {
+    let needsNewPage = finalY + footerAndTotalsHeight > pageHeight - margin;
+
+    if (needsNewPage) {
         doc.addPage();
-        drawHeader();
+        drawHeader(doc.getNumberOfPages());
         finalY = 40; 
     }
 
@@ -314,11 +356,11 @@ export default function CartPage() {
     doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
 
+    doc.setFont("helvetica", "bold").setTextColor(220, 53, 69); // Red for discount
     doc.text(`Discount:`, totalsX - 40, currentY, { align: 'right' });
-    doc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
     doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
-    doc.setFont("helvetica", "normal").setTextColor(0);
+    doc.setFont("helvetica", "normal").setTextColor(0); // Reset color
     
     doc.setLineWidth(0.5);
     doc.line(totalsX - 60, currentY, totalsX, currentY);
@@ -471,6 +513,20 @@ export default function CartPage() {
                         <p>Subtotal: <span className="font-semibold">PKR {generatedInvoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
                         <p>Discount: <span className="font-semibold text-destructive">- PKR {generatedInvoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
                         <p className="text-xl font-bold">Grand Total: <span className="text-primary">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
+                    </div>
+                    <Separator className="my-6"/>
+                    <div className="p-4 border rounded-lg bg-muted/50">
+                        <Label htmlFor="whatsapp-number">Send Estimate to Customer via WhatsApp</Label>
+                        <div className="flex gap-2 mt-2">
+                             <Input 
+                                id="whatsapp-number"
+                                type="tel"
+                                placeholder="Customer's phone number"
+                                value={whatsAppNumber}
+                                onChange={(e) => setWhatsAppNumber(e.target.value)}
+                             />
+                             <Button onClick={() => handleSendWhatsApp(generatedInvoice)}><MessageSquare className="mr-2 h-4 w-4"/> Send</Button>
+                        </div>
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end space-x-2">
@@ -683,4 +739,3 @@ export default function CartPage() {
     </div>
   );
 }
-
