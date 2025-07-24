@@ -75,7 +75,7 @@ export default function CartPage() {
     const hasGoldItems = cartItemsFromStore.some(item => item.metalType === 'gold');
     
     if (hasGoldItems && (isNaN(parsedGoldRate) || parsedGoldRate <= 0)) {
-        return null; // Don't calculate if gold rate is invalid for a cart with gold items
+        return null; // Don't calculate if gold rate is invalid for a cart with a gold items
     }
     
     const ratesForCalc = {
@@ -296,17 +296,17 @@ export default function CartPage() {
         },
     });
 
-    let currentY = doc.lastAutoTable.finalY || tableStartY;
-    const totalsBlockHeight = 40; 
-    const footerBlockHeight = 50;
+    let finalY = doc.lastAutoTable.finalY || 0;
     
-    if (currentY + totalsBlockHeight + footerBlockHeight > pageHeight - margin) {
+    const footerAndTotalsHeight = 75; // Combined estimated height
+    
+    if (finalY + footerAndTotalsHeight > pageHeight - margin) {
         doc.addPage();
         drawHeader();
-        currentY = 40; 
+        finalY = 40; 
     }
 
-    currentY += 15;
+    let currentY = finalY + 15;
     const totalsX = pageWidth - margin;
 
     doc.setFontSize(10).setFont("helvetica", "normal").setTextColor(0);
@@ -330,14 +330,30 @@ export default function CartPage() {
 
     const footerStartY = pageHeight - 45;
     const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
-    const thankYouText = "Thank you for your business!";
     
     doc.setLineWidth(0.2);
-    doc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
+    doc.line(margin, footerStartY - 10, pageWidth - margin, footerStartY - 10);
     doc.setFontSize(8).setTextColor(150);
-    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin*2 - 70 });
-    doc.text(thankYouText, margin, footerStartY + 12);
+    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin * 2 - 70 });
     
+    // Contacts section
+    const contacts = [
+        { name: "Murtaza", number: "0333 2275190" },
+        { name: "Muhammad", number: "0300 8280896" },
+        { name: "Huzaifa", number: "0335 2275553" },
+        { name: "Ammar", number: "0326 2275554" },
+    ];
+    let contactY = footerStartY + 12;
+    doc.setFontSize(8).setFont("helvetica", "bold").setTextColor(50);
+    doc.text("For Orders & Inquiries:", margin, contactY);
+    contactY += 4;
+    doc.setFont("helvetica", "normal").setTextColor(100);
+    contacts.forEach(contact => {
+        doc.text(`${contact.name}: ${contact.number}`, margin, contactY);
+        contactY += 4;
+    });
+
+    // QR Codes
     const qrCodeSize = 25;
     const qrSectionWidth = (qrCodeSize * 2) + 15;
     const qrStartX = pageWidth - margin - qrSectionWidth;
@@ -347,15 +363,16 @@ export default function CartPage() {
 
     if (instaQrCanvas) {
         doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("Follow Us", qrStartX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        doc.text("@collectionstaheri", qrStartX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
         doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
     }
     if (waQrCanvas) {
         const secondQrX = qrStartX + qrCodeSize + 15;
         doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("Join Community", secondQrX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        doc.text("Join on WhatsApp", secondQrX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
         doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
     }
+    
 
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
@@ -666,6 +683,4 @@ export default function CartPage() {
     </div>
   );
 }
-
-
 
