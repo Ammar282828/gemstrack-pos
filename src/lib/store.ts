@@ -255,9 +255,9 @@ export interface Invoice {
   discountAmount: number;
   grandTotal: number;
   createdAt: string; // ISO string
-  goldRateApplied?: number;
-  palladiumRateApplied?: number;
-  platinumRateApplied?: number;
+  goldRateApplied?: number | null;
+  palladiumRateApplied?: number | null;
+  platinumRateApplied?: number | null;
 }
 
 export interface Karigar {
@@ -912,6 +912,9 @@ export const useAppStore = create<AppState>()(
           discountAmount: calculatedDiscountAmount, 
           grandTotal: Number(grandTotal) || 0, 
           createdAt: new Date().toISOString(),
+          goldRateApplied: null,
+          palladiumRateApplied: null,
+          platinumRateApplied: null,
         };
 
         if (hasGoldItems && ratesForInvoice.goldRatePerGram24k > 0) {
