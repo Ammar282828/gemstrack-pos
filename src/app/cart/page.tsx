@@ -256,16 +256,22 @@ export default function CartPage() {
             metalDisplay += ` (${item.karat.toUpperCase()})`;
           }
 
-          // We pass the raw item to the cell's meta for custom rendering
-          const itemDescription = {
-            name: `${item.name} (SKU: ${item.sku})`,
-            details: `Metal: ${metalDisplay}, Wt: ${item.metalWeightG.toFixed(2)}g`,
-            breakdown: item // Pass the full item for breakdown rendering
-          };
+          let breakdownLines = [];
+          if (item.metalCost > 0) breakdownLines.push(`Metal Cost: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+          if (item.wastageCost > 0) breakdownLines.push(`+ Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+          if (item.makingCharges > 0) breakdownLines.push(`+ Making Charges: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+          if (item.diamondChargesIfAny > 0) breakdownLines.push(`+ Diamonds: PKR ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+          if (item.stoneChargesIfAny > 0) breakdownLines.push(`+ Stones: PKR ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+          if (item.miscChargesIfAny > 0) breakdownLines.push(`+ Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+          
+          const breakdownText = breakdownLines.join('\n');
+          
+          const itemDescription = `${item.name} (SKU: ${item.sku})\nMetal: ${metalDisplay}, Wt: ${item.metalWeightG.toFixed(2)}g\n${breakdownText ? `\n${breakdownText}` : ''}`;
+
 
           const itemData = [
             index + 1,
-            itemDescription, // Pass the object
+            itemDescription,
             item.quantity,
             item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
             item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -280,51 +286,17 @@ export default function CartPage() {
           theme: 'grid',
           headStyles: { fillColor: [0, 60, 0], fontStyle: 'bold' },
           styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-          columnStyles: { 1: { cellWidth: 'auto' } },
-          willDrawCell: (data: any) => {
-            // Prevent default drawing for the custom-rendered column
-            if (data.column.index === 1 && data.cell.section === 'body') {
-               const cellData = data.cell.raw;
-               if (typeof cellData === 'object' && cellData !== null && 'breakdown' in cellData) {
-                    data.cell.text = []; // Clear default content
-               }
-            }
+          columnStyles: { 
+              1: { cellWidth: 'auto' }, 
+              2: { cellWidth: 15, halign: 'right' },
+              3: { cellWidth: 30, halign: 'right' },
+              4: { cellWidth: 30, halign: 'right' },
           },
-          didDrawCell: (data: any) => {
-            // Custom rendering for the 'Item Description' column
-            if (data.column.index === 1 && data.cell.section === 'body') {
-                const cellData = data.cell.raw;
-                if (typeof cellData === 'object' && cellData !== null && 'breakdown' in cellData) {
-                    const item = cellData.breakdown as InvoiceItem;
-                    const doc = data.doc;
-                    const cell = data.cell;
-                    let y = cell.y + 4;
-
-                    // Main Item Name & Details
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(cellData.name, cell.x + 2, y);
-                    y += 4;
-                    doc.setFont('helvetica', 'normal');
-                    doc.text(cellData.details, cell.x + 2, y);
-                    y += 5; // Extra space before breakdown
-                    
-                    const renderLineWithPrefix = (prefix: string, label: string, value: number) => {
-                        if (value > 0) {
-                            doc.setFont('helvetica', 'normal');
-                            const lineText = `${prefix} ${label}: PKR ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-                            doc.text(lineText, cell.x + 4, y);
-                            y += 4;
-                        }
-                    };
-
-                    renderLineWithPrefix('', 'Metal Cost', item.metalCost);
-                    if (item.wastageCost > 0) renderLineWithPrefix('+', `Wastage (${item.wastagePercentage}%)`, item.wastageCost);
-                    if (item.makingCharges > 0) renderLineWithPrefix('+', 'Making Charges', item.makingCharges);
-                    if (item.diamondChargesIfAny > 0) renderLineWithPrefix('+', 'Diamonds', item.diamondChargesIfAny);
-                    if (item.stoneChargesIfAny > 0) renderLineWithPrefix('+', 'Stones', item.stoneChargesIfAny);
-                    if (item.miscChargesIfAny > 0) renderLineWithPrefix('+', 'Misc', item.miscChargesIfAny);
-                }
-            }
+          didParseCell: (data) => {
+              if (data.column.index === 1 && typeof data.cell.raw === 'string') {
+                  // This is where we can apply custom styling to parts of the string if needed in the future
+                  // For now, just letting the line breaks work is enough.
+              }
           }
         });
 
