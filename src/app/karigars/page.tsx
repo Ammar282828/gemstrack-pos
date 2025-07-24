@@ -115,7 +115,7 @@ export default function KarigarsPage() {
     );
   }, [karigars, searchTerm, appReady]);
 
-  if (!appReady && isKarigarsLoading) {
+  if (!appReady) {
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
@@ -154,7 +154,7 @@ export default function KarigarsPage() {
         </CardContent>
       </Card>
 
-      {isKarigarsLoading && appReady ? (
+      {isKarigarsLoading ? (
          <div className="text-center py-12">
             <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
             <p className="text-muted-foreground">Refreshing karigar list...</p>

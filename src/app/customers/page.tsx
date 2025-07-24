@@ -119,7 +119,7 @@ export default function CustomersPage() {
     );
   }, [customers, searchTerm, appReady]);
 
-  if (!appReady && isCustomersLoading) { // Show loader if app isn't fully ready but this specific data is loading
+  if (!appReady) {
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
@@ -158,7 +158,7 @@ export default function CustomersPage() {
         </CardContent>
       </Card>
 
-      {isCustomersLoading && appReady ? (
+      {isCustomersLoading ? (
          <div className="text-center py-12">
             <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
             <p className="text-muted-foreground">Refreshing customer list...</p>

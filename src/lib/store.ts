@@ -510,9 +510,8 @@ export const useAppStore = create<AppState>()(
 
       loadSettings: async () => {
         if (!get().isSettingsLoading) {
-            return; // Already loaded or in progress
+            set({ isSettingsLoading: true });
         }
-        set({ isSettingsLoading: true });
         try {
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           const docSnap = await getDoc(settingsDocRef);

@@ -168,7 +168,6 @@ export default function ProductsPage() {
       return;
     }
     const productsToExport = allStoreProducts.filter(p => selectedProductSkus.includes(p.sku));
-    // @ts-ignore - The function expects EnrichedProduct, but we are passing Product
     generateProductCsv(productsToExport, settings);
     toast({ title: "CSV Exported", description: `${productsToExport.length} products exported to CSV.` });
   };
@@ -186,7 +185,7 @@ export default function ProductsPage() {
     return filtered;
   }, [allStoreProducts, selectedCategory, searchTerm, appReady]);
 
-  if (!appReady && isProductsLoading) {
+  if (!appReady) {
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
@@ -277,7 +276,7 @@ export default function ProductsPage() {
         </CardContent>
       </Card>
 
-      {isProductsLoading && appReady ? (
+      {isProductsLoading ? (
          <div className="text-center py-12">
             <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
             <p className="text-muted-foreground">Refreshing product list...</p>
@@ -300,12 +299,8 @@ export default function ProductsPage() {
           <Tag className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Products Found</h3>
           <p className="text-muted-foreground">
-            { appReady ? 
-              (searchTerm || selectedCategory ? "Try adjusting your search or filter, or ensure products exist in the database." : "Add some products to get started or seed dummy data in Settings.") :
-              "Still loading application data. Please wait..."
-            }
+            {searchTerm || selectedCategory ? "Try adjusting your search or filter." : "Add some products to get started or seed dummy data in Settings."}
           </p>
-          {!appReady && <Loader2 className="w-8 h-8 mx-auto text-primary animate-spin mt-4" />}
         </div>
       )}
     </div>

@@ -8,14 +8,24 @@ import { Loader2 } from 'lucide-react';
 
 export function MainApp({ children }: { children: React.ReactNode }) {
   const isStoreHydrated = useIsStoreHydrated();
-  const { loadSettings, isSettingsLoading } = useAppStore();
+  const { 
+    loadSettings, isSettingsLoading,
+    loadProducts, loadCustomers, loadKarigars, loadOrders, loadGeneratedInvoices 
+  } = useAppStore();
 
   useEffect(() => {
-    // Only fetch settings on initial load. Other data will be fetched by pages.
+    // This effect runs once when the store is rehydrated.
+    // It kicks off all the initial data loading processes for the entire app.
     if (isStoreHydrated) {
+      console.log("[GemsTrack MainApp] Store hydrated. Kicking off all initial data loads.");
       loadSettings();
+      loadProducts();
+      loadCustomers();
+      loadKarigars();
+      loadOrders();
+      loadGeneratedInvoices();
     }
-  }, [isStoreHydrated, loadSettings]);
+  }, [isStoreHydrated, loadSettings, loadProducts, loadCustomers, loadKarigars, loadOrders, loadGeneratedInvoices]);
 
   // Show a loading screen until the persisted state is rehydrated AND settings have loaded.
   // Settings are required for authorization and basic app functionality.

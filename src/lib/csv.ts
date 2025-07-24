@@ -1,16 +1,12 @@
 
 import { Product, Settings } from './store';
 
-type EnrichedProduct = Product & {
-  totalPrice: number;
-};
-
 /**
  * Generates a CSV string from an array of products for WEPrint app.
  * @param products The array of products to include in the CSV.
  * @param settings The current application settings for shop name.
  */
-export function generateProductCsv(products: EnrichedProduct[], settings: Settings): void {
+export function generateProductCsv(products: Product[], settings: Settings): void {
   const headers = [
     'sku',
     'product_name',
@@ -59,5 +55,3 @@ function downloadCsv(csvContent: string): void {
   link.click();
   document.body.removeChild(link);
 }
-
-    
