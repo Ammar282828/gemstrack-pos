@@ -174,9 +174,9 @@ export default function CartPage() {
       return;
     }
     
-    // NOTE: This URL is a placeholder. For a real application, you would replace
-    // 'https://your-app.com' with your actual domain.
-    const invoiceUrl = `https://your-app.com/view-invoice/${invoiceToSend.id}`;
+    // Use the actual origin of the window to build the link
+    const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://gemstrack-pos.web.app';
+    const invoiceUrl = `${appUrl}/view-invoice/${invoiceToSend.id}`;
 
     let message = `Dear ${invoiceToSend.customerName || 'Customer'},\n\n`;
     message += `Here is your estimate from ${settings.shopName}.\n\n`;
@@ -206,8 +206,9 @@ export default function CartPage() {
     const logoUrl = settings.shopLogoUrlBlack;
 
     function drawHeader(pageNum: number) {
-        if (pageNum === 1 && logoUrl) {
+        if (logoUrl) {
             try {
+                // Ensure image is loaded before adding to prevent errors
                 const img = new window.Image();
                 img.src = logoUrl;
                 img.onload = () => {
