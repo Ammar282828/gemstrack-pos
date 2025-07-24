@@ -170,7 +170,7 @@ export default function CartPage() {
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
-    const logoUrl = settings.shopLogoUrl; // Use the standard logo
+    const logoUrl = settings.shopLogoUrlBlack; // Use the black logo for the invoice
 
     function drawHeader() {
         // Logo
@@ -178,14 +178,12 @@ export default function CartPage() {
             try {
                 const img = new window.Image();
                 img.src = logoUrl;
-                // This is synchronous if the image is a data URI, which it should be.
                 const aspectRatio = img.width / img.height;
                 const imgHeight = 15;
                 const imgWidth = imgHeight * aspectRatio;
                 doc.addImage(img, 'PNG', margin, 15, imgWidth, imgHeight);
             } catch (e) {
                 console.error("Error adding logo to PDF:", e);
-                // Draw placeholder text if logo fails
                 doc.setFont("helvetica", "bold");
                 doc.setFontSize(20);
                 doc.text(settings.shopName, margin, 22);
@@ -249,26 +247,29 @@ export default function CartPage() {
     
     // --- Items Table ---
     const tableStartY = infoY + 30;
-    const tableColumn = ["#", "ITEM DESCRIPTION", "QTY", "UNIT PRICE", "TOTAL"];
+    const tableColumn = ["#", "Product & Breakdown", "Qty", "Unit Price", "Total"];
     const tableRows: any[][] = [];
 
     invoiceToPrint.items.forEach((item, index) => {
         let breakdownLines = [];
-        if (item.metalCost > 0) breakdownLines.push(`  Metal Cost: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.makingCharges > 0) breakdownLines.push(`  + Making Charges: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: PKR ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: PKR ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
+        const breakdownText = breakdownLines.length > 0 ? `${breakdownLines.join('\n')}` : '';
 
         const metalDisplay = `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: ${item.metalWeightG.toFixed(2)}g`;
-
-        const itemDescription = `${item.name} (SKU: ${item.sku})\n${metalDisplay}${breakdownText}`;
+        
+        const mainTitle = `${item.name}`;
+        const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;
+        
+        const fullDescription = `${mainTitle}\n${subTitle}\n${breakdownText}`;
 
         const itemData = [
             index + 1,
-            itemDescription,
+            fullDescription,
             item.quantity,
             item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }),
             item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }),
@@ -299,10 +300,15 @@ export default function CartPage() {
             3: { cellWidth: 30, halign: 'right' },
             4: { cellWidth: 30, halign: 'right' },
         },
+        didDrawPage: (data) => {
+            // Redraw header on new pages
+            if (data.pageNumber > 1) {
+                drawHeader();
+            }
+        },
     });
 
     // --- Totals & Footer Section ---
-    // This logic ensures the footer is drawn correctly, even on multi-page invoices
     const lastAutoTableY = doc.lastAutoTable.finalY || tableStartY;
     let currentY = lastAutoTableY + 15;
     const totalsX = pageWidth - margin;
@@ -311,21 +317,23 @@ export default function CartPage() {
     function checkPageBreak(elementHeight: number) {
         if (currentY + elementHeight > pageHeight - margin) {
             doc.addPage();
-            currentY = margin;
-            drawHeader(); // Redraw header on new page if needed
+            currentY = margin; // Reset Y for new page
+            drawHeader(); // Redraw header on new page
         }
     }
 
     // Drawing Totals
-    checkPageBreak(30); // Check for enough space for the totals block
+    checkPageBreak(50); // Check for enough space for the totals block + footer
     doc.setFontSize(10).setFont("helvetica", "normal").setTextColor(0);
     doc.text(`Subtotal:`, totalsX - 40, currentY, { align: 'right' });
     doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
 
     doc.text(`Discount:`, totalsX - 40, currentY, { align: 'right' });
-    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    doc.setFont("helvetica", "bold").setTextColor(doc.colors.getErrorColor()); // Red for discount
+    doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
+    doc.setFont("helvetica", "normal").setTextColor(0); // Reset color
     
     doc.setLineWidth(0.5);
     doc.line(totalsX - 60, currentY, totalsX, currentY);
@@ -337,17 +345,25 @@ export default function CartPage() {
     
     // --- Footer ---
     checkPageBreak(50); // Check for enough space for footer
-    currentY = pageHeight - 45; // Pin footer to bottom of final page
-    const footerY = currentY;
+    const footerStartY = pageHeight - 45 > currentY + 10 ? pageHeight - 45 : currentY + 20; // Pin footer to bottom or place after totals
+    
+    if (pageHeight - 45 < currentY + 10) {
+        doc.addPage();
+        drawHeader();
+        currentY = pageHeight - 45;
+    } else {
+        currentY = pageHeight - 45;
+    }
+
 
     const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
     const thankYouText = "Thank you for your business!";
     
     doc.setLineWidth(0.2);
-    doc.line(margin, footerY - 5, pageWidth - margin, footerY - 5);
+    doc.line(margin, currentY - 5, pageWidth - margin, currentY - 5);
     doc.setFontSize(8).setTextColor(150);
-    doc.text(guaranteesText, margin, footerY, { maxWidth: pageWidth - margin*2 - 70 });
-    doc.text(thankYouText, margin, footerY + 12);
+    doc.text(guaranteesText, margin, currentY, { maxWidth: pageWidth - margin*2 - 70 });
+    doc.text(thankYouText, margin, currentY + 12);
     
     // QR Codes
     const qrCodeSize = 25;
@@ -359,19 +375,19 @@ export default function CartPage() {
 
     if (instaQrCanvas) {
         doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("Follow Us", qrStartX + qrCodeSize/2, footerY - 2, { align: 'center'});
-        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerY, qrCodeSize, qrCodeSize);
+        doc.text("Follow Us", qrStartX + qrCodeSize/2, currentY - 2, { align: 'center'});
+        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, currentY, qrCodeSize, qrCodeSize);
     }
     if (waQrCanvas) {
         const secondQrX = qrStartX + qrCodeSize + 15;
         doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("Join Community", secondQrX + qrCodeSize/2, footerY - 2, { align: 'center'});
-        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerY, qrCodeSize, qrCodeSize);
+        doc.text("Join Community", secondQrX + qrCodeSize/2, currentY - 2, { align: 'center'});
+        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, currentY, qrCodeSize, qrCodeSize);
     }
 
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
-    toast({ title: "Estimate Printing", description: "Minimal estimate PDF sent to print dialog." });
+    toast({ title: "Estimate Printing", description: "Modern estimate PDF sent to print dialog." });
   };
   
 
