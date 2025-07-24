@@ -43,45 +43,46 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
   const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   
   const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
+  const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
+  const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
 
   return (
     <Card className="mb-4 md:hidden">
-        <CardContent className="p-4">
-            <div className="flex justify-between items-start mb-2">
-                <div>
-                    <Link href={`/orders/${order.id}`} className="font-bold text-primary hover:underline">
-                      {order.id}
-                    </Link>
-                    <p className="text-sm mt-1 italic text-muted-foreground truncate" title={summary}>
-                        {summary || 'Generating summary...'}
-                    </p>
-                </div>
+        <CardContent className="p-4 space-y-3">
+            <div className="flex justify-between items-start">
+                <Link href={`/orders/${order.id}`} className="font-bold text-primary hover:underline text-lg">
+                    {order.id}
+                </Link>
                 <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
             </div>
             
-             <div className="text-sm text-muted-foreground space-y-1.5 my-3">
+            {summary && (
+              <p className="text-sm italic text-muted-foreground flex items-start gap-2">
+                  <MessageSquareQuote className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>{summary || 'Generating summary...'}</span>
+              </p>
+            )}
+
+            <div className="text-sm text-foreground space-y-2 pt-2">
                 <div className="flex items-center gap-2">
-                    <User className="w-4 h-4"/> 
+                    <User className="w-4 h-4 text-muted-foreground"/> 
                     <span>{order.customerName || 'Walk-in Customer'} {order.customerContact && `(${order.customerContact})`}</span>
                 </div>
                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4"/> 
+                    <Calendar className="w-4 h-4 text-muted-foreground"/> 
                     <span>{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</span>
+                </div>
+                 <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-muted-foreground"/> 
+                    <span>Balance Due: <span className="font-bold text-primary">PKR {grandTotal.toLocaleString()}</span></span>
                 </div>
             </div>
 
-            <div className="my-3">
+            <div className="pt-1">
                  {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items completed</span>}
                  <Progress value={progressPercentage} className="h-1.5 mt-1" />
             </div>
 
-            <div className="flex justify-between items-center text-sm mt-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                    <DollarSign className="w-4 h-4"/> 
-                    <span>Balance Due:</span>
-                </div>
-                <span className="font-bold text-primary">PKR {grandTotal.toLocaleString()}</span>
-            </div>
         </CardContent>
         <CardFooter className="p-2 border-t bg-muted/30">
             <Button asChild size="sm" variant="ghost" className="w-full justify-center">
@@ -125,9 +126,10 @@ const OrderTableRow: React.FC<{ order: Order, summary: string | undefined }> = (
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
           </Link>
-          <div className="text-xs text-muted-foreground truncate w-40 mt-1" title={summary}>
-              {summary || 'Generating summary...'}
-          </div>
+          <p className="text-xs text-muted-foreground truncate w-40 mt-1 flex items-start gap-1.5" title={summary}>
+            <MessageSquareQuote className="w-3 h-3 mt-0.5 flex-shrink-0" />
+            <span>{summary || 'Generating summary...'}</span>
+          </p>
         </TableCell>
         <TableCell className="hidden lg:table-cell">
             <div className="flex items-center gap-2 text-sm">
