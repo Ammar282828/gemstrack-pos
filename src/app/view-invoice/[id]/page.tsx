@@ -6,8 +6,8 @@ import { useParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Invoice, Settings, Customer } from '@/lib/store';
-import { Loader2, Download } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Loader2, Download, FileText, CheckCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -79,57 +79,52 @@ export default function ViewInvoicePage() {
   const handlePrint = () => {
     if (!invoice || !settings) return;
     
-    const doc = new jsPDF();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const pageWidth = doc.internal.pageSize.getWidth();
+    // FIX: Renamed 'doc' to 'pdfDoc' to avoid conflict with firestore's 'doc' function
+    const pdfDoc = new jsPDF();
+    const pageHeight = pdfDoc.internal.pageSize.getHeight();
+    const pageWidth = pdfDoc.internal.pageSize.getWidth();
     const margin = 15;
     const logoUrl = settings.shopLogoUrlBlack;
 
     function drawHeader(pageNum: number) {
         if (logoUrl) {
             try {
-                const img = new window.Image();
-                img.src = logoUrl;
-                img.onload = () => {
-                    const aspectRatio = img.width / img.height;
-                    const imgHeight = 15;
-                    const imgWidth = imgHeight * aspectRatio;
-                    doc.addImage(img, 'PNG', margin, 15, imgWidth, imgHeight);
-                }
+                // This is a synchronous operation for jsPDF, no need for onload
+                 pdfDoc.addImage(logoUrl, 'PNG', margin, 15, 40, 10, undefined, 'FAST');
             } catch (e) {
                  console.error("Error adding logo to PDF:", e);
             }
         }
         
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(28);
-        doc.text('ESTIMATE', pageWidth - margin, 22, { align: 'right' });
+        pdfDoc.setFont("helvetica", "bold");
+        pdfDoc.setFontSize(28);
+        pdfDoc.text('ESTIMATE', pageWidth - margin, 22, { align: 'right' });
         
-        doc.setLineWidth(0.5);
-        doc.line(margin, 35, pageWidth - margin, 35);
+        pdfDoc.setLineWidth(0.5);
+        pdfDoc.line(margin, 35, pageWidth - margin, 35);
 
         if (pageNum > 1) {
-            doc.setFontSize(8);
-            doc.setTextColor(150);
-            doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 10, {align: 'right'});
+            pdfDoc.setFontSize(8);
+            pdfDoc.setTextColor(150);
+            pdfDoc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 10, {align: 'right'});
         }
     }
     
     drawHeader(1);
     
     let infoY = 50;
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.setFont("helvetica", "bold");
-    doc.text('BILL TO:', margin, infoY);
-    doc.text('INVOICE DETAILS:', pageWidth / 2, infoY);
+    pdfDoc.setFontSize(10);
+    pdfDoc.setTextColor(100);
+    pdfDoc.setFont("helvetica", "bold");
+    pdfDoc.text('BILL TO:', margin, infoY);
+    pdfDoc.text('INVOICE DETAILS:', pageWidth / 2, infoY);
 
-    doc.setLineWidth(0.2);
-    doc.line(margin, infoY + 2, pageWidth - margin, infoY + 2);
+    pdfDoc.setLineWidth(0.2);
+    pdfDoc.line(margin, infoY + 2, pageWidth - margin, infoY + 2);
 
     infoY += 8;
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(0);
+    pdfDoc.setFont("helvetica", "normal");
+    pdfDoc.setTextColor(0);
 
     let customerInfo = "Walk-in Customer";
     if (customer) {
@@ -140,11 +135,11 @@ export default function ViewInvoicePage() {
     } else if (invoice.customerName) {
         customerInfo = invoice.customerName;
     }
-    doc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.5 });
+    pdfDoc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.5 });
 
     let invoiceDetails = `Estimate #: ${invoice.id}\n`;
     invoiceDetails += `Date: ${new Date(invoice.createdAt).toLocaleDateString()}`;
-    doc.text(invoiceDetails, pageWidth / 2, infoY, { lineHeightFactor: 1.5 });
+    pdfDoc.text(invoiceDetails, pageWidth / 2, infoY, { lineHeightFactor: 1.5 });
 
     let ratesApplied = [];
     if (invoice.goldRateApplied) {
@@ -152,9 +147,9 @@ export default function ViewInvoicePage() {
         ratesApplied.push(`Gold (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`);
     }
     if (ratesApplied.length > 0) {
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text(ratesApplied.join(' | '), pageWidth / 2, infoY + 12, { lineHeightFactor: 1.5 });
+        pdfDoc.setFontSize(8);
+        pdfDoc.setTextColor(150);
+        pdfDoc.text(ratesApplied.join(' | '), pageWidth / 2, infoY + 12, { lineHeightFactor: 1.5 });
     }
     
     const tableStartY = infoY + 30;
@@ -188,7 +183,7 @@ export default function ViewInvoicePage() {
         tableRows.push(itemData);
     });
 
-    doc.autoTable({
+    pdfDoc.autoTable({
         head: [tableColumn],
         body: tableRows,
         startY: tableStartY,
@@ -204,67 +199,68 @@ export default function ViewInvoicePage() {
         },
         didDrawPage: (data) => {
             if (data.pageNumber > 1) {
-                doc.setPage(data.pageNumber);
+                pdfDoc.setPage(data.pageNumber);
+                // FIX: Use a safe startY for subsequent pages
                 data.settings.startY = 40; 
-                drawHeader(data.pageNumber);
-            } else {
-                drawHeader(data.pageNumber);
             }
+             // Always draw header, including on page 1
+            drawHeader(data.pageNumber);
         },
     });
 
-    let finalY = doc.lastAutoTable.finalY || 0;
+    let finalY = pdfDoc.lastAutoTable.finalY || 0;
     
-    const footerAndTotalsHeight = 75;
-    let needsNewPage = finalY + footerAndTotalsHeight > pageHeight - margin;
+    let totalsAndFooterStartY = finalY + 15;
+    const footerHeight = 75; // Estimated height for totals and footer sections
 
-    if (needsNewPage) {
-        doc.addPage();
-        drawHeader(doc.getNumberOfPages());
-        finalY = 40; 
+    if (totalsAndFooterStartY + footerHeight > pageHeight - margin) {
+        pdfDoc.addPage();
+        drawHeader(pdfDoc.getNumberOfPages());
+        totalsAndFooterStartY = 40; // Start fresh on the new page
     }
-
-    let currentY = finalY + 15;
+    
+    let currentY = totalsAndFooterStartY;
     const totalsX = pageWidth - margin;
 
-    doc.setFontSize(10).setFont("helvetica", "normal").setTextColor(0);
-    doc.text(`Subtotal:`, totalsX - 40, currentY, { align: 'right' });
-    doc.text(`PKR ${invoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    pdfDoc.setFontSize(10).setFont("helvetica", "normal").setTextColor(0);
+    pdfDoc.text(`Subtotal:`, totalsX - 40, currentY, { align: 'right' });
+    pdfDoc.text(`PKR ${invoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
 
-    doc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
-    doc.text(`Discount:`, totalsX - 40, currentY, { align: 'right' });
-    doc.text(`- PKR ${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    pdfDoc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
+    pdfDoc.text(`Discount:`, totalsX - 40, currentY, { align: 'right' });
+    pdfDoc.text(`- PKR ${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
-    doc.setFont("helvetica", "normal").setTextColor(0);
+    pdfDoc.setFont("helvetica", "normal").setTextColor(0);
     
-    doc.setLineWidth(0.5);
-    doc.line(totalsX - 60, currentY, totalsX, currentY);
+    pdfDoc.setLineWidth(0.5);
+    pdfDoc.line(totalsX - 60, currentY, totalsX, currentY);
     currentY += 8;
     
-    doc.setFontSize(14).setFont("helvetica", "bold");
-    doc.text(`Grand Total:`, totalsX - 60, currentY, { align: 'right' });
-    doc.text(`PKR ${invoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    pdfDoc.setFontSize(14).setFont("helvetica", "bold");
+    pdfDoc.text(`Grand Total:`, totalsX - 60, currentY, { align: 'right' });
+    pdfDoc.text(`PKR ${invoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
 
+    // --- Dynamic Footer ---
     const footerStartY = pageHeight - 45;
     const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
     
-    doc.setLineWidth(0.2);
-    doc.line(margin, footerStartY - 10, pageWidth - margin, footerStartY - 10);
-    doc.setFontSize(8).setTextColor(150);
-    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin * 2 - 70 });
+    pdfDoc.setLineWidth(0.2);
+    pdfDoc.line(margin, footerStartY - 10, pageWidth - margin, footerStartY - 10);
+    pdfDoc.setFontSize(8).setTextColor(150);
+    pdfDoc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin * 2 - 70 });
     
     const contacts = [
         { name: "Murtaza", number: "0333 2275190" }, { name: "Muhammad", number: "0300 8280896" },
         { name: "Huzaifa", number: "0335 2275553" }, { name: "Ammar", number: "0326 2275554" },
     ];
     let contactY = footerStartY + 12;
-    doc.setFontSize(8).setFont("helvetica", "bold").setTextColor(50);
-    doc.text("For Orders & Inquiries:", margin, contactY);
+    pdfDoc.setFontSize(8).setFont("helvetica", "bold").setTextColor(50);
+    pdfDoc.text("For Orders & Inquiries:", margin, contactY);
     contactY += 4;
-    doc.setFont("helvetica", "normal").setTextColor(100);
+    pdfDoc.setFont("helvetica", "normal").setTextColor(100);
     contacts.forEach(contact => {
-        doc.text(`${contact.name}: ${contact.number}`, margin, contactY);
+        pdfDoc.text(`${contact.name}: ${contact.number}`, margin, contactY);
         contactY += 4;
     });
 
@@ -276,18 +272,18 @@ export default function ViewInvoicePage() {
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
 
     if (instaQrCanvas) {
-        doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("@collectionstaheri", qrStartX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
-        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
+        pdfDoc.setFontSize(8); pdfDoc.setFont("helvetica", "bold").setTextColor(0);
+        pdfDoc.text("@collectionstaheri", qrStartX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
     }
     if (waQrCanvas) {
         const secondQrX = qrStartX + qrCodeSize + 15;
-        doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("Join on WhatsApp", secondQrX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
-        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
+        pdfDoc.setFontSize(8); pdfDoc.setFont("helvetica", "bold").setTextColor(0);
+        pdfDoc.text("Join on WhatsApp", secondQrX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
     }
     
-    doc.save(`Estimate-${invoice.id}.pdf`);
+    pdfDoc.save(`Estimate-${invoice.id}.pdf`);
   }
 
   if (loading) {
@@ -313,15 +309,6 @@ export default function ViewInvoicePage() {
     );
   }
 
-  // Use a temporary render of the QR codes to generate the data URL for the PDF
-  if (typeof window !== 'undefined') {
-    setTimeout(() => {
-        if (document.getElementById('insta-qr-code')) {
-            // QR codes are in the DOM, safe to call print
-        }
-    }, 100);
-  }
-
   return (
     <div className="bg-muted min-h-screen p-4 sm:p-8">
       <div style={{ display: 'none' }}>
@@ -329,28 +316,38 @@ export default function ViewInvoicePage() {
         <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl?mode=ac_t" size={128} />
       </div>
 
-        <Card className="max-w-4xl mx-auto shadow-2xl">
-            <CardHeader>
-                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-primary">{settings?.shopName || 'Estimate'}</h1>
-                        <p className="text-muted-foreground">Estimate #{invoice.id}</p>
-                    </div>
-                     <Button onClick={handlePrint} disabled={!settings}>
-                        <Download className="mr-2 h-4 w-4" /> Download PDF
-                    </Button>
-                </div>
+        <Card className="max-w-2xl mx-auto shadow-2xl">
+            <CardHeader className="text-center">
+                <CheckCircle className="mx-auto h-12 w-12 text-green-500"/>
+                <CardTitle className="text-2xl font-bold">Estimate Ready</CardTitle>
+                <CardDescription>
+                    Your estimate <span className="font-mono font-medium text-foreground">{invoice.id}</span> is ready for download.
+                </CardDescription>
             </CardHeader>
             <CardContent>
-                <iframe src={doc.output('bloburl')} style={{width: '100%', height: '80vh', border: 'none'}} title={`Invoice ${invoice.id}`}></iframe>
+                <div className="p-4 border rounded-md bg-background">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <p className="text-sm text-muted-foreground">Billed to</p>
+                            <p className="font-semibold">{invoice.customerName || 'Walk-in Customer'}</p>
+                        </div>
+                         <div>
+                            <p className="text-sm text-muted-foreground text-right">Grand Total</p>
+                            <p className="font-semibold text-xl text-primary text-right">PKR {invoice.grandTotal.toLocaleString()}</p>
+                        </div>
+                    </div>
+                </div>
             </CardContent>
+            <CardFooter>
+                 <Button onClick={handlePrint} disabled={!settings} size="lg" className="w-full">
+                    <Download className="mr-2 h-5 w-5" /> Download PDF
+                </Button>
+            </CardFooter>
         </Card>
          <footer className="text-center mt-8 text-sm text-muted-foreground">
             <p>Thank you for your business!</p>
-            {settings?.shopContact && <p>{settings.shopContact}</p>}
+            {settings?.shopName && <p>&copy; {new Date().getFullYear()} {settings.shopName}</p>}
         </footer>
     </div>
   );
 }
-
-    
