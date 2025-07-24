@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { useAppStore, Karigar, useAppReady } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Edit3, Trash2, Briefcase, Phone, StickyNote, Loader2 } from 'lucide-react';
+import { Search, PlusCircle, Edit3, Trash2, Briefcase, Phone, StickyNote, Loader2, Eye } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +22,39 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 
+const KarigarActions: React.FC<{ karigar: Karigar; onDelete: (id: string) => Promise<void>; isCard?: boolean }> = ({ karigar, onDelete, isCard }) => (
+    <div className={isCard ? 'flex gap-2' : 'flex justify-end space-x-2'}>
+      <Button asChild size="sm" variant={isCard ? 'default' : 'outline'} className="flex-1">
+        <Link href={`/karigars/${karigar.id}/edit`}>
+          <Edit3 className="w-4 h-4 mr-2" /> Edit
+        </Link>
+      </Button>
+      <Button asChild size="sm" variant="outline" className="flex-1">
+        <Link href={`/karigars/${karigar.id}`}>
+          <Eye className="w-4 h-4 mr-2" /> View
+        </Link>
+      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button size="sm" variant="destructive" className="flex-1"><Trash2 className="w-4 h-4 mr-2" /> Delete</Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the karigar "{karigar.name}". 
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => await onDelete(karigar.id)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+);
+
+
 const KarigarRow: React.FC<{ karigar: Karigar; onDelete: (id: string) => Promise<void> }> = ({ karigar, onDelete }) => {
   return (
     <TableRow>
@@ -29,41 +62,35 @@ const KarigarRow: React.FC<{ karigar: Karigar; onDelete: (id: string) => Promise
         <Link href={`/karigars/${karigar.id}`} className="font-medium text-primary hover:underline">
           {karigar.name}
         </Link>
-        <div className="text-xs text-muted-foreground md:hidden">{karigar.contact}</div>
       </TableCell>
-      <TableCell className="hidden md:table-cell">{karigar.contact || '-'}</TableCell>
-      <TableCell className="hidden lg:table-cell truncate max-w-xs">{karigar.notes || '-'}</TableCell>
+      <TableCell>{karigar.contact || '-'}</TableCell>
+      <TableCell className="truncate max-w-xs">{karigar.notes || '-'}</TableCell>
       <TableCell className="text-right">
-        <div className="flex justify-end space-x-2">
-          <Button asChild size="sm" variant="outline" className="whitespace-nowrap">
-            <Link href={`/karigars/${karigar.id}/edit`}>
-              <Edit3 className="w-4 h-4 mr-1 md:mr-2" />
-              <span className="hidden md:inline">Edit</span>
-            </Link>
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="sm" variant="destructive"><Trash2 className="w-4 h-4" /></Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the karigar "{karigar.name}". 
-                  Any hisaabs associated with this karigar will also be affected (future: define behavior).
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={async () => await onDelete(karigar.id)}>Delete</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+        <KarigarActions karigar={karigar} onDelete={onDelete} />
       </TableCell>
     </TableRow>
   );
 };
+
+const KarigarCard: React.FC<{ karigar: Karigar; onDelete: (id: string) => Promise<void> }> = ({ karigar, onDelete }) => (
+    <Card className="mb-4">
+        <CardHeader>
+            <Link href={`/karigars/${karigar.id}`} className="font-bold text-primary hover:underline">
+                <CardTitle className="flex items-center gap-2">
+                    <Briefcase className="w-5 h-5"/>
+                    {karigar.name}
+                </CardTitle>
+            </Link>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground space-y-2">
+             {karigar.contact && <div className="flex items-center gap-2"><Phone className="w-4 h-4"/><span>{karigar.contact}</span></div>}
+             {karigar.notes && <div className="flex items-start gap-2"><StickyNote className="w-4 h-4 mt-1 flex-shrink-0"/><span>{karigar.notes}</span></div>}
+        </CardContent>
+        <CardFooter className="p-2 border-t bg-muted/30">
+            <KarigarActions karigar={karigar} onDelete={onDelete} isCard />
+        </CardFooter>
+    </Card>
+);
 
 
 export default function KarigarsPage() {
@@ -133,13 +160,21 @@ export default function KarigarsPage() {
             <p className="text-muted-foreground">Refreshing karigar list...</p>
          </div>
       ) : filteredKarigars.length > 0 ? (
-        <Card>
+        <>
+        {/* Mobile View: Cards */}
+        <div className="md:hidden">
+            {filteredKarigars.map((karigar) => (
+                <KarigarCard key={karigar.id} karigar={karigar} onDelete={handleDeleteKarigar} />
+            ))}
+        </div>
+        {/* Desktop View: Table */}
+        <Card className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead><Briefcase className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Name</TableHead>
-                <TableHead className="hidden md:table-cell"><Phone className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Contact</TableHead>
-                <TableHead className="hidden lg:table-cell"><StickyNote className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Notes</TableHead>
+                <TableHead><Phone className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Contact</TableHead>
+                <TableHead><StickyNote className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Notes</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -150,6 +185,7 @@ export default function KarigarsPage() {
             </TableBody>
           </Table>
         </Card>
+        </>
       ) : (
         <div className="text-center py-12 bg-card rounded-lg shadow">
           <Briefcase className="w-16 h-16 mx-auto text-muted-foreground mb-4" />

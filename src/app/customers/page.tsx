@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { useAppStore, Customer, useAppReady } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users, Loader2 } from 'lucide-react';
+import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users, Loader2, Eye } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,29 +22,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 
-const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void> }> = ({ customer, onDelete }) => {
+const CustomerActions: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void>; isCard?: boolean }> = ({ customer, onDelete, isCard }) => {
   return (
-    <TableRow>
-      <TableCell>
-        <Link href={`/customers/${customer.id}`} className="font-medium text-primary hover:underline">
-          {customer.name}
-        </Link>
-        <div className="text-xs text-muted-foreground md:hidden">{customer.phone || customer.email}</div>
-      </TableCell>
-      <TableCell className="hidden md:table-cell">{customer.phone || '-'}</TableCell>
-      <TableCell className="hidden md:table-cell">{customer.email || '-'}</TableCell>
-      <TableCell className="hidden lg:table-cell">{customer.address || '-'}</TableCell>
-      <TableCell className="text-right">
-        <div className="flex justify-end space-x-2">
-          <Button asChild size="sm" variant="outline">
+      <div className={isCard ? 'flex gap-2' : 'flex justify-end space-x-2'}>
+          <Button asChild size="sm" variant={isCard ? 'default' : 'outline'} className="flex-1">
             <Link href={`/customers/${customer.id}/edit`}>
-              <Edit3 className="w-4 h-4" />
-              <span className="sr-only">Edit {customer.name}</span>
+              <Edit3 className="w-4 h-4 mr-2" /> Edit
             </Link>
           </Button>
+           <Button asChild size="sm" variant="outline" className="flex-1">
+            <Link href={`/customers/${customer.id}`}>
+                <Eye className="w-4 h-4 mr-2" /> View
+            </Link>
+            </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button size="sm" variant="destructive"><Trash2 className="w-4 h-4" /></Button>
+              <Button size="sm" variant="destructive" className="flex-1"><Trash2 className="w-4 h-4 mr-2" /> Delete</Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -60,10 +53,47 @@ const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => Prom
             </AlertDialogContent>
           </AlertDialog>
         </div>
+  )
+}
+
+const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void> }> = ({ customer, onDelete }) => {
+  return (
+    <TableRow>
+      <TableCell>
+        <Link href={`/customers/${customer.id}`} className="font-medium text-primary hover:underline">
+          {customer.name}
+        </Link>
+      </TableCell>
+      <TableCell>{customer.phone || '-'}</TableCell>
+      <TableCell>{customer.email || '-'}</TableCell>
+      <TableCell>{customer.address || '-'}</TableCell>
+      <TableCell className="text-right">
+        <CustomerActions customer={customer} onDelete={onDelete} />
       </TableCell>
     </TableRow>
   );
 };
+
+const CustomerCard: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void> }> = ({ customer, onDelete }) => (
+    <Card className="mb-4">
+        <CardHeader>
+             <Link href={`/customers/${customer.id}`} className="font-bold text-primary hover:underline">
+                <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5"/>
+                    {customer.name}
+                </CardTitle>
+            </Link>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground space-y-2">
+            {customer.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4"/><span>{customer.phone}</span></div>}
+            {customer.email && <div className="flex items-center gap-2"><Mail className="w-4 h-4"/><span>{customer.email}</span></div>}
+            {customer.address && <div className="flex items-center gap-2"><MapPin className="w-4 h-4"/><span>{customer.address}</span></div>}
+        </CardContent>
+        <CardFooter className="p-2 border-t bg-muted/30">
+            <CustomerActions customer={customer} onDelete={onDelete} isCard />
+        </CardFooter>
+    </Card>
+);
 
 
 export default function CustomersPage() {
@@ -134,24 +164,34 @@ export default function CustomersPage() {
             <p className="text-muted-foreground">Refreshing customer list...</p>
          </div>
       ) : filteredCustomers.length > 0 ? (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead><User className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Name</TableHead>
-                <TableHead className="hidden md:table-cell"><Phone className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Phone</TableHead>
-                <TableHead className="hidden md:table-cell"><Mail className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Email</TableHead>
-                <TableHead className="hidden lg:table-cell"><MapPin className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Address</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCustomers.map((customer) => (
-                <CustomerRow key={customer.id} customer={customer} onDelete={handleDeleteCustomer} />
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+        <>
+            {/* Mobile View: Cards */}
+            <div className="md:hidden">
+                {filteredCustomers.map((customer) => (
+                    <CustomerCard key={customer.id} customer={customer} onDelete={handleDeleteCustomer} />
+                ))}
+            </div>
+
+            {/* Desktop View: Table */}
+            <Card className="hidden md:block">
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead><User className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Name</TableHead>
+                    <TableHead><Phone className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Phone</TableHead>
+                    <TableHead><Mail className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Email</TableHead>
+                    <TableHead><MapPin className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Address</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+                </TableHeader>
+                <TableBody>
+                {filteredCustomers.map((customer) => (
+                    <CustomerRow key={customer.id} customer={customer} onDelete={handleDeleteCustomer} />
+                ))}
+                </TableBody>
+            </Table>
+            </Card>
+        </>
       ) : (
         <div className="text-center py-12 bg-card rounded-lg shadow">
           <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
