@@ -173,25 +173,17 @@ export default function CartPage() {
       toast({ title: "No Phone Number", description: "Please enter a customer's phone number.", variant: "destructive" });
       return;
     }
+    
+    // NOTE: This URL is a placeholder. For a real application, you would replace
+    // 'https://your-app.com' with your actual domain.
+    const invoiceUrl = `https://your-app.com/view-invoice/${invoiceToSend.id}`;
 
-    let message = `*Estimate from ${settings.shopName}*\n\n`;
+    let message = `Dear ${invoiceToSend.customerName || 'Customer'},\n\n`;
+    message += `Here is your estimate from ${settings.shopName}.\n\n`;
     message += `*Estimate ID:* ${invoiceToSend.id}\n`;
-    message += `*Date:* ${new Date(invoiceToSend.createdAt).toLocaleDateString()}\n`;
-    if(invoiceToSend.customerName) {
-      message += `*Customer:* ${invoiceToSend.customerName}\n\n`;
-    }
-    
-    message += "*Items:*\n";
-    invoiceToSend.items.forEach((item, index) => {
-      message += `${index + 1}. ${item.name} (Qty: ${item.quantity})\n`;
-      message += `   Total: PKR ${item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n`;
-    });
-    
-    message += `\n*Subtotal:* PKR ${invoiceToSend.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-    message += `\n*Discount:* -PKR ${invoiceToSend.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-    message += `\n\n*GRAND TOTAL: PKR ${invoiceToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}*`;
-
-    message += `\n\nThank you for your business!`;
+    message += `*Amount Due:* PKR ${invoiceToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+    message += `You can view the detailed estimate PDF here:\n${invoiceUrl}\n\n`;
+    message += `Thank you for your business!`;
 
     const numberOnly = whatsAppNumber.replace(/\D/g, '');
     const whatsappUrl = `https://wa.me/${numberOnly}?text=${encodeURIComponent(message)}`;
@@ -359,8 +351,7 @@ export default function CartPage() {
     doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
 
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(220, 53, 69); // Red color for discount
+    doc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
     doc.text(`Discount:`, totalsX - 40, currentY, { align: 'right' });
     doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
