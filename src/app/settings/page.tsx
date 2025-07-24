@@ -401,12 +401,12 @@ export default function SettingsPage() {
         const enrichedItems: OrderItem[] = orderData.items.map((item) => {
           const itemAsProduct = {
             ...item,
+            categoryId: '', // Custom orders don't have a category
             metalType: 'gold' as MetalType,
             metalWeightG: item.estimatedWeightG,
             wastagePercentage: 10, // Default wastage for dummy data
             hasDiamonds: item.diamondCharges > 0,
             miscCharges: 0,
-            categoryId: '',
           };
           const ratesForCalc = { goldRatePerGram24k: orderData.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
           const costs = calculateProductCosts(itemAsProduct, ratesForCalc);

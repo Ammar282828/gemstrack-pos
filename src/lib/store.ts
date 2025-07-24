@@ -553,7 +553,8 @@ export const useAppStore = create<AppState>()(
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           await setDoc(settingsDocRef, updatedSettings, { merge: true });
           console.log("[GemsTrack Store updateSettings] Settings updated successfully in Firestore.");
-        } catch (error) {
+        } catch (error)
+        {
           console.error("[GemsTrack Store updateSettings] Error updating settings in Firestore:", error);
           set((state) => { state.settings = currentSettings; }); // Revert on error
           throw error;
@@ -847,12 +848,19 @@ export const useAppStore = create<AppState>()(
                 continue;
             }
             // Deep copy the product object to avoid mutating the original store state
-            const productForCostCalc = JSON.parse(JSON.stringify({
-                name: product.name, categoryId: product.categoryId, metalType: product.metalType,
+            const productForCostCalc = {
+                name: product.name,
+                categoryId: product.categoryId,
+                metalType: product.metalType,
                 karat: product.metalType === 'gold' ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL) : undefined,
-                metalWeightG: product.metalWeightG, wastagePercentage: product.wastagePercentage, makingCharges: product.makingCharges,
-                hasDiamonds: product.hasDiamonds, diamondCharges: product.diamondCharges, stoneCharges: product.stoneCharges, miscCharges: product.miscCharges,
-            }));
+                metalWeightG: product.metalWeightG,
+                wastagePercentage: product.wastagePercentage,
+                makingCharges: product.makingCharges,
+                hasDiamonds: product.hasDiamonds,
+                diamondCharges: product.diamondCharges,
+                stoneCharges: product.stoneCharges,
+                miscCharges: product.miscCharges,
+            };
             
             const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice);
             // CRITICAL NaN Check
