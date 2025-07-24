@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, KaratValue, useAppReady, calculateProductCosts, Order, OrderItem } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -188,11 +188,12 @@ const ImageCapture: React.FC<{
 export default function CustomOrderPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const appReady = useAppReady();
-  const settings = useAppStore(state => state.settings);
-  const customers = useAppStore(state => state.customers);
-  const addOrderAction = useAppStore(state => state.addOrder);
-  const isLoading = useAppStore(state => state.isSettingsLoading);
+  const { settings, customers, isSettingsLoading, isCustomersLoading, loadSettings, loadCustomers, addOrder: addOrderAction } = useAppStore();
+
+  useEffect(() => {
+    loadSettings();
+    loadCustomers();
+  }, [loadSettings, loadCustomers]);
 
   const [generatedEstimate, setGeneratedEstimate] = useState<EnrichedOrderFormData | null>(null);
 
@@ -427,7 +428,7 @@ export default function CustomOrderPage() {
     window.open(doc.output('bloburl'), '_blank');
   }
 
-  if (!appReady || isLoading) {
+  if (isSettingsLoading || isCustomersLoading) {
     return (
       <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />

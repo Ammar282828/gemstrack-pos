@@ -1,5 +1,4 @@
 
-
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -408,7 +407,13 @@ export interface AppState {
   isKarigarsLoading: boolean;
   isInvoicesLoading: boolean;
   isOrdersLoading: boolean;
-  isInitialDataLoadedFromFirestore: boolean; // True after all initial loads complete
+  
+  // Data loaded flags
+  hasProductsLoaded: boolean;
+  hasCustomersLoaded: boolean;
+  hasKarigarsLoaded: boolean;
+  hasInvoicesLoaded: boolean;
+  hasOrdersLoaded: boolean;
 
   // Zustand specific hydration state
   _hasHydrated: boolean;
@@ -454,8 +459,6 @@ export interface AppState {
   addOrder: (orderData: OrderDataForAdd) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
-
-  fetchAllInitialData: () => Promise<void>;
   
   // Data clearing actions
   clearAllProducts: () => Promise<void>;
@@ -493,49 +496,24 @@ export const useAppStore = create<AppState>()(
       orders: [],
 
       isSettingsLoading: true,
-      isProductsLoading: true,
-      isCustomersLoading: true,
-      isKarigarsLoading: true,
-      isInvoicesLoading: true,
-      isOrdersLoading: true,
-      isInitialDataLoadedFromFirestore: false,
-
-      fetchAllInitialData: async () => {
-        console.log("[GemsTrack Store fetchAllInitialData] Attempting to fetch all initial data...");
-        set({
-          isSettingsLoading: true, isProductsLoading: true, isCustomersLoading: true,
-          isKarigarsLoading: true, isInvoicesLoading: true, isOrdersLoading: true, 
-          isInitialDataLoadedFromFirestore: false
-        });
-        try {
-          await Promise.all([
-            get().loadSettings(),
-            get().loadProducts(),
-            get().loadCustomers(),
-            get().loadKarigars(),
-            get().loadGeneratedInvoices(),
-            get().loadOrders(),
-          ]);
-          set({ isInitialDataLoadedFromFirestore: true });
-          console.log("[GemsTrack Store fetchAllInitialData] SUCCESSFULLY fetched all initial data.");
-        } catch (error) {
-          console.error("[GemsTrack Store fetchAllInitialData] CRITICAL ERROR fetching all initial data:", error);
-          set({ isInitialDataLoadedFromFirestore: false }); // Ensure it's false on error
-        } finally {
-            console.log("[GemsTrack Store fetchAllInitialData] Finalizing loading states.");
-            set(state => {
-                state.isSettingsLoading = false;
-                state.isProductsLoading = false;
-                state.isCustomersLoading = false;
-                state.isKarigarsLoading = false;
-                state.isInvoicesLoading = false;
-                state.isOrdersLoading = false;
-            });
-        }
-      },
+      isProductsLoading: false,
+      isCustomersLoading: false,
+      isKarigarsLoading: false,
+      isInvoicesLoading: false,
+      isOrdersLoading: false,
+      
+      hasProductsLoaded: false,
+      hasCustomersLoaded: false,
+      hasKarigarsLoaded: false,
+      hasInvoicesLoaded: false,
+      hasOrdersLoaded: false,
 
       loadSettings: async () => {
-        console.log("[GemsTrack Store loadSettings] Attempting to load settings...");
+        if (get().isSettingsLoading) {
+            console.log("[GemsTrack Store loadSettings] Attempting to load settings...");
+        } else {
+            return; // Already loaded or in progress
+        }
         set({ isSettingsLoading: true });
         try {
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
@@ -597,19 +575,19 @@ export const useAppStore = create<AppState>()(
       }),
 
       loadProducts: async () => {
-        console.log("[GemsTrack Store loadProducts] Attempting to load products...");
+        if (get().hasProductsLoaded || get().isProductsLoading) return;
         set({ isProductsLoading: true });
         try {
           const q = query(collection(db, FIRESTORE_COLLECTIONS.PRODUCTS), orderBy("sku"));
           const snapshot = await getDocs(q);
           const productList = snapshot.docs.map(doc => doc.data() as Product);
-          set({ products: productList });
+          set({ products: productList, hasProductsLoaded: true });
           console.log(`[GemsTrack Store loadProducts] Successfully loaded ${productList.length} products from Firestore.`);
         } catch (error) {
           console.error("[GemsTrack Store loadProducts] Error loading products from Firestore:", error);
-          set({ products: [] }); // Ensure products is an empty array on error
+          set({ products: [] });
         } finally {
-          set({ isProductsLoading: false }); // Ensure this is set false even if part of Promise.all
+          set({ isProductsLoading: false });
         }
       },
       addProduct: async (productData) => {
@@ -725,13 +703,13 @@ export const useAppStore = create<AppState>()(
       },
 
       loadCustomers: async () => {
-        console.log("[GemsTrack Store loadCustomers] Attempting to load customers...");
+        if (get().hasCustomersLoaded || get().isCustomersLoading) return;
         set({ isCustomersLoading: true });
         try {
           const q = query(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS), orderBy("name"));
           const snapshot = await getDocs(q);
           const customerList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer));
-          set({ customers: customerList });
+          set({ customers: customerList, hasCustomersLoaded: true });
           console.log(`[GemsTrack Store loadCustomers] Successfully loaded ${customerList.length} customers.`);
         } catch (error) {
           console.error("[GemsTrack Store loadCustomers] Error loading customers:", error);
@@ -779,13 +757,13 @@ export const useAppStore = create<AppState>()(
       },
 
       loadKarigars: async () => {
-        console.log("[GemsTrack Store loadKarigars] Attempting to load karigars...");
+        if (get().hasKarigarsLoaded || get().isKarigarsLoading) return;
         set({ isKarigarsLoading: true });
         try {
           const q = query(collection(db, FIRESTORE_COLLECTIONS.KARIGARS), orderBy("name"));
           const snapshot = await getDocs(q);
           const karigarList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Karigar));
-          set({ karigars: karigarList });
+          set({ karigars: karigarList, hasKarigarsLoaded: true });
           console.log(`[GemsTrack Store loadKarigars] Successfully loaded ${karigarList.length} karigars.`);
         } catch (error) {
           console.error("[GemsTrack Store loadKarigars] Error loading karigars:", error);
@@ -846,13 +824,13 @@ export const useAppStore = create<AppState>()(
       clearCart: () => set((state) => { state.cart = []; }),
 
       loadGeneratedInvoices: async () => {
-        console.log("[GemsTrack Store loadGeneratedInvoices] Attempting to load invoices...");
+        if (get().hasInvoicesLoaded || get().isInvoicesLoading) return;
         set({ isInvoicesLoading: true });
         try {
           const q = query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), orderBy("createdAt", "desc"));
           const snapshot = await getDocs(q);
           const invoiceList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Invoice));
-          set({ generatedInvoices: invoiceList });
+          set({ generatedInvoices: invoiceList, hasInvoicesLoaded: true });
           console.log(`[GemsTrack Store loadGeneratedInvoices] Successfully loaded ${invoiceList.length} invoices.`);
         } catch (error) {
           console.error("[GemsTrack Store loadGeneratedInvoices] Error loading invoices:", error);
@@ -1003,13 +981,13 @@ export const useAppStore = create<AppState>()(
       },
 
       loadOrders: async () => {
-        console.log("[GemsTrack Store loadOrders] Attempting to load orders...");
+        if (get().hasOrdersLoaded || get().isOrdersLoading) return;
         set({ isOrdersLoading: true });
         try {
           const q = query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), orderBy("createdAt", "desc"));
           const snapshot = await getDocs(q);
           const orderList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order));
-          set({ orders: orderList });
+          set({ orders: orderList, hasOrdersLoaded: true });
           console.log(`[GemsTrack Store loadOrders] Successfully loaded ${orderList.length} orders.`);
         } catch (error) {
           console.error("[GemsTrack Store loadOrders] Error loading orders:", error);
@@ -1237,9 +1215,9 @@ function useZustandRehydrated() {
 }
 
 export const useAppReady = () => {
-    const isFirestoreDataLoaded = useAppStore(state => state.isInitialDataLoadedFromFirestore);
+    const isSettingsLoaded = !useAppStore(state => state.isSettingsLoading);
     const isZustandRehydrated = useZustandRehydrated();
-    return isZustandRehydrated && isFirestoreDataLoaded;
+    return isZustandRehydrated && isSettingsLoaded;
 };
 
 // --- SELECTOR DEFINITIONS ---

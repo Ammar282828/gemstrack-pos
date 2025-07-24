@@ -8,19 +8,18 @@ import { Loader2 } from 'lucide-react';
 
 export function MainApp({ children }: { children: React.ReactNode }) {
   const isStoreHydrated = useIsStoreHydrated();
-  const fetchAllInitialData = useAppStore(state => state.fetchAllInitialData);
-  const isInitialDataLoaded = useAppStore(state => state.isInitialDataLoadedFromFirestore);
+  const { loadSettings, isSettingsLoading } = useAppStore();
 
   useEffect(() => {
-    // Only fetch data if the store is hydrated from local storage and data hasn't been loaded from Firestore yet.
-    if (isStoreHydrated && !isInitialDataLoaded) {
-      console.log("[GemsTrack MainApp] Hydrated and ready, fetching initial data from Firestore.");
-      fetchAllInitialData();
+    // Only fetch settings on initial load. Other data will be fetched by pages.
+    if (isStoreHydrated) {
+      loadSettings();
     }
-  }, [isStoreHydrated, isInitialDataLoaded, fetchAllInitialData]);
+  }, [isStoreHydrated, loadSettings]);
 
-  // Show a loading screen until the persisted state is rehydrated AND all initial data from Firestore is ready.
-  if (!isStoreHydrated || !isInitialDataLoaded) {
+  // Show a loading screen until the persisted state is rehydrated AND settings have loaded.
+  // Settings are required for authorization and basic app functionality.
+  if (!isStoreHydrated || isSettingsLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
         <div className="text-center">
@@ -31,7 +30,7 @@ export function MainApp({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Once data is loaded, perform authorization check and then render the children (the actual page).
+  // Once settings are loaded, perform authorization check and then render the children.
   return (
     <AuthorizationProvider>
       {children}

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useAppStore, Invoice, Product, Category, Customer, useAppReady } from '@/lib/store';
+import { useAppStore, Invoice, Product, Category, Customer } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -20,14 +20,19 @@ type TopCustomerData = { customerId?: string; customerName: string; totalSpent: 
 
 
 export default function AnalyticsPage() {
-  const appReady = useAppReady();
-  const allInvoices = useAppStore(state => state.generatedInvoices);
-  const products = useAppStore(state => state.products);
-  const categories = useAppStore(state => state.categories);
-  const customers = useAppStore(state => state.customers);
-  const isLoading = useAppStore(state => 
-    state.isInvoicesLoading || state.isProductsLoading || state.isCustomersLoading
-  );
+  const { 
+    generatedInvoices, products, categories, customers, 
+    isInvoicesLoading, isProductsLoading, isCustomersLoading, 
+    loadGeneratedInvoices, loadProducts, loadCustomers 
+  } = useAppStore();
+
+  useEffect(() => {
+    loadGeneratedInvoices();
+    loadProducts();
+    loadCustomers();
+  }, [loadGeneratedInvoices, loadProducts, loadCustomers]);
+
+  const isLoading = isInvoicesLoading || isProductsLoading || isCustomersLoading;
 
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -36,19 +41,18 @@ export default function AnalyticsPage() {
   });
 
   const filteredInvoices = useMemo(() => {
-    if (!appReady) return [];
-    if (!dateRange || !dateRange.from) return allInvoices; 
+    if (!dateRange || !dateRange.from) return generatedInvoices; 
 
-    return allInvoices.filter(invoice => {
+    return generatedInvoices.filter(invoice => {
       const invoiceDate = parseISO(invoice.createdAt);
       const toDate = dateRange.to ? startOfDay(dateRange.to) : startOfDay(new Date()); 
       return isWithinInterval(invoiceDate, { start: startOfDay(dateRange.from!), end: toDate });
     });
-  }, [allInvoices, dateRange, appReady]);
+  }, [generatedInvoices, dateRange]);
 
 
   const analyticsData = useMemo(() => {
-    if (!appReady || filteredInvoices.length === 0) {
+    if (filteredInvoices.length === 0) {
       return {
         totalSales: 0,
         totalOrders: 0,
@@ -179,9 +183,9 @@ export default function AnalyticsPage() {
       salesByCategory,
       topCustomers,
     };
-  }, [filteredInvoices, products, categories, customers, appReady]);
+  }, [filteredInvoices, products, categories, customers]);
 
-  if (!appReady || isLoading) {
+  if (isLoading) {
     return (
         <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
             <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
@@ -209,7 +213,7 @@ export default function AnalyticsPage() {
             <p className="text-muted-foreground">There are no invoices in the selected date range. Try adjusting the dates or make some sales!</p>
           </CardContent>
         </Card>
-      ) : allInvoices.length === 0 && !dateRange?.from ? ( 
+      ) : generatedInvoices.length === 0 ? ( 
         <Card>
           <CardHeader>
             <CardTitle>No Data Available</CardTitle>

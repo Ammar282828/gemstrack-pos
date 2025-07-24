@@ -2,21 +2,26 @@
 "use client";
 
 import { useParams } from 'next/navigation';
-import { useAppStore, Karigar, useAppReady } from '@/lib/store';
+import { useAppStore, Karigar } from '@/lib/store';
 import { KarigarForm } from '@/components/karigar/karigar-form';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import React, { useEffect } from 'react';
 
 export default function EditKarigarPage() {
   const params = useParams();
   const karigarId = params.id as string;
   
-  const appReady = useAppReady();
-  const karigar = useAppStore(state => state.karigars.find(k => k.id === karigarId));
-  const isKarigarsLoading = useAppStore(state => state.isKarigarsLoading);
+  const { karigars, isKarigarsLoading, loadKarigars } = useAppStore();
+  
+  useEffect(() => {
+    loadKarigars();
+  }, [loadKarigars]);
 
-  if (!appReady || (isKarigarsLoading && !karigar)) {
+  const karigar = karigars.find(k => k.id === karigarId);
+
+  if (isKarigarsLoading && !karigar) {
      return (
       <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
@@ -43,5 +48,3 @@ export default function EditKarigarPage() {
     </div>
   );
 }
-
-    

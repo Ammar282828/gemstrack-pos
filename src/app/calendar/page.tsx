@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useAppStore, Invoice, Order, useAppReady } from '@/lib/store';
+import { useAppStore, Invoice, Order } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from "@/components/ui/calendar"
@@ -23,19 +23,24 @@ type EventsByDate = {
 };
 
 export default function CalendarPage() {
-  const appReady = useAppReady();
-  const allInvoices = useAppStore(state => state.generatedInvoices);
-  const allOrders = useAppStore(state => state.orders);
-  const isLoading = useAppStore(state => state.isInvoicesLoading || state.isOrdersLoading);
+  const { 
+    generatedInvoices, orders, isInvoicesLoading, isOrdersLoading, 
+    loadGeneratedInvoices, loadOrders
+  } = useAppStore();
+
+  useEffect(() => {
+    loadGeneratedInvoices();
+    loadOrders();
+  }, [loadGeneratedInvoices, loadOrders]);
+
+  const isLoading = isInvoicesLoading || isOrdersLoading;
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   const eventsByDate = useMemo((): EventsByDate => {
-    if (!appReady) return {};
-    
     const eventsMap: EventsByDate = {};
 
-    allInvoices.forEach(invoice => {
+    generatedInvoices.forEach(invoice => {
       const dateKey = format(startOfDay(parseISO(invoice.createdAt)), 'yyyy-MM-dd');
       if (!eventsMap[dateKey]) {
         eventsMap[dateKey] = { invoices: 0, orders: 0, events: [] };
@@ -44,7 +49,7 @@ export default function CalendarPage() {
       eventsMap[dateKey].events.push({ ...invoice, eventType: 'invoice' });
     });
 
-    allOrders.forEach(order => {
+    orders.forEach(order => {
       const dateKey = format(startOfDay(parseISO(order.createdAt)), 'yyyy-MM-dd');
        if (!eventsMap[dateKey]) {
         eventsMap[dateKey] = { invoices: 0, orders: 0, events: [] };
@@ -59,7 +64,7 @@ export default function CalendarPage() {
     });
     
     return eventsMap;
-  }, [appReady, allInvoices, allOrders]);
+  }, [generatedInvoices, orders]);
 
   const selectedDateString = selectedDate ? format(startOfDay(selectedDate), 'yyyy-MM-dd') : undefined;
   const eventsForSelectedDay = selectedDateString ? eventsByDate[selectedDateString]?.events : undefined;
@@ -82,7 +87,7 @@ export default function CalendarPage() {
     );
   };
 
-  if (!appReady || isLoading) {
+  if (isLoading) {
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />

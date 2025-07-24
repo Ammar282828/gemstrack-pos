@@ -2,21 +2,26 @@
 "use client";
 
 import { useParams } from 'next/navigation';
-import { useAppStore, Customer, useAppReady } from '@/lib/store';
+import { useAppStore, Customer } from '@/lib/store';
 import { CustomerForm } from '@/components/customer/customer-form';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import React, { useEffect } from 'react';
 
 export default function EditCustomerPage() {
   const params = useParams();
   const customerId = params.id as string;
   
-  const appReady = useAppReady();
-  const customer = useAppStore(state => state.customers.find(c => c.id === customerId));
-  const isCustomersLoading = useAppStore(state => state.isCustomersLoading);
+  const { customers, isCustomersLoading, loadCustomers } = useAppStore();
 
-  if (!appReady || (isCustomersLoading && !customer) ) {
+  useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
+  
+  const customer = customers.find(c => c.id === customerId);
+
+  if (isCustomersLoading && !customer) {
     return (
       <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
@@ -43,5 +48,3 @@ export default function EditCustomerPage() {
     </div>
   );
 }
-
-    
