@@ -37,24 +37,11 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
   const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-  const handleStatusChange = async (newStatus: OrderStatus) => {
-    setIsUpdatingStatus(true);
-    try {
-        await updateOrderStatus(order.id, newStatus);
-        toast({ title: "Status Updated", description: `Order ${order.id} status changed to "${newStatus}".` });
-    } catch (error) {
-        toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
-    } finally {
-        setIsUpdatingStatus(false);
-    }
-  };
-
   const safeItems = Array.isArray(order.items) ? order.items : [];
   const completedItems = safeItems.filter(item => item.isCompleted).length;
   const totalItems = safeItems.length;
   const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
   
-  // Robust check for financial values to prevent crashes
   const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
 
   return (
@@ -65,16 +52,23 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
                     <Link href={`/orders/${order.id}`} className="font-bold text-primary hover:underline">
                       {order.id}
                     </Link>
-                    <div className="text-xs text-muted-foreground">{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</div>
+                    <p className="text-sm mt-1 italic text-muted-foreground truncate" title={summary}>
+                        {summary || 'Generating summary...'}
+                    </p>
                 </div>
                 <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
             </div>
-            <p className="text-sm font-medium">{order.customerName || 'Walk-in Customer'}</p>
-            <p className="text-xs text-muted-foreground">{order.customerContact}</p>
             
-            <p className="text-sm my-2 italic text-muted-foreground truncate" title={summary}>
-                {summary || 'Generating summary...'}
-            </p>
+             <div className="text-sm text-muted-foreground space-y-1.5 my-3">
+                <div className="flex items-center gap-2">
+                    <User className="w-4 h-4"/> 
+                    <span>{order.customerName || 'Walk-in Customer'} {order.customerContact && `(${order.customerContact})`}</span>
+                </div>
+                 <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4"/> 
+                    <span>{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</span>
+                </div>
+            </div>
 
             <div className="my-3">
                  {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items completed</span>}
@@ -82,7 +76,10 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
             </div>
 
             <div className="flex justify-between items-center text-sm mt-3">
-                <span className="text-muted-foreground">Balance Due:</span>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                    <DollarSign className="w-4 h-4"/> 
+                    <span>Balance Due:</span>
+                </div>
                 <span className="font-bold text-primary">PKR {grandTotal.toLocaleString()}</span>
             </div>
         </CardContent>
@@ -132,10 +129,20 @@ const OrderTableRow: React.FC<{ order: Order, summary: string | undefined }> = (
               {summary || 'Generating summary...'}
           </div>
         </TableCell>
-        <TableCell className="hidden lg:table-cell">{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</TableCell>
+        <TableCell className="hidden lg:table-cell">
+            <div className="flex items-center gap-2 text-sm">
+                <Calendar className="w-4 h-4 text-muted-foreground"/>
+                {format(parseISO(order.createdAt), 'MMM dd, yyyy')}
+            </div>
+        </TableCell>
         <TableCell>
-          <p>{order.customerName || 'Walk-in'}</p>
-          <p className="text-xs text-muted-foreground">{order.customerContact}</p>
+          <div className="flex items-center gap-2 text-sm">
+            <User className="w-4 h-4 text-muted-foreground"/>
+            <div>
+                <p>{order.customerName || 'Walk-in'}</p>
+                {order.customerContact && <p className="text-xs text-muted-foreground">{order.customerContact}</p>}
+            </div>
+          </div>
         </TableCell>
          <TableCell className="hidden xl:table-cell text-right">
           <div className="flex flex-col items-end">
