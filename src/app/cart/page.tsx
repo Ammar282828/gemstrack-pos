@@ -297,36 +297,23 @@ export default function CartPage() {
                     y += 4;
                     doc.setFont('helvetica', 'normal');
                     doc.text(cellData.details, cell.x + 2, y);
-                    y += 5;
+                    y += 5; // Extra space before breakdown
                     
-                    // Cost Breakdown
-                    const renderLine = (label: string, value: number) => {
+                    const renderLineWithPrefix = (prefix: string, label: string, value: number) => {
                         if (value > 0) {
-                            doc.setFont('helvetica', 'bold');
-                            doc.text(label, cell.x + 4, y);
-                            const valueText = value.toLocaleString(undefined, { minimumFractionDigits: 2 });
                             doc.setFont('helvetica', 'normal');
-                            doc.text(valueText, cell.x + 4 + doc.getTextWidth(label), y);
-                            y += 4;
-                        }
-                    };
-                     const renderLineWithPrefix = (prefix: string, label: string, value: number) => {
-                        if (value > 0) {
-                            doc.setFont('helvetica', 'bold');
-                            doc.text(`${prefix} ${label}`, cell.x + 4, y);
-                            const valueText = value.toLocaleString(undefined, { minimumFractionDigits: 2 });
-                            doc.setFont('helvetica', 'normal');
-                            doc.text(valueText, cell.x + 4 + doc.getTextWidth(`${prefix} ${label}`), y);
+                            const lineText = `${prefix} ${label}: PKR ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                            doc.text(lineText, cell.x + 4, y);
                             y += 4;
                         }
                     };
 
-                    renderLine('Metal Cost: ', item.metalCost);
-                    if (item.wastageCost > 0) renderLineWithPrefix('+', `Wastage (${item.wastagePercentage}%): `, item.wastageCost);
-                    if (item.makingCharges > 0) renderLineWithPrefix('+', 'Making Charges: ', item.makingCharges);
-                    if (item.diamondChargesIfAny > 0) renderLineWithPrefix('+', 'Diamonds: ', item.diamondChargesIfAny);
-                    if (item.stoneChargesIfAny > 0) renderLineWithPrefix('+', 'Stones: ', item.stoneChargesIfAny);
-                    if (item.miscChargesIfAny > 0) renderLineWithPrefix('+', 'Misc: ', item.miscChargesIfAny);
+                    renderLineWithPrefix('', 'Metal Cost', item.metalCost);
+                    if (item.wastageCost > 0) renderLineWithPrefix('+', `Wastage (${item.wastagePercentage}%)`, item.wastageCost);
+                    if (item.makingCharges > 0) renderLineWithPrefix('+', 'Making Charges', item.makingCharges);
+                    if (item.diamondChargesIfAny > 0) renderLineWithPrefix('+', 'Diamonds', item.diamondChargesIfAny);
+                    if (item.stoneChargesIfAny > 0) renderLineWithPrefix('+', 'Stones', item.stoneChargesIfAny);
+                    if (item.miscChargesIfAny > 0) renderLineWithPrefix('+', 'Misc', item.miscChargesIfAny);
                 }
             }
           }
