@@ -361,9 +361,7 @@ const initialSettingsData: Settings = {
   allowedDeviceIds: [],
   theme: 'slate',
   firebaseConfig: {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    projectId: "gemstrack-pos",
   }
 };
 
@@ -383,7 +381,8 @@ const staticCategories: Category[] = [
 
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
-type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
+type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'> & { subtotal?: number; grandTotal?: number };
+
 
 export interface CartItem {
   sku: string;
@@ -524,7 +523,7 @@ export const useAppStore = create<AppState>()(
               ...firestoreSettings,
               firebaseConfig: {
                 ...initialSettingsData.firebaseConfig,
-                projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+                projectId: "gemstrack-pos",
               },
               allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
                 ? firestoreSettings.allowedDeviceIds
@@ -989,8 +988,7 @@ export const useAppStore = create<AppState>()(
         const finalGrandTotal = Number(orderData.grandTotal) || 0;
 
         const newOrder: Order = {
-          ...orderData,
-          items: orderData.items.map(item => ({...item, isCompleted: false })), // Ensure isCompleted is set
+          ...(orderData as Omit<OrderDataForAdd, 'subtotal'|'grandTotal'>),
           subtotal: finalSubtotal,
           grandTotal: finalGrandTotal,
           customerName: customerNameToSave,
