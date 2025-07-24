@@ -19,7 +19,6 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import QRCode from 'qrcode.react';
-import { sendWhatsAppMessage } from '@/ai/flows/send-whatsapp-message-flow';
 
 
 declare module 'jspdf' {
@@ -55,8 +54,7 @@ export default function CartPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
   const [whatsAppNumber, setWhatsAppNumber] = useState('');
-  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
-
+  
   const [invoiceGoldRateInput, setInvoiceGoldRateInput] = useState<string>('');
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
   
@@ -170,12 +168,11 @@ export default function CartPage() {
     }
   };
 
-  const handleSendWhatsApp = async (invoiceToSend: InvoiceType) => {
+  const handleSendWhatsApp = (invoiceToSend: InvoiceType) => {
     if (!whatsAppNumber) {
       toast({ title: "No Phone Number", description: "Please enter a customer's phone number.", variant: "destructive" });
       return;
     }
-    setIsSendingWhatsApp(true);
 
     let message = `*Estimate from ${settings.shopName}*\n\n`;
     message += `*Estimate ID:* ${invoiceToSend.id}\n`;
@@ -196,26 +193,11 @@ export default function CartPage() {
 
     message += `\n\nThank you for your business!`;
 
-    // Format number for E.164 standard required by many APIs
-    const formattedToNumber = `whatsapp:${whatsAppNumber.replace(/\D/g, '')}`;
+    const numberOnly = whatsAppNumber.replace(/\D/g, '');
+    const whatsappUrl = `https://wa.me/${numberOnly}?text=${encodeURIComponent(message)}`;
 
-    try {
-      const result = await sendWhatsAppMessage({ to: formattedToNumber, body: message });
-      if (result.success) {
-        toast({ title: "Message Sent", description: "The estimate has been sent to the customer." });
-      } else {
-        throw new Error(result.error || "An unknown error occurred.");
-      }
-    } catch (error) {
-      console.error("Failed to send WhatsApp message:", error);
-      toast({
-        title: "Failed to Send Message",
-        description: `Could not send WhatsApp message. Please check the server logs. Error: ${(error as Error).message}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSendingWhatsApp(false);
-    }
+    window.open(whatsappUrl, '_blank');
+    toast({ title: "Redirecting to WhatsApp", description: "Your message is ready to be sent." });
   };
 
 
@@ -377,7 +359,8 @@ export default function CartPage() {
     doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
 
-    doc.setFont("helvetica", "bold").setTextColor(220, 53, 69); // Red for discount
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(220, 53, 69); // Red color for discount
     doc.text(`Discount:`, totalsX - 40, currentY, { align: 'right' });
     doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
@@ -546,9 +529,9 @@ export default function CartPage() {
                                 value={whatsAppNumber}
                                 onChange={(e) => setWhatsAppNumber(e.target.value)}
                              />
-                             <Button onClick={() => handleSendWhatsApp(generatedInvoice)} disabled={isSendingWhatsApp}>
-                                {isSendingWhatsApp ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MessageSquare className="mr-2 h-4 w-4"/>}
-                                {isSendingWhatsApp ? 'Sending...' : 'Send'}
+                             <Button onClick={() => handleSendWhatsApp(generatedInvoice)}>
+                                <MessageSquare className="mr-2 h-4 w-4"/>
+                                Send
                              </Button>
                         </div>
                     </div>
