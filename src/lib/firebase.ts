@@ -9,6 +9,7 @@ import { getFirestore, type Firestore } from "firebase/firestore";
 const firebaseConfig = {
   apiKey: "AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA",
   authDomain: "gemstrack-pos.firebaseapp.com",
+  databaseURL: "https://gemstrack-pos-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "gemstrack-pos",
   storageBucket: "gemstrack-pos.appspot.com",
   messagingSenderId: "948018742883",
