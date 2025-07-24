@@ -57,12 +57,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return null; 
   }
   
+  const logoToUse = settings.theme === 'default' 
+    ? settings.shopLogoUrlBlack || settings.shopLogoUrl 
+    : settings.shopLogoUrl;
+
   return (
       <SidebarProvider defaultOpen={true}>
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4">
             <Link href="/" className="flex items-center gap-2">
-              <Image src={settings.shopLogoUrl || "https://placehold.co/100x25.png"} alt="Shop Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden object-contain" data-ai-hint="logo" />
+              <Image src={logoToUse || "https://placehold.co/100x25.png"} alt="Shop Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden object-contain" data-ai-hint="logo" />
               <Gem className="w-8 h-8 text-primary hidden group-data-[collapsible=icon]:block" />
             </Link>
           </SidebarHeader>
