@@ -168,208 +168,234 @@ export default function CartPage() {
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
+    const logoUrl = settings.shopLogoUrlBlack || settings.shopLogoUrl;
 
     // --- Header Section ---
-    if (settings.shopLogoUrl) {
+    if (logoUrl) {
         try {
-             doc.setFontSize(26);
-             doc.setFont("helvetica", "bold");
-             doc.text(settings.shopName, margin, 22);
-        } catch(e) { console.error("Error adding image to PDF:", e) }
+            const img = new window.Image();
+            img.src = logoUrl;
+            img.onload = () => {
+                const aspectRatio = img.width / img.height;
+                const imgWidth = 40;
+                const imgHeight = imgWidth / aspectRatio;
+                doc.addImage(img, 'PNG', margin, 15, imgWidth, imgHeight);
+                doc.setFontSize(22);
+                doc.setFont("helvetica", "bold");
+                doc.text('ESTIMATE', pageWidth - margin, 22, { align: 'right' });
+                doc.setFont("helvetica", "normal");
+                finishAndPrint();
+            };
+            img.onerror = () => {
+                drawTextHeader();
+                finishAndPrint();
+            };
+        } catch (e) {
+            console.error("Error adding image to PDF:", e);
+            drawTextHeader();
+            finishAndPrint();
+        }
     } else {
+        drawTextHeader();
+        finishAndPrint();
+    }
+
+    function drawTextHeader() {
         doc.setFontSize(26);
         doc.setFont("helvetica", "bold");
         doc.text(settings.shopName, margin, 22);
     }
-    
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(settings.shopAddress, margin, 30);
-    doc.text(settings.shopContact, margin, 35);
+
+    function finishAndPrint() {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(settings.shopAddress, margin, 30);
+        doc.text(settings.shopContact, margin, 35);
 
 
-    // --- Estimate Info Section ---
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.text('ESTIMATE', pageWidth - margin, 22, { align: 'right' });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Estimate #: ${invoiceToPrint.id}`, pageWidth - margin, 29, { align: 'right' });
-    doc.text(`Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`, pageWidth - margin, 34, { align: 'right' });
+        // --- Estimate Info Section ---
+        doc.setFontSize(22);
+        doc.setFont("helvetica", "bold");
+        doc.text('ESTIMATE', pageWidth - margin, 22, { align: 'right' });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(`Estimate #: ${invoiceToPrint.id}`, pageWidth - margin, 29, { align: 'right' });
+        doc.text(`Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`, pageWidth - margin, 34, { align: 'right' });
 
-    let rateYPos = 39;
-    if (invoiceToPrint.goldRateApplied) {
-        const goldRate21k = invoiceToPrint.goldRateApplied * (21/24);
-        doc.text(`Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/g`, pageWidth - margin, rateYPos, { align: 'right' });
-        rateYPos += 5;
-    }
-
-    // --- Customer Info Section ---
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text('Bill To:', margin, 50);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    let customerYPos = 56;
-    if (invoiceToPrint.customerId && invoiceToPrint.customerName) {
-      const customer = customers.find(c => c.id === invoiceToPrint.customerId);
-      doc.text(invoiceToPrint.customerName, margin, customerYPos); customerYPos += 5;
-      if(customer?.address) { doc.text(customer.address, margin, customerYPos); customerYPos += 5; }
-      if(customer?.phone) { doc.text(`Phone: ${customer.phone}`, margin, customerYPos); customerYPos += 5; }
-      if(customer?.email) { doc.text(`Email: ${customer.email}`, margin, customerYPos); customerYPos += 5; }
-    } else {
-        doc.text("Walk-in Customer", margin, customerYPos);
-    }
-
-    // --- Items Table ---
-    const tableColumn = ["#", "Item Description", "Qty", "Unit Price (PKR)", "Total (PKR)"];
-    const tableRows: any[][] = [];
-
-    invoiceToPrint.items.forEach((item, index) => {
-      let metalDisplay = item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1);
-      if (item.metalType === 'gold' && item.karat) {
-        metalDisplay += ` (${item.karat.toUpperCase()})`;
-      }
-
-      // We pass the raw item to the cell's meta for custom rendering
-      const itemDescription = {
-        name: `${item.name} (SKU: ${item.sku})`,
-        details: `Metal: ${metalDisplay}, Wt: ${item.metalWeightG.toFixed(2)}g`,
-        breakdown: item // Pass the full item for breakdown rendering
-      };
-
-      const itemData = [
-        index + 1,
-        itemDescription, // Pass the object
-        item.quantity,
-        item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      ];
-      tableRows.push(itemData);
-    });
-
-    doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: 70,
-      theme: 'grid',
-      headStyles: { fillColor: [0, 60, 0], fontStyle: 'bold' },
-      styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
-      columnStyles: { 1: { cellWidth: 'auto' } },
-      didDrawCell: (data: any) => {
-        // Custom rendering for the 'Item Description' column
-        if (data.column.index === 1 && data.cell.section === 'body') {
-            const cellData = data.cell.raw;
-            if (typeof cellData === 'object' && cellData !== null && 'breakdown' in cellData) {
-                const item = cellData.breakdown as InvoiceItem;
-                const doc = data.doc;
-                const cell = data.cell;
-                let y = cell.y + 4;
-
-                // Main Item Name & Details
-                doc.setFont('helvetica', 'bold');
-                doc.text(cellData.name, cell.x + 2, y);
-                y += 4;
-                doc.setFont('helvetica', 'normal');
-                doc.text(cellData.details, cell.x + 2, y);
-                y += 5;
-                
-                // Cost Breakdown
-                const renderLine = (label: string, value: number) => {
-                    if (value > 0) {
-                        doc.setFont('helvetica', 'bold');
-                        doc.text(label, cell.x + 4, y);
-                        const valueText = value.toLocaleString(undefined, { minimumFractionDigits: 2 });
-                        doc.setFont('helvetica', 'normal');
-                        doc.text(valueText, cell.x + 4 + doc.getTextWidth(label), y);
-                        y += 4;
-                    }
-                };
-                 const renderLineWithPrefix = (prefix: string, label: string, value: number) => {
-                    if (value > 0) {
-                        doc.setFont('helvetica', 'bold');
-                        doc.text(`${prefix} ${label}`, cell.x + 4, y);
-                        const valueText = value.toLocaleString(undefined, { minimumFractionDigits: 2 });
-                        doc.setFont('helvetica', 'normal');
-                        doc.text(valueText, cell.x + 4 + doc.getTextWidth(`${prefix} ${label}`), y);
-                        y += 4;
-                    }
-                };
-
-                renderLine('Metal Cost: ', item.metalCost);
-                if (item.wastageCost > 0) renderLineWithPrefix('+', `Wastage (${item.wastagePercentage}%): `, item.wastageCost);
-                if (item.makingCharges > 0) renderLineWithPrefix('+', 'Making Charges: ', item.makingCharges);
-                if (item.diamondChargesIfAny > 0) renderLineWithPrefix('+', 'Diamonds: ', item.diamondChargesIfAny);
-                if (item.stoneChargesIfAny > 0) renderLineWithPrefix('+', 'Stones: ', item.stoneChargesIfAny);
-                if (item.miscChargesIfAny > 0) renderLineWithPrefix('+', 'Misc: ', item.miscChargesIfAny);
-            }
+        let rateYPos = 39;
+        if (invoiceToPrint.goldRateApplied) {
+            const goldRate21k = invoiceToPrint.goldRateApplied * (21/24);
+            doc.text(`Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/g`, pageWidth - margin, rateYPos, { align: 'right' });
+            rateYPos += 5;
         }
-      }
-    });
 
-    // --- Totals Section ---
-    const finalY = (doc as any).lastAutoTable.finalY || pageHeight - 100;
-    let currentY = finalY + 10;
-    
-    const totalsValueX = pageWidth - margin;
-    const totalsLabelX = totalsValueX - 40; // Position for the labels
+        // --- Customer Info Section ---
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text('Bill To:', margin, 50);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        let customerYPos = 56;
+        if (invoiceToPrint.customerId && invoiceToPrint.customerName) {
+          const customer = customers.find(c => c.id === invoiceToPrint.customerId);
+          doc.text(invoiceToPrint.customerName, margin, customerYPos); customerYPos += 5;
+          if(customer?.address) { doc.text(customer.address, margin, customerYPos); customerYPos += 5; }
+          if(customer?.phone) { doc.text(`Phone: ${customer.phone}`, margin, customerYPos); customerYPos += 5; }
+          if(customer?.email) { doc.text(`Email: ${customer.email}`, margin, customerYPos); customerYPos += 5; }
+        } else {
+            doc.text("Walk-in Customer", margin, customerYPos);
+        }
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    
-    doc.text(`Subtotal:`, totalsLabelX, currentY, { align: 'right'});
-    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
-    currentY += 6;
-    
-    doc.text(`Discount:`, totalsLabelX, currentY, { align: 'right'});
-    doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
-    currentY += 8;
+        // --- Items Table ---
+        const tableColumn = ["#", "Item Description", "Qty", "Unit Price (PKR)", "Total (PKR)"];
+        const tableRows: any[][] = [];
 
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Grand Total:`, totalsLabelX, currentY, { align: 'right' });
-    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
+        invoiceToPrint.items.forEach((item, index) => {
+          let metalDisplay = item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1);
+          if (item.metalType === 'gold' && item.karat) {
+            metalDisplay += ` (${item.karat.toUpperCase()})`;
+          }
 
-    // --- Guarantees & Thank You Section ---
-    const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.text(guaranteesText, margin, pageHeight - 45, { maxWidth: pageWidth / 2.5 });
-    
-    doc.setFont("helvetica", "normal");
-    doc.text("Thank you for your business!", margin, pageHeight - 30);
+          // We pass the raw item to the cell's meta for custom rendering
+          const itemDescription = {
+            name: `${item.name} (SKU: ${item.sku})`,
+            details: `Metal: ${metalDisplay}, Wt: ${item.metalWeightG.toFixed(2)}g`,
+            breakdown: item // Pass the full item for breakdown rendering
+          };
 
-    // --- QR Codes Section ---
-    const qrCodeSize = 25;
-    const qrYPos = pageHeight - 35;
-    const qrSectionWidth = (qrCodeSize * 2) + 25;
-    const qrStartX = pageWidth - margin - qrSectionWidth;
+          const itemData = [
+            index + 1,
+            itemDescription, // Pass the object
+            item.quantity,
+            item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          ];
+          tableRows.push(itemData);
+        });
 
-    const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
-    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
-    
-    const instaLogoUrl = 'https://placehold.co/20x20.png?text=I';
-    const waLogoUrl = 'https://placehold.co/20x20.png?text=W';
+        doc.autoTable({
+          head: [tableColumn],
+          body: tableRows,
+          startY: 70,
+          theme: 'grid',
+          headStyles: { fillColor: [0, 60, 0], fontStyle: 'bold' },
+          styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
+          columnStyles: { 1: { cellWidth: 'auto' } },
+          didDrawCell: (data: any) => {
+            // Custom rendering for the 'Item Description' column
+            if (data.column.index === 1 && data.cell.section === 'body') {
+                const cellData = data.cell.raw;
+                if (typeof cellData === 'object' && cellData !== null && 'breakdown' in cellData) {
+                    const item = cellData.breakdown as InvoiceItem;
+                    const doc = data.doc;
+                    const cell = data.cell;
+                    let y = cell.y + 4;
 
-    if (instaQrCanvas) {
-        doc.addImage(instaLogoUrl, 'PNG', qrStartX, qrYPos - 7, 5, 5);
+                    // Main Item Name & Details
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(cellData.name, cell.x + 2, y);
+                    y += 4;
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(cellData.details, cell.x + 2, y);
+                    y += 5;
+                    
+                    // Cost Breakdown
+                    const renderLine = (label: string, value: number) => {
+                        if (value > 0) {
+                            doc.setFont('helvetica', 'bold');
+                            doc.text(label, cell.x + 4, y);
+                            const valueText = value.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                            doc.setFont('helvetica', 'normal');
+                            doc.text(valueText, cell.x + 4 + doc.getTextWidth(label), y);
+                            y += 4;
+                        }
+                    };
+                     const renderLineWithPrefix = (prefix: string, label: string, value: number) => {
+                        if (value > 0) {
+                            doc.setFont('helvetica', 'bold');
+                            doc.text(`${prefix} ${label}`, cell.x + 4, y);
+                            const valueText = value.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                            doc.setFont('helvetica', 'normal');
+                            doc.text(valueText, cell.x + 4 + doc.getTextWidth(`${prefix} ${label}`), y);
+                            y += 4;
+                        }
+                    };
+
+                    renderLine('Metal Cost: ', item.metalCost);
+                    if (item.wastageCost > 0) renderLineWithPrefix('+', `Wastage (${item.wastagePercentage}%): `, item.wastageCost);
+                    if (item.makingCharges > 0) renderLineWithPrefix('+', 'Making Charges: ', item.makingCharges);
+                    if (item.diamondChargesIfAny > 0) renderLineWithPrefix('+', 'Diamonds: ', item.diamondChargesIfAny);
+                    if (item.stoneChargesIfAny > 0) renderLineWithPrefix('+', 'Stones: ', item.stoneChargesIfAny);
+                    if (item.miscChargesIfAny > 0) renderLineWithPrefix('+', 'Misc: ', item.miscChargesIfAny);
+                }
+            }
+          }
+        });
+
+        // --- Totals Section ---
+        const finalY = (doc as any).lastAutoTable.finalY || pageHeight - 100;
+        let currentY = finalY + 10;
+        
+        const totalsValueX = pageWidth - margin;
+        const totalsLabelX = totalsValueX - 40; // Position for the labels
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        
+        doc.text(`Subtotal:`, totalsLabelX, currentY, { align: 'right'});
+        doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
+        currentY += 6;
+        
+        doc.text(`Discount:`, totalsLabelX, currentY, { align: 'right'});
+        doc.text(`PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
+        currentY += 8;
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Grand Total:`, totalsLabelX, currentY, { align: 'right' });
+        doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
+
+        // --- Guarantees & Thank You Section ---
+        const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
         doc.setFontSize(8);
         doc.setFont("helvetica", "bold");
-        doc.text("Follow on Instagram", qrStartX + 7, qrYPos - 3);
-        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, qrYPos, qrCodeSize, qrCodeSize);
+        doc.text(guaranteesText, margin, pageHeight - 45, { maxWidth: pageWidth / 2.5 });
+        
+        doc.setFont("helvetica", "normal");
+        doc.text("Thank you for your business!", margin, pageHeight - 30);
+
+        // --- QR Codes Section ---
+        const qrCodeSize = 25;
+        const qrYPos = pageHeight - 35;
+        const qrSectionWidth = (qrCodeSize * 2) + 25;
+        const qrStartX = pageWidth - margin - qrSectionWidth;
+
+        const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
+        const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
+        
+        const instaLogoUrl = 'https://placehold.co/20x20.png?text=I';
+        const waLogoUrl = 'https://placehold.co/20x20.png?text=W';
+
+        if (instaQrCanvas) {
+            doc.addImage(instaLogoUrl, 'PNG', qrStartX, qrYPos - 7, 5, 5);
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "bold");
+            doc.text("Follow on Instagram", qrStartX + 7, qrYPos - 3);
+            doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, qrYPos, qrCodeSize, qrCodeSize);
+        }
+        if (waQrCanvas) {
+            const secondQrX = qrStartX + qrCodeSize + 15;
+            doc.addImage(waLogoUrl, 'PNG', secondQrX, qrYPos - 7, 5, 5);
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "bold");
+            doc.text("Join WhatsApp Community", secondQrX + 7, qrYPos - 3);
+            doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, qrYPos, qrCodeSize, qrCodeSize);
+        }
+        
+        doc.autoPrint();
+        window.open(doc.output('bloburl'), '_blank');
+        toast({ title: "Estimate Printing", description: "Estimate PDF sent to print dialog." });
     }
-    if (waQrCanvas) {
-        const secondQrX = qrStartX + qrCodeSize + 15;
-        doc.addImage(waLogoUrl, 'PNG', secondQrX, qrYPos - 7, 5, 5);
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "bold");
-        doc.text("Join WhatsApp Community", secondQrX + 7, qrYPos - 3);
-        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, qrYPos, qrCodeSize, qrCodeSize);
-    }
-    
-    doc.autoPrint();
-    window.open(doc.output('bloburl'), '_blank');
-    toast({ title: "Estimate Printing", description: "Estimate PDF sent to print dialog." });
   };
 
   const handleNewSale = () => {

@@ -184,6 +184,7 @@ export interface Settings {
   shopAddress: string;
   shopContact: string;
   shopLogoUrl?: string;
+  shopLogoUrlBlack?: string;
   lastInvoiceNumber: number;
   lastOrderNumber: number;
   allowedDeviceIds: string[];

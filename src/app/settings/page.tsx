@@ -39,6 +39,7 @@ const settingsSchema = z.object({
   shopAddress: z.string().optional(),
   shopContact: z.string().optional(),
   shopLogoUrl: z.string().optional(),
+  shopLogoUrlBlack: z.string().optional(),
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
   lastOrderNumber: z.coerce.number().int().min(0, "Last order number must be a non-negative integer"),
   allowedDeviceIds: z.array(z.object({ id: z.string().min(1, "Device ID cannot be empty.") })).optional(),
@@ -49,7 +50,7 @@ type SettingsFormData = z.infer<typeof settingsSchema>;
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
 type CustomerDataForAdd = Omit<Customer, 'id'>;
 type KarigarDataForAdd = Omit<Karigar, 'id'>;
-type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
+type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'> & { subtotal: number; grandTotal: number; };
 
 
 const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [];
@@ -132,6 +133,7 @@ export default function SettingsPage() {
   const [isSeedingKarigars, setIsSeedingKarigars] = useState(false);
   const [isSeedingOrders, setIsSeedingOrders] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoPreviewBlack, setLogoPreviewBlack] = useState<string | null>(null);
 
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
@@ -143,6 +145,7 @@ export default function SettingsPage() {
       shopAddress: "",
       shopContact: "",
       shopLogoUrl: "",
+      shopLogoUrlBlack: "",
       lastInvoiceNumber: 0,
       lastOrderNumber: 0,
       allowedDeviceIds: [],
@@ -169,6 +172,7 @@ export default function SettingsPage() {
         shopAddress: currentSettings.shopAddress || "",
         shopContact: currentSettings.shopContact || "",
         shopLogoUrl: currentSettings.shopLogoUrl || "",
+        shopLogoUrlBlack: currentSettings.shopLogoUrlBlack || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
         lastOrderNumber: currentSettings.lastOrderNumber || 0,
         allowedDeviceIds: deviceIdsForForm,
@@ -177,11 +181,14 @@ export default function SettingsPage() {
       if (currentSettings.shopLogoUrl) {
         setLogoPreview(currentSettings.shopLogoUrl);
       }
+      if (currentSettings.shopLogoUrlBlack) {
+        setLogoPreviewBlack(currentSettings.shopLogoUrlBlack);
+      }
     }
   }, [currentSettings, form, appReady]);
 
 
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>, isBlackVersion: boolean = false) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -197,8 +204,13 @@ export default function SettingsPage() {
     const reader = new FileReader();
     reader.onloadend = () => {
       const dataUrl = reader.result as string;
-      setLogoPreview(dataUrl);
-      form.setValue('shopLogoUrl', dataUrl, { shouldValidate: true, shouldDirty: true });
+      if (isBlackVersion) {
+        setLogoPreviewBlack(dataUrl);
+        form.setValue('shopLogoUrlBlack', dataUrl, { shouldValidate: true, shouldDirty: true });
+      } else {
+        setLogoPreview(dataUrl);
+        form.setValue('shopLogoUrl', dataUrl, { shouldValidate: true, shouldDirty: true });
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -529,8 +541,9 @@ export default function SettingsPage() {
                   </FormItem>
                 )}
               />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormItem>
-                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Shop Logo</FormLabel>
+                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Main Shop Logo (for UI)</FormLabel>
                   <div className="flex items-center gap-4">
                     <FormControl>
                        <Button asChild variant="outline" className="relative">
@@ -541,7 +554,7 @@ export default function SettingsPage() {
                               type="file"
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                               accept="image/png, image/jpeg, image/svg+xml, image/webp"
-                              onChange={handleLogoUpload}
+                              onChange={(e) => handleLogoUpload(e, false)}
                             />
                           </div>
                         </Button>
@@ -553,10 +566,39 @@ export default function SettingsPage() {
                      )}
                   </div>
                    <FormDescription>
-                     Upload your shop logo. Recommended max size: 200KB.
+                     Upload your main logo. Recommended max size: 200KB.
                    </FormDescription>
                   <FormMessage />
                 </FormItem>
+                <FormItem>
+                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Invoice Logo (Black)</FormLabel>
+                  <div className="flex items-center gap-4">
+                    <FormControl>
+                       <Button asChild variant="outline" className="relative">
+                          <div>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload Black Logo
+                            <Input
+                              type="file"
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              accept="image/png, image/jpeg, image/svg+xml, image/webp"
+                              onChange={(e) => handleLogoUpload(e, true)}
+                            />
+                          </div>
+                        </Button>
+                    </FormControl>
+                     {logoPreviewBlack && (
+                        <div className="p-2 border rounded-md w-fit bg-slate-800">
+                            <Image src={logoPreviewBlack} alt="Shop Logo Preview (Black)" width={150} height={40} className="object-contain" data-ai-hint="logo store" />
+                        </div>
+                     )}
+                  </div>
+                   <FormDescription>
+                     Upload a monochrome black logo for PDF invoices.
+                   </FormDescription>
+                  <FormMessage />
+                </FormItem>
+                </div>
               <FormField
                 control={form.control}
                 name="lastInvoiceNumber"

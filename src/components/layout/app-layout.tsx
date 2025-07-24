@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useIsStoreHydrated } from '@/lib/store';
+import { useAppStore, useIsStoreHydrated } from '@/lib/store';
 
 interface NavItem {
   href: string;
@@ -48,6 +48,7 @@ const navItems: NavItem[] = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isStoreHydrated = useIsStoreHydrated();
+  const settings = useAppStore(state => state.settings);
 
   // We only render the layout shell. Data loading and authorization happen inside.
   if (!isStoreHydrated) {
@@ -61,7 +62,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4">
             <Link href="/" className="flex items-center gap-2">
-              <Image src="https://placehold.co/100x25.png" alt="Shop Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden" data-ai-hint="logo" />
+              <Image src={settings.shopLogoUrl || "https://placehold.co/100x25.png"} alt="Shop Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden object-contain" data-ai-hint="logo" />
               <Gem className="w-8 h-8 text-primary hidden group-data-[collapsible=icon]:block" />
             </Link>
           </SidebarHeader>
