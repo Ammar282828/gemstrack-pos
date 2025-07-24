@@ -87,7 +87,7 @@ const CustomerCard: React.FC<{ customer: Customer; onDelete: (id: string) => Pro
         <CardContent className="text-sm text-muted-foreground space-y-2">
             {customer.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4"/><span>{customer.phone}</span></div>}
             {customer.email && <div className="flex items-center gap-2"><Mail className="w-4 h-4"/><span>{customer.email}</span></div>}
-            {customer.address && <div className="flex items-center gap-2"><MapPin className="w-4 h-4"/><span>{customer.address}</span></div>}
+            {customer.address && <div className="flex items-start gap-2"><MapPin className="w-4 h-4 mt-1 flex-shrink-0"/><span>{customer.address}</span></div>}
         </CardContent>
         <CardFooter className="p-2 border-t bg-muted/30">
             <CustomerActions customer={customer} onDelete={onDelete} isCard />
