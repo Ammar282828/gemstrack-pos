@@ -325,11 +325,12 @@ export default function CartPage() {
         didDrawPage: (data) => {
             if (data.pageNumber > 1) {
                 doc.setPage(data.pageNumber);
+                // Reset startY for new pages
+                data.settings.startY = 40; 
+                drawHeader(data.pageNumber);
+            } else {
+                drawHeader(data.pageNumber);
             }
-            // Draw header on all pages
-            drawHeader(data.pageNumber);
-            // Reset startY for new pages
-            data.settings.startY = 40; 
         },
     });
 
@@ -738,3 +739,5 @@ export default function CartPage() {
     </div>
   );
 }
+
+    
