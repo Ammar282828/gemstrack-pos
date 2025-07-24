@@ -496,11 +496,11 @@ export const useAppStore = create<AppState>()(
       orders: [],
 
       isSettingsLoading: true,
-      isProductsLoading: false,
-      isCustomersLoading: false,
-      isKarigarsLoading: false,
-      isInvoicesLoading: false,
-      isOrdersLoading: false,
+      isProductsLoading: true,
+      isCustomersLoading: true,
+      isKarigarsLoading: true,
+      isInvoicesLoading: true,
+      isOrdersLoading: true,
       
       hasProductsLoaded: false,
       hasCustomersLoaded: false,
@@ -906,32 +906,35 @@ export const useAppStore = create<AppState>()(
         const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
         const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
         
-        const newInvoiceData: { [key: string]: any } = {
-          items: invoiceItems, 
+        const newInvoiceData: Omit<Invoice, 'id'> = {
+          items: invoiceItems.map(item => {
+              const cleanItem = { ...item };
+              // Ensure optional fields are null, not undefined
+              if (!cleanItem.karat) cleanItem.karat = undefined;
+              if (!cleanItem.stoneDetails) cleanItem.stoneDetails = undefined;
+              if (!cleanItem.diamondDetails) cleanItem.diamondDetails = undefined;
+              // Remove any properties that are explicitly undefined before sending to Firestore
+              Object.keys(cleanItem).forEach(key => {
+                  if ((cleanItem as any)[key] === undefined) {
+                      delete (cleanItem as any)[key];
+                  }
+              });
+              return cleanItem;
+          }),
           subtotal: Number(subtotal) || 0,
           discountAmount: calculatedDiscountAmount, 
           grandTotal: Number(grandTotal) || 0, 
           createdAt: new Date().toISOString(),
-          goldRateApplied: null,
-          palladiumRateApplied: null,
-          platinumRateApplied: null,
+          goldRateApplied: hasGoldItems && ratesForInvoice.goldRatePerGram24k > 0 ? ratesForInvoice.goldRatePerGram24k : null,
+          palladiumRateApplied: hasPalladiumItems && ratesForInvoice.palladiumRatePerGram > 0 ? ratesForInvoice.palladiumRatePerGram : null,
+          platinumRateApplied: hasPlatinumItems && ratesForInvoice.platinumRatePerGram > 0 ? ratesForInvoice.platinumRatePerGram : null,
         };
-
-        if (hasGoldItems && ratesForInvoice.goldRatePerGram24k > 0) {
-            newInvoiceData.goldRateApplied = ratesForInvoice.goldRatePerGram24k;
-        }
-        if (hasPalladiumItems && ratesForInvoice.palladiumRatePerGram > 0) {
-            newInvoiceData.palladiumRateApplied = ratesForInvoice.palladiumRatePerGram;
-        }
-        if (hasPlatinumItems && ratesForInvoice.platinumRatePerGram > 0) {
-            newInvoiceData.platinumRateApplied = ratesForInvoice.platinumRatePerGram;
-        }
 
         if (customerId) {
           const customer = customers.find(c => c.id === customerId);
           if (customer) {
             newInvoiceData.customerId = customer.id;
-            if (customer.name) newInvoiceData.customerName = customer.name;
+            newInvoiceData.customerName = customer.name || 'Unknown Customer';
           }
         }
         
@@ -953,11 +956,6 @@ export const useAppStore = create<AppState>()(
             await batch.commit();
             console.log("[GemsTrack Store generateInvoice] Invoice and settings successfully committed to Firestore.");
 
-            // No need to manually update state, onSnapshot will handle it.
-            // set(state => {
-            //     state.generatedInvoices.unshift(newInvoice); 
-            //     state.settings.lastInvoiceNumber = nextInvoiceNumber;
-            // });
             return newInvoice;
         } catch (error) {
             console.error("[GemsTrack Store generateInvoice] Error committing invoice batch to Firestore:", error);
