@@ -51,7 +51,7 @@ type SettingsFormData = z.infer<typeof settingsSchema>;
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
 type CustomerDataForAdd = Omit<Customer, 'id'>;
 type KarigarDataForAdd = Omit<Karigar, 'id'>;
-type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'> & { subtotal?: number; grandTotal?: number };
+type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
 
 
 const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
@@ -80,11 +80,38 @@ const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
   { categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '22k', metalWeightG: 8.0, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png' },
 ];
 
-const DUMMY_CUSTOMERS_TO_SEED: CustomerDataForAdd[] = [];
+const DUMMY_CUSTOMERS_TO_SEED: CustomerDataForAdd[] = [
+    { name: "Ahmed Khan", phone: "0300-1234567", email: "ahmed.khan@example.com", address: "123 Main St, Karachi" },
+    { name: "Fatima Ali", phone: "0321-7654321", email: "fatima.ali@example.com", address: "456 Park Ave, Lahore" },
+    { name: "Bilal Sheikh", phone: "0333-1122334", email: "bilal.sheikh@example.com", address: "789 Ocean Blvd, Islamabad" },
+];
 
-const DUMMY_KARIGARS_TO_SEED: KarigarDataForAdd[] = [];
+const DUMMY_KARIGARS_TO_SEED: KarigarDataForAdd[] = [
+    { name: "Ustad Saleem", contact: "0345-9876543", notes: "Specializes in intricate bridal sets." },
+    { name: "Aslam Bhai", contact: "0312-3456789", notes: "Expert in modern platinum designs and repairs." },
+];
 
-const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] = [];
+const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] = [
+    {
+        customerName: "Ayesha Ahmed",
+        customerContact: "0301-2233445",
+        goldRate: 21500, // Example rate at time of order
+        advancePayment: 50000,
+        advanceGoldDetails: "5g old gold (21k) provided.",
+        items: [
+            { description: "Custom bridal necklace set", karat: "22k", estimatedWeightG: 45, makingCharges: 80000, diamondCharges: 150000, stoneCharges: 25000, sampleGiven: false, hasDiamonds: true, isCompleted: false, diamondDetails: "Full set with Polki diamonds", stoneDetails: "Ruby and emerald accents" },
+            { description: "Matching groom's ring", karat: "21k", estimatedWeightG: 12, makingCharges: 15000, diamondCharges: 0, stoneCharges: 0, sampleGiven: true, hasDiamonds: false, isCompleted: false, referenceSku: "BND-000002" }
+        ]
+    },
+    {
+        customerName: "Zainab Ansari",
+        goldRate: 21000,
+        advancePayment: 20000,
+        items: [
+            { description: "Platinum band with custom engraving", karat: '18k', estimatedWeightG: 8, makingCharges: 20000, diamondCharges: 0, stoneCharges: 0, sampleGiven: false, hasDiamonds: false, isCompleted: true, stoneDetails: "Engraving: 'Z & R Forever'" }
+        ]
+    }
+];
 
 
 const DataDeletionButton: React.FC<{
@@ -271,15 +298,11 @@ export default function SettingsPage() {
       try {
         const newProduct = await addProductAction(productData);
         if (newProduct) {
-          toast({
-            title: "Product Added",
-            description: `Successfully added: ${newProduct.name} (SKU: ${newProduct.sku})`,
-          });
           successCount++;
         } else {
           toast({
             title: "Product Seeding Error",
-            description: `Failed to add product (Category ID: ${productData.categoryId}, Weight: ${productData.metalWeightG}g). Category might be missing or invalid.`,
+            description: `Failed to add product (Category ID: ${productData.categoryId}). The category might be missing.`,
             variant: "destructive",
           });
           errorCount++;
@@ -293,7 +316,7 @@ export default function SettingsPage() {
         });
         errorCount++;
       }
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     toast({
@@ -318,7 +341,6 @@ export default function SettingsPage() {
       try {
         const newCustomer = await addCustomerAction(customerData);
         if (newCustomer) {
-          toast({ title: "Customer Added", description: `Added: ${newCustomer.name}` });
           successCount++;
         } else {
           toast({ title: "Customer Seeding Error", description: `Failed to add customer: ${customerData.name}`, variant: "destructive" });
@@ -328,7 +350,7 @@ export default function SettingsPage() {
         toast({ title: "Customer Seeding Exception", description: `Error adding ${customerData.name}: ${(e as Error).message}`, variant: "destructive" });
         errorCount++;
       }
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     toast({ title: "Customer Seeding Complete", description: `Finished. Success: ${successCount}, Errors: ${errorCount}.`, variant: errorCount > 0 ? "destructive" : "default"});
     setIsSeedingCustomers(false);
@@ -348,7 +370,6 @@ export default function SettingsPage() {
       try {
         const newKarigar = await addKarigarAction(karigarData);
         if (newKarigar) {
-          toast({ title: "Karigar Added", description: `Added: ${newKarigar.name}` });
           successCount++;
         } else {
           toast({ title: "Karigar Seeding Error", description: `Failed to add karigar: ${karigarData.name}`, variant: "destructive" });
@@ -358,7 +379,7 @@ export default function SettingsPage() {
         toast({ title: "Karigar Seeding Exception", description: `Error adding ${karigarData.name}: ${(e as Error).message}`, variant: "destructive" });
         errorCount++;
       }
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     toast({ title: "Karigar Seeding Complete", description: `Finished. Success: ${successCount}, Errors: ${errorCount}.`, variant: errorCount > 0 ? "destructive" : "default"});
     setIsSeedingKarigars(false);
@@ -377,7 +398,7 @@ export default function SettingsPage() {
     for (const orderData of DUMMY_ORDERS_TO_SEED) {
       try {
         let subtotal = 0;
-        const enrichedItems = orderData.items.map((item) => {
+        const enrichedItems: OrderItem[] = orderData.items.map((item) => {
           const itemAsProduct = {
             ...item,
             metalType: 'gold' as MetalType,
@@ -404,7 +425,6 @@ export default function SettingsPage() {
         
         const newOrder = await addOrderAction(fullOrderData);
         if (newOrder) {
-          toast({ title: "Order Added", description: `Added: ${newOrder.id} for ${newOrder.customerName}` });
           successCount++;
         } else {
           toast({ title: "Order Seeding Error", description: `Failed to add order for: ${orderData.customerName}`, variant: "destructive" });
@@ -414,7 +434,7 @@ export default function SettingsPage() {
         toast({ title: "Order Seeding Exception", description: `Error adding order for ${orderData.customerName}: ${(e as Error).message}`, variant: "destructive" });
         errorCount++;
       }
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     toast({ title: "Order Seeding Complete", description: `Finished. Success: ${successCount}, Errors: ${errorCount}.`, variant: errorCount > 0 ? "destructive" : "default"});
     setIsSeedingOrders(false);

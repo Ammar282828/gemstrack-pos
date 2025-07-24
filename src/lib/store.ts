@@ -381,7 +381,7 @@ const staticCategories: Category[] = [
 
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
-type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'> & { subtotal?: number; grandTotal?: number };
+type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
 
 
 export interface CartItem {
@@ -1010,11 +1010,6 @@ export const useAppStore = create<AppState>()(
           await batch.commit();
           console.log(`[GemsTrack Store addOrder] Order ${newOrderId} and settings successfully committed.`);
           
-          // No need to manually update state, onSnapshot will handle it.
-          // set(state => {
-          //   state.orders.unshift(newOrder);
-          //   state.settings.lastOrderNumber = nextOrderNumber;
-          // });
           return newOrder;
         } catch (error) {
           console.error(`[GemsTrack Store addOrder] Error saving order ${newOrderId} to Firestore:`, error);
