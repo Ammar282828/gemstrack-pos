@@ -577,20 +577,20 @@ export const useAppStore = create<AppState>()(
       }),
 
       loadProducts: () => {
-        if (get().hasProductsLoaded || get().isProductsLoading) return;
+        if (get().hasProductsLoaded) return;
         set({ isProductsLoading: true });
-        
         const q = query(collection(db, FIRESTORE_COLLECTIONS.PRODUCTS), orderBy("sku"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, 
+          (snapshot) => {
             const productList = snapshot.docs.map(doc => doc.data() as Product);
             set({ products: productList, hasProductsLoaded: true, isProductsLoading: false });
             console.log(`[GemsTrack Store] Real-time update: ${productList.length} products loaded.`);
-        }, (error) => {
+          }, 
+          (error) => {
             console.error("[GemsTrack Store] Error in products real-time listener:", error);
-            set({ products: [], isProductsLoading: false });
-        });
-        
-        // This is a global listener for the app's lifetime, so we don't return unsubscribe from here.
+            set({ products: [], isProductsLoading: false, hasProductsLoaded: true }); // Mark as loaded to prevent retries
+          }
+        );
       },
       addProduct: async (productData) => {
         const { categories, products } = get();
@@ -695,18 +695,20 @@ export const useAppStore = create<AppState>()(
       },
 
       loadCustomers: () => {
-        if (get().hasCustomersLoaded || get().isCustomersLoading) return;
+        if (get().hasCustomersLoaded) return;
         set({ isCustomersLoading: true });
-        
         const q = query(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS), orderBy("name"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, 
+          (snapshot) => {
             const customerList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer));
             set({ customers: customerList, hasCustomersLoaded: true, isCustomersLoading: false });
             console.log(`[GemsTrack Store] Real-time update: ${customerList.length} customers loaded.`);
-        }, (error) => {
+          },
+          (error) => {
             console.error("[GemsTrack Store] Error in customers real-time listener:", error);
-            set({ customers: [], isCustomersLoading: false });
-        });
+            set({ customers: [], isCustomersLoading: false, hasCustomersLoaded: true });
+          }
+        );
       },
       addCustomer: async (customerData) => {
         const newCustomerId = `cust-${Date.now()}`;
@@ -741,18 +743,20 @@ export const useAppStore = create<AppState>()(
       },
 
       loadKarigars: () => {
-        if (get().hasKarigarsLoaded || get().isKarigarsLoading) return;
+        if (get().hasKarigarsLoaded) return;
         set({ isKarigarsLoading: true });
-        
         const q = query(collection(db, FIRESTORE_COLLECTIONS.KARIGARS), orderBy("name"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, 
+          (snapshot) => {
             const karigarList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Karigar));
             set({ karigars: karigarList, hasKarigarsLoaded: true, isKarigarsLoading: false });
             console.log(`[GemsTrack Store] Real-time update: ${karigarList.length} karigars loaded.`);
-        }, (error) => {
+          },
+          (error) => {
             console.error("[GemsTrack Store] Error in karigars real-time listener:", error);
-            set({ karigars: [], isKarigarsLoading: false });
-        });
+            set({ karigars: [], isKarigarsLoading: false, hasKarigarsLoaded: true });
+          }
+        );
       },
       addKarigar: async (karigarData) => {
         const newKarigarId = `karigar-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
@@ -800,18 +804,20 @@ export const useAppStore = create<AppState>()(
       clearCart: () => set((state) => { state.cart = []; }),
 
       loadGeneratedInvoices: () => {
-        if (get().hasInvoicesLoaded || get().isInvoicesLoading) return;
+        if (get().hasInvoicesLoaded) return;
         set({ isInvoicesLoading: true });
-        
         const q = query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), orderBy("createdAt", "desc"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, 
+          (snapshot) => {
             const invoiceList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Invoice));
             set({ generatedInvoices: invoiceList, hasInvoicesLoaded: true, isInvoicesLoading: false });
             console.log(`[GemsTrack Store] Real-time update: ${invoiceList.length} invoices loaded.`);
-        }, (error) => {
+          },
+          (error) => {
             console.error("[GemsTrack Store] Error in invoices real-time listener:", error);
-            set({ generatedInvoices: [], isInvoicesLoading: false });
-        });
+            set({ generatedInvoices: [], isInvoicesLoading: false, hasInvoicesLoaded: true });
+          }
+        );
       },
       generateInvoice: async (customerId, invoiceGoldRate24k, discountAmount) => {
         const { products, cart, customers, settings } = get();
@@ -964,18 +970,20 @@ export const useAppStore = create<AppState>()(
       },
 
       loadOrders: () => {
-        if (get().hasOrdersLoaded || get().isOrdersLoading) return;
+        if (get().hasOrdersLoaded) return;
         set({ isOrdersLoading: true });
-        
         const q = query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), orderBy("createdAt", "desc"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const unsubscribe = onSnapshot(q, 
+          (snapshot) => {
             const orderList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order));
             set({ orders: orderList, hasOrdersLoaded: true, isOrdersLoading: false });
             console.log(`[GemsTrack Store] Real-time update: ${orderList.length} orders loaded.`);
-        }, (error) => {
+          },
+          (error) => {
             console.error("[GemsTrack Store] Error in orders real-time listener:", error);
-            set({ orders: [], isOrdersLoading: false });
-        });
+            set({ orders: [], isOrdersLoading: false, hasOrdersLoaded: true });
+          }
+        );
       },
 
       addOrder: async (orderData) => {
