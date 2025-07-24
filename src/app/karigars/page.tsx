@@ -29,10 +29,10 @@ const KarigarRow: React.FC<{ karigar: Karigar; onDelete: (id: string) => Promise
         <Link href={`/karigars/${karigar.id}`} className="font-medium text-primary hover:underline">
           {karigar.name}
         </Link>
-        <div className="text-xs text-muted-foreground">ID: {karigar.id}</div>
+        <div className="text-xs text-muted-foreground md:hidden">{karigar.contact}</div>
       </TableCell>
-      <TableCell>{karigar.contact || '-'}</TableCell>
-      <TableCell className="hidden md:table-cell truncate max-w-xs">{karigar.notes || '-'}</TableCell>
+      <TableCell className="hidden md:table-cell">{karigar.contact || '-'}</TableCell>
+      <TableCell className="hidden lg:table-cell truncate max-w-xs">{karigar.notes || '-'}</TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end space-x-2">
           <Button asChild size="sm" variant="outline" className="whitespace-nowrap">
@@ -138,8 +138,8 @@ export default function KarigarsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead><Briefcase className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Name</TableHead>
-                <TableHead><Phone className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Contact</TableHead>
-                <TableHead className="hidden md:table-cell"><StickyNote className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Notes</TableHead>
+                <TableHead className="hidden md:table-cell"><Phone className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Contact</TableHead>
+                <TableHead className="hidden lg:table-cell"><StickyNote className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Notes</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -162,5 +162,3 @@ export default function KarigarsPage() {
     </div>
   );
 }
-
-    

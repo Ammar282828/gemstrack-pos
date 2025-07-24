@@ -56,68 +56,131 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
   
   // Robust check for financial values to prevent crashes
   const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
-  const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
-  const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
 
   return (
-    <TableRow>
-      <TableCell className="font-medium">
-        <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
-          {order.id}
-        </Link>
-        <div className="text-xs text-muted-foreground truncate w-40 mt-1" title={summary}>
-            {summary || 'Generating summary...'}
-        </div>
-      </TableCell>
-      <TableCell className="hidden md:table-cell">{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</TableCell>
-      <TableCell>
-        <p>{order.customerName || 'Walk-in'}</p>
-        <p className="text-xs text-muted-foreground">{order.customerContact}</p>
-      </TableCell>
-       <TableCell className="hidden md:table-cell text-right">
-        <div className="flex flex-col items-end">
-            <div className="text-xs text-muted-foreground">Bal: <span className="font-semibold text-foreground">{grandTotal.toLocaleString()}</span></div>
-            <div className="text-xs text-muted-foreground">Adv: <span className="font-semibold text-foreground">{advancePayment.toLocaleString()}</span></div>
-            <div className="text-xs text-muted-foreground border-t mt-1 pt-1">Total: <span className="font-bold text-foreground">{subtotal.toLocaleString()}</span></div>
-        </div>
-      </TableCell>
-      <TableCell>
-         <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
-            <div className="flex flex-col w-28">
-                {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items</span>}
-                <Progress value={progressPercentage} className="h-1.5 mt-1" />
+    <Card className="mb-4 md:hidden">
+        <CardContent className="p-4">
+            <div className="flex justify-between items-start mb-2">
+                <div>
+                    <Link href={`/orders/${order.id}`} className="font-bold text-primary hover:underline">
+                      {order.id}
+                    </Link>
+                    <div className="text-xs text-muted-foreground">{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</div>
+                </div>
+                <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
             </div>
-            {isUpdatingStatus ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-                <Select onValueChange={(val) => handleStatusChange(val as OrderStatus)} defaultValue={order.status}>
-                    <SelectTrigger className="w-[150px] h-8 text-xs focus:ring-0 focus:ring-offset-0" id={`status-update-${order.id}`}>
-                        <SelectValue>
-                           <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
-                        </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                        {ORDER_STATUSES.map(status => (
-                            <SelectItem key={status} value={status}>
-                              <Badge className={cn("border-transparent w-full justify-center", getStatusBadgeVariant(status))}>{status}</Badge>
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            )}
-        </div>
-      </TableCell>
-      <TableCell className="text-right">
-        <Button asChild size="sm" variant="outline">
-            <Link href={`/orders/${order.id}`}>
-              <Eye className="w-4 h-4" />
-              <span className="sr-only md:not-sr-only md:ml-2">View</span>
-            </Link>
-          </Button>
-      </TableCell>
-    </TableRow>
+            <p className="text-sm font-medium">{order.customerName || 'Walk-in Customer'}</p>
+            <p className="text-xs text-muted-foreground">{order.customerContact}</p>
+            
+            <p className="text-sm my-2 italic text-muted-foreground truncate" title={summary}>
+                {summary || 'Generating summary...'}
+            </p>
+
+            <div className="my-3">
+                 {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items completed</span>}
+                 <Progress value={progressPercentage} className="h-1.5 mt-1" />
+            </div>
+
+            <div className="flex justify-between items-center text-sm mt-3">
+                <span className="text-muted-foreground">Balance Due:</span>
+                <span className="font-bold text-primary">PKR {grandTotal.toLocaleString()}</span>
+            </div>
+        </CardContent>
+        <CardFooter className="p-2 border-t bg-muted/30">
+            <Button asChild size="sm" variant="ghost" className="w-full justify-center">
+                <Link href={`/orders/${order.id}`}>
+                <Eye className="w-4 h-4 mr-2" /> View Details
+                </Link>
+            </Button>
+        </CardFooter>
+    </Card>
   );
 };
+
+const OrderTableRow: React.FC<{ order: Order, summary: string | undefined }> = ({ order, summary }) => {
+    const { toast } = useToast();
+    const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+    const handleStatusChange = async (newStatus: OrderStatus) => {
+        setIsUpdatingStatus(true);
+        try {
+            await updateOrderStatus(order.id, newStatus);
+            toast({ title: "Status Updated", description: `Order ${order.id} status changed to "${newStatus}".` });
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
+
+    const safeItems = Array.isArray(order.items) ? order.items : [];
+    const completedItems = safeItems.filter(item => item.isCompleted).length;
+    const totalItems = safeItems.length;
+    const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+    const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
+    const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
+    const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
+  
+    return (
+      <TableRow>
+        <TableCell className="font-medium">
+          <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
+            {order.id}
+          </Link>
+          <div className="text-xs text-muted-foreground truncate w-40 mt-1" title={summary}>
+              {summary || 'Generating summary...'}
+          </div>
+        </TableCell>
+        <TableCell className="hidden lg:table-cell">{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</TableCell>
+        <TableCell>
+          <p>{order.customerName || 'Walk-in'}</p>
+          <p className="text-xs text-muted-foreground">{order.customerContact}</p>
+        </TableCell>
+         <TableCell className="hidden xl:table-cell text-right">
+          <div className="flex flex-col items-end">
+              <div className="text-xs text-muted-foreground">Bal: <span className="font-semibold text-foreground">{grandTotal.toLocaleString()}</span></div>
+              <div className="text-xs text-muted-foreground">Adv: <span className="font-semibold text-foreground">{advancePayment.toLocaleString()}</span></div>
+              <div className="text-xs text-muted-foreground border-t mt-1 pt-1">Total: <span className="font-bold text-foreground">{subtotal.toLocaleString()}</span></div>
+          </div>
+        </TableCell>
+        <TableCell>
+           <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+              <div className="flex flex-col w-28">
+                  {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items</span>}
+                  <Progress value={progressPercentage} className="h-1.5 mt-1" />
+              </div>
+              {isUpdatingStatus ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                  <Select onValueChange={(val) => handleStatusChange(val as OrderStatus)} defaultValue={order.status}>
+                      <SelectTrigger className="w-[150px] h-8 text-xs focus:ring-0 focus:ring-offset-0" id={`status-update-${order.id}`}>
+                          <SelectValue>
+                             <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
+                          </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                          {ORDER_STATUSES.map(status => (
+                              <SelectItem key={status} value={status}>
+                                <Badge className={cn("border-transparent w-full justify-center", getStatusBadgeVariant(status))}>{status}</Badge>
+                              </SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+              )}
+          </div>
+        </TableCell>
+        <TableCell className="text-right">
+          <Button asChild size="sm" variant="outline">
+              <Link href={`/orders/${order.id}`}>
+                <Eye className="w-4 h-4" />
+                <span className="sr-only md:not-sr-only md:ml-2">View</span>
+              </Link>
+            </Button>
+        </TableCell>
+      </TableRow>
+    );
+  };
 
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -248,14 +311,20 @@ export default function OrdersPage() {
             <p className="text-muted-foreground">Refreshing order list...</p>
          </div>
       ) : filteredOrders.length > 0 ? (
-        <Card>
+        <>
+        <div className="md:hidden">
+            {filteredOrders.map((order) => (
+                <OrderRow key={order.id} order={order} summary={orderSummaries[order.id]} />
+            ))}
+        </div>
+        <Card className="hidden md:block">
             <Table>
             <TableHeader>
                 <TableRow>
                 <TableHead>Order Details</TableHead>
-                <TableHead className="hidden md:table-cell">Date</TableHead>
+                <TableHead className="hidden lg:table-cell">Date</TableHead>
                 <TableHead>Customer</TableHead>
-                <TableHead className="hidden md:table-cell text-right">
+                <TableHead className="hidden xl:table-cell text-right">
                   <div className="flex items-center justify-end">
                     <DollarSign className="w-4 h-4 mr-1"/> Financials (PKR)
                   </div>
@@ -266,11 +335,12 @@ export default function OrdersPage() {
             </TableHeader>
             <TableBody>
                 {filteredOrders.map((order) => (
-                <OrderRow key={order.id} order={order} summary={orderSummaries[order.id]} />
+                    <OrderTableRow key={order.id} order={order} summary={orderSummaries[order.id]} />
                 ))}
             </TableBody>
             </Table>
         </Card>
+        </>
       ) : (
         <div className="text-center py-12 bg-card rounded-lg shadow">
           <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground mb-4" />

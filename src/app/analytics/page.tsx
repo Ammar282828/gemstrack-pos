@@ -321,13 +321,13 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 {analyticsData.topProductsByRevenue.length > 0 ? (
-                <ScrollArea className="h-[350px]">
+                <ScrollArea className="h-[350px] w-full" type="auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Qty Sold</TableHead>
-                        <TableHead className="text-right">Revenue (PKR)</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Revenue</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -357,13 +357,13 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 {analyticsData.topProductsByQuantity.length > 0 ? (
-                <ScrollArea className="h-[350px]">
+                <ScrollArea className="h-[350px] w-full" type="auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Qty Sold</TableHead>
-                        <TableHead className="text-right">Revenue (PKR)</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Revenue</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -423,13 +423,13 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 {analyticsData.topCustomers.length > 0 ? (
-                <ScrollArea className="h-[350px]">
+                <ScrollArea className="h-[350px] w-full" type="auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Customer</TableHead>
                         <TableHead className="text-right">Orders</TableHead>
-                        <TableHead className="text-right">Total Spent (PKR)</TableHead>
+                        <TableHead className="text-right">Total Spent</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -457,5 +457,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
-    

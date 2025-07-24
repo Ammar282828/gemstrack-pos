@@ -112,14 +112,15 @@ export default function CalendarPage() {
                     className="p-0 [&_td]:p-0"
                     classNames={{
                       day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                      day: "h-12 w-12 md:h-20 md:w-20",
+                      day: "h-12 w-12 md:h-16 lg:h-20 w-full",
+                      head_cell: "w-full",
                     }}
                     components={{
                         DayContent: (props) => (
-                           <>
+                           <div className="relative w-full h-full flex items-center justify-center">
                              <p>{format(props.date, 'd')}</p>
                              <EventDay date={props.date} />
-                           </>
+                           </div>
                         )
                     }}
                 />

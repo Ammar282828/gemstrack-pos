@@ -417,13 +417,14 @@ export default function CartPage() {
                 <CardContent>
                     <div className="mb-4">
                         <h3 className="font-semibold mb-2">Items:</h3>
+                        <ScrollArea className="w-full" type="auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Product &amp; Breakdown</TableHead>
                                     <TableHead className="text-right">Qty</TableHead>
-                                    <TableHead className="text-right">Unit Price (PKR)</TableHead>
-                                    <TableHead className="text-right">Total (PKR)</TableHead>
+                                    <TableHead className="text-right">Unit Price</TableHead>
+                                    <TableHead className="text-right">Total</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -457,6 +458,7 @@ export default function CartPage() {
                             })}
                             </TableBody>
                         </Table>
+                        </ScrollArea>
                     </div>
                     <div className="text-right mt-4 space-y-1">
                         <p>Subtotal: <span className="font-semibold">PKR {generatedInvoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
@@ -474,8 +476,8 @@ export default function CartPage() {
                 </CardFooter>
             </Card>
             <div style={{ display: 'none' }}>
-                <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl?mode=ac_t" size={128} />
                 <QRCode id="insta-qr-code" value="https://www.instagram.com/collectionstaheri?igsh=bWs4YWgydjJ1cXBz&utm_source=qr" size={128} />
+                <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl?mode=ac_t" size={128} />
             </div>
         </div>
     );
@@ -509,13 +511,13 @@ export default function CartPage() {
                 <ScrollArea className="h-[400px] pr-3">
                   <div className="space-y-4">
                     {cartItemsFromStore.map(item => (
-                      <div key={item.sku} className="flex items-center space-x-4 p-3 border rounded-md">
+                      <div key={item.sku} className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 p-3 border rounded-md">
                         <Image
                           src={item.imageUrl || `https://placehold.co/80x80.png?text=${encodeURIComponent(item.name?.substring(0,1) || 'P')}`}
                           alt={item.name || 'Product Image'}
                           width={60}
                           height={60}
-                          className="rounded-md object-cover border"
+                          className="rounded-md object-cover border flex-shrink-0"
                           data-ai-hint="product jewelry"
                         />
                         <div className="flex-grow">
@@ -531,7 +533,7 @@ export default function CartPage() {
                              <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                            )}
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 self-end sm:self-center">
                           <Button
                             size="icon"
                             variant="outline"
@@ -561,7 +563,7 @@ export default function CartPage() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 self-end sm:self-center"
                           onClick={() => removeFromCart(item.sku)}
                           aria-label={`Remove ${item.name} from cart`}
                         >

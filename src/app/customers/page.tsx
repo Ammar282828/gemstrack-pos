@@ -29,11 +29,11 @@ const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => Prom
         <Link href={`/customers/${customer.id}`} className="font-medium text-primary hover:underline">
           {customer.name}
         </Link>
-        <div className="text-xs text-muted-foreground">ID: {customer.id}</div>
+        <div className="text-xs text-muted-foreground md:hidden">{customer.phone || customer.email}</div>
       </TableCell>
-      <TableCell>{customer.phone || '-'}</TableCell>
-      <TableCell>{customer.email || '-'}</TableCell>
-      <TableCell className="hidden md:table-cell">{customer.address || '-'}</TableCell>
+      <TableCell className="hidden md:table-cell">{customer.phone || '-'}</TableCell>
+      <TableCell className="hidden md:table-cell">{customer.email || '-'}</TableCell>
+      <TableCell className="hidden lg:table-cell">{customer.address || '-'}</TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end space-x-2">
           <Button asChild size="sm" variant="outline">
@@ -139,9 +139,9 @@ export default function CustomersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead><User className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Name</TableHead>
-                <TableHead><Phone className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Phone</TableHead>
-                <TableHead><Mail className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Email</TableHead>
-                <TableHead className="hidden md:table-cell"><MapPin className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Address</TableHead>
+                <TableHead className="hidden md:table-cell"><Phone className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Phone</TableHead>
+                <TableHead className="hidden md:table-cell"><Mail className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Email</TableHead>
+                <TableHead className="hidden lg:table-cell"><MapPin className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Address</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
