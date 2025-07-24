@@ -265,7 +265,7 @@ export default function CartPage() {
         const mainTitle = `${item.name}`;
         const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;
         
-        const fullDescription = `${mainTitle}\n${subTitle}\n${breakdownText}`;
+        const fullDescription = `${mainTitle}\n${subTitle}${breakdownText ? `\n${breakdownText}` : ''}`;
 
         const itemData = [
             index + 1,
@@ -303,7 +303,12 @@ export default function CartPage() {
         didDrawPage: (data) => {
             // Redraw header on new pages
             if (data.pageNumber > 1) {
+                // Ensure header is drawn above content
+                const headerYPosition = margin;
+                doc.setPage(data.pageNumber);
                 drawHeader();
+                // Set the draw cursor below the new header for autotable
+                data.settings.startY = headerYPosition + 35;
             }
         },
     });
@@ -330,7 +335,8 @@ export default function CartPage() {
     currentY += 7;
 
     doc.text(`Discount:`, totalsX - 40, currentY, { align: 'right' });
-    doc.setFont("helvetica", "bold").setTextColor(doc.colors.getErrorColor()); // Red for discount
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(220, 53, 69); // A standard red color
     doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
     doc.setFont("helvetica", "normal").setTextColor(0); // Reset color
@@ -344,15 +350,15 @@ export default function CartPage() {
     doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     
     // --- Footer ---
-    checkPageBreak(50); // Check for enough space for footer
-    const footerStartY = pageHeight - 45 > currentY + 10 ? pageHeight - 45 : currentY + 20; // Pin footer to bottom or place after totals
-    
-    if (pageHeight - 45 < currentY + 10) {
+    const footerStartY = pageHeight - 45;
+
+    // Check if the current content will overlap the footer area. If so, add a new page.
+    if (currentY > footerStartY) {
         doc.addPage();
         drawHeader();
-        currentY = pageHeight - 45;
+        currentY = pageHeight - 45; // Set Y to footer start on the new page
     } else {
-        currentY = pageHeight - 45;
+        currentY = footerStartY; // Pin footer to bottom of current page
     }
 
 
@@ -694,4 +700,5 @@ export default function CartPage() {
     </div>
   );
 }
+
 
