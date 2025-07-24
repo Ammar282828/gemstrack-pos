@@ -208,15 +208,12 @@ export default function CartPage() {
     function drawHeader(pageNum: number) {
         if (logoUrl) {
             try {
-                // Ensure image is loaded before adding to prevent errors
-                const img = new window.Image();
-                img.src = logoUrl;
-                img.onload = () => {
-                    const aspectRatio = img.width / img.height;
-                    const imgHeight = 15;
-                    const imgWidth = imgHeight * aspectRatio;
-                    doc.addImage(img, 'PNG', margin, 15, imgWidth, imgHeight);
-                }
+                // The logo from settings is a Data URL, so it can be added directly without onload.
+                const imgProps = doc.getImageProperties(logoUrl);
+                const aspectRatio = imgProps.width / imgProps.height;
+                const imgHeight = 15;
+                const imgWidth = imgHeight * aspectRatio;
+                doc.addImage(logoUrl, 'PNG', margin, 15, imgWidth, imgHeight);
             } catch (e) {
                  console.error("Error adding logo to PDF:", e);
             }
@@ -323,14 +320,12 @@ export default function CartPage() {
             4: { cellWidth: 30, halign: 'right' },
         },
         didDrawPage: (data) => {
+             // Reset startY for new pages
             if (data.pageNumber > 1) {
                 doc.setPage(data.pageNumber);
-                // Reset startY for new pages
                 data.settings.startY = 40; 
-                drawHeader(data.pageNumber);
-            } else {
-                drawHeader(data.pageNumber);
             }
+            drawHeader(data.pageNumber);
         },
     });
 
@@ -739,5 +734,7 @@ export default function CartPage() {
     </div>
   );
 }
+
+    
 
     
