@@ -383,7 +383,7 @@ const staticCategories: Category[] = [
 
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
-type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'> & { subtotal: number; grandTotal: number; };
+type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
 
 export interface CartItem {
   sku: string;
@@ -522,6 +522,10 @@ export const useAppStore = create<AppState>()(
             const finalSettings = {
               ...initialSettingsData,
               ...firestoreSettings,
+              firebaseConfig: {
+                ...initialSettingsData.firebaseConfig,
+                projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+              },
               allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
                 ? firestoreSettings.allowedDeviceIds
                 : [],
