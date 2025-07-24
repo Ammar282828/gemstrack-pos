@@ -170,10 +170,9 @@ export default function CartPage() {
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
-    const logoUrl = settings.shopLogoUrlBlack; // Use the black logo for the invoice
+    const logoUrl = settings.shopLogoUrlBlack;
 
     function drawHeader() {
-        // Logo
         if (logoUrl) {
             try {
                 const img = new window.Image();
@@ -193,8 +192,7 @@ export default function CartPage() {
             doc.setFontSize(20);
             doc.text(settings.shopName, margin, 22);
         }
-
-        // Estimate Title in Header
+        
         doc.setFont("helvetica", "bold");
         doc.setFontSize(28);
         doc.text('ESTIMATE', pageWidth - margin, 22, { align: 'right' });
@@ -205,7 +203,6 @@ export default function CartPage() {
     
     drawHeader();
     
-    // --- Info Section (2-column layout) ---
     let infoY = 50;
     doc.setFontSize(10);
     doc.setTextColor(100);
@@ -245,7 +242,6 @@ export default function CartPage() {
         doc.text(ratesApplied.join(' | '), pageWidth / 2, infoY + 12, { lineHeightFactor: 1.5 });
     }
     
-    // --- Items Table ---
     const tableStartY = infoY + 30;
     const tableColumn = ["#", "Product & Breakdown", "Qty", "Unit Price", "Total"];
     const tableRows: any[][] = [];
@@ -258,14 +254,14 @@ export default function CartPage() {
         if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: PKR ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: PKR ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        const breakdownText = breakdownLines.length > 0 ? `${breakdownLines.join('\n')}` : '';
+        const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
 
         const metalDisplay = `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: ${item.metalWeightG.toFixed(2)}g`;
         
         const mainTitle = `${item.name}`;
         const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;
         
-        const fullDescription = `${mainTitle}\n${subTitle}${breakdownText ? `\n${breakdownText}` : ''}`;
+        const fullDescription = `${mainTitle}\n${subTitle}${breakdownText ? `${breakdownText}` : ''}`;
 
         const itemData = [
             index + 1,
@@ -282,17 +278,8 @@ export default function CartPage() {
         body: tableRows,
         startY: tableStartY,
         theme: 'grid',
-        headStyles: {
-            fillColor: [240, 240, 240], // Light grey
-            textColor: 50,
-            fontStyle: 'bold',
-            fontSize: 10,
-        },
-        styles: {
-            fontSize: 9,
-            cellPadding: 2.5,
-            valign: 'top',
-        },
+        headStyles: { fillColor: [240, 240, 240], textColor: 50, fontStyle: 'bold', fontSize: 10, },
+        styles: { fontSize: 9, cellPadding: 2.5, valign: 'top', },
         columnStyles: {
             0: { cellWidth: 10, halign: 'center' },
             1: { cellWidth: 'auto' },
@@ -301,45 +288,37 @@ export default function CartPage() {
             4: { cellWidth: 30, halign: 'right' },
         },
         didDrawPage: (data) => {
-            // Redraw header on new pages
             if (data.pageNumber > 1) {
-                // Ensure header is drawn above content
-                const headerYPosition = margin;
                 doc.setPage(data.pageNumber);
                 drawHeader();
-                // Set the draw cursor below the new header for autotable
-                data.settings.startY = headerYPosition + 35;
+                data.settings.startY = 40; // New page start Y below the header
             }
         },
     });
 
-    // --- Totals & Footer Section ---
-    const lastAutoTableY = doc.lastAutoTable.finalY || tableStartY;
-    let currentY = lastAutoTableY + 15;
-    const totalsX = pageWidth - margin;
-
-    // Function to add a new page if needed before drawing an element
-    function checkPageBreak(elementHeight: number) {
-        if (currentY + elementHeight > pageHeight - margin) {
-            doc.addPage();
-            currentY = margin; // Reset Y for new page
-            drawHeader(); // Redraw header on new page
-        }
+    let currentY = doc.lastAutoTable.finalY || tableStartY;
+    const totalsBlockHeight = 40; 
+    const footerBlockHeight = 50;
+    
+    if (currentY + totalsBlockHeight + footerBlockHeight > pageHeight - margin) {
+        doc.addPage();
+        drawHeader();
+        currentY = 40; 
     }
 
-    // Drawing Totals
-    checkPageBreak(50); // Check for enough space for the totals block + footer
+    currentY += 15;
+    const totalsX = pageWidth - margin;
+
     doc.setFontSize(10).setFont("helvetica", "normal").setTextColor(0);
     doc.text(`Subtotal:`, totalsX - 40, currentY, { align: 'right' });
     doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
 
     doc.text(`Discount:`, totalsX - 40, currentY, { align: 'right' });
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(220, 53, 69); // A standard red color
+    doc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
     doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
-    doc.setFont("helvetica", "normal").setTextColor(0); // Reset color
+    doc.setFont("helvetica", "normal").setTextColor(0);
     
     doc.setLineWidth(0.5);
     doc.line(totalsX - 60, currentY, totalsX, currentY);
@@ -348,30 +327,17 @@ export default function CartPage() {
     doc.setFontSize(14).setFont("helvetica", "bold");
     doc.text(`Grand Total:`, totalsX - 60, currentY, { align: 'right' });
     doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    
-    // --- Footer ---
+
     const footerStartY = pageHeight - 45;
-
-    // Check if the current content will overlap the footer area. If so, add a new page.
-    if (currentY > footerStartY) {
-        doc.addPage();
-        drawHeader();
-        currentY = pageHeight - 45; // Set Y to footer start on the new page
-    } else {
-        currentY = footerStartY; // Pin footer to bottom of current page
-    }
-
-
     const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
     const thankYouText = "Thank you for your business!";
     
     doc.setLineWidth(0.2);
-    doc.line(margin, currentY - 5, pageWidth - margin, currentY - 5);
+    doc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
     doc.setFontSize(8).setTextColor(150);
-    doc.text(guaranteesText, margin, currentY, { maxWidth: pageWidth - margin*2 - 70 });
-    doc.text(thankYouText, margin, currentY + 12);
+    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin*2 - 70 });
+    doc.text(thankYouText, margin, footerStartY + 12);
     
-    // QR Codes
     const qrCodeSize = 25;
     const qrSectionWidth = (qrCodeSize * 2) + 15;
     const qrStartX = pageWidth - margin - qrSectionWidth;
@@ -381,14 +347,14 @@ export default function CartPage() {
 
     if (instaQrCanvas) {
         doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("Follow Us", qrStartX + qrCodeSize/2, currentY - 2, { align: 'center'});
-        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, currentY, qrCodeSize, qrCodeSize);
+        doc.text("Follow Us", qrStartX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
     }
     if (waQrCanvas) {
         const secondQrX = qrStartX + qrCodeSize + 15;
         doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("Join Community", secondQrX + qrCodeSize/2, currentY - 2, { align: 'center'});
-        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, currentY, qrCodeSize, qrCodeSize);
+        doc.text("Join Community", secondQrX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
     }
 
     doc.autoPrint();
@@ -700,5 +666,6 @@ export default function CartPage() {
     </div>
   );
 }
+
 
 
