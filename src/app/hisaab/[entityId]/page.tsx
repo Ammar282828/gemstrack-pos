@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, BookUser, ArrowLeft, User, Briefcase, PlusCircle, Save } from 'lucide-react';
+import { Loader2, BookUser, ArrowLeft, User, Briefcase, PlusCircle, Save, ArrowDown, ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -20,10 +20,10 @@ import { Separator } from '@/components/ui/separator';
 
 const hisaabEntrySchema = z.object({
   description: z.string().min(1, "Description is required"),
-  cashDebit: z.coerce.number().default(0),
-  cashCredit: z.coerce.number().default(0),
-  goldDebitGrams: z.coerce.number().default(0),
-  goldCreditGrams: z.coerce.number().default(0),
+  cashIn: z.coerce.number().default(0), // Money you receive
+  cashOut: z.coerce.number().default(0), // Money you give
+  goldInGrams: z.coerce.number().default(0), // Gold you receive
+  goldOutGrams: z.coerce.number().default(0), // Gold you give
 });
 
 type HisaabEntryFormData = z.infer<typeof hisaabEntrySchema>;
@@ -74,26 +74,29 @@ export default function EntityHisaabPage() {
     resolver: zodResolver(hisaabEntrySchema),
     defaultValues: {
       description: '',
-      cashDebit: 0,
-      cashCredit: 0,
-      goldDebitGrams: 0,
-      goldCreditGrams: 0,
+      cashIn: 0,
+      cashOut: 0,
+      goldInGrams: 0,
+      goldOutGrams: 0,
     }
   });
 
   const onAddEntry = async (data: HisaabEntryFormData) => {
     if (!entity) return;
     
+    // Convert IN/OUT to DEBIT/CREDIT
+    // Cash IN (money received from them) is a CREDIT to their account (reduces what they owe)
+    // Cash OUT (money given to them) is a DEBIT to their account (increases what they owe)
     const newEntryData: Omit<HisaabEntry, 'id'> = {
         entityId: entity.id,
         entityType: entityType,
         entityName: entity.name,
         date: new Date().toISOString(),
         description: data.description,
-        cashDebit: data.cashDebit,
-        cashCredit: data.cashCredit,
-        goldDebitGrams: data.goldDebitGrams,
-        goldCreditGrams: data.goldCreditGrams,
+        cashDebit: data.cashOut,
+        cashCredit: data.cashIn,
+        goldDebitGrams: data.goldOutGrams,
+        goldCreditGrams: data.goldInGrams,
     };
 
     const result = await addHisaabEntry(newEntryData);
@@ -148,14 +151,14 @@ export default function EntityHisaabPage() {
                 <p className={`text-2xl font-bold ${balances.finalCashBalance >= 0 ? 'text-destructive' : 'text-green-600'}`}>
                     {Math.abs(balances.finalCashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
-                <p className="text-xs">{balances.finalCashBalance >= 0 ? 'Receivable (They owe you)' : 'Payable (You owe them)'}</p>
+                <p className="text-xs">{balances.finalCashBalance > 0 ? 'Receivable (They owe you)' : balances.finalCashBalance < 0 ? 'Payable (You owe them)' : 'Settled'}</p>
             </div>
              <div className={`p-4 rounded-lg ${balances.finalGoldBalance >= 0 ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
                 <p className="text-sm text-muted-foreground">Gold Balance (grams)</p>
                 <p className={`text-2xl font-bold ${balances.finalGoldBalance >= 0 ? 'text-destructive' : 'text-green-600'}`}>
                     {Math.abs(balances.finalGoldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })}
                 </p>
-                 <p className="text-xs">{balances.finalGoldBalance >= 0 ? 'Receivable (They owe you)' : 'Payable (You owe them)'}</p>
+                 <p className="text-xs">{balances.finalGoldBalance > 0 ? 'Receivable (They owe you)' : balances.finalGoldBalance < 0 ? 'Payable (You owe them)' : 'Settled'}</p>
             </div>
         </CardContent>
       </Card>
@@ -184,12 +187,12 @@ export default function EntityHisaabPage() {
                                         <TableCell>{format(parseISO(entry.date), 'MMM d, yyyy')}</TableCell>
                                         <TableCell>{entry.description}</TableCell>
                                         <TableCell className="text-right">
-                                            {entry.cashDebit > 0 && <span className="text-destructive">+{entry.cashDebit.toLocaleString()}</span>}
-                                            {entry.cashCredit > 0 && <span className="text-green-600">-{entry.cashCredit.toLocaleString()}</span>}
+                                            {entry.cashDebit > 0 && <div className="flex justify-end items-center gap-1 text-destructive"><span>{entry.cashDebit.toLocaleString()}</span> <ArrowUp className="h-3 w-3" /></div>}
+                                            {entry.cashCredit > 0 && <div className="flex justify-end items-center gap-1 text-green-600"><span>{entry.cashCredit.toLocaleString()}</span> <ArrowDown className="h-3 w-3" /></div>}
                                         </TableCell>
                                          <TableCell className="text-right">
-                                            {entry.goldDebitGrams > 0 && <span className="text-destructive">+{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})}</span>}
-                                            {entry.goldCreditGrams > 0 && <span className="text-green-600">-{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})}</span>}
+                                            {entry.goldDebitGrams > 0 && <div className="flex justify-end items-center gap-1 text-destructive"><span>{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})}</span> <ArrowUp className="h-3 w-3" /></div>}
+                                            {entry.goldCreditGrams > 0 && <div className="flex justify-end items-center gap-1 text-green-600"><span>{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})}</span> <ArrowDown className="h-3 w-3" /></div>}
                                         </TableCell>
                                         <TableCell className="text-right text-xs">
                                            <div className={`${entry.runningCashBalance >= 0 ? 'text-destructive' : 'text-green-600'}`}>
@@ -233,22 +236,22 @@ export default function EntityHisaabPage() {
                             <p className="text-sm font-medium">Cash Transaction (PKR)</p>
                              <FormField
                                 control={form.control}
-                                name="cashDebit"
+                                name="cashIn"
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Debit (They Owe You)</FormLabel>
-                                    <FormControl><Input type="number" {...field} /></FormControl>
+                                    <FormLabel>Cash IN (You Received)</FormLabel>
+                                    <FormControl><Input type="number" {...field} className="border-green-500/50 focus-visible:ring-green-500" /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                                 )}
                             />
                              <FormField
                                 control={form.control}
-                                name="cashCredit"
+                                name="cashOut"
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Credit (You Owe Them / They Paid)</FormLabel>
-                                    <FormControl><Input type="number" {...field} /></FormControl>
+                                    <FormLabel>Cash OUT (You Gave)</FormLabel>
+                                    <FormControl><Input type="number" {...field} className="border-red-500/50 focus-visible:ring-red-500" /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                                 )}
@@ -257,22 +260,22 @@ export default function EntityHisaabPage() {
                             <p className="text-sm font-medium">Gold Transaction (grams)</p>
                             <FormField
                                 control={form.control}
-                                name="goldDebitGrams"
+                                name="goldInGrams"
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Debit (They Owe You)</FormLabel>
-                                    <FormControl><Input type="number" step="0.001" {...field} /></FormControl>
+                                    <FormLabel>Gold IN (You Received)</FormLabel>
+                                    <FormControl><Input type="number" step="0.001" {...field} className="border-green-500/50 focus-visible:ring-green-500" /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                                 )}
                             />
                             <FormField
                                 control={form.control}
-                                name="goldCreditGrams"
+                                name="goldOutGrams"
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Credit (You Owe Them / They Returned)</FormLabel>
-                                    <FormControl><Input type="number" step="0.001" {...field} /></FormControl>
+                                    <FormLabel>Gold OUT (You Gave)</FormLabel>
+                                    <FormControl><Input type="number" step="0.001" {...field} className="border-red-500/50 focus-visible:ring-red-500" /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                                 )}
@@ -292,3 +295,4 @@ export default function EntityHisaabPage() {
     </div>
   );
 }
+
