@@ -23,7 +23,6 @@ export default function HisaabPage() {
   const isLoading = useAppStore(state => state.isHisaabLoading);
 
   const accountSummaries = useMemo((): AccountSummary[] => {
-    // Add a guard clause to handle the case where hisaabEntries might be undefined during initialization.
     if (!Array.isArray(hisaabEntries)) return [];
 
     const summaryMap: { [entityId: string]: AccountSummary } = {};
@@ -77,8 +76,8 @@ export default function HisaabPage() {
                       <TableHeader>
                           <TableRow>
                               <TableHead>Entity (Customer/Karigar)</TableHead>
-                              <TableHead className="text-right">Cash Balance (PKR)</TableHead>
-                              <TableHead className="text-right">Gold Balance (grams)</TableHead>
+                              <TableHead className="text-right text-destructive">You Will Get (Receivable)</TableHead>
+                              <TableHead className="text-right text-green-600">You Will Give (Payable)</TableHead>
                               <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                       </TableHeader>
@@ -91,13 +90,15 @@ export default function HisaabPage() {
                                           <span className="font-medium">{summary.entityName}</span>
                                       </div>
                                   </TableCell>
-                                  <TableCell className={`text-right font-semibold ${summary.cashBalance > 0 ? 'text-destructive' : 'text-green-600'}`}>
-                                      {summary.cashBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                      <p className="text-xs font-normal text-muted-foreground">{summary.cashBalance > 0 ? 'Receivable' : 'Payable'}</p>
+                                  {/* Receivable Column */}
+                                  <TableCell className="text-right font-semibold text-destructive">
+                                    {summary.cashBalance > 0 && <div>PKR {summary.cashBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>}
+                                    {summary.goldBalance > 0 && <div>{summary.goldBalance.toLocaleString(undefined, { minimumFractionDigits: 3 })} g</div>}
                                   </TableCell>
-                                  <TableCell className={`text-right font-semibold ${summary.goldBalance > 0 ? 'text-destructive' : 'text-green-600'}`}>
-                                      {summary.goldBalance.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
-                                       <p className="text-xs font-normal text-muted-foreground">{summary.goldBalance > 0 ? 'Receivable' : 'Payable'}</p>
+                                  {/* Payable Column */}
+                                  <TableCell className="text-right font-semibold text-green-600">
+                                    {summary.cashBalance < 0 && <div>PKR {Math.abs(summary.cashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>}
+                                    {summary.goldBalance < 0 && <div>{Math.abs(summary.goldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })} g</div>}
                                   </TableCell>
                                    <TableCell className="text-right">
                                        <Button asChild size="sm" variant="outline">
