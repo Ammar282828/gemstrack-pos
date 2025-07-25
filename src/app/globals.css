@@ -411,3 +411,30 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-accent; /* Uses the light-mode accent or dark-mode general accent */
 }
+
+/* Styles for react-phone-number-input */
+.PhoneInput {
+  display: flex;
+  align-items: center;
+}
+
+.PhoneInputInput {
+  @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm;
+  flex: 1;
+}
+
+.PhoneInputCountry {
+  @apply relative mr-2;
+}
+
+.PhoneInputCountryIcon {
+  @apply h-6 w-auto rounded-sm;
+}
+
+.PhoneInputCountrySelect {
+    @apply absolute inset-0 opacity-0 w-full;
+}
+
+.PhoneInputCountrySelectArrow {
+    @apply opacity-50;
+}

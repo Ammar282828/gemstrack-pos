@@ -19,6 +19,9 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import QRCode from 'qrcode.react';
+import PhoneInput from 'react-phone-number-input/react-hook-form-input';
+import 'react-phone-number-input/style.css'
+import { Control, useForm } from 'react-hook-form';
 
 
 declare module 'jspdf' {
@@ -39,6 +42,9 @@ type EstimatedInvoice = {
     items: (InvoiceItem & { originalPrice: number })[];
 };
 
+type PhoneForm = {
+    phone: string;
+};
 
 export default function CartPage() {
   console.log("[GemsTrack] CartPage: Rendering START");
@@ -53,10 +59,11 @@ export default function CartPage() {
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
-  const [whatsAppNumber, setWhatsAppNumber] = useState('');
   
   const [invoiceGoldRateInput, setInvoiceGoldRateInput] = useState<string>('');
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
+  
+  const phoneForm = useForm<PhoneForm>();
   
   useEffect(() => {
     if (appReady && settings && typeof settings.goldRatePerGram === 'number') {
@@ -159,7 +166,7 @@ export default function CartPage() {
       if(invoice.customerId) {
         const customer = customers.find(c => c.id === invoice.customerId);
         if(customer?.phone) {
-          setWhatsAppNumber(customer.phone);
+          phoneForm.setValue('phone', customer.phone);
         }
       }
       toast({ title: "Estimate Generated", description: `Estimate ${invoice.id} created successfully.` });
@@ -169,6 +176,7 @@ export default function CartPage() {
   };
 
   const handleSendWhatsApp = (invoiceToSend: InvoiceType) => {
+    const whatsAppNumber = phoneForm.getValues('phone');
     if (!whatsAppNumber) {
       toast({ title: "No Phone Number", description: "Please enter a customer's phone number.", variant: "destructive" });
       return;
@@ -510,13 +518,14 @@ export default function CartPage() {
                     <div className="p-4 border rounded-lg bg-muted/50">
                         <Label htmlFor="whatsapp-number">Send Estimate to Customer via WhatsApp</Label>
                         <div className="flex gap-2 mt-2">
-                             <Input 
-                                id="whatsapp-number"
-                                type="tel"
-                                placeholder="Customer's phone number, e.g. +15551234567"
-                                value={whatsAppNumber}
-                                onChange={(e) => setWhatsAppNumber(e.target.value)}
-                             />
+                             <PhoneInput
+                                name="phone"
+                                control={phoneForm.control as unknown as Control}
+                                defaultCountry="PK"
+                                international
+                                countryCallingCodeEditable={true}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                            />
                              <Button onClick={() => handleSendWhatsApp(generatedInvoice)}>
                                 <MessageSquare className="mr-2 h-4 w-4"/>
                                 Send
