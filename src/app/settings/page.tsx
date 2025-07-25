@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, useAppReady, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MetalType, KaratValue, AVAILABLE_THEMES, ThemeKey, Order, OrderItem, calculateProductCosts } from '@/lib/store';
+import { useAppStore, Settings, useAppReady, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MetalType, KaratValue, AVAILABLE_THEMES, ThemeKey, Order, OrderItem, calculateProductCosts, HisaabEntry } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,6 +52,7 @@ type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
 type CustomerDataForAdd = Omit<Customer, 'id'>;
 type KarigarDataForAdd = Omit<Karigar, 'id'>;
 type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
+type HisaabDataForAdd = Omit<HisaabEntry, 'id'>;
 
 
 const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
@@ -113,6 +114,22 @@ const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] =
     }
 ];
 
+const DUMMY_HISAAB_ENTRIES_TO_SEED: HisaabDataForAdd[] = [
+    // Customer Entries
+    { entityId: 'cust-1721921315802', entityType: 'customer', entityName: 'Ahmed Khan', date: new Date(Date.now() - 20 * 86400000).toISOString(), description: 'Invoice INV-000001', cashDebit: 150000, cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0 },
+    { entityId: 'cust-1721921315802', entityType: 'customer', entityName: 'Ahmed Khan', date: new Date(Date.now() - 19 * 86400000).toISOString(), description: 'Cash payment', cashDebit: 0, cashCredit: 100000, goldDebitGrams: 0, goldCreditGrams: 0 },
+    { entityId: 'cust-1721921315802', entityType: 'customer', entityName: 'Ahmed Khan', date: new Date(Date.now() - 5 * 86400000).toISOString(), description: 'Invoice INV-000002', cashDebit: 75000, cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0 },
+    
+    { entityId: 'cust-1721921315803', entityType: 'customer', entityName: 'Fatima Ali', date: new Date(Date.now() - 15 * 86400000).toISOString(), description: 'Invoice INV-000003', cashDebit: 320000, cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0 },
+    { entityId: 'cust-1721921315803', entityType: 'customer', entityName: 'Fatima Ali', date: new Date(Date.now() - 15 * 86400000).toISOString(), description: 'Full payment received', cashDebit: 0, cashCredit: 320000, goldDebitGrams: 0, goldCreditGrams: 0 },
+
+    // Karigar Entries
+    { entityId: 'karigar-1721921315890-g0g2l', entityType: 'karigar', entityName: 'Ustad Saleem', date: new Date(Date.now() - 30 * 86400000).toISOString(), description: 'Gold given for new set', cashDebit: 0, cashCredit: 0, goldDebitGrams: 50.0, goldCreditGrams: 0 },
+    { entityId: 'karigar-1721921315890-g0g2l', entityType: 'karigar', entityName: 'Ustad Saleem', date: new Date(Date.now() - 10 * 86400000).toISOString(), description: 'Cash advance for expenses', cashDebit: 25000, cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0 },
+    { entityId: 'karigar-1721921315890-g0g2l', entityType: 'karigar', entityName: 'Ustad Saleem', date: new Date(Date.now() - 2 * 86400000).toISOString(), description: 'Finished set received (48.5g net)', cashDebit: 0, cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 48.5 },
+    
+    { entityId: 'karigar-1721921315890-y58l9', entityType: 'karigar', entityName: 'Aslam Bhai', date: new Date(Date.now() - 8 * 86400000).toISOString(), description: 'Repair work charges', cashDebit: 0, cashCredit: 15000, goldDebitGrams: 0, goldCreditGrams: 0 },
+];
 
 const DataDeletionButton: React.FC<{
     action: () => Promise<void>;
@@ -169,6 +186,7 @@ export default function SettingsPage() {
   const addCustomerAction = useAppStore(state => state.addCustomer);
   const addKarigarAction = useAppStore(state => state.addKarigar);
   const addOrderAction = useAppStore(state => state.addOrder);
+  const addHisaabEntryAction = useAppStore(state => state.addHisaabEntry);
   const isSettingsLoading = useAppStore(state => state.isSettingsLoading);
 
   const {
@@ -184,6 +202,7 @@ export default function SettingsPage() {
   const [isSeedingCustomers, setIsSeedingCustomers] = useState(false);
   const [isSeedingKarigars, setIsSeedingKarigars] = useState(false);
   const [isSeedingOrders, setIsSeedingOrders] = useState(false);
+  const [isSeedingHisaab, setIsSeedingHisaab] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoPreviewBlack, setLogoPreviewBlack] = useState<string | null>(null);
 
@@ -438,6 +457,35 @@ export default function SettingsPage() {
     }
     toast({ title: "Order Seeding Complete", description: `Finished. Success: ${successCount}, Errors: ${errorCount}.`, variant: errorCount > 0 ? "destructive" : "default"});
     setIsSeedingOrders(false);
+  };
+
+  const handleSeedHisaab = async () => {
+    if (DUMMY_HISAAB_ENTRIES_TO_SEED.length === 0) {
+        toast({ title: "No Data to Seed", description: "The dummy hisaab list is empty." });
+        return;
+    }
+    setIsSeedingHisaab(true);
+    let successCount = 0;
+    let errorCount = 0;
+    toast({ title: "Hisaab Seeding Started", description: `Attempting to add ${DUMMY_HISAAB_ENTRIES_TO_SEED.length} dummy transactions...`});
+
+    for (const hisaabData of DUMMY_HISAAB_ENTRIES_TO_SEED) {
+        try {
+            const newEntry = await addHisaabEntryAction(hisaabData);
+            if (newEntry) {
+                successCount++;
+            } else {
+                toast({ title: "Hisaab Seeding Error", description: `Failed to add transaction for: ${hisaabData.entityName}`, variant: "destructive" });
+                errorCount++;
+            }
+        } catch (e) {
+            toast({ title: "Hisaab Seeding Exception", description: `Error adding transaction for ${hisaabData.entityName}: ${(e as Error).message}`, variant: "destructive" });
+            errorCount++;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    toast({ title: "Hisaab Seeding Complete", description: `Finished. Success: ${successCount}, Errors: ${errorCount}.`, variant: errorCount > 0 ? "destructive" : "default"});
+    setIsSeedingHisaab(false);
   };
 
 
@@ -854,6 +902,34 @@ export default function SettingsPage() {
                 </AlertDialog>
                 <p className="text-sm text-muted-foreground mt-1">
                 Adds sample custom orders for testing the order dashboard.
+                </p>
+            </div>
+             <div>
+                <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={isSeedingHisaab}>
+                    {isSeedingHisaab ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookUser className="mr-2 h-4 w-4" />}
+                    Seed Dummy Hisaab ({DUMMY_HISAAB_ENTRIES_TO_SEED.length})
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center"><AlertTriangle className="mr-2 h-5 w-5 text-destructive" />Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will add {DUMMY_HISAAB_ENTRIES_TO_SEED.length} pre-defined dummy transactions to your Hisaab ledger.
+                        This is intended for development and testing. **It assumes you have already seeded customers and karigars**, as it uses their IDs.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSeedHisaab} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                        Yes, Seed Hisaab
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+                </AlertDialog>
+                <p className="text-sm text-muted-foreground mt-1">
+                Adds sample transactions to the ledger for the seeded customers/karigars.
                 </p>
             </div>
         </CardContent>
