@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -54,7 +54,7 @@ export default function CartPage() {
   const cartItemsFromStore = useAppStore(selectCartDetails);
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
-  const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction } = useAppStore();
+  const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry } = useAppStore();
   const productsInCart = useAppStore(state => state.cart.map(ci => state.products.find(p => p.sku === ci.sku)).filter(Boolean) as Product[]);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
@@ -63,6 +63,9 @@ export default function CartPage() {
   const [invoiceGoldRateInput, setInvoiceGoldRateInput] = useState<string>('');
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
   
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+
   const phoneForm = useForm<PhoneForm>();
   
   useEffect(() => {
@@ -429,6 +432,33 @@ export default function CartPage() {
     setDiscountAmountInput('0');
   }
 
+  const handleRecordPayment = async (amount: number) => {
+    if (!generatedInvoice) return;
+    setIsSubmittingPayment(true);
+    
+    try {
+        const paymentEntry = {
+            entityId: generatedInvoice.customerId || 'walk-in',
+            entityType: 'customer' as const,
+            entityName: generatedInvoice.customerName || 'Walk-in Customer',
+            date: new Date().toISOString(),
+            description: `Payment for Invoice ${generatedInvoice.id}`,
+            cashDebit: 0,
+            cashCredit: amount, // Money received from customer
+            goldDebitGrams: 0,
+            goldCreditGrams: 0,
+        };
+        await addHisaabEntry(paymentEntry);
+        toast({ title: "Payment Recorded", description: `PKR ${amount.toLocaleString()} recorded for invoice ${generatedInvoice.id}` });
+        handleNewSale(); // Clear the view for the next sale
+    } catch (e) {
+        toast({ title: "Error", description: "Failed to record payment.", variant: "destructive" });
+        console.error("Error recording payment:", e);
+    } finally {
+        setIsSubmittingPayment(false);
+    }
+  };
+
 
   if (!appReady) {
     console.log("[GemsTrack] CartPage: App not ready, rendering loading message.");
@@ -441,81 +471,60 @@ export default function CartPage() {
   }
 
   if (generatedInvoice) {
-    console.log("[GemsTrack] CartPage: Rendering generated invoice view.");
-    let ratesAppliedMessage = "";
-    if (generatedInvoice.goldRateApplied) {
-      const goldRate21k = generatedInvoice.goldRateApplied * (21/24);
-      ratesAppliedMessage += `Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}/g. `;
-    }
-
     return (
         <div className="container mx-auto py-8 px-4">
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-2xl">Estimate Generated: {generatedInvoice.id}</CardTitle>
+                    <CardTitle className="text-2xl text-primary flex items-center"><Check className="mr-3 h-8 w-8 text-green-500 bg-green-100 rounded-full p-1" />Invoice Generated: {generatedInvoice.id}</CardTitle>
                     <CardDescription>
-                        Estimate for {generatedInvoice.customerName || "Walk-in Customer"} created on {new Date(generatedInvoice.createdAt).toLocaleString()}.
-                        <br/>
-                        {ratesAppliedMessage.trim()}
+                        Invoice for {generatedInvoice.customerName || "Walk-in Customer"} created. Now, record the payment received.
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <div className="mb-4">
-                        <h3 className="font-semibold mb-2">Items:</h3>
-                        <ScrollArea className="w-full" type="auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Product &amp; Breakdown</TableHead>
-                                    <TableHead className="text-right">Qty</TableHead>
-                                    <TableHead className="text-right">Unit Price</TableHead>
-                                    <TableHead className="text-right">Total</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {generatedInvoice.items.map(item => {
-                                    let breakdownLines = [];
-                                    if (item.metalCost > 0) breakdownLines.push(`Metal: ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    if (item.wastageCost > 0) breakdownLines.push(`+ Wastage (${item.wastagePercentage}%): ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    if (item.makingCharges > 0) breakdownLines.push(`+ Making: ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    if (item.diamondChargesIfAny > 0) breakdownLines.push(`+ Diamonds: ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    if (item.stoneChargesIfAny > 0) breakdownLines.push(`+ Stones: ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    if (item.miscChargesIfAny > 0) breakdownLines.push(`+ Misc: ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-                                    
-                                    const breakdownText = breakdownLines.join(' / ');
-
-                                    return (
-                                    <TableRow key={item.sku}>
-                                        <TableCell>
-                                            <p className="font-medium">{item.name}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                SKU: {item.sku} |
-                                                Metal: {item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''} |
-                                                Wt: {item.metalWeightG.toFixed(2)}g
-                                            </p>
-                                            {breakdownText && <p className="text-xs text-muted-foreground/80 italic">{breakdownText}</p>}
-                                        </TableCell>
-                                        <TableCell className="text-right">{item.quantity}</TableCell>
-                                        <TableCell className="text-right">{item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                                        <TableCell className="text-right">{item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                            </TableBody>
-                        </Table>
-                        </ScrollArea>
+                <CardContent className="space-y-6">
+                    <div>
+                        <p className="text-sm text-muted-foreground">Amount Due</p>
+                        <p className="text-4xl font-bold text-primary">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                     </div>
-                    <div className="text-right mt-4 space-y-1">
-                        <p>Subtotal: <span className="font-semibold">PKR {generatedInvoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
-                        <p>Discount: <span className="font-semibold text-destructive">- PKR {generatedInvoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
-                        <p className="text-xl font-bold">Grand Total: <span className="text-primary">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
+                    <Separator />
+                     <div className="space-y-4">
+                        <Label htmlFor="payment-amount" className="font-semibold">Enter Payment Received</Label>
+                        <div className="flex items-center gap-2">
+                            <Input 
+                                id="payment-amount"
+                                type="number"
+                                placeholder="Enter amount received"
+                                value={paymentAmount}
+                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                className="text-lg h-12"
+                                disabled={isSubmittingPayment}
+                            />
+                            <Button 
+                                onClick={() => handleRecordPayment(parseFloat(paymentAmount))}
+                                disabled={isSubmittingPayment || !paymentAmount || parseFloat(paymentAmount) < 0}
+                                className="h-12"
+                            >
+                                {isSubmittingPayment ? <Loader2 className="animate-spin" /> : <Banknote className="mr-2"/>}
+                                Record Partial Payment
+                            </Button>
+                        </div>
+                         <Button 
+                            onClick={() => handleRecordPayment(generatedInvoice.grandTotal)}
+                            disabled={isSubmittingPayment}
+                            variant="default"
+                            size="lg"
+                            className="w-full"
+                        >
+                            {isSubmittingPayment ? <Loader2 className="animate-spin" /> : <Check className="mr-2"/>}
+                            Mark as Fully Paid
+                        </Button>
                     </div>
-                    <Separator className="my-6"/>
+                     <Separator />
                     <div className="p-4 border rounded-lg bg-muted/50">
                         <Label htmlFor="whatsapp-number">Send Estimate to Customer via WhatsApp</Label>
                         <div className="flex gap-2 mt-2">
                              <PhoneInput
                                 name="phone"
+                                countryCallingCodeEditable={false}
                                 control={phoneForm.control as unknown as Control}
                                 defaultCountry="PK"
                                 international
@@ -529,12 +538,12 @@ export default function CartPage() {
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={handleNewSale}>New Sale / Clear</Button>
+                    <Button variant="outline" onClick={handleNewSale}>Skip Payment & Start New Sale</Button>
                     <Button onClick={() => {
                         if (typeof window !== 'undefined') {
                             printInvoice(generatedInvoice);
                         }
-                    }}><Printer className="mr-2 h-4 w-4"/> Print Estimate</Button>
+                    }}><Printer className="mr-2 h-4 w-4"/> Print Invoice</Button>
                 </CardFooter>
             </Card>
             <div style={{ display: 'none' }}>
@@ -728,7 +737,7 @@ export default function CartPage() {
               </CardContent>
               <CardFooter>
                 <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={cartItemsFromStore.length === 0 || !estimatedInvoice}>
-                  <FileText className="mr-2 h-5 w-5" /> Generate Estimate
+                  <FileText className="mr-2 h-5 w-5" /> Generate Invoice
                 </Button>
               </CardFooter>
             </Card>

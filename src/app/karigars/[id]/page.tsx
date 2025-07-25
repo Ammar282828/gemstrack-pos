@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from 'react';
@@ -8,7 +9,7 @@ import { useAppStore, Karigar, useIsStoreHydrated } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, ArrowLeft, User, Phone, StickyNote, PlusCircle } from 'lucide-react';
+import { Edit3, Trash2, ArrowLeft, User, Phone, StickyNote, PlusCircle, BookUser } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -89,12 +90,11 @@ export default function KarigarDetailPage() {
               <DetailItem label="Notes" value={karigar.notes} icon={<StickyNote className="w-4 h-4" />} />
             </CardContent>
             <CardFooter className="flex flex-col space-y-2">
-               <Button asChild variant="default" className="w-full">
-                {/* <Link href={`/karigars/${karigarId}/hisaab/add`}>  TODO: Implement Add Hisaab Link */}
-                <Link href="#">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add New Hisaab
-                </Link>
-              </Button>
+                <Button asChild className="w-full">
+                    <Link href={`/hisaab/${karigar.id}?type=karigar`}>
+                        <BookUser className="mr-2 h-4 w-4" /> View Hisaab
+                    </Link>
+                </Button>
               <div className="flex space-x-2 w-full">
                 <Button asChild variant="outline" className="flex-1">
                     <Link href={`/karigars/${karigarId}/edit`}>
@@ -145,4 +145,3 @@ export default function KarigarDetailPage() {
     </div>
   );
 }
-

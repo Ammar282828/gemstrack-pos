@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -9,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, Brain, AlertTriangle, Loader2 } from 'lucide-react';
+import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, Brain, AlertTriangle, Loader2, BookUser } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -149,21 +150,28 @@ export default function CustomerDetailPage() {
               <Separator className="my-1" />
               <DetailItem label="Address" value={customer.address} icon={<MapPin className="w-4 h-4" />} />
             </CardContent>
-            <CardFooter className="flex space-x-2">
-              <Button asChild variant="outline" className="w-full">
-                <Link href={`/customers/${customerId}/edit`}>
-                  <Edit3 className="mr-2 h-4 w-4" /> Edit
+            <CardFooter className="flex-col gap-2">
+               <Button asChild className="w-full">
+                <Link href={`/hisaab/${customer.id}?type=customer`}>
+                  <BookUser className="mr-2 h-4 w-4" /> View Hisaab
                 </Link>
               </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" className="w-full"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the customer and unassign them from any products.</AlertDialogDescription></AlertDialogHeader>
-                  <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteCustomer}>Delete</AlertDialogAction></AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <div className="flex space-x-2 w-full">
+                <Button asChild variant="outline" className="w-full">
+                    <Link href={`/customers/${customerId}/edit`}>
+                    <Edit3 className="mr-2 h-4 w-4" /> Edit
+                    </Link>
+                </Button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="w-full"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the customer and unassign them from any products.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteCustomer}>Delete</AlertDialogAction></AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </CardFooter>
           </Card>
 
@@ -242,4 +250,3 @@ export default function CustomerDetailPage() {
     </div>
   );
 }
-

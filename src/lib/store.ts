@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 // --- Firestore Collection Names ---
@@ -16,6 +16,7 @@ const FIRESTORE_COLLECTIONS = {
   INVOICES: "invoices",
   ORDERS: "orders",
   CATEGORIES: "categories", // Note: Categories are still managed locally for now
+  HISAAB: "hisaab",
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
 
@@ -303,6 +304,26 @@ export interface Order {
   customerContact?: string;
 }
 
+export type HisaabEntityType = 'customer' | 'karigar';
+
+export interface HisaabEntry {
+  id: string;
+  entityId: string; // Customer or Karigar ID
+  entityType: HisaabEntityType;
+  entityName: string;
+  date: string; // ISO string
+  description: string;
+  // Amount customer/karigar owes us.
+  // This increases when we give them goods/services on credit (e.g. invoice).
+  cashDebit: number; 
+  // Amount we owe customer/karigar.
+  // This increases when they pay us, give us goods.
+  cashCredit: number;
+  goldDebitGrams: number; // Gold we gave them
+  goldCreditGrams: number; // Gold they gave us
+}
+
+
 // --- Product Tag Format Definitions ---
 export interface ProductTagFormat {
   id: string;
@@ -399,6 +420,7 @@ export interface AppState {
   generatedInvoices: Invoice[];
   karigars: Karigar[];
   orders: Order[];
+  hisaabEntries: HisaabEntry[];
 
   // Loading states
   isSettingsLoading: boolean;
@@ -407,6 +429,7 @@ export interface AppState {
   isKarigarsLoading: boolean;
   isInvoicesLoading: boolean;
   isOrdersLoading: boolean;
+  isHisaabLoading: boolean;
   
   // Data loaded flags
   hasProductsLoaded: boolean;
@@ -414,6 +437,7 @@ export interface AppState {
   hasKarigarsLoaded: boolean;
   hasInvoicesLoaded: boolean;
   hasOrdersLoaded: boolean;
+  hasHisaabLoaded: boolean;
 
   // Zustand specific hydration state
   _hasHydrated: boolean;
@@ -460,6 +484,9 @@ export interface AppState {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
   
+  loadHisaab: () => void;
+  addHisaabEntry: (entryData: Omit<HisaabEntry, 'id'>) => Promise<HisaabEntry | null>;
+
   // Data clearing actions
   clearAllProducts: () => Promise<void>;
   clearAllCustomers: () => Promise<void>;
@@ -494,6 +521,7 @@ export const useAppStore = create<AppState>()(
       generatedInvoices: [],
       karigars: [],
       orders: [],
+      hisaabEntries: [],
 
       isSettingsLoading: true,
       isProductsLoading: true,
@@ -501,12 +529,14 @@ export const useAppStore = create<AppState>()(
       isKarigarsLoading: true,
       isInvoicesLoading: true,
       isOrdersLoading: true,
+      isHisaabLoading: true,
       
       hasProductsLoaded: false,
       hasCustomersLoaded: false,
       hasKarigarsLoaded: false,
       hasInvoicesLoaded: false,
       hasOrdersLoaded: false,
+      hasHisaabLoaded: false,
 
       loadSettings: async () => {
         if (!get().isSettingsLoading) {
@@ -959,8 +989,23 @@ export const useAppStore = create<AppState>()(
             const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
             batch.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
             
+            // Create Hisaab entry for the invoice amount
+            const hisaabEntry: Omit<HisaabEntry, 'id'> = {
+              entityId: customerId || 'walk-in',
+              entityType: 'customer',
+              entityName: newInvoice.customerName || 'Walk-in Customer',
+              date: newInvoice.createdAt,
+              description: `Invoice ${newInvoice.id}`,
+              cashDebit: newInvoice.grandTotal, // Customer owes this amount
+              cashCredit: 0,
+              goldDebitGrams: 0,
+              goldCreditGrams: 0,
+            };
+            const hisaabDocRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)); // Auto-generate ID
+            batch.set(hisaabDocRef, hisaabEntry);
+
             await batch.commit();
-            console.log("[GemsTrack Store generateInvoice] Invoice and settings successfully committed to Firestore.");
+            console.log("[GemsTrack Store generateInvoice] Invoice and Hisaab entry successfully committed to Firestore.");
 
             return newInvoice;
         } catch (error) {
@@ -1071,6 +1116,33 @@ export const useAppStore = create<AppState>()(
         }
       },
       
+      loadHisaab: () => {
+        if (get().hasHisaabLoaded) return;
+        set({ isHisaabLoading: true });
+        const q = query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), orderBy("date", "desc"));
+        const unsubscribe = onSnapshot(q,
+          (snapshot) => {
+            const entryList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as HisaabEntry));
+            set({ hisaabEntries: entryList, hasHisaabLoaded: true, isHisaabLoading: false });
+             console.log(`[GemsTrack Store] Real-time update: ${entryList.length} hisaab entries loaded.`);
+          },
+          (error) => {
+            console.error("[GemsTrack Store] Error in hisaab real-time listener:", error);
+            set({ hisaabEntries: [], isHisaabLoading: false, hasHisaabLoaded: true });
+          }
+        );
+      },
+      addHisaabEntry: async (entryData) => {
+        try {
+          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.HISAAB), entryData);
+          console.log("[GemsTrack Store addHisaabEntry] Hisaab entry added with ID:", docRef.id);
+          return { id: docRef.id, ...entryData };
+        } catch (error) {
+          console.error("[GemsTrack Store addHisaabEntry] Error adding hisaab entry:", error);
+          return null;
+        }
+      },
+
       // Data Clearing Actions
       clearAllProducts: async () => {
         set({ isProductsLoading: true });
@@ -1122,6 +1194,7 @@ export const useAppStore = create<AppState>()(
               get().clearAllKarigars(),
               get().clearAllInvoices(),
               get().clearAllOrders(),
+              deleteCollection(FIRESTORE_COLLECTIONS.HISAAB), // Also clear hisaab
           ]);
           get().clearCart();
           console.warn("ALL APPLICATION DATA CLEARED.");
