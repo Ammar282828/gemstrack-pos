@@ -486,6 +486,7 @@ export interface AppState {
   
   loadHisaab: () => void;
   addHisaabEntry: (entryData: Omit<HisaabEntry, 'id'>) => Promise<HisaabEntry | null>;
+  deleteHisaabEntry: (entryId: string) => Promise<void>;
 
   // Data clearing actions
   clearAllProducts: () => Promise<void>;
@@ -1142,6 +1143,17 @@ export const useAppStore = create<AppState>()(
           return null;
         }
       },
+      deleteHisaabEntry: async (entryId: string) => {
+        console.log(`[GemsTrack Store deleteHisaabEntry] Attempting to delete entry ID ${entryId}.`);
+        try {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.HISAAB, entryId));
+          console.log(`[GemsTrack Store deleteHisaabEntry] Entry ID ${entryId} deleted successfully.`);
+        } catch (error) {
+          console.error(`[GemsTrack Store deleteHisaabEntry] Error deleting entry ID ${entryId} from Firestore:`, error);
+          throw error;
+        }
+      },
+
 
       // Data Clearing Actions
       clearAllProducts: async () => {

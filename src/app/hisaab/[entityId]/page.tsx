@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, BookUser, ArrowLeft, User, Briefcase, PlusCircle, Save, ArrowDown, ArrowUp } from 'lucide-react';
+import { Loader2, BookUser, ArrowLeft, User, Briefcase, PlusCircle, Save, ArrowDown, ArrowUp, Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,6 +17,17 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const hisaabEntrySchema = z.object({
   description: z.string().min(1, "Description is required"),
@@ -38,7 +49,7 @@ export default function EntityHisaabPage() {
   const entityId = params.entityId as string;
   const entityType = searchParams.get('type') as 'customer' | 'karigar';
 
-  const { customers, karigars, hisaabEntries, addHisaabEntry, isHisaabLoading, isCustomersLoading, isKarigarsLoading } = useAppStore();
+  const { customers, karigars, hisaabEntries, addHisaabEntry, deleteHisaabEntry, isHisaabLoading, isCustomersLoading, isKarigarsLoading } = useAppStore();
 
   const entity: Customer | Karigar | undefined = useMemo(() => {
     if (entityType === 'customer') {
@@ -80,6 +91,21 @@ export default function EntityHisaabPage() {
       goldGaveGrams: 0,
     }
   });
+  
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  
+  const onDeleteEntry = async (entryId: string) => {
+      setIsDeleting(entryId);
+      try {
+        await deleteHisaabEntry(entryId);
+        toast({ title: "Success", description: "Transaction deleted successfully." });
+      } catch(e) {
+          toast({ title: "Error", description: "Failed to delete transaction.", variant: "destructive" });
+      } finally {
+          setIsDeleting(null);
+      }
+  };
+
 
   const onAddEntry = async (data: HisaabEntryFormData) => {
     if (!entity) return;
@@ -143,6 +169,9 @@ export default function EntityHisaabPage() {
       <Card>
         <CardHeader>
             <CardTitle>Final Balances</CardTitle>
+            <CardDescription>
+                A positive balance means they owe you (receivable). A negative balance means you owe them (payable).
+            </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div className="p-4 rounded-lg bg-red-500/10 text-destructive">
@@ -180,13 +209,16 @@ export default function EntityHisaabPage() {
                 </CardHeader>
                 <CardContent>
                     {balances.entriesWithRunningBalance.length > 0 ? (
+                        <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Date & Description</TableHead>
-                                    <TableHead className="text-right">Cash</TableHead>
-                                    <TableHead className="text-right">Gold (g)</TableHead>
-                                    <TableHead className="text-right">Running Balance</TableHead>
+                                    <TableHead className="text-right">Cash Gave (-)</TableHead>
+                                    <TableHead className="text-right">Cash Got (+)</TableHead>
+                                    <TableHead className="text-right">Gold Gave (g)</TableHead>
+                                    <TableHead className="text-right">Gold Got (g)</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -196,26 +228,34 @@ export default function EntityHisaabPage() {
                                             <div className="font-medium">{entry.description}</div>
                                             <div className="text-xs text-muted-foreground">{format(parseISO(entry.date), 'MMM d, yyyy, h:mm a')}</div>
                                         </TableCell>
+                                        <TableCell className="text-right text-destructive">{entry.cashDebit > 0 ? entry.cashDebit.toLocaleString() : '-'}</TableCell>
+                                        <TableCell className="text-right text-green-600">{entry.cashCredit > 0 ? entry.cashCredit.toLocaleString() : '-'}</TableCell>
+                                        <TableCell className="text-right text-destructive">{entry.goldDebitGrams > 0 ? entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3}) : '-'}</TableCell>
+                                        <TableCell className="text-right text-green-600">{entry.goldCreditGrams > 0 ? entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3}) : '-'}</TableCell>
                                         <TableCell className="text-right">
-                                            {entry.cashDebit > 0 && <div className="text-destructive">Gave: {entry.cashDebit.toLocaleString()}</div>}
-                                            {entry.cashCredit > 0 && <div className="text-green-600">Got: {entry.cashCredit.toLocaleString()}</div>}
-                                        </TableCell>
-                                         <TableCell className="text-right">
-                                            {entry.goldDebitGrams > 0 && <div className="text-destructive">Gave: {entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})}</div>}
-                                            {entry.goldCreditGrams > 0 && <div className="text-green-600">Got: {entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})}</div>}
-                                        </TableCell>
-                                        <TableCell className="text-right text-xs">
-                                           <div className={`${entry.runningCashBalance > 0 ? 'text-destructive' : entry.runningCashBalance < 0 ? 'text-green-600' : ''}`}>
-                                             PKR {Math.abs(entry.runningCashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                           </div>
-                                            <div className={`${entry.runningGoldBalance > 0 ? 'text-destructive' : entry.runningGoldBalance < 0 ? 'text-green-600' : ''}`}>
-                                             {Math.abs(entry.runningGoldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
-                                           </div>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" disabled={isDeleting === entry.id}>
+                                                        {isDeleting === entry.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive"/>}
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2"/>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This action cannot be undone. This will permanently delete the transaction: "{entry.description}".</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => onDeleteEntry(entry.id)}>Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
+                        </div>
                     ) : (
                         <p className="text-center text-muted-foreground py-8">No transactions found for {entity.name}.</p>
                     )}
@@ -244,7 +284,9 @@ export default function EntityHisaabPage() {
                             
                             <Separator />
                             <div className="p-3 rounded-md bg-green-500/10">
-                                <p className="text-sm font-bold text-green-700 dark:text-green-400 mb-2">You Got (Received)</p>
+                                <p className="text-sm font-bold text-green-700 dark:text-green-400 mb-2 flex items-center">
+                                    <ArrowDown className="mr-2 h-4 w-4"/> You Got (Received)
+                                </p>
                                  <FormField
                                     control={form.control}
                                     name="cashGot"
@@ -271,7 +313,9 @@ export default function EntityHisaabPage() {
                             
                             <Separator />
                              <div className="p-3 rounded-md bg-red-500/10">
-                                <p className="text-sm font-bold text-destructive mb-2">You Gave</p>
+                                <p className="text-sm font-bold text-destructive mb-2 flex items-center">
+                                   <ArrowUp className="mr-2 h-4 w-4"/> You Gave
+                                </p>
                                 <FormField
                                     control={form.control}
                                     name="cashGave"
@@ -310,5 +354,3 @@ export default function EntityHisaabPage() {
     </div>
   );
 }
-
-    
