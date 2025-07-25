@@ -326,7 +326,7 @@ export default function CartPage() {
             3: { cellWidth: 30, halign: 'right' },
             4: { cellWidth: 30, halign: 'right' },
         },
-        didDrawPage: (data) => {
+        didDrawPage: (data: { pageNumber: number, settings: { startY: number } }) => {
              // Reset startY for new pages
             if (data.pageNumber > 1) {
                 doc.setPage(data.pageNumber);
