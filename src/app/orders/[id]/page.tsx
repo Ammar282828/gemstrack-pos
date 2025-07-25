@@ -20,6 +20,14 @@ import { Label } from '@/components/ui/label';
 import { Control, useForm } from 'react-hook-form';
 import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -46,6 +54,8 @@ type PhoneForm = {
     phone: string;
 };
 
+type NotificationType = 'inProgress' | 'completed';
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -59,6 +69,9 @@ export default function OrderDetailPage() {
   
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isUpdatingItem, setIsUpdatingItem] = useState<number | null>(null);
+
+  const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
+  const [notificationType, setNotificationType] = useState<NotificationType | null>(null);
 
   const phoneForm = useForm<PhoneForm>();
 
@@ -74,6 +87,13 @@ export default function OrderDetailPage() {
     try {
         await updateOrderStatus(order.id, newStatus);
         toast({ title: "Status Updated", description: `Order ${order.id} status changed to "${newStatus}".` });
+        
+        // Trigger notification dialog if status is 'In Progress' or 'Completed'
+        if (newStatus === 'In Progress' || newStatus === 'Completed') {
+            setNotificationType(newStatus === 'In Progress' ? 'inProgress' : 'completed');
+            setIsNotificationDialogOpen(true);
+        }
+
     } catch (error) {
         toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
     } finally {
@@ -94,8 +114,8 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleSendWhatsApp = (messageTemplate: 'inProgress' | 'completed') => {
-    if(!order) return;
+  const handleSendWhatsApp = () => {
+    if(!order || !notificationType) return;
 
     const whatsAppNumber = phoneForm.getValues('phone');
     if (!whatsAppNumber) {
@@ -106,9 +126,9 @@ export default function OrderDetailPage() {
     let message = `Dear ${order.customerName || 'Customer'},\n\n`;
     message += `This is an update regarding your order *#${order.id}* from ${settings.shopName}.\n\n`;
 
-    if (messageTemplate === 'inProgress') {
+    if (notificationType === 'inProgress') {
         message += `We are happy to inform you that your order is now *In Progress*. We will notify you again once it is ready for collection.\n\n`;
-    } else if (messageTemplate === 'completed') {
+    } else if (notificationType === 'completed') {
         message += `Great news! Your custom order is now *Completed* and ready for collection.\n\n`;
         message += `*Amount Due:* PKR ${order.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
     }
@@ -120,6 +140,7 @@ export default function OrderDetailPage() {
 
     window.open(whatsappUrl, '_blank');
     toast({ title: "Redirecting to WhatsApp", description: "Your message is ready to be sent." });
+    setIsNotificationDialogOpen(false); // Close dialog after sending
   };
 
 
@@ -151,12 +172,42 @@ export default function OrderDetailPage() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
+      <Dialog open={isNotificationDialogOpen} onOpenChange={setIsNotificationDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+            <DialogTitle className="flex items-center"><MessageSquare className="mr-2 h-5 w-5"/>Notify Customer via WhatsApp</DialogTitle>
+            <DialogDescription>
+                The order status has been updated to "{notificationType === 'inProgress' ? 'In Progress' : 'Completed'}".
+                Would you like to send a notification to the customer?
+            </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                 <div>
+                    <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
+                    <PhoneInput
+                        name="phone"
+                        control={phoneForm.control as unknown as Control}
+                        defaultCountry="PK"
+                        international
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1"
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNotificationDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSendWhatsApp}>
+                <MessageSquare className="mr-2 h-4 w-4"/> Send Update
+            </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <Button variant="outline" onClick={() => router.back()} className="mb-0">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
       </Button>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
+        <div className="md:col-span-3 space-y-6">
           <Card>
               <CardHeader>
                   <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
@@ -263,32 +314,6 @@ export default function OrderDetailPage() {
                   </div>
               </CardContent>
           </Card>
-        </div>
-        <div className="md:col-span-1">
-            <Card className="sticky top-8">
-                <CardHeader>
-                    <CardTitle className="flex items-center"><MessageSquare className="mr-2 h-5 w-5"/>Notify Customer</CardTitle>
-                    <CardDescription>Send status updates via WhatsApp.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div>
-                        <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
-                        <PhoneInput
-                            name="phone"
-                            control={phoneForm.control as unknown as Control}
-                            defaultCountry="PK"
-                            international
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1"
-                        />
-                    </div>
-                    <Button onClick={() => handleSendWhatsApp('inProgress')} className="w-full" variant="outline" disabled={order.status !== 'In Progress'}>
-                        Send "In Progress" Update
-                    </Button>
-                     <Button onClick={() => handleSendWhatsApp('completed')} className="w-full" disabled={order.status !== 'Completed'}>
-                        Send "Completed" Update
-                    </Button>
-                </CardContent>
-            </Card>
         </div>
       </div>
     </div>
