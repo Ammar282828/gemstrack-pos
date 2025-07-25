@@ -217,11 +217,7 @@ export default function CartPage() {
         if (logoUrl) {
             try {
                 // The logo from settings is a Data URL, so it can be added directly without onload.
-                const imgProps = doc.getImageProperties(logoUrl);
-                const aspectRatio = imgProps.width / imgProps.height;
-                const imgHeight = 15;
-                const imgWidth = imgHeight * aspectRatio;
-                doc.addImage(logoUrl, 'PNG', margin, 15, imgWidth, imgHeight);
+                doc.addImage(logoUrl, 'PNG', margin, 15, 40, 10, undefined, 'FAST');
             } catch (e) {
                  console.error("Error adding logo to PDF:", e);
             }
@@ -743,7 +739,3 @@ export default function CartPage() {
     </div>
   );
 }
-
-    
-
-    
