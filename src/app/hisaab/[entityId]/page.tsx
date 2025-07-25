@@ -20,10 +20,10 @@ import { Separator } from '@/components/ui/separator';
 
 const hisaabEntrySchema = z.object({
   description: z.string().min(1, "Description is required"),
-  cashIn: z.coerce.number().default(0), // Money you receive
-  cashOut: z.coerce.number().default(0), // Money you give
-  goldInGrams: z.coerce.number().default(0), // Gold you receive
-  goldOutGrams: z.coerce.number().default(0), // Gold you give
+  cashGot: z.coerce.number().default(0), // Money you receive
+  cashGave: z.coerce.number().default(0), // Money you give
+  goldGotGrams: z.coerce.number().default(0), // Gold you receive
+  goldGaveGrams: z.coerce.number().default(0), // Gold you give
 });
 
 type HisaabEntryFormData = z.infer<typeof hisaabEntrySchema>;
@@ -74,29 +74,28 @@ export default function EntityHisaabPage() {
     resolver: zodResolver(hisaabEntrySchema),
     defaultValues: {
       description: '',
-      cashIn: 0,
-      cashOut: 0,
-      goldInGrams: 0,
-      goldOutGrams: 0,
+      cashGot: 0,
+      cashGave: 0,
+      goldGotGrams: 0,
+      goldGaveGrams: 0,
     }
   });
 
   const onAddEntry = async (data: HisaabEntryFormData) => {
     if (!entity) return;
     
-    // Convert IN/OUT to DEBIT/CREDIT
-    // Cash IN (money received from them) is a CREDIT to their account (reduces what they owe)
-    // Cash OUT (money given to them) is a DEBIT to their account (increases what they owe)
+    // cashGave (debit) means they owe you more
+    // cashGot (credit) means they owe you less
     const newEntryData: Omit<HisaabEntry, 'id'> = {
         entityId: entity.id,
         entityType: entityType,
         entityName: entity.name,
         date: new Date().toISOString(),
         description: data.description,
-        cashDebit: data.cashOut,
-        cashCredit: data.cashIn,
-        goldDebitGrams: data.goldOutGrams,
-        goldCreditGrams: data.goldInGrams,
+        cashDebit: data.cashGave,
+        cashCredit: data.cashGot,
+        goldDebitGrams: data.goldGaveGrams,
+        goldCreditGrams: data.goldGotGrams,
     };
 
     const result = await addHisaabEntry(newEntryData);
@@ -143,22 +142,32 @@ export default function EntityHisaabPage() {
 
       <Card>
         <CardHeader>
-            <CardTitle>Current Balances</CardTitle>
+            <CardTitle>Final Balances</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={`p-4 rounded-lg ${balances.finalCashBalance >= 0 ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
-                <p className="text-sm text-muted-foreground">Cash Balance (PKR)</p>
-                <p className={`text-2xl font-bold ${balances.finalCashBalance >= 0 ? 'text-destructive' : 'text-green-600'}`}>
-                    {Math.abs(balances.finalCashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+             <div className="p-4 rounded-lg bg-red-500/10 text-destructive">
+                <p className="text-sm">Cash You Will Get (Receivable)</p>
+                <p className="text-2xl font-bold">
+                    PKR {Math.max(0, balances.finalCashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
-                <p className="text-xs">{balances.finalCashBalance > 0 ? 'Receivable (They owe you)' : balances.finalCashBalance < 0 ? 'Payable (You owe them)' : 'Settled'}</p>
             </div>
-             <div className={`p-4 rounded-lg ${balances.finalGoldBalance >= 0 ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
-                <p className="text-sm text-muted-foreground">Gold Balance (grams)</p>
-                <p className={`text-2xl font-bold ${balances.finalGoldBalance >= 0 ? 'text-destructive' : 'text-green-600'}`}>
-                    {Math.abs(balances.finalGoldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })}
+             <div className="p-4 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400">
+                <p className="text-sm">Cash You Will Give (Payable)</p>
+                <p className="text-2xl font-bold">
+                    PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
-                 <p className="text-xs">{balances.finalGoldBalance > 0 ? 'Receivable (They owe you)' : balances.finalGoldBalance < 0 ? 'Payable (You owe them)' : 'Settled'}</p>
+            </div>
+             <div className="p-4 rounded-lg bg-red-500/10 text-destructive">
+                <p className="text-sm">Gold You Will Get (Receivable)</p>
+                <p className="text-2xl font-bold">
+                    {Math.max(0, balances.finalGoldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
+                </p>
+            </div>
+             <div className="p-4 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400">
+                <p className="text-sm">Gold You Will Give (Payable)</p>
+                <p className="text-2xl font-bold">
+                    {Math.abs(Math.min(0, balances.finalGoldBalance)).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
+                </p>
             </div>
         </CardContent>
       </Card>
@@ -174,31 +183,32 @@ export default function EntityHisaabPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Description</TableHead>
-                                    <TableHead className="text-right">Cash (PKR)</TableHead>
+                                    <TableHead>Date & Description</TableHead>
+                                    <TableHead className="text-right">Cash</TableHead>
                                     <TableHead className="text-right">Gold (g)</TableHead>
-                                    <TableHead className="text-right">Balance</TableHead>
+                                    <TableHead className="text-right">Running Balance</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {balances.entriesWithRunningBalance.map(entry => (
                                     <TableRow key={entry.id}>
-                                        <TableCell>{format(parseISO(entry.date), 'MMM d, yyyy')}</TableCell>
-                                        <TableCell>{entry.description}</TableCell>
+                                        <TableCell>
+                                            <div className="font-medium">{entry.description}</div>
+                                            <div className="text-xs text-muted-foreground">{format(parseISO(entry.date), 'MMM d, yyyy, h:mm a')}</div>
+                                        </TableCell>
                                         <TableCell className="text-right">
-                                            {entry.cashDebit > 0 && <div className="flex justify-end items-center gap-1 text-destructive"><span>{entry.cashDebit.toLocaleString()}</span> <ArrowUp className="h-3 w-3" /></div>}
-                                            {entry.cashCredit > 0 && <div className="flex justify-end items-center gap-1 text-green-600"><span>{entry.cashCredit.toLocaleString()}</span> <ArrowDown className="h-3 w-3" /></div>}
+                                            {entry.cashDebit > 0 && <div className="text-destructive">Gave: {entry.cashDebit.toLocaleString()}</div>}
+                                            {entry.cashCredit > 0 && <div className="text-green-600">Got: {entry.cashCredit.toLocaleString()}</div>}
                                         </TableCell>
                                          <TableCell className="text-right">
-                                            {entry.goldDebitGrams > 0 && <div className="flex justify-end items-center gap-1 text-destructive"><span>{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})}</span> <ArrowUp className="h-3 w-3" /></div>}
-                                            {entry.goldCreditGrams > 0 && <div className="flex justify-end items-center gap-1 text-green-600"><span>{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})}</span> <ArrowDown className="h-3 w-3" /></div>}
+                                            {entry.goldDebitGrams > 0 && <div className="text-destructive">Gave: {entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})}</div>}
+                                            {entry.goldCreditGrams > 0 && <div className="text-green-600">Got: {entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})}</div>}
                                         </TableCell>
                                         <TableCell className="text-right text-xs">
-                                           <div className={`${entry.runningCashBalance >= 0 ? 'text-destructive' : 'text-green-600'}`}>
+                                           <div className={`${entry.runningCashBalance > 0 ? 'text-destructive' : entry.runningCashBalance < 0 ? 'text-green-600' : ''}`}>
                                              PKR {Math.abs(entry.runningCashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                            </div>
-                                            <div className={`${entry.runningGoldBalance >= 0 ? 'text-destructive' : 'text-green-600'}`}>
+                                            <div className={`${entry.runningGoldBalance > 0 ? 'text-destructive' : entry.runningGoldBalance < 0 ? 'text-green-600' : ''}`}>
                                              {Math.abs(entry.runningGoldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
                                            </div>
                                         </TableCell>
@@ -215,8 +225,7 @@ export default function EntityHisaabPage() {
         <div>
             <Card className="sticky top-8">
                 <CardHeader>
-                    <CardTitle>Add New Entry</CardTitle>
-                    <CardDescription>Manually add a transaction to this ledger.</CardDescription>
+                    <CardTitle>Add New Transaction</CardTitle>
                 </CardHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onAddEntry)}>
@@ -232,59 +241,65 @@ export default function EntityHisaabPage() {
                                 </FormItem>
                                 )}
                             />
+                            
                             <Separator />
-                            <p className="text-sm font-medium">Cash Transaction (PKR)</p>
-                             <FormField
-                                control={form.control}
-                                name="cashIn"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Cash IN (You Received)</FormLabel>
-                                    <FormControl><Input type="number" {...field} className="border-green-500/50 focus-visible:ring-green-500" /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="cashOut"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Cash OUT (You Gave)</FormLabel>
-                                    <FormControl><Input type="number" {...field} className="border-red-500/50 focus-visible:ring-red-500" /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
+                            <div className="p-3 rounded-md bg-green-500/10">
+                                <p className="text-sm font-bold text-green-700 dark:text-green-400 mb-2">You Got (Received)</p>
+                                 <FormField
+                                    control={form.control}
+                                    name="cashGot"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Cash Got (PKR)</FormLabel>
+                                        <FormControl><Input type="number" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                 <FormField
+                                    control={form.control}
+                                    name="goldGotGrams"
+                                    render={({ field }) => (
+                                    <FormItem className="mt-2">
+                                        <FormLabel>Gold Got (grams)</FormLabel>
+                                        <FormControl><Input type="number" step="0.001" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                            </div>
+                            
                             <Separator />
-                            <p className="text-sm font-medium">Gold Transaction (grams)</p>
-                            <FormField
-                                control={form.control}
-                                name="goldInGrams"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Gold IN (You Received)</FormLabel>
-                                    <FormControl><Input type="number" step="0.001" {...field} className="border-green-500/50 focus-visible:ring-green-500" /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="goldOutGrams"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Gold OUT (You Gave)</FormLabel>
-                                    <FormControl><Input type="number" step="0.001" {...field} className="border-red-500/50 focus-visible:ring-red-500" /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
+                             <div className="p-3 rounded-md bg-red-500/10">
+                                <p className="text-sm font-bold text-destructive mb-2">You Gave</p>
+                                <FormField
+                                    control={form.control}
+                                    name="cashGave"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Cash Gave (PKR)</FormLabel>
+                                        <FormControl><Input type="number" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="goldGaveGrams"
+                                    render={({ field }) => (
+                                    <FormItem className="mt-2">
+                                        <FormLabel>Gold Gave (grams)</FormLabel>
+                                        <FormControl><Input type="number" step="0.001" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                            </div>
                         </CardContent>
                         <CardFooter>
                             <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                                 {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                                Save Entry
+                                Save Transaction
                             </Button>
                         </CardFooter>
                     </form>
@@ -296,3 +311,4 @@ export default function EntityHisaabPage() {
   );
 }
 
+    
