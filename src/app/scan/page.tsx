@@ -244,7 +244,7 @@ export default function ScanPOSPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               {isScannerActive && (
-                <div id={qrReaderElementId} className="w-full aspect-[4/3] md:aspect-video border rounded-md bg-muted overflow-hidden mx-auto max-w-lg">
+                <div id={qrReaderElementId} className="w-full aspect-square border rounded-md bg-muted overflow-hidden mx-auto max-w-lg [&>span>video]:object-contain">
                   {/* The html5-qrcode library will render its UI here. */}
                 </div>
               )}
