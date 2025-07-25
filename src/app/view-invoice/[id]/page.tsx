@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -194,7 +195,7 @@ export default function ViewInvoicePage() {
             3: { cellWidth: 30, halign: 'right' },
             4: { cellWidth: 30, halign: 'right' },
         },
-        didDrawPage: (data) => {
+        didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
             if (data.pageNumber > 1) {
                 pdfDoc.setPage(data.pageNumber);
                 data.settings.startY = 40; 
