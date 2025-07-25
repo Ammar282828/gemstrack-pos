@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem } from '@/lib/store';
@@ -17,12 +17,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone } from 'lucide-react';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import Image from 'next/image';
+import PhoneInput from 'react-phone-number-input/react-hook-form-input';
+import 'react-phone-number-input/style.css'
+
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -68,6 +71,7 @@ type OrderItemData = z.infer<typeof orderItemSchema>;
 type OrderFormData = z.infer<typeof orderFormSchema>;
 
 type EnrichedOrderFormData = OrderFormData & {
+    id: string; // The generated order ID
     subtotal: number;
     grandTotal: number;
 };
@@ -184,6 +188,9 @@ const ImageCapture: React.FC<{
   );
 };
 
+type PhoneForm = {
+    phone: string;
+};
 
 export default function CustomOrderPage() {
   const { toast } = useToast();
@@ -196,6 +203,8 @@ export default function CustomOrderPage() {
   }, [loadSettings, loadCustomers]);
 
   const [generatedEstimate, setGeneratedEstimate] = useState<EnrichedOrderFormData | null>(null);
+
+  const phoneForm = useForm<PhoneForm>();
 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderFormSchema),
@@ -230,12 +239,14 @@ export default function CustomOrderPage() {
         if (customer) {
             form.setValue('customerName', customer.name);
             form.setValue('customerContact', customer.phone || '');
+            phoneForm.setValue('phone', customer.phone || '');
         }
     } else {
-        // Clear fields if switching back to walk-in, unless they were manually entered
-        // This might need more complex logic if we want to preserve manual entries
+        form.setValue('customerName', '');
+        form.setValue('customerContact', '');
+        phoneForm.setValue('phone', '');
     }
-  }, [selectedCustomerId, customers, form]);
+  }, [selectedCustomerId, customers, form, phoneForm]);
 
   const liveEstimate = useMemo(() => {
     let subtotal = 0;
@@ -295,7 +306,8 @@ export default function CustomOrderPage() {
     const newOrder = await addOrderAction(orderToSave);
 
     if (newOrder) {
-        setGeneratedEstimate({ ...data, subtotal, grandTotal });
+        setGeneratedEstimate({ ...data, id: newOrder.id, subtotal, grandTotal });
+        phoneForm.setValue('phone', newOrder.customerContact || '');
         toast({ title: `Order ${newOrder.id} Created`, description: "Custom order has been saved and is ready to be printed." });
     } else {
         toast({ title: "Error", description: "Failed to save the custom order.", variant: "destructive" });
@@ -426,7 +438,29 @@ export default function CustomOrderPage() {
 
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
-  }
+  };
+
+  const handleSendWhatsApp = (estimateToSend: EnrichedOrderFormData) => {
+    const whatsAppNumber = phoneForm.getValues('phone');
+    if (!whatsAppNumber) {
+      toast({ title: "No Phone Number", description: "Please enter a customer's phone number.", variant: "destructive" });
+      return;
+    }
+    
+    let message = `Dear ${estimateToSend.customerName || 'Customer'},\n\n`;
+    message += `Thank you for placing your custom order with ${settings.shopName}.\n\n`;
+    message += `*Order ID:* ${estimateToSend.id}\n`;
+    message += `*Estimated Total:* PKR ${estimateToSend.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n`;
+    message += `*Advance Paid:* PKR ${estimateToSend.advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n`;
+    message += `*Balance Due:* PKR ${estimateToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+    message += `We will notify you once your order is in progress. Thank you!`;
+
+    const numberOnly = whatsAppNumber.replace(/\D/g, '');
+    const whatsappUrl = `https://wa.me/${numberOnly}?text=${encodeURIComponent(message)}`;
+
+    window.open(whatsappUrl, '_blank');
+    toast({ title: "Redirecting to WhatsApp", description: "Your message is ready to be sent." });
+  };
 
   if (isSettingsLoading || isCustomersLoading) {
     return (
@@ -588,7 +622,7 @@ export default function CustomOrderPage() {
                                 </FormItem>
                             )}
                         />
-                         {selectedCustomerId === WALK_IN_CUSTOMER_VALUE && (
+                         {selectedCustomerId === WALK_IN_CUSTOMER_VALUE ? (
                             <div className="space-y-4 pt-2">
                                 <FormField control={form.control} name="customerName" render={({ field }) => (
                                    <FormItem><FormLabel className="flex items-center"><User className="mr-2 h-4 w-4"/>Walk-in Customer Name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>
@@ -597,6 +631,10 @@ export default function CustomOrderPage() {
                                    <FormItem><FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4"/>Walk-in Customer Contact</FormLabel><FormControl><Input placeholder="e.g., 03001234567" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                             </div>
+                         ) : (
+                            <FormField control={form.control} name="customerContact" render={({ field }) => (
+                                <FormItem><FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4"/>Customer Contact (Read-only)</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50"/></FormControl></FormItem>
+                             )}/>
                          )}
 
                         <FormField control={form.control} name="goldRate" render={({ field }) => (
@@ -653,7 +691,7 @@ export default function CustomOrderPage() {
             <CardHeader>
                 <CardTitle>Custom Order Estimate Generated</CardTitle>
                 <CardDescription>
-                    The order has been saved. You can print the estimate or create a new one.
+                    The order has been saved. You can print the estimate, notify the customer, or create a new one.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -710,6 +748,23 @@ export default function CustomOrderPage() {
                     )}
                     <Separator className="my-2 bg-muted-foreground/20"/>
                     <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {generatedEstimate.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                </div>
+                <Separator className="my-6"/>
+                <div className="p-4 border rounded-lg bg-muted/50">
+                    <Label htmlFor="whatsapp-number">Send Order Confirmation via WhatsApp</Label>
+                    <div className="flex gap-2 mt-2">
+                            <PhoneInput
+                            name="phone"
+                            control={phoneForm.control as unknown as Control}
+                            defaultCountry="PK"
+                            international
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                        />
+                            <Button onClick={() => handleSendWhatsApp(generatedEstimate)}>
+                            <MessageSquare className="mr-2 h-4 w-4"/>
+                            Send
+                            </Button>
+                    </div>
                 </div>
             </CardContent>
             <CardFooter className="flex justify-end gap-2">
