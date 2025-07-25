@@ -2,14 +2,14 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { useAppStore, HisaabEntry, Customer, Karigar, useAppReady } from '@/lib/store';
+import { useAppStore, HisaabEntry, Customer, Karigar, useAppReady, Settings } from '@/lib/store';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, BookUser, ArrowLeft, User, Briefcase, PlusCircle, Save, ArrowDown, ArrowUp, Trash2, AlertTriangle } from 'lucide-react';
+import { Loader2, BookUser, ArrowLeft, User, Briefcase, PlusCircle, Save, ArrowDown, ArrowUp, Trash2, AlertTriangle, FileText, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,6 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +30,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import PhoneInput from 'react-phone-number-input/react-hook-form-input';
+import 'react-phone-number-input/style.css'
+import { Label } from '@/components/ui/label';
+
+// Re-declare module for jsPDF in this file as well
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 const hisaabEntrySchema = z.object({
   description: z.string().min(1, "Description is required"),
@@ -38,6 +50,10 @@ const hisaabEntrySchema = z.object({
 });
 
 type HisaabEntryFormData = z.infer<typeof hisaabEntrySchema>;
+type PhoneForm = {
+    phone: string;
+};
+
 
 export default function EntityHisaabPage() {
   const appReady = useAppReady();
@@ -49,7 +65,7 @@ export default function EntityHisaabPage() {
   const entityId = params.entityId as string;
   const entityType = searchParams.get('type') as 'customer' | 'karigar';
 
-  const { customers, karigars, hisaabEntries, addHisaabEntry, deleteHisaabEntry, isHisaabLoading, isCustomersLoading, isKarigarsLoading } = useAppStore();
+  const { customers, karigars, hisaabEntries, addHisaabEntry, deleteHisaabEntry, settings, isHisaabLoading, isCustomersLoading, isKarigarsLoading } = useAppStore();
 
   const entity: Customer | Karigar | undefined = useMemo(() => {
     if (entityType === 'customer') {
@@ -91,6 +107,8 @@ export default function EntityHisaabPage() {
       goldGaveGrams: 0,
     }
   });
+
+  const phoneForm = useForm<PhoneForm>({ defaultValues: { phone: (entity as Customer)?.phone || '' } });
   
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   
@@ -131,6 +149,98 @@ export default function EntityHisaabPage() {
     } else {
         toast({ title: "Error", description: "Failed to add hisaab entry.", variant: "destructive" });
     }
+  };
+
+  const handleSendReminder = () => {
+    const whatsAppNumber = phoneForm.getValues('phone');
+    if (!whatsAppNumber) {
+        toast({ title: "No Phone Number", description: "Please enter the customer's phone number.", variant: "destructive" });
+        return;
+    }
+    if (!entity || balances.finalCashBalance <= 0) {
+        toast({ title: "No Outstanding Balance", description: "This customer does not have a receivable balance.", variant: "default" });
+        return;
+    }
+
+    let message = `Dear ${entity.name},\n\n`;
+    message += `This is a friendly reminder from ${settings.shopName} regarding your outstanding balance.\n\n`;
+    message += `*Amount Due:* PKR ${balances.finalCashBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+    message += `We would appreciate it if you could settle the balance at your earliest convenience.\n\n`;
+    message += `Thank you!`;
+
+    const numberOnly = whatsAppNumber.replace(/\D/g, '');
+    const whatsappUrl = `https://wa.me/${numberOnly}?text=${encodeURIComponent(message)}`;
+
+    window.open(whatsappUrl, '_blank');
+    toast({ title: "Redirecting to WhatsApp", description: "Your reminder message is ready to be sent." });
+  };
+  
+  const handlePrintLedger = () => {
+    if (!entity) return;
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+
+    // Header
+    doc.setFont("helvetica", "bold").setFontSize(18);
+    doc.text(`Ledger Statement`, margin, 22);
+    doc.setFontSize(12);
+    doc.text(entity.name, margin, 29);
+    doc.setFontSize(10);
+    doc.text(`(${entityType})`, margin, 35);
+    
+    doc.setFont("helvetica", "normal").setFontSize(10);
+    doc.text(`Date: ${format(new Date(), 'PP')}`, pageWidth - margin, 22, { align: 'right' });
+    
+    // Balance Summary
+    let summaryY = 50;
+    doc.setFont("helvetica", "bold").setFontSize(12);
+    doc.text("Final Balance", margin, summaryY);
+    summaryY += 7;
+
+    doc.setFont("helvetica", "normal").setFontSize(10);
+    const cashBalanceText = balances.finalCashBalance > 0 
+        ? `Receivable: PKR ${balances.finalCashBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}`
+        : `Payable: PKR ${Math.abs(balances.finalCashBalance).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+    doc.text(`Cash: ${cashBalanceText}`, margin, summaryY);
+    summaryY += 7;
+    
+    const goldBalanceText = balances.finalGoldBalance > 0
+        ? `Receivable: ${balances.finalGoldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})}g`
+        : `Payable: ${Math.abs(balances.finalGoldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})}g`;
+    doc.text(`Gold: ${goldBalanceText}`, margin, summaryY);
+    
+    // Table
+    const tableStartY = summaryY + 15;
+    const tableColumns = ["Date", "Description", "Cash Given (-)", "Cash Got (+)", "Gold Given (g)", "Gold Got (g)"];
+    const tableRows = balances.entriesWithRunningBalance.map(entry => [
+        format(parseISO(entry.date), 'dd-MMM-yy'),
+        entry.description,
+        entry.cashDebit > 0 ? entry.cashDebit.toLocaleString() : '-',
+        entry.cashCredit > 0 ? entry.cashCredit.toLocaleString() : '-',
+        entry.goldDebitGrams > 0 ? entry.goldDebitGrams.toLocaleString(undefined, { minimumFractionDigits: 3 }) : '-',
+        entry.goldCreditGrams > 0 ? entry.goldCreditGrams.toLocaleString(undefined, { minimumFractionDigits: 3 }) : '-',
+    ]);
+
+    doc.autoTable({
+        head: [tableColumns],
+        body: tableRows,
+        startY: tableStartY,
+        theme: 'grid',
+        headStyles: { fillColor: [240, 240, 240], textColor: 50, fontStyle: 'bold', fontSize: 9, },
+        styles: { fontSize: 8, cellPadding: 2, valign: 'middle' },
+        columnStyles: {
+            0: { cellWidth: 20 },
+            1: { cellWidth: 'auto' },
+            2: { halign: 'right' },
+            3: { halign: 'right' },
+            4: { halign: 'right' },
+            5: { halign: 'right' },
+        }
+    });
+
+    doc.save(`Ledger-${entity.name}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   };
 
 
@@ -199,6 +309,42 @@ export default function EntityHisaabPage() {
                 </p>
             </div>
         </CardContent>
+         <CardFooter className="flex flex-wrap gap-2">
+            <Button onClick={handlePrintLedger} variant="outline">
+                <FileText className="mr-2 h-4 w-4" /> Download PDF Report
+            </Button>
+            {entityType === 'customer' && balances.finalCashBalance > 0 && (
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="default">
+                            <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Send Payment Reminder</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will open WhatsApp with a pre-filled reminder message for the outstanding balance.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                         <div className="py-4 space-y-2">
+                             <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
+                             <PhoneInput
+                                name="phone"
+                                control={phoneForm.control as unknown as Control}
+                                defaultCountry="PK"
+                                international
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                            />
+                        </div>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleSendReminder}>Send</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
+        </CardFooter>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

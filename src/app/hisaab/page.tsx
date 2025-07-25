@@ -1,12 +1,13 @@
 
 "use client";
 
-import React, { useMemo } from 'react';
+import React, 'useMemo', 'useState';
 import { useAppStore, HisaabEntry, useAppReady } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, BookUser, ArrowRight, User, Briefcase, ArrowDown, ArrowUp } from 'lucide-react';
+import { Loader2, BookUser, ArrowRight, User, Briefcase, ArrowDown, ArrowUp, Search } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 type AccountSummary = {
   entityId: string;
@@ -20,6 +21,7 @@ export default function HisaabPage() {
   const appReady = useAppReady();
   const hisaabEntries = useAppStore(state => state.hisaabEntries);
   const isLoading = useAppStore(state => state.isHisaabLoading);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const { accountSummaries, totalReceivable, totalPayable } = useMemo(() => {
     if (!Array.isArray(hisaabEntries)) {
@@ -53,6 +55,16 @@ export default function HisaabPage() {
     return { accountSummaries: summaries, totalReceivable, totalPayable };
 
   }, [hisaabEntries]);
+  
+  const filteredSummaries = useMemo(() => {
+    if (!searchTerm) {
+      return accountSummaries;
+    }
+    return accountSummaries.filter(summary =>
+      summary.entityName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [accountSummaries, searchTerm]);
+
 
   if (!appReady || (isLoading && hisaabEntries.length === 0)) {
     return (
@@ -99,9 +111,20 @@ export default function HisaabPage() {
 
       <div>
           <h2 className="text-xl font-semibold mb-4">All Accounts</h2>
-          {accountSummaries.length > 0 ? (
+          <div className="mb-6 relative">
+            <Input
+              type="search"
+              placeholder="Search by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          </div>
+
+          {filteredSummaries.length > 0 ? (
               <div className="space-y-4">
-                  {accountSummaries.map(summary => (
+                  {filteredSummaries.map(summary => (
                       <Card key={summary.entityId} className="shadow-sm hover:shadow-md transition-shadow">
                           <CardContent className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                               <div className="flex-grow">
@@ -140,7 +163,7 @@ export default function HisaabPage() {
           ) : (
               <Card>
                 <CardContent className="text-center py-10">
-                    <p className="text-muted-foreground">All accounts are settled. No outstanding balances found.</p>
+                    <p className="text-muted-foreground">{searchTerm ? 'No accounts match your search.' : 'All accounts are settled. No outstanding balances found.'}</p>
                 </CardContent>
               </Card>
           )}
