@@ -25,6 +25,7 @@ import QRCode from 'qrcode.react';
 import Image from 'next/image';
 import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
+import { Label } from '@/components/ui/label';
 
 
 // Extend jsPDF interface for the autoTable plugin
