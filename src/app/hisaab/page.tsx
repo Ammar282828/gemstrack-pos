@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, 'useMemo', 'useState';
+import React, { useMemo, useState } from 'react';
 import { useAppStore, HisaabEntry, useAppReady } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Loader2, BookUser, ArrowRight, User, Briefcase, ArrowDown, ArrowUp, Search } from 'lucide-react';

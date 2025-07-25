@@ -157,7 +157,7 @@ export default function EntityHisaabPage() {
         toast({ title: "No Phone Number", description: "Please enter the customer's phone number.", variant: "destructive" });
         return;
     }
-    if (!entity || balances.finalCashBalance <= 0) {
+    if (!entity || !settings || balances.finalCashBalance <= 0) {
         toast({ title: "No Outstanding Balance", description: "This customer does not have a receivable balance.", variant: "default" });
         return;
     }
@@ -176,7 +176,10 @@ export default function EntityHisaabPage() {
   };
   
   const handlePrintLedger = () => {
-    if (!entity) return;
+    if (!entity || !settings) {
+        toast({ title: "Error", description: "Entity or settings data is not available for printing.", variant: "destructive" });
+        return;
+    }
     
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
