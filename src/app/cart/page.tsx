@@ -70,7 +70,8 @@ export default function CartPage() {
   
   useEffect(() => {
     if (appReady && settings && typeof settings.goldRatePerGram === 'number') {
-      setInvoiceGoldRateInput(settings.goldRatePerGram.toString());
+      const goldRate21k = settings.goldRatePerGram * (21 / 24);
+      setInvoiceGoldRateInput(goldRate21k.toFixed(2));
     } else if (appReady) {
       console.warn("[GemsTrack] CartPage: Could not set initial invoiceGoldRateInput because settings or goldRatePerGram was missing/invalid.", settings);
       setInvoiceGoldRateInput("0");
@@ -82,15 +83,17 @@ export default function CartPage() {
   const estimatedInvoice = useMemo((): EstimatedInvoice | null => {
     if (!appReady || !settings || cartItemsFromStore.length === 0) return null;
     
-    const parsedGoldRate = parseFloat(invoiceGoldRateInput);
+    const parsedGoldRate21k = parseFloat(invoiceGoldRateInput);
     const hasGoldItems = cartItemsFromStore.some(item => item.metalType === 'gold');
     
-    if (hasGoldItems && (isNaN(parsedGoldRate) || parsedGoldRate <= 0)) {
+    if (hasGoldItems && (isNaN(parsedGoldRate21k) || parsedGoldRate21k <= 0)) {
         return null; // Don't calculate if gold rate is invalid for a cart with a gold items
     }
     
+    const goldRate24k = parsedGoldRate21k * (24 / 21);
+
     const ratesForCalc = {
-        goldRatePerGram24k: parsedGoldRate || 0,
+        goldRatePerGram24k: goldRate24k || 0,
         palladiumRatePerGram: settings.palladiumRatePerGram || 0,
         platinumRatePerGram: settings.platinumRatePerGram || 0,
     };
@@ -143,12 +146,13 @@ export default function CartPage() {
         return;
     }
 
-    const parsedGoldRate = parseFloat(invoiceGoldRateInput);
+    const parsedGoldRate21k = parseFloat(invoiceGoldRateInput);
+    const goldRate24kForInvoice = parsedGoldRate21k * (24 / 21);
     const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
 
     const hasGoldItems = cartItemsFromStore.some(item => item.metalType === 'gold');
-    if (hasGoldItems && (isNaN(parsedGoldRate) || parsedGoldRate <= 0)) {
-      toast({ title: "Invalid Gold Rate", description: "Please enter a valid positive gold rate for gold items.", variant: "destructive" });
+    if (hasGoldItems && (isNaN(parsedGoldRate21k) || parsedGoldRate21k <= 0)) {
+      toast({ title: "Invalid Gold Rate", description: "Please enter a valid positive 21k gold rate for gold items.", variant: "destructive" });
       return;
     }
 
@@ -162,7 +166,7 @@ export default function CartPage() {
         return;
     }
 
-    const invoice = await generateInvoiceAction(selectedCustomerId, parsedGoldRate, parsedDiscountAmount);
+    const invoice = await generateInvoiceAction(selectedCustomerId, goldRate24kForInvoice, parsedDiscountAmount);
     if (invoice) {
       setGeneratedInvoice(invoice);
        // Pre-fill WhatsApp number if a customer with a phone number is selected
@@ -425,7 +429,8 @@ export default function CartPage() {
     setGeneratedInvoice(null);
     clearCart();
     if (settings && typeof settings.goldRatePerGram === 'number') {
-        setInvoiceGoldRateInput(settings.goldRatePerGram.toString());
+        const goldRate21k = settings.goldRatePerGram * (21 / 24);
+        setInvoiceGoldRateInput(goldRate21k.toFixed(2));
     } else {
         setInvoiceGoldRateInput("0");
     }
@@ -679,18 +684,18 @@ export default function CartPage() {
                 <Separator />
                 <div>
                   <Label htmlFor="invoice-gold-rate" className="flex items-center mb-1 text-sm font-medium">
-                    <SettingsIcon className="w-4 h-4 mr-1 text-muted-foreground" /> Gold Rate for this Estimate (PKR/gram, 24k)
+                    <SettingsIcon className="w-4 h-4 mr-1 text-muted-foreground" /> Gold Rate for this Estimate (PKR/gram, 21k)
                   </Label>
                   <Input
                     id="invoice-gold-rate"
                     type="number"
                     value={invoiceGoldRateInput}
                     onChange={(e) => setInvoiceGoldRateInput(e.target.value)}
-                    placeholder="e.g., 20000"
+                    placeholder="e.g., 17500"
                     className="text-base"
                     step="0.01"
                   />
-                   <p className="text-xs text-muted-foreground mt-1">Current store setting for Gold: PKR {(settings?.goldRatePerGram || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}/gram.</p>
+                   <p className="text-xs text-muted-foreground mt-1">Current store setting for Gold (21k): PKR {(settings?.goldRatePerGram * (21/24) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}/gram.</p>
                    {cartContainsNonGoldItems && (
                     <Alert variant="default" className="mt-2 text-xs">
                         <Info className="h-4 w-4" />

@@ -168,6 +168,7 @@ export default function OrderDetailPage() {
   const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
   const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
+  const goldRate21k = order.goldRate * (21 / 24);
 
 
   return (
@@ -236,7 +237,7 @@ export default function OrderDetailPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                       <DetailItem label="Order Date" value={format(parseISO(order.createdAt), 'PPpp')} icon={<Calendar className="w-4 h-4"/>}/>
                       <DetailItem label="Customer" value={order.customerName || 'Walk-in'} icon={<User className="w-4 h-4"/>} />
-                      <DetailItem label="Gold Rate Applied" value={`PKR ${order.goldRate.toLocaleString()}/gram (24k)`} icon={<DollarSign className="w-4 h-4"/>}/>
+                      <DetailItem label="Gold Rate Applied" value={`PKR ${goldRate21k.toLocaleString()}/gram (21k)`} icon={<DollarSign className="w-4 h-4"/>}/>
                   </div>
 
                   <Separator className="my-6" />

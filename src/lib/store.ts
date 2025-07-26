@@ -179,7 +179,7 @@ export interface FirebaseConfigStub {
 }
 
 export interface Settings {
-  goldRatePerGram: number;
+  goldRatePerGram: number; // This is now stored as 24k rate
   palladiumRatePerGram: number;
   platinumRatePerGram: number;
   shopName: string;
@@ -256,7 +256,7 @@ export interface Invoice {
   discountAmount: number;
   grandTotal: number;
   createdAt: string; // ISO string
-  goldRateApplied?: number | null;
+  goldRateApplied?: number | null; // This is the 24k rate that was used for calculation
   palladiumRateApplied?: number | null;
   platinumRateApplied?: number | null;
 }
@@ -294,7 +294,7 @@ export interface Order {
   createdAt: string; // ISO string
   status: OrderStatus;
   items: OrderItem[];
-  goldRate: number;
+  goldRate: number; // This is stored as the 24k rate
   subtotal: number;
   advancePayment: number;
   advanceGoldDetails?: string;

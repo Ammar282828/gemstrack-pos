@@ -96,7 +96,7 @@ const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] =
     {
         customerName: "Ayesha Ahmed",
         customerContact: "0301-2233445",
-        goldRate: 21500, // Example rate at time of order
+        goldRate: 21500 * (24/21), // Example rate at time of order
         advancePayment: 50000,
         advanceGoldDetails: "5g old gold (21k) provided.",
         items: [
@@ -106,7 +106,7 @@ const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] =
     },
     {
         customerName: "Zainab Ansari",
-        goldRate: 21000,
+        goldRate: 21000 * (24/21),
         advancePayment: 20000,
         items: [
             { description: "Platinum band with custom engraving", karat: '18k', estimatedWeightG: 8, makingCharges: 20000, diamondCharges: 0, stoneCharges: 0, sampleGiven: false, hasDiamonds: false, isCompleted: true, stoneDetails: "Engraving: 'Z & R Forever'" }
@@ -234,9 +234,11 @@ export default function SettingsPage() {
       const deviceIdsForForm = Array.isArray(currentSettings.allowedDeviceIds) 
         ? currentSettings.allowedDeviceIds.map(id => ({ id })) 
         : [];
+      
+      const goldRate21k = currentSettings.goldRatePerGram * (21 / 24);
 
       form.reset({
-        goldRatePerGram: currentSettings.goldRatePerGram,
+        goldRatePerGram: parseFloat(goldRate21k.toFixed(2)),
         palladiumRatePerGram: currentSettings.palladiumRatePerGram,
         platinumRatePerGram: currentSettings.platinumRatePerGram,
         shopName: currentSettings.shopName,
@@ -288,8 +290,12 @@ export default function SettingsPage() {
 
   const onSubmit = async (data: SettingsFormData) => {
     try {
+        const goldRate21k = data.goldRatePerGram;
+        const goldRate24k = goldRate21k * (24 / 21);
+
         const settingsToSave: Partial<Settings> = {
             ...data,
+            goldRatePerGram: goldRate24k,
             allowedDeviceIds: data.allowedDeviceIds?.map(item => item.id).filter(Boolean) || []
         };
         await updateSettingsAction(settingsToSave);
@@ -417,6 +423,7 @@ export default function SettingsPage() {
     for (const orderData of DUMMY_ORDERS_TO_SEED) {
       try {
         let subtotal = 0;
+        const ratesForCalc = { goldRatePerGram24k: orderData.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
         const enrichedItems: OrderItem[] = orderData.items.map((item) => {
           const itemAsProduct = {
             ...item,
@@ -427,7 +434,6 @@ export default function SettingsPage() {
             hasDiamonds: item.diamondCharges > 0,
             miscCharges: 0,
           };
-          const ratesForCalc = { goldRatePerGram24k: orderData.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
           const costs = calculateProductCosts(itemAsProduct, ratesForCalc);
           subtotal += costs.totalPrice;
           return { ...item, metalCost: costs.metalCost, totalEstimate: costs.totalPrice };
@@ -551,13 +557,13 @@ export default function SettingsPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-base flex items-center">
-                        <DollarSign className="h-5 w-5 mr-2 text-muted-foreground" /> Current Gold Rate (PKR per gram for 24k)
+                        <DollarSign className="h-5 w-5 mr-2 text-muted-foreground" /> Current Gold Rate (PKR per gram for 21k)
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="e.g., 20000.00" {...field} />
+                      <Input type="number" step="0.01" placeholder="e.g., 17500.00" {...field} />
                     </FormControl>
                     <FormDescription>
-                        This rate is for 24 Karat gold. Gold product prices are adjusted based on their selected Karat.
+                        This rate is for 21 Karat gold. All product prices are calculated based on this rate.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

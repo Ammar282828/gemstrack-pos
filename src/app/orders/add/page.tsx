@@ -211,7 +211,7 @@ export default function CustomOrderPage() {
     resolver: zodResolver(orderFormSchema),
     defaultValues: {
       items: [],
-      goldRate: settings.goldRatePerGram || 0,
+      goldRate: settings.goldRatePerGram ? settings.goldRatePerGram * (21/24) : 0,
       advancePayment: 0,
       advanceGoldDetails: '',
       customerId: WALK_IN_CUSTOMER_VALUE,
@@ -227,7 +227,8 @@ export default function CustomOrderPage() {
 
   useEffect(() => {
     if (settings.goldRatePerGram > 0) {
-      form.setValue('goldRate', settings.goldRatePerGram);
+      const goldRate21k = settings.goldRatePerGram * (21 / 24);
+      form.setValue('goldRate', parseFloat(goldRate21k.toFixed(2)));
     }
   }, [settings.goldRatePerGram, form]);
 
@@ -251,10 +252,13 @@ export default function CustomOrderPage() {
 
   const liveEstimate = useMemo(() => {
     let subtotal = 0;
+    const goldRate21k = formValues.goldRate || 0;
+    const goldRate24k = goldRate21k > 0 ? goldRate21k * (24 / 21) : 0;
+    const ratesForCalc = { goldRatePerGram24k: goldRate24k, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
+
     formValues.items.forEach(item => {
         const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds } = item;
-        const goldRate = formValues.goldRate;
-        if (!estimatedWeightG || estimatedWeightG <= 0 || !goldRate || goldRate <= 0) return;
+        if (!estimatedWeightG || estimatedWeightG <= 0 || !goldRate24k || goldRate24k <= 0) return;
 
         const productForCalc = {
           categoryId: '', // Custom orders don't have a category, but the function needs it.
@@ -262,7 +266,6 @@ export default function CustomOrderPage() {
           wastagePercentage: 0, makingCharges, hasDiamonds,
           diamondCharges, stoneCharges, miscCharges: 0
         };
-        const ratesForCalc = { goldRatePerGram24k: goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
         
         const costs = calculateProductCosts(productForCalc, ratesForCalc);
         subtotal += costs.totalPrice;
@@ -276,7 +279,9 @@ export default function CustomOrderPage() {
 
   const onSubmit = async (data: OrderFormData) => {
     const { subtotal, grandTotal } = liveEstimate;
-    
+    const goldRate24k = (data.goldRate || 0) * (24 / 21);
+    const ratesForCalc = { goldRatePerGram24k: goldRate24k, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
+
     const enrichedItems = data.items.map((item): OrderItem => {
         const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds } = item;
         const productForCalc = {
@@ -285,7 +290,6 @@ export default function CustomOrderPage() {
           wastagePercentage: 0, makingCharges, hasDiamonds,
           diamondCharges, stoneCharges, miscCharges: 0
         };
-        const ratesForCalc = { goldRatePerGram24k: data.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
         const costs = calculateProductCosts(productForCalc, ratesForCalc);
         return { ...item, isCompleted: false, metalCost: costs.metalCost, totalEstimate: costs.totalPrice };
     });
@@ -294,7 +298,7 @@ export default function CustomOrderPage() {
 
     const orderToSave: Omit<Order, 'id' | 'createdAt' | 'status'> = {
         items: enrichedItems,
-        goldRate: data.goldRate,
+        goldRate: goldRate24k,
         advancePayment: data.advancePayment,
         advanceGoldDetails: data.advanceGoldDetails,
         subtotal,
@@ -333,7 +337,7 @@ export default function CustomOrderPage() {
     doc.setFont("helvetica", "normal");
     doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 29, { align: 'right' });
     
-    const goldRate21k = estimate.goldRate * (21/24);
+    const goldRate21k = estimate.goldRate;
     doc.text(`Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/g`, pageWidth - margin, 34, { align: 'right' });
 
     // --- Items Table ---
@@ -640,7 +644,7 @@ export default function CustomOrderPage() {
 
                         <FormField control={form.control} name="goldRate" render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rate (PKR/gram, 24k)</FormLabel>
+                                <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rate (PKR/gram, 21k)</FormLabel>
                                 <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
                                 <FormDescription>This rate applies to all items in this estimate.</FormDescription><FormMessage />
                             </FormItem>

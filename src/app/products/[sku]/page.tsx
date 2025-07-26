@@ -130,6 +130,8 @@ export default function ProductDetailPage() {
     );
   }
 
+  const goldRate21k = settings.goldRatePerGram * (21/24);
+
   return (
     <div className="container mx-auto p-4">
       <Button variant="outline" onClick={() => router.back()} className="mb-6">
@@ -159,7 +161,7 @@ export default function ProductDetailPage() {
                   <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
               </Button>
               {productData.metalType === 'gold' && (
-                  <DetailItem label="Gold Rate (Store Setting, 24k)" value={settings.goldRatePerGram} unit="/ gram" currency="PKR " />
+                  <DetailItem label="Gold Rate (Store Setting, 21k)" value={goldRate21k} unit="/ gram" currency="PKR " />
               )}
               {productData.metalType === 'palladium' && (
                   <DetailItem label="Palladium Rate (Store Setting)" value={settings.palladiumRatePerGram} unit="/ gram" currency="PKR " />
