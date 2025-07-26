@@ -5,12 +5,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAppStore, Customer, Invoice, useIsStoreHydrated } from '@/lib/store';
+import { useAppStore, Customer, Invoice, Order, useIsStoreHydrated } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, Brain, AlertTriangle, Loader2, BookUser } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, Brain, AlertTriangle, Loader2, BookUser, ClipboardList, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -24,7 +25,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { analyzeCustomerTrends, AnalyzeCustomerTrendsOutput, AnalyzeCustomerTrendsInput } from '@/ai/flows/analyze-customer-trends-flow';
+import { format, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 
+const getStatusBadgeVariant = (status: Order['status']) => {
+    switch (status) {
+      case 'Pending': return 'bg-yellow-500/80 text-yellow-50';
+      case 'In Progress': return 'bg-blue-500/80 text-blue-50';
+      case 'Completed': return 'bg-green-500/80 text-green-50';
+      case 'Cancelled': return 'bg-red-500/80 text-red-50';
+      default: return 'secondary';
+    }
+};
 
 const DetailItem: React.FC<{ label: string; value: string | undefined; icon?: React.ReactNode }> = ({ label, value, icon }) => (
   <div className="flex items-start py-2">
@@ -45,19 +57,27 @@ export default function CustomerDetailPage() {
   const isHydrated = useIsStoreHydrated();
   const customer = useAppStore(state => state.customers.find(c => c.id === customerId));
   const allInvoices = useAppStore(state => state.generatedInvoices);
+  const allOrders = useAppStore(state => state.orders);
   const deleteCustomerAction = useAppStore(state => state.deleteCustomer);
 
   const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
+  const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
   const [customerTrends, setCustomerTrends] = useState<AnalyzeCustomerTrendsOutput | null>(null);
   const [isLoadingTrends, setIsLoadingTrends] = useState(false);
   const [trendsError, setTrendsError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isHydrated && customerId && allInvoices.length > 0) {
-      const filteredInvoices = allInvoices.filter(invoice => invoice.customerId === customerId);
-      setCustomerInvoices(filteredInvoices);
+    if (isHydrated && customerId) {
+      if (allInvoices.length > 0) {
+        const filteredInvoices = allInvoices.filter(invoice => invoice.customerId === customerId);
+        setCustomerInvoices(filteredInvoices);
+      }
+      if (allOrders.length > 0) {
+        const filteredOrders = allOrders.filter(order => order.customerId === customerId);
+        setCustomerOrders(filteredOrders.sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime()));
+      }
     }
-  }, [isHydrated, customerId, allInvoices]);
+  }, [isHydrated, customerId, allInvoices, allOrders]);
 
   useEffect(() => {
     const fetchTrends = async () => {
@@ -65,14 +85,13 @@ export default function CustomerDetailPage() {
         setIsLoadingTrends(true);
         setTrendsError(null);
         try {
-          // Prepare invoices for the AI flow, ensuring item names and other relevant details are present
           const flowInvoices = customerInvoices.map(inv => ({
             id: inv.id,
             createdAt: inv.createdAt,
             grandTotal: inv.grandTotal,
             items: inv.items.map(item => ({
               sku: item.sku,
-              name: item.name, // Product name should include category, e.g., "Rings - RIN-001"
+              name: item.name,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               itemTotal: item.itemTotal,
@@ -98,7 +117,7 @@ export default function CustomerDetailPage() {
           setIsLoadingTrends(false);
         }
       } else if (customer && customerInvoices.length === 0) {
-        setCustomerTrends(null); // Clear trends if no invoices
+        setCustomerTrends(null);
       }
     };
 
@@ -217,7 +236,7 @@ export default function CustomerDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl">Transaction History</CardTitle>
+              <CardTitle className="text-xl flex items-center"><FileText className="mr-2 h-5 w-5 text-primary" /> Ready Sales History</CardTitle>
               <CardDescription>Past invoices for {customer.name}.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -241,7 +260,46 @@ export default function CustomerDetailPage() {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-muted-foreground text-center py-4">No transaction history found for this customer.</p>
+                <p className="text-muted-foreground text-center py-4">No sales history found for this customer.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center"><ClipboardList className="mr-2 h-5 w-5 text-primary" /> Custom Order History</CardTitle>
+              <CardDescription>Past custom orders placed by {customer.name}.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {customerOrders.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Balance Due (PKR)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customerOrders.map((order) => (
+                      <TableRow key={order.id} className="cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
+                        <TableCell className="font-medium text-primary hover:underline">
+                          <Link href={`/orders/${order.id}`}>{order.id}</Link>
+                        </TableCell>
+                        <TableCell>{format(parseISO(order.createdAt), 'PP')}</TableCell>
+                        <TableCell>
+                            <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>
+                                {order.status}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{order.grandTotal.toLocaleString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No custom orders found for this customer.</p>
               )}
             </CardContent>
           </Card>
