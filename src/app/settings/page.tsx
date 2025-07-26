@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +29,7 @@ import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Link from 'next/link';
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
@@ -794,10 +795,15 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Development Tools</CardTitle>
-          <CardDescription>Use these tools for development or to seed initial data. Be cautious with actions that modify data.</CardDescription>
+          <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Development & Data Tools</CardTitle>
+          <CardDescription>Use these tools for development, data seeding, or importing from other apps. Be cautious with actions that modify data.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Link href="/settings/hisaab-import" passHref>
+              <Button variant="outline" className="w-full">
+                <Import className="mr-2 h-4 w-4" /> Import Hisaab from CSV
+              </Button>
+            </Link>
             <div>
                 <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -822,9 +828,6 @@ export default function SettingsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
                 </AlertDialog>
-                <p className="text-sm text-muted-foreground mt-1">
-                Adds sample products for testing (Rings, Bands, Gold Coins, etc.).
-                </p>
             </div>
             <div>
                 <AlertDialog>
@@ -850,9 +853,6 @@ export default function SettingsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
                 </AlertDialog>
-                <p className="text-sm text-muted-foreground mt-1">
-                Adds sample customer profiles.
-                </p>
             </div>
              <div>
                 <AlertDialog>
@@ -878,9 +878,6 @@ export default function SettingsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
                 </AlertDialog>
-                <p className="text-sm text-muted-foreground mt-1">
-                Adds sample karigar (artisan) profiles.
-                </p>
             </div>
             <div>
                 <AlertDialog>
@@ -906,9 +903,6 @@ export default function SettingsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
                 </AlertDialog>
-                <p className="text-sm text-muted-foreground mt-1">
-                Adds sample custom orders for testing the order dashboard.
-                </p>
             </div>
              <div>
                 <AlertDialog>
@@ -934,9 +928,6 @@ export default function SettingsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
                 </AlertDialog>
-                <p className="text-sm text-muted-foreground mt-1">
-                Adds sample transactions to the ledger for the seeded customers/karigars.
-                </p>
             </div>
         </CardContent>
       </Card>
