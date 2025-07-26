@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Edit3, Trash2, Briefcase, Phone, StickyNote, Loader2, Eye } from 'lucide-react';
+import { Search, PlusCircle, Edit3, Trash2, Briefcase, Phone, StickyNote, Loader2, Eye, BookUser } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +24,11 @@ import { useToast } from '@/hooks/use-toast';
 
 const KarigarActions: React.FC<{ karigar: Karigar; onDelete: (id: string) => Promise<void>; isCard?: boolean }> = ({ karigar, onDelete, isCard }) => (
     <div className={isCard ? 'flex gap-2' : 'flex justify-end space-x-2'}>
+      <Button asChild size="sm" variant="outline" className="flex-1">
+        <Link href={`/hisaab/${karigar.id}?type=karigar`}>
+          <BookUser className="w-4 h-4 mr-2" /> Ledger
+        </Link>
+      </Button>
       <Button asChild size="sm" variant={isCard ? 'default' : 'outline'} className="flex-1">
         <Link href={`/karigars/${karigar.id}/edit`}>
           <Edit3 className="w-4 h-4 mr-2" /> Edit
@@ -34,23 +39,6 @@ const KarigarActions: React.FC<{ karigar: Karigar; onDelete: (id: string) => Pro
           <Eye className="w-4 h-4 mr-2" /> View
         </Link>
       </Button>
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button size="sm" variant="destructive" className="flex-1"><Trash2 className="w-4 h-4 mr-2" /> Delete</Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the karigar "{karigar.name}". 
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={async () => await onDelete(karigar.id)}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
 );
 
@@ -66,7 +54,23 @@ const KarigarRow: React.FC<{ karigar: Karigar; onDelete: (id: string) => Promise
       <TableCell>{karigar.contact || '-'}</TableCell>
       <TableCell className="truncate max-w-xs">{karigar.notes || '-'}</TableCell>
       <TableCell className="text-right">
-        <KarigarActions karigar={karigar} onDelete={onDelete} />
+        <div className="flex justify-end space-x-2">
+            <Button asChild size="sm" variant="ghost">
+                <Link href={`/hisaab/${karigar.id}?type=karigar`}>
+                    <BookUser className="w-4 h-4" />
+                </Link>
+            </Button>
+             <Button asChild size="sm" variant="ghost">
+                <Link href={`/karigars/${karigar.id}`}>
+                    <Eye className="w-4 h-4" />
+                </Link>
+            </Button>
+             <Button asChild size="sm" variant="ghost">
+                <Link href={`/karigars/${karigar.id}/edit`}>
+                    <Edit3 className="w-4 h-4" />
+                </Link>
+            </Button>
+        </div>
       </TableCell>
     </TableRow>
   );

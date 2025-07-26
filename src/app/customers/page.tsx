@@ -56,7 +56,23 @@ const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => Prom
       <TableCell>{customer.email || '-'}</TableCell>
       <TableCell>{customer.address || '-'}</TableCell>
       <TableCell className="text-right">
-        <CustomerActions customer={customer} onDelete={onDelete} />
+        <div className="flex justify-end space-x-2">
+            <Button asChild size="sm" variant="ghost">
+                <Link href={`/hisaab/${customer.id}?type=customer`}>
+                    <BookUser className="w-4 h-4" />
+                </Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+                <Link href={`/customers/${customer.id}`}>
+                    <Eye className="w-4 h-4" />
+                </Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+                <Link href={`/customers/${customer.id}/edit`}>
+                    <Edit3 className="w-4 h-4" />
+                </Link>
+            </Button>
+        </div>
       </TableCell>
     </TableRow>
   );
