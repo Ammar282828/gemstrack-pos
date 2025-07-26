@@ -206,16 +206,16 @@ export default function ViewInvoicePage() {
 
     let finalY = pdfDoc.lastAutoTable.finalY || 0;
     
-    let totalsAndFooterStartY = finalY + 10;
-    const footerHeight = 85;
+    const footerAndTotalsHeight = 85;
+    let needsNewPage = finalY + footerAndTotalsHeight > pageHeight - margin;
 
-    if (totalsAndFooterStartY + footerHeight > pageHeight - margin) {
+    if (needsNewPage) {
         pdfDoc.addPage();
         drawHeader(pdfDoc.getNumberOfPages());
-        totalsAndFooterStartY = 40;
+        finalY = 40; 
     }
     
-    let currentY = totalsAndFooterStartY;
+    let currentY = finalY + 10;
     const totalsX = pageWidth - margin;
 
     pdfDoc.setFontSize(10).setFont("helvetica", "normal").setTextColor(0);

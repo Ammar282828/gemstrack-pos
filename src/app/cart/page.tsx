@@ -361,12 +361,12 @@ export default function CartPage() {
     const totalsX = pageWidth - margin;
 
     doc.setFontSize(10).setFont("helvetica", "normal").setTextColor(0);
-    doc.text(`Subtotal:`, totalsX - 40, currentY, { align: 'right' });
+    doc.text(`Subtotal:`, totalsX - 60, currentY, { align: 'right' });
     doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
 
     doc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
-    doc.text(`Discount:`, totalsX - 40, currentY, { align: 'right' });
+    doc.text(`Discount:`, totalsX - 60, currentY, { align: 'right' });
     doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
     
@@ -494,7 +494,8 @@ export default function CartPage() {
 
         // If the balance is now zero or less, we can reset for a new sale
         if (updatedInvoice && updatedInvoice.balanceDue <= 0) {
-            handleNewSale();
+            // Delay the reset to allow user to see the zero balance and print the final paid invoice
+            setTimeout(() => handleNewSale(), 3000);
         }
 
     } catch (e) {
