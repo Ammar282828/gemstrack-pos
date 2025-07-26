@@ -206,8 +206,8 @@ export default function ViewInvoicePage() {
 
     let finalY = pdfDoc.lastAutoTable.finalY || 0;
     
-    let totalsAndFooterStartY = finalY + 15;
-    const footerHeight = 75;
+    let totalsAndFooterStartY = finalY + 10;
+    const footerHeight = 85;
 
     if (totalsAndFooterStartY + footerHeight > pageHeight - margin) {
         pdfDoc.addPage();
@@ -219,23 +219,35 @@ export default function ViewInvoicePage() {
     const totalsX = pageWidth - margin;
 
     pdfDoc.setFontSize(10).setFont("helvetica", "normal").setTextColor(0);
-    pdfDoc.text(`Subtotal:`, totalsX - 40, currentY, { align: 'right' });
+    pdfDoc.text(`Subtotal:`, totalsX - 60, currentY, { align: 'right' });
     pdfDoc.text(`PKR ${invoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
 
     pdfDoc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
-    pdfDoc.text(`Discount:`, totalsX - 40, currentY, { align: 'right' });
+    pdfDoc.text(`Discount:`, totalsX - 60, currentY, { align: 'right' });
     pdfDoc.text(`- PKR ${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
-    pdfDoc.setFont("helvetica", "normal").setTextColor(0);
     
-    pdfDoc.setLineWidth(0.5);
+    pdfDoc.setFont("helvetica", "normal").setTextColor(0);
+    pdfDoc.setLineWidth(0.3);
     pdfDoc.line(totalsX - 60, currentY, totalsX, currentY);
     currentY += 8;
     
-    pdfDoc.setFontSize(14).setFont("helvetica", "bold");
+    pdfDoc.setFontSize(12).setFont("helvetica", "bold");
     pdfDoc.text(`Grand Total:`, totalsX - 60, currentY, { align: 'right' });
     pdfDoc.text(`PKR ${invoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    currentY += 8;
+    
+    if (invoice.amountPaid > 0) {
+        pdfDoc.setFontSize(10).setFont("helvetica", "normal");
+        pdfDoc.text(`Amount Paid:`, totalsX - 60, currentY, { align: 'right' });
+        pdfDoc.text(`- PKR ${invoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+        currentY += 8;
+        
+        pdfDoc.setFontSize(14).setFont("helvetica", "bold");
+        pdfDoc.text(`Balance Due:`, totalsX - 60, currentY, { align: 'right' });
+        pdfDoc.text(`PKR ${invoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    }
 
     const footerStartY = pageHeight - 45;
     const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
@@ -331,6 +343,18 @@ export default function ViewInvoicePage() {
                             <p className="font-semibold text-xl text-primary text-right">PKR {invoice.grandTotal.toLocaleString()}</p>
                         </div>
                     </div>
+                     {invoice.amountPaid > 0 && (
+                        <div className="border-t mt-3 pt-3">
+                            <div className="flex justify-between items-center">
+                                <p className="text-sm text-muted-foreground">Amount Paid</p>
+                                <p className="font-semibold text-green-600">- PKR {invoice.amountPaid.toLocaleString()}</p>
+                            </div>
+                            <div className="flex justify-between items-center mt-1">
+                                <p className="text-sm text-muted-foreground">Balance Due</p>
+                                <p className="font-semibold text-destructive">PKR {invoice.balanceDue.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </CardContent>
             <CardFooter>

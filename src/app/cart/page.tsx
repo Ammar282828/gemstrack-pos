@@ -54,7 +54,7 @@ export default function CartPage() {
   const cartItemsFromStore = useAppStore(selectCartDetails);
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
-  const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry } = useAppStore();
+  const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment } = useAppStore();
   const productsInCart = useAppStore(state => state.cart.map(ci => state.products.find(p => p.sku === ci.sku)).filter(Boolean) as Product[]);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
@@ -194,9 +194,15 @@ export default function CartPage() {
     const invoiceUrl = `${appUrl}/view-invoice/${invoiceToSend.id}`;
 
     let message = `Dear ${invoiceToSend.customerName || 'Customer'},\n\n`;
-    message += `Here is your estimate from ${settings.shopName}.\n\n`;
+    message += `Here is your updated estimate from ${settings.shopName}.\n\n`;
     message += `*Estimate ID:* ${invoiceToSend.id}\n`;
-    message += `*Amount Due:* PKR ${invoiceToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+    message += `*Total Amount:* PKR ${invoiceToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n`;
+    if (invoiceToSend.amountPaid > 0) {
+      message += `*Amount Paid:* PKR ${invoiceToSend.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n`;
+      message += `*Balance Due:* PKR ${invoiceToSend.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+    } else {
+      message += `*Amount Due:* PKR ${invoiceToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+    }
     message += `You can view the detailed estimate PDF here:\n${invoiceUrl}\n\n`;
     message += `Thank you for your business!`;
 
@@ -342,7 +348,7 @@ export default function CartPage() {
 
     let finalY = doc.lastAutoTable.finalY || 0;
     
-    const footerAndTotalsHeight = 75; // Combined estimated height
+    const footerAndTotalsHeight = 85; // Combined estimated height
     let needsNewPage = finalY + footerAndTotalsHeight > pageHeight - margin;
 
     if (needsNewPage) {
@@ -351,7 +357,7 @@ export default function CartPage() {
         finalY = 40; 
     }
 
-    let currentY = finalY + 15;
+    let currentY = finalY + 10;
     const totalsX = pageWidth - margin;
 
     doc.setFontSize(10).setFont("helvetica", "normal").setTextColor(0);
@@ -363,15 +369,27 @@ export default function CartPage() {
     doc.text(`Discount:`, totalsX - 40, currentY, { align: 'right' });
     doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
-    doc.setFont("helvetica", "normal").setTextColor(0); // Reset color
     
-    doc.setLineWidth(0.5);
+    doc.setFont("helvetica", "normal").setTextColor(0);
+    doc.setLineWidth(0.3);
     doc.line(totalsX - 60, currentY, totalsX, currentY);
     currentY += 8;
     
-    doc.setFontSize(14).setFont("helvetica", "bold");
+    doc.setFontSize(12).setFont("helvetica", "bold");
     doc.text(`Grand Total:`, totalsX - 60, currentY, { align: 'right' });
     doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    currentY += 8;
+
+    if (invoiceToPrint.amountPaid > 0) {
+        doc.setFontSize(10).setFont("helvetica", "normal");
+        doc.text(`Amount Paid:`, totalsX - 60, currentY, { align: 'right' });
+        doc.text(`- PKR ${invoiceToPrint.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+        currentY += 8;
+        
+        doc.setFontSize(14).setFont("helvetica", "bold");
+        doc.text(`Balance Due:`, totalsX - 60, currentY, { align: 'right' });
+        doc.text(`PKR ${invoiceToPrint.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    }
 
     const footerStartY = pageHeight - 45;
     const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
@@ -429,7 +447,7 @@ export default function CartPage() {
     setGeneratedInvoice(null);
     clearCart();
     if (settings && typeof settings.goldRatePerGram === 'number') {
-        const goldRate21k = settings.goldRatePerGram * (21 / 24);
+        const goldRate21k = settings.goldRatePerGram * (21/24);
         setInvoiceGoldRateInput(goldRate21k.toFixed(2));
     } else {
         setInvoiceGoldRateInput("0");
@@ -437,11 +455,22 @@ export default function CartPage() {
     setDiscountAmountInput('0');
   }
 
-  const handleRecordPayment = async (amount: number) => {
+  const handleRecordPayment = async (amount: number, isFullPayment: boolean = false) => {
     if (!generatedInvoice) return;
+    
+    const paymentAmountToRecord = isFullPayment ? generatedInvoice.balanceDue : amount;
+
+    if (paymentAmountToRecord <= 0) {
+        toast({ title: "Invalid Amount", description: "Payment amount must be positive.", variant: "destructive"});
+        return;
+    }
+
     setIsSubmittingPayment(true);
     
     try {
+        const updatedInvoice = await updateInvoicePayment(generatedInvoice.id, paymentAmountToRecord);
+
+        // Also add a corresponding entry to the general hisaab ledger
         const paymentEntry = {
             entityId: generatedInvoice.customerId || 'walk-in',
             entityType: 'customer' as const,
@@ -449,13 +478,25 @@ export default function CartPage() {
             date: new Date().toISOString(),
             description: `Payment for Invoice ${generatedInvoice.id}`,
             cashDebit: 0,
-            cashCredit: amount, // Money received from customer
+            cashCredit: paymentAmountToRecord, // Money received from customer
             goldDebitGrams: 0,
             goldCreditGrams: 0,
         };
         await addHisaabEntry(paymentEntry);
-        toast({ title: "Payment Recorded", description: `PKR ${amount.toLocaleString()} recorded for invoice ${generatedInvoice.id}` });
-        handleNewSale(); // Clear the view for the next sale
+
+        toast({ title: "Payment Recorded", description: `PKR ${paymentAmountToRecord.toLocaleString()} recorded for invoice ${generatedInvoice.id}` });
+        
+        // Update the local state to reflect the change immediately
+        if (updatedInvoice) {
+            setGeneratedInvoice(updatedInvoice);
+        }
+        setPaymentAmount(''); // Clear input after successful payment
+
+        // If the balance is now zero or less, we can reset for a new sale
+        if (updatedInvoice && updatedInvoice.balanceDue <= 0) {
+            handleNewSale();
+        }
+
     } catch (e) {
         toast({ title: "Error", description: "Failed to record payment.", variant: "destructive" });
         console.error("Error recording payment:", e);
@@ -476,56 +517,79 @@ export default function CartPage() {
   }
 
   if (generatedInvoice) {
+    const isFullyPaid = generatedInvoice.balanceDue <= 0;
     return (
         <div className="container mx-auto py-8 px-4">
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-2xl text-primary flex items-center"><Check className="mr-3 h-8 w-8 text-green-500 bg-green-100 rounded-full p-1" />Invoice Generated: {generatedInvoice.id}</CardTitle>
-                    <CardDescription>
-                        Invoice for {generatedInvoice.customerName || "Walk-in Customer"} created. Now, record the payment received.
-                    </CardDescription>
+                    <div className="flex justify-between items-start">
+                        <div>
+                        <CardTitle className="text-2xl text-primary flex items-center">
+                            <Check className="mr-3 h-8 w-8 text-green-500 bg-green-100 rounded-full p-1" />
+                            Invoice {isFullyPaid ? 'Paid' : 'Generated'}: {generatedInvoice.id}
+                        </CardTitle>
+                        <CardDescription>
+                            Invoice for {generatedInvoice.customerName || "Walk-in Customer"} created. Now, record payments received.
+                        </CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleNewSale}>Start New Sale</Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div>
-                        <p className="text-sm text-muted-foreground">Amount Due</p>
-                        <p className="text-4xl font-bold text-primary">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                        <div className="p-3 bg-muted rounded-md">
+                            <p className="text-sm text-muted-foreground">Total Amount</p>
+                            <p className="text-2xl font-bold">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        </div>
+                         <div className="p-3 bg-muted rounded-md">
+                            <p className="text-sm text-muted-foreground">Amount Paid</p>
+                            <p className="text-2xl font-bold text-green-600">PKR {generatedInvoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        </div>
+                         <div className="p-3 bg-primary/10 rounded-md">
+                            <p className="text-sm text-primary">Balance Due</p>
+                            <p className="text-2xl font-bold text-primary">PKR {generatedInvoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                        </div>
                     </div>
                     <Separator />
-                     <div className="space-y-4">
-                        <Label htmlFor="payment-amount" className="font-semibold">Enter Payment Received</Label>
-                        <div className="flex items-center gap-2">
-                            <Input 
-                                id="payment-amount"
-                                type="number"
-                                placeholder="Enter amount received"
-                                value={paymentAmount}
-                                onChange={(e) => setPaymentAmount(e.target.value)}
-                                className="text-lg h-12"
-                                disabled={isSubmittingPayment}
-                            />
+
+                    {!isFullyPaid && (
+                        <div className="space-y-4">
+                            <Label htmlFor="payment-amount" className="font-semibold">Enter Payment Received</Label>
+                            <div className="flex items-center gap-2">
+                                <Input 
+                                    id="payment-amount"
+                                    type="number"
+                                    placeholder="Enter amount received"
+                                    value={paymentAmount}
+                                    onChange={(e) => setPaymentAmount(e.target.value)}
+                                    className="text-lg h-12"
+                                    disabled={isSubmittingPayment}
+                                />
+                                <Button 
+                                    onClick={() => handleRecordPayment(parseFloat(paymentAmount))}
+                                    disabled={isSubmittingPayment || !paymentAmount || parseFloat(paymentAmount) <= 0}
+                                    className="h-12"
+                                >
+                                    {isSubmittingPayment ? <Loader2 className="animate-spin" /> : <Banknote className="mr-2"/>}
+                                    Record Partial Payment
+                                </Button>
+                            </div>
                             <Button 
-                                onClick={() => handleRecordPayment(parseFloat(paymentAmount))}
-                                disabled={isSubmittingPayment || !paymentAmount || parseFloat(paymentAmount) < 0}
-                                className="h-12"
+                                onClick={() => handleRecordPayment(0, true)}
+                                disabled={isSubmittingPayment}
+                                variant="default"
+                                size="lg"
+                                className="w-full"
                             >
-                                {isSubmittingPayment ? <Loader2 className="animate-spin" /> : <Banknote className="mr-2"/>}
-                                Record Partial Payment
+                                {isSubmittingPayment ? <Loader2 className="animate-spin" /> : <Check className="mr-2"/>}
+                                Mark as Fully Paid (Pay PKR {generatedInvoice.balanceDue.toLocaleString()})
                             </Button>
                         </div>
-                         <Button 
-                            onClick={() => handleRecordPayment(generatedInvoice.grandTotal)}
-                            disabled={isSubmittingPayment}
-                            variant="default"
-                            size="lg"
-                            className="w-full"
-                        >
-                            {isSubmittingPayment ? <Loader2 className="animate-spin" /> : <Check className="mr-2"/>}
-                            Mark as Fully Paid
-                        </Button>
-                    </div>
+                    )}
+                     
                      <Separator />
                     <div className="p-4 border rounded-lg bg-muted/50">
-                        <Label htmlFor="whatsapp-number">Send Estimate to Customer via WhatsApp</Label>
+                        <Label htmlFor="whatsapp-number">Send Updated Estimate to Customer via WhatsApp</Label>
                         <div className="flex gap-2 mt-2">
                              <PhoneInput
                                 name="phone"
@@ -537,18 +601,17 @@ export default function CartPage() {
                             />
                              <Button onClick={() => handleSendWhatsApp(generatedInvoice)}>
                                 <MessageSquare className="mr-2 h-4 w-4"/>
-                                Send
+                                Send Update
                              </Button>
                         </div>
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={handleNewSale}>Skip Payment & Start New Sale</Button>
                     <Button onClick={() => {
                         if (typeof window !== 'undefined') {
                             printInvoice(generatedInvoice);
                         }
-                    }}><Printer className="mr-2 h-4 w-4"/> Print Invoice</Button>
+                    }}><Printer className="mr-2 h-4 w-4"/> Print Updated Invoice</Button>
                 </CardFooter>
             </Card>
             <div style={{ display: 'none' }}>

@@ -255,6 +255,8 @@ export interface Invoice {
   subtotal: number;
   discountAmount: number;
   grandTotal: number;
+  amountPaid: number;
+  balanceDue: number;
   createdAt: string; // ISO string
   goldRateApplied?: number | null; // This is the 24k rate that was used for calculation
   palladiumRateApplied?: number | null;
@@ -479,6 +481,7 @@ export interface AppState {
     invoiceGoldRate24k: number,
     discountAmount: number
   ) => Promise<Invoice | null>;
+  updateInvoicePayment: (invoiceId: string, paymentAmount: number) => Promise<Invoice | null>;
   
   loadOrders: () => void;
   addOrder: (orderData: OrderDataForAdd) => Promise<Order | null>;
@@ -961,7 +964,9 @@ export const useAppStore = create<AppState>()(
           }),
           subtotal: Number(subtotal) || 0,
           discountAmount: calculatedDiscountAmount, 
-          grandTotal: Number(grandTotal) || 0, 
+          grandTotal: Number(grandTotal) || 0,
+          amountPaid: 0,
+          balanceDue: Number(grandTotal) || 0,
           createdAt: new Date().toISOString(),
           goldRateApplied: hasGoldItems && ratesForInvoice.goldRatePerGram24k > 0 ? ratesForInvoice.goldRatePerGram24k : null,
           palladiumRateApplied: hasPalladiumItems && ratesForInvoice.palladiumRatePerGram > 0 ? ratesForInvoice.palladiumRatePerGram : null,
@@ -1012,6 +1017,35 @@ export const useAppStore = create<AppState>()(
             return newInvoice;
         } catch (error) {
             console.error("[GemsTrack Store generateInvoice] Error committing invoice batch to Firestore:", error);
+            return null;
+        }
+      },
+
+      updateInvoicePayment: async (invoiceId, paymentAmount) => {
+        const invoice = get().generatedInvoices.find(inv => inv.id === invoiceId);
+        if (!invoice) {
+            console.error(`[updateInvoicePayment] Invoice with ID ${invoiceId} not found.`);
+            return null;
+        }
+        
+        const newAmountPaid = invoice.amountPaid + paymentAmount;
+        const newBalanceDue = invoice.grandTotal - newAmountPaid;
+
+        const updatedFields = {
+            amountPaid: newAmountPaid,
+            balanceDue: newBalanceDue,
+        };
+
+        try {
+            const invoiceDocRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
+            await setDoc(invoiceDocRef, updatedFields, { merge: true });
+            console.log(`[updateInvoicePayment] Invoice ${invoiceId} updated with payment of ${paymentAmount}.`);
+            
+            // Return the updated invoice object for UI refresh
+            return { ...invoice, ...updatedFields };
+
+        } catch (error) {
+            console.error(`[updateInvoicePayment] Error updating invoice ${invoiceId} in Firestore:`, error);
             return null;
         }
       },
