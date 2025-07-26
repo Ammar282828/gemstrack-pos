@@ -4,24 +4,35 @@
 import React, { useMemo, useState } from 'react';
 import { useAppStore, useAppReady } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, BookUser, ArrowRight, User, Briefcase, ArrowDown, ArrowUp, Search } from 'lucide-react';
+import { Loader2, BookUser, ArrowRight, User, Briefcase, ArrowDown, ArrowUp, Search, PlusCircle, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useRouter } from 'next/navigation';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+
 
 type AccountSummary = {
   entityId: string;
   entityName: string;
   entityType: 'customer' | 'karigar';
-  cashBalance: number; // Positive means they owe us, negative means we owe them
-  goldBalance: number; // Positive means they owe us, negative means we owe them
+  cashBalance: number; 
+  goldBalance: number; 
 };
 
 export default function HisaabPage() {
   const appReady = useAppReady();
+  const router = useRouter();
+  const { toast } = useToast();
   const hisaabEntries = useAppStore(state => state.hisaabEntries);
+  const settings = useAppStore(state => state.settings);
   const isLoading = useAppStore(state => state.isHisaabLoading);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const { accountSummaries, totalReceivable, totalPayable, totalReceivableGold, totalPayableGold } = useMemo(() => {
     if (!Array.isArray(hisaabEntries)) {
@@ -67,6 +78,49 @@ export default function HisaabPage() {
     );
   }, [accountSummaries, searchTerm]);
 
+  const handlePrintReport = () => {
+    if (!settings) {
+        toast({ title: "Error", description: "Settings not loaded, cannot generate report.", variant: "destructive" });
+        return;
+    }
+
+    const doc = new jsPDF();
+    doc.setFont("helvetica", "bold").setFontSize(18);
+    doc.text(`Hisaab Summary Report`, 14, 22);
+    doc.setFontSize(10);
+    doc.text(`As of: ${format(new Date(), 'PPpp')}`, 14, 29);
+
+    const tableColumns = ["#", "Name", "Type", "Cash Balance (PKR)", "Gold Balance (g)"];
+    const tableRows = filteredSummaries.map((summary, index) => {
+        const cashBalanceText = summary.cashBalance > 0 
+            ? `${summary.cashBalance.toLocaleString()} (Receivable)` 
+            : `${Math.abs(summary.cashBalance).toLocaleString()} (Payable)`;
+        
+        const goldBalanceText = summary.goldBalance > 0 
+            ? `${summary.goldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} (Receivable)`
+            : `${Math.abs(summary.goldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})} (Payable)`;
+
+        return [
+            index + 1,
+            summary.entityName,
+            summary.entityType.charAt(0).toUpperCase() + summary.entityType.slice(1),
+            cashBalanceText,
+            goldBalanceText
+        ];
+    });
+
+    doc.autoTable({
+        head: [tableColumns],
+        body: tableRows,
+        startY: 40,
+        theme: 'grid',
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+    });
+
+    doc.save(`Hisaab-Summary-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    toast({ title: "Report Downloaded", description: "Hisaab summary PDF has been generated." });
+  };
+
 
   if (!appReady || (isLoading && hisaabEntries.length === 0)) {
     return (
@@ -78,20 +132,38 @@ export default function HisaabPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4 relative pb-24">
+       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add a New Entry</DialogTitle>
+                    <DialogDescription>
+                        Who would you like to add to your ledger?
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                    <Button variant="outline" size="lg" onClick={() => { setIsAddDialogOpen(false); router.push('/customers/add'); }}>
+                        <User className="mr-2 h-5 w-5"/> New Customer
+                    </Button>
+                    <Button variant="outline" size="lg" onClick={() => { setIsAddDialogOpen(false); router.push('/karigars/add'); }}>
+                        <Briefcase className="mr-2 h-5 w-5"/> New Karigar
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+       </Dialog>
+       
        <header className="mb-8">
         <h1 className="text-3xl font-bold text-primary flex items-center"><BookUser className="mr-3 h-8 w-8"/>Hisaab / Ledger</h1>
         <p className="text-muted-foreground">Summary of all outstanding accounts for customers and karigars.</p>
       </header>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <Card className="bg-destructive/10 border-destructive/20">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <Card className="bg-red-500/10 border-red-500/20">
           <CardHeader>
             <CardTitle className="flex items-center text-destructive">
               <ArrowDown className="mr-2 h-5 w-5"/>
-              Total Receivable
+              You will Get (Receivable)
             </CardTitle>
-            <CardDescription>Total amount you will get from all accounts.</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-destructive">PKR {totalReceivable.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
@@ -102,9 +174,8 @@ export default function HisaabPage() {
           <CardHeader>
             <CardTitle className="flex items-center text-green-700 dark:text-green-500">
                 <ArrowUp className="mr-2 h-5 w-5"/>
-                Total Payable
+                You will Give (Payable)
             </CardTitle>
-            <CardDescription>Total amount you will give to all accounts.</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-700 dark:text-green-500">PKR {totalPayable.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
@@ -113,65 +184,48 @@ export default function HisaabPage() {
         </Card>
       </div>
 
-      <div>
-          <h2 className="text-xl font-semibold mb-4">All Accounts</h2>
-          <div className="mb-6 relative">
-            <Input
-              type="search"
-              placeholder="Search by name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+      <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4 p-4 border rounded-lg bg-card sticky top-0 z-10">
+            <div className="relative flex-grow w-full">
+                <Input
+                type="search"
+                placeholder="Search by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-11"
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            </div>
+             <Button variant="outline" onClick={handlePrintReport} className="h-11 flex-shrink-0">
+                <FileText className="mr-2 h-4 w-4"/>
+                Export PDF
+            </Button>
           </div>
 
           {filteredSummaries.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-2">
                   {filteredSummaries.map(summary => (
-                      <Card key={summary.entityId} className="shadow-sm hover:shadow-md transition-shadow">
-                          <CardContent className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                              <div className="flex-grow">
-                                  <div className="flex items-center gap-2 mb-2">
-                                      {summary.entityType === 'customer' ? <User className="h-5 w-5 text-muted-foreground"/> : <Briefcase className="h-5 w-5 text-muted-foreground"/>}
-                                      <h3 className="font-bold text-lg text-primary">{summary.entityName}</h3>
-                                  </div>
-                                  <div className="flex flex-col sm:flex-row flex-wrap gap-4 text-sm">
-                                    {summary.cashBalance > 0 && (
-                                        <div className="text-destructive">
-                                            <p className="font-semibold">You'll Get (Cash)</p>
-                                            <p>PKR {summary.cashBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                                        </div>
-                                    )}
-                                    {summary.goldBalance > 0 && (
-                                        <div className="text-destructive">
-                                            <p className="font-semibold">You'll Get (Gold)</p>
-                                            <p>{summary.goldBalance.toLocaleString(undefined, { minimumFractionDigits: 3 })} g</p>
-                                        </div>
-                                    )}
-                                     {summary.cashBalance < 0 && (
-                                        <div className="text-green-600">
-                                            <p className="font-semibold">You'll Give (Cash)</p>
-                                            <p>PKR {Math.abs(summary.cashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                                        </div>
-                                    )}
-                                     {summary.goldBalance < 0 && (
-                                        <div className="text-green-600">
-                                            <p className="font-semibold">You'll Give (Gold)</p>
-                                            <p>{Math.abs(summary.goldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })} g</p>
-                                        </div>
-                                    )}
-                                  </div>
-                              </div>
-                              <div className="flex-shrink-0 w-full md:w-auto">
-                                   <Button asChild variant="outline" className="w-full">
-                                       <Link href={`/hisaab/${summary.entityId}?type=${summary.entityType}`}>
-                                           View Ledger <ArrowRight className="ml-2 h-4 w-4"/>
-                                       </Link>
-                                   </Button>
-                              </div>
-                          </CardContent>
-                      </Card>
+                      <Link href={`/hisaab/${summary.entityId}?type=${summary.entityType}`} key={summary.entityId}>
+                        <Card className="shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                            <CardContent className="p-4 flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center font-bold text-primary flex-shrink-0">
+                                        {summary.entityName.substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-base text-primary">{summary.entityName}</h3>
+                                        <p className="text-xs text-muted-foreground capitalize">{summary.entityType}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    {summary.cashBalance > 0 && <p className="font-semibold text-destructive">PKR {summary.cashBalance.toLocaleString()}</p>}
+                                    {summary.cashBalance < 0 && <p className="font-semibold text-green-600">PKR {Math.abs(summary.cashBalance).toLocaleString()}</p>}
+                                    {summary.goldBalance > 0 && <p className="text-xs text-destructive/80">{summary.goldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
+                                    {summary.goldBalance < 0 && <p className="text-xs text-green-600/80">{Math.abs(summary.goldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
+                                </div>
+                            </CardContent>
+                        </Card>
+                      </Link>
                   ))}
               </div>
           ) : (
@@ -182,6 +236,16 @@ export default function HisaabPage() {
               </Card>
           )}
       </div>
+
+       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-20">
+         <Button 
+            size="lg" 
+            className="rounded-full shadow-lg h-14 text-lg"
+            onClick={() => setIsAddDialogOpen(true)}
+        >
+            <PlusCircle className="mr-3 h-6 w-6"/> Add New
+         </Button>
+       </div>
     </div>
   );
 }

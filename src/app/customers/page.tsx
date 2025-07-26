@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users, Loader2, Eye } from 'lucide-react';
+import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users, Loader2, Eye, BookUser } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +25,11 @@ import { useToast } from '@/hooks/use-toast';
 const CustomerActions: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void>; isCard?: boolean }> = ({ customer, onDelete, isCard }) => {
   return (
       <div className={isCard ? 'flex gap-2' : 'flex justify-end space-x-2'}>
+           <Button asChild size="sm" variant="outline" className="flex-1">
+            <Link href={`/hisaab/${customer.id}?type=customer`}>
+                <BookUser className="w-4 h-4 mr-2" /> Ledger
+            </Link>
+            </Button>
           <Button asChild size="sm" variant={isCard ? 'default' : 'outline'} className="flex-1">
             <Link href={`/customers/${customer.id}/edit`}>
               <Edit3 className="w-4 h-4 mr-2" /> Edit
@@ -35,23 +40,6 @@ const CustomerActions: React.FC<{ customer: Customer; onDelete: (id: string) => 
                 <Eye className="w-4 h-4 mr-2" /> View
             </Link>
             </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="sm" variant="destructive" className="flex-1"><Trash2 className="w-4 h-4 mr-2" /> Delete</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the customer "{customer.name}".
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={async () => await onDelete(customer.id)}>Delete</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
   )
 }
