@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -10,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAppStore, Karigar } from '@/lib/store';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, User, Phone, StickyNote } from 'lucide-react';
 
@@ -29,8 +30,11 @@ interface KarigarFormProps {
 
 export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSuccess }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { addKarigar, updateKarigar } = useAppStore();
+
+  const redirectToHisaab = searchParams.get('redirect_to_hisaab') === 'true';
 
   const form = useForm<KarigarFormData>({
     resolver: zodResolver(karigarSchema),
@@ -52,18 +56,21 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
       if (isEditMode && karigar) {
         await updateKarigar(karigar.id, data);
         toast({ title: "Success", description: "Karigar details updated successfully." });
+        if (onSubmitSuccess) onSubmitSuccess();
+        else router.push(`/karigars/${karigar.id}`);
       } else {
         const newKarigar = await addKarigar(data);
         if (newKarigar) {
           toast({ title: "Success", description: `Karigar "${newKarigar.name}" added successfully.` });
+          if (onSubmitSuccess) onSubmitSuccess();
+          else if (redirectToHisaab) {
+            router.push(`/hisaab/${newKarigar.id}?type=karigar`);
+          } else {
+            router.push('/karigars');
+          }
         } else {
            toast({ title: "Error", description: "Failed to create new karigar.", variant: "destructive" });
         }
-      }
-      if (onSubmitSuccess) {
-        onSubmitSuccess();
-      } else {
-        router.push(isEditMode ? `/karigars/${karigar.id}` : '/karigars');
       }
     } catch (error) {
       toast({ title: "Error", description: "Failed to save karigar details.", variant: "destructive" });

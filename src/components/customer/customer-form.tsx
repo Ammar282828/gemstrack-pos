@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -11,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAppStore, Customer } from '@/lib/store';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban } from 'lucide-react';
 
@@ -31,8 +32,11 @@ interface CustomerFormProps {
 
 export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSuccess }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { addCustomer, updateCustomer } = useAppStore();
+
+  const redirectToHisaab = searchParams.get('redirect_to_hisaab') === 'true';
 
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
@@ -51,19 +55,26 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
 
   const isEditMode = !!customer;
 
-  const onSubmit = (data: CustomerFormData) => {
+  const onSubmit = async (data: CustomerFormData) => {
     try {
       if (isEditMode) {
-        updateCustomer(customer.id, data);
+        await updateCustomer(customer.id, data);
         toast({ title: "Success", description: "Customer updated successfully." });
+        if (onSubmitSuccess) onSubmitSuccess();
+        else router.push(`/customers/${customer.id}`);
       } else {
-        addCustomer(data);
-        toast({ title: "Success", description: "Customer added successfully." });
-      }
-      if (onSubmitSuccess) {
-        onSubmitSuccess();
-      } else {
-        router.push(isEditMode ? `/customers/${customer.id}` : '/customers');
+        const newCustomer = await addCustomer(data);
+        if (newCustomer) {
+          toast({ title: "Success", description: "Customer added successfully." });
+          if (onSubmitSuccess) onSubmitSuccess();
+          else if (redirectToHisaab) {
+            router.push(`/hisaab/${newCustomer.id}?type=customer`);
+          } else {
+            router.push('/customers');
+          }
+        } else {
+          toast({ title: "Error", description: "Failed to create customer.", variant: "destructive" });
+        }
       }
     } catch (error) {
       toast({ title: "Error", description: "Failed to save customer.", variant: "destructive" });
