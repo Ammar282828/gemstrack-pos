@@ -288,27 +288,21 @@ export default function EntityHisaabPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div className="p-4 rounded-lg bg-red-500/10 text-destructive">
-                <p className="text-sm">Cash You Will Get (Receivable)</p>
+                <p className="text-sm">You will Get (Receivable)</p>
                 <p className="text-2xl font-bold">
                     PKR {Math.max(0, balances.finalCashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
-            </div>
-             <div className="p-4 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400">
-                <p className="text-sm">Cash You Will Give (Payable)</p>
-                <p className="text-2xl font-bold">
-                    PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </p>
-            </div>
-             <div className="p-4 rounded-lg bg-red-500/10 text-destructive">
-                <p className="text-sm">Gold You Will Get (Receivable)</p>
-                <p className="text-2xl font-bold">
-                    {Math.max(0, balances.finalGoldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
+                 <p className="text-lg font-bold">
+                    {Math.max(0, balances.finalGoldBalance).toLocaleString(undefined, { minimumFraction Digits: 3 })} g
                 </p>
             </div>
              <div className="p-4 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400">
-                <p className="text-sm">Gold You Will Give (Payable)</p>
+                <p className="text-sm">You will Give (Payable)</p>
                 <p className="text-2xl font-bold">
-                    {Math.abs(Math.min(0, balances.finalGoldBalance)).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
+                    PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString(undefined, { minimumFraction Digits: 2 })}
+                </p>
+                 <p className="text-lg font-bold">
+                    {Math.abs(Math.min(0, balances.finalGoldBalance)).toLocaleString(undefined, { minimumFraction Digits: 3 })} g
                 </p>
             </div>
         </CardContent>
@@ -379,8 +373,8 @@ export default function EntityHisaabPage() {
                                         </TableCell>
                                         <TableCell className="text-right text-destructive">{entry.cashDebit > 0 ? entry.cashDebit.toLocaleString() : '-'}</TableCell>
                                         <TableCell className="text-right text-green-600">{entry.cashCredit > 0 ? entry.cashCredit.toLocaleString() : '-'}</TableCell>
-                                        <TableCell className="text-right text-destructive">{entry.goldDebitGrams > 0 ? entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3}) : '-'}</TableCell>
-                                        <TableCell className="text-right text-green-600">{entry.goldCreditGrams > 0 ? entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3}) : '-'}</TableCell>
+                                        <TableCell className="text-right text-destructive">{entry.goldDebitGrams > 0 ? entry.goldDebitGrams.toLocaleString(undefined, { minimumFraction Digits: 3 }) : '-'}</TableCell>
+                                        <TableCell className="text-right text-green-600">{entry.goldCreditGrams > 0 ? entry.goldCreditGrams.toLocaleString(undefined, { minimumFraction Digits: 3 }) : '-'}</TableCell>
                                         <TableCell className="text-right">
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
@@ -425,7 +419,7 @@ export default function EntityHisaabPage() {
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Description</FormLabel>
-                                    <FormControl><Textarea placeholder="e.g., Cash payment received" {...field} /></FormControl>
+                                    <FormControl><Textarea placeholder="e.g., Cash payment received, Sample given" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                                 )}
@@ -503,3 +497,5 @@ export default function EntityHisaabPage() {
     </div>
   );
 }
+
+    
