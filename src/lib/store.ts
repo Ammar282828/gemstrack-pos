@@ -432,6 +432,7 @@ export interface AppState {
   isHisaabLoading: boolean;
   
   // Data loaded flags
+  hasSettingsLoaded: boolean;
   hasProductsLoaded: boolean;
   hasCustomersLoaded: boolean;
   hasKarigarsLoaded: boolean;
@@ -532,6 +533,7 @@ export const useAppStore = create<AppState>()(
       isOrdersLoading: true,
       isHisaabLoading: true,
       
+      hasSettingsLoaded: false,
       hasProductsLoaded: false,
       hasCustomersLoaded: false,
       hasKarigarsLoaded: false,
@@ -540,9 +542,8 @@ export const useAppStore = create<AppState>()(
       hasHisaabLoaded: false,
 
       loadSettings: async () => {
-        if (!get().isSettingsLoading) {
-            set({ isSettingsLoading: true });
-        }
+        if (get().hasSettingsLoaded) return;
+        set({ isSettingsLoading: true });
         try {
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           const docSnap = await getDoc(settingsDocRef);
@@ -572,7 +573,7 @@ export const useAppStore = create<AppState>()(
           console.error("[GemsTrack Store loadSettings] Error loading settings from Firestore:", error);
           set((state) => { state.settings = initialSettingsData; }); // Fallback
         } finally {
-          set({ isSettingsLoading: false });
+          set({ isSettingsLoading: false, hasSettingsLoaded: true });
         }
       },
       updateSettings: async (newSettings) => {
@@ -609,17 +610,17 @@ export const useAppStore = create<AppState>()(
 
       loadProducts: () => {
         if (get().hasProductsLoaded) return;
-        set({ isProductsLoading: true });
+        set({ isProductsLoading: true, hasProductsLoaded: true });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.PRODUCTS), orderBy("sku"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
             const productList = snapshot.docs.map(doc => doc.data() as Product);
-            set({ products: productList, hasProductsLoaded: true, isProductsLoading: false });
+            set({ products: productList, isProductsLoading: false });
             console.log(`[GemsTrack Store] Real-time update: ${productList.length} products loaded.`);
           }, 
           (error) => {
             console.error("[GemsTrack Store] Error in products real-time listener:", error);
-            set({ products: [], isProductsLoading: false, hasProductsLoaded: true }); // Mark as loaded to prevent retries
+            set({ products: [], isProductsLoading: false }); // Mark as not loading
           }
         );
       },
@@ -727,17 +728,17 @@ export const useAppStore = create<AppState>()(
 
       loadCustomers: () => {
         if (get().hasCustomersLoaded) return;
-        set({ isCustomersLoading: true });
+        set({ isCustomersLoading: true, hasCustomersLoaded: true });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS), orderBy("name"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
             const customerList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer));
-            set({ customers: customerList, hasCustomersLoaded: true, isCustomersLoading: false });
+            set({ customers: customerList, isCustomersLoading: false });
             console.log(`[GemsTrack Store] Real-time update: ${customerList.length} customers loaded.`);
           },
           (error) => {
             console.error("[GemsTrack Store] Error in customers real-time listener:", error);
-            set({ customers: [], isCustomersLoading: false, hasCustomersLoaded: true });
+            set({ customers: [], isCustomersLoading: false });
           }
         );
       },
@@ -775,17 +776,17 @@ export const useAppStore = create<AppState>()(
 
       loadKarigars: () => {
         if (get().hasKarigarsLoaded) return;
-        set({ isKarigarsLoading: true });
+        set({ isKarigarsLoading: true, hasKarigarsLoaded: true });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.KARIGARS), orderBy("name"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
             const karigarList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Karigar));
-            set({ karigars: karigarList, hasKarigarsLoaded: true, isKarigarsLoading: false });
+            set({ karigars: karigarList, isKarigarsLoading: false });
             console.log(`[GemsTrack Store] Real-time update: ${karigarList.length} karigars loaded.`);
           },
           (error) => {
             console.error("[GemsTrack Store] Error in karigars real-time listener:", error);
-            set({ karigars: [], isKarigarsLoading: false, hasKarigarsLoaded: true });
+            set({ karigars: [], isKarigarsLoading: false });
           }
         );
       },
@@ -836,17 +837,17 @@ export const useAppStore = create<AppState>()(
 
       loadGeneratedInvoices: () => {
         if (get().hasInvoicesLoaded) return;
-        set({ isInvoicesLoading: true });
+        set({ isInvoicesLoading: true, hasInvoicesLoaded: true });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
             const invoiceList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Invoice));
-            set({ generatedInvoices: invoiceList, hasInvoicesLoaded: true, isInvoicesLoading: false });
+            set({ generatedInvoices: invoiceList, isInvoicesLoading: false });
             console.log(`[GemsTrack Store] Real-time update: ${invoiceList.length} invoices loaded.`);
           },
           (error) => {
             console.error("[GemsTrack Store] Error in invoices real-time listener:", error);
-            set({ generatedInvoices: [], isInvoicesLoading: false, hasInvoicesLoaded: true });
+            set({ generatedInvoices: [], isInvoicesLoading: false });
           }
         );
       },
@@ -1017,17 +1018,17 @@ export const useAppStore = create<AppState>()(
 
       loadOrders: () => {
         if (get().hasOrdersLoaded) return;
-        set({ isOrdersLoading: true });
+        set({ isOrdersLoading: true, hasOrdersLoaded: true });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
             const orderList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order));
-            set({ orders: orderList, hasOrdersLoaded: true, isOrdersLoading: false });
+            set({ orders: orderList, isOrdersLoading: false });
             console.log(`[GemsTrack Store] Real-time update: ${orderList.length} orders loaded.`);
           },
           (error) => {
             console.error("[GemsTrack Store] Error in orders real-time listener:", error);
-            set({ orders: [], isOrdersLoading: false, hasOrdersLoaded: true });
+            set({ orders: [], isOrdersLoading: false });
           }
         );
       },
@@ -1119,17 +1120,17 @@ export const useAppStore = create<AppState>()(
       
       loadHisaab: () => {
         if (get().hasHisaabLoaded) return;
-        set({ isHisaabLoading: true });
+        set({ isHisaabLoading: true, hasHisaabLoaded: true });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), orderBy("date", "desc"));
         const unsubscribe = onSnapshot(q,
           (snapshot) => {
             const entryList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as HisaabEntry));
-            set({ hisaabEntries: entryList, hasHisaabLoaded: true, isHisaabLoading: false });
+            set({ hisaabEntries: entryList, isHisaabLoading: false });
              console.log(`[GemsTrack Store] Real-time update: ${entryList.length} hisaab entries loaded.`);
           },
           (error) => {
             console.error("[GemsTrack Store] Error in hisaab real-time listener:", error);
-            set({ hisaabEntries: [], isHisaabLoading: false, hasHisaabLoaded: true });
+            set({ hisaabEntries: [], isHisaabLoading: false });
           }
         );
       },
