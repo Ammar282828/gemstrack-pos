@@ -4,7 +4,7 @@
 import React, { useMemo, useState } from 'react';
 import { useAppStore, HisaabEntry, Customer, Karigar, useAppReady, Settings } from '@/lib/store';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useForm, Control } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -33,6 +33,9 @@ import {
 import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
+
 
 // Re-declare module for jsPDF in this file as well
 declare module 'jspdf' {
@@ -43,15 +46,68 @@ declare module 'jspdf' {
 
 const hisaabEntrySchema = z.object({
   description: z.string().min(1, "Description is required"),
-  cashGot: z.coerce.number().default(0), // Money you receive
-  cashGave: z.coerce.number().default(0), // Money you give
-  goldGotGrams: z.coerce.number().default(0), // Gold you receive
-  goldGaveGrams: z.coerce.number().default(0), // Gold you give
+  amount: z.coerce.number().min(0, "Amount must be non-negative").default(0),
+  goldGrams: z.coerce.number().min(0, "Gold must be non-negative").default(0),
 });
 
 type HisaabEntryFormData = z.infer<typeof hisaabEntrySchema>;
-type PhoneForm = {
-    phone: string;
+type PhoneForm = { phone: string; };
+type TransactionMode = 'gave' | 'got';
+
+const AddTransactionDialog: React.FC<{
+    mode: TransactionMode;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSubmit: (data: HisaabEntryFormData) => Promise<void>;
+}> = ({ mode, open, onOpenChange, onSubmit }) => {
+    const form = useForm<HisaabEntryFormData>({
+        resolver: zodResolver(hisaabEntrySchema),
+        defaultValues: { description: '', amount: 0, goldGrams: 0 }
+    });
+
+    const isGaveMode = mode === 'gave';
+
+    const handleFormSubmit = async (data: HisaabEntryFormData) => {
+        await onSubmit(data);
+        form.reset();
+        onOpenChange(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className={cn("flex items-center gap-2", isGaveMode ? 'text-destructive' : 'text-green-600')}>
+                        {isGaveMode ? <ArrowUp /> : <ArrowDown />}
+                        {isGaveMode ? 'You Gave' : 'You Got'}
+                    </DialogTitle>
+                    <DialogDescription>
+                        Record a transaction for money or gold you {isGaveMode ? 'gave to' : 'received from'} this person.
+                    </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-4">
+                        <FormField control={form.control} name="description" render={({ field }) => (
+                            <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g., Cash payment received, Sample given" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="amount" render={({ field }) => (
+                            <FormItem><FormLabel>Cash Amount (PKR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="goldGrams" render={({ field }) => (
+                            <FormItem><FormLabel>Gold (grams)</FormLabel><FormControl><Input type="number" step="0.001" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <DialogFooter>
+                            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                            <Button type="submit" disabled={form.formState.isSubmitting} className={cn(isGaveMode ? 'bg-destructive hover:bg-destructive/90' : 'bg-green-600 hover:bg-green-700')}>
+                                {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
+                                Save Transaction
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
 };
 
 
@@ -83,34 +139,18 @@ export default function EntityHisaabPage() {
   const balances = useMemo(() => {
     let cashBalance = 0;
     let goldBalance = 0;
-    // Iterate backwards to calculate running balance correctly with sorted entries
-    const entriesWithRunningBalance = [...entityHisaab].reverse().map(entry => {
+    [...entityHisaab].reverse().forEach(entry => {
       cashBalance += (entry.cashDebit - entry.cashCredit);
       goldBalance += (entry.goldDebitGrams - entry.goldCreditGrams);
-      return { ...entry, runningCashBalance: cashBalance, runningGoldBalance: goldBalance };
-    }).reverse();
-
-    return {
-      finalCashBalance: cashBalance,
-      finalGoldBalance: goldBalance,
-      entriesWithRunningBalance,
-    };
+    });
+    return { finalCashBalance: cashBalance, finalGoldBalance: goldBalance };
   }, [entityHisaab]);
   
-  const form = useForm<HisaabEntryFormData>({
-    resolver: zodResolver(hisaabEntrySchema),
-    defaultValues: {
-      description: '',
-      cashGot: 0,
-      cashGave: 0,
-      goldGotGrams: 0,
-      goldGaveGrams: 0,
-    }
-  });
-
   const phoneForm = useForm<PhoneForm>({ defaultValues: { phone: (entity as Customer)?.phone || '' } });
   
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [dialogMode, setDialogMode] = useState<TransactionMode>('gave');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const onDeleteEntry = async (entryId: string) => {
       setIsDeleting(entryId);
@@ -128,36 +168,34 @@ export default function EntityHisaabPage() {
   const onAddEntry = async (data: HisaabEntryFormData) => {
     if (!entity) return;
     
-    // cashGave (debit) means they owe you more
-    // cashGot (credit) means they owe you less
     const newEntryData: Omit<HisaabEntry, 'id'> = {
         entityId: entity.id,
         entityType: entityType,
         entityName: entity.name,
         date: new Date().toISOString(),
         description: data.description,
-        cashDebit: data.cashGave,
-        cashCredit: data.cashGot,
-        goldDebitGrams: data.goldGaveGrams,
-        goldCreditGrams: data.goldGotGrams,
+        cashDebit: dialogMode === 'gave' ? data.amount : 0,
+        cashCredit: dialogMode === 'got' ? data.amount : 0,
+        goldDebitGrams: dialogMode === 'gave' ? data.goldGrams : 0,
+        goldCreditGrams: dialogMode === 'got' ? data.goldGrams : 0,
     };
 
     const result = await addHisaabEntry(newEntryData);
     if(result) {
         toast({ title: "Success", description: "New hisaab entry added." });
-        form.reset();
     } else {
         toast({ title: "Error", description: "Failed to add hisaab entry.", variant: "destructive" });
     }
   };
 
   const handleSendReminder = () => {
+    if (!settings) return;
     const whatsAppNumber = phoneForm.getValues('phone');
     if (!whatsAppNumber) {
         toast({ title: "No Phone Number", description: "Please enter the customer's phone number.", variant: "destructive" });
         return;
     }
-    if (!entity || !settings || balances.finalCashBalance <= 0) {
+    if (!entity || balances.finalCashBalance <= 0) {
         toast({ title: "No Outstanding Balance", description: "This customer does not have a receivable balance.", variant: "default" });
         return;
     }
@@ -217,7 +255,7 @@ export default function EntityHisaabPage() {
     // Table
     const tableStartY = summaryY + 15;
     const tableColumns = ["Date", "Description", "Cash Given (-)", "Cash Got (+)", "Gold Given (g)", "Gold Got (g)"];
-    const tableRows = balances.entriesWithRunningBalance.map(entry => [
+    const tableRows = entityHisaab.map(entry => [
         format(parseISO(entry.date), 'dd-MMM-yy'),
         entry.description,
         entry.cashDebit > 0 ? entry.cashDebit.toLocaleString() : '-',
@@ -268,6 +306,7 @@ export default function EntityHisaabPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-6">
+       <AddTransactionDialog mode={dialogMode} open={isDialogOpen} onOpenChange={setIsDialogOpen} onSubmit={onAddEntry} />
        <header className="mb-2">
          <Button variant="outline" onClick={() => router.back()} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Summary
@@ -288,32 +327,32 @@ export default function EntityHisaabPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div className="p-4 rounded-lg bg-red-500/10 text-destructive">
-                <p className="text-sm">You will Get (Receivable)</p>
+                <p className="text-sm font-semibold">You will Get (Receivable)</p>
                 <p className="text-2xl font-bold">
                     PKR {Math.max(0, balances.finalCashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
                  <p className="text-lg font-bold">
-                    {Math.max(0, balances.finalGoldBalance).toLocaleString(undefined, { minimumFraction Digits: 3 })} g
+                    {Math.max(0, balances.finalGoldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
                 </p>
             </div>
              <div className="p-4 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400">
-                <p className="text-sm">You will Give (Payable)</p>
+                <p className="text-sm font-semibold">You will Give (Payable)</p>
                 <p className="text-2xl font-bold">
-                    PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString(undefined, { minimumFraction Digits: 2 })}
+                    PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
                  <p className="text-lg font-bold">
-                    {Math.abs(Math.min(0, balances.finalGoldBalance)).toLocaleString(undefined, { minimumFraction Digits: 3 })} g
+                    {Math.abs(Math.min(0, balances.finalGoldBalance)).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
                 </p>
             </div>
         </CardContent>
          <CardFooter className="flex flex-wrap gap-2">
-            <Button onClick={handlePrintLedger} variant="outline">
+            <Button onClick={handlePrintLedger} variant="outline" disabled={!settings}>
                 <FileText className="mr-2 h-4 w-4" /> Download PDF Report
             </Button>
             {entityType === 'customer' && balances.finalCashBalance > 0 && (
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button variant="default">
+                        <Button variant="default" disabled={!settings}>
                             <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
                         </Button>
                     </AlertDialogTrigger>
@@ -328,7 +367,8 @@ export default function EntityHisaabPage() {
                              <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
                              <PhoneInput
                                 name="phone"
-                                control={phoneForm.control as unknown as Control}
+                                countryCallingCodeEditable={false}
+                                control={phoneForm.control as unknown as any}
                                 defaultCountry="PK"
                                 international
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
@@ -344,158 +384,74 @@ export default function EntityHisaabPage() {
         </CardFooter>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Transaction History</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {balances.entriesWithRunningBalance.length > 0 ? (
-                        <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date & Description</TableHead>
-                                    <TableHead className="text-right">Cash Gave (-)</TableHead>
-                                    <TableHead className="text-right">Cash Got (+)</TableHead>
-                                    <TableHead className="text-right">Gold Gave (g)</TableHead>
-                                    <TableHead className="text-right">Gold Got (g)</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {balances.entriesWithRunningBalance.map(entry => (
-                                    <TableRow key={entry.id}>
-                                        <TableCell>
-                                            <div className="font-medium">{entry.description}</div>
-                                            <div className="text-xs text-muted-foreground">{format(parseISO(entry.date), 'MMM d, yyyy, h:mm a')}</div>
-                                        </TableCell>
-                                        <TableCell className="text-right text-destructive">{entry.cashDebit > 0 ? entry.cashDebit.toLocaleString() : '-'}</TableCell>
-                                        <TableCell className="text-right text-green-600">{entry.cashCredit > 0 ? entry.cashCredit.toLocaleString() : '-'}</TableCell>
-                                        <TableCell className="text-right text-destructive">{entry.goldDebitGrams > 0 ? entry.goldDebitGrams.toLocaleString(undefined, { minimumFraction Digits: 3 }) : '-'}</TableCell>
-                                        <TableCell className="text-right text-green-600">{entry.goldCreditGrams > 0 ? entry.goldCreditGrams.toLocaleString(undefined, { minimumFraction Digits: 3 }) : '-'}</TableCell>
-                                        <TableCell className="text-right">
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" disabled={isDeleting === entry.id}>
-                                                        {isDeleting === entry.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive"/>}
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2"/>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>This action cannot be undone. This will permanently delete the transaction: "{entry.description}".</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => onDeleteEntry(entry.id)}>Delete</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                        </div>
-                    ) : (
-                        <p className="text-center text-muted-foreground py-8">No transactions found for {entity.name}.</p>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
-        <div>
-            <Card className="sticky top-8">
-                <CardHeader>
-                    <CardTitle>Add New Transaction</CardTitle>
-                </CardHeader>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onAddEntry)}>
-                        <CardContent className="space-y-4">
-                            <FormField
-                                control={form.control}
-                                name="description"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Description</FormLabel>
-                                    <FormControl><Textarea placeholder="e.g., Cash payment received, Sample given" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            
-                            <Separator />
-                            <div className="p-3 rounded-md bg-green-500/10">
-                                <p className="text-sm font-bold text-green-700 dark:text-green-400 mb-2 flex items-center">
-                                    <ArrowDown className="mr-2 h-4 w-4"/> You Got (Received)
-                                </p>
-                                 <FormField
-                                    control={form.control}
-                                    name="cashGot"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Cash Got (PKR)</FormLabel>
-                                        <FormControl><Input type="number" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
+      <div className="space-y-4">
+        <Card>
+            <CardHeader>
+                <CardTitle>Transaction History</CardTitle>
+                <CardDescription>A chronological log of all transactions with {entity.name}.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <Button variant="default" className="bg-destructive hover:bg-destructive/90" size="lg" onClick={() => { setDialogMode('gave'); setIsDialogOpen(true); }}>
+                        <ArrowUp className="mr-2 h-5 w-5"/> You Gave
+                    </Button>
+                     <Button variant="default" className="bg-green-600 hover:bg-green-700" size="lg" onClick={() => { setDialogMode('got'); setIsDialogOpen(true); }}>
+                        <ArrowDown className="mr-2 h-5 w-5"/> You Got
+                    </Button>
+                </div>
+                
+                {entityHisaab.length > 0 ? (
+                    <div className="space-y-3">
+                        {entityHisaab.map(entry => (
+                            <div key={entry.id} className="flex items-center gap-4 p-3 rounded-md border bg-muted/30">
+                                <div className={cn("flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center", entry.cashCredit > 0 || entry.goldCreditGrams > 0 ? "bg-green-100 dark:bg-green-900/50" : "bg-red-100 dark:bg-red-900/50")}>
+                                     {entry.cashCredit > 0 || entry.goldCreditGrams > 0 
+                                      ? <ArrowDown className="h-5 w-5 text-green-600 dark:text-green-400" /> 
+                                      : <ArrowUp className="h-5 w-5 text-destructive" />
+                                     }
+                                </div>
+                                <div className="flex-grow">
+                                    <p className="font-semibold">{entry.description}</p>
+                                    <p className="text-xs text-muted-foreground">{format(parseISO(entry.date), 'MMM d, yyyy, h:mm a')}</p>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                    {(entry.cashCredit > 0 || entry.cashDebit > 0) && (
+                                        <p className={cn("font-bold", entry.cashCredit > 0 ? 'text-green-600' : 'text-destructive')}>
+                                            PKR {(entry.cashCredit || entry.cashDebit).toLocaleString()}
+                                        </p>
                                     )}
-                                />
-                                 <FormField
-                                    control={form.control}
-                                    name="goldGotGrams"
-                                    render={({ field }) => (
-                                    <FormItem className="mt-2">
-                                        <FormLabel>Gold Got (grams)</FormLabel>
-                                        <FormControl><Input type="number" step="0.001" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
+                                    {(entry.goldCreditGrams > 0 || entry.goldDebitGrams > 0) && (
+                                         <p className={cn("text-sm", entry.goldCreditGrams > 0 ? 'text-green-600' : 'text-destructive')}>
+                                            {(entry.goldCreditGrams || entry.goldDebitGrams).toLocaleString(undefined, {minimumFractionDigits: 3})} g
+                                        </p>
                                     )}
-                                />
+                                </div>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" disabled={isDeleting === entry.id}>
+                                            {isDeleting === entry.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive"/>}
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2"/>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>This action cannot be undone. This will permanently delete the transaction: "{entry.description}".</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => onDeleteEntry(entry.id)}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </div>
-                            
-                            <Separator />
-                             <div className="p-3 rounded-md bg-red-500/10">
-                                <p className="text-sm font-bold text-destructive mb-2 flex items-center">
-                                   <ArrowUp className="mr-2 h-4 w-4"/> You Gave
-                                </p>
-                                <FormField
-                                    control={form.control}
-                                    name="cashGave"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Cash Gave (PKR)</FormLabel>
-                                        <FormControl><Input type="number" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="goldGaveGrams"
-                                    render={({ field }) => (
-                                    <FormItem className="mt-2">
-                                        <FormLabel>Gold Gave (grams)</FormLabel>
-                                        <FormControl><Input type="number" step="0.001" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                            </div>
-                        </CardContent>
-                        <CardFooter>
-                            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                                {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                                Save Transaction
-                            </Button>
-                        </CardFooter>
-                    </form>
-                </Form>
-            </Card>
-        </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-center text-muted-foreground py-8">No transactions found. Add one using the buttons above.</p>
+                )}
+            </CardContent>
+        </Card>
       </div>
     </div>
   );
 }
-
-    
