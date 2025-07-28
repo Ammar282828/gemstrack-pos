@@ -277,6 +277,7 @@ export interface OrderItem {
   description: string;
   karat: KaratValue;
   estimatedWeightG: number;
+  wastagePercentage: number;
   makingCharges: number;
   diamondCharges: number;
   stoneCharges: number;
@@ -288,6 +289,7 @@ export interface OrderItem {
   stoneDetails?: string;
   diamondDetails?: string;
   metalCost?: number;
+  wastageCost?: number;
   totalEstimate?: number;
 }
 
@@ -1388,3 +1390,5 @@ export const useIsStoreHydrated = () => {
         () => false
     );
 };
+
+    

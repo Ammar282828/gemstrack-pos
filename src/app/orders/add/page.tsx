@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare } from 'lucide-react';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -42,6 +42,7 @@ const orderItemSchema = z.object({
   description: z.string().min(3, "Description is required"),
   karat: z.enum(karatValues),
   estimatedWeightG: z.coerce.number().min(0.1, "Weight must be a positive number"),
+  wastagePercentage: z.coerce.number().min(0, "Wastage must be non-negative").default(0),
   makingCharges: z.coerce.number().min(0).default(0),
   diamondCharges: z.coerce.number().min(0).default(0),
   stoneCharges: z.coerce.number().min(0).default(0),
@@ -72,7 +73,7 @@ type EnrichedOrderFormData = OrderFormData & {
     id: string; // The generated order ID
     subtotal: number;
     grandTotal: number;
-    items: (OrderItemData & { metalCost: number; totalEstimate: number; })[];
+    items: (OrderItemData & { metalCost: number; totalEstimate: number; wastageCost: number; })[];
 };
 
 const WALK_IN_CUSTOMER_VALUE = "__WALK_IN__";
@@ -260,13 +261,13 @@ export default function CustomOrderPage() {
     const ratesForCalc = { goldRatePerGram24k: goldRate24k, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
 
     formValues.items.forEach(item => {
-        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds } = item;
+        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage } = item;
         if (!estimatedWeightG || estimatedWeightG <= 0 || !goldRate24k || goldRate24k <= 0) return;
 
         const productForCalc = {
           categoryId: '', // Custom orders don't have a category, but the function needs it.
           metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
-          wastagePercentage: 0, makingCharges, hasDiamonds,
+          wastagePercentage: wastagePercentage, makingCharges, hasDiamonds,
           diamondCharges, stoneCharges, miscCharges: 0
         };
         
@@ -285,16 +286,16 @@ export default function CustomOrderPage() {
     const goldRate24k = (data.goldRate || 0) * (24 / 21);
     const ratesForCalc = { goldRatePerGram24k: goldRate24k, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
 
-    const enrichedItems: (OrderItemData & { metalCost: number; totalEstimate: number })[] = data.items.map((item) => {
-        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds } = item;
+    const enrichedItems: (OrderItemData & { metalCost: number; wastageCost: number; totalEstimate: number; })[] = data.items.map((item) => {
+        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage } = item;
         const productForCalc = {
           categoryId: '', // Custom orders don't have a category
           metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
-          wastagePercentage: 0, makingCharges, hasDiamonds,
+          wastagePercentage: wastagePercentage, makingCharges, hasDiamonds,
           diamondCharges, stoneCharges, miscCharges: 0
         };
         const costs = calculateProductCosts(productForCalc, ratesForCalc);
-        return { ...item, isCompleted: false, metalCost: costs.metalCost, totalEstimate: costs.totalPrice };
+        return { ...item, isCompleted: false, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
     });
 
     const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
@@ -351,6 +352,7 @@ export default function CustomOrderPage() {
       const description = `${item.description}\nKarat: ${item.karat.toUpperCase()}${item.referenceSku ? ` | Ref SKU: ${item.referenceSku}` : ''}${item.sampleGiven ? ` | Sample Provided` : ''}`;
       const itemBreakdown = [
         `Metal Cost: PKR ${item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+        item.wastageCost > 0 ? `+ Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null,
         item.makingCharges > 0 ? `+ Making Charges: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null,
         item.diamondCharges > 0 ? `+ Diamond Charges: PKR ${item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null,
         item.stoneCharges > 0 ? `+ Other Stone Charges: PKR ${item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null
@@ -484,6 +486,7 @@ export default function CustomOrderPage() {
         description: '',
         karat: '21k',
         estimatedWeightG: 0,
+        wastagePercentage: 10,
         makingCharges: 0,
         diamondCharges: 0,
         stoneCharges: 0,
@@ -528,7 +531,7 @@ export default function CustomOrderPage() {
                                 <FormField control={form.control} name={`items.${index}.description`} render={({ field }) => (
                                     <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g., Custom 22k gold ring with ruby stone" {...field} rows={2}/></FormControl><FormMessage /></FormItem>
                                 )}/>
-                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <FormField control={form.control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>Est. Gold Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
@@ -537,6 +540,9 @@ export default function CustomOrderPage() {
                                         <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                             <SelectContent>{karatValues.map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
                                         </Select><FormMessage /></FormItem>
+                                    )}/>
+                                     <FormField control={form.control} name={`items.${index}.wastagePercentage`} render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center"><Percent className="mr-2 h-4 w-4"/>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                  </div>
                                 <Separator />
@@ -685,7 +691,7 @@ export default function CustomOrderPage() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <Button type="submit" size="lg" className="w-full" disabled={!form.formState.isValid || fields.length === 0 || form.formState.isSubmitting}>
+                        <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
                             {form.formState.isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <FileText className="mr-2 h-5 w-5" />}
                              {form.formState.isSubmitting ? "Saving Order..." : "Save Order & Generate Estimate"}
                         </Button>
@@ -716,6 +722,7 @@ export default function CustomOrderPage() {
                                 <p className="font-bold">Item #{index+1}: {item.description}</p>
                                 <p className="text-sm text-muted-foreground">
                                     Est. Wt: {item.estimatedWeightG}g ({item.karat.toUpperCase()})
+                                    {item.wastagePercentage > 0 && ` | Wastage: ${item.wastagePercentage}%`}
                                     {item.referenceSku && ` | Ref: ${item.referenceSku}`}
                                     {item.sampleGiven && ` | Sample Provided`}
                                 </p>
@@ -733,6 +740,7 @@ export default function CustomOrderPage() {
                                 )}
                                 <div className="text-sm mt-2 p-2 bg-muted/50 rounded-md">
                                     <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                    {item.wastageCost > 0 && <div className="flex justify-between"><span>+ Wastage Cost:</span> <span className="font-semibold">PKR {item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                                     {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                                     {item.diamondCharges > 0 && <div className="flex justify-between"><span>+ Diamond Charges:</span> <span className="font-semibold">PKR {item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                                     {item.stoneCharges > 0 && <div className="flex justify-between"><span>+ Other Stone Charges:</span> <span className="font-semibold">PKR {item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
@@ -786,3 +794,5 @@ export default function CustomOrderPage() {
     </div>
   );
 }
+
+    
