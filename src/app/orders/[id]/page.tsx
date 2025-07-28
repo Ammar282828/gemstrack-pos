@@ -5,19 +5,19 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAppStore, Order, OrderStatus, useIsStoreHydrated, ORDER_STATUSES, KaratValue, OrderItem, Settings } from '@/lib/store';
+import { useAppStore, Order, OrderStatus, useIsStoreHydrated, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Control, useForm } from 'react-hook-form';
+import { Control, useForm, useFieldArray } from 'react-hook-form';
 import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
 import {
@@ -27,7 +27,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -56,6 +62,123 @@ type PhoneForm = {
 
 type NotificationType = 'inProgress' | 'completed';
 
+// --- Finalize Order Dialog Components ---
+const finalizeOrderItemSchema = z.object({
+  description: z.string(), // Readonly
+  karat: z.custom<KaratValue>(), // Readonly
+  finalWeightG: z.coerce.number().min(0.1, "Weight must be positive."),
+  finalMakingCharges: z.coerce.number().min(0, "Cannot be negative."),
+  finalDiamondCharges: z.coerce.number().min(0, "Cannot be negative."),
+  finalStoneCharges: z.coerce.number().min(0, "Cannot be negative."),
+});
+
+const finalizeOrderSchema = z.object({
+  items: z.array(finalizeOrderItemSchema),
+  additionalDiscount: z.coerce.number().min(0, "Discount cannot be negative.").default(0),
+});
+
+type FinalizeOrderFormData = z.infer<typeof finalizeOrderSchema>;
+
+const FinalizeOrderDialog: React.FC<{
+    order: Order;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}> = ({ order, open, onOpenChange }) => {
+    const { generateInvoiceFromOrder } = useAppStore();
+    const router = useRouter();
+    const { toast } = useToast();
+
+    const form = useForm<FinalizeOrderFormData>({
+        resolver: zodResolver(finalizeOrderSchema),
+        defaultValues: {
+            items: order.items.map(item => ({
+                description: item.description,
+                karat: item.karat,
+                finalWeightG: item.estimatedWeightG,
+                finalMakingCharges: item.makingCharges,
+                finalDiamondCharges: item.diamondCharges,
+                finalStoneCharges: item.stoneCharges,
+            })),
+            additionalDiscount: 0,
+        }
+    });
+
+    const { fields } = useFieldArray({ control: form.control, name: "items" });
+
+    const handleFinalize = async (data: FinalizeOrderFormData) => {
+        const newInvoice = await generateInvoiceFromOrder(order, data.items, data.additionalDiscount);
+        if (newInvoice) {
+            toast({
+                title: "Invoice Generated",
+                description: `Invoice ${newInvoice.id} has been successfully created from order ${order.id}. You will now be taken to the cart page to manage payments.`,
+            });
+            // Redirect to cart/payment page, which now shows the finalized invoice
+             router.push(`/cart?invoice_id=${newInvoice.id}`);
+        } else {
+            toast({
+                title: "Error",
+                description: "Failed to generate an invoice from this order. Please check the details and try again.",
+                variant: "destructive",
+            });
+        }
+        onOpenChange(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle>Finalize Order & Generate Invoice</DialogTitle>
+                    <DialogDescription>
+                        Confirm or update the final weights and charges for each item before creating the sales invoice. The initial advance payment will be automatically applied.
+                    </DialogDescription>
+                </DialogHeader>
+                 <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleFinalize)} className="space-y-6">
+                        <ScrollArea className="h-[50vh] p-1">
+                            <div className="space-y-4 p-3">
+                                {fields.map((field, index) => (
+                                    <Card key={field.id} className="p-4 bg-muted/50">
+                                        <p className="font-bold text-sm mb-2">Item #{index + 1}: {form.getValues(`items.${index}.description`)}</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField control={form.control} name={`items.${index}.finalWeightG`} render={({ field }) => (
+                                                <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4"/>Final Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                            <FormField control={form.control} name={`items.${index}.finalMakingCharges`} render={({ field }) => (
+                                                <FormItem><FormLabel className="flex items-center"><Gem className="mr-2 h-4"/>Final Making Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                            <FormField control={form.control} name={`items.${index}.finalDiamondCharges`} render={({ field }) => (
+                                                <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4"/>Final Diamond Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                            <FormField control={form.control} name={`items.${index}.finalStoneCharges`} render={({ field }) => (
+                                                <FormItem><FormLabel>Final Stone Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                        <Separator />
+                        <div className="p-3">
+                            <FormField control={form.control} name="additionalDiscount" render={({ field }) => (
+                                <FormItem><FormLabel className="flex items-center text-base"><Percent className="mr-2 h-4"/>Additional Discount</FormLabel><FormControl><Input type="number" placeholder="Enter any extra discount amount" {...field} /></FormControl><FormDescription>This discount is applied on top of the advance payment.</FormDescription><FormMessage /></FormItem>
+                            )}/>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                            <Button type="submit" disabled={form.formState.isSubmitting}>
+                                {form.formState.isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <FileText className="mr-2 h-4 w-4"/>}
+                                Create Final Invoice
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                 </Form>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -72,6 +195,8 @@ export default function OrderDetailPage() {
 
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [notificationType, setNotificationType] = useState<NotificationType | null>(null);
+  const [isFinalizeDialogOpen, setIsFinalizeDialogOpen] = useState(false);
+
 
   const phoneForm = useForm<PhoneForm>();
 
@@ -203,6 +328,8 @@ export default function OrderDetailPage() {
         </DialogContent>
       </Dialog>
       
+      {order && <FinalizeOrderDialog order={order} open={isFinalizeDialogOpen} onOpenChange={setIsFinalizeDialogOpen} />}
+
       <Button variant="outline" onClick={() => router.back()} className="mb-0">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
       </Button>
@@ -216,7 +343,12 @@ export default function OrderDetailPage() {
                           <CardTitle className="text-2xl">Order {order.id}</CardTitle>
                           <CardDescription>Details of the custom order.</CardDescription>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                           {order.status === 'Completed' && (
+                            <Button onClick={() => setIsFinalizeDialogOpen(true)}>
+                                <FileText className="mr-2 h-4 w-4" /> Finalize & Generate Invoice
+                            </Button>
+                           )}
                           <Badge className={cn("text-base border-transparent", getStatusBadgeVariant(order.status))}>
                               {order.status}
                           </Badge>
@@ -322,5 +454,3 @@ export default function OrderDetailPage() {
     </div>
   );
 }
-
-    

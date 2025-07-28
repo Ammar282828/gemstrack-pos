@@ -23,6 +23,7 @@ import QRCode from 'qrcode.react';
 import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
 import { Control, useForm } from 'react-hook-form';
+import { useSearchParams } from 'next/navigation';
 
 
 declare module 'jspdf' {
@@ -50,11 +51,14 @@ type PhoneForm = {
 export default function CartPage() {
   console.log("[GemsTrack] CartPage: Rendering START");
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const preloadedInvoiceId = searchParams.get('invoice_id');
 
   const appReady = useAppReady();
   const cartItemsFromStore = useAppStore(selectCartDetails);
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
+  const allInvoices = useAppStore(state => state.generatedInvoices);
   const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment } = useAppStore();
   const productsInCart = useAppStore(state => state.cart.map(ci => state.products.find(p => p.sku === ci.sku)).filter(Boolean) as Product[]);
 
@@ -71,6 +75,18 @@ export default function CartPage() {
 
   const phoneForm = useForm<PhoneForm>();
   
+  useEffect(() => {
+    if (preloadedInvoiceId) {
+        const invoice = allInvoices.find(inv => inv.id === preloadedInvoiceId);
+        if (invoice) {
+            setGeneratedInvoice(invoice);
+             // Since we are loading a finalized invoice, we don't need the cart
+            clearCart();
+        }
+    }
+  }, [preloadedInvoiceId, allInvoices, clearCart]);
+
+
   useEffect(() => {
     if (appReady && settings && typeof settings.goldRatePerGram === 'number') {
       const goldRate21k = settings.goldRatePerGram * (21 / 24);
@@ -844,4 +860,3 @@ export default function CartPage() {
     </div>
   );
 }
-

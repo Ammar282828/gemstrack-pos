@@ -408,6 +408,12 @@ const staticCategories: Category[] = [
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
 type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
+type FinalizedOrderItemData = {
+    finalWeightG: number;
+    finalMakingCharges: number;
+    finalDiamondCharges: number;
+    finalStoneCharges: number;
+};
 
 
 export interface CartItem {
@@ -489,7 +495,12 @@ export interface AppState {
   addOrder: (orderData: OrderDataForAdd) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
-  
+  generateInvoiceFromOrder: (
+    order: Order,
+    finalizedItems: FinalizedOrderItemData[],
+    additionalDiscount: number
+  ) => Promise<Invoice | null>;
+
   loadHisaab: () => void;
   addHisaabEntry: (entryData: Omit<HisaabEntry, 'id'>) => Promise<HisaabEntry | null>;
   deleteHisaabEntry: (entryId: string) => Promise<void>;
@@ -1144,7 +1155,103 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
-      
+      generateInvoiceFromOrder: async (order, finalizedItems, additionalDiscount) => {
+        const { settings } = get();
+        let finalSubtotal = 0;
+        const ratesForInvoice = {
+            goldRatePerGram24k: order.goldRate,
+            palladiumRatePerGram: settings.palladiumRatePerGram,
+            platinumRatePerGram: settings.platinumRatePerGram,
+        };
+    
+        const finalInvoiceItems = order.items.map((originalItem, index) => {
+            const finalizedData = finalizedItems[index];
+            const productForCostCalc = {
+                metalType: 'gold' as const,
+                karat: originalItem.karat,
+                metalWeightG: finalizedData.finalWeightG,
+                wastagePercentage: originalItem.wastagePercentage,
+                makingCharges: finalizedData.finalMakingCharges,
+                hasDiamonds: originalItem.hasDiamonds,
+                diamondCharges: finalizedData.finalDiamondCharges,
+                stoneCharges: finalizedData.finalStoneCharges,
+                miscCharges: 0,
+            };
+    
+            const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice);
+            finalSubtotal += costs.totalPrice;
+    
+            return {
+                sku: `ORD-${order.id}-${index + 1}`,
+                name: originalItem.description,
+                categoryId: '',
+                metalType: 'gold' as const,
+                karat: originalItem.karat,
+                metalWeightG: finalizedData.finalWeightG,
+                quantity: 1,
+                unitPrice: costs.totalPrice,
+                itemTotal: costs.totalPrice,
+                metalCost: costs.metalCost,
+                wastageCost: costs.wastageCost,
+                wastagePercentage: originalItem.wastagePercentage,
+                makingCharges: costs.makingCharges,
+                diamondChargesIfAny: costs.diamondCharges,
+                stoneChargesIfAny: costs.stoneCharges,
+                miscChargesIfAny: 0,
+                stoneDetails: originalItem.stoneDetails,
+                diamondDetails: originalItem.diamondDetails,
+            };
+        });
+    
+        const totalDiscount = order.advancePayment + additionalDiscount;
+        const grandTotal = finalSubtotal - totalDiscount;
+    
+        const nextInvoiceNumber = (settings.lastInvoiceNumber || 0) + 1;
+        const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
+    
+        const newInvoiceData: Omit<Invoice, 'id'> = {
+            items: finalInvoiceItems,
+            subtotal: finalSubtotal,
+            discountAmount: totalDiscount,
+            grandTotal: grandTotal,
+            amountPaid: 0,
+            balanceDue: grandTotal,
+            createdAt: new Date().toISOString(),
+            goldRateApplied: order.goldRate,
+            customerId: order.customerId,
+            customerName: order.customerName,
+        };
+    
+        const newInvoice: Invoice = { id: invoiceId, ...newInvoiceData };
+    
+        try {
+            const batch = writeBatch(db);
+            batch.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
+            batch.update(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID), { lastInvoiceNumber: nextInvoiceNumber });
+            batch.update(doc(db, FIRESTORE_COLLECTIONS.ORDERS, order.id), { status: 'Completed' });
+            
+            const hisaabEntry: Omit<HisaabEntry, 'id'> = {
+              entityId: order.customerId || 'walk-in',
+              entityType: 'customer',
+              entityName: order.customerName || 'Walk-in Customer',
+              date: newInvoice.createdAt,
+              description: `Final Invoice ${newInvoice.id} from Order ${order.id}`,
+              cashDebit: newInvoice.grandTotal,
+              cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0,
+            };
+            batch.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
+
+            await batch.commit();
+            
+            set(state => { state.clearCart(); });
+            
+            return newInvoice;
+        } catch (error) {
+            console.error("Error finalizing order into invoice:", error);
+            return null;
+        }
+      },
+
       loadHisaab: () => {
         if (get().hasHisaabLoaded) return;
         set({ isHisaabLoading: true, hasHisaabLoaded: true });
@@ -1252,10 +1359,12 @@ export const useAppStore = create<AppState>()(
             theme: state.settings?.theme || 'default',
         }
       }),
-      version: 12,
+      version: 13,
       migrate: (persistedState, version) => {
         const oldState = persistedState as any;
-        if (version < 12) {
+        if (version < 13) {
+            // No specific migrations needed for this version bump,
+            // but the structure is here for future use.
         }
         return oldState as AppState;
       },
@@ -1266,7 +1375,7 @@ export const useAppStore = create<AppState>()(
 // --- Exported Helper Functions ---
 export const DEFAULT_KARAT_VALUE_FOR_CALCULATION: KaratValue = DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
 export const GOLD_COIN_CATEGORY_ID: string = GOLD_COIN_CATEGORY_ID_INTERNAL;
-export function calculateProductCosts(
+function calculateProductCosts(
   product: Omit<Product, 'sku' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & {
     categoryId?: string;
     name?: string;
@@ -1372,5 +1481,3 @@ export const useIsStoreHydrated = () => {
         () => false
     );
 };
-
-    
