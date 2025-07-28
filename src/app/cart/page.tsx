@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -58,6 +59,8 @@ export default function CartPage() {
   const productsInCart = useAppStore(state => state.cart.map(ci => state.products.find(p => p.sku === ci.sku)).filter(Boolean) as Product[]);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
+  const [walkInCustomerName, setWalkInCustomerName] = useState('');
+  const [walkInCustomerPhone, setWalkInCustomerPhone] = useState('');
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
   
   const [invoiceGoldRateInput, setInvoiceGoldRateInput] = useState<string>('');
@@ -145,6 +148,13 @@ export default function CartPage() {
         toast({ title: "Invalid Input", description: "Please ensure all rates and values are correct before generating the estimate.", variant: "destructive" });
         return;
     }
+    
+    const isWalkIn = selectedCustomerId === undefined;
+    if (isWalkIn && !walkInCustomerName.trim()) {
+        toast({ title: "Customer Name Required", description: "Please enter a name for the walk-in customer.", variant: "destructive" });
+        return;
+    }
+
 
     const parsedGoldRate21k = parseFloat(invoiceGoldRateInput);
     const goldRate24kForInvoice = parsedGoldRate21k * (24 / 21);
@@ -166,7 +176,11 @@ export default function CartPage() {
         return;
     }
 
-    const invoice = await generateInvoiceAction(selectedCustomerId, goldRate24kForInvoice, parsedDiscountAmount);
+    const customerForInvoice = isWalkIn
+        ? { name: walkInCustomerName, phone: walkInCustomerPhone }
+        : { id: selectedCustomerId, name: customers.find(c => c.id === selectedCustomerId)?.name || '' };
+
+    const invoice = await generateInvoiceAction(customerForInvoice, goldRate24kForInvoice, parsedDiscountAmount);
     if (invoice) {
       setGeneratedInvoice(invoice);
        // Pre-fill WhatsApp number if a customer with a phone number is selected
@@ -175,6 +189,8 @@ export default function CartPage() {
         if(customer?.phone) {
           phoneForm.setValue('phone', customer.phone);
         }
+      } else if (walkInCustomerPhone) {
+        phoneForm.setValue('phone', walkInCustomerPhone);
       }
       toast({ title: "Estimate Generated", description: `Estimate ${invoice.id} created successfully.` });
     } else {
@@ -727,7 +743,7 @@ export default function CartPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="customer-select" className="mb-1 block text-sm font-medium">Select Customer (Optional)</Label>
+                  <Label htmlFor="customer-select" className="mb-1 block text-sm font-medium">Select Customer</Label>
                   <Select
                     value={selectedCustomerId === undefined ? WALK_IN_CUSTOMER_VALUE : selectedCustomerId}
                     onValueChange={(value) => setSelectedCustomerId(value === WALK_IN_CUSTOMER_VALUE ? undefined : value)}
@@ -745,6 +761,18 @@ export default function CartPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                {selectedCustomerId === undefined && (
+                    <div className="space-y-4 pt-2">
+                        <div>
+                            <Label htmlFor="walk-in-name">Walk-in Customer Name</Label>
+                            <Input id="walk-in-name" value={walkInCustomerName} onChange={(e) => setWalkInCustomerName(e.target.value)} placeholder="e.g., John Doe" />
+                        </div>
+                        <div>
+                            <Label htmlFor="walk-in-phone">Walk-in Customer Phone (Optional)</Label>
+                            <Input id="walk-in-phone" value={walkInCustomerPhone} onChange={(e) => setWalkInCustomerPhone(e.target.value)} placeholder="e.g., 03001234567" />
+                        </div>
+                    </div>
+                )}
                 <Separator />
                 <div>
                   <Label htmlFor="invoice-gold-rate" className="flex items-center mb-1 text-sm font-medium">
@@ -816,3 +844,4 @@ export default function CartPage() {
     </div>
   );
 }
+

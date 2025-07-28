@@ -479,7 +479,7 @@ export interface AppState {
 
   loadGeneratedInvoices: () => void;
   generateInvoice: (
-    customerId: string | undefined,
+    customerInfo: { id?: string; name: string; phone?: string },
     invoiceGoldRate24k: number,
     discountAmount: number
   ) => Promise<Invoice | null>;
@@ -856,10 +856,25 @@ export const useAppStore = create<AppState>()(
           }
         );
       },
-      generateInvoice: async (customerId, invoiceGoldRate24k, discountAmount) => {
-        const { products, cart, customers, settings } = get();
+      generateInvoice: async (customerInfo, invoiceGoldRate24k, discountAmount) => {
+        const { products, cart, customers, settings, addCustomer } = get();
         if (cart.length === 0) return null;
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
+
+        let finalCustomerId = customerInfo.id;
+        // If it's a walk-in customer with a name, create a new customer profile.
+        if (!finalCustomerId && customerInfo.name) {
+            const newCustomer = await addCustomer({ 
+                name: customerInfo.name, 
+                phone: customerInfo.phone 
+            });
+            if (newCustomer) {
+                finalCustomerId = newCustomer.id;
+            } else {
+                console.error("[GemsTrack Store generateInvoice] Failed to create new customer profile for walk-in.");
+                // We can proceed without a customerId, the name will still be saved on the invoice.
+            }
+        }
 
         let validInvoiceGoldRate24k = Number(invoiceGoldRate24k) || 0;
         const cartProducts = cart.map(ci => products.find(p => p.sku === ci.sku)).filter(Boolean) as Product[];
@@ -890,7 +905,6 @@ export const useAppStore = create<AppState>()(
                 console.warn(`[GemsTrack Store generateInvoice] Product SKU ${cartItem.sku} not found in store for invoice.`);
                 continue;
             }
-            // Deep copy the product object to avoid mutating the original store state
             const productForCostCalc = {
                 name: product.name,
                 categoryId: product.categoryId,
@@ -906,7 +920,6 @@ export const useAppStore = create<AppState>()(
             };
             
             const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice);
-            // CRITICAL NaN Check
             if (isNaN(costs.totalPrice)) {
                 console.error(`[GemsTrack Store generateInvoice] Calculated cost for product ${product.sku} in cart is NaN. Skipping item.`);
                 continue;
@@ -934,11 +947,7 @@ export const useAppStore = create<AppState>()(
                 stoneDetails: product.stoneDetails,
                 diamondDetails: product.diamondDetails,
             };
-
-            if (product.metalType === 'gold' && productForCostCalc.karat) {
-                finalItem.karat = productForCostCalc.karat;
-            }
-
+            if (product.metalType === 'gold' && productForCostCalc.karat) { finalItem.karat = productForCostCalc.karat; }
             invoiceItems.push(finalItem);
         }
         
@@ -952,16 +961,10 @@ export const useAppStore = create<AppState>()(
         const newInvoiceData: Omit<Invoice, 'id'> = {
           items: invoiceItems.map(item => {
               const cleanItem = { ...item };
-              // Ensure optional fields are null, not undefined
               if (!cleanItem.karat) cleanItem.karat = undefined;
               if (!cleanItem.stoneDetails) cleanItem.stoneDetails = undefined;
               if (!cleanItem.diamondDetails) cleanItem.diamondDetails = undefined;
-              // Remove any properties that are explicitly undefined before sending to Firestore
-              Object.keys(cleanItem).forEach(key => {
-                  if ((cleanItem as any)[key] === undefined) {
-                      delete (cleanItem as any)[key];
-                  }
-              });
+              Object.keys(cleanItem).forEach(key => { if ((cleanItem as any)[key] === undefined) { delete (cleanItem as any)[key]; } });
               return cleanItem;
           }),
           subtotal: Number(subtotal) || 0,
@@ -973,21 +976,11 @@ export const useAppStore = create<AppState>()(
           goldRateApplied: hasGoldItems && ratesForInvoice.goldRatePerGram24k > 0 ? ratesForInvoice.goldRatePerGram24k : null,
           palladiumRateApplied: hasPalladiumItems && ratesForInvoice.palladiumRatePerGram > 0 ? ratesForInvoice.palladiumRatePerGram : null,
           platinumRateApplied: hasPlatinumItems && ratesForInvoice.platinumRatePerGram > 0 ? ratesForInvoice.platinumRatePerGram : null,
+          customerId: finalCustomerId,
+          customerName: customerInfo.name || 'Walk-in Customer'
         };
 
-        if (customerId) {
-          const customer = customers.find(c => c.id === customerId);
-          if (customer) {
-            newInvoiceData.customerId = customer.id;
-            newInvoiceData.customerName = customer.name || 'Unknown Customer';
-          }
-        }
-        
-        const newInvoice: Invoice = {
-            id: invoiceId,
-            ...newInvoiceData
-        } as Invoice;
-        
+        const newInvoice: Invoice = { id: invoiceId, ...newInvoiceData } as Invoice;
         console.log("[GemsTrack Store generateInvoice] Generated invoice object for Firestore:", newInvoiceData);
 
         try {
@@ -998,19 +991,16 @@ export const useAppStore = create<AppState>()(
             const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
             batch.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
             
-            // Create Hisaab entry for the invoice amount
             const hisaabEntry: Omit<HisaabEntry, 'id'> = {
-              entityId: customerId || 'walk-in',
+              entityId: finalCustomerId || 'walk-in',
               entityType: 'customer',
               entityName: newInvoice.customerName || 'Walk-in Customer',
               date: newInvoice.createdAt,
               description: `Invoice ${newInvoice.id}`,
-              cashDebit: newInvoice.grandTotal, // Customer owes this amount
-              cashCredit: 0,
-              goldDebitGrams: 0,
-              goldCreditGrams: 0,
+              cashDebit: newInvoice.grandTotal,
+              cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0,
             };
-            const hisaabDocRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)); // Auto-generate ID
+            const hisaabDocRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
             batch.set(hisaabDocRef, hisaabEntry);
 
             await batch.commit();
@@ -1043,7 +1033,6 @@ export const useAppStore = create<AppState>()(
             await setDoc(invoiceDocRef, updatedFields, { merge: true });
             console.log(`[updateInvoicePayment] Invoice ${invoiceId} updated with payment of ${paymentAmount}.`);
             
-            // Return the updated invoice object for UI refresh
             return { ...invoice, ...updatedFields };
 
         } catch (error) {
@@ -1070,28 +1059,32 @@ export const useAppStore = create<AppState>()(
       },
 
       addOrder: async (orderData) => {
-        const { settings, customers } = get();
+        const { settings, addCustomer } = get();
         const nextOrderNumber = (settings.lastOrderNumber || 0) + 1;
         const newOrderId = `ORD-${nextOrderNumber.toString().padStart(6, '0')}`;
 
-        let customerNameToSave = orderData.customerName;
-
-        if (orderData.customerId) {
-          const customer = customers.find(c => c.id === orderData.customerId);
-          if (customer) {
-            customerNameToSave = customer.name;
-          }
+        let finalCustomerId = orderData.customerId;
+        // If it's a walk-in customer with a name, create a new customer profile.
+        if (!finalCustomerId && orderData.customerName) {
+            const newCustomer = await addCustomer({ 
+                name: orderData.customerName, 
+                phone: orderData.customerContact 
+            });
+            if (newCustomer) {
+                finalCustomerId = newCustomer.id;
+            } else {
+                console.error("[GemsTrack Store addOrder] Failed to create new customer profile for walk-in.");
+            }
         }
         
-        // CRITICAL FIX: Ensure totals are always numbers before saving.
         const finalSubtotal = Number(orderData.subtotal) || 0;
         const finalGrandTotal = Number(orderData.grandTotal) || 0;
 
         const newOrder: Order = {
-          ...(orderData as Omit<OrderDataForAdd, 'subtotal'|'grandTotal'>),
+          ...orderData,
+          customerId: finalCustomerId,
           subtotal: finalSubtotal,
           grandTotal: finalGrandTotal,
-          customerName: customerNameToSave,
           id: newOrderId,
           createdAt: new Date().toISOString(),
           status: 'Pending',
@@ -1122,7 +1115,6 @@ export const useAppStore = create<AppState>()(
         try {
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
           await setDoc(orderDocRef, { status }, { merge: true });
-          // No need to manually update state, onSnapshot will handle it.
           console.log(`[GemsTrack Store updateOrderStatus] Successfully updated status for order ${orderId}.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateOrderStatus] Error updating status for order ${orderId}:`, error);
@@ -1146,7 +1138,6 @@ export const useAppStore = create<AppState>()(
         try {
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
           await setDoc(orderDocRef, { items: updatedItems }, { merge: true });
-          // No need to manually update state, onSnapshot will handle it.
           console.log(`Successfully updated item #${itemIndex} status for order ${orderId}.`);
         } catch (error) {
           console.error(`Error updating item status for order ${orderId}:`, error);
@@ -1197,9 +1188,7 @@ export const useAppStore = create<AppState>()(
         set({ isProductsLoading: true });
         try {
             await deleteCollection(FIRESTORE_COLLECTIONS.PRODUCTS);
-            // No need to clear local state, onSnapshot will receive an empty list
         } finally {
-            // isProductsLoading will be set to false by the snapshot listener
         }
       },
       clearAllCustomers: async () => {
@@ -1207,7 +1196,6 @@ export const useAppStore = create<AppState>()(
           try {
               await deleteCollection(FIRESTORE_COLLECTIONS.CUSTOMERS);
           } finally {
-              // isCustomersLoading will be set to false by the snapshot listener
           }
       },
       clearAllKarigars: async () => {
@@ -1215,7 +1203,6 @@ export const useAppStore = create<AppState>()(
           try {
               await deleteCollection(FIRESTORE_COLLECTIONS.KARIGARS);
           } finally {
-              // isKarigarsLoading will be set to false by the snapshot listener
           }
       },
       clearAllInvoices: async () => {
@@ -1223,7 +1210,6 @@ export const useAppStore = create<AppState>()(
           try {
               await deleteCollection(FIRESTORE_COLLECTIONS.INVOICES);
           } finally {
-              // isInvoicesLoading will be set to false by the snapshot listener
           }
       },
       clearAllOrders: async () => {
@@ -1231,19 +1217,17 @@ export const useAppStore = create<AppState>()(
           try {
               await deleteCollection(FIRESTORE_COLLECTIONS.ORDERS);
           } finally {
-              // isOrdersLoading will be set to false by the snapshot listener
           }
       },
       clearAllData: async () => {
           console.warn("CLEARING ALL APPLICATION DATA");
-          // Resetting settings does not happen here, only transactional data.
           await Promise.all([
               get().clearAllProducts(),
               get().clearAllCustomers(),
               get().clearAllKarigars(),
               get().clearAllInvoices(),
               get().clearAllOrders(),
-              deleteCollection(FIRESTORE_COLLECTIONS.HISAAB), // Also clear hisaab
+              deleteCollection(FIRESTORE_COLLECTIONS.HISAAB), 
           ]);
           get().clearCart();
           console.warn("ALL APPLICATION DATA CLEARED.");
@@ -1262,9 +1246,8 @@ export const useAppStore = create<AppState>()(
       },
       partialize: (state) => ({
         cart: state.cart,
-        settings: { // Persist only a subset of settings
+        settings: { 
             ...state.settings,
-            // Don't persist sensitive or heavyweight data that should be fetched
             allowedDeviceIds: Array.isArray(state.settings?.allowedDeviceIds) ? state.settings.allowedDeviceIds : [], 
             theme: state.settings?.theme || 'default',
         }
@@ -1273,7 +1256,6 @@ export const useAppStore = create<AppState>()(
       migrate: (persistedState, version) => {
         const oldState = persistedState as any;
         if (version < 12) {
-          // No specific migration needed from v11 to v12, but this structure allows for future changes.
         }
         return oldState as AppState;
       },
