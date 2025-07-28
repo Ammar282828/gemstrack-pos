@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,6 +32,9 @@ import { Label } from '@/components/ui/label';
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
+     lastAutoTable: {
+      finalY?: number;
+    };
   }
 }
 
@@ -244,13 +247,15 @@ export default function CustomOrderPage() {
             phoneForm.setValue('phone', customer.phone || '');
         }
     } else {
-        // When switching back to Walk-in, clear the fields
-        form.setValue('customerName', '');
-        form.setValue('customerContact', '');
-        phoneForm.setValue('phone', '');
-        // Explicitly clear errors if they exist from a previous state
-        form.clearErrors('customerName');
-        form.clearErrors('customerContact');
+        // When switching back to Walk-in, clear the fields if they were auto-filled
+        const currentName = form.getValues('customerName');
+        const currentContact = form.getValues('customerContact');
+        const autofilledCustomer = customers.find(c => c.name === currentName && c.phone === currentContact);
+        if(autofilledCustomer) {
+            form.setValue('customerName', '');
+            form.setValue('customerContact', '');
+            phoneForm.setValue('phone', '');
+        }
     }
   }, [selectedCustomerId, customers, form, phoneForm]);
 
@@ -323,129 +328,204 @@ export default function CustomOrderPage() {
     }
   };
   
-  const printEstimate = (estimate: EnrichedOrderFormData) => {
+ const printEstimate = (estimate: EnrichedOrderFormData) => {
     if (typeof window === 'undefined' || !estimate) return;
 
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
+    const logoUrl = settings.shopLogoUrlBlack;
 
-    // Header
-    if (settings.shopLogoUrl) doc.addImage(settings.shopLogoUrl, 'PNG', margin, 15, 40, 10, undefined, 'FAST');
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.text('CUSTOM ORDER ESTIMATE', pageWidth - margin, 22, { align: 'right' });
+    function drawHeader(pageNum: number) {
+        if (logoUrl) {
+            try {
+                doc.addImage(logoUrl, 'PNG', margin, 15, 40, 10, undefined, 'FAST');
+            } catch (e) {
+                 console.error("Error adding logo to PDF:", e);
+            }
+        }
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        doc.text('CUSTOM ORDER ESTIMATE', pageWidth - margin, 22, { align: 'right' });
+        
+        doc.setLineWidth(0.5);
+        doc.line(margin, 35, pageWidth - margin, 35);
 
+        if (pageNum > 1) {
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 10, {align: 'right'});
+        }
+    }
+    
+    drawHeader(1);
+    
+    let infoY = 50;
     doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.setFont("helvetica", "bold");
+    doc.text('BILL TO:', margin, infoY);
+    doc.text('ESTIMATE DETAILS:', pageWidth / 2, infoY);
+
+    doc.setLineWidth(0.2);
+    doc.line(margin, infoY + 2, pageWidth - margin, infoY + 2);
+
+    infoY += 8;
     doc.setFont("helvetica", "normal");
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 29, { align: 'right' });
+    doc.setTextColor(0);
+
+    let customerInfo = `${estimate.customerName || 'Walk-in Customer'}\n`;
+    if(estimate.customerContact) customerInfo += `Phone: ${estimate.customerContact}`;
+    doc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.5 });
+
+    let estimateDetails = `Estimate #: ${estimate.id}\n`;
+    estimateDetails += `Date: ${new Date().toLocaleDateString()}`;
+    doc.text(estimateDetails, pageWidth / 2, infoY, { lineHeightFactor: 1.5 });
     
     const goldRate21k = estimate.goldRate;
-    doc.text(`Gold Rate (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/g`, pageWidth - margin, 34, { align: 'right' });
-
-    // --- Items Table ---
-    const tableColumn = ["#", "Item Description & Details", "Est. Wt.", "Total (PKR)"];
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(`Gold (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`, pageWidth / 2, infoY + 12, { lineHeightFactor: 1.5 });
+    
+    const tableStartY = infoY + 30;
+    const tableColumn = ["#", "Item Description & Breakdown", "Est. Wt.", "Total (PKR)"];
     const tableRows: any[][] = [];
 
     estimate.items.forEach((item, index) => {
-      const description = `${item.description}\nKarat: ${item.karat.toUpperCase()}${item.referenceSku ? ` | Ref SKU: ${item.referenceSku}` : ''}${item.sampleGiven ? ` | Sample Provided` : ''}`;
-      const itemBreakdown = [
-        `Metal Cost: PKR ${item.metalCost?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-        item.wastageCost > 0 ? `+ Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null,
-        item.makingCharges > 0 ? `+ Making Charges: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null,
-        item.diamondCharges > 0 ? `+ Diamond Charges: PKR ${item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null,
-        item.stoneCharges > 0 ? `+ Other Stone Charges: PKR ${item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : null
-      ].filter(Boolean).join('\n');
-      
-      let specialDetails = '';
-      if(item.stoneDetails) specialDetails += `\nStone Details: ${item.stoneDetails}`;
-      if(item.diamondDetails) specialDetails += `\nDiamond Details: ${item.diamondDetails}`;
+        let breakdownLines = [];
+        if (item.metalCost && item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        if (item.makingCharges > 0) breakdownLines.push(`  + Making Charges: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        if (item.diamondCharges > 0) breakdownLines.push(`  + Diamonds: PKR ${item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        if (item.stoneCharges > 0) breakdownLines.push(`  + Other Stones: PKR ${item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
 
+        const itemTitle = `${item.description}`;
+        const itemSubtitle = `Karat: ${item.karat.toUpperCase()}${item.referenceSku ? ` | Ref SKU: ${item.referenceSku}` : ''}${item.sampleGiven ? ` | Sample Provided` : ''}`;
+        
+        let specialDetails = '';
+        if(item.stoneDetails) specialDetails += `\nStone Details: ${item.stoneDetails}`;
+        if(item.diamondDetails) specialDetails += `\nDiamond Details: ${item.diamondDetails}`;
+        
+        const fullDescription = `${itemTitle}\n${itemSubtitle}${breakdownText ? `\n${breakdownText}` : ''}${specialDetails}`;
 
-      const fullDescription = `${description}\n\nCost Breakdown:\n${itemBreakdown}${specialDetails}`;
-
-      const itemData = [
-        index + 1,
-        fullDescription,
-        `${item.estimatedWeightG.toFixed(2)}g`,
-        item.totalEstimate?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      ];
-      tableRows.push(itemData);
+        const itemData = [
+            index + 1,
+            fullDescription,
+            `${item.estimatedWeightG.toFixed(2)}g`,
+            item.totalEstimate?.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+        ];
+        tableRows.push(itemData);
     });
 
     doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: 50,
-      theme: 'grid',
-      headStyles: { fillColor: [0, 60, 0], fontStyle: 'bold' },
-      styles: { fontSize: 8, cellPadding: 2, valign: 'top' },
-      columnStyles: { 1: { cellWidth: 'auto' } },
+        head: [tableColumn],
+        body: tableRows,
+        startY: tableStartY,
+        theme: 'grid',
+        headStyles: { fillColor: [240, 240, 240], textColor: 50, fontStyle: 'bold', fontSize: 10, },
+        styles: { fontSize: 9, cellPadding: 2.5, valign: 'top', },
+        columnStyles: {
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: 'auto' },
+            2: { cellWidth: 20, halign: 'right' },
+            3: { cellWidth: 30, halign: 'right' },
+        },
+        didDrawPage: (data: { pageNumber: number, settings: { startY: number } }) => {
+             if (data.pageNumber > 1) {
+                doc.setPage(data.pageNumber);
+                data.settings.startY = 40; 
+            }
+            drawHeader(data.pageNumber);
+        },
     });
 
-    // --- Totals Section ---
-    const finalY = (doc as any).lastAutoTable.finalY || pageHeight - 100;
-    let currentY = finalY + 10;
-    
-    const totalsValueX = pageWidth - margin;
-    const totalsLabelX = totalsValueX - 40;
+    let finalY = doc.lastAutoTable.finalY || 0;
+    const footerAndTotalsHeight = 85; 
 
-    const { subtotal, grandTotal } = estimate;
+    if (finalY + footerAndTotalsHeight > pageHeight - margin) {
+        doc.addPage();
+        drawHeader(doc.getNumberOfPages());
+        finalY = 40; 
+    }
+
+    let currentY = finalY + 10;
+    const totalsX = pageWidth - margin;
     
-    doc.setFontSize(10).setFont("helvetica", "normal");
-    doc.text(`Subtotal:`, totalsLabelX, currentY, { align: 'right'});
-    doc.text(`PKR ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
-    currentY += 6;
+    doc.setFontSize(10).setFont("helvetica", "normal").setTextColor(0);
+    doc.text(`Subtotal:`, totalsX - 60, currentY, { align: 'right'});
+    doc.text(`PKR ${estimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    currentY += 7;
     
-    doc.text(`Advance:`, totalsLabelX, currentY, { align: 'right'});
-    doc.text(`- PKR ${estimate.advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
+    doc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
+    doc.text(`Advance Payment:`, totalsX - 60, currentY, { align: 'right'});
+    doc.text(`- PKR ${estimate.advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    currentY += 7;
+    
+    doc.setFont("helvetica", "normal").setTextColor(0);
+    doc.setLineWidth(0.3);
+    doc.line(totalsX - 60, currentY, totalsX, currentY);
     currentY += 8;
 
     doc.setFontSize(12).setFont("helvetica", "bold");
-    doc.text(`Balance Due:`, totalsLabelX, currentY, { align: 'right' });
-    doc.text(`PKR ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, totalsValueX, currentY, { align: 'right' });
-
-    if (estimate.advanceGoldDetails) {
-        currentY += 10;
-        doc.setFontSize(9).setFont("helvetica", "bold");
-        doc.text("Advance Gold Details:", margin, currentY);
-        currentY += 5;
-        doc.setFontSize(9).setFont("helvetica", "normal");
-        const detailsLines = doc.splitTextToSize(estimate.advanceGoldDetails, pageWidth - margin * 2);
-        doc.text(detailsLines, margin, currentY);
-    }
-
-
-    // Footer
-    const guaranteesText = "This is to certify that all 21k gold used in our Jewelry has been independently tested and verified by Swiss Lab Ltd., confirming a purity of 0.875 fineness (21 karat). We further guarantee that every piece is crafted exclusively from premium ARY GOLD.";
-    doc.setFontSize(8).setFont("helvetica", "bold");
-    doc.text(guaranteesText, margin, pageHeight - 45, { maxWidth: pageWidth / 2.5 });
+    doc.text(`Balance Due:`, totalsX - 60, currentY, { align: 'right' });
+    doc.text(`PKR ${estimate.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     
-    doc.setFont("helvetica", "normal");
-    doc.text("Thank you for your business!", margin, pageHeight - 30);
+    let detailsY = currentY + 10;
+    if (estimate.advanceGoldDetails) {
+        doc.setFontSize(9).setFont("helvetica", "bold");
+        doc.text("Advance Gold Details:", margin, detailsY);
+        detailsY += 5;
+        doc.setFontSize(9).setFont("helvetica", "normal");
+        const detailsLines = doc.splitTextToSize(estimate.advanceGoldDetails, pageWidth / 2);
+        doc.text(detailsLines, margin, detailsY);
+    }
+    
+    const footerStartY = pageHeight - 45;
+    const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
+    
+    doc.setLineWidth(0.2);
+    doc.line(margin, footerStartY - 10, pageWidth - margin, footerStartY - 10);
+    doc.setFontSize(8).setTextColor(150);
+    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin * 2 - 70 });
+    
+    const contacts = [
+        { name: "Murtaza", number: "0333 2275190" },
+        { name: "Muhammad", number: "0300 8280896" },
+        { name: "Huzaifa", number: "0335 2275553" },
+        { name: "Ammar", number: "0326 2275554" },
+    ];
+    let contactY = footerStartY + 12;
+    doc.setFontSize(8).setFont("helvetica", "bold").setTextColor(50);
+    doc.text("For Orders & Inquiries:", margin, contactY);
+    contactY += 4;
+    doc.setFont("helvetica", "normal").setTextColor(100);
+    contacts.forEach(contact => {
+        doc.text(`${contact.name}: ${contact.number}`, margin, contactY);
+        contactY += 4;
+    });
 
     const qrCodeSize = 25;
-    const qrYPos = pageHeight - 35;
-    const qrSectionWidth = (qrCodeSize * 2) + 25;
+    const qrSectionWidth = (qrCodeSize * 2) + 15;
     const qrStartX = pageWidth - margin - qrSectionWidth;
 
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
 
-    if (instaQrCanvas && waQrCanvas) {
-      doc.addImage('https://placehold.co/20x20.png?text=I', 'PNG', qrStartX, qrYPos - 7, 5, 5);
-      doc.setFontSize(8); doc.setFont("helvetica", "bold");
-      doc.text("Follow on Instagram", qrStartX + 7, qrYPos - 3);
-      doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, qrYPos, qrCodeSize, qrCodeSize);
-      
-      const secondQrX = qrStartX + qrCodeSize + 15;
-      doc.addImage('https://placehold.co/20x20.png?text=W', 'PNG', secondQrX, qrYPos - 7, 5, 5);
-      doc.setFontSize(8); doc.setFont("helvetica", "bold");
-      doc.text("Join WhatsApp Community", secondQrX + 7, qrYPos - 3);
-      doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, qrYPos, qrCodeSize, qrCodeSize);
+    if (instaQrCanvas) {
+        doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
+        doc.text("@collectionstaheri", qrStartX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
     }
-
+    if (waQrCanvas) {
+        const secondQrX = qrStartX + qrCodeSize + 15;
+        doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
+        doc.text("Join on WhatsApp", secondQrX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
+    }
+    
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
   };
@@ -794,5 +874,3 @@ export default function CustomOrderPage() {
     </div>
   );
 }
-
-    
