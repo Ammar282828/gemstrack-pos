@@ -291,6 +291,7 @@ export interface OrderItem {
   metalCost?: number;
   wastageCost?: number;
   totalEstimate?: number;
+  metalType: MetalType; // Added this field to correctly process different metals
 }
 
 export interface Order {
@@ -1167,7 +1168,7 @@ export const useAppStore = create<AppState>()(
         const finalInvoiceItems = order.items.map((originalItem, index) => {
             const finalizedData = finalizedItems[index];
             const productForCostCalc = {
-                metalType: 'gold' as const,
+                metalType: originalItem.metalType,
                 karat: originalItem.karat,
                 metalWeightG: finalizedData.finalWeightG,
                 wastagePercentage: originalItem.wastagePercentage,
@@ -1185,7 +1186,7 @@ export const useAppStore = create<AppState>()(
                 sku: `ORD-${order.id}-${index + 1}`,
                 name: originalItem.description,
                 categoryId: '',
-                metalType: 'gold' as const,
+                metalType: originalItem.metalType,
                 karat: originalItem.karat,
                 metalWeightG: finalizedData.finalWeightG,
                 quantity: 1,

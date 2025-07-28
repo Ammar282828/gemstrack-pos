@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -6,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -55,6 +56,7 @@ const orderItemSchema = z.object({
   hasDiamonds: z.boolean().default(false),
   stoneDetails: z.string().optional(),
   diamondDetails: z.string().optional(),
+  metalType: z.custom<MetalType>().default('gold'), // Default to gold
 });
 
 // Schema for the main form which contains multiple items
@@ -300,7 +302,7 @@ export default function CustomOrderPage() {
           diamondCharges, stoneCharges, miscCharges: 0
         };
         const costs = calculateProductCosts(productForCalc, ratesForCalc);
-        return { ...item, isCompleted: false, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
+        return { ...item, metalType: 'gold', isCompleted: false, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
     });
 
     const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
@@ -576,6 +578,7 @@ export default function CustomOrderPage() {
         hasDiamonds: false,
         stoneDetails: '',
         diamondDetails: '',
+        metalType: 'gold',
     });
   };
 
