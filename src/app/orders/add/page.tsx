@@ -152,6 +152,7 @@ const ImageCapture: React.FC<{
       stopCamera();
     }
     return () => stopCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCameraOpen]);
 
   return (
@@ -244,9 +245,13 @@ export default function CustomOrderPage() {
             phoneForm.setValue('phone', customer.phone || '');
         }
     } else {
+        // When switching back to Walk-in, clear the fields
         form.setValue('customerName', '');
         form.setValue('customerContact', '');
         phoneForm.setValue('phone', '');
+        // Explicitly clear errors if they exist from a previous state
+        form.clearErrors('customerName');
+        form.clearErrors('customerContact');
     }
   }, [selectedCustomerId, customers, form, phoneForm]);
 
