@@ -51,9 +51,6 @@ const orderItemSchema = z.object({
   hasDiamonds: z.boolean().default(false),
   stoneDetails: z.string().optional(),
   diamondDetails: z.string().optional(),
-  // Calculated fields, not part of the form itself but useful for state
-  metalCost: z.number().optional(),
-  totalEstimate: z.number().optional(),
 });
 
 // Schema for the main form which contains multiple items
@@ -75,6 +72,7 @@ type EnrichedOrderFormData = OrderFormData & {
     id: string; // The generated order ID
     subtotal: number;
     grandTotal: number;
+    items: (OrderItemData & { metalCost: number; totalEstimate: number; })[];
 };
 
 const WALK_IN_CUSTOMER_VALUE = "__WALK_IN__";
@@ -287,7 +285,7 @@ export default function CustomOrderPage() {
     const goldRate24k = (data.goldRate || 0) * (24 / 21);
     const ratesForCalc = { goldRatePerGram24k: goldRate24k, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
 
-    const enrichedItems = data.items.map((item): OrderItem => {
+    const enrichedItems: (OrderItemData & { metalCost: number; totalEstimate: number })[] = data.items.map((item) => {
         const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds } = item;
         const productForCalc = {
           categoryId: '', // Custom orders don't have a category
@@ -316,7 +314,7 @@ export default function CustomOrderPage() {
     const newOrder = await addOrderAction(orderToSave);
 
     if (newOrder) {
-        setGeneratedEstimate({ ...data, id: newOrder.id, subtotal, grandTotal });
+        setGeneratedEstimate({ ...data, items: enrichedItems, id: newOrder.id, subtotal, grandTotal });
         phoneForm.setValue('phone', newOrder.customerContact || '');
         toast({ title: `Order ${newOrder.id} Created`, description: "Custom order has been saved and is ready to be printed." });
     } else {
