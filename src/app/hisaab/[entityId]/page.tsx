@@ -145,7 +145,14 @@ export default function EntityHisaabPage() {
     return { finalCashBalance: cashBalance, finalGoldBalance: goldBalance };
   }, [entityHisaab]);
   
-  const phoneForm = useForm<PhoneForm>({ defaultValues: { phone: (entity as Customer)?.phone || '' } });
+  const phoneForm = useForm<PhoneForm>({ defaultValues: { phone: '' } });
+
+  React.useEffect(() => {
+    if (entity && entityType === 'customer' && (entity as Customer).phone) {
+        phoneForm.setValue('phone', (entity as Customer).phone || '');
+    }
+  }, [entity, entityType, phoneForm]);
+
   
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [dialogMode, setDialogMode] = useState<TransactionMode>('gave');
@@ -283,23 +290,14 @@ export default function EntityHisaabPage() {
     doc.save(`Ledger-${entity.name}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   };
 
+  const isLoading = !appReady || isHisaabLoading || isCustomersLoading || isKarigarsLoading;
 
-  if (!appReady || isHisaabLoading || isCustomersLoading || isKarigarsLoading) {
+  if (isLoading || !entity) {
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
         <p className="text-lg text-muted-foreground">Loading Ledger...</p>
       </div>
-    );
-  }
-
-  if (!entity) {
-    return (
-        <div className="container mx-auto p-4 text-center">
-            <h2 className="text-2xl font-semibold">Entity not found</h2>
-            <p className="text-muted-foreground">The customer or karigar with ID "{entityId}" could not be found.</p>
-            <Button variant="link" className="mt-4" onClick={() => router.push('/hisaab')}>Go back to Hisaab Summary</Button>
-        </div>
     );
   }
 
