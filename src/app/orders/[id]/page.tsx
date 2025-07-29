@@ -70,6 +70,7 @@ const finalizeOrderItemSchema = z.object({
   finalMakingCharges: z.coerce.number().min(0, "Cannot be negative."),
   finalDiamondCharges: z.coerce.number().min(0, "Cannot be negative."),
   finalStoneCharges: z.coerce.number().min(0, "Cannot be negative."),
+  metalType: z.custom<any>(), // Readonly
 });
 
 const finalizeOrderSchema = z.object({
@@ -98,6 +99,7 @@ const FinalizeOrderDialog: React.FC<{
                 finalMakingCharges: item.makingCharges,
                 finalDiamondCharges: item.diamondCharges,
                 finalStoneCharges: item.stoneCharges,
+                metalType: item.metalType,
             })),
             additionalDiscount: 0,
         }
@@ -344,6 +346,11 @@ export default function OrderDetailPage() {
                           <CardDescription>Details of the custom order.</CardDescription>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
+                           <Button asChild variant="outline">
+                             <Link href={`/orders/${order.id}/edit`}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit Order
+                             </Link>
+                           </Button>
                            {order.status === 'Completed' && (
                             <Button onClick={() => setIsFinalizeDialogOpen(true)}>
                                 <FileText className="mr-2 h-4 w-4" /> Finalize & Generate Invoice
