@@ -7,13 +7,20 @@ import { OrderForm } from '@/components/order/order-form';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
-import React from 'react';
+import React, { useEffect } from 'react';
 
 export default function EditOrderPage() {
   const params = useParams();
   const orderId = params.id as string;
   
-  const { orders, isOrdersLoading } = useAppStore();
+  const { orders, isOrdersLoading, loadOrders } = useAppStore();
+
+  useEffect(() => {
+    // Ensure orders are loaded when the component mounts
+    if (orders.length === 0) {
+        loadOrders();
+    }
+  }, [loadOrders, orders.length]);
   
   const order = orders.find(o => o.id === orderId);
 
