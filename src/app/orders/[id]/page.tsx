@@ -190,7 +190,7 @@ export default function OrderDetailPage() {
   const isHydrated = useIsStoreHydrated();
   const order = useAppStore(state => state.orders.find(o => o.id === orderId));
   const settings = useAppStore(state => state.settings);
-  const { updateOrderStatus, updateOrderItemStatus } = useAppStore();
+  const { updateOrderStatus, updateOrderItemStatus, updateOrder } = useAppStore();
   
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isUpdatingItem, setIsUpdatingItem] = useState<number | null>(null);

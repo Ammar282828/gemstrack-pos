@@ -496,6 +496,7 @@ export interface AppState {
   addOrder: (orderData: OrderDataForAdd) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
+  updateOrder: (orderId: string, updatedOrderData: Partial<Order>) => Promise<void>;
   generateInvoiceFromOrder: (
     order: Order,
     finalizedItems: FinalizedOrderItemData[],
@@ -1121,7 +1122,10 @@ export const useAppStore = create<AppState>()(
           return null;
         }
       },
-
+      updateOrder: async (orderId: string, updatedOrderData: Partial<Order>) => {
+        const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
+        await setDoc(orderRef, updatedOrderData, { merge: true });
+      },
       updateOrderStatus: async (orderId, status) => {
         console.log(`[GemsTrack Store updateOrderStatus] Updating order ${orderId} to status: ${status}`);
         try {
@@ -1218,7 +1222,9 @@ export const useAppStore = create<AppState>()(
             amountPaid: 0,
             balanceDue: grandTotal,
             createdAt: new Date().toISOString(),
-            goldRateApplied: order.goldRate,
+            goldRateApplied: order.items.some(i => i.metalType === 'gold') ? order.goldRate : null,
+            palladiumRateApplied: order.items.some(i => i.metalType === 'palladium') ? settings.palladiumRatePerGram : null,
+            platinumRateApplied: order.items.some(i => i.metalType === 'platinum') ? settings.platinumRatePerGram : null,
             customerId: order.customerId,
             customerName: order.customerName,
         };
