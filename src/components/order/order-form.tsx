@@ -210,15 +210,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderFormSchema),
-    defaultValues: isEditMode && order ? {
-        items: order.items,
-        goldRate: order.goldRate * (21/24),
-        advancePayment: order.advancePayment,
-        advanceGoldDetails: order.advanceGoldDetails,
-        customerId: order.customerId || WALK_IN_CUSTOMER_VALUE,
-        customerName: order.customerName,
-        customerContact: order.customerContact,
-    } : {
+    defaultValues: {
       items: [],
       goldRate: settings.goldRatePerGram ? settings.goldRatePerGram * (21/24) : 0,
       advancePayment: 0,
@@ -235,11 +227,24 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
   });
 
   useEffect(() => {
-    if (!isEditMode && settings.goldRatePerGram > 0) {
+    if (order && isEditMode) {
+      // If we are editing and have an order, reset the form with its data.
+      form.reset({
+        items: order.items,
+        goldRate: order.goldRate * (21/24),
+        advancePayment: order.advancePayment,
+        advanceGoldDetails: order.advanceGoldDetails,
+        customerId: order.customerId || WALK_IN_CUSTOMER_VALUE,
+        customerName: order.customerName,
+        customerContact: order.customerContact,
+      });
+    } else if (!isEditMode && settings.goldRatePerGram > 0) {
+      // For new orders, set the gold rate from settings.
       const goldRate21k = settings.goldRatePerGram * (21 / 24);
       form.setValue('goldRate', parseFloat(goldRate21k.toFixed(2)));
     }
-  }, [settings.goldRatePerGram, form, isEditMode]);
+  }, [order, isEditMode, settings, form]);
+
 
   const formValues = form.watch();
   const selectedCustomerId = form.watch('customerId');

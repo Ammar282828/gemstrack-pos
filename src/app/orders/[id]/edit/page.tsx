@@ -2,7 +2,7 @@
 "use client";
 
 import { useParams } from 'next/navigation';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, useAppReady } from '@/lib/store';
 import { OrderForm } from '@/components/order/order-form';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -13,18 +13,19 @@ export default function EditOrderPage() {
   const params = useParams();
   const orderId = params.id as string;
   
+  const appReady = useAppReady();
   const { orders, isOrdersLoading, loadOrders } = useAppStore();
 
   useEffect(() => {
-    // Ensure orders are loaded when the component mounts
-    if (orders.length === 0) {
+    // Ensure orders are loaded when the component mounts if they aren't already
+    if (appReady && orders.length === 0) {
         loadOrders();
     }
-  }, [loadOrders, orders.length]);
+  }, [appReady, loadOrders, orders.length]);
   
   const order = orders.find(o => o.id === orderId);
 
-  if (isOrdersLoading && !order) {
+  if (!appReady || (isOrdersLoading && !order)) {
      return (
       <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
