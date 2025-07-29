@@ -1056,17 +1056,21 @@ export const useAppStore = create<AppState>()(
 
       loadOrders: () => {
         if (get().hasOrdersLoaded) return;
-        set({ isOrdersLoading: true, hasOrdersLoaded: true });
+        set({ isOrdersLoading: true });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
             const orderList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order));
-            set({ orders: orderList, isOrdersLoading: false });
+            set(state => {
+              state.orders = orderList;
+              state.isOrdersLoading = false;
+              state.hasOrdersLoaded = true; // Set loaded flag only on success
+            });
             console.log(`[GemsTrack Store] Real-time update: ${orderList.length} orders loaded.`);
           },
           (error) => {
             console.error("[GemsTrack Store] Error in orders real-time listener:", error);
-            set({ orders: [], isOrdersLoading: false });
+            set({ orders: [], isOrdersLoading: false }); // Mark as not loading, but hasLoaded remains false
           }
         );
       },
