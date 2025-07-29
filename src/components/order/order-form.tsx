@@ -228,7 +228,6 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
 
   useEffect(() => {
     if (order && isEditMode) {
-      // If we are editing and have an order, reset the form with its data.
       form.reset({
         items: order.items,
         goldRate: order.goldRate * (21/24),
@@ -239,7 +238,6 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         customerContact: order.customerContact,
       });
     } else if (!isEditMode && settings.goldRatePerGram > 0) {
-      // For new orders, set the gold rate from settings.
       const goldRate21k = settings.goldRatePerGram * (21 / 24);
       form.setValue('goldRate', parseFloat(goldRate21k.toFixed(2)));
     }
@@ -256,13 +254,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             form.setValue('customerName', customer.name);
             form.setValue('customerContact', customer.phone || '');
         }
-    } else {
-        if (!isEditMode) {
-            form.setValue('customerName', '');
-            form.setValue('customerContact', '');
-        }
     }
-  }, [selectedCustomerId, customers, form, isEditMode]);
+  }, [selectedCustomerId, customers, form]);
 
   const liveEstimate = useMemo(() => {
     let subtotal = 0;
@@ -309,11 +302,13 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     });
 
     const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
+    const finalCustomerName = data.customerId === WALK_IN_CUSTOMER_VALUE ? data.customerName : customers.find(c => c.id === data.customerId)?.name;
 
     if (isEditMode && order) {
         const updatedOrderData: Partial<Order> = {
             ...data,
             customerId: finalCustomerId,
+            customerName: finalCustomerName,
             items: enrichedItems,
             goldRate: goldRate24k,
             subtotal,
@@ -331,7 +326,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             subtotal,
             grandTotal,
             customerId: finalCustomerId,
-            customerName: data.customerName,
+            customerName: finalCustomerName,
             customerContact: data.customerContact,
         };
 
