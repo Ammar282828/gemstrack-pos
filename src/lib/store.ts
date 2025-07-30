@@ -6,6 +6,8 @@ import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { summarizeOrderItems, SummarizeOrderItemsInput } from '@/ai/flows/summarize-order-items-flow';
+
 
 // --- Firestore Collection Names ---
 const FIRESTORE_COLLECTIONS = {
@@ -304,6 +306,7 @@ export interface Order {
   advancePayment: number;
   advanceGoldDetails?: string;
   grandTotal: number;
+  summary?: string;
   customerId?: string;
   customerName?: string;
   customerContact?: string;
@@ -408,7 +411,7 @@ const staticCategories: Category[] = [
 
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
-type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
+type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status' | 'summary'>;
 type FinalizedOrderItemData = {
     description: string; // Added to help identify item
     metalType: MetalType;
@@ -1058,7 +1061,7 @@ export const useAppStore = create<AppState>()(
       },
 
       loadOrders: () => {
-        if (get().hasOrdersLoaded && !get().isOrdersLoading) return;
+        if (get().hasOrdersLoaded) return;
         set({ isOrdersLoading: true });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, 
@@ -1102,6 +1105,23 @@ export const useAppStore = create<AppState>()(
         
         const finalSubtotal = Number(orderData.subtotal) || 0;
         const finalGrandTotal = Number(orderData.grandTotal) || 0;
+        
+        let summary = "Order summary could not be generated.";
+        if (orderData.items.length > 0) {
+            try {
+                const summaryInput: SummarizeOrderItemsInput = {
+                    items: orderData.items.map(item => ({
+                        description: item.description,
+                        karat: item.karat,
+                        estimatedWeightG: item.estimatedWeightG,
+                    })),
+                };
+                const result = await summarizeOrderItems(summaryInput);
+                summary = result.summary;
+            } catch (e) {
+                console.error("Failed to generate order summary:", e);
+            }
+        }
 
         const newOrder: Order = {
           ...orderData,
@@ -1112,6 +1132,7 @@ export const useAppStore = create<AppState>()(
           id: newOrderId,
           createdAt: new Date().toISOString(),
           status: 'Pending',
+          summary: summary,
         };
         
         console.log("[GemsTrack Store addOrder] Attempting to save order:", newOrder);
@@ -1399,13 +1420,13 @@ export const useAppStore = create<AppState>()(
 // --- Exported Helper Functions ---
 export const DEFAULT_KARAT_VALUE_FOR_CALCULATION: KaratValue = DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
 export const GOLD_COIN_CATEGORY_ID: string = GOLD_COIN_CATEGORY_ID_INTERNAL;
-export function calculateProductCosts(
+export const calculateProductCosts = (
   product: Omit<Product, 'sku' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & {
     categoryId?: string;
     name?: string;
   },
   rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number }
-) {
+) => {
   return _calculateProductCostsInternal(product, rates);
 }
 

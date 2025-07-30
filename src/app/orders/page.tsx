@@ -14,7 +14,6 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { summarizeOrderItems, SummarizeOrderItemsInput } from '@/ai/flows/summarize-order-items-flow';
 import { Progress } from '@/components/ui/progress';
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -32,7 +31,7 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
     }
   };
 
-const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ order, summary }) => {
+const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
   const { toast } = useToast();
   const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -56,10 +55,10 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
                 <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
             </div>
             
-            {summary && (
+            {order.summary && (
               <p className="text-sm italic text-muted-foreground flex items-start gap-2">
                   <MessageSquareQuote className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <span>{summary || 'Generating summary...'}</span>
+                  <span>{order.summary}</span>
               </p>
             )}
 
@@ -95,7 +94,7 @@ const OrderRow: React.FC<{ order: Order, summary: string | undefined }> = ({ ord
   );
 };
 
-const OrderTableRow: React.FC<{ order: Order, summary: string | undefined }> = ({ order, summary }) => {
+const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
     const { toast } = useToast();
     const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -126,9 +125,9 @@ const OrderTableRow: React.FC<{ order: Order, summary: string | undefined }> = (
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
           </Link>
-          <p className="text-xs text-muted-foreground truncate w-40 mt-1 flex items-start gap-1.5" title={summary}>
+          <p className="text-xs text-muted-foreground truncate w-40 mt-1 flex items-start gap-1.5" title={order.summary}>
             <MessageSquareQuote className="w-3 h-3 mt-0.5 flex-shrink-0" />
-            <span>{summary || 'Generating summary...'}</span>
+            <span>{order.summary || 'No summary'}</span>
           </p>
         </TableCell>
         <TableCell className="hidden lg:table-cell">
@@ -199,44 +198,6 @@ export default function OrdersPage() {
   const orders = useAppStore(state => state.orders);
   const isOrdersLoading = useAppStore(state => state.isOrdersLoading);
   
-  const [orderSummaries, setOrderSummaries] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (!appReady || orders.length === 0) return;
-
-    const fetchSummaries = async () => {
-        const summariesToFetch = orders
-            .filter(order => !orderSummaries[order.id] && Array.isArray(order.items) && order.items.length > 0) // Only fetch for orders without a summary and with items
-            .map(async (order) => {
-                try {
-                    const input: SummarizeOrderItemsInput = {
-                        items: order.items.map(item => ({
-                            description: item.description,
-                        })),
-                    };
-                    const result = await summarizeOrderItems(input);
-                    return { id: order.id, summary: result.summary };
-                } catch (error) {
-                    console.error(`Failed to get summary for order ${order.id}:`, error);
-                    return { id: order.id, summary: "Could not generate summary." };
-                }
-            });
-
-        if (summariesToFetch.length > 0) {
-            const newSummaries = await Promise.all(summariesToFetch);
-            if (newSummaries.length > 0) {
-                setOrderSummaries(prev => ({
-                    ...prev,
-                    ...Object.fromEntries(newSummaries.map(s => [s.id, s.summary])),
-                }));
-            }
-        }
-    };
-
-    fetchSummaries();
-  }, [appReady, orders, orderSummaries]);
-
-
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
     return orders.filter(order =>
@@ -323,7 +284,7 @@ export default function OrdersPage() {
         <>
         <div className="md:hidden">
             {filteredOrders.map((order) => (
-                <OrderRow key={order.id} order={order} summary={orderSummaries[order.id]} />
+                <OrderRow key={order.id} order={order} />
             ))}
         </div>
         <Card className="hidden md:block">
@@ -344,7 +305,7 @@ export default function OrdersPage() {
             </TableHeader>
             <TableBody>
                 {filteredOrders.map((order) => (
-                    <OrderTableRow key={order.id} order={order} summary={orderSummaries[order.id]} />
+                    <OrderTableRow key={order.id} order={order} />
                 ))}
             </TableBody>
             </Table>
