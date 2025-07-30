@@ -227,10 +227,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
   });
 
   useEffect(() => {
-    if (order && isEditMode) {
+    if (order) {
       form.reset({
         items: order.items,
-        goldRate: order.goldRate * (21/24),
+        goldRate: order.goldRate > 0 ? order.goldRate * (21 / 24) : 0,
         advancePayment: order.advancePayment,
         advanceGoldDetails: order.advanceGoldDetails,
         customerId: order.customerId || WALK_IN_CUSTOMER_VALUE,
@@ -239,9 +239,12 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
       });
     } else if (!isEditMode && settings.goldRatePerGram > 0) {
       const goldRate21k = settings.goldRatePerGram * (21 / 24);
-      form.setValue('goldRate', parseFloat(goldRate21k.toFixed(2)));
+      form.reset({
+        ...form.getValues(),
+        goldRate: parseFloat(goldRate21k.toFixed(2)),
+      });
     }
-  }, [order, isEditMode, settings, form]);
+  }, [order, settings, form, isEditMode]);
 
 
   const formValues = form.watch();
@@ -263,7 +266,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     const goldRate24k = goldRate21k > 0 ? goldRate21k * (24 / 21) : 0;
     const ratesForCalc = { goldRatePerGram24k: goldRate24k, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
 
-    formValues.items.forEach(item => {
+    (formValues.items || []).forEach(item => {
         const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage } = item;
         if (!estimatedWeightG || estimatedWeightG <= 0 || !goldRate24k || goldRate24k <= 0) return;
 
@@ -302,7 +305,9 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     });
 
     const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
-    const finalCustomerName = data.customerId === WALK_IN_CUSTOMER_VALUE ? data.customerName : customers.find(c => c.id === data.customerId)?.name;
+    const finalCustomerName = data.customerId === WALK_IN_CUSTOMER_VALUE
+      ? data.customerName
+      : customers.find(c => c.id === data.customerId)?.name || data.customerName; // Fallback to form data name
 
     if (isEditMode && order) {
         const updatedOrderData: Partial<Order> = {
@@ -572,7 +577,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                     <Button type="button" variant="outline" onClick={() => router.back()} className="w-full">
                         <Ban className="mr-2 h-4 w-4" /> Cancel
                     </Button>
-                    <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
+                    <Button type="submit" size="lg" className="w-full" disabled={!form.formState.isDirty && isEditMode}>
                         {form.formState.isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Save className="mr-2 h-5 w-5" />}
                          {form.formState.isSubmitting ? "Saving..." : (isEditMode ? 'Save Changes' : 'Save Order')}
                     </Button>
