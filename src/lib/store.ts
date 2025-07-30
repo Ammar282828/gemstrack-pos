@@ -410,6 +410,9 @@ const staticCategories: Category[] = [
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
 type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
 type FinalizedOrderItemData = {
+    description: string; // Added to help identify item
+    metalType: MetalType;
+    karat: KaratValue;
     finalWeightG: number;
     finalMakingCharges: number;
     finalDiamondCharges: number;
@@ -1055,7 +1058,7 @@ export const useAppStore = create<AppState>()(
       },
 
       loadOrders: () => {
-        if (get().hasOrdersLoaded) return;
+        if (get().hasOrdersLoaded && !get().isOrdersLoading) return;
         set({ isOrdersLoading: true });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, 
@@ -1064,24 +1067,25 @@ export const useAppStore = create<AppState>()(
             set(state => {
               state.orders = orderList;
               state.isOrdersLoading = false;
-              state.hasOrdersLoaded = true; // Set loaded flag only on success
+              state.hasOrdersLoaded = true;
             });
             console.log(`[GemsTrack Store] Real-time update: ${orderList.length} orders loaded.`);
           },
           (error) => {
             console.error("[GemsTrack Store] Error in orders real-time listener:", error);
-            set({ orders: [], isOrdersLoading: false }); // Mark as not loading, but hasLoaded remains false
+            set({ orders: [], isOrdersLoading: false });
           }
         );
       },
 
       addOrder: async (orderData) => {
-        const { settings, addCustomer } = get();
+        const { settings, addCustomer, customers } = get();
         const nextOrderNumber = (settings.lastOrderNumber || 0) + 1;
         const newOrderId = `ORD-${nextOrderNumber.toString().padStart(6, '0')}`;
 
         let finalCustomerId = orderData.customerId;
-        // If it's a walk-in customer with a name, create a new customer profile.
+        let finalCustomerName = orderData.customerName;
+
         if (!finalCustomerId && orderData.customerName) {
             const newCustomer = await addCustomer({ 
                 name: orderData.customerName, 
@@ -1092,6 +1096,8 @@ export const useAppStore = create<AppState>()(
             } else {
                 console.error("[GemsTrack Store addOrder] Failed to create new customer profile for walk-in.");
             }
+        } else if (finalCustomerId) {
+             finalCustomerName = customers.find(c => c.id === finalCustomerId)?.name || orderData.customerName;
         }
         
         const finalSubtotal = Number(orderData.subtotal) || 0;
@@ -1100,6 +1106,7 @@ export const useAppStore = create<AppState>()(
         const newOrder: Order = {
           ...orderData,
           customerId: finalCustomerId,
+          customerName: finalCustomerName,
           subtotal: finalSubtotal,
           grandTotal: finalGrandTotal,
           id: newOrderId,
@@ -1174,7 +1181,13 @@ export const useAppStore = create<AppState>()(
         };
     
         const finalInvoiceItems = order.items.map((originalItem, index) => {
-            const finalizedData = finalizedItems[index];
+            const finalizedData = finalizedItems.find(fi => fi.description === originalItem.description);
+            if (!finalizedData) {
+                console.error(`Could not find finalized data for item: ${originalItem.description}`);
+                // This is a critical error, we should probably stop.
+                throw new Error(`Finalized data for item "${originalItem.description}" not found.`);
+            }
+
             const productForCostCalc = {
                 metalType: originalItem.metalType,
                 karat: originalItem.karat,
