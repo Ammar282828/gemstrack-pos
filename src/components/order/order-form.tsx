@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,8 +16,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -193,6 +193,80 @@ const ImageCapture: React.FC<{
   );
 };
 
+
+const ProductSearchDialog: React.FC<{ onAddProduct: (product: Product) => void }> = ({ onAddProduct }) => {
+    const products = useAppStore(state => state.products);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [open, setOpen] = useState(false);
+
+    const filteredProducts = useMemo(() => {
+        if (!searchTerm) return [];
+        return products.filter(p => 
+            p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+        ).slice(0, 50); // Limit results for performance
+    }, [products, searchTerm]);
+
+    const handleSelectProduct = (product: Product) => {
+        onAddProduct(product);
+        setSearchTerm('');
+        setOpen(false);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button type="button" variant="secondary">
+                    <PlusCircle className="mr-2 h-4 w-4"/> Add from Inventory
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>Add Product from Inventory</DialogTitle>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                            placeholder="Search by name or SKU..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
+                    <ScrollArea className="h-[40vh] border rounded-md">
+                        {filteredProducts.length > 0 ? (
+                            <div className="p-2">
+                                {filteredProducts.map(product => (
+                                    <button
+                                        key={product.sku}
+                                        onClick={() => handleSelectProduct(product)}
+                                        className="w-full text-left p-2 rounded-md hover:bg-muted flex items-center gap-3"
+                                    >
+                                        <Image src={product.imageUrl || `https://placehold.co/40x40.png`} alt={product.name} width={40} height={40} className="rounded-md object-cover border" />
+                                        <div>
+                                            <p className="font-medium">{product.name}</p>
+                                            <p className="text-xs text-muted-foreground">{product.sku}</p>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="p-4 text-center text-sm text-muted-foreground">
+                                {searchTerm ? 'No products found.' : 'Start typing to search...'}
+                            </p>
+                        )}
+                    </ScrollArea>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="outline">Close</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+
 interface OrderFormProps {
     order?: Order;
 }
@@ -200,7 +274,7 @@ interface OrderFormProps {
 export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
   const { toast } = useToast();
   const router = useRouter();
-  const { settings, customers, isSettingsLoading, isCustomersLoading, loadSettings, loadCustomers, addOrder, updateOrder } = useAppStore();
+  const { settings, customers, isSettingsLoading, isCustomersLoading, loadSettings, loadCustomers, addOrder, updateOrder, products: allProducts } = useAppStore();
   const isEditMode = !!order;
 
   useEffect(() => {
@@ -305,9 +379,15 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     });
 
     const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
-    const finalCustomerName = data.customerId === WALK_IN_CUSTOMER_VALUE
-      ? data.customerName
-      : customers.find(c => c.id === data.customerId)?.name || data.customerName; // Fallback to form data name
+    
+    let finalCustomerName = data.customerName;
+    if (finalCustomerId) {
+      const customer = customers.find(c => c.id === finalCustomerId);
+      if (customer) {
+        finalCustomerName = customer.name;
+      }
+    }
+
 
     if (isEditMode && order) {
         const updatedOrderData: Partial<Order> = {
@@ -354,6 +434,26 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
       </div>
     );
   }
+
+    const handleAddInventoryProduct = (product: Product) => {
+        append({
+            description: product.name,
+            karat: product.karat || '21k',
+            estimatedWeightG: product.metalWeightG,
+            wastagePercentage: product.wastagePercentage,
+            makingCharges: product.makingCharges,
+            diamondCharges: product.diamondCharges,
+            stoneCharges: product.stoneCharges,
+            sampleImageDataUri: product.imageUrl || '',
+            referenceSku: product.sku,
+            sampleGiven: false,
+            hasDiamonds: product.hasDiamonds,
+            stoneDetails: product.stoneDetails || '',
+            diamondDetails: product.diamondDetails || '',
+            metalType: product.metalType,
+            isCompleted: false,
+        });
+    };
   
   const handleAddNewItem = () => {
     append({
@@ -480,12 +580,11 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                 </div>
                 </ScrollArea>
             </CardContent>
-            <CardFooter>
-                {!isEditMode && (
-                    <Button type="button" variant="outline" onClick={handleAddNewItem}>
-                        <PlusCircle className="mr-2 h-4 w-4"/> Add Another Item
-                    </Button>
-                )}
+            <CardFooter className="flex gap-2">
+                 <Button type="button" variant="outline" onClick={handleAddNewItem}>
+                    <PlusCircle className="mr-2 h-4 w-4"/> Add Custom Item
+                </Button>
+                <ProductSearchDialog onAddProduct={handleAddInventoryProduct} />
             </CardFooter>
           </Card>
         </div>
