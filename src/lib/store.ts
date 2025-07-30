@@ -411,7 +411,7 @@ const staticCategories: Category[] = [
 
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
-type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status' | 'summary'>;
+type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
 type FinalizedOrderItemData = {
     description: string; // Added to help identify item
     metalType: MetalType;
@@ -1100,47 +1100,42 @@ export const useAppStore = create<AppState>()(
                 console.error("[GemsTrack Store addOrder] Failed to create new customer profile for walk-in.");
             }
         } else if (finalCustomerId) {
-             finalCustomerName = customers.find(c => c.id === finalCustomerId)?.name || orderData.customerName;
+             const customer = customers.find(c => c.id === finalCustomerId);
+             if (customer) {
+                finalCustomerName = customer.name;
+             }
         }
         
         const finalSubtotal = Number(orderData.subtotal) || 0;
         const finalGrandTotal = Number(orderData.grandTotal) || 0;
         
-        let summary = "Order summary could not be generated.";
-        if (orderData.items.length > 0) {
-            try {
-                const summaryInput: SummarizeOrderItemsInput = {
-                    items: orderData.items.map(item => ({
-                        description: item.description,
-                        karat: item.karat,
-                        estimatedWeightG: item.estimatedWeightG,
-                    })),
-                };
-                const result = await summarizeOrderItems(summaryInput);
-                summary = result.summary;
-            } catch (e) {
-                console.error("Failed to generate order summary:", e);
-            }
-        }
-
-        const newOrder: Order = {
+        const summaryInput: SummarizeOrderItemsInput = {
+            items: orderData.items.map(item => ({
+                description: item.description,
+                karat: item.karat,
+                estimatedWeightG: item.estimatedWeightG,
+            })),
+        };
+        const summaryResult = await summarizeOrderItems(summaryInput);
+        
+        const newOrder: Omit<Order, 'id'> = {
           ...orderData,
           customerId: finalCustomerId,
           customerName: finalCustomerName,
           subtotal: finalSubtotal,
           grandTotal: finalGrandTotal,
-          id: newOrderId,
           createdAt: new Date().toISOString(),
           status: 'Pending',
-          summary: summary,
+          summary: summaryResult.summary,
         };
         
-        console.log("[GemsTrack Store addOrder] Attempting to save order:", newOrder);
+        const finalOrder: Order = { ...newOrder, id: newOrderId };
+        console.log("[GemsTrack Store addOrder] Attempting to save order:", finalOrder);
 
         try {
           const batch = writeBatch(db);
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, newOrderId);
-          batch.set(orderDocRef, newOrder);
+          batch.set(orderDocRef, finalOrder);
 
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           batch.update(settingsDocRef, { lastOrderNumber: nextOrderNumber });
@@ -1148,7 +1143,7 @@ export const useAppStore = create<AppState>()(
           await batch.commit();
           console.log(`[GemsTrack Store addOrder] Order ${newOrderId} and settings successfully committed.`);
           
-          return newOrder;
+          return finalOrder;
         } catch (error) {
           console.error(`[GemsTrack Store addOrder] Error saving order ${newOrderId} to Firestore:`, error);
           return null;
@@ -1420,13 +1415,13 @@ export const useAppStore = create<AppState>()(
 // --- Exported Helper Functions ---
 export const DEFAULT_KARAT_VALUE_FOR_CALCULATION: KaratValue = DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
 export const GOLD_COIN_CATEGORY_ID: string = GOLD_COIN_CATEGORY_ID_INTERNAL;
-export const calculateProductCosts = (
+export function calculateProductCosts(
   product: Omit<Product, 'sku' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & {
     categoryId?: string;
     name?: string;
   },
   rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number }
-) => {
+) {
   return _calculateProductCostsInternal(product, rates);
 }
 
