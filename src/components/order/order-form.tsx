@@ -378,22 +378,22 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         return { ...item, isCompleted: isCompleted, metalType: 'gold', metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
     });
 
-    const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
-    
-    let finalCustomerName = data.customerName;
-    if (finalCustomerId) {
-      const customer = customers.find(c => c.id === finalCustomerId);
-      if (customer) {
-        finalCustomerName = customer.name;
-      }
-    }
-
-
     if (isEditMode && order) {
+        const isWalkIn = data.customerId === WALK_IN_CUSTOMER_VALUE;
+        const finalCustomerId = isWalkIn ? undefined : data.customerId;
+
+        let finalCustomerName = data.customerName;
+        if (!isWalkIn && finalCustomerId) {
+            const customer = customers.find(c => c.id === finalCustomerId);
+            if (customer) {
+                finalCustomerName = customer.name;
+            }
+        }
+        
         const updatedOrderData: Partial<Order> = {
             ...data,
             customerId: finalCustomerId,
-            customerName: finalCustomerName,
+            customerName: finalCustomerName || 'Walk-in Customer', // Ensure name is not undefined
             items: enrichedItems,
             goldRate: goldRate24k,
             subtotal,
@@ -403,6 +403,15 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         toast({ title: "Order Updated", description: "The custom order has been successfully updated." });
         router.push(`/orders/${order.id}`);
     } else {
+        const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
+        let finalCustomerName = data.customerName;
+        if (finalCustomerId) {
+          const customer = customers.find(c => c.id === finalCustomerId);
+          if (customer) {
+            finalCustomerName = customer.name;
+          }
+        }
+
         const orderToSave: Omit<Order, 'id' | 'createdAt' | 'status'> = {
             items: enrichedItems,
             goldRate: goldRate24k,
@@ -676,7 +685,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                     <Button type="button" variant="outline" onClick={() => router.back()} className="w-full">
                         <Ban className="mr-2 h-4 w-4" /> Cancel
                     </Button>
-                    <Button type="submit" size="lg" className="w-full" disabled={!form.formState.isDirty && isEditMode}>
+                    <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
                         {form.formState.isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Save className="mr-2 h-5 w-5" />}
                          {form.formState.isSubmitting ? "Saving..." : (isEditMode ? 'Save Changes' : 'Save Order')}
                     </Button>
