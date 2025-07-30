@@ -101,8 +101,8 @@ const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] =
         advancePayment: 50000,
         advanceGoldDetails: "5g old gold (21k) provided.",
         items: [
-            { description: "Custom bridal necklace set", karat: "22k", estimatedWeightG: 45, makingCharges: 80000, diamondCharges: 150000, stoneCharges: 25000, sampleGiven: false, hasDiamonds: true, isCompleted: false, diamondDetails: "Full set with Polki diamonds", stoneDetails: "Ruby and emerald accents" },
-            { description: "Matching groom's ring", karat: "21k", estimatedWeightG: 12, makingCharges: 15000, diamondCharges: 0, stoneCharges: 0, sampleGiven: true, hasDiamonds: false, isCompleted: false, referenceSku: "BND-000002" }
+            { description: "Custom bridal necklace set", karat: "22k", estimatedWeightG: 45, makingCharges: 80000, diamondCharges: 150000, stoneCharges: 25000, sampleGiven: false, hasDiamonds: true, isCompleted: false, diamondDetails: "Full set with Polki diamonds", stoneDetails: "Ruby and emerald accents", wastagePercentage: 10, metalType: 'gold' },
+            { description: "Matching groom's ring", karat: "21k", estimatedWeightG: 12, makingCharges: 15000, diamondCharges: 0, stoneCharges: 0, sampleGiven: true, hasDiamonds: false, isCompleted: false, referenceSku: "BND-000002", wastagePercentage: 10, metalType: 'gold' }
         ]
     },
     {
@@ -110,7 +110,7 @@ const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] =
         goldRate: 21000 * (24/21),
         advancePayment: 20000,
         items: [
-            { description: "Platinum band with custom engraving", karat: '18k', estimatedWeightG: 8, makingCharges: 20000, diamondCharges: 0, stoneCharges: 0, sampleGiven: false, hasDiamonds: false, isCompleted: true, stoneDetails: "Engraving: 'Z & R Forever'" }
+            { description: "Platinum band with custom engraving", karat: '18k', estimatedWeightG: 8, makingCharges: 20000, diamondCharges: 0, stoneCharges: 0, sampleGiven: false, hasDiamonds: false, isCompleted: true, stoneDetails: "Engraving: 'Z & R Forever'", wastagePercentage: 5, metalType: 'platinum' }
         ]
     }
 ];
@@ -429,15 +429,15 @@ export default function SettingsPage() {
           const itemAsProduct = {
             ...item,
             categoryId: '', // Custom orders don't have a category
-            metalType: 'gold' as MetalType,
+            metalType: item.metalType,
             metalWeightG: item.estimatedWeightG,
-            wastagePercentage: 10, // Default wastage for dummy data
-            hasDiamonds: item.diamondCharges > 0,
+            wastagePercentage: item.wastagePercentage,
+            hasDiamonds: item.hasDiamonds,
             miscCharges: 0,
           };
           const costs = calculateProductCosts(itemAsProduct, ratesForCalc);
           subtotal += costs.totalPrice;
-          return { ...item, metalCost: costs.metalCost, totalEstimate: costs.totalPrice };
+          return { ...item, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
         });
 
         const grandTotal = subtotal - (orderData.advancePayment || 0);
@@ -944,7 +944,7 @@ export default function SettingsPage() {
                 <DataDeletionButton
                     action={clearAllProducts}
                     buttonText="Clear Products"
-                    description="This will permanently delete all product data from the database. This action cannot be undone."
+                    description="This will permanently delete all product data from the 'products' and 'sold_products' collections. This action cannot be undone."
                 >
                     <Trash className="mr-2 h-4 w-4" />
                 </DataDeletionButton>

@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { summarizeOrderItems, SummarizeOrderItemsInput } from '@/ai/flows/summarize-order-items-flow';
 
@@ -12,7 +12,8 @@ import { summarizeOrderItems, SummarizeOrderItemsInput } from '@/ai/flows/summar
 // --- Firestore Collection Names ---
 const FIRESTORE_COLLECTIONS = {
   SETTINGS: "app_settings",
-  PRODUCTS: "products",
+  PRODUCTS: "products", // Represents ACTIVE inventory
+  SOLD_PRODUCTS: "sold_products", // Archive of sold items
   CUSTOMERS: "customers",
   KARIGARS: "karigars",
   INVOICES: "invoices",
@@ -235,7 +236,7 @@ export interface InvoiceItem {
   metalType: MetalType;
   karat?: KaratValue;
   metalWeightG: number;
-  quantity: number;
+  quantity: number; // Will always be 1 in new model, but kept for schema consistency
   unitPrice: number;
   itemTotal: number;
   metalCost: number;
@@ -485,9 +486,9 @@ export interface AppState {
   updateKarigar: (id: string, updatedKarigarData: Partial<Omit<Karigar, 'id'>>) => Promise<void>;
   deleteKarigar: (id: string) => Promise<void>;
 
-  addToCart: (sku: string, quantity?: number) => void;
+  addToCart: (sku: string) => void;
   removeFromCart: (sku: string) => void;
-  updateCartQuantity: (sku: string, quantity: number) => void;
+  updateCartQuantity: (sku: string, quantity: number) => void; // This will now effectively be a toggle.
   clearCart: () => void;
 
   loadGeneratedInvoices: () => void;
@@ -523,7 +524,7 @@ export interface AppState {
 }
 
 export type EnrichedCartItem = Product & {
-  quantity: number;
+  quantity: number; // Always 1
   totalPrice: number; // Price for one unit at current store rates
   lineItemTotal: number; // totalPrice * quantity
 };
@@ -846,17 +847,17 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      addToCart: (sku, quantity = 1) => set((state) => {
+      addToCart: (sku) => set((state) => {
           const existingItem = state.cart.find((item) => item.sku === sku);
-          if (existingItem) { existingItem.quantity += quantity; } else { state.cart.push({ sku, quantity }); }
-      }),
-      removeFromCart: (sku) => set((state) => { state.cart = state.cart.filter((item) => item.sku !== sku); }),
-      updateCartQuantity: (sku, quantity) => set((state) => {
-          const item = state.cart.find((i) => i.sku === sku);
-          if (item) {
-            if (quantity <= 0) { state.cart = state.cart.filter((i) => i.sku !== sku); } else { item.quantity = quantity; }
+          if (!existingItem) {
+            state.cart.push({ sku, quantity: 1 });
           }
       }),
+      removeFromCart: (sku) => set((state) => { state.cart = state.cart.filter((item) => item.sku !== sku); }),
+      updateCartQuantity: (sku, quantity) => {
+        // This function is now a no-op in the per-piece inventory model, but kept for interface consistency.
+        // Each item is unique and has a quantity of 1.
+      },
       clearCart: () => set((state) => { state.cart = []; }),
 
       loadGeneratedInvoices: () => {
@@ -876,158 +877,111 @@ export const useAppStore = create<AppState>()(
         );
       },
       generateInvoice: async (customerInfo, invoiceGoldRate24k, discountAmount) => {
-        const { products, cart, customers, settings, addCustomer } = get();
+        const { products, cart, settings, addCustomer } = get();
         if (cart.length === 0) return null;
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
-
-        let finalCustomerId = customerInfo.id;
-        // If it's a walk-in customer with a name, create a new customer profile.
-        if (!finalCustomerId && customerInfo.name) {
-            const newCustomer = await addCustomer({ 
-                name: customerInfo.name, 
-                phone: customerInfo.phone 
-            });
-            if (newCustomer) {
-                finalCustomerId = newCustomer.id;
-            } else {
-                console.error("[GemsTrack Store generateInvoice] Failed to create new customer profile for walk-in.");
-                // We can proceed without a customerId, the name will still be saved on the invoice.
-            }
-        }
-
-        let validInvoiceGoldRate24k = Number(invoiceGoldRate24k) || 0;
-        const cartProducts = cart.map(ci => products.find(p => p.sku === ci.sku)).filter(Boolean) as Product[];
-
-        const hasGoldItems = cartProducts.some(p => p.metalType === 'gold');
-        const hasPalladiumItems = cartProducts.some(p => p.metalType === 'palladium');
-        const hasPlatinumItems = cartProducts.some(p => p.metalType === 'platinum');
-
-        if (hasGoldItems && validInvoiceGoldRate24k <= 0) {
-            console.error("[GemsTrack Store generateInvoice] Gold items in cart but provided gold rate is invalid.");
-            return null;
-        }
-
-        const ratesForInvoice = {
-            goldRatePerGram24k: validInvoiceGoldRate24k,
-            palladiumRatePerGram: Number(settings.palladiumRatePerGram) || 0,
-            platinumRatePerGram: Number(settings.platinumRatePerGram) || 0,
-        };
-        
-        console.log("[GemsTrack Store generateInvoice] Using rates for calculation:", ratesForInvoice);
-
-        let subtotal = 0;
-        const invoiceItems: InvoiceItem[] = [];
-
-        for (const cartItem of cart) {
-            const product = products.find(p => p.sku === cartItem.sku);
-            if (!product) {
-                console.warn(`[GemsTrack Store generateInvoice] Product SKU ${cartItem.sku} not found in store for invoice.`);
-                continue;
-            }
-            const productForCostCalc = {
-                name: product.name,
-                categoryId: product.categoryId,
-                metalType: product.metalType,
-                karat: product.metalType === 'gold' ? (product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL) : undefined,
-                metalWeightG: product.metalWeightG,
-                wastagePercentage: product.wastagePercentage,
-                makingCharges: product.makingCharges,
-                hasDiamonds: product.hasDiamonds,
-                diamondCharges: product.diamondCharges,
-                stoneCharges: product.stoneCharges,
-                miscCharges: product.miscCharges,
-            };
-            
-            const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice);
-            if (isNaN(costs.totalPrice)) {
-                console.error(`[GemsTrack Store generateInvoice] Calculated cost for product ${product.sku} in cart is NaN. Skipping item.`);
-                continue;
-            }
-            const unitPrice = costs.totalPrice;
-            const itemTotal = unitPrice * cartItem.quantity;
-            subtotal += itemTotal;
-            
-            const finalItem: InvoiceItem = {
-                sku: product.sku,
-                name: product.name,
-                categoryId: product.categoryId,
-                metalType: product.metalType,
-                metalWeightG: product.metalWeightG,
-                quantity: cartItem.quantity,
-                unitPrice,
-                itemTotal,
-                metalCost: costs.metalCost,
-                wastageCost: costs.wastageCost,
-                wastagePercentage: product.wastagePercentage,
-                makingCharges: costs.makingCharges,
-                diamondChargesIfAny: costs.diamondCharges,
-                stoneChargesIfAny: costs.stoneCharges,
-                miscChargesIfAny: costs.miscCharges,
-                stoneDetails: product.stoneDetails,
-                diamondDetails: product.diamondDetails,
-            };
-            if (product.metalType === 'gold' && productForCostCalc.karat) { finalItem.karat = productForCostCalc.karat; }
-            invoiceItems.push(finalItem);
-        }
-        
-        const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
-        const grandTotal = subtotal - calculatedDiscountAmount;
-        
-        const currentSettings = get().settings;
-        const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
-        const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
-        
-        const newInvoiceData: Omit<Invoice, 'id'> = {
-          items: invoiceItems.map(item => {
-              const cleanItem = { ...item };
-              if (!cleanItem.karat) cleanItem.karat = undefined;
-              if (!cleanItem.stoneDetails) cleanItem.stoneDetails = undefined;
-              if (!cleanItem.diamondDetails) cleanItem.diamondDetails = undefined;
-              Object.keys(cleanItem).forEach(key => { if ((cleanItem as any)[key] === undefined) { delete (cleanItem as any)[key]; } });
-              return cleanItem;
-          }),
-          subtotal: Number(subtotal) || 0,
-          discountAmount: calculatedDiscountAmount, 
-          grandTotal: Number(grandTotal) || 0,
-          amountPaid: 0,
-          balanceDue: Number(grandTotal) || 0,
-          createdAt: new Date().toISOString(),
-          goldRateApplied: hasGoldItems && ratesForInvoice.goldRatePerGram24k > 0 ? ratesForInvoice.goldRatePerGram24k : null,
-          palladiumRateApplied: hasPalladiumItems && ratesForInvoice.palladiumRatePerGram > 0 ? ratesForInvoice.palladiumRatePerGram : null,
-          platinumRateApplied: hasPlatinumItems && ratesForInvoice.platinumRatePerGram > 0 ? ratesForInvoice.platinumRatePerGram : null,
-          customerId: finalCustomerId,
-          customerName: customerInfo.name || 'Walk-in Customer'
-        };
-
-        const newInvoice: Invoice = { id: invoiceId, ...newInvoiceData } as Invoice;
-        console.log("[GemsTrack Store generateInvoice] Generated invoice object for Firestore:", newInvoiceData);
-
+    
         try {
-            const batch = writeBatch(db);
-            const invoiceDocRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
-            batch.set(invoiceDocRef, newInvoiceData);
+            return await runTransaction(db, async (transaction) => {
+                let finalCustomerId = customerInfo.id;
+                // If it's a walk-in customer with a name, create a new customer profile.
+                if (!finalCustomerId && customerInfo.name) {
+                    const newCustomer = await addCustomer({ name: customerInfo.name, phone: customerInfo.phone });
+                    if (newCustomer) {
+                        finalCustomerId = newCustomer.id;
+                    } else {
+                        throw new Error("Failed to create new customer profile for walk-in.");
+                    }
+                }
+    
+                let validInvoiceGoldRate24k = Number(invoiceGoldRate24k) || 0;
+                const hasGoldItems = cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'gold');
+                if (hasGoldItems && validInvoiceGoldRate24k <= 0) {
+                    throw new Error("Gold items in cart but provided gold rate is invalid.");
+                }
+    
+                const ratesForInvoice = {
+                    goldRatePerGram24k: validInvoiceGoldRate24k,
+                    palladiumRatePerGram: Number(settings.palladiumRatePerGram) || 0,
+                    platinumRatePerGram: Number(settings.platinumRatePerGram) || 0,
+                };
+    
+                let subtotal = 0;
+                const invoiceItems: InvoiceItem[] = [];
+                const productsToMove = [];
+    
+                for (const cartItem of cart) {
+                    const productDocRef = doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku);
+                    const productDoc = await transaction.get(productDocRef);
+    
+                    if (!productDoc.exists()) {
+                        throw new Error(`Product with SKU ${cartItem.sku} does not exist in inventory.`);
+                    }
+                    const product = productDoc.data() as Product;
+                    productsToMove.push(product);
+    
+                    const costs = _calculateProductCostsInternal(product, ratesForInvoice);
+                    if (isNaN(costs.totalPrice)) {
+                        throw new Error(`Calculated cost for product ${product.sku} is NaN.`);
+                    }
+    
+                    const itemTotal = costs.totalPrice;
+                    subtotal += itemTotal;
+    
+                    invoiceItems.push({
+                        sku: product.sku, name: product.name, categoryId: product.categoryId,
+                        metalType: product.metalType, metalWeightG: product.metalWeightG,
+                        quantity: 1, unitPrice: itemTotal, itemTotal,
+                        metalCost: costs.metalCost, wastageCost: costs.wastageCost,
+                        wastagePercentage: product.wastagePercentage, makingCharges: costs.makingCharges,
+                        diamondChargesIfAny: costs.diamondCharges, stoneChargesIfAny: costs.stoneCharges,
+                        miscChargesIfAny: costs.miscCharges, stoneDetails: product.stoneDetails,
+                        diamondDetails: product.diamondDetails, karat: product.karat
+                    });
+                }
+    
+                const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
+                const grandTotal = subtotal - calculatedDiscountAmount;
+                const nextInvoiceNumber = (settings.lastInvoiceNumber || 0) + 1;
+                const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
+    
+                const newInvoiceData: Omit<Invoice, 'id'> = {
+                    items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
+                    amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
+                    goldRateApplied: ratesForInvoice.goldRatePerGram24k, 
+                    palladiumRateApplied: ratesForInvoice.palladiumRatePerGram,
+                    platinumRateApplied: ratesForInvoice.platinumRatePerGram,
+                    customerId: finalCustomerId, customerName: customerInfo.name || 'Walk-in Customer'
+                };
+    
+                // --- Transactional Writes ---
+                // 1. Create the new invoice
+                transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
+    
+                // 2. Move sold products from active inventory to sold history
+                for (const product of productsToMove) {
+                    transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, product.sku), product);
+                    transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, product.sku));
+                }
+    
+                // 3. Update settings with new invoice number
+                transaction.update(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID), { lastInvoiceNumber: nextInvoiceNumber });
+    
+                // 4. Create Hisaab entry
+                const hisaabEntry: Omit<HisaabEntry, 'id'> = {
+                    entityId: finalCustomerId || 'walk-in', entityType: 'customer',
+                    entityName: newInvoiceData.customerName || 'Walk-in Customer', date: newInvoiceData.createdAt,
+                    description: `Invoice ${invoiceId}`, cashDebit: grandTotal, cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0,
+                };
+                transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
+                
+                // Clear cart locally after successful transaction
+                set({ cart: [] });
 
-            const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
-            batch.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
-            
-            const hisaabEntry: Omit<HisaabEntry, 'id'> = {
-              entityId: finalCustomerId || 'walk-in',
-              entityType: 'customer',
-              entityName: newInvoice.customerName || 'Walk-in Customer',
-              date: newInvoice.createdAt,
-              description: `Invoice ${newInvoice.id}`,
-              cashDebit: newInvoice.grandTotal,
-              cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0,
-            };
-            const hisaabDocRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
-            batch.set(hisaabDocRef, hisaabEntry);
-
-            await batch.commit();
-            console.log("[GemsTrack Store generateInvoice] Invoice and Hisaab entry successfully committed to Firestore.");
-
-            return newInvoice;
+                return { id: invoiceId, ...newInvoiceData } as Invoice;
+            });
         } catch (error) {
-            console.error("[GemsTrack Store generateInvoice] Error committing invoice batch to Firestore:", error);
+            console.error("[GemsTrack Store generateInvoice] Transaction failed: ", error);
             return null;
         }
       },
@@ -1070,7 +1024,9 @@ export const useAppStore = create<AppState>()(
             set(state => {
               state.orders = orderList;
               state.isOrdersLoading = false;
-              state.hasOrdersLoaded = true;
+              if (orderList.length > 0 || !state.hasOrdersLoaded) {
+                 state.hasOrdersLoaded = true;
+              }
             });
             console.log(`[GemsTrack Store] Real-time update: ${orderList.length} orders loaded.`);
           },
@@ -1096,8 +1052,6 @@ export const useAppStore = create<AppState>()(
             });
             if (newCustomer) {
                 finalCustomerId = newCustomer.id;
-            } else {
-                console.error("[GemsTrack Store addOrder] Failed to create new customer profile for walk-in.");
             }
         } else if (finalCustomerId) {
              const customer = customers.find(c => c.id === finalCustomerId);
@@ -1335,6 +1289,7 @@ export const useAppStore = create<AppState>()(
         set({ isProductsLoading: true });
         try {
             await deleteCollection(FIRESTORE_COLLECTIONS.PRODUCTS);
+            await deleteCollection(FIRESTORE_COLLECTIONS.SOLD_PRODUCTS);
         } finally {
         }
       },

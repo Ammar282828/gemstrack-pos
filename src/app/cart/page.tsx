@@ -59,7 +59,7 @@ export default function CartPage() {
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
   const allInvoices = useAppStore(state => state.generatedInvoices);
-  const { updateCartQuantity, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment } = useAppStore();
+  const { removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment } = useAppStore();
   const productsInCart = useAppStore(state => state.cart.map(ci => state.products.find(p => p.sku === ci.sku)).filter(Boolean) as Product[]);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
@@ -706,31 +706,14 @@ export default function CartPage() {
                            )}
                         </div>
                         <div className="flex items-center space-x-2 self-end sm:self-center">
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            onClick={() => updateCartQuantity(item.sku, item.quantity - 1)}
-                            disabled={item.quantity <= 1}
-                            aria-label={`Decrease quantity of ${item.name}`}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
+                          {/* Quantity controls are disabled in per-piece inventory model */}
                           <Input
                             type="number"
                             value={item.quantity}
-                            onChange={(e) => updateCartQuantity(item.sku, parseInt(e.target.value) || 1)}
-                            className="w-16 h-9 text-center"
-                            min="1"
+                            readOnly
+                            className="w-16 h-9 text-center bg-muted/50"
                             aria-label={`Quantity of ${item.name}`}
                           />
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            onClick={() => updateCartQuantity(item.sku, item.quantity + 1)}
-                            aria-label={`Increase quantity of ${item.name}`}
-                           >
-                            <Plus className="h-4 w-4" />
-                          </Button>
                         </div>
                         <Button
                           size="icon"
