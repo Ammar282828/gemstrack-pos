@@ -9,11 +9,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, parseISO, startOfDay, subDays, isWithinInterval } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2 } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 
 // Helper types for chart data
-type SalesOverTimeData = { date: string; sales: number; orders: number };
+type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
 type TopProductData = { sku: string; name: string; quantity: number; revenue: number };
 type SalesByCategoryData = { categoryId: string; categoryName: string; sales: number };
 type TopCustomerData = { customerId?: string; customerName: string; totalSpent: number; orderCount: number };
@@ -71,7 +71,7 @@ export default function AnalyticsPage() {
     let totalSales = 0;
     let totalItemsSold = 0;
     let totalDiscounts = 0;
-    const salesByDate: Record<string, { sales: number; orders: number }> = {};
+    const salesByDate: Record<string, { sales: number; orders: number; itemsSold: number }> = {};
     const productPerformance: Record<string, { quantity: number; revenue: number }> = {};
     const categoryPerformance: Record<string, number> = {};
     const customerPerformance: Record<string, { totalSpent: number; orderCount: number }> = {};
@@ -82,7 +82,7 @@ export default function AnalyticsPage() {
 
       const dateKey = format(startOfDay(parseISO(invoice.createdAt)), 'yyyy-MM-dd');
       if (!salesByDate[dateKey]) {
-        salesByDate[dateKey] = { sales: 0, orders: 0 };
+        salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
       }
       salesByDate[dateKey].sales += invoice.grandTotal; 
       salesByDate[dateKey].orders += 1;
@@ -96,6 +96,7 @@ export default function AnalyticsPage() {
 
       invoice.items.forEach(item => {
         totalItemsSold += item.quantity;
+        salesByDate[dateKey].itemsSold += item.quantity;
 
         if (!productPerformance[item.sku]) {
           productPerformance[item.sku] = { quantity: 0, revenue: 0 };
@@ -117,7 +118,7 @@ export default function AnalyticsPage() {
     const averageItemsPerOrder = totalOrders > 0 ? totalItemsSold / totalOrders : 0;
 
     const salesOverTime: SalesOverTimeData[] = Object.entries(salesByDate)
-      .map(([date, data]) => ({ date, sales: data.sales, orders: data.orders }))
+      .map(([date, data]) => ({ date, sales: data.sales, orders: data.orders, itemsSold: data.itemsSold }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const topProductsByRevenue: TopProductData[] = Object.entries(productPerformance)
@@ -316,6 +317,41 @@ export default function AnalyticsPage() {
                  )}
               </CardContent>
             </Card>
+            
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><CalendarDays className="mr-2 h-5 w-5"/> Daily Summary</CardTitle>
+              <CardDescription>A day-by-day breakdown of sales activity for the selected period.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {analyticsData.salesOverTime.length > 0 ? (
+                <ScrollArea className="h-[400px] w-full" type="auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Total Sales (PKR)</TableHead>
+                        <TableHead className="text-right">Orders</TableHead>
+                        <TableHead className="text-right">Items Sold</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {analyticsData.salesOverTime.map((day) => (
+                        <TableRow key={day.date}>
+                          <TableCell className="font-medium">{format(parseISO(day.date), 'EEE, MMM d, yyyy')}</TableCell>
+                          <TableCell className="text-right font-semibold">{day.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{day.orders}</TableCell>
+                          <TableCell className="text-right">{day.itemsSold}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              ) : (
+                <p className="text-muted-foreground text-center py-10">No daily data available for the selected period.</p>
+              )}
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
