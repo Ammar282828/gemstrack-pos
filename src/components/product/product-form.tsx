@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect } from 'react';
@@ -12,17 +13,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID } from '@/lib/store';
+import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem } from 'lucide-react';
+import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem, Info } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import { Separator } from '../ui/separator';
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
-const MENS_RING_CATEGORY_ID = 'cat018';
 
 // Schema for the form data
 const productFormSchema = z.object({
@@ -48,7 +48,21 @@ const productFormSchema = z.object({
   stoneDetails: z.string().optional(),
   diamondDetails: z.string().optional(),
   submitAction: z.enum(['saveAndClose', 'saveAndAddAnother']).optional(),
+  // Manual Price Override fields
+  isCustomPrice: z.boolean().default(false),
+  customPrice: z.coerce.number().min(0).optional(),
+  description: z.string().optional(),
 }).superRefine((data, ctx) => {
+  if (data.isCustomPrice) {
+    if (!data.description || data.description.length < 3) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Description is required for custom priced items.", path: ["description"] });
+    }
+    if (data.customPrice === undefined || data.customPrice <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A positive price is required.", path: ["customPrice"] });
+    }
+    return;
+  }
+
   if (data.metalType === 'gold' && !data.karat) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Karat is required for gold items.", path: ["karat"] });
   }
@@ -82,11 +96,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
       imageUrl: product.imageUrl || "",
       stoneDetails: product.stoneDetails || "",
       diamondDetails: product.diamondDetails || "",
+      isCustomPrice: product.isCustomPrice || false,
+      customPrice: product.customPrice || 0,
+      description: product.description || product.name || '',
     } : {
       categoryId: '', metalType: 'gold', karat: '21k', metalWeightG: 0, wastagePercentage: 10,
       makingCharges: 0, hasDiamonds: false, hasStones: false, stoneWeightG: 0, diamondCharges: 0,
       stoneCharges: 0, miscCharges: 0, imageUrl: "", stoneDetails: "", diamondDetails: "",
       secondaryMetalType: undefined, secondaryMetalKarat: undefined, secondaryMetalWeightG: undefined,
+      isCustomPrice: false, customPrice: 0, description: '',
     },
   });
 
@@ -95,6 +113,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   const selectedSecondaryMetalType = form.watch('secondaryMetalType');
   const hasDiamondsValue = form.watch('hasDiamonds');
   const hasStonesValue = form.watch('hasStones');
+  const isCustomPrice = form.watch('isCustomPrice');
   const isGoldCoin = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
   const isMensRing = selectedCategoryId === MENS_RING_CATEGORY_ID;
 
@@ -135,6 +154,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
       secondaryMetalType: isMensRing ? data.secondaryMetalType : undefined,
       secondaryMetalKarat: isMensRing && data.secondaryMetalType === 'gold' ? data.secondaryMetalKarat : undefined,
       secondaryMetalWeightG: isMensRing ? data.secondaryMetalWeightG : undefined,
+      name: data.isCustomPrice ? data.description || '' : '' // Name will be auto-generated later if not custom
     };
 
     try {
@@ -151,6 +171,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                 ...form.getValues(), metalWeightG: 0, hasDiamonds: false, hasStones: false,
                 stoneWeightG: 0, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: "",
                 stoneDetails: "", diamondDetails: "", secondaryMetalType: undefined, secondaryMetalKarat: undefined, secondaryMetalWeightG: undefined,
+                isCustomPrice: false, customPrice: 0, description: '',
             });
             form.trigger();
           } else { router.push('/products'); }
@@ -195,132 +216,175 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                 />
             </div>
             
-            <Separator />
-            <h3 className="text-lg font-semibold text-primary">Primary Metal</h3>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 <FormField
-                  control={form.control} name="metalType"
+            {isMensRing && (
+              <>
+                <Separator />
+                <FormField
+                  control={form.control} name="isCustomPrice"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center"><Shield className="mr-2 h-4 w-4" /> Metal Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Select Metal Type" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          {metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 bg-primary/5">
+                      <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="isCustomPrice" /></FormControl>
+                      <div className="space-y-1 leading-none">
+                        <Label htmlFor="isCustomPrice" className="flex items-center cursor-pointer text-base font-semibold text-primary"><Info className="mr-2 h-4 w-4" /> Set Manual Price</Label>
+                        <FormDescription>Check this to bypass detailed calculations and set a final price directly.</FormDescription>
+                      </div>
                     </FormItem>
                   )}
                 />
-                {selectedMetalType === 'gold' && (
-                  <FormField control={form.control} name="karat"
+              </>
+            )}
+
+            {isCustomPrice ? (
+               <div className="space-y-6 p-4 border rounded-md bg-muted/30">
+                  <FormField control={form.control} name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Product Description</FormLabel>
+                          <FormControl><Textarea placeholder="e.g., Turkish Silver Ring with Onyx Stone" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField control={form.control} name="customPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Final Price (PKR)</FormLabel>
+                          <FormControl><Input type="number" placeholder="e.g., 15000" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+               </div>
+            ) : (
+             <>
+              <Separator />
+              <h3 className="text-lg font-semibold text-primary">Primary Metal</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <FormField
+                    control={form.control} name="metalType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4" /> Karat</FormLabel>
+                        <FormLabel className="flex items-center"><Shield className="mr-2 h-4 w-4" /> Metal Type</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select Karat" /></SelectTrigger></FormControl>
-                          <SelectContent>{karatValues.map((kVal) => (<SelectItem key={kVal} value={kVal}>{kVal.toUpperCase()}</SelectItem>))}</SelectContent>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select Metal Type" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>))}
+                          </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                )}
-                <FormField
-                  control={form.control} name="metalWeightG"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4" /> Weight (g)</FormLabel>
-                      <FormControl><Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-             </div>
-
-            {isMensRing && (
-                <>
-                <Separator />
-                <h3 className="text-lg font-semibold text-primary">Secondary Metal (Optional)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FormField control={form.control} name="secondaryMetalType"
-                        render={({ field }) => (
+                  {selectedMetalType === 'gold' && (
+                    <FormField control={form.control} name="karat"
+                      render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="flex items-center"><Shield className="mr-2 h-4 w-4" /> Metal Type</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger></FormControl>
-                                <SelectContent>{metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>))}</SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    {selectedSecondaryMetalType === 'gold' && (
-                    <FormField control={form.control} name="secondaryMetalKarat"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4" /> Karat</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                          <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4" /> Karat</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Select Karat" /></SelectTrigger></FormControl>
                             <SelectContent>{karatValues.map((kVal) => (<SelectItem key={kVal} value={kVal}>{kVal.toUpperCase()}</SelectItem>))}</SelectContent>
-                            </Select>
-                            <FormMessage />
+                          </Select>
+                          <FormMessage />
                         </FormItem>
-                        )}
+                      )}
                     />
+                  )}
+                  <FormField
+                    control={form.control} name="metalWeightG"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4" /> Weight (g)</FormLabel>
+                        <FormControl><Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                    <FormField control={form.control} name="secondaryMetalWeightG"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4" /> Weight (g)</FormLabel>
-                            <FormControl><Input type="number" step="0.001" placeholder="e.g., 1.25" {...field} disabled={!selectedSecondaryMetalType} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
+                  />
+              </div>
+
+              {isMensRing && (
+                  <>
+                  <Separator />
+                  <h3 className="text-lg font-semibold text-primary">Secondary Metal (Optional)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <FormField control={form.control} name="secondaryMetalType"
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel className="flex items-center"><Shield className="mr-2 h-4 w-4" /> Metal Type</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger></FormControl>
+                                  <SelectContent>{metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>))}</SelectContent>
+                              </Select>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
+                      {selectedSecondaryMetalType === 'gold' && (
+                      <FormField control={form.control} name="secondaryMetalKarat"
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4" /> Karat</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl><SelectTrigger><SelectValue placeholder="Select Karat" /></SelectTrigger></FormControl>
+                              <SelectContent>{karatValues.map((kVal) => (<SelectItem key={kVal} value={kVal}>{kVal.toUpperCase()}</SelectItem>))}</SelectContent>
+                              </Select>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
+                      )}
+                      <FormField control={form.control} name="secondaryMetalWeightG"
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4" /> Weight (g)</FormLabel>
+                              <FormControl><Input type="number" step="0.001" placeholder="e.g., 1.25" {...field} disabled={!selectedSecondaryMetalType} /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
+                  </div>
+                  </>
+              )}
+
+
+              {!isGoldCoin && (
+                <>
+                <Separator/>
+                <h3 className="text-lg font-semibold text-primary">Stones, Diamonds &amp; Charges</h3>
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control} name="hasStones"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasStones" /></FormControl>
+                        <div className="space-y-1 leading-none">
+                          <Label htmlFor="hasStones" className="flex items-center cursor-pointer"><Gem className="mr-2 h-4 w-4 text-primary" /> Contains Stones?</Label>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control} name="hasDiamonds"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasDiamonds" /></FormControl>
+                        <div className="space-y-1 leading-none">
+                          <Label htmlFor="hasDiamonds" className="flex items-center cursor-pointer"><Diamond className="mr-2 h-4 w-4 text-primary" /> Contains Diamonds?</Label>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField control={form.control} name="wastagePercentage" render={({ field }) => (<FormItem><FormLabel>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 10" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="makingCharges" render={({ field }) => (<FormItem><FormLabel>Making Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 5000" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  {hasStonesValue && <FormField control={form.control} name="stoneWeightG" render={({ field }) => (<FormItem><FormLabel>Stone Weight (grams)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g., 0.5" {...field} /></FormControl><FormMessage /></FormItem>)}/>}
+                  {hasDiamondsValue && <FormField control={form.control} name="diamondCharges" render={({ field }) => (<FormItem><FormLabel>Diamond Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 50000" {...field} /></FormControl><FormMessage /></FormItem>)} />}
+                  {hasStonesValue && <FormField control={form.control} name="stoneCharges" render={({ field }) => (<FormItem><FormLabel>Stone Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 15000" {...field} /></FormControl><FormMessage /></FormItem>)} />}
+                  <FormField control={form.control} name="miscCharges" render={({ field }) => (<FormItem><FormLabel>Miscellaneous Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 250" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  {hasStonesValue && <FormField control={form.control} name="stoneDetails" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel className="flex items-center"><Gem className="mr-2 h-4 w-4 text-primary" /> Secondary Metal &amp; Stone Details</FormLabel><FormControl><Textarea placeholder="e.g., 1x Ruby (2ct) and 2g gold accent" {...field} /></FormControl><FormMessage /></FormItem>)} />}
+                  {hasDiamondsValue && <FormField control={form.control} name="diamondDetails" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4 text-primary" /> Diamond Details</FormLabel><FormControl><Textarea placeholder="e.g., Center: 1ct VVS1, Side: 12x 0.05ct VS2" {...field} /></FormControl><FormMessage /></FormItem>)} />}
                 </div>
                 </>
-            )}
-
-
-            {!isGoldCoin && (
-              <>
-              <Separator/>
-              <h3 className="text-lg font-semibold text-primary">Stones, Diamonds &amp; Charges</h3>
-              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <FormField
-                  control={form.control} name="hasStones"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
-                      <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasStones" /></FormControl>
-                      <div className="space-y-1 leading-none">
-                        <Label htmlFor="hasStones" className="flex items-center cursor-pointer"><Gem className="mr-2 h-4 w-4 text-primary" /> Contains Stones?</Label>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control} name="hasDiamonds"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
-                      <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasDiamonds" /></FormControl>
-                      <div className="space-y-1 leading-none">
-                        <Label htmlFor="hasDiamonds" className="flex items-center cursor-pointer"><Diamond className="mr-2 h-4 w-4 text-primary" /> Contains Diamonds?</Label>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                <FormField control={form.control} name="wastagePercentage" render={({ field }) => (<FormItem><FormLabel>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 10" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="makingCharges" render={({ field }) => (<FormItem><FormLabel>Making Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 5000" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                {hasStonesValue && <FormField control={form.control} name="stoneWeightG" render={({ field }) => (<FormItem><FormLabel>Stone Weight (grams)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g., 0.5" {...field} /></FormControl><FormMessage /></FormItem>)}/>}
-                {hasDiamondsValue && <FormField control={form.control} name="diamondCharges" render={({ field }) => (<FormItem><FormLabel>Diamond Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 50000" {...field} /></FormControl><FormMessage /></FormItem>)} />}
-                {hasStonesValue && <FormField control={form.control} name="stoneCharges" render={({ field }) => (<FormItem><FormLabel>Stone Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 15000" {...field} /></FormControl><FormMessage /></FormItem>)} />}
-                <FormField control={form.control} name="miscCharges" render={({ field }) => (<FormItem><FormLabel>Miscellaneous Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 250" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                {hasStonesValue && <FormField control={form.control} name="stoneDetails" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel className="flex items-center"><Gem className="mr-2 h-4 w-4 text-primary" /> Secondary Metal &amp; Stone Details</FormLabel><FormControl><Textarea placeholder="e.g., 1x Ruby (2ct) and 2g gold accent" {...field} /></FormControl><FormMessage /></FormItem>)} />}
-                {hasDiamondsValue && <FormField control={form.control} name="diamondDetails" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4 text-primary" /> Diamond Details</FormLabel><FormControl><Textarea placeholder="e.g., Center: 1ct VVS1, Side: 12x 0.05ct VS2" {...field} /></FormControl><FormMessage /></FormItem>)} />}
-              </div>
-              </>
+              )}
+            </>
             )}
 
             <FormField
@@ -337,7 +401,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                   <FormMessage />
                 </FormItem>
               )}
-            />
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
