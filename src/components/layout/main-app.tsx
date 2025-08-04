@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect } from 'react';
@@ -24,6 +25,7 @@ export function MainApp({ children }: { children: React.ReactNode }) {
       useAppStore.getState().loadOrders();
       useAppStore.getState().loadGeneratedInvoices();
       useAppStore.getState().loadHisaab();
+      useAppStore.getState().loadExpenses(); // <-- Load expenses
     }
   }, [isStoreHydrated]);
 

@@ -2,14 +2,14 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useAppStore, Invoice, Product, Category, Customer } from '@/lib/store';
+import { useAppStore, Invoice, Product, Category, Customer, Expense } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { format, parseISO, startOfDay, subDays, isWithinInterval } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
@@ -20,21 +20,23 @@ type TopProductData = { sku: string; name: string; quantity: number; revenue: nu
 type SalesByCategoryData = { categoryId: string; categoryName: string; sales: number };
 type TopCustomerData = { customerId?: string; customerName: string; totalSpent: number; orderCount: number };
 type DailySummaryItem = InvoiceItem & { invoiceId: string; customerName: string; };
+type ExpenseByCategoryData = { category: string; amount: number };
 
 export default function AnalyticsPage() {
   const { 
-    generatedInvoices, products, categories, customers, 
-    isInvoicesLoading, isProductsLoading, isCustomersLoading, 
-    loadGeneratedInvoices, loadProducts, loadCustomers 
+    generatedInvoices, products, categories, customers, expenses,
+    isInvoicesLoading, isProductsLoading, isCustomersLoading, isExpensesLoading,
+    loadGeneratedInvoices, loadProducts, loadCustomers, loadExpenses 
   } = useAppStore();
 
   useEffect(() => {
     loadGeneratedInvoices();
     loadProducts();
     loadCustomers();
-  }, [loadGeneratedInvoices, loadProducts, loadCustomers]);
+    loadExpenses();
+  }, [loadGeneratedInvoices, loadProducts, loadCustomers, loadExpenses]);
 
-  const isLoading = isInvoicesLoading || isProductsLoading || isCustomersLoading;
+  const isLoading = isInvoicesLoading || isProductsLoading || isCustomersLoading || isExpensesLoading;
 
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -55,11 +57,20 @@ export default function AnalyticsPage() {
       return isWithinInterval(invoiceDate, { start: startOfDay(dateRange.from!), end: toDate });
     });
   }, [generatedInvoices, dateRange]);
+  
+  const filteredExpenses = useMemo(() => {
+    if (!dateRange || !dateRange.from) return expenses;
+
+    return expenses.filter(expense => {
+      const expenseDate = parseISO(expense.date);
+      const toDate = dateRange.to ? startOfDay(dateRange.to) : startOfDay(new Date());
+      return isWithinInterval(expenseDate, { start: startOfDay(dateRange.from!), end: toDate });
+    });
+  }, [expenses, dateRange]);
 
 
   const analyticsData = useMemo(() => {
-    if (filteredInvoices.length === 0) {
-      return {
+    const calcData = {
         totalSales: 0,
         totalOrders: 0,
         averageOrderValue: 0,
@@ -71,7 +82,12 @@ export default function AnalyticsPage() {
         topProductsByQuantity: [] as TopProductData[],
         salesByCategory: [] as SalesByCategoryData[],
         topCustomers: [] as TopCustomerData[],
+        totalExpenses: 0,
+        expensesByCategory: [] as ExpenseByCategoryData[],
       };
+
+    if (filteredInvoices.length === 0 && filteredExpenses.length === 0) {
+      return calcData;
     }
 
     let totalSales = 0;
@@ -81,7 +97,8 @@ export default function AnalyticsPage() {
     const productPerformance: Record<string, { quantity: number; revenue: number }> = {};
     const categoryPerformance: Record<string, number> = {};
     const customerPerformance: Record<string, { totalSpent: number; orderCount: number }> = {};
-
+    
+    // Process Invoices
     filteredInvoices.forEach(invoice => {
       totalSales += invoice.grandTotal;
       totalDiscounts += invoice.discountAmount;
@@ -120,77 +137,70 @@ export default function AnalyticsPage() {
     });
 
     const totalOrders = filteredInvoices.length;
-    const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
-    const averageItemsPerOrder = totalOrders > 0 ? totalItemsSold / totalOrders : 0;
+    calcData.averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+    calcData.averageItemsPerOrder = totalOrders > 0 ? totalItemsSold / totalOrders : 0;
+    
+    // Process Expenses
+    const expenseByCategoryMap: Record<string, number> = {};
+    filteredExpenses.forEach(expense => {
+      calcData.totalExpenses += expense.amount;
+      if (!expenseByCategoryMap[expense.category]) {
+        expenseByCategoryMap[expense.category] = 0;
+      }
+      expenseByCategoryMap[expense.category] += expense.amount;
+    });
 
-    const salesOverTime: SalesOverTimeData[] = Object.entries(salesByDate)
+    calcData.expensesByCategory = Object.entries(expenseByCategoryMap)
+        .map(([category, amount]) => ({ category, amount }))
+        .sort((a,b) => b.amount - a.amount);
+
+    calcData.salesOverTime = Object.entries(salesByDate)
       .map(([date, data]) => ({ date, sales: data.sales, orders: data.orders, itemsSold: data.itemsSold }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    const topProductsByRevenue: TopProductData[] = Object.entries(productPerformance)
+    calcData.topProductsByRevenue = Object.entries(productPerformance)
       .map(([sku, data]) => {
         const productDetails = products.find(p => p.sku === sku);
-        return {
-          sku,
-          name: productDetails?.name || 'Unknown Product',
-          quantity: data.quantity,
-          revenue: data.revenue,
-        };
+        return { sku, name: productDetails?.name || 'Unknown Product', quantity: data.quantity, revenue: data.revenue };
       })
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
-    const topProductsByQuantity: TopProductData[] = Object.entries(productPerformance)
+    calcData.topProductsByQuantity = Object.entries(productPerformance)
       .map(([sku, data]) => {
         const productDetails = products.find(p => p.sku === sku);
-        return {
-          sku,
-          name: productDetails?.name || 'Unknown Product',
-          quantity: data.quantity,
-          revenue: data.revenue,
-        };
+        return { sku, name: productDetails?.name || 'Unknown Product', quantity: data.quantity, revenue: data.revenue };
       })
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 10);
 
-    const salesByCategory: SalesByCategoryData[] = Object.entries(categoryPerformance)
+    calcData.salesByCategory = Object.entries(categoryPerformance)
       .map(([categoryId, sales]) => {
         const categoryDetails = categories.find(c => c.id === categoryId);
-        return {
-          categoryId,
-          categoryName: categoryDetails?.title || 'Uncategorized',
-          sales,
-        };
+        return { categoryId, categoryName: categoryDetails?.title || 'Uncategorized', sales };
       })
       .sort((a, b) => b.sales - a.sales);
 
-    const topCustomers: TopCustomerData[] = Object.entries(customerPerformance)
+    calcData.topCustomers = Object.entries(customerPerformance)
       .map(([customerId, data]) => {
         const customerDetails = customers.find(c => c.id === customerId);
         return {
           customerId: customerId === 'walk-in' ? undefined : customerId,
           customerName: customerDetails?.name || 'Walk-in Customer',
-          totalSpent: data.totalSpent,
-          orderCount: data.orderCount,
+          totalSpent: data.totalSpent, orderCount: data.orderCount,
         };
       })
       .sort((a, b) => b.totalSpent - a.totalSpent)
       .slice(0, 10);
       
-    return {
-      totalSales,
-      totalOrders,
-      averageOrderValue,
-      totalItemsSold,
-      totalDiscounts,
-      averageItemsPerOrder,
-      salesOverTime,
-      topProductsByRevenue,
-      topProductsByQuantity,
-      salesByCategory,
-      topCustomers,
-    };
-  }, [filteredInvoices, products, categories, customers]);
+    calcData.totalSales = totalSales;
+    calcData.totalOrders = totalOrders;
+    calcData.totalItemsSold = totalItemsSold;
+    calcData.totalDiscounts = totalDiscounts;
+
+    return calcData;
+
+  }, [filteredInvoices, filteredExpenses, products, categories, customers]);
   
   const dailyBreakdown = useMemo(() => {
     if (!selectedDayData) return { invoices: [], products: [] };
@@ -292,19 +302,19 @@ export default function AnalyticsPage() {
             <p className="text-muted-foreground">There are no invoices in the selected date range. Try adjusting the dates or make some sales!</p>
           </CardContent>
         </Card>
-      ) : generatedInvoices.length === 0 ? ( 
+      ) : generatedInvoices.length === 0 && expenses.length === 0 ? ( 
         <Card>
           <CardHeader>
             <CardTitle>No Data Available</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">There are no invoices yet to generate analytics. Start by making some sales!</p>
+            <p className="text-muted-foreground">There is no data yet to generate analytics. Start by making some sales!</p>
           </CardContent>
         </Card>
       ) : (
         <>
           {/* Key Metrics Section */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -312,6 +322,15 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">PKR {analyticsData.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-destructive">PKR {analyticsData.totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               </CardContent>
             </Card>
             <Card>
@@ -536,6 +555,36 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader>
+                <CardTitle>Expenses by Category</CardTitle>
+                <CardDescription>Spending distribution for the selected period.</CardDescription>
+              </CardHeader>
+              <CardContent className="pl-2">
+                {analyticsData.expensesByCategory.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={350}>
+                    <BarChart data={analyticsData.expensesByCategory} layout="vertical" margin={{ right: 30, left: 30 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `PKR ${Number(value/1000).toFixed(0)}k`} />
+                        <YAxis dataKey="category" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} width={120} interval={0} />
+                        <Tooltip
+                            contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                            labelStyle={{ color: 'hsl(var(--foreground))' }}
+                            itemStyle={{ color: 'hsl(var(--foreground))' }}
+                            formatter={(value: number) => [`PKR ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Amount"]}
+                        />
+                        <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
+                        <Bar dataKey="amount" name="Amount" fill="hsl(var(--chart-5))" radius={[0, 4, 4, 0]} barSize={20} />
+                    </BarChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <p className="text-muted-foreground text-center py-10">No expenses recorded for the selected period.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          
+           <div className="grid grid-cols-1">
+             <Card>
+              <CardHeader>
                 <CardTitle>Top Customers (by Sales)</CardTitle>
                 <CardDescription>Top 10 for the selected period.</CardDescription>
               </CardHeader>
@@ -569,7 +618,7 @@ export default function AnalyticsPage() {
                  )}
               </CardContent>
             </Card>
-          </div>
+           </div>
         </>
       )}
     </div>

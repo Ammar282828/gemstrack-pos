@@ -20,6 +20,7 @@ const FIRESTORE_COLLECTIONS = {
   ORDERS: "orders",
   CATEGORIES: "categories", // Note: Categories are still managed locally for now
   HISAAB: "hisaab",
+  EXPENSES: "expenses", // New collection for expenses
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
 
@@ -332,6 +333,20 @@ export interface HisaabEntry {
   goldCreditGrams: number; // Gold they gave us
 }
 
+export const EXPENSE_CATEGORIES = [
+  'Rent', 'Salaries', 'Utilities', 'Marketing', 'Supplies', 
+  'Repairs & Maintenance', 'Taxes', 'Travel', 'Other'
+] as const;
+export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
+
+export interface Expense {
+  id: string;
+  date: string; // ISO String
+  category: ExpenseCategory | string; // Allow 'Other' as custom string
+  description: string;
+  amount: number;
+}
+
 
 // --- Product Tag Format Definitions ---
 export interface ProductTagFormat {
@@ -439,6 +454,7 @@ export interface AppState {
   karigars: Karigar[];
   orders: Order[];
   hisaabEntries: HisaabEntry[];
+  expenses: Expense[];
 
   // Loading states
   isSettingsLoading: boolean;
@@ -448,6 +464,7 @@ export interface AppState {
   isInvoicesLoading: boolean;
   isOrdersLoading: boolean;
   isHisaabLoading: boolean;
+  isExpensesLoading: boolean;
   
   // Data loaded flags
   hasSettingsLoaded: boolean;
@@ -457,6 +474,7 @@ export interface AppState {
   hasInvoicesLoaded: boolean;
   hasOrdersLoaded: boolean;
   hasHisaabLoaded: boolean;
+  hasExpensesLoaded: boolean;
 
   // Zustand specific hydration state
   _hasHydrated: boolean;
@@ -514,12 +532,18 @@ export interface AppState {
   addHisaabEntry: (entryData: Omit<HisaabEntry, 'id'>) => Promise<HisaabEntry | null>;
   deleteHisaabEntry: (entryId: string) => Promise<void>;
 
+  loadExpenses: () => void;
+  addExpense: (expenseData: Omit<Expense, 'id'>) => Promise<Expense | null>;
+  updateExpense: (id: string, updatedExpenseData: Partial<Omit<Expense, 'id'>>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+
   // Data clearing actions
   clearAllProducts: () => Promise<void>;
   clearAllCustomers: () => Promise<void>;
   clearAllKarigars: () => Promise<void>;
   clearAllInvoices: () => Promise<void>;
   clearAllOrders: () => Promise<void>;
+  clearAllExpenses: () => Promise<void>;
   clearAllData: () => Promise<void>;
 }
 
@@ -549,6 +573,7 @@ export const useAppStore = create<AppState>()(
       karigars: [],
       orders: [],
       hisaabEntries: [],
+      expenses: [],
 
       isSettingsLoading: true,
       isProductsLoading: true,
@@ -557,6 +582,7 @@ export const useAppStore = create<AppState>()(
       isInvoicesLoading: true,
       isOrdersLoading: true,
       isHisaabLoading: true,
+      isExpensesLoading: true,
       
       hasSettingsLoaded: false,
       hasProductsLoaded: false,
@@ -565,6 +591,7 @@ export const useAppStore = create<AppState>()(
       hasInvoicesLoaded: false,
       hasOrdersLoaded: false,
       hasHisaabLoaded: false,
+      hasExpensesLoaded: false,
 
       loadSettings: async () => {
         if (get().hasSettingsLoaded) return;
@@ -1282,6 +1309,52 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
+      
+      loadExpenses: () => {
+        if (get().hasExpensesLoaded) return;
+        set({ isExpensesLoading: true, hasExpensesLoaded: true });
+        const q = query(collection(db, FIRESTORE_COLLECTIONS.EXPENSES), orderBy("date", "desc"));
+        const unsubscribe = onSnapshot(q,
+          (snapshot) => {
+            const expenseList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Expense));
+            set({ expenses: expenseList, isExpensesLoading: false });
+            console.log(`[GemsTrack Store] Real-time update: ${expenseList.length} expenses loaded.`);
+          },
+          (error) => {
+            console.error("[GemsTrack Store] Error in expenses real-time listener:", error);
+            set({ expenses: [], isExpensesLoading: false });
+          }
+        );
+      },
+      addExpense: async (expenseData) => {
+        try {
+          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.EXPENSES), expenseData);
+          console.log("[GemsTrack Store addExpense] Expense added with ID:", docRef.id);
+          return { id: docRef.id, ...expenseData };
+        } catch (error) {
+          console.error("[GemsTrack Store addExpense] Error adding expense:", error);
+          return null;
+        }
+      },
+      updateExpense: async (id, updatedExpenseData) => {
+        console.log(`[GemsTrack Store updateExpense] Attempting to update expense ID ${id}`);
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.EXPENSES, id), updatedExpenseData, { merge: true });
+          console.log(`[GemsTrack Store updateExpense] Expense ID ${id} updated successfully.`);
+        } catch (error) {
+          console.error(`[GemsTrack Store updateExpense] Error updating expense ID ${id}:`, error);
+        }
+      },
+      deleteExpense: async (id) => {
+        console.log(`[GemsTrack Store deleteExpense] Attempting to delete expense ID ${id}.`);
+        try {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.EXPENSES, id));
+          console.log(`[GemsTrack Store deleteExpense] Expense ID ${id} deleted successfully.`);
+        } catch (error) {
+          console.error(`[GemsTrack Store deleteExpense] Error deleting expense ID ${id}:`, error);
+          throw error;
+        }
+      },
 
 
       // Data Clearing Actions
@@ -1321,6 +1394,13 @@ export const useAppStore = create<AppState>()(
           } finally {
           }
       },
+      clearAllExpenses: async () => {
+          set({ isExpensesLoading: true });
+          try {
+              await deleteCollection(FIRESTORE_COLLECTIONS.EXPENSES);
+          } finally {
+          }
+      },
       clearAllData: async () => {
           console.warn("CLEARING ALL APPLICATION DATA");
           await Promise.all([
@@ -1329,6 +1409,7 @@ export const useAppStore = create<AppState>()(
               get().clearAllKarigars(),
               get().clearAllInvoices(),
               get().clearAllOrders(),
+              get().clearAllExpenses(),
               deleteCollection(FIRESTORE_COLLECTIONS.HISAAB), 
           ]);
           get().clearCart();
