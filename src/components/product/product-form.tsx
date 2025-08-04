@@ -20,8 +20,8 @@ import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
-const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum'];
-const CATEGORIES_WITH_STONES = ['cat001', 'cat002', 'cat003', 'cat005', 'cat006', 'cat010', 'cat011', 'cat012', 'cat013', 'cat014', 'cat015', 'cat016'];
+const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
+const CATEGORIES_WITH_STONES = ['cat001', 'cat002', 'cat003', 'cat005', 'cat006', 'cat010', 'cat011', 'cat012', 'cat013', 'cat014', 'cat015', 'cat016', 'cat018'];
 
 // Schema for the form data
 const productFormSchema = z.object({
@@ -293,7 +293,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                       <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasStones" /></FormControl>
                       <div className="space-y-1 leading-none">
                         <Label htmlFor="hasStones" className="flex items-center cursor-pointer">
-                          <Gem className="mr-2 h-4 w-4 text-primary" /> Product Contains Stones?
+                          <Gem className="mr-2 h-4 w-4 text-primary" /> Contains Stones?
                         </Label>
                       </div>
                     </FormItem>
@@ -306,7 +306,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                       <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasDiamonds" /></FormControl>
                       <div className="space-y-1 leading-none">
                         <Label htmlFor="hasDiamonds" className="flex items-center cursor-pointer">
-                          <Diamond className="mr-2 h-4 w-4 text-primary" /> Product Contains Diamonds?
+                          <Diamond className="mr-2 h-4 w-4 text-primary" /> Contains Diamonds?
                         </Label>
                       </div>
                     </FormItem>
@@ -387,8 +387,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                     control={form.control} name="stoneDetails"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel className="flex items-center"><Gem className="mr-2 h-4 w-4 text-primary" /> Stone Details</FormLabel>
-                        <FormControl><Textarea placeholder="e.g., 1x Ruby (2ct), 4x Sapphire (0.5ct each)" {...field} /></FormControl>
+                        <FormLabel className="flex items-center"><Gem className="mr-2 h-4 w-4 text-primary" /> Secondary Metal & Stone Details</FormLabel>
+                        <FormControl><Textarea placeholder="e.g., 1x Ruby (2ct) and 2g gold accent" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

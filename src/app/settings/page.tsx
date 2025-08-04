@@ -37,6 +37,7 @@ const settingsSchema = z.object({
   goldRatePerGram: z.coerce.number().min(0, "Gold rate must be a positive number"),
   palladiumRatePerGram: z.coerce.number().min(0, "Palladium rate must be a positive number"),
   platinumRatePerGram: z.coerce.number().min(0, "Platinum rate must be a positive number"),
+  silverRatePerGram: z.coerce.number().min(0, "Silver rate must be a positive number"),
   shopName: z.string().min(1, "Shop name is required"),
   shopAddress: z.string().optional(),
   shopContact: z.string().optional(),
@@ -58,28 +59,28 @@ type HisaabDataForAdd = Omit<HisaabEntry, 'id'>;
 
 const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
   // Rings
-  { categoryId: 'cat001', metalType: 'gold', karat: '22k', metalWeightG: 8.5, wastagePercentage: 10, makingCharges: 15000, hasDiamonds: true, diamondCharges: 75000, stoneCharges: 12000, miscCharges: 500, stoneDetails: "1x Ruby (center), 12x small diamonds", imageUrl: 'https://placehold.co/400x400.png', diamondDetails: 'Center: 0.5ct, Sides: 0.5ct total' },
-  { categoryId: 'cat001', metalType: 'gold', karat: '21k', metalWeightG: 6.2, wastagePercentage: 10, makingCharges: 12000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 8000, miscCharges: 300, stoneDetails: "3x Emeralds", imageUrl: 'https://placehold.co/400x400.png' },
-  { categoryId: 'cat001', metalType: 'platinum', metalWeightG: 10, wastagePercentage: 5, makingCharges: 25000, hasDiamonds: true, diamondCharges: 150000, stoneCharges: 0, miscCharges: 1000, diamondDetails: '1ct Solitaire, VVS1', imageUrl: 'https://placehold.co/400x400.png' },
+  { categoryId: 'cat001', metalType: 'gold', karat: '22k', metalWeightG: 8.5, wastagePercentage: 10, makingCharges: 15000, hasDiamonds: true, diamondCharges: 75000, stoneCharges: 12000, miscCharges: 500, stoneDetails: "1x Ruby (center), 12x small diamonds", imageUrl: 'https://placehold.co/400x400.png', diamondDetails: 'Center: 0.5ct, Sides: 0.5ct total', hasStones: true, stoneWeightG: 0.8 },
+  { categoryId: 'cat001', metalType: 'gold', karat: '21k', metalWeightG: 6.2, wastagePercentage: 10, makingCharges: 12000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 8000, miscCharges: 300, stoneDetails: "3x Emeralds", imageUrl: 'https://placehold.co/400x400.png', hasStones: true, stoneWeightG: 0.6 },
+  { categoryId: 'cat001', metalType: 'platinum', metalWeightG: 10, wastagePercentage: 5, makingCharges: 25000, hasDiamonds: true, diamondCharges: 150000, stoneCharges: 0, miscCharges: 1000, diamondDetails: '1ct Solitaire, VVS1', imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 
   // Bands
-  { categoryId: 'cat009', metalType: 'gold', karat: '22k', metalWeightG: 12.0, wastagePercentage: 8, makingCharges: 18000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png' },
-  { categoryId: 'cat009', metalType: 'gold', karat: '18k', metalWeightG: 9.8, wastagePercentage: 8, makingCharges: 16000, hasDiamonds: true, diamondCharges: 45000, stoneCharges: 0, miscCharges: 200, diamondDetails: "Eternity band, 1.5ct total", imageUrl: 'https://placehold.co/400x400.png' },
+  { categoryId: 'cat009', metalType: 'gold', karat: '22k', metalWeightG: 12.0, wastagePercentage: 8, makingCharges: 18000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { categoryId: 'cat009', metalType: 'gold', karat: '18k', metalWeightG: 9.8, wastagePercentage: 8, makingCharges: 16000, hasDiamonds: true, diamondCharges: 45000, stoneCharges: 0, miscCharges: 200, diamondDetails: "Eternity band, 1.5ct total", imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 
   // Bracelets
-  { categoryId: 'cat005', metalType: 'gold', karat: '21k', metalWeightG: 25.5, wastagePercentage: 12, makingCharges: 35000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 1500, imageUrl: 'https://placehold.co/400x400.png' },
-  { categoryId: 'cat005', metalType: 'palladium', metalWeightG: 20.0, wastagePercentage: 5, makingCharges: 30000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png' },
+  { categoryId: 'cat005', metalType: 'gold', karat: '21k', metalWeightG: 25.5, wastagePercentage: 12, makingCharges: 35000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 1500, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { categoryId: 'cat005', metalType: 'palladium', metalWeightG: 20.0, wastagePercentage: 5, makingCharges: 30000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 
   // Tops (Earrings)
-  { categoryId: 'cat002', metalType: 'gold', karat: '21k', metalWeightG: 5.1, wastagePercentage: 12, makingCharges: 9000, hasDiamonds: true, diamondCharges: 55000, stoneCharges: 0, miscCharges: 0, diamondDetails: '0.25ct each stud', imageUrl: 'https://placehold.co/400x400.png' },
+  { categoryId: 'cat002', metalType: 'gold', karat: '21k', metalWeightG: 5.1, wastagePercentage: 12, makingCharges: 9000, hasDiamonds: true, diamondCharges: 55000, stoneCharges: 0, miscCharges: 0, diamondDetails: '0.25ct each stud', imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 
   // Lockets
-  { categoryId: 'cat004', metalType: 'gold', karat: '22k', metalWeightG: 10.2, wastagePercentage: 10, makingCharges: 14000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 400, imageUrl: 'https://placehold.co/400x400.png' },
+  { categoryId: 'cat004', metalType: 'gold', karat: '22k', metalWeightG: 10.2, wastagePercentage: 10, makingCharges: 14000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 400, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 
   // Gold Coins (special category)
-  { categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '24k', metalWeightG: 10, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png' },
-  { categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '24k', metalWeightG: 5, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png' },
-  { categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '22k', metalWeightG: 8.0, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png' },
+  { categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '24k', metalWeightG: 10, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '24k', metalWeightG: 5, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '22k', metalWeightG: 8.0, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 ];
 
 const DUMMY_CUSTOMERS_TO_SEED: CustomerDataForAdd[] = [
@@ -101,8 +102,8 @@ const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] =
         advancePayment: 50000,
         advanceGoldDetails: "5g old gold (21k) provided.",
         items: [
-            { description: "Custom bridal necklace set", karat: "22k", estimatedWeightG: 45, makingCharges: 80000, diamondCharges: 150000, stoneCharges: 25000, sampleGiven: false, hasDiamonds: true, isCompleted: false, diamondDetails: "Full set with Polki diamonds", stoneDetails: "Ruby and emerald accents", wastagePercentage: 10, metalType: 'gold' },
-            { description: "Matching groom's ring", karat: "21k", estimatedWeightG: 12, makingCharges: 15000, diamondCharges: 0, stoneCharges: 0, sampleGiven: true, hasDiamonds: false, isCompleted: false, referenceSku: "BND-000002", wastagePercentage: 10, metalType: 'gold' }
+            { description: "Custom bridal necklace set", karat: "22k", estimatedWeightG: 45, makingCharges: 80000, diamondCharges: 150000, stoneCharges: 25000, sampleGiven: false, hasDiamonds: true, isCompleted: false, diamondDetails: "Full set with Polki diamonds", stoneDetails: "Ruby and emerald accents", wastagePercentage: 10, metalType: 'gold', hasStones: true, stoneWeightG: 5.0 },
+            { description: "Matching groom's ring", karat: "21k", estimatedWeightG: 12, makingCharges: 15000, diamondCharges: 0, stoneCharges: 0, sampleGiven: true, hasDiamonds: false, isCompleted: false, referenceSku: "BND-000002", wastagePercentage: 10, metalType: 'gold', hasStones: false, stoneWeightG: 0 }
         ]
     },
     {
@@ -110,7 +111,7 @@ const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] =
         goldRate: 21000 * (24/21),
         advancePayment: 20000,
         items: [
-            { description: "Platinum band with custom engraving", karat: '18k', estimatedWeightG: 8, makingCharges: 20000, diamondCharges: 0, stoneCharges: 0, sampleGiven: false, hasDiamonds: false, isCompleted: true, stoneDetails: "Engraving: 'Z & R Forever'", wastagePercentage: 5, metalType: 'platinum' }
+            { description: "Platinum band with custom engraving", karat: '18k', estimatedWeightG: 8, makingCharges: 20000, diamondCharges: 0, stoneCharges: 0, sampleGiven: false, hasDiamonds: false, isCompleted: true, stoneDetails: "Engraving: 'Z & R Forever'", wastagePercentage: 5, metalType: 'platinum', hasStones: false, stoneWeightG: 0 }
         ]
     }
 ];
@@ -213,6 +214,7 @@ export default function SettingsPage() {
       goldRatePerGram: 0,
       palladiumRatePerGram: 0,
       platinumRatePerGram: 0,
+      silverRatePerGram: 0,
       shopName: "",
       shopAddress: "",
       shopContact: "",
@@ -242,6 +244,7 @@ export default function SettingsPage() {
         goldRatePerGram: parseFloat(goldRate21k.toFixed(2)),
         palladiumRatePerGram: currentSettings.palladiumRatePerGram,
         platinumRatePerGram: currentSettings.platinumRatePerGram,
+        silverRatePerGram: currentSettings.silverRatePerGram || 0,
         shopName: currentSettings.shopName,
         shopAddress: currentSettings.shopAddress || "",
         shopContact: currentSettings.shopContact || "",
@@ -424,7 +427,7 @@ export default function SettingsPage() {
     for (const orderData of DUMMY_ORDERS_TO_SEED) {
       try {
         let subtotal = 0;
-        const ratesForCalc = { goldRatePerGram24k: orderData.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
+        const ratesForCalc = { goldRatePerGram24k: orderData.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0, silverRatePerGram: 0 };
         const enrichedItems: OrderItem[] = orderData.items.map((item) => {
           const itemAsProduct = {
             ...item,
@@ -595,6 +598,21 @@ export default function SettingsPage() {
                     </FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" placeholder="e.g., 25000.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="silverRatePerGram"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base flex items-center">
+                        <Shield className="h-5 w-5 mr-2 text-muted-foreground" /> Current Silver Rate (PKR per gram)
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="e.g., 250.00" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

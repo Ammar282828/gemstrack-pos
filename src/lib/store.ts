@@ -88,7 +88,7 @@ function _calculateProductCostsInternal(
     stoneCharges: number;
     miscCharges: number;
   },
-  rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number }
+  rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number; silverRatePerGram: number; }
 ) {
   let metalCost = 0;
   const currentMetalType = product.metalType || 'gold';
@@ -113,6 +113,7 @@ function _calculateProductCostsInternal(
   const goldRate24k = Number(rates.goldRatePerGram24k) || 0;
   const palladiumRate = Number(rates.palladiumRatePerGram) || 0;
   const platinumRate = Number(rates.platinumRatePerGram) || 0;
+  const silverRate = Number(rates.silverRatePerGram) || 0;
 
   if (currentMetalType === 'gold') {
     const karatToUse = product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
@@ -128,6 +129,8 @@ function _calculateProductCostsInternal(
     if (palladiumRate > 0) metalCost = validNetMetalWeightG * palladiumRate;
   } else if (currentMetalType === 'platinum') {
     if (platinumRate > 0) metalCost = validNetMetalWeightG * platinumRate;
+  } else if (currentMetalType === 'silver') {
+    if (silverRate > 0) metalCost = validNetMetalWeightG * silverRate;
   }
 
   const validMetalCost = Number(metalCost) || 0;
@@ -141,7 +144,7 @@ function _calculateProductCostsInternal(
         productCategoryId: product.categoryId,
         productProcessed: { grossMetalWeightG, stoneWeightG, wastagePercentage, makingCharges, hasDiamonds: hasDiamondsValue, diamondChargesValue, stoneChargesValue, miscChargesValue, currentMetalType, karat: product.karat },
         ratesInput: rates,
-        ratesProcessed: { goldRate24k, palladiumRate, platinumRate },
+        ratesProcessed: { goldRate24k, palladiumRate, platinumRate, silverRate },
         derivedCosts: { metalCost: validMetalCost, wastageCost: validWastageCost },
         calculatedTotalPrice: totalPrice
     });
@@ -160,7 +163,7 @@ function _calculateProductCostsInternal(
 }
 
 // --- Type Definitions ---
-export type MetalType = 'gold' | 'palladium' | 'platinum';
+export type MetalType = 'gold' | 'palladium' | 'platinum' | 'silver';
 export type KaratValue = '18k' | '21k' | '22k' | '24k';
 export type ThemeKey = 'default' | 'forest' | 'ocean' | 'sunset' | 'amethyst' | 'quartz' | 'slate' | 'latte' | 'mint' | 'gold';
 
@@ -193,6 +196,7 @@ export interface Settings {
   goldRatePerGram: number; // This is now stored as 24k rate
   palladiumRatePerGram: number;
   platinumRatePerGram: number;
+  silverRatePerGram: number;
   shopName: string;
   shopAddress: string;
   shopContact: string;
@@ -406,12 +410,12 @@ const CATEGORY_SKU_PREFIXES: Record<string, string> = {
   'cat005': 'BRC', 'cat006': 'BRS', 'cat007': 'BNG', 'cat008': 'CHN',
   'cat009': 'BND', 'cat010': 'LSW', 'cat011': 'LSB', 'cat012': 'STR',
   'cat013': 'SNX', 'cat014': 'SNB', 'cat015': 'GNX', 'cat016': 'GNW',
-  'cat017': 'GCN',
+  'cat017': 'GCN', 'cat018': 'MRN',
 };
 
 // --- Initial Data Definitions (For reference or one-time seeding, not for store initial state) ---
 const initialSettingsData: Settings = {
-  goldRatePerGram: 20000, palladiumRatePerGram: 22000, platinumRatePerGram: 25000,
+  goldRatePerGram: 20000, palladiumRatePerGram: 22000, platinumRatePerGram: 25000, silverRatePerGram: 250,
   shopName: "Taheri", shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "https://placehold.co/200x80.png", lastInvoiceNumber: 0,
@@ -435,6 +439,7 @@ const staticCategories: Category[] = [
   { id: 'cat015', title: 'Gold Necklace Sets with Bracelets' },
   { id: 'cat016', title: 'Gold Necklace Sets without Bracelets' },
   { id: 'cat017', title: 'Gold Coins' },
+  { id: 'cat018', title: "Men's Rings" },
 ];
 
 // --- Store State and Actions ---
@@ -943,6 +948,7 @@ export const useAppStore = create<AppState>()(
                     goldRatePerGram24k: validInvoiceGoldRate24k,
                     palladiumRatePerGram: Number(settings.palladiumRatePerGram) || 0,
                     platinumRatePerGram: Number(settings.platinumRatePerGram) || 0,
+                    silverRatePerGram: Number(settings.silverRatePerGram) || 0,
                 };
     
                 let subtotal = 0;
@@ -1187,6 +1193,7 @@ export const useAppStore = create<AppState>()(
             goldRatePerGram24k: order.goldRate,
             palladiumRatePerGram: settings.palladiumRatePerGram,
             platinumRatePerGram: settings.platinumRatePerGram,
+            silverRatePerGram: settings.silverRatePerGram,
         };
     
         const finalInvoiceItems = order.items.map((originalItem, index) => {
@@ -1471,7 +1478,7 @@ export const calculateProductCosts = (
     categoryId?: string;
     name?: string;
   },
-  rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number }
+  rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number; silverRatePerGram: number; }
 ) => {
   return _calculateProductCostsInternal(product, rates);
 };
@@ -1520,6 +1527,7 @@ export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
         goldRatePerGram24k: state.settings.goldRatePerGram,
         palladiumRatePerGram: state.settings.palladiumRatePerGram,
         platinumRatePerGram: state.settings.platinumRatePerGram,
+        silverRatePerGram: state.settings.silverRatePerGram,
       };
       const costs = calculateProductCosts(product, ratesForCalc);
       if (isNaN(costs.totalPrice)) {
@@ -1557,6 +1565,7 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
         goldRatePerGram24k: state.settings.goldRatePerGram,
         palladiumRatePerGram: state.settings.palladiumRatePerGram,
         platinumRatePerGram: state.settings.platinumRatePerGram,
+        silverRatePerGram: state.settings.silverRatePerGram,
     };
     const costs = calculateProductCosts(product, rates);
     return { ...product, ...costs };
