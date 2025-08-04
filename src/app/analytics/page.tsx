@@ -9,15 +9,17 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, parseISO, startOfDay, subDays, isWithinInterval } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
 type TopProductData = { sku: string; name: string; quantity: number; revenue: number };
 type SalesByCategoryData = { categoryId: string; categoryName: string; sales: number };
 type TopCustomerData = { customerId?: string; customerName: string; totalSpent: number; orderCount: number };
-
+type DailySummaryItem = InvoiceItem & { invoiceId: string; customerName: string; };
 
 export default function AnalyticsPage() {
   const { 
@@ -39,6 +41,10 @@ export default function AnalyticsPage() {
     from: subDays(new Date(), 29), // Default to last 30 days
     to: new Date(),
   });
+  
+  const [selectedDayData, setSelectedDayData] = useState<SalesOverTimeData | null>(null);
+  const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
+
 
   const filteredInvoices = useMemo(() => {
     if (!dateRange || !dateRange.from) return generatedInvoices; 
@@ -185,6 +191,20 @@ export default function AnalyticsPage() {
       topCustomers,
     };
   }, [filteredInvoices, products, categories, customers]);
+  
+  const dailyBreakdown = useMemo(() => {
+    if (!selectedDayData) return { invoices: [], products: [] };
+    const dayInvoices = filteredInvoices.filter(invoice => format(startOfDay(parseISO(invoice.createdAt)), 'yyyy-MM-dd') === selectedDayData.date);
+    const dayProducts: DailySummaryItem[] = dayInvoices.flatMap(invoice => 
+        invoice.items.map(item => ({
+            ...item,
+            invoiceId: invoice.id,
+            customerName: invoice.customerName || 'Walk-in'
+        }))
+    );
+    return { invoices: dayInvoices, products: dayProducts };
+  }, [selectedDayData, filteredInvoices]);
+
 
   if (isLoading) {
     return (
@@ -195,8 +215,66 @@ export default function AnalyticsPage() {
     );
   }
 
+  const handleDayClick = (dayData: SalesOverTimeData) => {
+    setSelectedDayData(dayData);
+    setIsSummaryDialogOpen(true);
+  };
+
   return (
     <div className="container mx-auto py-8 px-4 space-y-8">
+      {/* --- Daily Summary Dialog --- */}
+      <Dialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
+          <DialogContent className="max-w-4xl">
+              <DialogHeader>
+                  <DialogTitle className="text-2xl">
+                      Daily Report for {selectedDayData && format(parseISO(selectedDayData.date), 'MMMM d, yyyy')}
+                  </DialogTitle>
+                  <DialogDescription>
+                      A detailed breakdown of all activity for this day.
+                  </DialogDescription>
+              </DialogHeader>
+              {selectedDayData && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center my-4">
+                    <div className="p-3 bg-muted rounded-md"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-xl font-bold">PKR {selectedDayData.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p></div>
+                    <div className="p-3 bg-muted rounded-md"><p className="text-sm text-muted-foreground">Total Orders</p><p className="text-xl font-bold">{selectedDayData.orders}</p></div>
+                    <div className="p-3 bg-muted rounded-md"><p className="text-sm text-muted-foreground">Items Sold</p><p className="text-xl font-bold">{selectedDayData.itemsSold}</p></div>
+                </div>
+              )}
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4 max-h-[60vh] overflow-y-auto pr-2">
+                <div>
+                  <h3 className="font-semibold flex items-center mb-2"><FileText className="mr-2 h-5 w-5"/> Invoices</h3>
+                  <ScrollArea className="h-[40vh] border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow><TableHead>Invoice ID</TableHead><TableHead>Customer</TableHead><TableHead className="text-right">Total</TableHead></TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dailyBreakdown.invoices.map(invoice => (
+                          <TableRow key={invoice.id}><TableCell className="font-medium">{invoice.id}</TableCell><TableCell>{invoice.customerName}</TableCell><TableCell className="text-right">{invoice.grandTotal.toLocaleString()}</TableCell></TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
+                <div>
+                  <h3 className="font-semibold flex items-center mb-2"><Package className="mr-2 h-5 w-5"/> Products Sold</h3>
+                  <ScrollArea className="h-[40vh] border rounded-md">
+                    <Table>
+                      <TableHeader>
+                        <TableRow><TableHead>Product</TableHead><TableHead className="text-right">Amount</TableHead></TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dailyBreakdown.products.map((item, index) => (
+                          <TableRow key={`${item.invoiceId}-${item.sku}-${index}`}><TableCell><div className="font-medium">{item.name}</div><div className="text-xs text-muted-foreground">{item.sku}</div></TableCell><TableCell className="text-right">{item.itemTotal.toLocaleString()}</TableCell></TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
+              </div>
+          </DialogContent>
+      </Dialog>
+      
       <header className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
         <div>
             <h1 className="text-3xl font-bold text-primary">Store Analytics</h1>
@@ -321,7 +399,7 @@ export default function AnalyticsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center"><CalendarDays className="mr-2 h-5 w-5"/> Daily Summary</CardTitle>
-              <CardDescription>A day-by-day breakdown of sales activity for the selected period.</CardDescription>
+              <CardDescription>A day-by-day breakdown of sales activity for the selected period. Click a row for details.</CardDescription>
             </CardHeader>
             <CardContent>
               {analyticsData.salesOverTime.length > 0 ? (
@@ -337,7 +415,7 @@ export default function AnalyticsPage() {
                     </TableHeader>
                     <TableBody>
                       {analyticsData.salesOverTime.map((day) => (
-                        <TableRow key={day.date}>
+                        <TableRow key={day.date} onClick={() => handleDayClick(day)} className="cursor-pointer hover:bg-muted/50">
                           <TableCell className="font-medium">{format(parseISO(day.date), 'EEE, MMM d, yyyy')}</TableCell>
                           <TableCell className="text-right font-semibold">{day.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                           <TableCell className="text-right">{day.orders}</TableCell>
@@ -497,3 +575,5 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+    
