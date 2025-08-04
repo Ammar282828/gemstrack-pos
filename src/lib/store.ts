@@ -28,6 +28,8 @@ const GLOBAL_SETTINGS_DOC_ID = "global";
 // --- Helper Functions and Constants ---
 const DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL: KaratValue = '21k';
 const GOLD_COIN_CATEGORY_ID_INTERNAL = 'cat017';
+const MENS_RING_CATEGORY_ID_INTERNAL = 'cat018';
+
 
 async function deleteCollection(collectionName: string) {
   if (!db || typeof db.app === 'undefined') {
@@ -1483,6 +1485,8 @@ export const useAppStore = create<AppState>()(
 // --- Exported Helper Functions ---
 export const DEFAULT_KARAT_VALUE_FOR_CALCULATION: KaratValue = DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
 export const GOLD_COIN_CATEGORY_ID: string = GOLD_COIN_CATEGORY_ID_INTERNAL;
+export const MENS_RING_CATEGORY_ID: string = MENS_RING_CATEGORY_ID_INTERNAL;
+
 export const calculateProductCosts = (
   product: Omit<Product, 'sku' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & {
     categoryId?: string;
