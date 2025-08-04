@@ -387,7 +387,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                     control={form.control} name="stoneDetails"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel className="flex items-center"><Gem className="mr-2 h-4 w-4 text-primary" /> Secondary Metal & Stone Details</FormLabel>
+                        <FormLabel className="flex items-center"><Gem className="mr-2 h-4 w-4 text-primary" /> Secondary Metal &amp; Stone Details</FormLabel>
                         <FormControl><Textarea placeholder="e.g., 1x Ruby (2ct) and 2g gold accent" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
