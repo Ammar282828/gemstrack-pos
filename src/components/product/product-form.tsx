@@ -122,6 +122,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
     } else if (hasDiamondsValue === false) {
        form.setValue('diamondCharges', 0);
        form.setValue('diamondDetails', '');
+    } else if (hasDiamondsValue === true) {
+        if (form.getValues('metalWeightG') !== 0) {
+            form.setValue('metalWeightG', 0);
+        }
     }
     if(!showStoneDetails) {
         form.setValue('stoneDetails', '');
