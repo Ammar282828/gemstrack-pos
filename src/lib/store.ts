@@ -80,6 +80,7 @@ function _calculateProductCostsInternal(
     metalType: MetalType;
     karat?: KaratValue | string;
     metalWeightG: number;
+    stoneWeightG: number;
     wastagePercentage: number;
     makingCharges: number;
     hasDiamonds: boolean;
@@ -91,7 +92,15 @@ function _calculateProductCostsInternal(
 ) {
   let metalCost = 0;
   const currentMetalType = product.metalType || 'gold';
-  const metalWeightG = Number(product.metalWeightG) || 0;
+  const grossMetalWeightG = Number(product.metalWeightG) || 0;
+  const stoneWeightG = Number(product.stoneWeightG) || 0;
+  const netMetalWeightG = grossMetalWeightG - stoneWeightG;
+  
+  if (netMetalWeightG < 0) {
+      console.warn(`[GemsTrack Store _calculateProductCostsInternal] Net metal weight is negative for ${product.name}. Clamping to 0.`);
+  }
+  const validNetMetalWeightG = Math.max(0, netMetalWeightG);
+
   const isActualGoldCoin = product.categoryId === GOLD_COIN_CATEGORY_ID_INTERNAL && currentMetalType === 'gold';
 
   const wastagePercentage = isActualGoldCoin ? 0 : (Number(product.wastagePercentage) || 0);
@@ -111,14 +120,14 @@ function _calculateProductCostsInternal(
     if (karatNumeric > 0 && goldRate24k > 0) {
       const purityFactor = karatNumeric / 24;
       const effectiveGoldRate = purityFactor * goldRate24k;
-      metalCost = metalWeightG * effectiveGoldRate;
+      metalCost = validNetMetalWeightG * effectiveGoldRate;
     } else {
       metalCost = 0;
     }
   } else if (currentMetalType === 'palladium') {
-    if (palladiumRate > 0) metalCost = metalWeightG * palladiumRate;
+    if (palladiumRate > 0) metalCost = validNetMetalWeightG * palladiumRate;
   } else if (currentMetalType === 'platinum') {
-    if (platinumRate > 0) metalCost = metalWeightG * platinumRate;
+    if (platinumRate > 0) metalCost = validNetMetalWeightG * platinumRate;
   }
 
   const validMetalCost = Number(metalCost) || 0;
@@ -126,18 +135,16 @@ function _calculateProductCostsInternal(
   const validWastageCost = Number(wastageCost) || 0;
   const totalPrice = validMetalCost + validWastageCost + makingCharges + diamondChargesValue + stoneChargesValue + miscChargesValue;
   
-  // CRITICAL FIX: Ensure totalPrice is never NaN.
   if (isNaN(totalPrice)) {
     console.error("[GemsTrack Store _calculateProductCostsInternal] CRITICAL: Produced NaN. Details:", {
         productInputName: product.name,
         productCategoryId: product.categoryId,
-        productProcessed: { metalWeightG, wastagePercentage, makingCharges, hasDiamonds: hasDiamondsValue, diamondChargesValue, stoneChargesValue, miscChargesValue, currentMetalType, karat: product.karat },
+        productProcessed: { grossMetalWeightG, stoneWeightG, wastagePercentage, makingCharges, hasDiamonds: hasDiamondsValue, diamondChargesValue, stoneChargesValue, miscChargesValue, currentMetalType, karat: product.karat },
         ratesInput: rates,
         ratesProcessed: { goldRate24k, palladiumRate, platinumRate },
         derivedCosts: { metalCost: validMetalCost, wastageCost: validWastageCost },
         calculatedTotalPrice: totalPrice
     });
-    // Return a safe, zeroed-out object if NaN is detected.
     return { metalCost: 0, wastageCost: 0, makingCharges: 0, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, totalPrice: 0 };
   }
 
@@ -218,6 +225,8 @@ export interface Product {
   metalType: MetalType;
   karat?: KaratValue;
   metalWeightG: number;
+  hasStones: boolean;
+  stoneWeightG: number;
   wastagePercentage: number;
   makingCharges: number;
   hasDiamonds: boolean;
@@ -237,6 +246,7 @@ export interface InvoiceItem {
   metalType: MetalType;
   karat?: KaratValue;
   metalWeightG: number;
+  stoneWeightG: number;
   quantity: number; // Will always be 1 in new model, but kept for schema consistency
   unitPrice: number;
   itemTotal: number;
@@ -281,6 +291,8 @@ export interface OrderItem {
   description: string;
   karat: KaratValue;
   estimatedWeightG: number;
+  stoneWeightG: number;
+  hasStones: boolean;
   wastagePercentage: number;
   makingCharges: number;
   diamondCharges: number;
@@ -957,7 +969,7 @@ export const useAppStore = create<AppState>()(
     
                     invoiceItems.push({
                         sku: product.sku, name: product.name, categoryId: product.categoryId,
-                        metalType: product.metalType, metalWeightG: product.metalWeightG,
+                        metalType: product.metalType, metalWeightG: product.metalWeightG, stoneWeightG: product.stoneWeightG,
                         quantity: 1, unitPrice: itemTotal, itemTotal,
                         metalCost: costs.metalCost, wastageCost: costs.wastageCost,
                         wastagePercentage: product.wastagePercentage, makingCharges: costs.makingCharges,
@@ -1189,6 +1201,8 @@ export const useAppStore = create<AppState>()(
                 metalType: originalItem.metalType,
                 karat: originalItem.karat,
                 metalWeightG: finalizedData.finalWeightG,
+                stoneWeightG: originalItem.stoneWeightG,
+                hasStones: originalItem.hasStones,
                 wastagePercentage: originalItem.wastagePercentage,
                 makingCharges: finalizedData.finalMakingCharges,
                 hasDiamonds: originalItem.hasDiamonds,
@@ -1207,6 +1221,7 @@ export const useAppStore = create<AppState>()(
                 metalType: originalItem.metalType,
                 karat: originalItem.karat,
                 metalWeightG: finalizedData.finalWeightG,
+                stoneWeightG: originalItem.stoneWeightG,
                 quantity: 1,
                 unitPrice: costs.totalPrice,
                 itemTotal: costs.totalPrice,

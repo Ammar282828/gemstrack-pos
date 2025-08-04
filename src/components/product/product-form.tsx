@@ -32,6 +32,8 @@ const productFormSchema = z.object({
   wastagePercentage: z.coerce.number().min(0).max(100, "Wastage must be between 0 and 100"),
   makingCharges: z.coerce.number().min(0, "Making charges must be non-negative"),
   hasDiamonds: z.boolean().default(false),
+  hasStones: z.boolean().default(false),
+  stoneWeightG: z.coerce.number().min(0, "Stone weight must be non-negative").default(0),
   diamondCharges: z.coerce.number().min(0, "Diamond charges must be non-negative").default(0),
   stoneCharges: z.coerce.number().min(0, "Stone charges must be non-negative"),
   miscCharges: z.coerce.number().min(0, "Misc charges must be non-negative"),
@@ -45,6 +47,13 @@ const productFormSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "Karat is required for gold items.",
       path: ["karat"],
+    });
+  }
+  if (data.stoneWeightG > data.metalWeightG) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Stone weight cannot be greater than the total metal weight.",
+      path: ["stoneWeightG"],
     });
   }
 });
@@ -71,6 +80,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
       wastagePercentage: product.wastagePercentage,
       makingCharges: product.makingCharges,
       hasDiamonds: product.hasDiamonds,
+      hasStones: product.hasStones,
+      stoneWeightG: product.stoneWeightG,
       diamondCharges: product.diamondCharges,
       stoneCharges: product.stoneCharges,
       miscCharges: product.miscCharges,
@@ -85,6 +96,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
       wastagePercentage: 10,
       makingCharges: 0,
       hasDiamonds: false,
+      hasStones: false,
+      stoneWeightG: 0,
       diamondCharges: 0,
       stoneCharges: 0,
       miscCharges: 0,
@@ -97,8 +110,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   const selectedCategoryId = form.watch('categoryId');
   const selectedMetalType = form.watch('metalType');
   const hasDiamondsValue = form.watch('hasDiamonds');
+  const hasStonesValue = form.watch('hasStones');
   const isGoldCoin = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
-  const showStoneDetails = CATEGORIES_WITH_STONES.includes(selectedCategoryId);
 
 
   useEffect(() => {
@@ -112,6 +125,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   useEffect(() => {
     if (isGoldCoin) {
       form.setValue('hasDiamonds', false);
+      form.setValue('hasStones', false);
       form.setValue('diamondCharges', 0);
       form.setValue('wastagePercentage', 0);
       form.setValue('makingCharges', 0);
@@ -119,18 +133,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
       form.setValue('miscCharges', 0);
       form.setValue('stoneDetails', '');
       form.setValue('diamondDetails', '');
-    } else if (hasDiamondsValue === false) {
-       form.setValue('diamondCharges', 0);
-       form.setValue('diamondDetails', '');
-    } else if (hasDiamondsValue === true) {
-        if (form.getValues('metalWeightG') !== 0) {
-            form.setValue('metalWeightG', 0);
+      form.setValue('stoneWeightG', 0);
+    } else {
+        if (hasDiamondsValue) {
+            form.setValue('wastagePercentage', 25);
+        } else {
+            form.setValue('wastagePercentage', 10); // Revert to default if unchecked
+            form.setValue('diamondCharges', 0);
+            form.setValue('diamondDetails', '');
+        }
+
+        if (!hasStonesValue) {
+             form.setValue('stoneWeightG', 0);
+             form.setValue('stoneDetails', '');
+             // We don't reset stoneCharges as it might be used for non-weighable stones
         }
     }
-    if(!showStoneDetails) {
-        form.setValue('stoneDetails', '');
-    }
-  }, [isGoldCoin, hasDiamondsValue, showStoneDetails, form]);
+  }, [isGoldCoin, hasDiamondsValue, hasStonesValue, form]);
 
 
   const processAndSubmit = async (data: ProductFormData) => {
@@ -153,6 +172,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                 ...form.getValues(),
                 metalWeightG: 0,
                 hasDiamonds: false,
+                hasStones: false,
+                stoneWeightG: 0,
                 diamondCharges: 0,
                 stoneCharges: 0,
                 miscCharges: 0,
@@ -256,7 +277,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
               control={form.control} name="metalWeightG"
               render={({ field }) => (
                 <FormItem className={selectedMetalType !== 'gold' ? 'md:col-span-2' : '' }>
-                  <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Metal Weight (grams)</FormLabel>
+                  <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4 text-primary" /> Gross Metal Weight (grams)</FormLabel>
                   <FormControl><Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -265,17 +286,29 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
 
             {!isGoldCoin && (
               <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <FormField
+                  control={form.control} name="hasStones"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasStones" /></FormControl>
+                      <div className="space-y-1 leading-none">
+                        <Label htmlFor="hasStones" className="flex items-center cursor-pointer">
+                          <Gem className="mr-2 h-4 w-4 text-primary" /> Product Contains Stones?
+                        </Label>
+                      </div>
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control} name="hasDiamonds"
                   render={({ field }) => (
-                    <FormItem className="md:col-span-2 flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
                       <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasDiamonds" /></FormControl>
                       <div className="space-y-1 leading-none">
                         <Label htmlFor="hasDiamonds" className="flex items-center cursor-pointer">
                           <Diamond className="mr-2 h-4 w-4 text-primary" /> Product Contains Diamonds?
                         </Label>
                       </div>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -300,6 +333,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                   )}
                 />
 
+                {hasStonesValue &&
+                   <FormField
+                    control={form.control} name="stoneWeightG"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Stone Weight (grams)</FormLabel>
+                        <FormControl><Input type="number" step="0.001" placeholder="e.g., 0.5" {...field} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                }
+
                 {hasDiamondsValue && (
                   <FormField
                     control={form.control} name="diamondCharges"
@@ -312,17 +358,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                     )}
                   />
                 )}
-
-                <FormField
-                  control={form.control} name="stoneCharges"
-                  render={({ field }) => (
-                    <FormItem className={!hasDiamondsValue ? 'md:col-span-2' : ''}>
-                      <FormLabel>{hasDiamondsValue ? "Other Stone Charges" : "Stone Charges"}</FormLabel>
-                      <FormControl><Input type="number" step="1" placeholder="e.g., 15000" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                 {hasStonesValue &&
+                    <FormField
+                    control={form.control} name="stoneCharges"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Stone Charges</FormLabel>
+                        <FormControl><Input type="number" step="1" placeholder="e.g., 15000" {...field} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                }
+                
                 <FormField
                   control={form.control} name="miscCharges"
                   render={({ field }) => (
@@ -334,7 +382,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                   )}
                 />
                 
-                {showStoneDetails && (
+                {hasStonesValue && (
                   <FormField
                     control={form.control} name="stoneDetails"
                     render={({ field }) => (
