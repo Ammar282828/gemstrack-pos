@@ -1024,7 +1024,7 @@ export const useAppStore = create<AppState>()(
             set(state => {
               state.orders = orderList;
               state.isOrdersLoading = false;
-              if (orderList.length > 0 || !state.hasOrdersLoaded) {
+              if (!state.hasOrdersLoaded) {
                  state.hasOrdersLoaded = true;
               }
             });
@@ -1370,15 +1370,15 @@ export const useAppStore = create<AppState>()(
 // --- Exported Helper Functions ---
 export const DEFAULT_KARAT_VALUE_FOR_CALCULATION: KaratValue = DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
 export const GOLD_COIN_CATEGORY_ID: string = GOLD_COIN_CATEGORY_ID_INTERNAL;
-export function calculateProductCosts(
+export const calculateProductCosts = (
   product: Omit<Product, 'sku' | 'qrCodeDataUrl' | 'imageUrl' | 'name'> & {
     categoryId?: string;
     name?: string;
   },
   rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number }
-) {
+) => {
   return _calculateProductCostsInternal(product, rates);
-}
+};
 
 // --- Hydration Hooks ---
 import React, { useEffect, useState, useSyncExternalStore } from 'react';

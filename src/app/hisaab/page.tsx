@@ -102,11 +102,15 @@ const AddNewHisaabDialog: React.FC<{
                     </ScrollArea>
                 </div>
                 <DialogFooter className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-4 border-t">
-                    <Button variant="outline" size="lg" onClick={() => router.push('/customers/add?redirect_to_hisaab=true')}>
-                        <User className="mr-2 h-5 w-5"/> New Customer
+                     <Button asChild variant="outline" size="lg">
+                        <Link href="/customers/add?redirect_to_hisaab=true">
+                             <User className="mr-2 h-5 w-5"/> New Customer
+                        </Link>
                     </Button>
-                    <Button variant="outline" size="lg" onClick={() => router.push('/karigars/add?redirect_to_hisaab=true')}>
-                        <Briefcase className="mr-2 h-5 w-5"/> New Karigar
+                    <Button asChild variant="outline" size="lg">
+                        <Link href="/karigars/add?redirect_to_hisaab=true">
+                            <Briefcase className="mr-2 h-5 w-5"/> New Karigar
+                        </Link>
                     </Button>
                 </DialogFooter>
             </DialogContent>

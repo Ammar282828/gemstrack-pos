@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,8 @@ import { useAppStore, Customer } from '@/lib/store';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban } from 'lucide-react';
+import PhoneInput from 'react-phone-number-input/react-hook-form-input';
+import 'react-phone-number-input/style.css'
 
 const customerSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -57,7 +59,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
 
   const onSubmit = async (data: CustomerFormData) => {
     try {
-      if (isEditMode) {
+      if (isEditMode && customer) {
         await updateCustomer(customer.id, data);
         toast({ title: "Success", description: "Customer updated successfully." });
         if (onSubmitSuccess) onSubmitSuccess();
@@ -104,17 +106,27 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
               )}
             />
             <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number (Optional)</FormLabel>
-                  <FormControl>
-                    <Input type="tel" placeholder="e.g., +1 555-123-4567" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Phone Number (Optional)</FormLabel>
+                    <FormControl>
+                        <PhoneInput
+                            name={field.name}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            ref={field.ref}
+                            countryCallingCodeEditable={false}
+                            defaultCountry="PK"
+                            international
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                        />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
             />
             <FormField
               control={form.control}
