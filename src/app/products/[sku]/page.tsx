@@ -169,6 +169,9 @@ export default function ProductDetailPage() {
               {productData.metalType === 'platinum' && (
                   <DetailItem label="Platinum Rate (Store Setting)" value={settings.platinumRatePerGram} unit="/ gram" currency="PKR " />
               )}
+               {productData.metalType === 'silver' && (
+                  <DetailItem label="Silver Rate (Store Setting)" value={settings.silverRatePerGram} unit="/ gram" currency="PKR " />
+              )}
               <Separator className="my-1" />
               <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR " />
               <Separator className="my-1" />
@@ -191,15 +194,31 @@ export default function ProductDetailPage() {
           <Card>
             <CardHeader><CardTitle className="text-xl">Specifications & Details</CardTitle></CardHeader>
             <CardContent>
-              <DetailItem label="Metal Type" value={productData.metalType.charAt(0).toUpperCase() + productData.metalType.slice(1)} icon={<Shield className="w-4 h-4" />} />
+              <DetailItem label="Primary Metal" value={productData.metalType.charAt(0).toUpperCase() + productData.metalType.slice(1)} icon={<Shield className="w-4 h-4" />} />
               {productData.metalType === 'gold' && productData.karat && (
                   <>
                   <Separator className="my-1" />
-                  <DetailItem label="Karat" value={productData.karat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
+                  <DetailItem label="Primary Metal Karat" value={productData.karat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
                   </>
               )}
               <Separator className="my-1" />
-              <DetailItem label="Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
+              <DetailItem label="Primary Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
+              
+              {productData.secondaryMetalType && productData.secondaryMetalWeightG && (
+                <>
+                    <Separator className="my-2 border-dashed" />
+                    <DetailItem label="Secondary Metal" value={productData.secondaryMetalType.charAt(0).toUpperCase() + productData.secondaryMetalType.slice(1)} icon={<Shield className="w-4 h-4" />} />
+                     {productData.secondaryMetalType === 'gold' && productData.secondaryMetalKarat && (
+                        <>
+                        <Separator className="my-1" />
+                        <DetailItem label="Secondary Metal Karat" value={productData.secondaryMetalKarat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
+                        </>
+                    )}
+                    <Separator className="my-1" />
+                    <DetailItem label="Secondary Metal Weight" value={productData.secondaryMetalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
+                </>
+              )}
+              
               <Separator className="my-1" />
               <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
               <Separator className="my-1" />
@@ -207,7 +226,7 @@ export default function ProductDetailPage() {
                {(productData.stoneDetails || productData.diamondDetails) && <Separator className="my-1" />}
               {productData.stoneDetails && (
                  <div className="py-2">
-                    <p className="text-sm text-muted-foreground flex items-center mb-1"><Gem className="w-4 h-4 mr-2" /> Stone Details</p>
+                    <p className="text-sm text-muted-foreground flex items-center mb-1"><Gem className="w-4 h-4 mr-2" /> Secondary Metal &amp; Stone Details</p>
                     <p className="text-sm whitespace-pre-wrap font-medium bg-muted/50 p-2 rounded-md">{productData.stoneDetails}</p>
                  </div>
               )}
@@ -248,7 +267,7 @@ export default function ProductDetailPage() {
                     alt={productData.name}
                     fill
                     style={{ objectFit: "cover" }}
-                    data-ai-hint="jewelry piece"
+                    data-ai-hint="jewelry item"
                     priority={false}
                     />
                 </div>

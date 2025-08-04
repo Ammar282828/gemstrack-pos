@@ -73,6 +73,32 @@ function _parseKaratInternal(karat: KaratValue | string | undefined): number {
   return numericPart;
 }
 
+function _calculateSingleMetalCost(
+    metalType: MetalType,
+    karat: KaratValue | string | undefined,
+    weightG: number,
+    rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number; silverRatePerGram: number; }
+): number {
+    let cost = 0;
+    const { goldRatePerGram24k, palladiumRatePerGram, platinumRatePerGram, silverRatePerGram } = rates;
+    const validWeightG = Math.max(0, Number(weightG) || 0);
+
+    if (metalType === 'gold') {
+        const karatNumeric = _parseKaratInternal(karat);
+        if (karatNumeric > 0 && goldRatePerGram24k > 0) {
+            cost = validWeightG * (karatNumeric / 24) * goldRatePerGram24k;
+        }
+    } else if (metalType === 'palladium' && palladiumRatePerGram > 0) {
+        cost = validWeightG * palladiumRatePerGram;
+    } else if (metalType === 'platinum' && platinumRatePerGram > 0) {
+        cost = validWeightG * platinumRatePerGram;
+    } else if (metalType === 'silver' && silverRatePerGram > 0) {
+        cost = validWeightG * silverRatePerGram;
+    }
+    return cost;
+}
+
+
 function _calculateProductCostsInternal(
   product: {
     categoryId?: string;
@@ -80,6 +106,9 @@ function _calculateProductCostsInternal(
     metalType: MetalType;
     karat?: KaratValue | string;
     metalWeightG: number;
+    secondaryMetalType?: MetalType;
+    secondaryMetalKarat?: KaratValue;
+    secondaryMetalWeightG?: number;
     stoneWeightG: number;
     wastagePercentage: number;
     makingCharges: number;
@@ -90,8 +119,6 @@ function _calculateProductCostsInternal(
   },
   rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number; silverRatePerGram: number; }
 ) {
-  let metalCost = 0;
-  const currentMetalType = product.metalType || 'gold';
   const grossMetalWeightG = Number(product.metalWeightG) || 0;
   const stoneWeightG = Number(product.stoneWeightG) || 0;
   const netMetalWeightG = grossMetalWeightG - stoneWeightG;
@@ -99,10 +126,17 @@ function _calculateProductCostsInternal(
   if (netMetalWeightG < 0) {
       console.warn(`[GemsTrack Store _calculateProductCostsInternal] Net metal weight is negative for ${product.name}. Clamping to 0.`);
   }
-  const validNetMetalWeightG = Math.max(0, netMetalWeightG);
+  
+  const primaryMetalCost = _calculateSingleMetalCost(product.metalType, product.karat, netMetalWeightG, rates);
+  
+  let secondaryMetalCost = 0;
+  if (product.secondaryMetalType && product.secondaryMetalWeightG) {
+      secondaryMetalCost = _calculateSingleMetalCost(product.secondaryMetalType, product.secondaryMetalKarat, product.secondaryMetalWeightG, rates);
+  }
 
-  const isActualGoldCoin = product.categoryId === GOLD_COIN_CATEGORY_ID_INTERNAL && currentMetalType === 'gold';
-
+  const totalMetalCost = primaryMetalCost + secondaryMetalCost;
+  
+  const isActualGoldCoin = product.categoryId === GOLD_COIN_CATEGORY_ID_INTERNAL && product.metalType === 'gold';
   const wastagePercentage = isActualGoldCoin ? 0 : (Number(product.wastagePercentage) || 0);
   const makingCharges = isActualGoldCoin ? 0 : (Number(product.makingCharges) || 0);
   const hasDiamondsValue = isActualGoldCoin ? false : product.hasDiamonds;
@@ -110,49 +144,17 @@ function _calculateProductCostsInternal(
   const stoneChargesValue = isActualGoldCoin ? 0 : (Number(product.stoneCharges) || 0);
   const miscChargesValue = isActualGoldCoin ? 0 : (Number(product.miscCharges) || 0);
 
-  const goldRate24k = Number(rates.goldRatePerGram24k) || 0;
-  const palladiumRate = Number(rates.palladiumRatePerGram) || 0;
-  const platinumRate = Number(rates.platinumRatePerGram) || 0;
-  const silverRate = Number(rates.silverRatePerGram) || 0;
-
-  if (currentMetalType === 'gold') {
-    const karatToUse = product.karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
-    const karatNumeric = _parseKaratInternal(karatToUse);
-    if (karatNumeric > 0 && goldRate24k > 0) {
-      const purityFactor = karatNumeric / 24;
-      const effectiveGoldRate = purityFactor * goldRate24k;
-      metalCost = validNetMetalWeightG * effectiveGoldRate;
-    } else {
-      metalCost = 0;
-    }
-  } else if (currentMetalType === 'palladium') {
-    if (palladiumRate > 0) metalCost = validNetMetalWeightG * palladiumRate;
-  } else if (currentMetalType === 'platinum') {
-    if (platinumRate > 0) metalCost = validNetMetalWeightG * platinumRate;
-  } else if (currentMetalType === 'silver') {
-    if (silverRate > 0) metalCost = validNetMetalWeightG * silverRate;
-  }
-
-  const validMetalCost = Number(metalCost) || 0;
-  const wastageCost = validMetalCost * (wastagePercentage / 100);
+  const wastageCost = totalMetalCost * (wastagePercentage / 100);
   const validWastageCost = Number(wastageCost) || 0;
-  const totalPrice = validMetalCost + validWastageCost + makingCharges + diamondChargesValue + stoneChargesValue + miscChargesValue;
+  const totalPrice = totalMetalCost + validWastageCost + makingCharges + diamondChargesValue + stoneChargesValue + miscChargesValue;
   
   if (isNaN(totalPrice)) {
-    console.error("[GemsTrack Store _calculateProductCostsInternal] CRITICAL: Produced NaN. Details:", {
-        productInputName: product.name,
-        productCategoryId: product.categoryId,
-        productProcessed: { grossMetalWeightG, stoneWeightG, wastagePercentage, makingCharges, hasDiamonds: hasDiamondsValue, diamondChargesValue, stoneChargesValue, miscChargesValue, currentMetalType, karat: product.karat },
-        ratesInput: rates,
-        ratesProcessed: { goldRate24k, palladiumRate, platinumRate, silverRate },
-        derivedCosts: { metalCost: validMetalCost, wastageCost: validWastageCost },
-        calculatedTotalPrice: totalPrice
-    });
+    console.error("[GemsTrack Store _calculateProductCostsInternal] CRITICAL: Produced NaN. Details:", { product, rates });
     return { metalCost: 0, wastageCost: 0, makingCharges: 0, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, totalPrice: 0 };
   }
 
   return {
-    metalCost: validMetalCost,
+    metalCost: totalMetalCost,
     wastageCost: validWastageCost,
     makingCharges: makingCharges,
     diamondCharges: diamondChargesValue,
@@ -226,9 +228,15 @@ export interface Product {
   sku: string; // Firestore document ID (use SKU as ID)
   name: string;
   categoryId: string;
+  // Primary Metal
   metalType: MetalType;
   karat?: KaratValue;
   metalWeightG: number;
+  // Secondary Metal (optional)
+  secondaryMetalType?: MetalType;
+  secondaryMetalKarat?: KaratValue;
+  secondaryMetalWeightG?: number;
+  // Other details
   hasStones: boolean;
   stoneWeightG: number;
   wastagePercentage: number;
@@ -723,6 +731,8 @@ export const useAppStore = create<AppState>()(
           miscCharges: isActualGoldCoin ? 0 : productData.miscCharges,
         };
         if (finalProductData.metalType !== 'gold') { delete finalProductData.karat; }
+        if (finalProductData.secondaryMetalType !== 'gold') { delete finalProductData.secondaryMetalKarat; }
+
 
         const newProduct: Product = { ...finalProductData, name: autoGeneratedName, sku: generatedSku };
         console.log("[GemsTrack Store addProduct] Attempting to add product:", newProduct);
@@ -976,7 +986,7 @@ export const useAppStore = create<AppState>()(
                     invoiceItems.push({
                         sku: product.sku, name: product.name, categoryId: product.categoryId,
                         metalType: product.metalType, metalWeightG: product.metalWeightG, stoneWeightG: product.stoneWeightG,
-                        quantity: 1, unitPrice: itemTotal, itemTotal,
+                        quantity: 1, unitPrice: itemTotal, itemTotal: itemTotal,
                         metalCost: costs.metalCost, wastageCost: costs.wastageCost,
                         wastagePercentage: product.wastagePercentage, makingCharges: costs.makingCharges,
                         diamondChargesIfAny: costs.diamondCharges, stoneChargesIfAny: costs.stoneCharges,
