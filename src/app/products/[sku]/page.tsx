@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, Download, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond, Zap, Shield, Gem } from 'lucide-react';
+import { Edit3, Trash2, Download, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond, Zap, Shield, Gem, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -31,7 +31,7 @@ import { generateProductCsv } from '@/lib/csv';
 type ProductWithCalculatedCosts = ReturnType<typeof selectProductWithCosts>;
 
 
-const DetailItem: React.FC<{ label: string; value: string | number | undefined | boolean; icon?: React.ReactNode, unit?: string, currency?: string }> = ({ label, value, icon, unit, currency }) => (
+const DetailItem: React.FC<{ label: string; value?: string | number | boolean; icon?: React.ReactNode, unit?: string, currency?: string }> = ({ label, value, icon, unit, currency }) => (
   <div className="flex justify-between items-center py-2">
     <div className="flex items-center text-sm text-muted-foreground">
       {icon && <span className="mr-2">{icon}</span>}
@@ -39,7 +39,7 @@ const DetailItem: React.FC<{ label: string; value: string | number | undefined |
     </div>
     <span className="font-medium text-foreground text-sm">
       {currency && value !== undefined && typeof value !== 'boolean' && <span className="mr-0.5">{currency}</span>}
-      {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : typeof value === 'number' ? value.toLocaleString() : value || '-'} {unit}
+      {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (value !== undefined && value !== null) ? Number(value).toLocaleString() : '-'} {unit}
     </span>
   </div>
 );
@@ -160,84 +160,95 @@ export default function ProductDetailPage() {
               <Button size="lg" className="w-full mb-4" onClick={handleAddToCart}>
                   <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
               </Button>
-              {productData.metalType === 'gold' && (
-                  <DetailItem label="Gold Rate (Store Setting, 21k)" value={goldRate21k} unit="/ gram" currency="PKR " />
-              )}
-              {productData.metalType === 'palladium' && (
-                  <DetailItem label="Palladium Rate (Store Setting)" value={settings.palladiumRatePerGram} unit="/ gram" currency="PKR " />
-              )}
-              {productData.metalType === 'platinum' && (
-                  <DetailItem label="Platinum Rate (Store Setting)" value={settings.platinumRatePerGram} unit="/ gram" currency="PKR " />
-              )}
-               {productData.metalType === 'silver' && (
-                  <DetailItem label="Silver Rate (Store Setting)" value={settings.silverRatePerGram} unit="/ gram" currency="PKR " />
-              )}
-              <Separator className="my-1" />
-              <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR " />
-              <Separator className="my-1" />
-              <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR " />
-              <Separator className="my-1" />
-              <DetailItem label="Making Charges" value={productData.makingCharges} currency="PKR " />
-              {productData.hasDiamonds && (
+              {productData.isCustomPrice ? (
+                 <div className="py-2">
+                    <p className="text-sm text-muted-foreground flex items-center mb-1"><Info className="w-4 h-4 mr-2" /> Description</p>
+                    <p className="text-sm whitespace-pre-wrap font-medium bg-muted/50 p-2 rounded-md">{productData.description || 'N/A'}</p>
+                 </div>
+              ) : (
                 <>
+                  {productData.metalType === 'gold' && (
+                      <DetailItem label="Gold Rate (Store Setting, 21k)" value={goldRate21k} unit="/ gram" currency="PKR " />
+                  )}
+                  {productData.metalType === 'palladium' && (
+                      <DetailItem label="Palladium Rate (Store Setting)" value={settings.palladiumRatePerGram} unit="/ gram" currency="PKR " />
+                  )}
+                  {productData.metalType === 'platinum' && (
+                      <DetailItem label="Platinum Rate (Store Setting)" value={settings.platinumRatePerGram} unit="/ gram" currency="PKR " />
+                  )}
+                   {productData.metalType === 'silver' && (
+                      <DetailItem label="Silver Rate (Store Setting)" value={settings.silverRatePerGram} unit="/ gram" currency="PKR " />
+                  )}
                   <Separator className="my-1" />
-                  <DetailItem label="Diamond Charges" value={productData.diamondCharges} currency="PKR " icon={<Diamond className="w-4 h-4" />}/>
+                  <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR " />
+                  <Separator className="my-1" />
+                  <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR " />
+                  <Separator className="my-1" />
+                  <DetailItem label="Making Charges" value={productData.makingCharges} currency="PKR " />
+                  {productData.hasDiamonds && (
+                    <>
+                      <Separator className="my-1" />
+                      <DetailItem label="Diamond Charges" value={productData.diamondCharges} currency="PKR " icon={<Diamond className="w-4 h-4" />}/>
+                    </>
+                  )}
+                   <Separator className="my-1" />
+                  <DetailItem label={productData.hasDiamonds ? "Other Stone Charges" : "Stone Charges"} value={productData.stoneCharges} currency="PKR " />
+                   <Separator className="my-1" />
+                  <DetailItem label="Misc. Charges" value={productData.miscCharges} currency="PKR " />
                 </>
               )}
-               <Separator className="my-1" />
-              <DetailItem label={productData.hasDiamonds ? "Other Stone Charges" : "Stone Charges"} value={productData.stoneCharges} currency="PKR " />
-               <Separator className="my-1" />
-              <DetailItem label="Misc. Charges" value={productData.miscCharges} currency="PKR " />
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader><CardTitle className="text-xl">Specifications & Details</CardTitle></CardHeader>
-            <CardContent>
-              <DetailItem label="Primary Metal" value={productData.metalType.charAt(0).toUpperCase() + productData.metalType.slice(1)} icon={<Shield className="w-4 h-4" />} />
-              {productData.metalType === 'gold' && productData.karat && (
-                  <>
-                  <Separator className="my-1" />
-                  <DetailItem label="Primary Metal Karat" value={productData.karat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
-                  </>
-              )}
-              <Separator className="my-1" />
-              <DetailItem label="Primary Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
-              
-              {productData.secondaryMetalType && productData.secondaryMetalWeightG && (
-                <>
-                    <Separator className="my-2 border-dashed" />
-                    <DetailItem label="Secondary Metal" value={productData.secondaryMetalType.charAt(0).toUpperCase() + productData.secondaryMetalType.slice(1)} icon={<Shield className="w-4 h-4" />} />
-                     {productData.secondaryMetalType === 'gold' && productData.secondaryMetalKarat && (
-                        <>
-                        <Separator className="my-1" />
-                        <DetailItem label="Secondary Metal Karat" value={productData.secondaryMetalKarat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
-                        </>
-                    )}
+         {!productData.isCustomPrice && (
+            <Card>
+              <CardHeader><CardTitle className="text-xl">Specifications & Details</CardTitle></CardHeader>
+              <CardContent>
+                <DetailItem label="Primary Metal" value={productData.metalType.charAt(0).toUpperCase() + productData.metalType.slice(1)} icon={<Shield className="w-4 h-4" />} />
+                {productData.metalType === 'gold' && productData.karat && (
+                    <>
                     <Separator className="my-1" />
-                    <DetailItem label="Secondary Metal Weight" value={productData.secondaryMetalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
-                </>
-              )}
-              
-              <Separator className="my-1" />
-              <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
-              <Separator className="my-1" />
-              <DetailItem label="Contains Diamonds" value={productData.hasDiamonds} icon={<Diamond className="w-4 h-4" />} />
-               {(productData.stoneDetails || productData.diamondDetails) && <Separator className="my-1" />}
-              {productData.stoneDetails && (
-                 <div className="py-2">
-                    <p className="text-sm text-muted-foreground flex items-center mb-1"><Gem className="w-4 h-4 mr-2" /> Secondary Metal &amp; Stone Details</p>
-                    <p className="text-sm whitespace-pre-wrap font-medium bg-muted/50 p-2 rounded-md">{productData.stoneDetails}</p>
-                 </div>
-              )}
-               {productData.diamondDetails && (
-                 <div className="py-2">
-                    <p className="text-sm text-muted-foreground flex items-center mb-1"><Diamond className="w-4 h-4 mr-2" /> Diamond Details</p>
-                    <p className="text-sm whitespace-pre-wrap font-medium bg-muted/50 p-2 rounded-md">{productData.diamondDetails}</p>
-                 </div>
-              )}
-            </CardContent>
-          </Card>
+                    <DetailItem label="Primary Metal Karat" value={productData.karat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
+                    </>
+                )}
+                <Separator className="my-1" />
+                <DetailItem label="Primary Metal Weight" value={productData.metalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
+                
+                {productData.secondaryMetalType && productData.secondaryMetalWeightG && (
+                  <>
+                      <Separator className="my-2 border-dashed" />
+                      <DetailItem label="Secondary Metal" value={productData.secondaryMetalType.charAt(0).toUpperCase() + productData.secondaryMetalType.slice(1)} icon={<Shield className="w-4 h-4" />} />
+                       {productData.secondaryMetalType === 'gold' && productData.secondaryMetalKarat && (
+                          <>
+                          <Separator className="my-1" />
+                          <DetailItem label="Secondary Metal Karat" value={productData.secondaryMetalKarat.toUpperCase()} icon={<Zap className="w-4 h-4" />} />
+                          </>
+                      )}
+                      <Separator className="my-1" />
+                      <DetailItem label="Secondary Metal Weight" value={productData.secondaryMetalWeightG} icon={<Weight className="w-4 h-4" />} unit="grams" />
+                  </>
+                )}
+                
+                <Separator className="my-1" />
+                <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
+                <Separator className="my-1" />
+                <DetailItem label="Contains Diamonds" value={productData.hasDiamonds} icon={<Diamond className="w-4 h-4" />} />
+                 {(productData.stoneDetails || productData.diamondDetails) && <Separator className="my-1" />}
+                {productData.stoneDetails && (
+                   <div className="py-2">
+                      <p className="text-sm text-muted-foreground flex items-center mb-1"><Gem className="w-4 h-4 mr-2" /> Secondary Metal &amp; Stone Details</p>
+                      <p className="text-sm whitespace-pre-wrap font-medium bg-muted/50 p-2 rounded-md">{productData.stoneDetails}</p>
+                   </div>
+                )}
+                 {productData.diamondDetails && (
+                   <div className="py-2">
+                      <p className="text-sm text-muted-foreground flex items-center mb-1"><Diamond className="w-4 h-4 mr-2" /> Diamond Details</p>
+                      <p className="text-sm whitespace-pre-wrap font-medium bg-muted/50 p-2 rounded-md">{productData.diamondDetails}</p>
+                   </div>
+                )}
+              </CardContent>
+            </Card>
+         )}
         </div>
 
         <div className="md:col-span-1 space-y-6 order-1 md:order-2">
@@ -298,3 +309,4 @@ export default function ProductDetailPage() {
     </div>
   );
 }
+

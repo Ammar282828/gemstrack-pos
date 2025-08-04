@@ -216,23 +216,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                 />
             </div>
             
-            {isMensRing && (
-              <>
-                <Separator />
-                <FormField
-                  control={form.control} name="isCustomPrice"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 bg-primary/5">
-                      <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="isCustomPrice" /></FormControl>
-                      <div className="space-y-1 leading-none">
-                        <Label htmlFor="isCustomPrice" className="flex items-center cursor-pointer text-base font-semibold text-primary"><Info className="mr-2 h-4 w-4" /> Set Manual Price</Label>
-                        <FormDescription>Check this to bypass detailed calculations and set a final price directly.</FormDescription>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
+            <FormField
+              control={form.control} name="isCustomPrice"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 bg-primary/5">
+                  <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="isCustomPrice" /></FormControl>
+                  <div className="space-y-1 leading-none">
+                    <Label htmlFor="isCustomPrice" className="flex items-center cursor-pointer text-base font-semibold text-primary"><Info className="mr-2 h-4 w-4" /> Set Manual Price</Label>
+                    <FormDescription>Check this to bypass detailed calculations and set a final price directly.</FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
 
             {isCustomPrice ? (
                <div className="space-y-6 p-4 border rounded-md bg-muted/30">
