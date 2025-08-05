@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect } from 'react';
@@ -71,7 +72,10 @@ const productFormSchema = z.object({
   if (data.secondaryMetalType && (!data.secondaryMetalWeightG || data.secondaryMetalWeightG <= 0)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A positive weight is required for secondary metal.", path: ["secondaryMetalWeightG"] });
   }
-  if (data.stoneWeightG > data.metalWeightG) {
+  
+  // Updated validation: Stone weight cannot be greater than the total of primary and secondary metal weights
+  const totalMetalWeight = (data.metalWeightG || 0) + (data.secondaryMetalWeightG || 0);
+  if (data.stoneWeightG > totalMetalWeight) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Stone weight cannot be greater than the total metal weight.", path: ["stoneWeightG"] });
   }
 });
