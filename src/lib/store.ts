@@ -133,7 +133,10 @@ function _calculateProductCostsInternal(
 
   const grossMetalWeightG = Number(product.metalWeightG) || 0;
   const stoneWeightG = Number(product.stoneWeightG) || 0;
-  const netMetalWeightG = grossMetalWeightG - stoneWeightG;
+  const secondaryMetalWeightG = Number(product.secondaryMetalWeightG) || 0;
+
+  // Net metal weight is the gross weight minus the weight of any non-precious materials (stones) and secondary metals.
+  const netMetalWeightG = grossMetalWeightG - stoneWeightG - secondaryMetalWeightG;
   
   if (netMetalWeightG < 0) {
       console.warn(`[GemsTrack Store _calculateProductCostsInternal] Net metal weight is negative for ${product.name}. Clamping to 0.`);

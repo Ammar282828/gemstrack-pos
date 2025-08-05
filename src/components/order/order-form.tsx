@@ -38,11 +38,12 @@ declare module 'jspdf' {
 }
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
+const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
 
 // Schema for a single custom order item
 const orderItemSchema = z.object({
   description: z.string().min(3, "Description is required"),
-  karat: z.enum(karatValues),
+  karat: z.enum(karatValues).optional(),
   estimatedWeightG: z.coerce.number().min(0.1, "Weight must be a positive number"),
   wastagePercentage: z.coerce.number().min(0, "Wastage must be non-negative").default(0),
   makingCharges: z.coerce.number().min(0).default(0),
@@ -54,7 +55,7 @@ const orderItemSchema = z.object({
   hasDiamonds: z.boolean().default(false),
   stoneDetails: z.string().optional(),
   diamondDetails: z.string().optional(),
-  metalType: z.custom<MetalType>().default('gold'),
+  metalType: z.enum(metalTypeValues).default('gold'),
   isCompleted: z.boolean().default(false),
 });
 
@@ -338,17 +339,24 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     let subtotal = 0;
     const goldRate21k = formValues.goldRate || 0;
     const goldRate24k = goldRate21k > 0 ? goldRate21k * (24 / 21) : 0;
-    const ratesForCalc = { goldRatePerGram24k: goldRate24k, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
+    const ratesForCalc = { 
+        goldRatePerGram24k: goldRate24k, 
+        palladiumRatePerGram: settings.palladiumRatePerGram,
+        platinumRatePerGram: settings.platinumRatePerGram,
+        silverRatePerGram: settings.silverRatePerGram,
+    };
 
     (formValues.items || []).forEach(item => {
-        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage } = item;
-        if (!estimatedWeightG || estimatedWeightG <= 0 || !goldRate24k || goldRate24k <= 0) return;
+        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, metalType } = item;
+        if (!estimatedWeightG || estimatedWeightG <= 0) return;
+        if (metalType === 'gold' && (!goldRate24k || goldRate24k <= 0)) return;
 
         const productForCalc = {
           categoryId: '', // Custom orders don't have a category, but the function needs it.
-          metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
+          metalType, karat, metalWeightG: estimatedWeightG,
           wastagePercentage: wastagePercentage, makingCharges, hasDiamonds,
-          diamondCharges, stoneCharges, miscCharges: 0
+          diamondCharges, stoneCharges, miscCharges: 0,
+          stoneWeightG: 0, hasStones: false,
         };
         
         const costs = calculateProductCosts(productForCalc, ratesForCalc);
@@ -358,24 +366,29 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     const grandTotal = subtotal - (formValues.advancePayment || 0);
     
     return { subtotal, grandTotal };
-  }, [formValues]);
+  }, [formValues, settings]);
 
 
   const onSubmit = async (data: OrderFormData) => {
     const { subtotal, grandTotal } = liveEstimate;
     const goldRate24k = (data.goldRate || 0) * (24 / 21);
-    const ratesForCalc = { goldRatePerGram24k: goldRate24k, palladiumRatePerGram: 0, platinumRatePerGram: 0 };
+    const ratesForCalc = {
+        goldRatePerGram24k: goldRate24k,
+        palladiumRatePerGram: settings.palladiumRatePerGram,
+        platinumRatePerGram: settings.platinumRatePerGram,
+        silverRatePerGram: settings.silverRatePerGram
+    };
 
     const enrichedItems: OrderItem[] = data.items.map((item) => {
-        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, isCompleted } = item;
+        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, isCompleted, metalType } = item;
         const productForCalc = {
           categoryId: '', // Custom orders don't have a category
-          metalType: 'gold' as const, karat, metalWeightG: estimatedWeightG,
+          metalType: metalType, karat, metalWeightG: estimatedWeightG,
           wastagePercentage: wastagePercentage, makingCharges, hasDiamonds,
-          diamondCharges, stoneCharges, miscCharges: 0
+          diamondCharges, stoneCharges, miscCharges: 0, hasStones: item.hasStones, stoneWeightG: item.stoneWeightG
         };
         const costs = calculateProductCosts(productForCalc, ratesForCalc);
-        return { ...item, isCompleted: isCompleted, metalType: 'gold', metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
+        return { ...item, isCompleted: isCompleted, metalType: item.metalType, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
     });
 
     if (isEditMode && order) {
@@ -517,19 +530,28 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                 <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g., Custom 22k gold ring with ruby stone" {...field} rows={2}/></FormControl><FormMessage /></FormItem>
                             )}/>
                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                               <FormField control={form.control} name={`items.${index}.metalType`} render={({ field }) => (
+                                <FormItem><FormLabel>Metal</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                    <SelectContent>{metalTypeValues.map(m => <SelectItem key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</SelectItem>)}</SelectContent>
+                                </Select><FormMessage /></FormItem>
+                                )}/>
+                                {form.watch(`items.${index}.metalType`) === 'gold' &&
+                                    <FormField control={form.control} name={`items.${index}.karat`} render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4"/>Karat</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                            <SelectContent>{karatValues.map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
+                                        </Select><FormMessage /></FormItem>
+                                    )}/>
+                                }
                                 <FormField control={form.control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
-                                    <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>Est. Gold Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name={`items.${index}.karat`} render={({ field }) => (
-                                    <FormItem><FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4"/>Gold Karat</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                        <SelectContent>{karatValues.map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
-                                    </Select><FormMessage /></FormItem>
-                                )}/>
-                                 <FormField control={form.control} name={`items.${index}.wastagePercentage`} render={({ field }) => (
-                                    <FormItem><FormLabel className="flex items-center"><Percent className="mr-2 h-4 w-4"/>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>Est. Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                              </div>
+                              <FormField control={form.control} name={`items.${index}.wastagePercentage`} render={({ field }) => (
+                                <FormItem><FormLabel className="flex items-center"><Percent className="mr-2 h-4 w-4"/>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
                             <Separator />
                             <p className="font-medium text-sm">Additional Charges & Details</p>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

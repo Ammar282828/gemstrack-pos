@@ -68,8 +68,8 @@ const productFormSchema = z.object({
   if (data.secondaryMetalType === 'gold' && !data.secondaryMetalKarat) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Karat is required for secondary gold metal.", path: ["secondaryMetalKarat"] });
   }
-  if (data.secondaryMetalType && !data.secondaryMetalWeightG) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Weight is required for secondary metal.", path: ["secondaryMetalWeightG"] });
+  if (data.secondaryMetalType && (!data.secondaryMetalWeightG || data.secondaryMetalWeightG <= 0)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A positive weight is required for secondary metal.", path: ["secondaryMetalWeightG"] });
   }
   if (data.stoneWeightG > data.metalWeightG) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Stone weight cannot be greater than the total metal weight.", path: ["stoneWeightG"] });
@@ -123,6 +123,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   
   useEffect(() => {
     if (selectedSecondaryMetalType !== 'gold') { form.setValue('secondaryMetalKarat', undefined); }
+    if(!selectedSecondaryMetalType){
+      form.setValue('secondaryMetalWeightG', undefined);
+      form.setValue('secondaryMetalKarat', undefined);
+    }
   }, [selectedSecondaryMetalType, form]);
 
   useEffect(() => {
@@ -139,6 +143,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
       form.setValue('wastagePercentage', 0); form.setValue('makingCharges', 0); form.setValue('stoneCharges', 0);
       form.setValue('miscCharges', 0); form.setValue('stoneDetails', ''); form.setValue('diamondDetails', '');
       form.setValue('stoneWeightG', 0);
+      form.setValue('karat', '24k');
     } else {
         if (hasDiamondsValue) { form.setValue('wastagePercentage', 25); } 
         else { form.setValue('wastagePercentage', 10); form.setValue('diamondCharges', 0); form.setValue('diamondDetails', ''); }
@@ -149,11 +154,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   const processAndSubmit = async (data: ProductFormData) => {
     const processedData: Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'> = {
       ...data,
+      name: data.isCustomPrice ? (data.description || 'Custom Item') : '', // Name will be auto-generated later if not custom
       karat: data.metalType === 'gold' ? data.karat : undefined,
       secondaryMetalType: isMensRing ? data.secondaryMetalType : undefined,
       secondaryMetalKarat: isMensRing && data.secondaryMetalType === 'gold' ? data.secondaryMetalKarat : undefined,
-      secondaryMetalWeightG: isMensRing ? data.secondaryMetalWeightG : undefined,
-      name: data.isCustomPrice ? data.description || '' : '' // Name will be auto-generated later if not custom
+      secondaryMetalWeightG: isMensRing && data.secondaryMetalType ? data.secondaryMetalWeightG : undefined,
     };
 
     try {
@@ -166,13 +171,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
         if (newProduct) {
           toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
           if (data.submitAction === 'saveAndAddAnother') {
-            form.reset({
-                ...form.getValues(), metalWeightG: 0, hasDiamonds: false, hasStones: false,
-                stoneWeightG: 0, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: "",
-                stoneDetails: "", diamondDetails: "", secondaryMetalType: undefined, secondaryMetalKarat: undefined, secondaryMetalWeightG: undefined,
+             const originalCategory = form.getValues('categoryId');
+             form.reset({
+                categoryId: originalCategory, metalType: 'gold', karat: '21k', metalWeightG: 0, wastagePercentage: 10,
+                makingCharges: 0, hasDiamonds: false, hasStones: false, stoneWeightG: 0, diamondCharges: 0,
+                stoneCharges: 0, miscCharges: 0, imageUrl: "", stoneDetails: "", diamondDetails: "",
+                secondaryMetalType: undefined, secondaryMetalKarat: undefined, secondaryMetalWeightG: undefined,
                 isCustomPrice: false, customPrice: 0, description: '',
             });
-            form.trigger();
           } else { router.push('/products'); }
         } else {
           toast({ title: "Error", description: "Failed to add product. Check logs for details.", variant: "destructive" });
@@ -306,7 +312,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                               <FormLabel className="flex items-center"><Shield className="mr-2 h-4 w-4" /> Metal Type</FormLabel>
                               <Select onValueChange={field.onChange} value={field.value}>
                                   <FormControl><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger></FormControl>
-                                  <SelectContent>{metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>))}</SelectContent>
+                                  <SelectContent>
+                                    <SelectItem value="">None</SelectItem>
+                                    {metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>))}
+                                    </SelectContent>
                               </Select>
                               <FormMessage />
                           </FormItem>
