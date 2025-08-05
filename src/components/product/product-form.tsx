@@ -73,10 +73,9 @@ const productFormSchema = z.object({
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A positive weight is required for secondary metal.", path: ["secondaryMetalWeightG"] });
   }
   
-  // Updated validation: Stone weight cannot be greater than the total of primary and secondary metal weights
-  const totalMetalWeight = (data.metalWeightG || 0) + (data.secondaryMetalWeightG || 0);
-  if (data.stoneWeightG > totalMetalWeight) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Stone weight cannot be greater than the total metal weight.", path: ["stoneWeightG"] });
+  // Stone weight cannot be greater than the primary metal weight.
+  if (data.stoneWeightG > (data.metalWeightG || 0)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Stone weight cannot be greater than the primary metal weight.", path: ["stoneWeightG"] });
   }
 });
 

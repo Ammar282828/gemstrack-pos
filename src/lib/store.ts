@@ -131,13 +131,13 @@ function _calculateProductCostsInternal(
     };
   }
 
-  // The primary metal weight is now treated as its own value, not a total.
-  const primaryMetalWeightG = Math.max(0, (Number(product.metalWeightG) || 0) - (Number(product.stoneWeightG) || 0));
-  if (primaryMetalWeightG < 0) {
+  // The primary metal weight is its gross weight, minus only the stones.
+  const primaryMetalNetWeightG = Math.max(0, (Number(product.metalWeightG) || 0) - (Number(product.stoneWeightG) || 0));
+  if (primaryMetalNetWeightG < 0) {
       console.warn(`[GemsTrack Store _calculateProductCostsInternal] Net primary metal weight is negative for ${product.name}. Clamping to 0.`);
   }
 
-  const primaryMetalCost = _calculateSingleMetalCost(product.metalType, product.karat, primaryMetalWeightG, rates);
+  const primaryMetalCost = _calculateSingleMetalCost(product.metalType, product.karat, primaryMetalNetWeightG, rates);
   
   let secondaryMetalCost = 0;
   if (product.secondaryMetalType && product.secondaryMetalWeightG) {
