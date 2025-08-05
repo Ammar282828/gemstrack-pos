@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useEffect } from 'react';
@@ -155,7 +154,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   }, [isGoldCoin, hasDiamondsValue, hasStonesValue, form]);
 
   const processAndSubmit = async (data: ProductFormData) => {
-    const processedData: Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'> = {
+    const processedData: Omit<Product, 'sku' | 'qrCodeDataUrl'> = {
       ...data,
       name: data.isCustomPrice ? (data.description || 'Custom Item') : '', // Name will be auto-generated later if not custom
       karat: data.metalType === 'gold' ? data.karat : undefined,
