@@ -73,7 +73,8 @@ const productFormSchema = z.object({
   }
   
   // Stone weight cannot be greater than the primary metal weight.
-  if (data.stoneWeightG > (data.metalWeightG || 0)) {
+  const totalMetalWeight = (data.metalWeightG || 0);
+  if (data.stoneWeightG > totalMetalWeight) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Stone weight cannot be greater than the primary metal weight.", path: ["stoneWeightG"] });
   }
 });
