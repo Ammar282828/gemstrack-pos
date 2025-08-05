@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -42,7 +42,7 @@ const productFormSchema = z.object({
   stoneWeightG: z.coerce.number().min(0, "Stone weight must be non-negative").default(0),
   diamondCharges: z.coerce.number().min(0, "Diamond charges must be non-negative").default(0),
   stoneCharges: z.coerce.number().min(0, "Stone charges must be non-negative").default(0),
-  miscCharges: z.coerce.number().min(0, "Misc charges must be non-negative").default(0),
+  miscCharges: z.coerce.number().min(0, "Misc charges must be non-negative"),
   imageUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
   stoneDetails: z.string().optional(),
   diamondDetails: z.string().optional(),
@@ -192,7 +192,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   };
   
   return (
-    <FormProvider {...form}>
+    <Form {...form}>
       <form onSubmit={form.handleSubmit(processAndSubmit)}>
         <Card>
           <CardHeader>
@@ -422,6 +422,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
           </CardFooter>
         </Card>
       </form>
-    </FormProvider>
+    </Form>
   );
 };
+
+    
