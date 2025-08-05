@@ -31,18 +31,34 @@ import { generateProductCsv } from '@/lib/csv';
 type ProductWithCalculatedCosts = ReturnType<typeof selectProductWithCosts>;
 
 
-const DetailItem: React.FC<{ label: string; value?: string | number | boolean; icon?: React.ReactNode, unit?: string, currency?: string }> = ({ label, value, icon, unit, currency }) => (
-  <div className="flex justify-between items-center py-2">
-    <div className="flex items-center text-sm text-muted-foreground">
-      {icon && <span className="mr-2">{icon}</span>}
-      <span>{label}</span>
+const DetailItem: React.FC<{ label: string; value?: string | number | boolean; icon?: React.ReactNode, unit?: string, currency?: string }> = ({ label, value, icon, unit, currency }) => {
+  const renderValue = () => {
+    if (value === undefined || value === null) return '-';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value === 'number') {
+      return (
+        <>
+          {currency && <span className="mr-0.5">{currency}</span>}
+          {value.toLocaleString()} {unit}
+        </>
+      );
+    }
+    // It's a string, so just render it.
+    return `${value} ${unit || ''}`;
+  };
+
+  return (
+    <div className="flex justify-between items-center py-2">
+      <div className="flex items-center text-sm text-muted-foreground">
+        {icon && <span className="mr-2">{icon}</span>}
+        <span>{label}</span>
+      </div>
+      <span className="font-medium text-foreground text-sm text-right">
+        {renderValue()}
+      </span>
     </div>
-    <span className="font-medium text-foreground text-sm">
-      {currency && value !== undefined && typeof value !== 'boolean' && <span className="mr-0.5">{currency}</span>}
-      {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (value !== undefined && value !== null) ? Number(value).toLocaleString() : '-'} {unit}
-    </span>
-  </div>
-);
+  );
+};
 
 
 export default function ProductDetailPage() {
@@ -309,5 +325,6 @@ export default function ProductDetailPage() {
     </div>
   );
 }
+
 
 
