@@ -72,7 +72,7 @@ const productFormSchema = z.object({
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A positive weight is required for secondary metal.", path: ["secondaryMetalWeightG"] });
   }
   
-  const totalMetalWeight = (data.metalWeightG || 0) + (data.secondaryMetalWeightG || 0);
+  const totalMetalWeight = (data.metalWeightG || 0); // Removed secondary weight from this calc
   if (data.stoneWeightG > totalMetalWeight) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Stone weight cannot be greater than the total metal weight.", path: ["stoneWeightG"] });
   }
