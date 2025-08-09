@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,10 +15,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem, Info } from 'lucide-react';
+import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem, Info, Upload, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import { Separator } from '../ui/separator';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { Progress } from '@/components/ui/progress';
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
@@ -72,7 +74,7 @@ const productFormSchema = z.object({
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A positive weight is required for secondary metal.", path: ["secondaryMetalWeightG"] });
   }
   
-  const totalMetalWeight = (data.metalWeightG || 0); // Removed secondary weight from this calc
+  const totalMetalWeight = (data.metalWeightG || 0) + (data.secondaryMetalWeightG || 0);
   if (data.stoneWeightG > totalMetalWeight) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Stone weight cannot be greater than the total metal weight.", path: ["stoneWeightG"] });
   }
@@ -89,6 +91,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   const { toast } = useToast();
   const { categories, addProduct, updateProduct } = useAppStore();
   const isEditMode = !!product;
+  
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
@@ -115,6 +120,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   const hasDiamondsValue = form.watch('hasDiamonds');
   const hasStonesValue = form.watch('hasStones');
   const isCustomPrice = form.watch('isCustomPrice');
+  const imageUrl = form.watch('imageUrl');
   const isGoldCoin = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
   const isMensRing = selectedCategoryId === MENS_RING_CATEGORY_ID;
 
@@ -152,6 +158,45 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
         if (!hasStonesValue) { form.setValue('stoneWeightG', 0); form.setValue('stoneDetails', ''); }
     }
   }, [isGoldCoin, hasDiamondsValue, hasStonesValue, form]);
+  
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({ title: "File too large", description: "Please upload an image file smaller than 5MB.", variant: "destructive" });
+        return;
+    }
+    
+    const storage = getStorage();
+    const storageRef = ref(storage, `product_images/${Date.now()}-${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    uploadTask.on('state_changed',
+        (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(progress);
+        },
+        (error) => {
+            console.error("Upload error:", error);
+            toast({ title: "Upload Failed", description: "There was an error uploading the image.", variant: "destructive" });
+            setIsUploading(false);
+            setUploadProgress(null);
+        },
+        () => {
+            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                form.setValue('imageUrl', downloadURL, { shouldValidate: true, shouldDirty: true });
+                setIsUploading(false);
+                setUploadProgress(100);
+                toast({ title: "Upload Complete", description: "Image has been successfully uploaded." });
+            });
+        }
+    );
+  };
+
 
   const processAndSubmit = async (data: ProductFormData) => {
     const processedData: Omit<Product, 'sku' | 'qrCodeDataUrl'> = {
@@ -315,7 +360,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                               <Select onValueChange={field.onChange} value={field.value}>
                                   <FormControl><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger></FormControl>
                                   <SelectContent>
-                                    <SelectItem value="">None</SelectItem>
                                     {metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>))}
                                     </SelectContent>
                               </Select>
@@ -392,32 +436,38 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
             </>
             )}
 
-            <FormField
-              control={form.control} name="imageUrl"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Image URL (Optional)</FormLabel>
-                  <FormControl><Input type="url" placeholder="https://placehold.co/400x400.png" {...field} /></FormControl>
-                   {field.value && (
-                    <div className="mt-2 p-2 border rounded-md w-fit bg-muted">
-                        <Image src={field.value} alt="Product Preview" width={80} height={80} className="h-20 w-20 object-contain" data-ai-hint="product jewelry" unoptimized/>
+            <FormItem className="md:col-span-2">
+                <FormLabel>Product Image</FormLabel>
+                <FormControl>
+                    <Input id="image-upload" type="file" accept="image/*" onChange={handleImageUpload} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+                </FormControl>
+                {isUploading && uploadProgress !== null && (
+                    <div className="mt-2">
+                        <Progress value={uploadProgress} className="w-full" />
+                        <p className="text-sm text-muted-foreground mt-1 text-center">{Math.round(uploadProgress)}% uploaded</p>
                     </div>
-                   )}
-                  <FormMessage />
-                </FormItem>
-              )}
+                )}
+                {imageUrl && (
+                    <div className="mt-2 p-2 border rounded-md w-fit bg-muted">
+                        <Image src={imageUrl} alt="Product Preview" width={80} height={80} className="h-20 w-20 object-contain" data-ai-hint="product jewelry" unoptimized/>
+                    </div>
+                )}
+                <FormMessage />
+            </FormItem>
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
               <Ban className="mr-2 h-4 w-4" /> Cancel
             </Button>
             {!isEditMode && (
-                <Button type="submit" disabled={form.formState.isSubmitting} onClick={() => form.setValue('submitAction', 'saveAndAddAnother')} className="w-full sm:w-auto">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Save & Add Another
+                <Button type="submit" disabled={form.formState.isSubmitting || isUploading} onClick={() => form.setValue('submitAction', 'saveAndAddAnother')} className="w-full sm:w-auto">
+                    {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                    Save & Add Another
                 </Button>
             )}
-            <Button type="submit" disabled={form.formState.isSubmitting} onClick={() => form.setValue('submitAction', 'saveAndClose')} className="w-full sm:w-auto">
-              <Save className="mr-2 h-4 w-4" /> {isEditMode ? 'Save Changes' : 'Add Product & Close'}
+            <Button type="submit" disabled={form.formState.isSubmitting || isUploading} onClick={() => form.setValue('submitAction', 'saveAndClose')} className="w-full sm:w-auto">
+              {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {isEditMode ? 'Save Changes' : 'Add Product & Close'}
             </Button>
           </CardFooter>
         </Card>
