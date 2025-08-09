@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem, Info, Upload, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
-import { Separator } from '../ui/separator';
+import { Separator } from '@/components/ui/separator';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Progress } from '@/components/ui/progress';
 
