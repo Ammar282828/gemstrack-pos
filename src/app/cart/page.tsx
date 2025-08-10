@@ -115,6 +115,7 @@ export default function CartPage() {
         goldRatePerGram24k: goldRate24k || 0,
         palladiumRatePerGram: settings.palladiumRatePerGram || 0,
         platinumRatePerGram: settings.platinumRatePerGram || 0,
+        silverRatePerGram: settings.silverRatePerGram || 0,
     };
     
     let currentSubtotal = 0;
