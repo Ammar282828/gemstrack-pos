@@ -414,7 +414,7 @@ export default function OrderDetailPage() {
                                       )}
                                       <div className="text-sm mt-2 p-2 bg-background rounded-md">
                                           <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {(item.metalCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                                          {item.wastageCost > 0 && <div className="flex justify-between"><span>+ Wastage Cost:</span> <span className="font-semibold">PKR {item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                          {(item.wastageCost ?? 0) > 0 && <div className="flex justify-between"><span>+ Wastage Cost:</span> <span className="font-semibold">PKR {(item.wastageCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                                           {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                                           {item.diamondCharges > 0 && <div className="flex justify-between"><span>+ Diamond Charges:</span> <span className="font-semibold">PKR {item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                                           {item.stoneCharges > 0 && <div className="flex justify-between"><span>+ Other Stone Charges:</span> <span className="font-semibold">PKR {item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
