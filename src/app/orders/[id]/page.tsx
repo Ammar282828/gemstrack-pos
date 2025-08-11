@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAppStore, Order, OrderStatus, useIsStoreHydrated, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product } from '@/lib/store';
+import { useAppStore, Order, OrderStatus, useIsStoreHydrated, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -63,6 +63,7 @@ type PhoneForm = {
 type NotificationType = 'inProgress' | 'completed';
 
 // --- Finalize Order Dialog Components ---
+const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
 const finalizeOrderItemSchema = z.object({
   description: z.string(), // Readonly
   karat: z.custom<KaratValue>(), // Readonly
@@ -70,7 +71,7 @@ const finalizeOrderItemSchema = z.object({
   finalMakingCharges: z.coerce.number().min(0, "Cannot be negative."),
   finalDiamondCharges: z.coerce.number().min(0, "Cannot be negative."),
   finalStoneCharges: z.coerce.number().min(0, "Cannot be negative."),
-  metalType: z.custom<any>(), // Readonly
+  metalType: z.enum(metalTypeValues), // Readonly, corrected type
 });
 
 const finalizeOrderSchema = z.object({
