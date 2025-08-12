@@ -246,7 +246,7 @@ const ProductSearchDialog: React.FC<{ onAddProduct: (product: Product) => void }
                                         onClick={() => handleSelectProduct(product)}
                                         className="w-full text-left p-2 rounded-md hover:bg-muted flex items-center gap-3"
                                     >
-                                        <Image src={product.imageUrl || `https://placehold.co/40x40.png`} alt={product.name} width={40} height={40} className="rounded-md object-cover border" />
+                                        <Image src={product.imageUrl || `https://placehold.co/40x40.png`} alt={product.name} width={40} height={40} className="rounded-md object-cover border" data-ai-hint="product jewelry" />
                                         <div>
                                             <p className="font-medium">{product.name}</p>
                                             <p className="text-xs text-muted-foreground">{product.sku}</p>
@@ -386,12 +386,20 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, isCompleted, metalType, hasStones, stoneWeightG } = item;
         const productForCalc = {
           categoryId: '', // Custom orders don't have a category
-          metalType: metalType, karat, metalWeightG: estimatedWeightG,
-          wastagePercentage: wastagePercentage, makingCharges, hasDiamonds,
-          diamondCharges, stoneCharges, miscCharges: 0, hasStones, stoneWeightG
+          metalType,
+          karat,
+          metalWeightG: estimatedWeightG,
+          wastagePercentage,
+          makingCharges,
+          hasDiamonds,
+          diamondCharges,
+          stoneCharges,
+          miscCharges: 0,
+          hasStones,
+          stoneWeightG,
         };
         const costs = calculateProductCosts(productForCalc, ratesForCalc);
-        return { ...item, isCompleted: isCompleted, metalType: item.metalType, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
+        return { ...item, karat: item.karat || '21k', isCompleted: isCompleted, metalType: item.metalType, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
     });
 
     if (isEditMode && order) {
