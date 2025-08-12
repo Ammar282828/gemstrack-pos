@@ -53,6 +53,8 @@ const orderItemSchema = z.object({
   referenceSku: z.string().optional(),
   sampleGiven: z.boolean().default(false),
   hasDiamonds: z.boolean().default(false),
+  hasStones: z.boolean().default(false),
+  stoneWeightG: z.coerce.number().min(0).default(0),
   stoneDetails: z.string().optional(),
   diamondDetails: z.string().optional(),
   metalType: z.enum(metalTypeValues).default('gold'),
@@ -244,7 +246,7 @@ const ProductSearchDialog: React.FC<{ onAddProduct: (product: Product) => void }
                                         onClick={() => handleSelectProduct(product)}
                                         className="w-full text-left p-2 rounded-md hover:bg-muted flex items-center gap-3"
                                     >
-                                        <Image src={product.imageUrl || `https://placehold.co/40x40.png`} alt={product.name} width={40} height={40} className="rounded-md object-cover border" />
+                                        <Image src={product.imageUrl || `https://placehold.co/40x40.png`} alt={product.name} width={40} height={40} className="rounded-md object-cover border" data-ai-hint="product jewelry" />
                                         <div>
                                             <p className="font-medium">{product.name}</p>
                                             <p className="text-xs text-muted-foreground">{product.sku}</p>
@@ -347,7 +349,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     };
 
     (formValues.items || []).forEach(item => {
-        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, metalType } = item;
+        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, metalType, stoneWeightG, hasStones } = item;
         if (!estimatedWeightG || estimatedWeightG <= 0) return;
         if (metalType === 'gold' && (!goldRate24k || goldRate24k <= 0)) return;
 
@@ -356,7 +358,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
           metalType, karat, metalWeightG: estimatedWeightG,
           wastagePercentage: wastagePercentage, makingCharges, hasDiamonds,
           diamondCharges, stoneCharges, miscCharges: 0,
-          stoneWeightG: 0, hasStones: false,
+          stoneWeightG: stoneWeightG, 
+          hasStones: hasStones,
         };
         
         const costs = calculateProductCosts(productForCalc, ratesForCalc);
@@ -380,12 +383,13 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     };
 
     const enrichedItems: OrderItem[] = data.items.map((item) => {
-        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, isCompleted, metalType } = item;
+        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, isCompleted, metalType, hasStones, stoneWeightG } = item;
         const productForCalc = {
           categoryId: '', // Custom orders don't have a category
-          metalType: metalType, karat, metalWeightG: estimatedWeightG,
-          wastagePercentage: wastagePercentage, makingCharges, hasDiamonds,
-          diamondCharges, stoneCharges, miscCharges: 0, hasStones: item.hasStones, stoneWeightG: item.stoneWeightG
+          metalType, karat, metalWeightG: estimatedWeightG,
+          wastagePercentage, makingCharges, hasDiamonds,
+          diamondCharges, stoneCharges, miscCharges: 0, 
+          hasStones, stoneWeightG
         };
         const costs = calculateProductCosts(productForCalc, ratesForCalc);
         return { ...item, isCompleted: isCompleted, metalType: item.metalType, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
@@ -474,6 +478,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             diamondDetails: product.diamondDetails || '',
             metalType: product.metalType,
             isCompleted: false,
+            stoneWeightG: product.stoneWeightG || 0,
+            hasStones: product.hasStones || false,
         });
     };
   
@@ -494,6 +500,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         diamondDetails: '',
         metalType: 'gold',
         isCompleted: false,
+        hasStones: false,
+        stoneWeightG: 0,
     });
   };
 
@@ -565,13 +573,20 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                     <FormItem><FormLabel>Stones</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                             </div>
-                             <FormField control={form.control} name={`items.${index}.hasDiamonds`} render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer">Item Contains Diamonds?</FormLabel></div></FormItem>
-                            )}/>
-                            <FormField control={form.control} name={`items.${index}.stoneDetails`} render={({ field }) => (
+                            <div className="flex gap-4">
+                                <FormField control={form.control} name={`items.${index}.hasDiamonds`} render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer">Item Contains Diamonds?</FormLabel></div></FormItem>
+                                )}/>
+                                <FormField control={form.control} name={`items.${index}.hasStones`} render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer">Item Contains Other Stones?</FormLabel></div></FormItem>
+                                )}/>
+                            </div>
+                            {form.watch(`items.${index}.hasStones`) && <FormField control={form.control} name={`items.${index}.stoneWeightG`} render={({ field }) => (<FormItem><FormLabel>Stone Weight (grams)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g., 0.5" {...field} /></FormControl><FormMessage /></FormItem>)}/>}
+                            {form.watch(`items.${index}.hasStones`) && <FormField control={form.control} name={`items.${index}.stoneDetails`} render={({ field }) => (
                                <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Stone Details</FormLabel><FormControl><Textarea placeholder="e.g., 1x Ruby (2ct), 4x Sapphire (0.5ct each)" {...field} /></FormControl><FormMessage /></FormItem>
-                            )}/>
+                            )}/>}
                             {form.watch(`items.${index}.hasDiamonds`) &&
                               <FormField control={form.control} name={`items.${index}.diamondDetails`} render={({ field }) => (
                                  <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamond Details</FormLabel><FormControl><Textarea placeholder="e.g., Center: 1ct VVS1, Side: 12x 0.05ct VS2" {...field} /></FormControl><FormMessage /></FormItem>
