@@ -317,7 +317,7 @@ export type OrderStatus = typeof ORDER_STATUSES[number];
 
 export interface OrderItem {
   description: string;
-  karat: KaratValue;
+  karat?: KaratValue;
   estimatedWeightG: number;
   stoneWeightG: number;
   hasStones: boolean;
