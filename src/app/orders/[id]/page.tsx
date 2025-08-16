@@ -395,7 +395,7 @@ export default function OrderDetailPage() {
                                   <div className="flex-grow">
                                       <p className="font-bold">{item.description}</p>
                                       <p className="text-sm text-muted-foreground">
-                                          Est. Wt: {item.estimatedWeightG}g ({item.karat.toUpperCase()})
+                                          Est. Wt: {item.estimatedWeightG}g {item.karat ? `(${item.karat.toUpperCase()})` : ''}
                                           {item.wastagePercentage > 0 && ` | Wastage: ${item.wastagePercentage}%`}
                                           {item.referenceSku && ` | Ref: ${item.referenceSku}`}
                                           {item.sampleGiven && ` | Sample Provided`}
