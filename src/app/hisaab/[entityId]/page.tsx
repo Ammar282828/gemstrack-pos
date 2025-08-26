@@ -35,6 +35,8 @@ import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 // Re-declare module for jsPDF in this file as well
@@ -144,21 +146,24 @@ export default function EntityHisaabPage() {
     return karigars.find(k => k.id === entityId);
   }, [entityId, entityType, customers, karigars]);
 
-  const entityHisaab = useMemo(() => {
-    return hisaabEntries
-      .filter(entry => entry.entityId === entityId)
-      .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
-  }, [hisaabEntries, entityId]);
-
-  const balances = useMemo(() => {
+  const { entityHisaab, balances } = useMemo(() => {
     let cashBalance = 0;
     let goldBalance = 0;
-    [...entityHisaab].reverse().forEach(entry => {
-      cashBalance += (entry.cashDebit - entry.cashCredit);
-      goldBalance += (entry.goldDebitGrams - entry.goldCreditGrams);
-    });
-    return { finalCashBalance: cashBalance, finalGoldBalance: goldBalance };
-  }, [entityHisaab]);
+    const entries = hisaabEntries
+      .filter(entry => entry.entityId === entityId)
+      .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()) // sort ascending for running balance
+      .map(entry => {
+          cashBalance += (entry.cashDebit - entry.cashCredit);
+          goldBalance += (entry.goldDebitGrams - entry.goldCreditGrams);
+          return { ...entry, runningCashBalance: cashBalance, runningGoldBalance: goldBalance };
+      })
+      .reverse(); // reverse back for display
+    
+    return {
+        entityHisaab: entries,
+        balances: { finalCashBalance: cashBalance, finalGoldBalance: goldBalance }
+    };
+  }, [hisaabEntries, entityId]);
   
   const phoneForm = useForm<PhoneForm>({ defaultValues: { phone: '' } });
 
@@ -415,51 +420,64 @@ export default function EntityHisaabPage() {
                 </div>
                 
                 {entityHisaab.length > 0 ? (
-                    <div className="space-y-3">
-                        {entityHisaab.map(entry => (
-                            <div key={entry.id} className="flex items-center gap-4 p-3 rounded-md border bg-muted/30">
-                                <div className={cn("flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center", entry.cashCredit > 0 || entry.goldCreditGrams > 0 ? "bg-green-100 dark:bg-green-900/50" : "bg-red-100 dark:bg-red-900/50")}>
-                                     {entry.cashCredit > 0 || entry.goldCreditGrams > 0 
-                                      ? <ArrowDown className="h-5 w-5 text-green-600 dark:text-green-400" /> 
-                                      : <ArrowUp className="h-5 w-5 text-destructive" />
-                                     }
-                                </div>
-                                <div className="flex-grow">
-                                    <p className="font-semibold">{entry.description}</p>
-                                    <p className="text-xs text-muted-foreground">{format(parseISO(entry.date), 'MMM d, yyyy, h:mm a')}</p>
-                                </div>
-                                <div className="text-right flex-shrink-0">
-                                    {(entry.cashCredit > 0 || entry.cashDebit > 0) && (
-                                        <p className={cn("font-bold", entry.cashCredit > 0 ? 'text-green-600' : 'text-destructive', isKarigar && 'text-sm font-normal')}>
-                                            PKR {(entry.cashCredit || entry.cashDebit).toLocaleString()}
-                                        </p>
-                                    )}
-                                    {(entry.goldCreditGrams > 0 || entry.goldDebitGrams > 0) && (
-                                         <p className={cn("text-sm", entry.goldCreditGrams > 0 ? 'text-green-600' : 'text-destructive', !isKarigar && 'text-xs font-normal', isKarigar && 'font-bold')}>
-                                            {(entry.goldCreditGrams || entry.goldDebitGrams).toLocaleString(undefined, {minimumFractionDigits: 3})} g
-                                        </p>
-                                    )}
-                                </div>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" disabled={isDeleting === entry.id}>
-                                            {isDeleting === entry.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive"/>}
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2"/>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>This action cannot be undone. This will permanently delete the transaction: "{entry.description}".</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => onDeleteEntry(entry.id)}>Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </div>
-                        ))}
-                    </div>
+                    <ScrollArea className="h-[60vh] w-full">
+                        <Table>
+                            <TableHeader className="sticky top-0 bg-muted z-10">
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="text-right">Given</TableHead>
+                                    <TableHead className="text-right">Received</TableHead>
+                                    <TableHead className="text-right">Gold Balance</TableHead>
+                                    <TableHead className="text-right">Cash Balance</TableHead>
+                                    <TableHead className="w-10"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {entityHisaab.map(entry => (
+                                    <TableRow key={entry.id}>
+                                        <TableCell className="whitespace-nowrap">{format(parseISO(entry.date), 'dd-MMM-yy')}</TableCell>
+                                        <TableCell className="max-w-xs truncate">{entry.description}</TableCell>
+                                        <TableCell className="text-right font-medium text-destructive">
+                                            {entry.goldDebitGrams > 0 && <div className="text-sm">{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</div>}
+                                            {entry.cashDebit > 0 && <div className="text-xs">PKR {entry.cashDebit.toLocaleString()}</div>}
+                                            {(entry.goldDebitGrams === 0 && entry.cashDebit === 0) && '-'}
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium text-green-600">
+                                            {entry.goldCreditGrams > 0 && <div className="text-sm">{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</div>}
+                                            {entry.cashCredit > 0 && <div className="text-xs">PKR {entry.cashCredit.toLocaleString()}</div>}
+                                            {(entry.goldCreditGrams === 0 && entry.cashCredit === 0) && '-'}
+                                        </TableCell>
+                                        <TableCell className={cn("text-right font-semibold", entry.runningGoldBalance < 0 ? 'text-green-600' : 'text-destructive')}>
+                                            {entry.runningGoldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} g
+                                        </TableCell>
+                                         <TableCell className={cn("text-right font-semibold", entry.runningCashBalance < 0 ? 'text-green-600' : 'text-destructive')}>
+                                            PKR {entry.runningCashBalance.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" disabled={isDeleting === entry.id} className="h-8 w-8">
+                                                        {isDeleting === entry.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive"/>}
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2"/>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This action cannot be undone. This will permanently delete the transaction: "{entry.description}".</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => onDeleteEntry(entry.id)}>Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
                 ) : (
                     <p className="text-center text-muted-foreground py-8">No transactions found. Add one using the buttons above.</p>
                 )}
@@ -469,3 +487,4 @@ export default function EntityHisaabPage() {
     </div>
   );
 }
+
