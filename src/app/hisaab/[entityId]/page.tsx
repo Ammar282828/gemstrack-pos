@@ -439,13 +439,13 @@ export default function EntityHisaabPage() {
                                         <TableCell className="whitespace-nowrap">{format(parseISO(entry.date), 'dd-MMM-yy')}</TableCell>
                                         <TableCell className="max-w-xs truncate">{entry.description}</TableCell>
                                         <TableCell className="text-right font-medium text-destructive">
-                                            {entry.goldDebitGrams > 0 && <div className="text-sm">{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</div>}
                                             {entry.cashDebit > 0 && <div className="text-xs">PKR {entry.cashDebit.toLocaleString()}</div>}
+                                            {entry.goldDebitGrams > 0 && <div className="text-sm">{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</div>}
                                             {(entry.goldDebitGrams === 0 && entry.cashDebit === 0) && '-'}
                                         </TableCell>
                                         <TableCell className="text-right font-medium text-green-600">
-                                            {entry.goldCreditGrams > 0 && <div className="text-sm">{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</div>}
                                             {entry.cashCredit > 0 && <div className="text-xs">PKR {entry.cashCredit.toLocaleString()}</div>}
+                                            {entry.goldCreditGrams > 0 && <div className="text-sm">{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</div>}
                                             {(entry.goldCreditGrams === 0 && entry.cashCredit === 0) && '-'}
                                         </TableCell>
                                         <TableCell className={cn("text-right font-semibold", entry.runningGoldBalance < 0 ? 'text-green-600' : 'text-destructive')}>
@@ -488,3 +488,6 @@ export default function EntityHisaabPage() {
   );
 }
 
+
+
+    
