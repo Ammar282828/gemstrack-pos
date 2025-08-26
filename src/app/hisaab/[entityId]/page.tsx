@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useMemo, useState } from 'react';
@@ -58,19 +59,25 @@ const AddTransactionDialog: React.FC<{
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSubmit: (data: HisaabEntryFormData) => Promise<void>;
-}> = ({ mode, open, onOpenChange, onSubmit }) => {
+    entityType: 'customer' | 'karigar';
+}> = ({ mode, open, onOpenChange, onSubmit, entityType }) => {
     const form = useForm<HisaabEntryFormData>({
         resolver: zodResolver(hisaabEntrySchema),
         defaultValues: { description: '', amount: 0, goldGrams: 0 }
     });
 
     const isGaveMode = mode === 'gave';
+    const isKarigar = entityType === 'karigar';
 
     const handleFormSubmit = async (data: HisaabEntryFormData) => {
         await onSubmit(data);
         form.reset();
         onOpenChange(false);
     };
+    
+    // For karigars, gold is primary. For customers, cash is primary.
+    const primaryField = isKarigar ? 'goldGrams' : 'amount';
+    const secondaryField = isKarigar ? 'amount' : 'goldGrams';
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,11 +96,19 @@ const AddTransactionDialog: React.FC<{
                         <FormField control={form.control} name="description" render={({ field }) => (
                             <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g., Cash payment received, Sample given" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
-                        <FormField control={form.control} name="amount" render={({ field }) => (
-                            <FormItem><FormLabel>Cash Amount (PKR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormField control={form.control} name={primaryField} render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{isKarigar ? 'Gold (grams)' : 'Cash Amount (PKR)'}</FormLabel>
+                                <FormControl><Input type="number" step={isKarigar ? "0.001" : "0.01"} {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
                         )}/>
-                        <FormField control={form.control} name="goldGrams" render={({ field }) => (
-                            <FormItem><FormLabel>Gold (grams)</FormLabel><FormControl><Input type="number" step="0.001" {...field} /></FormControl><FormMessage /></FormItem>
+                         <FormField control={form.control} name={secondaryField} render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{isKarigar ? 'Cash Amount (PKR)' : 'Gold (grams)'}</FormLabel>
+                                <FormControl><Input type="number" step={isKarigar ? "0.01" : "0.001"} {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
                         )}/>
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
@@ -301,9 +316,11 @@ export default function EntityHisaabPage() {
     );
   }
 
+  const isKarigar = entityType === 'karigar';
+
   return (
     <div className="container mx-auto py-8 px-4 space-y-6">
-       <AddTransactionDialog mode={dialogMode} open={isDialogOpen} onOpenChange={setIsDialogOpen} onSubmit={onAddEntry} />
+       <AddTransactionDialog mode={dialogMode} open={isDialogOpen} onOpenChange={setIsDialogOpen} onSubmit={onAddEntry} entityType={entityType} />
        <header className="mb-2">
          <Button variant="outline" onClick={() => router.back()} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Summary
@@ -325,19 +342,19 @@ export default function EntityHisaabPage() {
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div className="p-4 rounded-lg bg-red-500/10 text-destructive">
                 <p className="text-sm font-semibold">You will Get (Receivable)</p>
-                <p className="text-2xl font-bold">
+                <p className={cn("text-2xl font-bold", isKarigar && 'text-base font-normal')}>
                     PKR {Math.max(0, balances.finalCashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
-                 <p className="text-lg font-bold">
+                 <p className={cn("text-lg font-bold", !isKarigar && 'text-base font-normal')}>
                     {Math.max(0, balances.finalGoldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
                 </p>
             </div>
              <div className="p-4 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400">
                 <p className="text-sm font-semibold">You will Give (Payable)</p>
-                <p className="text-2xl font-bold">
+                <p className={cn("text-2xl font-bold", isKarigar && 'text-base font-normal')}>
                     PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
-                 <p className="text-lg font-bold">
+                 <p className={cn("text-lg font-bold", !isKarigar && 'text-base font-normal')}>
                     {Math.abs(Math.min(0, balances.finalGoldBalance)).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
                 </p>
             </div>
@@ -413,12 +430,12 @@ export default function EntityHisaabPage() {
                                 </div>
                                 <div className="text-right flex-shrink-0">
                                     {(entry.cashCredit > 0 || entry.cashDebit > 0) && (
-                                        <p className={cn("font-bold", entry.cashCredit > 0 ? 'text-green-600' : 'text-destructive')}>
+                                        <p className={cn("font-bold", entry.cashCredit > 0 ? 'text-green-600' : 'text-destructive', isKarigar && 'text-sm font-normal')}>
                                             PKR {(entry.cashCredit || entry.cashDebit).toLocaleString()}
                                         </p>
                                     )}
                                     {(entry.goldCreditGrams > 0 || entry.goldDebitGrams > 0) && (
-                                         <p className={cn("text-sm", entry.goldCreditGrams > 0 ? 'text-green-600' : 'text-destructive')}>
+                                         <p className={cn("text-sm", entry.goldCreditGrams > 0 ? 'text-green-600' : 'text-destructive', !isKarigar && 'text-xs font-normal', isKarigar && 'font-bold')}>
                                             {(entry.goldCreditGrams || entry.goldDebitGrams).toLocaleString(undefined, {minimumFractionDigits: 3})} g
                                         </p>
                                     )}
