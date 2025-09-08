@@ -50,7 +50,7 @@ const settingsSchema = z.object({
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
-type ProductDataForAdd = Omit<Product, 'sku' | 'name' | 'qrCodeDataUrl'>;
+type ProductDataForAdd = Omit<Product, 'sku' | 'qrCodeDataUrl'>;
 type CustomerDataForAdd = Omit<Customer, 'id'>;
 type KarigarDataForAdd = Omit<Karigar, 'id'>;
 type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
@@ -59,28 +59,28 @@ type HisaabDataForAdd = Omit<HisaabEntry, 'id'>;
 
 const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
   // Rings
-  { categoryId: 'cat001', metalType: 'gold', karat: '22k', metalWeightG: 8.5, wastagePercentage: 10, makingCharges: 15000, hasDiamonds: true, diamondCharges: 75000, stoneCharges: 12000, miscCharges: 500, stoneDetails: "1x Ruby (center), 12x small diamonds", imageUrl: 'https://placehold.co/400x400.png', diamondDetails: 'Center: 0.5ct, Sides: 0.5ct total', hasStones: true, stoneWeightG: 0.8 },
-  { categoryId: 'cat001', metalType: 'gold', karat: '21k', metalWeightG: 6.2, wastagePercentage: 10, makingCharges: 12000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 8000, miscCharges: 300, stoneDetails: "3x Emeralds", imageUrl: 'https://placehold.co/400x400.png', hasStones: true, stoneWeightG: 0.6 },
-  { categoryId: 'cat001', metalType: 'platinum', metalWeightG: 10, wastagePercentage: 5, makingCharges: 25000, hasDiamonds: true, diamondCharges: 150000, stoneCharges: 0, miscCharges: 1000, diamondDetails: '1ct Solitaire, VVS1', imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Ruby Diamond Ring', categoryId: 'cat001', metalType: 'gold', karat: '22k', metalWeightG: 8.5, wastagePercentage: 10, makingCharges: 15000, hasDiamonds: true, diamondCharges: 75000, stoneCharges: 12000, miscCharges: 500, stoneDetails: "1x Ruby (center), 12x small diamonds", imageUrl: 'https://placehold.co/400x400.png', diamondDetails: 'Center: 0.5ct, Sides: 0.5ct total', hasStones: true, stoneWeightG: 0.8 },
+  { name: 'Emerald Gold Ring', categoryId: 'cat001', metalType: 'gold', karat: '21k', metalWeightG: 6.2, wastagePercentage: 10, makingCharges: 12000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 8000, miscCharges: 300, stoneDetails: "3x Emeralds", imageUrl: 'https://placehold.co/400x400.png', hasStones: true, stoneWeightG: 0.6 },
+  { name: 'Solitaire Platinum Ring', categoryId: 'cat001', metalType: 'platinum', metalWeightG: 10, wastagePercentage: 5, makingCharges: 25000, hasDiamonds: true, diamondCharges: 150000, stoneCharges: 0, miscCharges: 1000, diamondDetails: '1ct Solitaire, VVS1', imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 
   // Bands
-  { categoryId: 'cat009', metalType: 'gold', karat: '22k', metalWeightG: 12.0, wastagePercentage: 8, makingCharges: 18000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
-  { categoryId: 'cat009', metalType: 'gold', karat: '18k', metalWeightG: 9.8, wastagePercentage: 8, makingCharges: 16000, hasDiamonds: true, diamondCharges: 45000, stoneCharges: 0, miscCharges: 200, diamondDetails: "Eternity band, 1.5ct total", imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Classic Gold Band', categoryId: 'cat009', metalType: 'gold', karat: '22k', metalWeightG: 12.0, wastagePercentage: 8, makingCharges: 18000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Eternity Diamond Band', categoryId: 'cat009', metalType: 'gold', karat: '18k', metalWeightG: 9.8, wastagePercentage: 8, makingCharges: 16000, hasDiamonds: true, diamondCharges: 45000, stoneCharges: 0, miscCharges: 200, diamondDetails: "Eternity band, 1.5ct total", imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 
   // Bracelets
-  { categoryId: 'cat005', metalType: 'gold', karat: '21k', metalWeightG: 25.5, wastagePercentage: 12, makingCharges: 35000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 1500, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
-  { categoryId: 'cat005', metalType: 'palladium', metalWeightG: 20.0, wastagePercentage: 5, makingCharges: 30000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Heavy Gold Bracelet', categoryId: 'cat005', metalType: 'gold', karat: '21k', metalWeightG: 25.5, wastagePercentage: 12, makingCharges: 35000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 1500, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Modern Palladium Bracelet', categoryId: 'cat005', metalType: 'palladium', metalWeightG: 20.0, wastagePercentage: 5, makingCharges: 30000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 
   // Tops (Earrings)
-  { categoryId: 'cat002', metalType: 'gold', karat: '21k', metalWeightG: 5.1, wastagePercentage: 12, makingCharges: 9000, hasDiamonds: true, diamondCharges: 55000, stoneCharges: 0, miscCharges: 0, diamondDetails: '0.25ct each stud', imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Diamond Stud Earrings', categoryId: 'cat002', metalType: 'gold', karat: '21k', metalWeightG: 5.1, wastagePercentage: 12, makingCharges: 9000, hasDiamonds: true, diamondCharges: 55000, stoneCharges: 0, miscCharges: 0, diamondDetails: '0.25ct each stud', imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 
   // Lockets
-  { categoryId: 'cat004', metalType: 'gold', karat: '22k', metalWeightG: 10.2, wastagePercentage: 10, makingCharges: 14000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 400, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Traditional Gold Locket', categoryId: 'cat004', metalType: 'gold', karat: '22k', metalWeightG: 10.2, wastagePercentage: 10, makingCharges: 14000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 400, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 
   // Gold Coins (special category)
-  { categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '24k', metalWeightG: 10, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
-  { categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '24k', metalWeightG: 5, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
-  { categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '22k', metalWeightG: 8.0, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Gold Coin 10g', categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '24k', metalWeightG: 10, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Gold Coin 5g', categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '24k', metalWeightG: 5, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Gold Coin 8g (22k)', categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '22k', metalWeightG: 8.0, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 ];
 
 const DUMMY_CUSTOMERS_TO_SEED: CustomerDataForAdd[] = [
