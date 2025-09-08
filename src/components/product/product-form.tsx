@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem, Info, Upload, Loader2 } from 'lucide-react';
+import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem, Info, Upload, Loader2, CaseSensitive } from 'lucide-react';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import { Separator } from '../ui/separator';
@@ -27,6 +27,7 @@ const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'plat
 
 // Schema for the form data
 const productFormSchema = z.object({
+  name: z.string().optional(), // Now optional, will be required conditionally
   categoryId: z.string().min(1, "Category is required"),
   // Primary Metal
   metalType: z.enum(metalTypeValues, { required_error: "Metal type is required" }),
@@ -61,7 +62,10 @@ const productFormSchema = z.object({
     if (data.customPrice === undefined || data.customPrice <= 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A positive price is required.", path: ["customPrice"] });
     }
-    return;
+  } else {
+     if (!data.name || data.name.length < 3) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Product name is required for standard items.", path: ["name"] });
+    }
   }
 
   if (data.metalType === 'gold' && !data.karat) {
@@ -99,13 +103,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
     resolver: zodResolver(productFormSchema),
     defaultValues: product ? {
       ...product,
+      name: product.name || '',
       imageUrl: product.imageUrl || "",
       stoneDetails: product.stoneDetails || "",
       diamondDetails: product.diamondDetails || "",
       isCustomPrice: product.isCustomPrice || false,
       customPrice: product.customPrice || 0,
-      description: product.description || product.name || '',
+      description: product.description || '',
     } : {
+      name: '',
       categoryId: '', metalType: 'gold', karat: '21k', metalWeightG: 0, wastagePercentage: 10,
       makingCharges: 0, hasDiamonds: false, hasStones: false, stoneWeightG: 0, diamondCharges: 0,
       stoneCharges: 0, miscCharges: 0, imageUrl: "", stoneDetails: "", diamondDetails: "",
@@ -201,7 +207,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
   const processAndSubmit = async (data: ProductFormData) => {
     const processedData: Omit<Product, 'sku' | 'qrCodeDataUrl'> = {
       ...data,
-      name: data.isCustomPrice ? (data.description || 'Custom Item') : '', // Name will be auto-generated later if not custom
+      name: data.isCustomPrice ? (data.description || 'Custom Item') : (data.name || ''),
       karat: data.metalType === 'gold' ? data.karat : undefined,
       secondaryMetalType: isMensRing ? data.secondaryMetalType : undefined,
       secondaryMetalKarat: isMensRing && data.secondaryMetalType === 'gold' ? data.secondaryMetalKarat : undefined,
@@ -220,6 +226,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
           if (data.submitAction === 'saveAndAddAnother') {
              const originalCategory = form.getValues('categoryId');
              form.reset({
+                name: '',
                 categoryId: originalCategory, metalType: 'gold', karat: '21k', metalWeightG: 0, wastagePercentage: 10,
                 makingCharges: 0, hasDiamonds: false, hasStones: false, stoneWeightG: 0, diamondCharges: 0,
                 stoneCharges: 0, miscCharges: 0, imageUrl: "", stoneDetails: "", diamondDetails: "",
@@ -286,7 +293,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                   <FormField control={form.control} name="description"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Product Description</FormLabel>
+                          <FormLabel>Product Description / Name</FormLabel>
                           <FormControl><Textarea placeholder="e.g., Turkish Silver Ring with Onyx Stone" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
@@ -305,6 +312,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
             ) : (
              <>
               <Separator />
+               <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center"><CaseSensitive className="mr-2 h-4 w-4" />Product Name</FormLabel>
+                    <FormDescription>A descriptive name for the product. The SKU will be generated automatically based on category.</FormDescription>
+                    <FormControl><Input placeholder="e.g., Elegant 22k Gold Ring" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <h3 className="text-lg font-semibold text-primary">Primary Metal</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <FormField
