@@ -27,7 +27,7 @@ const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'plat
 
 // Schema for the form data
 const productFormSchema = z.object({
-  name: z.string().optional(), // Now optional, will be required conditionally
+  name: z.string().optional(), // Product name is now optional
   categoryId: z.string().min(1, "Category is required"),
   // Primary Metal
   metalType: z.enum(metalTypeValues, { required_error: "Metal type is required" }),
@@ -62,11 +62,8 @@ const productFormSchema = z.object({
     if (data.customPrice === undefined || data.customPrice <= 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A positive price is required.", path: ["customPrice"] });
     }
-  } else {
-     if (!data.name || data.name.length < 3) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Product name is required for standard items.", path: ["name"] });
-    }
   }
+  // Name validation is removed from here to make it optional for standard items.
 
   if (data.metalType === 'gold' && !data.karat) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Karat is required for gold items.", path: ["karat"] });
@@ -317,8 +314,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center"><CaseSensitive className="mr-2 h-4 w-4" />Product Name</FormLabel>
-                    <FormDescription>A descriptive name for the product. The SKU will be generated automatically based on category.</FormDescription>
+                    <FormLabel className="flex items-center"><CaseSensitive className="mr-2 h-4 w-4" />Product Name (Optional)</FormLabel>
+                    <FormDescription>A descriptive name for the product. If left blank, a name will be auto-generated from the category and SKU.</FormDescription>
                     <FormControl><Input placeholder="e.g., Elegant 22k Gold Ring" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
