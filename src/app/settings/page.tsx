@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MetalType, KaratValue, AVAILABLE_THEMES, ThemeKey, Order, OrderItem, calculateProductCosts, HisaabEntry } from '@/lib/store';
+import { useAppStore, Settings, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, MetalType, KaratValue, Order, OrderItem, calculateProductCosts, HisaabEntry } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,9 +79,9 @@ const DUMMY_PRODUCTS_TO_SEED: ProductDataForAdd[] = [
   { name: 'Traditional Gold Locket', categoryId: 'cat004', metalType: 'gold', karat: '22k', metalWeightG: 10.2, wastagePercentage: 10, makingCharges: 14000, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 400, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 
   // Gold Coins (special category)
-  { name: 'Gold Coin 10g', categoryId: GOLD_COIN_CATEGORY_ID_INTERNAL, metalType: 'gold', karat: '24k', metalWeightG: 10, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
-  { name: 'Gold Coin 5g', categoryId: GOLD_COIN_CATEGORY_ID_INTERNAL, metalType: 'gold', karat: '24k', metalWeightG: 5, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
-  { name: 'Gold Coin 8g (22k)', categoryId: GOLD_COIN_CATEGORY_ID_INTERNAL, metalType: 'gold', karat: '22k', metalWeightG: 8.0, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Gold Coin 10g', categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '24k', metalWeightG: 10, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Gold Coin 5g', categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '24k', metalWeightG: 5, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
+  { name: 'Gold Coin 8g (22k)', categoryId: GOLD_COIN_CATEGORY_ID, metalType: 'gold', karat: '22k', metalWeightG: 8.0, wastagePercentage: 0, makingCharges: 0, hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, imageUrl: 'https://placehold.co/400x400.png', hasStones: false, stoneWeightG: 0 },
 ];
 
 const DUMMY_CUSTOMERS_TO_SEED: CustomerDataForAdd[] = [
