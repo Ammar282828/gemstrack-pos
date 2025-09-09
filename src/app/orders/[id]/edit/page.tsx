@@ -2,7 +2,8 @@
 "use client";
 
 import { useParams } from 'next/navigation';
-import { useAppStore, useAppReady } from '@/lib/store';
+import { useAppStore } from '@/lib/store';
+import { useAppReady } from '@/hooks/use-store';
 import { OrderForm } from '@/components/order/order-form';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';

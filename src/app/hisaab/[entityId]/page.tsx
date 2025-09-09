@@ -3,7 +3,8 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { useAppStore, HisaabEntry, Customer, Karigar, useAppReady, Settings } from '@/lib/store';
+import { useAppStore, HisaabEntry, Customer, Karigar, Settings } from '@/lib/store';
+import { useAppReady } from '@/hooks/use-store';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -318,11 +319,20 @@ export default function EntityHisaabPage() {
 
   const isLoading = !appReady || isHisaabLoading || isCustomersLoading || isKarigarsLoading;
 
-  if (isLoading || !entity) {
+  if (isLoading) {
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
         <p className="text-lg text-muted-foreground">Loading Ledger...</p>
+      </div>
+    );
+  }
+  
+  if (!entity) {
+    return (
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <AlertTriangle className="h-8 w-8 text-destructive mr-3" />
+        <p className="text-lg text-muted-foreground">Entity not found. It may have been deleted.</p>
       </div>
     );
   }

@@ -3,7 +3,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { useAppStore, Order, useAppReady, ORDER_STATUSES, OrderStatus, OrderItem } from '@/lib/store';
+import { useAppStore, Order, ORDER_STATUSES, OrderStatus, OrderItem } from '@/lib/store';
+import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';

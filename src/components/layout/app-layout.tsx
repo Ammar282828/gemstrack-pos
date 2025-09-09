@@ -14,7 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useAppStore, useIsStoreHydrated } from '@/lib/store';
+import { useAppStore } from '@/lib/store';
+import { useIsStoreHydrated } from '@/hooks/use-store';
 
 interface NavItem {
   href: string;

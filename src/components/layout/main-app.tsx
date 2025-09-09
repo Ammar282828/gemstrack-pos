@@ -3,7 +3,8 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useAppStore, useIsStoreHydrated } from '@/lib/store';
+import { useAppStore } from '@/lib/store';
+import { useIsStoreHydrated } from '@/hooks/use-store';
 import { AuthorizationProvider } from '@/components/auth/authorization-provider';
 import { Loader2 } from 'lucide-react';
 

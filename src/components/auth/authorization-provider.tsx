@@ -2,7 +2,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useAppStore, useAppReady } from '@/lib/store';
+import { useAppStore } from '@/lib/store';
+import { useAppReady } from '@/hooks/use-store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
