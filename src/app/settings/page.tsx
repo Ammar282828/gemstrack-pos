@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, MetalType, KaratValue, Order, OrderItem, calculateProductCosts, HisaabEntry } from '@/lib/store';
+import { useAppStore, Settings, Product, Customer, Karigar, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, MetalType, KaratValue, Order, OrderItem, calculateProductCosts, HisaabEntry, ThemeKey, AVAILABLE_THEMES } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
