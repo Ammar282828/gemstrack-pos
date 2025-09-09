@@ -1,11 +1,13 @@
 
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAppStore, Order, OrderStatus, useIsStoreHydrated, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType } from '@/lib/store';
+import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType } from '@/lib/store';
+import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';

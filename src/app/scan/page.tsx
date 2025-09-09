@@ -1,9 +1,11 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal, Product, useAppReady } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal, Product } from '@/lib/store';
+import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';

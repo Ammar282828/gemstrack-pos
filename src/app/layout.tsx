@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname } from 'next/navigation';
@@ -6,7 +7,8 @@ import './globals.css';
 import AppLayout from '@/components/layout/app-layout';
 import { Toaster } from "@/components/ui/toaster";
 import { MainApp } from '@/components/layout/main-app';
-import { useAppStore, useIsStoreHydrated } from '@/lib/store';
+import { useAppStore } from '@/lib/store';
+import { useIsStoreHydrated } from '@/hooks/use-store';
 import React from 'react';
 
 const inter = Inter({

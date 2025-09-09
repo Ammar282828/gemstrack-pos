@@ -1540,24 +1540,6 @@ export const calculateProductCosts = (
   return _calculateProductCostsInternal(product, rates);
 };
 
-// --- Hydration Hooks ---
-import React, { useEffect, useState, useSyncExternalStore } from 'react';
-
-function useZustandRehydrated() {
-    const hasHydrated = useSyncExternalStore(
-        useAppStore.subscribe,
-        () => useAppStore.getState()._hasHydrated,
-        () => false
-    );
-    return hasHydrated;
-}
-
-export const useAppReady = () => {
-    const isSettingsLoaded = !useAppStore(state => state.isSettingsLoading);
-    const isZustandRehydrated = useZustandRehydrated();
-    return isZustandRehydrated && isSettingsLoaded;
-};
-
 // --- SELECTOR DEFINITIONS ---
 export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
   if (!state.cart || !Array.isArray(state.cart)) {
@@ -1629,12 +1611,3 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
-
-// Hook to check hydration status, useful for client-side only rendering logic or avoiding hydration mismatches.
-export const useIsStoreHydrated = () => {
-    return useSyncExternalStore<boolean>(
-        useAppStore.subscribe,
-        () => useAppStore.getState()._hasHydrated,
-        () => false
-    );
-};

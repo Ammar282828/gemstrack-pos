@@ -1,8 +1,10 @@
 
+
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { useAppStore, useAppReady, Customer, Karigar } from '@/lib/store';
+import { useAppStore, Customer, Karigar } from '@/lib/store';
+import { useAppReady } from '@/hooks/use-store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, BookUser, ArrowRight, User, Briefcase, ArrowDown, ArrowUp, Search, PlusCircle, FileText } from 'lucide-react';
 import Link from 'next/link';

@@ -1,8 +1,10 @@
 
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useAppStore, Expense, useAppReady, EXPENSE_CATEGORIES } from '@/lib/store';
+import { useAppStore, Expense, EXPENSE_CATEGORIES } from '@/lib/store';
+import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';

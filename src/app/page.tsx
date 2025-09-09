@@ -1,9 +1,11 @@
 
+
 "use client";
 
 import React from 'react';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal, useAppReady } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal } from '@/lib/store';
+import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusCircle, ShoppingCart, Trash2, ExternalLink, QrCode, Loader2 } from 'lucide-react';

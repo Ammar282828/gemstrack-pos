@@ -5,7 +5,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAppStore, Customer, Invoice, Order, useIsStoreHydrated } from '@/lib/store';
+import { useAppStore, Customer, Invoice, Order } from '@/lib/store';
+import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
