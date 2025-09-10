@@ -994,20 +994,29 @@ export const useAppStore = create<AppState>()(
         );
       },
       generateInvoice: async (customerInfo, invoiceGoldRate24k, discountAmount) => {
-        const { products, cart, settings, addCustomer } = get();
+        const { products, cart, settings } = get();
         if (cart.length === 0) return null;
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
     
         try {
             return await runTransaction(db, async (transaction) => {
                 let finalCustomerId = customerInfo.id;
+                let customerName = customerInfo.name;
+
                 // If it's a walk-in customer with a name, create a new customer profile.
-                if (!finalCustomerId && customerInfo.name) {
-                    const newCustomer = await addCustomer({ name: customerInfo.name, phone: customerInfo.phone });
-                    if (newCustomer) {
-                        finalCustomerId = newCustomer.id;
-                    } else {
-                        throw new Error("Failed to create new customer profile for walk-in.");
+                if (!finalCustomerId && customerName) {
+                    const newCustId = `cust-${Date.now()}`;
+                    const newCustomer: Customer = { 
+                        id: newCustId, 
+                        name: customerName, 
+                        phone: customerInfo.phone || "" 
+                    };
+                    transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustId), newCustomer);
+                    finalCustomerId = newCustId;
+                } else if (finalCustomerId) {
+                    const custDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, finalCustomerId));
+                    if(custDoc.exists()) {
+                        customerName = custDoc.data().name;
                     }
                 }
     
@@ -1069,23 +1078,19 @@ export const useAppStore = create<AppState>()(
                     goldRateApplied: ratesForInvoice.goldRatePerGram24k, 
                     palladiumRateApplied: ratesForInvoice.palladiumRatePerGram,
                     platinumRateApplied: ratesForInvoice.platinumRatePerGram,
-                    customerId: finalCustomerId, customerName: customerInfo.name || 'Walk-in Customer'
+                    customerId: finalCustomerId, customerName: customerName || 'Walk-in Customer'
                 };
     
                 // --- Transactional Writes ---
-                // 1. Create the new invoice
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
     
-                // 2. Move sold products from active inventory to sold history
                 for (const product of productsToMove) {
                     transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, product.sku), product);
                     transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, product.sku));
                 }
     
-                // 3. Update settings with new invoice number
                 transaction.update(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID), { lastInvoiceNumber: nextInvoiceNumber });
     
-                // 4. Create Hisaab entry
                 const hisaabEntry: Omit<HisaabEntry, 'id'> = {
                     entityId: finalCustomerId || 'walk-in', entityType: 'customer',
                     entityName: newInvoiceData.customerName || 'Walk-in Customer', date: newInvoiceData.createdAt,
@@ -1093,7 +1098,6 @@ export const useAppStore = create<AppState>()(
                 };
                 transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
                 
-                // Clear cart locally after successful transaction
                 set({ cart: [] });
 
                 return { id: invoiceId, ...newInvoiceData } as Invoice;
@@ -1440,7 +1444,7 @@ export const useAppStore = create<AppState>()(
           console.error(`[GemsTrack Store updateExpense] Error updating expense ID ${id}:`, error);
         }
       },
-      deleteExpense: async (id) => {
+      deleteExpense: async (id: string) => {
         console.log(`[GemsTrack Store deleteExpense] Attempting to delete expense ID ${id}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.EXPENSES, id));
@@ -1633,3 +1637,5 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
+
+    

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -13,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { QrCode, X, VideoOff, ShoppingCart, Trash2, ExternalLink, ListPlus, ScanLine, Loader2 } from 'lucide-react';
+import { QrCode, X, VideoOff, ShoppingCart, Trash2, ExternalLink, ListPlus, ScanLine, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Html5QrcodeScanner,
@@ -21,8 +20,11 @@ import {
   Html5QrcodeSupportedFormats,
   QrcodeErrorCallback,
   QrcodeSuccessCallback,
-  Html5QrcodeScannerState
+  Html5QrcodeScannerState,
+  Html5Qrcode,
 } from 'html5-qrcode';
+import { Slider } from '@/components/ui/slider';
+
 
 const qrReaderElementId = "qr-reader-container";
 
@@ -55,10 +57,11 @@ export default function ScanPOSPage() {
   const [skuInput, setSkuInput] = useState('');
   const appReady = useAppReady();
 
-  const { addToCart, removeFromCart: removeFromCartAction, products } = useAppStore(state => ({
+  const { addToCart, removeFromCart: removeFromCartAction, products, cart } = useAppStore(state => ({
       addToCart: state.addToCart,
       removeFromCart: state.removeFromCart,
-      products: state.products
+      products: state.products,
+      cart: state.cart
   }));
   const cartItems = useAppStore(selectCartDetails);
   const cartSubtotal = useAppStore(selectCartSubtotal);
@@ -66,12 +69,20 @@ export default function ScanPOSPage() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isScannerActive, setIsScannerActive] = useState<boolean>(true);
   const html5QrcodeScannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
 
-  const onScanFailure: QrcodeErrorCallback = useCallback((error) => {
-     console.warn(`[GemsTrack] QR Scan Error or Not Found: ${error}`);
-  }, []);
+  const [zoom, setZoom] = useState(1);
+  const [cameraCapabilities, setCameraCapabilities] = useState<any>(null);
+
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback(async (decodedText, decodedResult) => {
+    // Prevent adding the same item multiple times in quick succession
+    const isAlreadyInCart = cart.some(item => item.sku === decodedText.trim());
+    if (isAlreadyInCart) {
+        toast({ title: "Item Already in Cart", description: `Product ${decodedText.trim()} is already in the current sale.`, variant: "default" });
+        return;
+    }
+    
     const product = products.find(p => p.sku === decodedText.trim());
 
     if (product) {
@@ -80,87 +91,89 @@ export default function ScanPOSPage() {
     } else {
       toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
     }
-  }, [addToCart, toast, products]);
+  }, [addToCart, toast, products, cart]);
+
+  const onScanFailure: QrcodeErrorCallback = useCallback((error) => {
+     // console.warn(`[GemsTrack] QR Scan Error or Not Found: ${error}`);
+  }, []);
+
+  const getCameraCapabilities = async (cameraDevice: any) => {
+      try {
+        if (html5QrCodeRef.current && cameraDevice.id) {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cameraDevice.id } } });
+          const track = stream.getVideoTracks()[0];
+          const capabilities = track.getCapabilities();
+          // @ts-ignore - 'zoom' might not be in standard MediaTrackCapabilities
+          if (capabilities.zoom) {
+            setCameraCapabilities(capabilities);
+          }
+          track.stop(); // Stop the temporary stream
+        }
+      } catch (err) {
+        console.warn('Could not get camera capabilities:', err);
+        setCameraCapabilities(null);
+      }
+    };
 
 
   useEffect(() => {
-    if (!appReady) return; // Don't initialize scanner until app data (products) is ready
+    if (!appReady) return; 
 
     if (isScannerActive) {
       const containerElement = document.getElementById(qrReaderElementId);
       if (!containerElement) {
-        console.warn(`[GemsTrack] QR Reader container element with ID '${qrReaderElementId}' not found.`);
         setHasCameraPermission(false);
         return;
       }
-      while (containerElement.firstChild) {
-        containerElement.removeChild(containerElement.firstChild);
+      if (!html5QrCodeRef.current) {
+         html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, false);
       }
-
-      if (!html5QrcodeScannerRef.current) {
-        const newScanner = new Html5QrcodeScanner(
-          qrReaderElementId,
-          {
-            fps: 10,
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-              const qrboxSize = Math.floor(minEdge * 0.8);
-              return { width: qrboxSize, height: qrboxSize };
-            },
-            rememberLastUsedCamera: true,
-            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
-          },
-          false 
-        );
-
-        try {
-          newScanner.render(onScanSuccess, onScanFailure);
-          html5QrcodeScannerRef.current = newScanner; 
+      const qrCode = html5QrCodeRef.current;
+      
+      qrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        onScanSuccess,
+        onScanFailure
+      )
+      .then(async () => {
           setHasCameraPermission(true);
-        } catch (renderError) {
-          console.error("[GemsTrack] Error calling scanner.render(): ", renderError);
-          setHasCameraPermission(false);
-          if (newScanner && typeof newScanner.clear === 'function') {
-            newScanner.clear().catch(err => {
-              console.warn("[GemsTrack] Error clearing scanner after render fail:", err);
-            });
+          const cameras = await Html5Qrcode.getCameras();
+          if (cameras && cameras.length) {
+              await getCameraCapabilities(cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0]);
           }
-          html5QrcodeScannerRef.current = null;
+      })
+      .catch((err) => {
+        setHasCameraPermission(false);
+        console.error("Failed to start QR scanner:", err);
+      });
+
+    } else {
+        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+            html5QrCodeRef.current.stop().catch(err => console.error("Error stopping scanner:", err));
         }
-      }
-    } else { 
-      if (html5QrcodeScannerRef.current) {
-        const scannerToClear = html5QrcodeScannerRef.current;
-        html5QrcodeScannerRef.current = null; 
-        if (scannerToClear.getState && scannerToClear.getState() !== Html5QrcodeScannerState.NOT_STARTED) {
-          scannerToClear.clear().catch(err => {
-            console.warn("[GemsTrack] Error clearing scanner (isScannerActive false):", err);
-          });
-        }
-      }
     }
 
     return () => {
-      const scannerToClear = html5QrcodeScannerRef.current;
-      html5QrcodeScannerRef.current = null; 
-      
-      if (scannerToClear && typeof scannerToClear.clear === 'function') {
-         try {
-          if (scannerToClear.getState && scannerToClear.getState() !== Html5QrcodeScannerState.NOT_STARTED) {
-            scannerToClear.clear().catch(err => {
-               console.warn("[GemsTrack] Error clearing scanner on cleanup (was active):", err);
-            });
-          }
-        } catch (e) {
-             console.warn("[GemsTrack] Error during scanner state check/clear on cleanup:", e);
-             scannerToClear.clear().catch(err_1 => {
-                 console.warn("[GemsTrack] Error clearing scanner on cleanup (fallback):", err_1);
-             });
+        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+            html5QrCodeRef.current.stop().catch(err => console.error("Error stopping scanner on cleanup:", err));
         }
-      }
     };
   }, [appReady, isScannerActive, onScanSuccess, onScanFailure]);
+
+ useEffect(() => {
+    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning && cameraCapabilities) {
+        const videoElement = document.getElementById(`${qrReaderElementId}-video`) as HTMLVideoElement;
+        if (videoElement && videoElement.srcObject) {
+            const track = videoElement.srcObject.getVideoTracks()[0];
+            // @ts-ignore
+            if ('zoom' in track.getCapabilities()) {
+                track.applyConstraints({ advanced: [{ zoom: zoom }] });
+            }
+        }
+    }
+  }, [zoom, cameraCapabilities]);
+
 
   const handleManualSkuAdd = () => {
     if (!skuInput.trim()) {
@@ -246,7 +259,7 @@ export default function ScanPOSPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               {isScannerActive && (
-                <div id={qrReaderElementId} className="w-full aspect-square border rounded-md bg-muted overflow-hidden mx-auto max-w-lg [&>span>video]:object-contain">
+                <div id={qrReaderElementId} className="w-full border rounded-md bg-muted overflow-hidden mx-auto max-w-lg [&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover">
                   {/* The html5-qrcode library will render its UI here. */}
                 </div>
               )}
@@ -267,6 +280,25 @@ export default function ScanPOSPage() {
                   </AlertDescription>
                 </Alert>
               )}
+
+              {isScannerActive && cameraCapabilities && (
+                <div className="p-4 border rounded-md">
+                  <Label htmlFor="zoom-slider">Zoom</Label>
+                  <div className="flex items-center gap-2">
+                    <ZoomOut className="h-5 w-5" />
+                    <Slider
+                      id="zoom-slider"
+                      min={cameraCapabilities.zoom.min}
+                      max={cameraCapabilities.zoom.max}
+                      step={cameraCapabilities.zoom.step}
+                      value={[zoom]}
+                      onValueChange={(value) => setZoom(value[0])}
+                    />
+                    <ZoomIn className="h-5 w-5" />
+                  </div>
+                </div>
+              )}
+
 
               <div className="text-center">
                 <Button size="lg" onClick={toggleScanner} variant={isScannerActive ? "outline" : "default"} className="w-full md:w-auto">
@@ -311,3 +343,5 @@ export default function ScanPOSPage() {
     </div>
   );
 }
+
+    
