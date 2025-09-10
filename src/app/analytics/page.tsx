@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -9,10 +10,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, parseISO, startOfDay, subDays, isWithinInterval } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard, AlertTriangle } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -26,6 +28,7 @@ export default function AnalyticsPage() {
   const { 
     generatedInvoices, products, categories, customers, expenses,
     isInvoicesLoading, isProductsLoading, isCustomersLoading, isExpensesLoading,
+    invoicesError, productsError, customersError, expensesError,
     loadGeneratedInvoices, loadProducts, loadCustomers, loadExpenses 
   } = useAppStore();
 
@@ -37,6 +40,7 @@ export default function AnalyticsPage() {
   }, [loadGeneratedInvoices, loadProducts, loadCustomers, loadExpenses]);
 
   const isLoading = isInvoicesLoading || isProductsLoading || isCustomersLoading || isExpensesLoading;
+  const loadingError = invoicesError || productsError || customersError || expensesError;
 
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -221,6 +225,21 @@ export default function AnalyticsPage() {
         <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
             <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
             <p className="text-lg text-muted-foreground">Loading analytics...</p>
+        </div>
+    );
+  }
+
+  if (loadingError) {
+    return (
+        <div className="container mx-auto py-8 px-4">
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Error Loading Data</AlertTitle>
+                <CardDescription>
+                    Could not load analytics data due to a server connection error. Please check your internet connection and try again.
+                    <p className="text-xs mt-2 font-mono bg-destructive/10 p-2 rounded">Details: {loadingError}</p>
+                </CardDescription>
+            </Alert>
         </div>
     );
   }

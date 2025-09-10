@@ -517,6 +517,17 @@ export interface AppState {
   hasHisaabLoaded: boolean;
   hasExpensesLoaded: boolean;
 
+  // Error states
+  settingsError: string | null;
+  productsError: string | null;
+  customersError: string | null;
+  invoicesError: string | null;
+  ordersError: string | null;
+  karigarsError: string | null;
+  hisaabError: string | null;
+  expensesError: string | null;
+
+
   // Zustand specific hydration state
   _hasHydrated: boolean;
   setHasHydrated: (hydrated: boolean) => void;
@@ -634,9 +645,19 @@ export const useAppStore = create<AppState>()(
       hasHisaabLoaded: false,
       hasExpensesLoaded: false,
 
+      settingsError: null,
+      productsError: null,
+      customersError: null,
+      invoicesError: null,
+      ordersError: null,
+      karigarsError: null,
+      hisaabError: null,
+      expensesError: null,
+
+
       loadSettings: async () => {
         if (get().hasSettingsLoaded) return;
-        set({ isSettingsLoading: true });
+        set({ isSettingsLoading: true, settingsError: null });
         try {
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           const docSnap = await getDoc(settingsDocRef);
@@ -662,8 +683,9 @@ export const useAppStore = create<AppState>()(
             await setDoc(settingsDocRef, initialSettingsData);
             set((state) => { state.settings = initialSettingsData; });
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("[GemsTrack Store loadSettings] Error loading settings from Firestore:", error);
+          set({ settingsError: error.message || 'Failed to connect to the database.' });
           set((state) => { state.settings = initialSettingsData; }); // Fallback
         } finally {
           set({ isSettingsLoading: false, hasSettingsLoaded: true });
@@ -703,7 +725,7 @@ export const useAppStore = create<AppState>()(
 
       loadProducts: () => {
         if (get().hasProductsLoaded) return;
-        set({ isProductsLoading: true, hasProductsLoaded: true });
+        set({ isProductsLoading: true, hasProductsLoaded: true, productsError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.PRODUCTS), orderBy("sku"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
@@ -713,7 +735,7 @@ export const useAppStore = create<AppState>()(
           }, 
           (error) => {
             console.error("[GemsTrack Store] Error in products real-time listener:", error);
-            set({ products: [], isProductsLoading: false }); // Mark as not loading
+            set({ products: [], isProductsLoading: false, productsError: error.message || 'Failed to load products.' }); // Mark as not loading
           }
         );
       },
@@ -755,8 +777,8 @@ export const useAppStore = create<AppState>()(
           miscCharges: isActualGoldCoin ? 0 : productData.miscCharges,
         };
         
-        if (partialProduct.metalType === 'gold') {
-          if (!partialProduct.karat) { partialProduct.karat = '21k'; }
+        if (partialProduct.metalType === 'gold' && !partialProduct.karat) {
+          partialProduct.karat = '21k';
         }
 
         const newProduct: Product = { ...partialProduct, sku: generatedSku } as Product;
@@ -848,7 +870,7 @@ export const useAppStore = create<AppState>()(
 
       loadCustomers: () => {
         if (get().hasCustomersLoaded) return;
-        set({ isCustomersLoading: true, hasCustomersLoaded: true });
+        set({ isCustomersLoading: true, hasCustomersLoaded: true, customersError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS), orderBy("name"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
@@ -858,7 +880,7 @@ export const useAppStore = create<AppState>()(
           },
           (error) => {
             console.error("[GemsTrack Store] Error in customers real-time listener:", error);
-            set({ customers: [], isCustomersLoading: false });
+            set({ customers: [], isCustomersLoading: false, customersError: error.message || 'Failed to load customers.' });
           }
         );
       },
@@ -896,7 +918,7 @@ export const useAppStore = create<AppState>()(
 
       loadKarigars: () => {
         if (get().hasKarigarsLoaded) return;
-        set({ isKarigarsLoading: true, hasKarigarsLoaded: true });
+        set({ isKarigarsLoading: true, hasKarigarsLoaded: true, karigarsError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.KARIGARS), orderBy("name"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
@@ -906,7 +928,7 @@ export const useAppStore = create<AppState>()(
           },
           (error) => {
             console.error("[GemsTrack Store] Error in karigars real-time listener:", error);
-            set({ karigars: [], isKarigarsLoading: false });
+            set({ karigars: [], isKarigarsLoading: false, karigarsError: error.message || 'Failed to load karigars.' });
           }
         );
       },
@@ -957,7 +979,7 @@ export const useAppStore = create<AppState>()(
 
       loadGeneratedInvoices: () => {
         if (get().hasInvoicesLoaded) return;
-        set({ isInvoicesLoading: true, hasInvoicesLoaded: true });
+        set({ isInvoicesLoading: true, hasInvoicesLoaded: true, invoicesError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
@@ -967,7 +989,7 @@ export const useAppStore = create<AppState>()(
           },
           (error) => {
             console.error("[GemsTrack Store] Error in invoices real-time listener:", error);
-            set({ generatedInvoices: [], isInvoicesLoading: false });
+            set({ generatedInvoices: [], isInvoicesLoading: false, invoicesError: error.message || 'Failed to load invoices.' });
           }
         );
       },
@@ -1112,7 +1134,7 @@ export const useAppStore = create<AppState>()(
 
       loadOrders: () => {
         if (get().hasOrdersLoaded) return;
-        set({ isOrdersLoading: true });
+        set({ isOrdersLoading: true, ordersError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
@@ -1128,7 +1150,7 @@ export const useAppStore = create<AppState>()(
           },
           (error) => {
             console.error("[GemsTrack Store] Error in orders real-time listener:", error);
-            set({ orders: [], isOrdersLoading: false });
+            set({ orders: [], isOrdersLoading: false, ordersError: error.message || 'Failed to load orders.' });
           }
         );
       },
@@ -1348,7 +1370,7 @@ export const useAppStore = create<AppState>()(
 
       loadHisaab: () => {
         if (get().hasHisaabLoaded) return;
-        set({ isHisaabLoading: true, hasHisaabLoaded: true });
+        set({ isHisaabLoading: true, hasHisaabLoaded: true, hisaabError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), orderBy("date", "desc"));
         const unsubscribe = onSnapshot(q,
           (snapshot) => {
@@ -1358,7 +1380,7 @@ export const useAppStore = create<AppState>()(
           },
           (error) => {
             console.error("[GemsTrack Store] Error in hisaab real-time listener:", error);
-            set({ hisaabEntries: [], isHisaabLoading: false });
+            set({ hisaabEntries: [], isHisaabLoading: false, hisaabError: error.message || 'Failed to load hisaab.' });
           }
         );
       },
@@ -1385,7 +1407,7 @@ export const useAppStore = create<AppState>()(
       
       loadExpenses: () => {
         if (get().hasExpensesLoaded) return;
-        set({ isExpensesLoading: true, hasExpensesLoaded: true });
+        set({ isExpensesLoading: true, hasExpensesLoaded: true, expensesError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.EXPENSES), orderBy("date", "desc"));
         const unsubscribe = onSnapshot(q,
           (snapshot) => {
@@ -1395,7 +1417,7 @@ export const useAppStore = create<AppState>()(
           },
           (error) => {
             console.error("[GemsTrack Store] Error in expenses real-time listener:", error);
-            set({ expenses: [], isExpensesLoading: false });
+            set({ expenses: [], isExpensesLoading: false, expensesError: error.message || 'Failed to load expenses.' });
           }
         );
       },
