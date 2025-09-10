@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal, Product } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,13 +16,9 @@ import { QrCode, X, VideoOff, ShoppingCart, Trash2, ExternalLink, ListPlus, Scan
 import { useToast } from '@/hooks/use-toast';
 import { Slider } from '@/components/ui/slider';
 import {
-  Html5QrcodeScanner,
-  Html5QrcodeScanType,
-  Html5QrcodeSupportedFormats,
-  QrcodeErrorCallback,
-  QrcodeSuccessCallback,
-  Html5QrcodeScannerState,
   Html5Qrcode,
+  QrcodeSuccessCallback,
+  QrcodeErrorCallback,
 } from 'html5-qrcode';
 
 
@@ -68,13 +64,14 @@ export default function ScanPOSPage() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isScannerActive, setIsScannerActive] = useState<boolean>(true);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const requestRef = useRef<number>();
 
   const [zoom, setZoom] = useState(1);
   const [cameraCapabilities, setCameraCapabilities] = useState<any>(null);
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText, decodedResult) => {
-    // This function is now stable and won't cause re-renders of the main component.
-    // It directly uses the toast function from its closure.
+    // This function is stable and does not depend on component state.
+    // It directly accesses the store for stateful logic.
     const state = useAppStore.getState();
     const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
 
@@ -91,93 +88,91 @@ export default function ScanPOSPage() {
     } else {
       toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
     }
-  }, [toast]);
-
+  }, [toast]); // toast is a stable function from its provider
 
   const onScanFailure: QrcodeErrorCallback = (error) => {
-     // console.warn(`[GemsTrack] QR Scan Error or Not Found: ${error}`);
+     // This callback is intentionally left empty to avoid console noise on non-scans.
   };
-
-  const getCameraCapabilities = useCallback(async (cameraDevice: any) => {
-      try {
-        if (html5QrCodeRef.current && cameraDevice.id) {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cameraDevice.id } } });
-          const track = stream.getVideoTracks()[0];
-          const capabilities = track.getCapabilities();
-          // @ts-ignore - 'zoom' might not be in standard MediaTrackCapabilities
-          if (capabilities.zoom) {
-            setCameraCapabilities(capabilities);
-          }
-          track.stop(); // Stop the temporary stream
-        }
-      } catch (err) {
-        console.warn('Could not get camera capabilities:', err);
-        setCameraCapabilities(null);
-      }
-    }, []);
-
 
   useEffect(() => {
     if (!appReady || typeof window === 'undefined') return;
 
     if (!html5QrCodeRef.current) {
-        const containerElement = document.getElementById(qrReaderElementId);
-        if (containerElement) {
-            html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, false);
-        } else {
-            return;
-        }
+        html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, false);
     }
     const qrCode = html5QrCodeRef.current;
-    
-    if (isScannerActive && !qrCode.isScanning) {
-        qrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            onScanSuccess,
-            onScanFailure
-        )
-        .then(async () => {
-            setHasCameraPermission(true);
-            const cameras = await Html5Qrcode.getCameras();
-            if (cameras && cameras.length) {
-                const backCamera = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
-                await getCameraCapabilities(backCamera);
-            }
-        })
-        .catch((err) => {
-            setHasCameraPermission(false);
-            console.error("Failed to start QR scanner:", err);
-        });
-    } else if (!isScannerActive && qrCode.isScanning) {
-        qrCode.stop().catch(err => console.error("Error stopping scanner:", err));
-    }
-    
-    return () => {
-        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-            html5QrCodeRef.current.stop().catch(err => {
-                // Ignore "not scanning" errors on cleanup
-                if (!err.message.includes("not scanning")) {
-                    console.error("Error stopping scanner on cleanup:", err);
-                }
-            });
-        }
-    };
-  }, [appReady, isScannerActive, onScanSuccess, getCameraCapabilities]);
 
+    const startScanner = async () => {
+      try {
+        await qrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          onScanSuccess,
+          onScanFailure
+        );
+        setHasCameraPermission(true);
+
+        // Get camera capabilities for zoom
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras && cameras.length) {
+            const backCamera = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: backCamera.id } } });
+            const track = stream.getVideoTracks()[0];
+            const capabilities = track.getCapabilities();
+            // @ts-ignore - 'zoom' might not be in standard MediaTrackCapabilities
+            if (capabilities.zoom) {
+              setCameraCapabilities(capabilities);
+            }
+            track.stop();
+        }
+
+      } catch (err) {
+        setHasCameraPermission(false);
+        console.error("Failed to start QR scanner:", err);
+      }
+    };
+
+    const stopScanner = async () => {
+      if (qrCode && qrCode.isScanning) {
+        try {
+          await qrCode.stop();
+        } catch (err) {
+          console.error("Error stopping scanner:", err);
+        }
+      }
+    };
+    
+    if (isScannerActive) {
+      startScanner();
+    } else {
+      stopScanner();
+    }
+
+    return () => {
+      stopScanner();
+    };
+  }, [appReady, isScannerActive, onScanSuccess]); // Only re-run when scanner activity or readiness changes
 
  useEffect(() => {
     if (!isScannerActive || !html5QrCodeRef.current?.isScanning || !cameraCapabilities) return;
     
-    const videoElement = document.querySelector(`#${qrReaderElementId} video`) as HTMLVideoElement;
-    if (!videoElement?.srcObject) return;
+    // Applying zoom is a side effect and should be handled separately
+    const applyZoom = async () => {
+        const videoElement = document.querySelector(`#${qrReaderElementId} video`) as HTMLVideoElement;
+        if (!videoElement?.srcObject) return;
 
-    const track = (videoElement.srcObject as MediaStream).getVideoTracks()[0];
-    // @ts-ignore
-    if (track && 'zoom' in track.getCapabilities()) {
-        track.applyConstraints({ advanced: [{ zoom: zoom }] }).catch(e => console.warn("Could not apply zoom", e));
-    }
-  }, [zoom, cameraCapabilities, isScannerActive]);
+        const track = (videoElement.srcObject as MediaStream).getVideoTracks()[0];
+        try {
+             // @ts-ignore
+             if (track && 'zoom' in track.getCapabilities()) {
+                await track.applyConstraints({ advanced: [{ zoom: zoom }] });
+            }
+        } catch (e) {
+            console.warn("Could not apply zoom", e);
+        }
+    };
+    applyZoom();
+  }, [zoom, isScannerActive, cameraCapabilities]);
 
 
   const handleManualSkuAdd = () => {
@@ -348,5 +343,3 @@ export default function ScanPOSPage() {
     </div>
   );
 }
-
-    
