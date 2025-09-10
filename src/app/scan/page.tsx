@@ -20,9 +20,33 @@ import {
   QrcodeSuccessCallback,
   QrcodeErrorCallback,
 } from 'html5-qrcode';
+import { cn } from '@/lib/utils';
 
 
 const qrReaderElementId = "qr-reader-container";
+
+// --- Audio Feedback ---
+let audioContext: AudioContext | null = null;
+const playBeep = () => {
+    if (typeof window !== 'undefined') {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.2, audioContext.currentTime); // Volume
+
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1);
+    }
+};
+
 
 const ScannedItemDisplay: React.FC<{ item: NonNullable<ReturnType<typeof selectCartDetails>[0]>, removeFromCart: (sku: string) => void }> = ({ item, removeFromCart }) => {
   return (
@@ -64,10 +88,12 @@ export default function ScanPOSPage() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isScannerActive, setIsScannerActive] = useState<boolean>(true);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
-  const requestRef = useRef<number>();
+  const [isScanning, setIsScanning] = useState(false);
 
   const [zoom, setZoom] = useState(1);
   const [cameraCapabilities, setCameraCapabilities] = useState<any>(null);
+  const [scanSuccess, setScanSuccess] = useState(false);
+
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText, decodedResult) => {
     // This function is stable and does not depend on component state.
@@ -76,7 +102,7 @@ export default function ScanPOSPage() {
     const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
 
     if (isAlreadyInCart) {
-      toast({ title: "Item Already in Cart", description: `Product ${decodedText.trim()} is already in the current sale.`, variant: "default" });
+      // Don't toast if already in cart to avoid noise on continuous scan
       return;
     }
     
@@ -85,10 +111,14 @@ export default function ScanPOSPage() {
     if (product) {
       state.addToCart(product.sku);
       toast({ title: "Item Added", description: `${product.name} added to cart.` });
+      playBeep();
+      setScanSuccess(true);
+      setTimeout(() => setScanSuccess(false), 300); // Visual feedback for 300ms
     } else {
+      // Only toast for unknown products to reduce noise
       toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
     }
-  }, [toast]); // toast is a stable function from its provider
+  }, [toast]);
 
   const onScanFailure: QrcodeErrorCallback = (error) => {
      // This callback is intentionally left empty to avoid console noise on non-scans.
@@ -104,30 +134,35 @@ export default function ScanPOSPage() {
 
     const startScanner = async () => {
       try {
-        await qrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          onScanSuccess,
-          onScanFailure
-        );
-        setHasCameraPermission(true);
+        if (qrCode && !qrCode.isScanning) {
+            await qrCode.start(
+              { facingMode: "environment" },
+              { fps: 15, qrbox: { width: 250, height: 250 } }, // Increased FPS
+              onScanSuccess,
+              onScanFailure
+            );
+            setIsScanning(true);
+            setHasCameraPermission(true);
 
-        // Get camera capabilities for zoom
-        const cameras = await Html5Qrcode.getCameras();
-        if (cameras && cameras.length) {
-            const backCamera = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: backCamera.id } } });
-            const track = stream.getVideoTracks()[0];
-            const capabilities = track.getCapabilities();
-            // @ts-ignore - 'zoom' might not be in standard MediaTrackCapabilities
-            if (capabilities.zoom) {
-              setCameraCapabilities(capabilities);
+            // Get camera capabilities for zoom
+            const cameras = await Html5Qrcode.getCameras();
+            if (cameras && cameras.length) {
+                const backCamera = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: backCamera.id } } });
+                const track = stream.getVideoTracks()[0];
+                const capabilities = track.getCapabilities();
+                // @ts-ignore - 'zoom' might not be in standard MediaTrackCapabilities
+                if (capabilities.zoom) {
+                  setCameraCapabilities(capabilities);
+                  // @ts-ignore
+                  setZoom(capabilities.zoom.min);
+                }
+                track.stop();
             }
-            track.stop();
         }
-
       } catch (err) {
         setHasCameraPermission(false);
+        setIsScanning(false);
         console.error("Failed to start QR scanner:", err);
       }
     };
@@ -136,6 +171,7 @@ export default function ScanPOSPage() {
       if (qrCode && qrCode.isScanning) {
         try {
           await qrCode.stop();
+          setIsScanning(false);
         } catch (err) {
           console.error("Error stopping scanner:", err);
         }
@@ -151,28 +187,28 @@ export default function ScanPOSPage() {
     return () => {
       stopScanner();
     };
-  }, [appReady, isScannerActive, onScanSuccess]); // Only re-run when scanner activity or readiness changes
+  }, [appReady, isScannerActive, onScanSuccess]); 
 
  useEffect(() => {
-    if (!isScannerActive || !html5QrCodeRef.current?.isScanning || !cameraCapabilities) return;
+    if (!isScanning || !cameraCapabilities || !html5QrCodeRef.current) return;
     
-    // Applying zoom is a side effect and should be handled separately
     const applyZoom = async () => {
-        const videoElement = document.querySelector(`#${qrReaderElementId} video`) as HTMLVideoElement;
-        if (!videoElement?.srcObject) return;
-
-        const track = (videoElement.srcObject as MediaStream).getVideoTracks()[0];
         try {
-             // @ts-ignore
-             if (track && 'zoom' in track.getCapabilities()) {
-                await track.applyConstraints({ advanced: [{ zoom: zoom }] });
+            // @ts-ignore - 'getRunningTrackCapabilities' is not in standard types but exists
+            const capabilities = html5QrCodeRef.current.getRunningTrackCapabilities();
+            // @ts-ignore
+            if (capabilities?.zoom) {
+                // @ts-ignore
+                await html5QrCodeRef.current.applyVideoConstraints({
+                    advanced: [{ zoom: zoom }]
+                });
             }
-        } catch (e) {
+        } catch(e) {
             console.warn("Could not apply zoom", e);
         }
     };
     applyZoom();
-  }, [zoom, isScannerActive, cameraCapabilities]);
+  }, [zoom, isScanning, cameraCapabilities]);
 
 
   const handleManualSkuAdd = () => {
@@ -259,8 +295,11 @@ export default function ScanPOSPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               {isScannerActive && (
-                <div id={qrReaderElementId} className="w-full border rounded-md bg-muted overflow-hidden mx-auto max-w-lg [&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover">
-                  {/* The html5-qrcode library will render its UI here. */}
+                <div id={qrReaderElementId} className={cn(
+                    "w-full border-4 border-transparent rounded-md bg-muted overflow-hidden mx-auto max-w-lg relative transition-all duration-300",
+                    "&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover",
+                    scanSuccess && "border-green-500 shadow-lg shadow-green-500/50"
+                 )}>
                 </div>
               )}
               
