@@ -23,7 +23,6 @@ import {
   Html5QrcodeScannerState,
   Html5Qrcode,
 } from 'html5-qrcode';
-import { Slider } from '@/components/ui/slider';
 
 
 const qrReaderElementId = "qr-reader-container";
@@ -73,16 +72,15 @@ export default function ScanPOSPage() {
   const [cameraCapabilities, setCameraCapabilities] = useState<any>(null);
 
 
-  const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText, decodedResult) => {
+  const onScanSuccess: QrcodeSuccessCallback = (decodedText, decodedResult) => {
     // This function now uses `useAppStore.getState()` to get the latest state
     // without needing to be re-created on state changes, preventing infinite loops.
     const state = useAppStore.getState();
+    const { toast: staticToast } = useToast(); // Use the hook's return directly
     const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
 
     if (isAlreadyInCart) {
-      // Direct toast call to avoid dependency issues
-      useAppStore.getState().setHasHydrated(true); // A trick to ensure toast is ready
-      toast({ title: "Item Already in Cart", description: `Product ${decodedText.trim()} is already in the current sale.`, variant: "default" });
+      staticToast({ title: "Item Already in Cart", description: `Product ${decodedText.trim()} is already in the current sale.`, variant: "default" });
       return;
     }
     
@@ -90,15 +88,15 @@ export default function ScanPOSPage() {
 
     if (product) {
       state.addToCart(product.sku);
-      toast({ title: "Item Added", description: `${product.name} added to cart.` });
+      staticToast({ title: "Item Added", description: `${product.name} added to cart.` });
     } else {
-      toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
+      staticToast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
     }
-  }, [toast]); // The toast function itself is stable and won't cause re-renders.
+  };
 
-  const onScanFailure: QrcodeErrorCallback = useCallback((error) => {
+  const onScanFailure: QrcodeErrorCallback = (error) => {
      // console.warn(`[GemsTrack] QR Scan Error or Not Found: ${error}`);
-  }, []);
+  };
 
   const getCameraCapabilities = useCallback(async (cameraDevice: any) => {
       try {
@@ -160,7 +158,8 @@ export default function ScanPOSPage() {
             html5QrCodeRef.current.stop().catch(err => console.error("Error stopping scanner on cleanup:", err));
         }
     };
-  }, [appReady, isScannerActive, onScanSuccess, onScanFailure, getCameraCapabilities]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appReady, isScannerActive, getCameraCapabilities]);
 
   useEffect(() => {
     if (!isScannerActive && html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
@@ -170,15 +169,15 @@ export default function ScanPOSPage() {
 
 
  useEffect(() => {
-    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning && cameraCapabilities) {
-        const videoElement = document.querySelector(`#${qrReaderElementId} video`) as HTMLVideoElement;
-        if (videoElement && videoElement.srcObject) {
-            const track = (videoElement.srcObject as MediaStream).getVideoTracks()[0];
-            // @ts-ignore
-            if (track && 'zoom' in track.getCapabilities()) {
-                track.applyConstraints({ advanced: [{ zoom: zoom }] });
-            }
-        }
+    if (!html5QrCodeRef.current?.isScanning || !cameraCapabilities) return;
+    
+    const videoElement = document.querySelector(`#${qrReaderElementId} video`) as HTMLVideoElement;
+    if (!videoElement?.srcObject) return;
+
+    const track = (videoElement.srcObject as MediaStream).getVideoTracks()[0];
+    // @ts-ignore
+    if (track && 'zoom' in track.getCapabilities()) {
+        track.applyConstraints({ advanced: [{ zoom: zoom }] });
     }
   }, [zoom, cameraCapabilities]);
 
