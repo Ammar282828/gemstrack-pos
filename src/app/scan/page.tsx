@@ -344,5 +344,3 @@ export default function ScanPOSPage() {
     </div>
   );
 }
-
-    
