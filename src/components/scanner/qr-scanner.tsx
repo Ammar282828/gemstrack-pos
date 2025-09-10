@@ -100,17 +100,11 @@ export default function QrScanner() {
             setIsScanning(true);
             setHasCameraPermission(true);
 
-            const cameras = await Html5Qrcode.getCameras();
-            if (cameras && cameras.length) {
-                const backCamera = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: backCamera.id } } });
-                const track = stream.getVideoTracks()[0];
-                const capabilities = track.getCapabilities();
-                if ('zoom' in capabilities) {
-                  setCameraCapabilities(capabilities);
-                  setZoom((capabilities as any).zoom.min);
-                }
-                track.stop();
+            // @ts-ignore - getRunningTrackCapabilities is not in standard types but exists
+            const capabilities = qrCode.getRunningTrackCapabilities?.();
+            if (capabilities?.zoom) {
+              setCameraCapabilities(capabilities);
+              setZoom(capabilities.zoom.min);
             }
         }
       } catch (err) {
@@ -143,23 +137,30 @@ export default function QrScanner() {
   }, [isScannerActive, onScanSuccess]);
 
  useEffect(() => {
-    if (!isScanning || !cameraCapabilities || !html5QrCodeRef.current) return;
-    
     const applyZoom = async () => {
+        if (!html5QrCodeRef.current) {
+          return;
+        }
         try {
+            // @ts-ignore - getRunningTrackCapabilities is not in standard types but exists
             const capabilities = html5QrCodeRef.current.getRunningTrackCapabilities?.();
+            // @ts-ignore - getRunningTrack is not in standard types but exists
             const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
 
             if (currentTrack && (capabilities as any)?.zoom) {
+                // @ts-ignore
                 await currentTrack.applyConstraints({
-                    advanced: [{ zoom: zoom } as any]
+                    advanced: [{ zoom: zoom }]
                 });
             }
         } catch(e) {
             console.warn("Could not apply zoom", e);
         }
     };
-    applyZoom();
+
+    if (isScanning && cameraCapabilities) {
+        applyZoom();
+    }
   }, [zoom, isScanning, cameraCapabilities]);
 
   const toggleScanner = () => {
@@ -173,7 +174,7 @@ export default function QrScanner() {
           id={qrReaderElementId}
           className={cn(
             "w-full border-4 border-transparent rounded-md bg-muted overflow-hidden mx-auto max-w-lg relative transition-all duration-300",
-            "&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover",
+            " [&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover",
             scanSuccess && "border-green-500 shadow-lg shadow-green-500/50"
           )}
         ></div>
