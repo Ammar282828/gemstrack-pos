@@ -74,7 +74,7 @@ export default function ScanPOSPage() {
   const [cameraCapabilities, setCameraCapabilities] = useState<any>(null);
 
 
-  const onScanSuccess: QrcodeSuccessCallback = useCallback(async (decodedText, decodedResult) => {
+  const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText, decodedResult) => {
     // This function now uses `useAppStore.getState()` to avoid being re-created on state changes, preventing infinite loops.
     const state = useAppStore.getState();
     const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
@@ -97,7 +97,7 @@ export default function ScanPOSPage() {
      // console.warn(`[GemsTrack] QR Scan Error or Not Found: ${error}`);
   }, []);
 
-  const getCameraCapabilities = async (cameraDevice: any) => {
+  const getCameraCapabilities = useCallback(async (cameraDevice: any) => {
       try {
         if (html5QrCodeRef.current && cameraDevice.id) {
           const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cameraDevice.id } } });
@@ -113,7 +113,7 @@ export default function ScanPOSPage() {
         console.warn('Could not get camera capabilities:', err);
         setCameraCapabilities(null);
       }
-    };
+    }, []);
 
 
   useEffect(() => {
@@ -140,7 +140,8 @@ export default function ScanPOSPage() {
           setHasCameraPermission(true);
           const cameras = await Html5Qrcode.getCameras();
           if (cameras && cameras.length) {
-              await getCameraCapabilities(cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0]);
+              const backCamera = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
+              await getCameraCapabilities(backCamera);
           }
       })
       .catch((err) => {
@@ -159,7 +160,7 @@ export default function ScanPOSPage() {
             html5QrCodeRef.current.stop().catch(err => console.error("Error stopping scanner on cleanup:", err));
         }
     };
-  }, [appReady, isScannerActive, onScanSuccess, onScanFailure]);
+  }, [appReady, isScannerActive, onScanSuccess, onScanFailure, getCameraCapabilities]);
 
  useEffect(() => {
     if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning && cameraCapabilities) {
@@ -344,3 +345,4 @@ export default function ScanPOSPage() {
   );
 }
 
+    
