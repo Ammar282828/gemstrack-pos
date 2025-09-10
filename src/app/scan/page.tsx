@@ -57,11 +57,10 @@ export default function ScanPOSPage() {
   const [skuInput, setSkuInput] = useState('');
   const appReady = useAppReady();
 
-  const { addToCart, removeFromCart: removeFromCartAction, products, cart } = useAppStore(state => ({
+  const { addToCart, removeFromCart: removeFromCartAction, products } = useAppStore(state => ({
       addToCart: state.addToCart,
       removeFromCart: state.removeFromCart,
       products: state.products,
-      cart: state.cart
   }));
   const cartItems = useAppStore(selectCartDetails);
   const cartSubtotal = useAppStore(selectCartSubtotal);
@@ -75,12 +74,16 @@ export default function ScanPOSPage() {
 
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText, decodedResult) => {
-    // This function now uses `useAppStore.getState()` to avoid being re-created on state changes, preventing infinite loops.
+    // This function now uses `useAppStore.getState()` to get the latest state
+    // without needing to be re-created on state changes, preventing infinite loops.
     const state = useAppStore.getState();
     const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
+
     if (isAlreadyInCart) {
-        toast({ title: "Item Already in Cart", description: `Product ${decodedText.trim()} is already in the current sale.`, variant: "default" });
-        return;
+      // Direct toast call to avoid dependency issues
+      useAppStore.getState().setHasHydrated(true); // A trick to ensure toast is ready
+      toast({ title: "Item Already in Cart", description: `Product ${decodedText.trim()} is already in the current sale.`, variant: "default" });
+      return;
     }
     
     const product = state.products.find(p => p.sku === decodedText.trim());
@@ -91,7 +94,7 @@ export default function ScanPOSPage() {
     } else {
       toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
     }
-  }, [toast]); // Dependencies are stable and won't cause re-renders.
+  }, [toast]); // The toast function itself is stable and won't cause re-renders.
 
   const onScanFailure: QrcodeErrorCallback = useCallback((error) => {
      // console.warn(`[GemsTrack] QR Scan Error or Not Found: ${error}`);
@@ -117,42 +120,39 @@ export default function ScanPOSPage() {
 
 
   useEffect(() => {
-    if (!appReady) return; 
+    if (!appReady || !isScannerActive) return; 
 
-    if (isScannerActive) {
-      const containerElement = document.getElementById(qrReaderElementId);
-      if (!containerElement) {
+    const containerElement = document.getElementById(qrReaderElementId);
+    if (!containerElement) {
         setHasCameraPermission(false);
         return;
-      }
-      if (!html5QrCodeRef.current) {
-         html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, false);
-      }
-      const qrCode = html5QrCodeRef.current;
-      
-      qrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        onScanSuccess,
-        onScanFailure
-      )
-      .then(async () => {
-          setHasCameraPermission(true);
-          const cameras = await Html5Qrcode.getCameras();
-          if (cameras && cameras.length) {
-              const backCamera = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
-              await getCameraCapabilities(backCamera);
-          }
-      })
-      .catch((err) => {
-        setHasCameraPermission(false);
-        console.error("Failed to start QR scanner:", err);
-      });
+    }
+    
+    // Ensure only one instance is running
+    if (!html5QrCodeRef.current) {
+        html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, false);
+    }
+    const qrCode = html5QrCodeRef.current;
 
-    } else {
-        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-            html5QrCodeRef.current.stop().catch(err => console.error("Error stopping scanner:", err));
-        }
+    if (qrCode && !qrCode.isScanning) {
+        qrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            onScanSuccess,
+            onScanFailure
+        )
+        .then(async () => {
+            setHasCameraPermission(true);
+            const cameras = await Html5Qrcode.getCameras();
+            if (cameras && cameras.length) {
+                const backCamera = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
+                await getCameraCapabilities(backCamera);
+            }
+        })
+        .catch((err) => {
+            setHasCameraPermission(false);
+            console.error("Failed to start QR scanner:", err);
+        });
     }
 
     return () => {
@@ -161,6 +161,13 @@ export default function ScanPOSPage() {
         }
     };
   }, [appReady, isScannerActive, onScanSuccess, onScanFailure, getCameraCapabilities]);
+
+  useEffect(() => {
+    if (!isScannerActive && html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.stop().catch(err => console.error("Error stopping scanner on toggle:", err));
+    }
+  }, [isScannerActive]);
+
 
  useEffect(() => {
     if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning && cameraCapabilities) {
