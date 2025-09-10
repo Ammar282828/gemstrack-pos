@@ -68,7 +68,6 @@ export default function ScanPOSPage() {
 
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isScannerActive, setIsScannerActive] = useState<boolean>(true);
-  const html5QrcodeScannerRef = useRef<Html5QrcodeScanner | null>(null);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
 
   const [zoom, setZoom] = useState(1);
@@ -76,22 +75,23 @@ export default function ScanPOSPage() {
 
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback(async (decodedText, decodedResult) => {
-    // Prevent adding the same item multiple times in quick succession
-    const isAlreadyInCart = cart.some(item => item.sku === decodedText.trim());
+    // This function now uses `useAppStore.getState()` to avoid being re-created on state changes, preventing infinite loops.
+    const state = useAppStore.getState();
+    const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
     if (isAlreadyInCart) {
         toast({ title: "Item Already in Cart", description: `Product ${decodedText.trim()} is already in the current sale.`, variant: "default" });
         return;
     }
     
-    const product = products.find(p => p.sku === decodedText.trim());
+    const product = state.products.find(p => p.sku === decodedText.trim());
 
     if (product) {
-      addToCart(product.sku);
+      state.addToCart(product.sku);
       toast({ title: "Item Added", description: `${product.name} added to cart.` });
     } else {
       toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
     }
-  }, [addToCart, toast, products, cart]);
+  }, [toast]); // Dependencies are stable and won't cause re-renders.
 
   const onScanFailure: QrcodeErrorCallback = useCallback((error) => {
      // console.warn(`[GemsTrack] QR Scan Error or Not Found: ${error}`);
@@ -163,11 +163,11 @@ export default function ScanPOSPage() {
 
  useEffect(() => {
     if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning && cameraCapabilities) {
-        const videoElement = document.getElementById(`${qrReaderElementId}-video`) as HTMLVideoElement;
+        const videoElement = document.querySelector(`#${qrReaderElementId} video`) as HTMLVideoElement;
         if (videoElement && videoElement.srcObject) {
-            const track = videoElement.srcObject.getVideoTracks()[0];
+            const track = (videoElement.srcObject as MediaStream).getVideoTracks()[0];
             // @ts-ignore
-            if ('zoom' in track.getCapabilities()) {
+            if (track && 'zoom' in track.getCapabilities()) {
                 track.applyConstraints({ advanced: [{ zoom: zoom }] });
             }
         }
@@ -344,4 +344,3 @@ export default function ScanPOSPage() {
   );
 }
 
-    
