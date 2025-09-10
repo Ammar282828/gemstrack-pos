@@ -108,8 +108,7 @@ export default function QrScanner() {
                 const capabilities = track.getCapabilities();
                 if ('zoom' in capabilities) {
                   setCameraCapabilities(capabilities);
-                  // @ts-ignore
-                  setZoom(capabilities.zoom.min);
+                  setZoom((capabilities as any).zoom.min);
                 }
                 track.stop();
             }
@@ -148,12 +147,12 @@ export default function QrScanner() {
     
     const applyZoom = async () => {
         try {
-            // @ts-ignore - getRunningTrackCapabilities is not in standard types but exists
             const capabilities = html5QrCodeRef.current.getRunningTrackCapabilities?.();
-            if (capabilities?.zoom) {
-                // @ts-ignore
-                await html5QrCodeRef.current.applyVideoConstraints({
-                    advanced: [{ zoom: zoom }]
+            const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
+
+            if (currentTrack && (capabilities as any)?.zoom) {
+                await currentTrack.applyConstraints({
+                    advanced: [{ zoom: zoom } as any]
                 });
             }
         } catch(e) {
@@ -204,11 +203,8 @@ export default function QrScanner() {
             <ZoomOut className="h-5 w-5" />
             <Slider
               id="zoom-slider"
-              // @ts-ignore
               min={cameraCapabilities.zoom.min}
-              // @ts-ignore
               max={cameraCapabilities.zoom.max}
-              // @ts-ignore
               step={cameraCapabilities.zoom.step}
               value={[zoom]}
               onValueChange={(value) => setZoom(value[0])}
