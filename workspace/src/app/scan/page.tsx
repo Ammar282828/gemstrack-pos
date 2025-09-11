@@ -1,32 +1,30 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal, Product } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { QrCode, X, VideoOff, ShoppingCart, Trash2, ExternalLink, ListPlus, ScanLine, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
+import { QrCode, ShoppingCart, Trash2, ExternalLink, ListPlus, Loader2, X, VideoOff, ScanLine } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Slider } from '@/components/ui/slider';
-import {
-  Html5QrcodeScanner,
-  Html5QrcodeScanType,
-  Html5QrcodeSupportedFormats,
-  QrcodeErrorCallback,
-  QrcodeSuccessCallback,
-  Html5QrcodeScannerState,
-  Html5Qrcode,
-} from 'html5-qrcode';
+import dynamic from 'next/dynamic';
 
+const QrScanner = dynamic(() => import('@/components/scanner/qr-scanner'), {
+  ssr: false,
+  loading: () => (
+    <div className="text-center py-10 text-muted-foreground">
+      <Loader2 className="w-10 h-10 mb-2 mx-auto animate-spin" />
+      <p className="text-sm">Loading Scanner...</p>
+    </div>
+  ),
+});
 
-const qrReaderElementId = "qr-reader-container";
 
 const ScannedItemDisplay: React.FC<{ item: NonNullable<ReturnType<typeof selectCartDetails>[0]>, removeFromCart: (sku: string) => void }> = ({ item, removeFromCart }) => {
   return (
@@ -56,6 +54,7 @@ export default function ScanPOSPage() {
   const { toast } = useToast();
   const [skuInput, setSkuInput] = useState('');
   const appReady = useAppReady();
+  const [isScannerActive, setIsScannerActive] = useState(false);
 
   const { addToCart, removeFromCart: removeFromCartAction, products } = useAppStore(state => ({
       addToCart: state.addToCart,
@@ -64,114 +63,6 @@ export default function ScanPOSPage() {
   }));
   const cartItems = useAppStore(selectCartDetails);
   const cartSubtotal = useAppStore(selectCartSubtotal);
-
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [isScannerActive, setIsScannerActive] = useState<boolean>(true);
-  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
-
-  const [zoom, setZoom] = useState(1);
-  const [cameraCapabilities, setCameraCapabilities] = useState<any>(null);
-
-  const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText, decodedResult) => {
-    const state = useAppStore.getState();
-    const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
-
-    if (isAlreadyInCart) {
-      toast({ title: "Item Already in Cart", description: `Product ${decodedText.trim()} is already in the current sale.`, variant: "default" });
-      return;
-    }
-    
-    const product = state.products.find(p => p.sku === decodedText.trim());
-
-    if (product) {
-      state.addToCart(product.sku);
-      toast({ title: "Item Added", description: `${product.name} added to cart.` });
-    } else {
-      toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
-    }
-  }, [toast]);
-
-
-  const onScanFailure: QrcodeErrorCallback = (error) => {
-     // console.warn(`[GemsTrack] QR Scan Error or Not Found: ${error}`);
-  };
-
-  const getCameraCapabilities = useCallback(async (cameraDevice: any) => {
-      try {
-        if (html5QrCodeRef.current && cameraDevice.id) {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: cameraDevice.id } } });
-          const track = stream.getVideoTracks()[0];
-          const capabilities = track.getCapabilities();
-          // @ts-ignore - 'zoom' might not be in standard MediaTrackCapabilities
-          if (capabilities.zoom) {
-            setCameraCapabilities(capabilities);
-          }
-          track.stop(); // Stop the temporary stream
-        }
-      } catch (err) {
-        console.warn('Could not get camera capabilities:', err);
-        setCameraCapabilities(null);
-      }
-    }, []);
-
-
-  useEffect(() => {
-    if (!appReady || typeof window === 'undefined') return;
-
-    // Initialize the scanner instance once.
-    if (!html5QrCodeRef.current) {
-        const containerElement = document.getElementById(qrReaderElementId);
-        if (containerElement) {
-            html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, false);
-        }
-    }
-    const qrCode = html5QrCodeRef.current;
-
-    if (isScannerActive && qrCode && !qrCode.isScanning) {
-        qrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            onScanSuccess,
-            onScanFailure
-        )
-        .then(async () => {
-            setHasCameraPermission(true);
-            const cameras = await Html5Qrcode.getCameras();
-            if (cameras && cameras.length) {
-                const backCamera = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
-                await getCameraCapabilities(backCamera);
-            }
-        })
-        .catch((err) => {
-            setHasCameraPermission(false);
-            console.error("Failed to start QR scanner:", err);
-        });
-    } else if (!isScannerActive && qrCode && qrCode.isScanning) {
-        qrCode.stop().catch(err => console.error("Error stopping scanner:", err));
-    }
-
-    // Cleanup on component unmount
-    return () => {
-        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-            html5QrCodeRef.current.stop().catch(err => console.error("Error stopping scanner on cleanup:", err));
-        }
-    };
-  }, [appReady, isScannerActive, onScanSuccess, getCameraCapabilities]);
-
-
- useEffect(() => {
-    if (!html5QrCodeRef.current?.isScanning || !cameraCapabilities) return;
-    
-    const videoElement = document.querySelector(`#${qrReaderElementId} video`) as HTMLVideoElement;
-    if (!videoElement?.srcObject) return;
-
-    const track = (videoElement.srcObject as MediaStream).getVideoTracks()[0];
-    // @ts-ignore
-    if (track && 'zoom' in track.getCapabilities()) {
-        track.applyConstraints({ advanced: [{ zoom: zoom }] });
-    }
-  }, [zoom, cameraCapabilities]);
-
 
   const handleManualSkuAdd = () => {
     if (!skuInput.trim()) {
@@ -187,10 +78,6 @@ export default function ScanPOSPage() {
     } else {
       toast({ title: "Product Not Found", description: `No product found with SKU: ${skuInput.trim()}`, variant: "destructive" });
     }
-  };
-
-  const toggleScanner = () => {
-    setIsScannerActive(prev => !prev);
   };
 
   if (!appReady) {
@@ -256,50 +143,11 @@ export default function ScanPOSPage() {
               <CardDescription>Scan product QR codes to add to the sale. Or, enter SKU manually.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {isScannerActive && (
-                <div id={qrReaderElementId} className="w-full border rounded-md bg-muted overflow-hidden mx-auto max-w-lg [&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover">
-                  {/* The html5-qrcode library will render its UI here. */}
-                </div>
-              )}
               
-              {isScannerActive && hasCameraPermission === null && (
-                <div className="text-center py-2 text-muted-foreground">
-                  <ScanLine className="w-10 h-10 mb-1 mx-auto animate-pulse" />
-                  <p className="text-sm">Initializing QR Scanner...</p>
-                  <p className="text-xs">Waiting for camera permission.</p>
-                </div>
-              )}
+              <QrScanner isActive={isScannerActive && appReady} />
               
-              {isScannerActive && hasCameraPermission === false && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertTitle>Camera Access Denied or Scanner Error</AlertTitle>
-                  <AlertDescription>
-                    Could not access the camera or start the QR scanner. Please ensure camera permissions are enabled. You can use manual SKU entry or try toggling the scanner.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {isScannerActive && cameraCapabilities && (
-                <div className="p-4 border rounded-md">
-                  <Label htmlFor="zoom-slider">Zoom</Label>
-                  <div className="flex items-center gap-2">
-                    <ZoomOut className="h-5 w-5" />
-                    <Slider
-                      id="zoom-slider"
-                      min={cameraCapabilities.zoom.min}
-                      max={cameraCapabilities.zoom.max}
-                      step={cameraCapabilities.zoom.step}
-                      value={[zoom]}
-                      onValueChange={(value) => setZoom(value[0])}
-                    />
-                    <ZoomIn className="h-5 w-5" />
-                  </div>
-                </div>
-              )}
-
-
               <div className="text-center">
-                <Button size="lg" onClick={toggleScanner} variant={isScannerActive ? "outline" : "default"} className="w-full md:w-auto">
+                <Button size="lg" onClick={() => setIsScannerActive(prev => !prev)} variant={isScannerActive ? "outline" : "default"} className="w-full md:w-auto">
                   {isScannerActive ? <VideoOff className="mr-2 h-5 w-5" /> : <ScanLine className="mr-2 h-5 w-5" />}
                   {isScannerActive ? "Stop Scanner" : "Start Scanner"}
                 </Button>
