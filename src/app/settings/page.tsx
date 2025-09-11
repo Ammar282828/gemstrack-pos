@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,6 +23,19 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
+const DEVICE_ID_KEY = 'gemstrack-device-id';
+
+function getDeviceId() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+  if (!deviceId) {
+    deviceId = `device-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    localStorage.setItem(DEVICE_ID_KEY, deviceId);
+  }
+  return deviceId;
+}
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
@@ -133,6 +146,11 @@ export default function SettingsPage() {
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoPreviewBlack, setLogoPreviewBlack] = useState<string | null>(null);
+  const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrentDeviceId(getDeviceId());
+  }, []);
 
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
@@ -232,6 +250,16 @@ export default function SettingsPage() {
         toast({ title: "Settings Updated", description: "Your shop settings have been saved." });
     } catch (error) {
         toast({ title: "Error", description: "Failed to update settings.", variant: "destructive" });
+    }
+  };
+
+  const handleCopyToClipboard = () => {
+    if (currentDeviceId) {
+      navigator.clipboard.writeText(currentDeviceId);
+      toast({
+        title: "Copied to Clipboard",
+        description: "Your current device ID has been copied.",
+      });
     }
   };
 
@@ -492,8 +520,21 @@ export default function SettingsPage() {
                   <FormLabel className="text-base flex items-center"><TabletSmartphone className="h-5 w-5 mr-2 text-muted-foreground" /> Authorized Device IDs</FormLabel>
                   <FormDescription className="mb-4">
                     Only devices with an ID on this whitelist will be able to access the app.
-                    Add a new device by visiting the app from it and copying the ID it displays.
                   </FormDescription>
+                  
+                  {currentDeviceId && (
+                    <div className="p-4 rounded-md bg-muted border mb-4">
+                        <Label>Your Current Device ID</Label>
+                        <div className="flex items-center space-x-2 mt-1">
+                            <Input value={currentDeviceId} readOnly className="font-mono bg-background" />
+                            <Button type="button" variant="outline" size="icon" onClick={handleCopyToClipboard}>
+                                <Copy className="h-4 w-4" />
+                                <span className="sr-only">Copy Device ID</span>
+                            </Button>
+                        </div>
+                    </div>
+                  )}
+
                   <div className="space-y-3">
                     {fields.map((field, index) => (
                       <FormField
