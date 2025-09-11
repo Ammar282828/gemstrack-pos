@@ -60,35 +60,35 @@ async function deleteCollection(collectionName: string) {
 }
 
 
-function _parseKaratInternal(karat: KaratValue | string | undefined): number {
-  const karatToUse = karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL;
-  const karatString = String(karatToUse).trim();
-
-  if (!karatString) {
-    return parseInt(DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL.replace('k', ''), 10);
-  }
-  const numericPart = parseInt(karatString.replace('k', ''), 10);
-  if (isNaN(numericPart) || numericPart <= 0) {
-    console.warn(`[GemsTrack] _parseKaratInternal: Invalid Karat value encountered: '${karatToUse}'. Defaulting to ${DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL}.`);
-    return parseInt(DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL.replace('k', ''), 10);
-  }
-  return numericPart;
+function _getRateForKarat(karat: KaratValue | string | undefined, rates: { goldRatePerGram24k: number; goldRatePerGram22k: number; goldRatePerGram21k: number; goldRatePerGram18k: number }): number {
+    const k = String(karat || DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL) as KaratValue;
+    switch(k) {
+        case '24k': return rates.goldRatePerGram24k;
+        case '22k': return rates.goldRatePerGram22k;
+        case '21k': return rates.goldRatePerGram21k;
+        case '18k': return rates.goldRatePerGram18k;
+        default: return 0;
+    }
 }
+
 
 function _calculateSingleMetalCost(
     metalType: MetalType,
     karat: KaratValue | string | undefined,
     weightG: number,
-    rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number; silverRatePerGram: number; }
+    rates: { 
+        goldRatePerGram24k: number; goldRatePerGram22k: number; goldRatePerGram21k: number; goldRatePerGram18k: number;
+        palladiumRatePerGram: number; platinumRatePerGram: number; silverRatePerGram: number; 
+    }
 ): number {
     let cost = 0;
-    const { goldRatePerGram24k, palladiumRatePerGram, platinumRatePerGram, silverRatePerGram } = rates;
+    const { palladiumRatePerGram, platinumRatePerGram, silverRatePerGram } = rates;
     const validWeightG = Math.max(0, Number(weightG) || 0);
 
     if (metalType === 'gold') {
-        const karatNumeric = _parseKaratInternal(karat);
-        if (karatNumeric > 0 && goldRatePerGram24k > 0) {
-            cost = validWeightG * (karatNumeric / 24) * goldRatePerGram24k;
+        const rate = _getRateForKarat(karat, rates);
+        if (rate > 0) {
+            cost = validWeightG * rate;
         }
     } else if (metalType === 'palladium' && palladiumRatePerGram > 0) {
         cost = validWeightG * palladiumRatePerGram;
@@ -121,7 +121,10 @@ function _calculateProductCostsInternal(
     isCustomPrice?: boolean;
     customPrice?: number;
   },
-  rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number; silverRatePerGram: number; }
+  rates: { 
+      goldRatePerGram24k: number; goldRatePerGram22k: number; goldRatePerGram21k: number; goldRatePerGram18k: number;
+      palladiumRatePerGram: number; platinumRatePerGram: number; silverRatePerGram: number; 
+  }
 ) {
   // If manual price override is active, just return that price.
   if (product.isCustomPrice) {
@@ -206,8 +209,14 @@ export interface FirebaseConfigStub {
   projectId?: string;
 }
 
-export interface Settings {
-  goldRatePerGram: number; // This is now stored as 24k rate
+export type GoldRates = {
+    goldRatePerGram24k: number;
+    goldRatePerGram22k: number;
+    goldRatePerGram21k: number;
+    goldRatePerGram18k: number;
+};
+
+export interface Settings extends GoldRates {
   palladiumRatePerGram: number;
   platinumRatePerGram: number;
   silverRatePerGram: number;
@@ -300,9 +309,7 @@ export interface Invoice {
   amountPaid: number;
   balanceDue: number;
   createdAt: string; // ISO string
-  goldRateApplied?: number | null; // This is the 24k rate that was used for calculation
-  palladiumRateApplied?: number | null;
-  platinumRateApplied?: number | null;
+  ratesApplied: Partial<Settings>;
 }
 
 export interface Karigar {
@@ -343,7 +350,7 @@ export interface Order {
   createdAt: string; // ISO string
   status: OrderStatus;
   items: OrderItem[];
-  goldRate: number; // This is stored as the 24k rate
+  ratesApplied: Partial<Settings>; // Store all rates at time of order
   subtotal: number;
   advancePayment: number;
   advanceGoldDetails?: string;
@@ -439,7 +446,8 @@ const CATEGORY_SKU_PREFIXES: Record<string, string> = {
 
 // --- Initial Data Definitions (For reference or one-time seeding, not for store initial state) ---
 const initialSettingsData: Settings = {
-  goldRatePerGram: 20000, palladiumRatePerGram: 22000, platinumRatePerGram: 25000, silverRatePerGram: 250,
+  goldRatePerGram24k: 240000, goldRatePerGram22k: 220000, goldRatePerGram21k: 210000, goldRatePerGram18k: 180000,
+  palladiumRatePerGram: 22000, platinumRatePerGram: 25000, silverRatePerGram: 250,
   shopName: "Taheri", shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "https://placehold.co/200x80.png", lastInvoiceNumber: 0,
@@ -567,7 +575,7 @@ export interface AppState {
   loadGeneratedInvoices: () => void;
   generateInvoice: (
     customerInfo: { id?: string; name: string; phone?: string },
-    invoiceGoldRate24k: number,
+    invoiceRates: Partial<Settings>,
     discountAmount: number
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number) => Promise<Invoice | null>;
@@ -1028,8 +1036,8 @@ export const useAppStore = create<AppState>()(
           }
         );
       },
-      generateInvoice: async (customerInfo, invoiceGoldRate24k, discountAmount) => {
-        const { cart, settings } = get();
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount) => {
+        const { cart } = get();
         if (cart.length === 0) return null;
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
     
@@ -1055,17 +1063,14 @@ export const useAppStore = create<AppState>()(
                     }
                 }
     
-                let validInvoiceGoldRate24k = Number(invoiceGoldRate24k) || 0;
-                const hasGoldItems = cart.some(ci => ci.metalType === 'gold');
-                if (hasGoldItems && validInvoiceGoldRate24k <= 0) {
-                    throw new Error("Gold items in cart but provided gold rate is invalid.");
-                }
-    
                 const ratesForInvoice = {
-                    goldRatePerGram24k: validInvoiceGoldRate24k,
-                    palladiumRatePerGram: Number(settings.palladiumRatePerGram) || 0,
-                    platinumRatePerGram: Number(settings.platinumRatePerGram) || 0,
-                    silverRatePerGram: Number(settings.silverRatePerGram) || 0,
+                    goldRatePerGram24k: invoiceRates.goldRatePerGram24k ?? 0,
+                    goldRatePerGram22k: invoiceRates.goldRatePerGram22k ?? 0,
+                    goldRatePerGram21k: invoiceRates.goldRatePerGram21k ?? 0,
+                    goldRatePerGram18k: invoiceRates.goldRatePerGram18k ?? 0,
+                    palladiumRatePerGram: invoiceRates.palladiumRatePerGram ?? 0,
+                    platinumRatePerGram: invoiceRates.platinumRatePerGram ?? 0,
+                    silverRatePerGram: invoiceRates.silverRatePerGram ?? 0,
                 };
     
                 let subtotal = 0;
@@ -1077,8 +1082,6 @@ export const useAppStore = create<AppState>()(
                     const productDoc = await transaction.get(productDocRef);
     
                     if (!productDoc.exists()) {
-                        // It might be a custom item not in inventory (from a previous edit).
-                        // In that case, we still process it but don't move/delete it from products collection.
                         console.log(`Product with SKU ${cartItem.sku} does not exist in inventory. Treating as custom item for this invoice.`);
                     } else {
                        productsToMove.push(cartItem);
@@ -1108,15 +1111,17 @@ export const useAppStore = create<AppState>()(
     
                 const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
                 const grandTotal = subtotal - calculatedDiscountAmount;
-                const nextInvoiceNumber = (settings.lastInvoiceNumber || 0) + 1;
+                const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
+                const settingsDoc = await transaction.get(settingsDocRef);
+                const currentSettings = settingsDoc.data() as Settings;
+
+                const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
                 const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
     
                 const newInvoiceData: Omit<Invoice, 'id'> = {
                     items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
                     amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
-                    goldRateApplied: ratesForInvoice.goldRatePerGram24k, 
-                    palladiumRateApplied: ratesForInvoice.palladiumRatePerGram,
-                    platinumRateApplied: ratesForInvoice.platinumRatePerGram,
+                    ratesApplied: ratesForInvoice, 
                     customerId: finalCustomerId, customerName: customerName || 'Walk-in Customer'
                 };
     
@@ -1128,7 +1133,7 @@ export const useAppStore = create<AppState>()(
                     transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, product.sku));
                 }
     
-                transaction.update(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID), { lastInvoiceNumber: nextInvoiceNumber });
+                transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
     
                 const hisaabEntry: Omit<HisaabEntry, 'id'> = {
                     entityId: finalCustomerId || 'walk-in', entityType: 'customer',
@@ -1278,6 +1283,16 @@ export const useAppStore = create<AppState>()(
         };
         const summaryResult = await summarizeOrderItems(summaryInput);
         
+        const ratesApplied = {
+            goldRatePerGram18k: settings.goldRatePerGram18k,
+            goldRatePerGram21k: settings.goldRatePerGram21k,
+            goldRatePerGram22k: settings.goldRatePerGram22k,
+            goldRatePerGram24k: settings.goldRatePerGram24k,
+            palladiumRatePerGram: settings.palladiumRatePerGram,
+            platinumRatePerGram: settings.platinumRatePerGram,
+            silverRatePerGram: settings.silverRatePerGram
+        };
+
         const newOrder: Omit<Order, 'id'> = {
           ...orderData,
           customerId: finalCustomerId,
@@ -1287,6 +1302,7 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
           status: 'Pending',
           summary: summaryResult.summary,
+          ratesApplied: ratesApplied,
         };
         
         const finalOrder: Order = { ...newOrder, id: newOrderId };
@@ -1350,11 +1366,14 @@ export const useAppStore = create<AppState>()(
       generateInvoiceFromOrder: async (order, finalizedItems, additionalDiscount) => {
         const { settings } = get();
         let finalSubtotal = 0;
-        const ratesForInvoice = {
-            goldRatePerGram24k: order.goldRate,
+        const ratesForInvoice = order.ratesApplied || {
+            goldRatePerGram24k: settings.goldRatePerGram24k,
+            goldRatePerGram22k: settings.goldRatePerGram22k,
+            goldRatePerGram21k: settings.goldRatePerGram21k,
+            goldRatePerGram18k: settings.goldRatePerGram18k,
             palladiumRatePerGram: settings.palladiumRatePerGram,
             platinumRatePerGram: settings.platinumRatePerGram,
-            silverRatePerGram: settings.silverRatePerGram,
+            silverRatePerGram: settings.silverRatePerGram
         };
     
         const finalInvoiceItems = order.items.map((originalItem, index) => {
@@ -1379,7 +1398,7 @@ export const useAppStore = create<AppState>()(
                 miscCharges: 0,
             };
     
-            const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice);
+            const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice as any);
             finalSubtotal += costs.totalPrice;
     
             return {
@@ -1419,9 +1438,7 @@ export const useAppStore = create<AppState>()(
             amountPaid: 0,
             balanceDue: grandTotal,
             createdAt: new Date().toISOString(),
-            goldRateApplied: order.items.some(i => i.metalType === 'gold') ? order.goldRate : null,
-            palladiumRateApplied: order.items.some(i => i.metalType === 'palladium') ? settings.palladiumRatePerGram : null,
-            platinumRateApplied: order.items.some(i => i.metalType === 'platinum') ? settings.platinumRatePerGram : null,
+            ratesApplied: ratesForInvoice,
             customerId: order.customerId,
             customerName: order.customerName,
         };
@@ -1645,9 +1662,18 @@ export const calculateProductCosts = (
     categoryId?: string;
     name?: string;
   },
-  rates: { goldRatePerGram24k: number; palladiumRatePerGram: number; platinumRatePerGram: number; silverRatePerGram: number; }
+  rates: Partial<Settings>
 ) => {
-  return _calculateProductCostsInternal(product, rates);
+    const fullRates = {
+        goldRatePerGram18k: rates.goldRatePerGram18k || 0,
+        goldRatePerGram21k: rates.goldRatePerGram21k || 0,
+        goldRatePerGram22k: rates.goldRatePerGram22k || 0,
+        goldRatePerGram24k: rates.goldRatePerGram24k || 0,
+        palladiumRatePerGram: rates.palladiumRatePerGram || 0,
+        platinumRatePerGram: rates.platinumRatePerGram || 0,
+        silverRatePerGram: rates.silverRatePerGram || 0,
+    };
+  return _calculateProductCostsInternal(product, fullRates);
 };
 
 // --- SELECTOR DEFINITIONS ---
@@ -1660,13 +1686,7 @@ export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
   }
 
   return state.cart.map((cartItem) => {
-      const ratesForCalc = {
-        goldRatePerGram24k: state.settings.goldRatePerGram,
-        palladiumRatePerGram: state.settings.palladiumRatePerGram,
-        platinumRatePerGram: state.settings.platinumRatePerGram,
-        silverRatePerGram: state.settings.silverRatePerGram,
-      };
-      const costs = calculateProductCosts(cartItem, ratesForCalc);
+      const costs = calculateProductCosts(cartItem, state.settings);
       return {
         ...cartItem,
         quantity: 1, // Always 1
@@ -1693,16 +1713,8 @@ export const selectCategoryTitleById = (categoryId: string, state: AppState): st
 export const selectProductWithCosts = (sku: string, state: AppState): (Product & ReturnType<typeof calculateProductCosts>) | undefined => {
     const product = state.products.find(p => p.sku === sku);
     if (!product) return undefined;
-    const rates = {
-        goldRatePerGram24k: state.settings.goldRatePerGram,
-        palladiumRatePerGram: state.settings.palladiumRatePerGram,
-        platinumRatePerGram: state.settings.platinumRatePerGram,
-        silverRatePerGram: state.settings.silverRatePerGram,
-    };
-    const costs = calculateProductCosts(product, rates);
+    const costs = calculateProductCosts(product, state.settings);
     return { ...product, ...costs };
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
-
-    

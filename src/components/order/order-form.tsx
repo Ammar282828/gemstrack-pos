@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -64,12 +65,28 @@ const orderItemSchema = z.object({
 // Schema for the main form which contains multiple items
 const orderFormSchema = z.object({
     items: z.array(orderItemSchema).min(1, "You must add at least one item to the estimate."),
-    goldRate: z.coerce.number().min(1, "Gold rate must be positive"),
+    goldRate18k: z.coerce.number().min(0),
+    goldRate21k: z.coerce.number().min(0),
+    goldRate22k: z.coerce.number().min(0),
+    goldRate24k: z.coerce.number().min(0),
     advancePayment: z.coerce.number().min(0).default(0),
     advanceGoldDetails: z.string().optional(),
     customerId: z.string().optional(),
     customerName: z.string().optional(),
     customerContact: z.string().optional(),
+}).refine(data => {
+    const has18k = data.items.some(item => item.karat === '18k');
+    const has21k = data.items.some(item => item.karat === '21k');
+    const has22k = data.items.some(item => item.karat === '22k');
+    const has24k = data.items.some(item => item.karat === '24k');
+    if (has18k && data.goldRate18k <= 0) return false;
+    if (has21k && data.goldRate21k <= 0) return false;
+    if (has22k && data.goldRate22k <= 0) return false;
+    if (has24k && data.goldRate24k <= 0) return false;
+    return true;
+}, {
+    message: "A positive gold rate is required for each gold karat present in the order.",
+    path: ["goldRate21k"], // Arbitrarily attach to one field
 });
 
 
@@ -289,7 +306,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     resolver: zodResolver(orderFormSchema),
     defaultValues: {
       items: [],
-      goldRate: settings.goldRatePerGram ? settings.goldRatePerGram * (21/24) : 0,
+      goldRate18k: 0, goldRate21k: 0, goldRate22k: 0, goldRate24k: 0,
       advancePayment: 0,
       advanceGoldDetails: '',
       customerId: WALK_IN_CUSTOMER_VALUE,
@@ -304,6 +321,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
   });
 
   useEffect(() => {
+    const rates = order?.ratesApplied || settings;
     if (order) {
       form.reset({
         items: order.items.map(item => ({
@@ -313,18 +331,23 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             stoneDetails: item.stoneDetails || '',
             diamondDetails: item.diamondDetails || '',
         })),
-        goldRate: order.goldRate > 0 ? order.goldRate * (21 / 24) : 0,
+        goldRate18k: rates.goldRatePerGram18k || 0,
+        goldRate21k: rates.goldRatePerGram21k || 0,
+        goldRate22k: rates.goldRatePerGram22k || 0,
+        goldRate24k: rates.goldRatePerGram24k || 0,
         advancePayment: order.advancePayment || 0,
         advanceGoldDetails: order.advanceGoldDetails || '',
         customerId: order.customerId || WALK_IN_CUSTOMER_VALUE,
         customerName: order.customerName || '',
         customerContact: order.customerContact || '',
       });
-    } else if (!isEditMode && settings.goldRatePerGram > 0) {
-      const goldRate21k = settings.goldRatePerGram * (21 / 24);
+    } else if (!isEditMode && settings.goldRatePerGram21k > 0) {
       form.reset({
         ...form.getValues(),
-        goldRate: parseFloat(goldRate21k.toFixed(2)),
+        goldRate18k: settings.goldRatePerGram18k,
+        goldRate21k: settings.goldRatePerGram21k,
+        goldRate22k: settings.goldRatePerGram22k,
+        goldRate24k: settings.goldRatePerGram24k,
       });
     }
   }, [order, settings, form, isEditMode]);
@@ -345,10 +368,11 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
 
   const liveEstimate = useMemo(() => {
     let subtotal = 0;
-    const goldRate21k = formValues.goldRate || 0;
-    const goldRate24k = goldRate21k > 0 ? goldRate21k * (24 / 21) : 0;
     const ratesForCalc = { 
-        goldRatePerGram24k: goldRate24k, 
+        goldRatePerGram18k: formValues.goldRate18k || 0,
+        goldRatePerGram21k: formValues.goldRate21k || 0,
+        goldRatePerGram22k: formValues.goldRate22k || 0,
+        goldRatePerGram24k: formValues.goldRate24k || 0,
         palladiumRatePerGram: settings.palladiumRatePerGram,
         platinumRatePerGram: settings.platinumRatePerGram,
         silverRatePerGram: settings.silverRatePerGram,
@@ -357,7 +381,6 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     (formValues.items || []).forEach(item => {
         const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, metalType, stoneWeightG, hasStones } = item;
         if (!estimatedWeightG || estimatedWeightG <= 0) return;
-        if (metalType === 'gold' && (!goldRate24k || goldRate24k <= 0)) return;
 
         const productForCalc = {
           categoryId: '', // Custom orders don't have a category, but the function needs it.
@@ -380,12 +403,14 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
 
   const onSubmit = async (data: OrderFormData) => {
     const { subtotal, grandTotal } = liveEstimate;
-    const goldRate24k = (data.goldRate || 0) * (24 / 21);
-    const ratesForCalc = {
-        goldRatePerGram24k: goldRate24k,
+    const ratesForOrder: Partial<Settings> = {
+        goldRatePerGram18k: data.goldRate18k || 0,
+        goldRatePerGram21k: data.goldRate21k || 0,
+        goldRatePerGram22k: data.goldRate22k || 0,
+        goldRatePerGram24k: data.goldRate24k || 0,
         palladiumRatePerGram: settings.palladiumRatePerGram,
         platinumRatePerGram: settings.platinumRatePerGram,
-        silverRatePerGram: settings.silverRatePerGram
+        silverRatePerGram: settings.silverRatePerGram,
     };
 
     const enrichedItems: OrderItem[] = data.items.map((item) => {
@@ -397,7 +422,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
           diamondCharges, stoneCharges, miscCharges: 0, 
           hasStones, stoneWeightG
         };
-        const costs = calculateProductCosts(productForCalc, ratesForCalc);
+        const costs = calculateProductCosts(productForCalc, ratesForOrder);
         return { ...item, isCompleted: isCompleted, metalType: item.metalType, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
     });
 
@@ -418,7 +443,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             customerId: finalCustomerId,
             customerName: finalCustomerName || 'Walk-in Customer', // Ensure name is not undefined
             items: enrichedItems,
-            goldRate: goldRate24k,
+            ratesApplied: ratesForOrder,
             subtotal,
             grandTotal,
         };
@@ -437,7 +462,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
 
         const orderToSave: Omit<Order, 'id' | 'createdAt' | 'status'> = {
             items: enrichedItems,
-            goldRate: goldRate24k,
+            ratesApplied: ratesForOrder,
             advancePayment: data.advancePayment,
             advanceGoldDetails: data.advanceGoldDetails,
             subtotal,
@@ -685,13 +710,17 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                          )}/>
                      )}
 
-                    <FormField control={form.control} name="goldRate" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rate (PKR/gram, 21k)</FormLabel>
-                            <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                            <FormDescription>This rate applies to all items in this estimate.</FormDescription><FormMessage />
-                        </FormItem>
-                    )}/>
+                    <div className="space-y-2">
+                        <Label className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rates (PKR/gram)</Label>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 border rounded-md">
+                            <FormField control={form.control} name="goldRate24k" render={({ field }) => (<FormItem><FormLabel className="text-xs">24k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="goldRate22k" render={({ field }) => (<FormItem><FormLabel className="text-xs">22k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="goldRate21k" render={({ field }) => (<FormItem><FormLabel className="text-xs">21k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="goldRate18k" render={({ field }) => (<FormItem><FormLabel className="text-xs">18k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                        </div>
+                        <FormDescription>This rate applies to all items in this estimate.</FormDescription>
+                    </div>
+
                     <FormField control={form.control} name="advancePayment" render={({ field }) => (
                        <FormItem>
                             <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Advance Payment (PKR)</FormLabel>

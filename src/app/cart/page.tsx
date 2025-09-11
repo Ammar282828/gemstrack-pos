@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType } from '@/lib/store';
+import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,11 +38,15 @@ declare module 'jspdf' {
 }
 
 type RateInputs = {
-    gold: string;
+    gold18k: string;
+    gold21k: string;
+    gold22k: string;
+    gold24k: string;
     palladium: string;
     platinum: string;
     silver: string;
 };
+
 
 const WALK_IN_CUSTOMER_VALUE = "__WALK_IN__";
 
@@ -76,7 +80,7 @@ export default function CartPage() {
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
   
   const [rateInputs, setRateInputs] = useState<RateInputs>({
-    gold: '', palladium: '', platinum: '', silver: ''
+    gold18k: '', gold21k: '', gold22k: '', gold24k: '', palladium: '', platinum: '', silver: ''
   });
   
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
@@ -106,18 +110,29 @@ export default function CartPage() {
   useEffect(() => {
     if (appReady && settings && !isEditingEstimate) {
       setRateInputs({
-        gold: (settings.goldRatePerGram * (21/24)).toFixed(2),
+        gold18k: (settings.goldRatePerGram18k || 0).toFixed(2),
+        gold21k: (settings.goldRatePerGram21k || 0).toFixed(2),
+        gold22k: (settings.goldRatePerGram22k || 0).toFixed(2),
+        gold24k: (settings.goldRatePerGram24k || 0).toFixed(2),
         palladium: (settings.palladiumRatePerGram || 0).toFixed(2),
         platinum: (settings.platinumRatePerGram || 0).toFixed(2),
         silver: (settings.silverRatePerGram || 0).toFixed(2),
       });
     } else if (appReady) {
-      setRateInputs({ gold: "0", palladium: "0", platinum: "0", silver: "0" });
+      setRateInputs({ gold18k: '0', gold21k: '0', gold22k: '0', gold24k: '0', palladium: '0', platinum: '0', silver: '0' });
     }
   }, [appReady, settings, isEditingEstimate]);
   
-  const cartMetalTypes = useMemo(() => {
-    return new Set(cartItemsFromStore.map(item => item.metalType));
+  const cartMetalInfo = useMemo(() => {
+    const metals = new Set<MetalType>();
+    const karats = new Set<KaratValue>();
+    cartItemsFromStore.forEach(item => {
+        metals.add(item.metalType);
+        if (item.metalType === 'gold' && item.karat) {
+            karats.add(item.karat);
+        }
+    });
+    return { metals, karats };
   }, [cartItemsFromStore]);
 
   const handleRateChange = (metal: keyof RateInputs, value: string) => {
@@ -128,15 +143,22 @@ export default function CartPage() {
   const estimatedInvoice = useMemo((): EstimatedInvoice | null => {
     if (!appReady || !settings || cartItemsFromStore.length === 0) return null;
     
-    const parsedGoldRate21k = parseFloat(rateInputs.gold);
-    if (cartMetalTypes.has('gold') && (isNaN(parsedGoldRate21k) || parsedGoldRate21k <= 0)) {
-        return null;
-    }
-    
-    const goldRate24k = parsedGoldRate21k * (24 / 21);
+    let hasInvalidRate = false;
+    cartMetalInfo.karats.forEach(k => {
+        const rateKey = `gold${k}` as keyof RateInputs;
+        const rate = parseFloat(rateInputs[rateKey]);
+        if (isNaN(rate) || rate <= 0) {
+            hasInvalidRate = true;
+        }
+    });
+
+    if (hasInvalidRate) return null;
 
     const ratesForCalc = {
-        goldRatePerGram24k: goldRate24k || 0,
+        goldRatePerGram18k: parseFloat(rateInputs.gold18k) || settings.goldRatePerGram18k,
+        goldRatePerGram21k: parseFloat(rateInputs.gold21k) || settings.goldRatePerGram21k,
+        goldRatePerGram22k: parseFloat(rateInputs.gold22k) || settings.goldRatePerGram22k,
+        goldRatePerGram24k: parseFloat(rateInputs.gold24k) || settings.goldRatePerGram24k,
         palladiumRatePerGram: parseFloat(rateInputs.palladium) || settings.palladiumRatePerGram || 0,
         platinumRatePerGram: parseFloat(rateInputs.platinum) || settings.platinumRatePerGram || 0,
         silverRatePerGram: parseFloat(rateInputs.silver) || settings.silverRatePerGram || 0,
@@ -180,7 +202,7 @@ export default function CartPage() {
         grandTotal: grandTotal,
         items: estimatedItems,
     };
-  }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, cartMetalTypes]);
+  }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, cartMetalInfo]);
 
 
   const handleGenerateInvoice = async () => {
@@ -200,14 +222,17 @@ export default function CartPage() {
         return;
     }
 
-    const parsedGoldRate21k = parseFloat(rateInputs.gold);
-    const goldRate24kForInvoice = parsedGoldRate21k * (24 / 21);
     const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
 
-    if (cartMetalTypes.has('gold') && (isNaN(parsedGoldRate21k) || parsedGoldRate21k <= 0)) {
-      toast({ title: "Invalid Gold Rate", description: "Please enter a valid positive 21k gold rate for gold items.", variant: "destructive" });
-      return;
-    }
+    let hasInvalidRate = false;
+    cartMetalInfo.karats.forEach(k => {
+        const rateKey = `gold${k}` as keyof RateInputs;
+        if (parseFloat(rateInputs[rateKey]) <= 0) {
+            hasInvalidRate = true;
+            toast({ title: `Invalid Gold Rate (${k.toUpperCase()})`, description: `Please enter a valid positive gold rate for ${k.toUpperCase()} items.`, variant: "destructive" });
+        }
+    });
+    if (hasInvalidRate) return;
 
     if (parsedDiscountAmount < 0) {
       toast({ title: "Invalid Discount", description: "Discount amount cannot be negative.", variant: "destructive" });
@@ -218,27 +243,30 @@ export default function CartPage() {
         toast({ title: "Invalid Discount", description: "Discount cannot be greater than the subtotal.", variant: "destructive" });
         return;
     }
+    
+    const ratesForInvoice: Partial<Settings> = {
+        goldRatePerGram18k: parseFloat(rateInputs.gold18k) || settings.goldRatePerGram18k,
+        goldRatePerGram21k: parseFloat(rateInputs.gold21k) || settings.goldRatePerGram21k,
+        goldRatePerGram22k: parseFloat(rateInputs.gold22k) || settings.goldRatePerGram22k,
+        goldRatePerGram24k: parseFloat(rateInputs.gold24k) || settings.goldRatePerGram24k,
+        palladiumRatePerGram: parseFloat(rateInputs.palladium) || settings.palladiumRatePerGram,
+        platinumRatePerGram: parseFloat(rateInputs.platinum) || settings.platinumRatePerGram,
+        silverRatePerGram: parseFloat(rateInputs.silver) || settings.silverRatePerGram,
+    };
 
     // Persist rate changes to settings
-    const updatedRateSettings: Partial<Settings> = {
-      goldRatePerGram: goldRate24kForInvoice,
-      palladiumRatePerGram: parseFloat(rateInputs.palladium) || settings.palladiumRatePerGram,
-      platinumRatePerGram: parseFloat(rateInputs.platinum) || settings.platinumRatePerGram,
-      silverRatePerGram: parseFloat(rateInputs.silver) || settings.silverRatePerGram,
-    };
-    await updateSettings(updatedRateSettings);
+    await updateSettings(ratesForInvoice);
     toast({ title: "Rates Updated", description: "Store metal rates have been updated with the values from this estimate."});
 
     const customerForInvoice = isWalkIn
         ? { name: walkInCustomerName, phone: walkInCustomerPhone }
         : { id: selectedCustomerId, name: customers.find(c => c.id === selectedCustomerId)?.name || '' };
     
-    const invoiceAction = isEditingEstimate && generatedInvoice ? deleteInvoice : generateInvoiceAction;
     if(isEditingEstimate && generatedInvoice) {
         await deleteInvoice(generatedInvoice.id, true); // Soft delete
     }
 
-    const invoice = await generateInvoiceAction(customerForInvoice, goldRate24kForInvoice, parsedDiscountAmount);
+    const invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount);
     
     if (invoice) {
       setGeneratedInvoice(invoice);
@@ -267,10 +295,13 @@ export default function CartPage() {
         setWalkInCustomerName(generatedInvoice.customerName || '');
     }
     setRateInputs({
-      gold: ((generatedInvoice.goldRateApplied || 0) * (21/24)).toFixed(2),
-      palladium: (generatedInvoice.palladiumRateApplied || settings.palladiumRatePerGram || 0).toFixed(2),
-      platinum: (generatedInvoice.platinumRateApplied || settings.platinumRatePerGram || 0).toFixed(2),
-      silver: (settings.silverRatePerGram || 0).toFixed(2),
+        gold18k: (generatedInvoice.ratesApplied.goldRatePerGram18k || settings.goldRatePerGram18k || 0).toFixed(2),
+        gold21k: (generatedInvoice.ratesApplied.goldRatePerGram21k || settings.goldRatePerGram21k || 0).toFixed(2),
+        gold22k: (generatedInvoice.ratesApplied.goldRatePerGram22k || settings.goldRatePerGram22k || 0).toFixed(2),
+        gold24k: (generatedInvoice.ratesApplied.goldRatePerGram24k || settings.goldRatePerGram24k || 0).toFixed(2),
+        palladium: (generatedInvoice.ratesApplied.palladiumRatePerGram || settings.palladiumRatePerGram || 0).toFixed(2),
+        platinum: (generatedInvoice.ratesApplied.platinumRatePerGram || settings.platinumRatePerGram || 0).toFixed(2),
+        silver: (generatedInvoice.ratesApplied.silverRatePerGram || settings.silverRatePerGram || 0).toFixed(2),
     });
     setDiscountAmountInput(String(generatedInvoice.discountAmount));
     setGeneratedInvoice(null);
@@ -372,12 +403,14 @@ export default function CartPage() {
     let invoiceDetails = `Estimate #: ${invoiceToPrint.id}\n`;
     invoiceDetails += `Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`;
     doc.text(invoiceDetails, pageWidth / 2, infoY, { lineHeightFactor: 1.5 });
+    
+    const rates = invoiceToPrint.ratesApplied;
+    let ratesApplied: string[] = [];
+    if (rates.goldRatePerGram24k) ratesApplied.push(`Gold (24k): PKR ${rates.goldRatePerGram24k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`);
+    if (rates.goldRatePerGram22k) ratesApplied.push(`Gold (22k): PKR ${rates.goldRatePerGram22k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`);
+    if (rates.goldRatePerGram21k) ratesApplied.push(`Gold (21k): PKR ${rates.goldRatePerGram21k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`);
+    if (rates.goldRatePerGram18k) ratesApplied.push(`Gold (18k): PKR ${rates.goldRatePerGram18k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`);
 
-    let ratesApplied = [];
-    if (invoiceToPrint.goldRateApplied) {
-        const goldRate21k = invoiceToPrint.goldRateApplied * (21 / 24);
-        ratesApplied.push(`Gold (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`);
-    }
     if (ratesApplied.length > 0) {
         doc.setFontSize(8);
         doc.setTextColor(150);
@@ -398,7 +431,7 @@ export default function CartPage() {
         if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
 
-        const metalDisplay = `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: item.metalWeightG.toFixed(2)}g`;
+        const metalDisplay = `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: ${(item.metalWeightG || 0).toFixed(2)}g`;
         
         const mainTitle = `${item.name}`;
         const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;
@@ -542,13 +575,16 @@ export default function CartPage() {
     setIsEditingEstimate(false);
     if (settings) {
         setRateInputs({
-            gold: (settings.goldRatePerGram * (21/24)).toFixed(2),
+            gold18k: (settings.goldRatePerGram18k || 0).toFixed(2),
+            gold21k: (settings.goldRatePerGram21k || 0).toFixed(2),
+            gold22k: (settings.goldRatePerGram22k || 0).toFixed(2),
+            gold24k: (settings.goldRatePerGram24k || 0).toFixed(2),
             palladium: (settings.palladiumRatePerGram || 0).toFixed(2),
             platinum: (settings.platinumRatePerGram || 0).toFixed(2),
             silver: (settings.silverRatePerGram || 0).toFixed(2),
         });
     } else {
-        setRateInputs({ gold: "0", palladium: "0", platinum: "0", silver: "0" });
+        setRateInputs({ gold18k: '0', gold21k: '0', gold22k: '0', gold24k: '0', palladium: '0', platinum: '0', silver: '0' });
     }
     setDiscountAmountInput('0');
   }
@@ -888,29 +924,29 @@ export default function CartPage() {
                         <SettingsIcon className="w-4 h-4 mr-1 text-muted-foreground" />
                         Metal Rates for this Estimate (PKR/gram)
                     </Label>
-                    <div className="space-y-3">
-                        {cartMetalTypes.has('gold') && (
-                        <div>
-                            <Label htmlFor="invoice-gold-rate" className="text-xs">Gold (21k)</Label>
-                            <Input id="invoice-gold-rate" type="number" value={rateInputs.gold} onChange={(e) => handleRateChange('gold', e.target.value)} placeholder="e.g., 175000" step="0.01"/>
-                        </div>
-                        )}
-                        {cartMetalTypes.has('palladium') && (
+                    <div className="grid grid-cols-2 gap-3">
+                        {Array.from(cartMetalInfo.karats).sort().map(karat => (
+                             <div key={karat}>
+                                <Label htmlFor={`invoice-gold-rate-${karat}`} className="text-xs">Gold ({karat.toUpperCase()})</Label>
+                                <Input id={`invoice-gold-rate-${karat}`} type="number" value={rateInputs[`gold${karat}`]} onChange={(e) => handleRateChange(`gold${karat}`, e.target.value)} step="0.01"/>
+                            </div>
+                        ))}
+                        {cartMetalInfo.metals.has('palladium') && (
                         <div>
                             <Label htmlFor="invoice-palladium-rate" className="text-xs">Palladium</Label>
-                            <Input id="invoice-palladium-rate" type="number" value={rateInputs.palladium} onChange={(e) => handleRateChange('palladium', e.target.value)} placeholder="e.g., 8000" step="0.01"/>
+                            <Input id="invoice-palladium-rate" type="number" value={rateInputs.palladium} onChange={(e) => handleRateChange('palladium', e.target.value)} step="0.01"/>
                         </div>
                         )}
-                        {cartMetalTypes.has('platinum') && (
+                        {cartMetalInfo.metals.has('platinum') && (
                         <div>
                             <Label htmlFor="invoice-platinum-rate" className="text-xs">Platinum</Label>
-                            <Input id="invoice-platinum-rate" type="number" value={rateInputs.platinum} onChange={(e) => handleRateChange('platinum', e.target.value)} placeholder="e.g., 12000" step="0.01"/>
+                            <Input id="invoice-platinum-rate" type="number" value={rateInputs.platinum} onChange={(e) => handleRateChange('platinum', e.target.value)} step="0.01"/>
                         </div>
                         )}
-                        {cartMetalTypes.has('silver') && (
+                        {cartMetalInfo.metals.has('silver') && (
                         <div>
                             <Label htmlFor="invoice-silver-rate" className="text-xs">Silver</Label>
-                            <Input id="invoice-silver-rate" type="number" value={rateInputs.silver} onChange={(e) => handleRateChange('silver', e.target.value)} placeholder="e.g., 250" step="0.01"/>
+                            <Input id="invoice-silver-rate" type="number" value={rateInputs.silver} onChange={(e) => handleRateChange('silver', e.target.value)} step="0.01"/>
                         </div>
                         )}
                     </div>

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -138,12 +139,14 @@ export default function ViewInvoicePage() {
     let invoiceDetails = `Estimate #: ${invoice.id}\n`;
     invoiceDetails += `Date: ${new Date(invoice.createdAt).toLocaleDateString()}`;
     pdfDoc.text(invoiceDetails, pageWidth / 2, infoY, { lineHeightFactor: 1.5 });
-
-    let ratesApplied = [];
-    if (invoice.goldRateApplied) {
-        const goldRate21k = invoice.goldRateApplied * (21 / 24);
-        ratesApplied.push(`Gold (21k): PKR ${goldRate21k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`);
-    }
+    
+    const rates = invoice.ratesApplied;
+    let ratesApplied: string[] = [];
+    if (rates.goldRatePerGram24k) ratesApplied.push(`Gold (24k): PKR ${rates.goldRatePerGram24k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`);
+    if (rates.goldRatePerGram22k) ratesApplied.push(`Gold (22k): PKR ${rates.goldRatePerGram22k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`);
+    if (rates.goldRatePerGram21k) ratesApplied.push(`Gold (21k): PKR ${rates.goldRatePerGram21k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`);
+    if (rates.goldRatePerGram18k) ratesApplied.push(`Gold (18k): PKR ${rates.goldRatePerGram18k.toLocaleString(undefined, { minimumFractionDigits: 0 })}/g`);
+    
     if (ratesApplied.length > 0) {
         pdfDoc.setFontSize(8);
         pdfDoc.setTextColor(150);
@@ -164,7 +167,7 @@ export default function ViewInvoicePage() {
         if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
 
-        const metalDisplay = `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: ${item.metalWeightG.toFixed(2)}g`;
+        const metalDisplay = `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: ${(item.metalWeightG || 0).toFixed(2)}g`;
         
         const mainTitle = `${item.name}`;
         const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;

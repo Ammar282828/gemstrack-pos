@@ -33,7 +33,10 @@ export async function GET() {
     const productsList = productsSnapshot.docs.map(doc => doc.data() as Product);
 
     const ratesForCalc = {
-        goldRatePerGram24k: settings.goldRatePerGram,
+        goldRatePerGram24k: settings.goldRatePerGram24k,
+        goldRatePerGram22k: settings.goldRatePerGram22k,
+        goldRatePerGram21k: settings.goldRatePerGram21k,
+        goldRatePerGram18k: settings.goldRatePerGram18k,
         palladiumRatePerGram: settings.palladiumRatePerGram,
         platinumRatePerGram: settings.platinumRatePerGram,
         silverRatePerGram: settings.silverRatePerGram,

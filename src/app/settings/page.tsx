@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState } from 'react';
@@ -35,7 +36,10 @@ import Link from 'next/link';
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
 const settingsSchema = z.object({
-  goldRatePerGram: z.coerce.number().min(0, "Gold rate must be a positive number"),
+  goldRatePerGram24k: z.coerce.number().min(0, "Rate must be a positive number"),
+  goldRatePerGram22k: z.coerce.number().min(0, "Rate must be a positive number"),
+  goldRatePerGram21k: z.coerce.number().min(0, "Rate must be a positive number"),
+  goldRatePerGram18k: z.coerce.number().min(0, "Rate must be a positive number"),
   palladiumRatePerGram: z.coerce.number().min(0, "Palladium rate must be a positive number"),
   platinumRatePerGram: z.coerce.number().min(0, "Platinum rate must be a positive number"),
   silverRatePerGram: z.coerce.number().min(0, "Silver rate must be a positive number"),
@@ -99,7 +103,7 @@ const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] =
     {
         customerName: "Ayesha Ahmed",
         customerContact: "0301-2233445",
-        goldRate: 21500 * (24/21), // Example rate at time of order
+        ratesApplied: {}, // Will be populated by store logic
         advancePayment: 50000,
         advanceGoldDetails: "5g old gold (21k) provided.",
         items: [
@@ -109,7 +113,7 @@ const DUMMY_ORDERS_TO_SEED: Omit<OrderDataForAdd, 'subtotal' | 'grandTotal'>[] =
     },
     {
         customerName: "Zainab Ansari",
-        goldRate: 21000 * (24/21),
+        ratesApplied: {},
         advancePayment: 20000,
         items: [
             { description: "Platinum band with custom engraving", karat: '18k', estimatedWeightG: 8, makingCharges: 20000, diamondCharges: 0, stoneCharges: 0, sampleGiven: false, hasDiamonds: false, isCompleted: true, stoneDetails: "Engraving: 'Z & R Forever'", wastagePercentage: 5, metalType: 'platinum', hasStones: false, stoneWeightG: 0 }
@@ -212,7 +216,10 @@ export default function SettingsPage() {
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
-      goldRatePerGram: 0,
+      goldRatePerGram18k: 0,
+      goldRatePerGram21k: 0,
+      goldRatePerGram22k: 0,
+      goldRatePerGram24k: 0,
       palladiumRatePerGram: 0,
       platinumRatePerGram: 0,
       silverRatePerGram: 0,
@@ -239,10 +246,11 @@ export default function SettingsPage() {
         ? currentSettings.allowedDeviceIds.map(id => ({ id })) 
         : [];
       
-      const goldRate21k = currentSettings.goldRatePerGram * (21 / 24);
-
       form.reset({
-        goldRatePerGram: parseFloat(goldRate21k.toFixed(2)),
+        goldRatePerGram18k: currentSettings.goldRatePerGram18k || 0,
+        goldRatePerGram21k: currentSettings.goldRatePerGram21k || 0,
+        goldRatePerGram22k: currentSettings.goldRatePerGram22k || 0,
+        goldRatePerGram24k: currentSettings.goldRatePerGram24k || 0,
         palladiumRatePerGram: currentSettings.palladiumRatePerGram,
         platinumRatePerGram: currentSettings.platinumRatePerGram,
         silverRatePerGram: currentSettings.silverRatePerGram || 0,
@@ -295,12 +303,8 @@ export default function SettingsPage() {
 
   const onSubmit = async (data: SettingsFormData) => {
     try {
-        const goldRate21k = data.goldRatePerGram;
-        const goldRate24k = goldRate21k * (24 / 21);
-
         const settingsToSave: Partial<Settings> = {
             ...data,
-            goldRatePerGram: goldRate24k,
             allowedDeviceIds: data.allowedDeviceIds?.map(item => item.id).filter(Boolean) || []
         };
         await updateSettingsAction(settingsToSave);
@@ -428,7 +432,8 @@ export default function SettingsPage() {
     for (const orderData of DUMMY_ORDERS_TO_SEED) {
       try {
         let subtotal = 0;
-        const ratesForCalc = { goldRatePerGram24k: orderData.goldRate, palladiumRatePerGram: 0, platinumRatePerGram: 0, silverRatePerGram: 0 };
+        const ratesForCalc = { ...get().settings };
+
         const enrichedItems: OrderItem[] = orderData.items.map((item) => {
           const itemAsProduct = {
             ...item,
@@ -556,24 +561,15 @@ export default function SettingsPage() {
                     </FormItem>
                   )}
               />
-              <FormField
-                control={form.control}
-                name="goldRatePerGram"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base flex items-center">
-                        <DollarSign className="h-5 w-5 mr-2 text-muted-foreground" /> Current Gold Rate (PKR per gram for 21k)
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" placeholder="e.g., 17500.00" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                        This rate is for 21 Karat gold. All product prices are calculated based on this rate.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="space-y-2">
+                <Label className="text-base flex items-center"><DollarSign className="h-5 w-5 mr-2 text-muted-foreground" /> Current Gold Rates (PKR per gram)</Label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border rounded-lg">
+                     <FormField control={form.control} name="goldRatePerGram24k" render={({ field }) => (<FormItem><FormLabel className="text-sm">24k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                     <FormField control={form.control} name="goldRatePerGram22k" render={({ field }) => (<FormItem><FormLabel className="text-sm">22k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                     <FormField control={form.control} name="goldRatePerGram21k" render={({ field }) => (<FormItem><FormLabel className="text-sm">21k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                     <FormField control={form.control} name="goldRatePerGram18k" render={({ field }) => (<FormItem><FormLabel className="text-sm">18k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                </div>
+              </div>
                <FormField
                 control={form.control}
                 name="palladiumRatePerGram"
