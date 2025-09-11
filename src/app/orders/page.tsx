@@ -196,9 +196,19 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
   
   const appReady = useAppReady();
-  const orders = useAppStore(state => state.orders);
-  const isOrdersLoading = useAppStore(state => state.isOrdersLoading);
+  const { orders, isOrdersLoading, loadOrders } = useAppStore(state => ({
+    orders: state.orders,
+    isOrdersLoading: state.isOrdersLoading,
+    loadOrders: state.loadOrders,
+  }));
   
+  useEffect(() => {
+    if (appReady) {
+      loadOrders();
+    }
+  }, [appReady, loadOrders]);
+
+
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
     return orders.filter(order =>
@@ -211,7 +221,7 @@ export default function OrdersPage() {
     ).sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime()); // Sort by most recent
   }, [orders, searchTerm, appReady, statusFilter]);
 
-  if (!appReady || isOrdersLoading) {
+  if (!appReady) {
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
@@ -276,7 +286,7 @@ export default function OrdersPage() {
         </CardContent>
       </Card>
 
-      {isOrdersLoading && appReady ? (
+      {isOrdersLoading ? (
          <div className="text-center py-12">
             <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
             <p className="text-muted-foreground">Refreshing order list...</p>

@@ -56,16 +56,30 @@ export default function CustomerDetailPage() {
   const customerId = params.id as string;
 
   const isHydrated = useIsStoreHydrated();
-  const customer = useAppStore(state => state.customers.find(c => c.id === customerId));
-  const allInvoices = useAppStore(state => state.generatedInvoices);
-  const allOrders = useAppStore(state => state.orders);
-  const deleteCustomerAction = useAppStore(state => state.deleteCustomer);
+  const { customer, allInvoices, allOrders, deleteCustomerAction, loadCustomers, loadGeneratedInvoices, loadOrders } = useAppStore(state => ({
+    customer: state.customers.find(c => c.id === customerId),
+    allInvoices: state.generatedInvoices,
+    allOrders: state.orders,
+    deleteCustomerAction: state.deleteCustomer,
+    loadCustomers: state.loadCustomers,
+    loadGeneratedInvoices: state.loadGeneratedInvoices,
+    loadOrders: state.loadOrders,
+  }));
 
   const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
   const [customerTrends, setCustomerTrends] = useState<AnalyzeCustomerTrendsOutput | null>(null);
   const [isLoadingTrends, setIsLoadingTrends] = useState(false);
   const [trendsError, setTrendsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isHydrated) {
+      loadCustomers();
+      loadGeneratedInvoices();
+      loadOrders();
+    }
+  }, [isHydrated, loadCustomers, loadGeneratedInvoices, loadOrders]);
+
 
   useEffect(() => {
     if (isHydrated && customerId) {

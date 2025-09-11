@@ -103,10 +103,20 @@ export default function KarigarsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   
   const appReady = useAppReady();
-  const karigars = useAppStore(state => state.karigars);
-  const deleteKarigarAction = useAppStore(state => state.deleteKarigar);
-  const isKarigarsLoading = useAppStore(state => state.isKarigarsLoading);
+  const { karigars, deleteKarigarAction, isKarigarsLoading, loadKarigars } = useAppStore(state => ({
+    karigars: state.karigars,
+    deleteKarigarAction: state.deleteKarigar,
+    isKarigarsLoading: state.isKarigarsLoading,
+    loadKarigars: state.loadKarigars,
+  }));
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (appReady) {
+      loadKarigars();
+    }
+  }, [appReady, loadKarigars]);
+
 
   const handleDeleteKarigar = async (id: string) => {
     await deleteKarigarAction(id);

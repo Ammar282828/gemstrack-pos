@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useAppStore, Customer, Karigar } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -125,9 +125,17 @@ export default function HisaabPage() {
   const appReady = useAppReady();
   const router = useRouter();
   const { toast } = useToast();
-  const { hisaabEntries, settings, customers, karigars, isHisaabLoading, isCustomersLoading, isKarigarsLoading } = useAppStore();
+  const { hisaabEntries, settings, customers, karigars, isHisaabLoading, isCustomersLoading, isKarigarsLoading, loadHisaab, loadCustomers, loadKarigars } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  
+  useEffect(() => {
+    if (appReady) {
+      loadHisaab();
+      loadCustomers();
+      loadKarigars();
+    }
+  }, [appReady, loadHisaab, loadCustomers, loadKarigars]);
   
   const isLoading = isHisaabLoading || isCustomersLoading || isKarigarsLoading;
 

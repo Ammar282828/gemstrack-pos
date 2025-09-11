@@ -106,10 +106,20 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   
   const appReady = useAppReady();
-  const customers = useAppStore(state => state.customers);
-  const deleteCustomerAction = useAppStore(state => state.deleteCustomer);
-  const isCustomersLoading = useAppStore(state => state.isCustomersLoading);
+  const { customers, deleteCustomerAction, isCustomersLoading, loadCustomers } = useAppStore(state => ({
+    customers: state.customers,
+    deleteCustomerAction: state.deleteCustomer,
+    isCustomersLoading: state.isCustomersLoading,
+    loadCustomers: state.loadCustomers,
+  }));
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (appReady) {
+      loadCustomers();
+    }
+  }, [appReady, loadCustomers]);
+
 
   const handleDeleteCustomer = async (id: string) => {
     await deleteCustomerAction(id);

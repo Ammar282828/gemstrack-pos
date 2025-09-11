@@ -16,17 +16,11 @@ export function MainApp({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // This effect runs once when the store is rehydrated.
-    // It kicks off all the initial data loading processes for the entire app.
+    // It now ONLY loads the essential settings needed for startup.
+    // Other data will be loaded on-demand by the pages that need it.
     if (isStoreHydrated) {
-      console.log("[GemsTrack MainApp] Store hydrated. Kicking off all initial data loads.");
+      console.log("[GemsTrack MainApp] Store hydrated. Loading essential settings.");
       useAppStore.getState().loadSettings();
-      useAppStore.getState().loadProducts();
-      useAppStore.getState().loadCustomers();
-      useAppStore.getState().loadKarigars();
-      useAppStore.getState().loadOrders();
-      useAppStore.getState().loadGeneratedInvoices();
-      useAppStore.getState().loadHisaab();
-      useAppStore.getState().loadExpenses(); // <-- Load expenses
     }
   }, [isStoreHydrated]);
 

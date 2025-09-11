@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAppStore, Settings, Product } from '@/lib/store';
@@ -127,13 +127,22 @@ export default function ProductsPage() {
   const [selectedProductSkus, setSelectedProductSkus] = useState<string[]>([]);
 
   const appReady = useAppReady();
-  const allStoreProducts = useAppStore(state => state.products); // Use raw products
-  const categories = useAppStore(state => state.categories);
-  const settings = useAppStore(state => state.settings);
-  const deleteProductAction = useAppStore(state => state.deleteProduct);
-  const isProductsLoading = useAppStore(state => state.isProductsLoading);
-
+  const { allStoreProducts, categories, settings, deleteProductAction, isProductsLoading, loadProducts } = useAppStore(state => ({
+    allStoreProducts: state.products,
+    categories: state.categories,
+    settings: state.settings,
+    deleteProductAction: state.deleteProduct,
+    isProductsLoading: state.isProductsLoading,
+    loadProducts: state.loadProducts,
+  }));
   const { toast } = useToast();
+  
+  useEffect(() => {
+    if (appReady) {
+      loadProducts();
+    }
+  }, [appReady, loadProducts]);
+
 
   const getCategoryTitle = (categoryId: string) => {
     const category = categories.find(c => c.id === categoryId);

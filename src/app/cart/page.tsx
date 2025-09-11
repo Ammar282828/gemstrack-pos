@@ -68,11 +68,32 @@ export default function CartPage() {
   const preloadedInvoiceId = searchParams.get('invoice_id');
 
   const appReady = useAppReady();
-  const cartItemsFromStore = useAppStore(state => state.cart); // Now holds full Product objects
-  const customers = useAppStore(state => state.customers);
-  const settings = useAppStore(state => state.settings);
-  const allInvoices = useAppStore(state => state.generatedInvoices);
-  const { removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings, addToCart } = useAppStore();
+  const { cartItemsFromStore, customers, settings, allInvoices, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings, addToCart, loadCustomers, loadGeneratedInvoices } = useAppStore(state => ({
+    cartItemsFromStore: state.cart,
+    customers: state.customers,
+    settings: state.settings,
+    allInvoices: state.generatedInvoices,
+    removeFromCart: state.removeFromCart,
+    clearCart: state.clearCart,
+    generateInvoice: state.generateInvoice,
+    addHisaabEntry: state.addHisaabEntry,
+    updateInvoicePayment: state.updateInvoicePayment,
+    loadCartFromInvoice: state.loadCartFromInvoice,
+    deleteInvoice: state.deleteInvoice,
+    updateCartItem: state.updateCartItem,
+    updateSettings: state.updateSettings,
+    addToCart: state.addToCart,
+    loadCustomers: state.loadCustomers,
+    loadGeneratedInvoices: state.loadGeneratedInvoices,
+  }));
+
+  useEffect(() => {
+    if(appReady) {
+      loadCustomers();
+      loadGeneratedInvoices();
+    }
+  }, [appReady, loadCustomers, loadGeneratedInvoices]);
+
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [walkInCustomerName, setWalkInCustomerName] = useState('');

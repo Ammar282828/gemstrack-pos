@@ -50,10 +50,10 @@ export default function ExpensesPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (appReady && !isExpensesLoading) {
+    if (appReady) {
       loadExpenses();
     }
-  }, [appReady, isExpensesLoading, loadExpenses]);
+  }, [appReady, loadExpenses]);
 
   const handleDeleteExpense = async (id: string) => {
     await deleteExpense(id);

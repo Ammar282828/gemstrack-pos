@@ -2,7 +2,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useAppStore, selectCartDetails, selectCartSubtotal } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
@@ -38,9 +38,18 @@ const CartSummaryItem: React.FC<{ item: NonNullable<ReturnType<typeof selectCart
 
 export default function HomePage() {
   const appReady = useAppReady();
-  const cartItems = useAppStore(selectCartDetails);
-  const cartSubtotal = useAppStore(selectCartSubtotal);
-  const { removeFromCart: removeFromCartAction } = useAppStore();
+  const { cartItems, cartSubtotal, removeFromCartAction, loadProducts } = useAppStore(state => ({
+    cartItems: selectCartDetails(state),
+    cartSubtotal: selectCartSubtotal(state),
+    removeFromCartAction: state.removeFromCart,
+    loadProducts: state.loadProducts,
+  }));
+
+  useEffect(() => {
+    if (appReady) {
+      loadProducts();
+    }
+  }, [appReady, loadProducts]);
 
 
   if (!appReady) {

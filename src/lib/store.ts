@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc, runTransaction, getDocsFromCache } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { summarizeOrderItems, SummarizeOrderItemsInput } from '@/ai/flows/summarize-order-items-flow';
 
@@ -728,18 +728,32 @@ export const useAppStore = create<AppState>()(
       }),
 
       loadProducts: () => {
-        if (get().hasProductsLoaded) return;
-        set({ isProductsLoading: true, hasProductsLoaded: true, productsError: null });
+        if (get().hasProductsLoaded) {
+          // Data is already loaded or a listener is active. If you want to force a refresh from cache:
+          getDocsFromCache(collection(db, FIRESTORE_COLLECTIONS.PRODUCTS)).then(snapshot => {
+            if (!snapshot.empty) {
+                const productList = snapshot.docs.map(doc => doc.data() as Product);
+                set({ products: productList, isProductsLoading: false });
+            }
+          });
+          return;
+        };
+
+        set({ isProductsLoading: true, productsError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.PRODUCTS), orderBy("sku"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
             const productList = snapshot.docs.map(doc => doc.data() as Product);
-            set({ products: productList, isProductsLoading: false });
+            set(state => {
+                state.products = productList;
+                state.isProductsLoading = false;
+                state.hasProductsLoaded = true;
+            });
             console.log(`[GemsTrack Store] Real-time update: ${productList.length} products loaded.`);
           }, 
           (error) => {
             console.error("[GemsTrack Store] Error in products real-time listener:", error);
-            set({ products: [], isProductsLoading: false, productsError: error.message || 'Failed to load products.' }); // Mark as not loading
+            set({ products: [], isProductsLoading: false, productsError: error.message || 'Failed to load products.' });
           }
         );
       },
@@ -902,12 +916,16 @@ export const useAppStore = create<AppState>()(
 
       loadCustomers: () => {
         if (get().hasCustomersLoaded) return;
-        set({ isCustomersLoading: true, hasCustomersLoaded: true, customersError: null });
+        set({ isCustomersLoading: true, customersError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS), orderBy("name"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
             const customerList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer));
-            set({ customers: customerList, isCustomersLoading: false });
+            set(state => {
+              state.customers = customerList;
+              state.isCustomersLoading = false;
+              state.hasCustomersLoaded = true;
+            });
             console.log(`[GemsTrack Store] Real-time update: ${customerList.length} customers loaded.`);
           },
           (error) => {
@@ -950,12 +968,16 @@ export const useAppStore = create<AppState>()(
 
       loadKarigars: () => {
         if (get().hasKarigarsLoaded) return;
-        set({ isKarigarsLoading: true, hasKarigarsLoaded: true, karigarsError: null });
+        set({ isKarigarsLoading: true, karigarsError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.KARIGARS), orderBy("name"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
             const karigarList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Karigar));
-            set({ karigars: karigarList, isKarigarsLoading: false });
+            set(state => {
+              state.karigars = karigarList;
+              state.isKarigarsLoading = false;
+              state.hasKarigarsLoaded = true;
+            });
             console.log(`[GemsTrack Store] Real-time update: ${karigarList.length} karigars loaded.`);
           },
           (error) => {
@@ -1042,12 +1064,16 @@ export const useAppStore = create<AppState>()(
 
       loadGeneratedInvoices: () => {
         if (get().hasInvoicesLoaded) return;
-        set({ isInvoicesLoading: true, hasInvoicesLoaded: true, invoicesError: null });
+        set({ isInvoicesLoading: true, invoicesError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, 
           (snapshot) => {
             const invoiceList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Invoice));
-            set({ generatedInvoices: invoiceList, isInvoicesLoading: false });
+            set(state => {
+              state.generatedInvoices = invoiceList;
+              state.isInvoicesLoading = false;
+              state.hasInvoicesLoaded = true;
+            });
             console.log(`[GemsTrack Store] Real-time update: ${invoiceList.length} invoices loaded.`);
           },
           (error) => {
@@ -1255,9 +1281,7 @@ export const useAppStore = create<AppState>()(
             set(state => {
               state.orders = orderList;
               state.isOrdersLoading = false;
-              if (!state.hasOrdersLoaded) {
-                 state.hasOrdersLoaded = true;
-              }
+              state.hasOrdersLoaded = true;
             });
             console.log(`[GemsTrack Store] Real-time update: ${orderList.length} orders loaded.`);
           },
@@ -1495,12 +1519,16 @@ export const useAppStore = create<AppState>()(
 
       loadHisaab: () => {
         if (get().hasHisaabLoaded) return;
-        set({ isHisaabLoading: true, hasHisaabLoaded: true, hisaabError: null });
+        set({ isHisaabLoading: true, hisaabError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), orderBy("date", "desc"));
         const unsubscribe = onSnapshot(q,
           (snapshot) => {
             const entryList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as HisaabEntry));
-            set({ hisaabEntries: entryList, isHisaabLoading: false });
+            set(state => {
+              state.hisaabEntries = entryList;
+              state.isHisaabLoading = false;
+              state.hasHisaabLoaded = true;
+            });
              console.log(`[GemsTrack Store] Real-time update: ${entryList.length} hisaab entries loaded.`);
           },
           (error) => {
@@ -1532,12 +1560,16 @@ export const useAppStore = create<AppState>()(
       
       loadExpenses: () => {
         if (get().hasExpensesLoaded) return;
-        set({ isExpensesLoading: true, hasExpensesLoaded: true, expensesError: null });
+        set({ isExpensesLoading: true, expensesError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.EXPENSES), orderBy("date", "desc"));
         const unsubscribe = onSnapshot(q,
           (snapshot) => {
             const expenseList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Expense));
-            set({ expenses: expenseList, isExpensesLoading: false });
+            set(state => {
+                state.expenses = expenseList;
+                state.isExpensesLoading = false;
+                state.hasExpensesLoaded = true;
+            });
             console.log(`[GemsTrack Store] Real-time update: ${expenseList.length} expenses loaded.`);
           },
           (error) => {
