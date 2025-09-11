@@ -2,18 +2,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  Html5Qrcode,
-  QrcodeSuccessCallback,
-  QrcodeErrorCallback,
-} from 'html5-qrcode';
+import { Html5Qrcode, QrcodeSuccessCallback } from 'html5-qrcode';
 import { useAppStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { ScanLine, VideoOff, ZoomIn, ZoomOut, Loader2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const qrReaderElementId = "qr-reader-container";
@@ -45,16 +40,19 @@ const playBeep = () => {
     }
 };
 
-export default function QrScanner() {
+interface QrScannerProps {
+  isActive: boolean;
+}
+
+export default function QrScanner({ isActive }: QrScannerProps) {
   const { toast } = useToast();
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const lastScanRef = useRef<{ text: string; time: number } | null>(null);
   
   const [scannerState, setScannerState] = useState<'stopped' | 'starting' | 'scanning' | 'error'>('stopped');
-  const [isActive, setIsActive] = useState(true); // Should the scanner be active?
   const [scanSuccess, setScanSuccess] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const [cameraCapabilities, setCameraCapabilities] = useState<any>(null);
+  const [cameraCapabilities, setCameraCapabilities] = useState<MediaTrackCapabilities | null>(null);
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText) => {
     const now = Date.now();
@@ -69,7 +67,8 @@ export default function QrScanner() {
     const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
 
     if (isAlreadyInCart) {
-        if (!lastScan || lastScan.text !== decodedText) { // Only toast for the first time it sees the duplicate
+        // Only toast for the first time it sees the duplicate
+        if (!lastScan || lastScan.text !== decodedText) { 
              toast({
                 title: "Item Already in Cart",
                 description: `Product with SKU ${decodedText.trim()} is already in your cart.`,
@@ -91,51 +90,54 @@ export default function QrScanner() {
     lastScanRef.current = { text: decodedText, time: now };
   }, [toast]);
 
-  const onScanFailure: QrcodeErrorCallback = () => {
-    // Intentionally empty
-  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId);
+        html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, false);
     }
     const qrCode = html5QrCodeRef.current;
 
-    const startScanner = async () => {
-      if (scannerState !== 'starting' && scannerState !== 'scanning') {
-        setScannerState('starting');
-        try {
-          await qrCode.start(
-            { facingMode: "environment" },
-            { fps: 15, qrbox: { width: 250, height: 250 } },
-            onScanSuccess,
-            onScanFailure
-          );
-          setScannerState('scanning');
-          
-          const capabilities = qrCode.getRunningTrackCapabilities?.();
-          if (capabilities && (capabilities as any).zoom) {
-            setCameraCapabilities(capabilities);
-            setZoom((capabilities as any).zoom.min);
-          }
-        } catch (err) {
-          console.error("Failed to start QR scanner:", err);
-          setScannerState('error');
+    const startScanner = () => {
+        if (qrCode && !qrCode.isScanning && scannerState !== 'starting' && scannerState !== 'scanning') {
+            setScannerState('starting');
+            qrCode.start(
+                { facingMode: "environment" },
+                { fps: 15, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                (errorMessage) => {} // onScanFailure - intentionally empty
+            ).then(() => {
+                setScannerState('scanning');
+                try {
+                    const capabilities = qrCode.getRunningTrackCapabilities?.();
+                    if (capabilities) {
+                        setCameraCapabilities(capabilities);
+                        // @ts-ignore
+                        if (capabilities.zoom) setZoom(capabilities.zoom.min);
+                    }
+                } catch(e) {
+                    console.warn("Could not get camera capabilities:", e);
+                }
+            }).catch((err) => {
+                console.error("Failed to start QR scanner:", err);
+                setScannerState('error');
+            });
         }
-      }
     };
 
-    const stopScanner = async () => {
-      if (qrCode.isScanning) {
-        try {
-          await qrCode.stop();
-        } catch (err) {
-          console.error("Error stopping scanner:", err);
+    const stopScanner = () => {
+        if (qrCode && qrCode.isScanning) {
+            qrCode.stop().then(() => {
+                setScannerState('stopped');
+                setCameraCapabilities(null);
+            }).catch((err) => {
+                console.error("Error stopping scanner:", err);
+                setScannerState('stopped'); // Force stop state
+            });
+        } else {
+            setScannerState('stopped');
         }
-      }
-      setScannerState('stopped');
     };
     
     if (isActive) {
@@ -145,19 +147,21 @@ export default function QrScanner() {
     }
 
     return () => {
+      // Ensure scanner is stopped on component unmount
       if (qrCode && qrCode.isScanning) {
-          qrCode.stop().catch(err => console.error("Error stopping scanner on cleanup:", err));
+        qrCode.stop().catch(err => {});
       }
     };
-  }, [isActive, onScanSuccess, scannerState]);
+  }, [isActive, onScanSuccess]);
 
  useEffect(() => {
     const applyZoom = async () => {
-        if (!html5QrCodeRef.current) return;
+        if (!html5QrCodeRef.current?.isScanning) return;
         try {
             const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
-            if (currentTrack && (cameraCapabilities as any)?.zoom) {
+            if (currentTrack && cameraCapabilities && (cameraCapabilities as any).zoom) {
                 await currentTrack.applyConstraints({
+                    // @ts-ignore
                     advanced: [{ zoom: zoom }]
                 });
             }
@@ -171,16 +175,12 @@ export default function QrScanner() {
     }
   }, [zoom, scannerState, cameraCapabilities]);
 
-  const toggleScanner = () => {
-    setIsActive(prev => !prev);
-  };
-
   return (
     <div className="space-y-4">
       <div
           id={qrReaderElementId}
           className={cn(
-            "w-full border-4 border-transparent rounded-md bg-muted overflow-hidden mx-auto max-w-lg relative transition-all duration-300",
+            "w-full border-4 border-transparent rounded-md bg-muted overflow-hidden mx-auto max-w-lg relative transition-all duration-300 min-h-[250px]",
             " [&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover",
             scanSuccess && "border-green-500 shadow-lg shadow-green-500/50"
           )}
@@ -203,7 +203,7 @@ export default function QrScanner() {
         </Alert>
       )}
 
-      {scannerState === 'scanning' && cameraCapabilities && (
+      {scannerState === 'scanning' && (cameraCapabilities as any)?.zoom && (
         <div className="p-4 border rounded-md">
           <Label htmlFor="zoom-slider">Zoom</Label>
           <div className="flex items-center gap-2">
@@ -221,12 +221,6 @@ export default function QrScanner() {
         </div>
       )}
 
-      <div className="text-center">
-        <Button size="lg" onClick={toggleScanner} variant={isActive ? "outline" : "default"} className="w-full md:w-auto">
-          {isActive ? <VideoOff className="mr-2 h-5 w-5" /> : <ScanLine className="mr-2 h-5 w-5" />}
-          {isActive ? "Stop Scanner" : "Start Scanner"}
-        </Button>
-      </div>
     </div>
   );
 }
