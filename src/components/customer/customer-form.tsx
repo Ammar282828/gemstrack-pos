@@ -43,7 +43,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
     defaultValues: customer ? {
-      name: customer.name,
+      name: customer.name || '',
       phone: customer.phone || "",
       email: customer.email || "",
       address: customer.address || "",
