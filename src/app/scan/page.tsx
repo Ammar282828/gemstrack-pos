@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { QrCode, ShoppingCart, Trash2, ExternalLink, ListPlus, Loader2, X } from 'lucide-react';
+import { QrCode, ShoppingCart, Trash2, ExternalLink, ListPlus, Loader2, X, VideoOff, ScanLine } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import dynamic from 'next/dynamic';
 
@@ -20,7 +20,7 @@ const QrScanner = dynamic(() => import('@/components/scanner/qr-scanner'), {
   loading: () => (
     <div className="text-center py-10 text-muted-foreground">
       <Loader2 className="w-10 h-10 mb-2 mx-auto animate-spin" />
-      <p className="text-sm">Initializing Scanner...</p>
+      <p className="text-sm">Loading Scanner...</p>
     </div>
   ),
 });
@@ -54,6 +54,7 @@ export default function ScanPOSPage() {
   const { toast } = useToast();
   const [skuInput, setSkuInput] = useState('');
   const appReady = useAppReady();
+  const [isScannerActive, setIsScannerActive] = useState(true); // Default to active
 
   const { addToCart, removeFromCart: removeFromCartAction, products } = useAppStore(state => ({
       addToCart: state.addToCart,
@@ -143,7 +144,14 @@ export default function ScanPOSPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               
-              <QrScanner />
+              <QrScanner isActive={isScannerActive && appReady} />
+              
+              <div className="text-center">
+                <Button size="lg" onClick={() => setIsScannerActive(prev => !prev)} variant={isScannerActive ? "outline" : "default"} className="w-full md:w-auto">
+                  {isScannerActive ? <VideoOff className="mr-2 h-5 w-5" /> : <ScanLine className="mr-2 h-5 w-5" />}
+                  {isScannerActive ? "Stop Scanner" : "Start Scanner"}
+                </Button>
+              </div>
 
               <div className="pt-4">
                 <Label htmlFor="sku-input" className="text-sm font-medium">Enter SKU Manually to Add</Label>
