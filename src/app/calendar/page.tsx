@@ -169,17 +169,17 @@ export default function CalendarPage() {
                     className="p-0"
                     classNames={{
                       day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                      day: "h-24 w-full text-base p-1.5 align-top relative",
+                      day: "relative h-auto aspect-square p-1.5 align-top", // Use aspect-ratio for scaling
                       day_today: "bg-accent text-accent-foreground",
-                      head_cell: "text-muted-foreground rounded-md w-full font-normal text-sm",
+                      head_cell: "text-muted-foreground rounded-md w-full font-normal text-sm", // Let flexbox handle width
                       table: "w-full border-collapse",
                       month: "space-y-4",
                       caption_label: "text-lg font-bold"
                     }}
                     components={{
                         DayContent: (props) => (
-                           <div className="relative w-full h-full">
-                             <time dateTime={props.date.toISOString()} className={cn("absolute top-1.5 left-1.5", isSameDay(props.date, new Date()) && "font-bold")}>
+                           <div className="relative w-full h-full flex flex-col">
+                             <time dateTime={props.date.toISOString()} className={cn("self-start", isSameDay(props.date, new Date()) && "font-bold")}>
                                {format(props.date, 'd')}
                              </time>
                              <EventDay date={props.date} />
