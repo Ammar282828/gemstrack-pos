@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO, startOfDay } from 'date-fns';
+import { format, parseISO, startOfDay, isSameDay } from 'date-fns';
 import { Loader2, ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -18,7 +18,6 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerDescription,
-  DrawerClose,
 } from "@/components/ui/drawer"
 import { Button } from '@/components/ui/button';
 
@@ -33,33 +32,35 @@ type EventsByDate = {
 };
 
 
-const EventDetails: React.FC<{ events: CalendarEventType[] | undefined }> = ({ events }) => {
-    if (!events) {
-        return <p className="text-muted-foreground text-center py-10">Select a day on the calendar to see events.</p>;
+const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selectedDate: Date | undefined }> = ({ events, selectedDate }) => {
+    if (!selectedDate) {
+        return <p className="text-muted-foreground text-center py-10">Select a day on the calendar to see its events.</p>;
     }
     
-    if (events.length === 0) {
+    if (!events || events.length === 0) {
         return <p className="text-muted-foreground text-center py-10">No events for this day.</p>;
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             {events.map(event => (
                <Link href={event.eventType === 'order' ? `/orders/${event.id}` : `/cart?invoice_id=${event.id}`} key={event.id} passHref>
-                <div key={event.id} className={cn("p-3 rounded-md border-l-4 hover:bg-muted/50 block cursor-pointer transition-colors", {
+                <div className={cn("p-3 rounded-lg border-l-4 hover:bg-muted/50 block cursor-pointer transition-colors bg-muted/20", {
                     'border-green-500': event.eventType === 'invoice',
                     'border-blue-500': event.eventType === 'order'
                 })}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             {event.eventType === 'invoice' ? <FileText className="h-4 w-4 text-green-500" /> : <ClipboardList className="h-4 w-4 text-blue-500"/>}
-                            <Badge variant="outline" className="text-xs">{event.id}</Badge>
+                            <Badge variant="outline" className="text-xs font-mono">{event.id}</Badge>
                         </div>
                         <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <p className="font-semibold text-sm mt-1">PKR {('grandTotal' in event) ? event.grandTotal.toLocaleString() : 'N/A'}</p>
-                    <p className="text-xs text-muted-foreground">{('customerName' in event) ? event.customerName : 'Walk-in'}</p>
-                    <p className="text-xs text-muted-foreground">{format(parseISO(event.createdAt), 'hh:mm a')}</p>
+                    <div className="mt-2">
+                      <p className="font-semibold text-sm">PKR {('grandTotal' in event) ? event.grandTotal.toLocaleString() : 'N/A'}</p>
+                      <p className="text-xs text-muted-foreground">{('customerName' in event && event.customerName) ? event.customerName : 'Walk-in'}</p>
+                      <p className="text-xs text-muted-foreground">{format(parseISO(event.createdAt), 'hh:mm a')}</p>
+                    </div>
                 </div>
                </Link>
             ))}
@@ -119,7 +120,7 @@ export default function CalendarPage() {
 
   const handleDayClick = (day: Date | undefined) => {
     setSelectedDate(day);
-    if(isMobile) {
+    if(isMobile && day && eventsByDate[format(startOfDay(day), 'yyyy-MM-dd')]) {
         setIsDrawerOpen(true);
     }
   };
@@ -131,9 +132,9 @@ export default function CalendarPage() {
     if (!dayData) return null;
 
     return (
-      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-0.5">
-        {dayData.invoices > 0 && <div className="h-1.5 w-1.5 rounded-full bg-green-500"></div>}
-        {dayData.orders > 0 && <div className="h-1.5 w-1.5 rounded-full bg-blue-500"></div>}
+      <div className="absolute bottom-1 left-1.5 right-1.5 flex flex-col items-start text-[10px] leading-tight">
+        {dayData.invoices > 0 && <Badge variant="secondary" className="w-full justify-start h-auto p-0.5 px-1 bg-green-500/10 text-green-700 dark:text-green-300 mb-0.5">Sales: {dayData.invoices}</Badge>}
+        {dayData.orders > 0 && <Badge variant="secondary" className="w-full justify-start h-auto p-0.5 px-1 bg-blue-500/10 text-blue-700 dark:text-blue-300">Orders: {dayData.orders}</Badge>}
       </div>
     );
   };
@@ -148,7 +149,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4 h-full">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-primary flex items-center"><CalendarIcon className="mr-3 h-8 w-8"/>Activity Calendar</h1>
         <p className="text-muted-foreground">Visualize your sales and custom orders over time.</p>
@@ -160,7 +161,7 @@ export default function CalendarPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <Card className="lg:col-span-2">
-            <CardContent className="p-2 md:p-4">
+            <CardContent className="p-1 md:p-2">
                  <Calendar
                     mode="single"
                     selected={selectedDate}
@@ -168,13 +169,19 @@ export default function CalendarPage() {
                     className="p-0 [&_td]:p-0"
                     classNames={{
                       day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                      day: "h-12 w-12 md:h-16 lg:h-20 w-full",
-                      head_cell: "w-full",
+                      day: "h-24 w-full text-base p-1.5 align-top justify-start",
+                      day_today: "bg-accent text-accent-foreground font-bold",
+                      head_cell: "w-full text-muted-foreground font-medium",
+                      table: "w-full h-full",
+                      month: "h-full flex flex-col",
+                      caption_label: "text-lg font-bold"
                     }}
                     components={{
                         DayContent: (props) => (
-                           <div className="relative w-full h-full flex items-center justify-center">
-                             <p>{format(props.date, 'd')}</p>
+                           <div className="relative w-full h-full">
+                             <time dateTime={props.date.toISOString()} className={cn("absolute top-1.5 left-1.5", isSameDay(props.date, new Date()) && "font-bold")}>
+                               {format(props.date, 'd')}
+                             </time>
                              <EventDay date={props.date} />
                            </div>
                         )
@@ -194,8 +201,8 @@ export default function CalendarPage() {
                              {eventsForSelectedDay ? `${eventsForSelectedDay.length} event(s) found.` : 'No events for this day.'}
                         </DrawerDescription>
                     </DrawerHeader>
-                     <ScrollArea className="h-[50vh] px-4">
-                         <EventDetails events={eventsForSelectedDay} />
+                     <ScrollArea className="h-[50vh] px-4 pb-4">
+                         <EventDetails events={eventsForSelectedDay} selectedDate={selectedDate} />
                     </ScrollArea>
                 </DrawerContent>
              </Drawer>
@@ -206,12 +213,12 @@ export default function CalendarPage() {
                         Events for {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : '...'}
                     </CardTitle>
                     <CardDescription>
-                        {eventsForSelectedDay ? `${eventsForSelectedDay.length} event(s) found.` : 'No events for this day.'}
+                        {selectedDate ? `${eventsForSelectedDay?.length || 0} event(s) found.` : 'Select a day.'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <ScrollArea className="h-[500px] pr-4">
-                       <EventDetails events={eventsForSelectedDay} />
+                    <ScrollArea className="h-[60vh] pr-4">
+                       <EventDetails events={eventsForSelectedDay} selectedDate={selectedDate}/>
                     </ScrollArea>
                 </CardContent>
             </Card>
