@@ -1159,7 +1159,8 @@ export const useAppStore = create<AppState>()(
                     invoiceItems.push(itemToAdd);
     
                     // Schedule product move and deletion
-                    transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, product.sku), product);
+                    const cleanProduct = Object.fromEntries(Object.entries(product).filter(([_, v]) => v !== undefined));
+                    transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, product.sku), cleanProduct);
                     transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, product.sku));
                 }
     
@@ -1168,20 +1169,13 @@ export const useAppStore = create<AppState>()(
                 const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
                 const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
     
-                const newInvoiceData: Partial<Invoice> = {
+                const newInvoiceData: Omit<Invoice, 'id'> = {
                     items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
                     amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
                     ratesApplied: ratesForInvoice, 
                     ...(finalCustomerId && { customerId: finalCustomerId }),
                     ...(finalCustomerName && { customerName: finalCustomerName }),
                 };
-
-                // Remove any top-level undefined properties before sending to Firestore
-                Object.keys(newInvoiceData).forEach(key => {
-                    if (newInvoiceData[key as keyof typeof newInvoiceData] === undefined) {
-                        delete newInvoiceData[key as keyof typeof newInvoiceData];
-                    }
-                });
     
                 // Schedule all remaining writes
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
