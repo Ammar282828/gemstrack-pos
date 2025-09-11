@@ -761,7 +761,7 @@ export default function CartPage() {
                         <div className="flex-grow">
                           <h4 className="font-medium">{item.name}</h4>
                           <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
-                          <p className="text-xs text-muted-foreground">Metal: {item.metalType}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: {item.metalWeightG.toFixed(2)}g</p>
+                          <p className="text-xs text-muted-foreground">Metal: {item.metalType}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: {(Number(item.metalWeightG) || 0).toFixed(2)}g</p>
                            {estimatedInvoice?.items.find(i => i.sku === item.sku)?.unitPrice !== 0 ? (
                                 <>
                                  <p className="text-sm font-semibold text-primary">PKR {estimatedInvoice?.items.find(i => i.sku === item.sku)?.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '...'}</p>
