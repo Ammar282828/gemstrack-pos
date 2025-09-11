@@ -1092,23 +1092,19 @@ export const useAppStore = create<AppState>()(
                 // Perform all READS first
                 const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
                 const settingsDoc = await transaction.get(settingsDocRef);
+                if (!settingsDoc.exists()) throw new Error("Global settings not found.");
                 const currentSettings = settingsDoc.data() as Settings;
-    
-                let customerName = customerInfo.name;
-                if (customerInfo.id) {
-                    const custDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerInfo.id));
-                    if (custDoc.exists()) {
-                        customerName = custDoc.data().name;
-                    }
-                }
-    
+
                 const productDocsPromises = cart.map(cartItem => 
                     transaction.get(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku))
                 );
                 await Promise.all(productDocsPromises);
-    
-                // All reads are done. Now prepare and perform WRITES.
+                
                 let finalCustomerId = customerInfo.id;
+                let finalCustomerName = customerInfo.name;
+
+                // All reads are done. Now prepare and perform WRITES.
+                
                 if (!finalCustomerId && customerInfo.name) {
                     const newCustId = `cust-${Date.now()}`;
                     const newCustomer: Customer = { 
@@ -1116,9 +1112,14 @@ export const useAppStore = create<AppState>()(
                         name: customerInfo.name, 
                         phone: customerInfo.phone || "" 
                     };
-                    // Set customer to be created
                     transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustId), newCustomer);
                     finalCustomerId = newCustId;
+                    finalCustomerName = newCustomer.name;
+                } else if(finalCustomerId) {
+                    const custDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, finalCustomerId));
+                    if (custDoc.exists()) {
+                        finalCustomerName = custDoc.data().name;
+                    }
                 }
     
                 const ratesForInvoice = {
@@ -1168,11 +1169,14 @@ export const useAppStore = create<AppState>()(
                     items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
                     amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
                     ratesApplied: ratesForInvoice, 
-                    customerId: finalCustomerId, customerName: customerName || 'Walk-in Customer'
+                    customerId: finalCustomerId, customerName: finalCustomerName || 'Walk-in Customer'
                 };
     
+                // Remove undefined properties before sending to firestore
+                const cleanInvoiceData = Object.fromEntries(Object.entries(newInvoiceData).filter(([_, v]) => v !== undefined));
+
                 // Schedule all remaining writes
-                transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
+                transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), cleanInvoiceData);
                 transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
     
                 const hisaabEntry: Omit<HisaabEntry, 'id'> = {
