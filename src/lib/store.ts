@@ -1091,8 +1091,7 @@ export const useAppStore = create<AppState>()(
             return await runTransaction(db, async (transaction) => {
                 let finalCustomerId = customerInfo.id;
                 let customerName = customerInfo.name;
-
-                // If it's a walk-in customer with a name, create a new customer profile.
+    
                 if (!finalCustomerId && customerName) {
                     const newCustId = `cust-${Date.now()}`;
                     const newCustomer: Customer = { 
@@ -1127,9 +1126,7 @@ export const useAppStore = create<AppState>()(
                     const productDocRef = doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku);
                     const productDoc = await transaction.get(productDocRef);
     
-                    if (!productDoc.exists()) {
-                        console.log(`Product with SKU ${cartItem.sku} does not exist in inventory. Treating as custom item for this invoice.`);
-                    } else {
+                    if (productDoc.exists()) {
                        productsToMove.push(cartItem);
                     }
                     
@@ -1171,7 +1168,6 @@ export const useAppStore = create<AppState>()(
                     customerId: finalCustomerId, customerName: customerName || 'Walk-in Customer'
                 };
     
-                // --- Transactional Writes ---
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
     
                 for (const product of productsToMove) {
