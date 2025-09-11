@@ -111,6 +111,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
           setScannerState('scanning');
           
           try {
+            // @ts-ignore - getRunningTrackCapabilities is not in standard types but exists
             const capabilities = qrCode.getRunningTrackCapabilities?.();
             if (capabilities) {
                setCameraCapabilities(capabilities);
@@ -135,7 +136,10 @@ export default function QrScanner({ isActive }: QrScannerProps) {
                 await qrCode.stop();
             }
         } catch (err) {
-            console.error("Error stopping scanner:", err);
+            // This error is expected if the scanner is already stopping or stopped.
+            if (!String(err).includes("not been started")) {
+                console.warn("Cleanup stop scanner error:", err);
+            }
         } finally {
             setScannerState('stopped');
             setCameraCapabilities(null);
@@ -165,7 +169,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     const applyZoom = async () => {
         if (!html5QrCodeRef.current || !html5QrCodeRef.current.isScanning) return;
         try {
-            const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
+            const currentTrack = (html5QrCodeRef.current as any).getRunningTrack?.();
             if (currentTrack && (cameraCapabilities as any)?.zoom) {
                 await currentTrack.applyConstraints({
                     // @ts-ignore
