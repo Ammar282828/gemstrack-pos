@@ -48,6 +48,7 @@ const playBeep = () => {
 export default function QrScanner() {
   const { toast } = useToast();
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const lastScanRef = useRef<{ text: string; time: number } | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isScannerActive, setIsScannerActive] = useState<boolean>(true);
   const [isScanning, setIsScanning] = useState(false);
@@ -56,6 +57,15 @@ export default function QrScanner() {
   const [cameraCapabilities, setCameraCapabilities] = useState<any>(null);
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText) => {
+    const now = Date.now();
+    const lastScan = lastScanRef.current;
+    
+    // Debounce logic: if the same code was scanned less than 2 seconds ago, ignore it.
+    if (lastScan && lastScan.text === decodedText && (now - lastScan.time) < 2000) {
+        return;
+    }
+    lastScanRef.current = { text: decodedText, time: now };
+    
     const state = useAppStore.getState();
     const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
 
