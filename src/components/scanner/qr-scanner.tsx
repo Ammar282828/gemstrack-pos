@@ -104,6 +104,7 @@ export default function QrScanner() {
             const capabilities = qrCode.getRunningTrackCapabilities?.();
             if (capabilities?.zoom) {
               setCameraCapabilities(capabilities);
+              // @ts-ignore
               setZoom(capabilities.zoom.min);
             }
         }
@@ -138,21 +139,21 @@ export default function QrScanner() {
 
  useEffect(() => {
     const applyZoom = async () => {
-        if (!html5QrCodeRef.current) {
-          return;
+      if (!html5QrCodeRef.current) {
+        return;
+      }
+      try {
+        const capabilities = html5QrCodeRef.current.getRunningTrackCapabilities?.();
+        const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
+  
+        if (currentTrack && (capabilities as any)?.zoom) {
+          await currentTrack.applyConstraints({
+            advanced: [{ zoom: zoom }]
+          });
         }
-        try {
-            const capabilities = html5QrCodeRef.current.getRunningTrackCapabilities?.();
-            const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
-
-            if (currentTrack && (capabilities as any)?.zoom) {
-                await currentTrack.applyConstraints({
-                    advanced: [{ zoom: zoom }]
-                });
-            }
-        } catch(e) {
-            console.warn("Could not apply zoom", e);
-        }
+      } catch(e) {
+        console.warn("Could not apply zoom", e);
+      }
     };
 
     if (isScanning && cameraCapabilities) {
