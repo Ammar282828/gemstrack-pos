@@ -132,8 +132,8 @@ export default function CalendarPage() {
     if (!dayData) return null;
 
     return (
-      <div className="absolute bottom-1 left-1.5 right-1.5 flex flex-col items-start text-[10px] leading-tight">
-        {dayData.invoices > 0 && <Badge variant="secondary" className="w-full justify-start h-auto p-0.5 px-1 bg-green-500/10 text-green-700 dark:text-green-300 mb-0.5">Sales: {dayData.invoices}</Badge>}
+      <div className="absolute bottom-1 left-1 right-1 flex flex-col items-center text-[9px] leading-tight gap-0.5">
+        {dayData.invoices > 0 && <Badge variant="secondary" className="w-full justify-start h-auto p-0.5 px-1 bg-green-500/10 text-green-700 dark:text-green-300">Sales: {dayData.invoices}</Badge>}
         {dayData.orders > 0 && <Badge variant="secondary" className="w-full justify-start h-auto p-0.5 px-1 bg-blue-500/10 text-blue-700 dark:text-blue-300">Orders: {dayData.orders}</Badge>}
       </div>
     );
@@ -166,12 +166,12 @@ export default function CalendarPage() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={handleDayClick}
-                    className="p-0 [&_td]:p-0"
+                    className="p-0"
                     classNames={{
                       day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                      day: "h-24 w-24 text-base p-1.5 align-top relative",
-                      day_today: "bg-accent text-accent-foreground font-bold",
-                      head_cell: "text-muted-foreground rounded-md w-24 font-normal text-sm",
+                      day: "h-24 w-full text-base p-1.5 align-top relative",
+                      day_today: "bg-accent text-accent-foreground",
+                      head_cell: "text-muted-foreground rounded-md w-full font-normal text-sm",
                       table: "w-full border-collapse",
                       month: "space-y-4",
                       caption_label: "text-lg font-bold"
