@@ -480,9 +480,10 @@ type FinalizedOrderItemData = {
 };
 
 
-export interface CartItem {
-  sku: string;
-  quantity: number;
+export interface CartItem extends Product {
+  // A cart item is a full, editable copy of a product.
+  // It includes all product fields.
+  quantity: 1; // Quantity is always 1 for this POS model.
 }
 
 export interface AppState {
@@ -490,7 +491,7 @@ export interface AppState {
   categories: Category[]; // Still local for now
   products: Product[];
   customers: Customer[];
-  cart: CartItem[]; // Persisted locally
+  cart: CartItem[]; // The cart now holds full product objects, not just SKUs.
   generatedInvoices: Invoice[];
   karigars: Karigar[];
   orders: Order[];
@@ -558,9 +559,10 @@ export interface AppState {
 
   addToCart: (sku: string) => void;
   removeFromCart: (sku: string) => void;
-  updateCartQuantity: (sku: string, quantity: number) => void; // This will now effectively be a toggle.
+  updateCartItem: (sku: string, updatedProductData: Partial<Product>) => void;
   clearCart: () => void;
-  loadCart: (skus: string[]) => void;
+  loadCartFromInvoice: (invoice: Invoice) => void;
+
 
   loadGeneratedInvoices: () => void;
   generateInvoice: (
@@ -969,17 +971,45 @@ export const useAppStore = create<AppState>()(
       addToCart: (sku) => set((state) => {
           const existingItem = state.cart.find((item) => item.sku === sku);
           if (!existingItem) {
-            state.cart.push({ sku, quantity: 1 });
+            const productToAdd = state.products.find(p => p.sku === sku);
+            if(productToAdd) {
+                state.cart.push({ ...productToAdd, quantity: 1 });
+            }
           }
       }),
       removeFromCart: (sku) => set((state) => { state.cart = state.cart.filter((item) => item.sku !== sku); }),
-      updateCartQuantity: (sku, quantity) => {
-        // This function is now a no-op in the per-piece inventory model, but kept for interface consistency.
-        // Each item is unique and has a quantity of 1.
-      },
+      updateCartItem: (sku, updatedProductData) => set(state => {
+        const cartIndex = state.cart.findIndex(item => item.sku === sku);
+        if (cartIndex !== -1) {
+            state.cart[cartIndex] = { ...state.cart[cartIndex], ...updatedProductData };
+        }
+      }),
       clearCart: () => set((state) => { state.cart = []; }),
-      loadCart: (skus) => set(state => {
-        state.cart = skus.map(sku => ({ sku, quantity: 1 }));
+      loadCartFromInvoice: (invoice) => set(state => {
+        state.cart = invoice.items.map(item => {
+            return {
+                sku: item.sku,
+                name: item.name,
+                categoryId: item.categoryId,
+                metalType: item.metalType,
+                karat: item.karat,
+                metalWeightG: item.metalWeightG,
+                secondaryMetalType: undefined, // These fields are not on InvoiceItem
+                secondaryMetalKarat: undefined,
+                secondaryMetalWeightG: undefined,
+                hasStones: !!item.stoneChargesIfAny,
+                stoneWeightG: item.stoneWeightG,
+                wastagePercentage: item.wastagePercentage,
+                makingCharges: item.makingCharges,
+                hasDiamonds: !!item.diamondChargesIfAny,
+                diamondCharges: item.diamondChargesIfAny,
+                stoneCharges: item.stoneChargesIfAny,
+                miscCharges: item.miscChargesIfAny,
+                stoneDetails: item.stoneDetails,
+                diamondDetails: item.diamondDetails,
+                quantity: 1
+            };
+        });
       }),
 
       loadGeneratedInvoices: () => {
@@ -999,7 +1029,7 @@ export const useAppStore = create<AppState>()(
         );
       },
       generateInvoice: async (customerInfo, invoiceGoldRate24k, discountAmount) => {
-        const { products, cart, settings } = get();
+        const { cart, settings } = get();
         if (cart.length === 0) return null;
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
     
@@ -1026,7 +1056,7 @@ export const useAppStore = create<AppState>()(
                 }
     
                 let validInvoiceGoldRate24k = Number(invoiceGoldRate24k) || 0;
-                const hasGoldItems = cart.some(ci => products.find(p => p.sku === ci.sku)?.metalType === 'gold');
+                const hasGoldItems = cart.some(ci => ci.metalType === 'gold');
                 if (hasGoldItems && validInvoiceGoldRate24k <= 0) {
                     throw new Error("Gold items in cart but provided gold rate is invalid.");
                 }
@@ -1047,10 +1077,14 @@ export const useAppStore = create<AppState>()(
                     const productDoc = await transaction.get(productDocRef);
     
                     if (!productDoc.exists()) {
-                        throw new Error(`Product with SKU ${cartItem.sku} does not exist in inventory.`);
+                        // It might be a custom item not in inventory (from a previous edit).
+                        // In that case, we still process it but don't move/delete it from products collection.
+                        console.log(`Product with SKU ${cartItem.sku} does not exist in inventory. Treating as custom item for this invoice.`);
+                    } else {
+                       productsToMove.push(cartItem);
                     }
-                    const product = productDoc.data() as Product;
-                    productsToMove.push(product);
+                    
+                    const product = cartItem; // Use the (potentially edited) cart item for calculation
     
                     const costs = _calculateProductCostsInternal(product, ratesForInvoice);
                     if (isNaN(costs.totalPrice)) {
@@ -1619,44 +1653,27 @@ export const calculateProductCosts = (
 // --- SELECTOR DEFINITIONS ---
 export const selectCartDetails = (state: AppState): EnrichedCartItem[] => {
   if (!state.cart || !Array.isArray(state.cart)) {
-    console.warn("[GemsTrack selectCartDetails] state.cart is not an array or undefined:", state.cart);
-    return [];
-  }
-  if (!state.products || !Array.isArray(state.products)) {
-    console.warn("[GemsTrack selectCartDetails] state.products is not an array or undefined:", state.products);
     return [];
   }
   if (!state.settings) {
-    console.warn("[GemsTrack selectCartDetails] state.settings is missing.");
     return [];
   }
 
-  return state.cart
-    .map((cartItem) => {
-      const product = state.products.find((p) => p.sku === cartItem.sku);
-      if (!product) {
-        console.warn(`[GemsTrack selectCartDetails] Product with SKU ${cartItem.sku} not found in cart.`);
-        return null; 
-      }
+  return state.cart.map((cartItem) => {
       const ratesForCalc = {
         goldRatePerGram24k: state.settings.goldRatePerGram,
         palladiumRatePerGram: state.settings.palladiumRatePerGram,
         platinumRatePerGram: state.settings.platinumRatePerGram,
         silverRatePerGram: state.settings.silverRatePerGram,
       };
-      const costs = calculateProductCosts(product, ratesForCalc);
-      if (isNaN(costs.totalPrice)) {
-        console.error(`[GemsTrack selectCartDetails] Calculated cost for product ${product.sku} in cart is NaN.`);
-        return null;
-      }
+      const costs = calculateProductCosts(cartItem, ratesForCalc);
       return {
-        ...product,
-        quantity: cartItem.quantity,
+        ...cartItem,
+        quantity: 1, // Always 1
         totalPrice: costs.totalPrice,
-        lineItemTotal: costs.totalPrice * cartItem.quantity,
+        lineItemTotal: costs.totalPrice,
       };
-    })
-    .filter((item): item is EnrichedCartItem => item !== null);
+    });
 };
 
 export const selectCartSubtotal = (state: AppState): number => {

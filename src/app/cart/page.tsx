@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product } from '@/lib/store';
+import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,8 @@ import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
 import { Control, useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
-
+import { ProductForm } from '@/components/product/product-form';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -56,12 +57,11 @@ export default function CartPage() {
   const preloadedInvoiceId = searchParams.get('invoice_id');
 
   const appReady = useAppReady();
-  const cartItemsFromStore = useAppStore(selectCartDetails);
+  const cartItemsFromStore = useAppStore(state => state.cart); // Now holds full Product objects
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
   const allInvoices = useAppStore(state => state.generatedInvoices);
-  const { removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCart, deleteInvoice } = useAppStore();
-  const productsInCart = useAppStore(state => state.cart.map(ci => state.products.find(p => p.sku === ci.sku)).filter(Boolean) as Product[]);
+  const { removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCartFromInvoice, deleteInvoice, updateCartItem } = useAppStore();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [walkInCustomerName, setWalkInCustomerName] = useState('');
@@ -74,6 +74,8 @@ export default function CartPage() {
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [isEditingEstimate, setIsEditingEstimate] = useState(false);
+  
+  const [editingCartItem, setEditingCartItem] = useState<Product | undefined>(undefined);
 
   const phoneForm = useForm<PhoneForm>();
   
@@ -124,26 +126,31 @@ export default function CartPage() {
     const estimatedItems: EstimatedInvoice['items'] = [];
 
     cartItemsFromStore.forEach(cartItem => {
-        const productForCalc = productsInCart.find(p => p.sku === cartItem.sku);
-        if (productForCalc) {
-            const costs = calculateProductCosts(productForCalc, ratesForCalc);
-            const itemTotal = costs.totalPrice * cartItem.quantity;
-            currentSubtotal += itemTotal;
-            
-            estimatedItems.push({
-                ...cartItem,
-                unitPrice: costs.totalPrice,
-                itemTotal: itemTotal,
-                metalCost: costs.metalCost,
-                wastageCost: costs.wastageCost,
-                wastagePercentage: productForCalc.wastagePercentage,
-                makingCharges: costs.makingCharges,
-                diamondChargesIfAny: costs.diamondCharges,
-                stoneChargesIfAny: costs.stoneCharges,
-                miscChargesIfAny: costs.miscCharges,
-                originalPrice: cartItem.totalPrice,
-            });
-        }
+        // Since cartItem is now a full Product object, we can use it directly
+        const costs = calculateProductCosts(cartItem, ratesForCalc);
+        const itemTotal = costs.totalPrice; // Quantity is always 1
+        currentSubtotal += itemTotal;
+        
+        estimatedItems.push({
+            sku: cartItem.sku,
+            name: cartItem.name,
+            categoryId: cartItem.categoryId,
+            metalType: cartItem.metalType,
+            karat: cartItem.karat,
+            metalWeightG: cartItem.metalWeightG,
+            stoneWeightG: cartItem.stoneWeightG,
+            quantity: 1,
+            unitPrice: itemTotal,
+            itemTotal: itemTotal,
+            metalCost: costs.metalCost,
+            wastageCost: costs.wastageCost,
+            wastagePercentage: cartItem.wastagePercentage,
+            makingCharges: costs.makingCharges,
+            diamondChargesIfAny: costs.diamondCharges,
+            stoneChargesIfAny: costs.stoneCharges,
+            miscChargesIfAny: costs.miscCharges,
+            originalPrice: itemTotal, // This might need rethinking, but for now it is the calculated price
+        });
     });
 
     const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
@@ -154,7 +161,7 @@ export default function CartPage() {
         grandTotal: grandTotal,
         items: estimatedItems,
     };
-  }, [appReady, settings, cartItemsFromStore, productsInCart, invoiceGoldRateInput, discountAmountInput]);
+  }, [appReady, settings, cartItemsFromStore, invoiceGoldRateInput, discountAmountInput]);
 
 
   const handleGenerateInvoice = async () => {
@@ -228,8 +235,7 @@ export default function CartPage() {
     if (!generatedInvoice) return;
     setIsEditingEstimate(true);
     // Load cart with items from the invoice
-    const skus = generatedInvoice.items.map(item => item.sku);
-    loadCart(skus);
+    loadCartFromInvoice(generatedInvoice);
     // Pre-fill form fields
     setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
     if (!generatedInvoice.customerId) {
@@ -691,9 +697,33 @@ export default function CartPage() {
     );
   }
 
+  const handleUpdateCartItem = (sku: string, updatedData: Partial<Product>) => {
+    updateCartItem(sku, updatedData);
+    setEditingCartItem(undefined);
+    toast({ title: "Item Updated", description: "Cart item details have been saved for this sale."});
+  }
+
   console.log("[GemsTrack] CartPage: About to return main cart view JSX. appReady:", appReady, "GeneratedInvoice exists:", !!generatedInvoice);
   return (
     <div className="container mx-auto py-8 px-4">
+       {editingCartItem && (
+        <Dialog open={!!editingCartItem} onOpenChange={(isOpen) => !isOpen && setEditingCartItem(undefined)}>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Edit Cart Item: {editingCartItem.name}</DialogTitle>
+                    <DialogDescription>
+                        Changes made here will only apply to this specific sale and will not affect the master product record.
+                    </DialogDescription>
+                </DialogHeader>
+                 <ProductForm 
+                    product={editingCartItem} 
+                    isCartEditMode={true}
+                    onCartItemSubmit={handleUpdateCartItem}
+                 />
+            </DialogContent>
+        </Dialog>
+      )}
+
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-primary">Shopping Cart &amp; Estimate</h1>
         <p className="text-muted-foreground">Review items, set estimate parameters, and generate an estimate.</p>
@@ -732,34 +762,32 @@ export default function CartPage() {
                           <h4 className="font-medium">{item.name}</h4>
                           <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
                           <p className="text-xs text-muted-foreground">Metal: {item.metalType}{item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: {item.metalWeightG.toFixed(2)}g</p>
-                           {estimatedInvoice?.items.find(i => i.sku === item.sku)?.unitPrice !== item.totalPrice ? (
+                           {estimatedInvoice?.items.find(i => i.sku === item.sku)?.unitPrice !== 0 ? (
                                 <>
                                  <p className="text-sm font-semibold text-primary">PKR {estimatedInvoice?.items.find(i => i.sku === item.sku)?.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '...'}</p>
-                                 <p className="text-xs text-muted-foreground line-through">PKR {item.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })} (at store rate)</p>
                                 </>
                            ) : (
-                             <p className="text-sm font-semibold text-primary">PKR {item.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                             <p className="text-sm font-semibold text-primary">PKR ...</p>
                            )}
                         </div>
-                        <div className="flex items-center space-x-2 self-end sm:self-center">
-                          {/* Quantity controls are disabled in per-piece inventory model */}
-                          <Input
-                            type="number"
-                            value={item.quantity}
-                            readOnly
-                            className="w-16 h-9 text-center bg-muted/50"
-                            aria-label={`Quantity of ${item.name}`}
-                          />
+                        <div className="flex items-center gap-2 self-end sm:self-center">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingCartItem(item)}
+                            >
+                                <Edit className="h-4 w-4 mr-2" /> Edit
+                            </Button>
+                            <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => removeFromCart(item.sku)}
+                            aria-label={`Remove ${item.name} from cart`}
+                            >
+                            <Trash2 className="h-5 w-5" />
+                            </Button>
                         </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10 self-end sm:self-center"
-                          onClick={() => removeFromCart(item.sku)}
-                          aria-label={`Remove ${item.name} from cart`}
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </Button>
                       </div>
                     ))}
                   </div>

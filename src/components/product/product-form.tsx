@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -85,9 +86,11 @@ type ProductFormData = z.infer<typeof productFormSchema>;
 
 interface ProductFormProps {
   product?: Product;
+  isCartEditMode?: boolean; // New prop for cart editing
+  onCartItemSubmit?: (sku: string, data: Partial<Product>) => void; // New callback
 }
 
-export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
+export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMode = false, onCartItemSubmit }) => {
   const router = useRouter();
   const { toast } = useToast();
   const { categories, addProduct, updateProduct } = useAppStore();
@@ -202,7 +205,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
 
 
   const processAndSubmit = async (data: ProductFormData) => {
-    const processedData: Omit<Product, 'sku' | 'qrCodeDataUrl'> = {
+    const processedData: Partial<Product> = {
       ...data,
       name: data.isCustomPrice ? (data.description || 'Custom Item') : (data.name || ''),
       karat: data.metalType === 'gold' ? data.karat : undefined,
@@ -210,14 +213,21 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
       secondaryMetalKarat: isMensRing && data.secondaryMetalType === 'gold' ? data.secondaryMetalKarat : undefined,
       secondaryMetalWeightG: isMensRing && data.secondaryMetalType ? data.secondaryMetalWeightG : undefined,
     };
+    
+    if (isCartEditMode) {
+      if (onCartItemSubmit && product) {
+        onCartItemSubmit(product.sku, processedData);
+      }
+      return;
+    }
 
     try {
       if (isEditMode && product) {
-        await updateProduct(product.sku, processedData);
+        await updateProduct(product.sku, processedData as Omit<Product, 'sku'>);
         toast({ title: "Success", description: "Product updated successfully." });
         router.push(`/products/${product.sku}`);
       } else {
-        const newProduct = await addProduct(processedData);
+        const newProduct = await addProduct(processedData as ProductDataForAdd);
         if (newProduct) {
           toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
           if (data.submitAction === 'saveAndAddAnother') {
@@ -245,9 +255,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
       <form onSubmit={form.handleSubmit(processAndSubmit)}>
         <Card>
           <CardHeader>
-            <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
+            <CardTitle>{isEditMode && !isCartEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
              <CardDescription>
-                {isEditMode ? `Editing SKU: ${product.sku}` : 'Fill in the details for the new inventory item.'}
+                {isEditMode && !isCartEditMode ? `Editing SKU: ${product.sku}` : 'Fill in the details for the new inventory item.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -472,19 +482,27 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product }) => {
             </FormItem>
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
-              <Ban className="mr-2 h-4 w-4" /> Cancel
-            </Button>
-            {!isEditMode && (
-                <Button type="submit" disabled={form.formState.isSubmitting || isUploading} onClick={() => form.setValue('submitAction', 'saveAndAddAnother')} className="w-full sm:w-auto">
-                    {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                    Save & Add Another
+            {isCartEditMode ? (
+                 <Button type="submit" disabled={form.formState.isSubmitting}>
+                    <Save className="mr-2 h-4 w-4" /> Apply Changes to Cart Item
                 </Button>
+            ) : (
+                <>
+                <Button type="button" variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
+                <Ban className="mr-2 h-4 w-4" /> Cancel
+                </Button>
+                {!isEditMode && (
+                    <Button type="submit" disabled={form.formState.isSubmitting || isUploading} onClick={() => form.setValue('submitAction', 'saveAndAddAnother')} className="w-full sm:w-auto">
+                        {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                        Save & Add Another
+                    </Button>
+                )}
+                <Button type="submit" disabled={form.formState.isSubmitting || isUploading} onClick={() => form.setValue('submitAction', 'saveAndClose')} className="w-full sm:w-auto">
+                {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {isEditMode ? 'Save Changes' : 'Add Product & Close'}
+                </Button>
+                </>
             )}
-            <Button type="submit" disabled={form.formState.isSubmitting || isUploading} onClick={() => form.setValue('submitAction', 'saveAndClose')} className="w-full sm:w-auto">
-              {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {isEditMode ? 'Save Changes' : 'Add Product & Close'}
-            </Button>
           </CardFooter>
         </Card>
       </form>
