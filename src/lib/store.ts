@@ -1090,7 +1090,6 @@ export const useAppStore = create<AppState>()(
     
         try {
             return await runTransaction(db, async (transaction) => {
-                // Perform all READS first
                 const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
                 const settingsDoc = await transaction.get(settingsDocRef);
                 if (!settingsDoc.exists()) throw new Error("Global settings not found.");
@@ -1103,8 +1102,6 @@ export const useAppStore = create<AppState>()(
                 
                 let finalCustomerId = customerInfo.id;
                 let finalCustomerName = customerInfo.name;
-
-                // All reads are done. Now prepare and perform WRITES.
                 
                 if (!finalCustomerId && customerInfo.name) {
                     const newCustId = `cust-${Date.now()}`;
@@ -1135,7 +1132,7 @@ export const useAppStore = create<AppState>()(
                 const invoiceItems: InvoiceItem[] = [];
                 
                 for (const cartItem of cart) {
-                    const product = cartItem; // Use the (potentially edited) cart item for calculation
+                    const product = cartItem;
                     const costs = _calculateProductCostsInternal(product, ratesForInvoice);
                     if (isNaN(costs.totalPrice)) {
                         throw new Error(`Calculated cost for product ${product.sku} is NaN.`);
@@ -1151,14 +1148,15 @@ export const useAppStore = create<AppState>()(
                         wastagePercentage: product.wastagePercentage, makingCharges: costs.makingCharges,
                         diamondChargesIfAny: costs.diamondCharges, stoneChargesIfAny: costs.stoneCharges,
                         miscChargesIfAny: costs.miscCharges,
-                        // Conditionally add optional fields
-                        ...(product.karat && { karat: product.karat }),
-                        ...(product.stoneDetails && { stoneDetails: product.stoneDetails }),
-                        ...(product.diamondDetails && { diamondDetails: product.diamondDetails }),
                     };
+                    
+                    // Conditionally add optional fields to avoid 'undefined'
+                    if (product.karat) itemToAdd.karat = product.karat;
+                    if (product.stoneDetails) itemToAdd.stoneDetails = product.stoneDetails;
+                    if (product.diamondDetails) itemToAdd.diamondDetails = product.diamondDetails;
+
                     invoiceItems.push(itemToAdd);
     
-                    // Schedule product move and deletion
                     const cleanProduct = Object.fromEntries(Object.entries(product).filter(([_, v]) => v !== undefined));
                     transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, product.sku), cleanProduct);
                     transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, product.sku));
@@ -1179,8 +1177,9 @@ export const useAppStore = create<AppState>()(
                 if (finalCustomerName) newInvoiceData.customerName = finalCustomerName;
                 if (customerInfo.phone) newInvoiceData.customerContact = customerInfo.phone;
                 
-                // Schedule all remaining writes
-                transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
+                const cleanInvoiceData = Object.fromEntries(Object.entries(newInvoiceData).filter(([_, v]) => v !== undefined));
+                
+                transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), cleanInvoiceData);
                 transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
     
                 const hisaabEntry: Omit<HisaabEntry, 'id'> = {
@@ -1192,7 +1191,7 @@ export const useAppStore = create<AppState>()(
                 
                 set({ cart: [] });
 
-                return { id: invoiceId, ...newInvoiceData } as Invoice;
+                return { id: invoiceId, ...cleanInvoiceData } as Invoice;
             });
         } catch (error) {
             console.error("[GemsTrack Store generateInvoice] Transaction failed: ", error);
@@ -1422,11 +1421,11 @@ export const useAppStore = create<AppState>()(
             silverRatePerGram: settings.silverRatePerGram
         };
     
-        const finalInvoiceItems = order.items.map((originalItem, index) => {
+        const finalInvoiceItems: InvoiceItem[] = [];
+        order.items.forEach((originalItem, index) => {
             const finalizedData = finalizedItems.find(fi => fi.description === originalItem.description);
             if (!finalizedData) {
                 console.error(`Could not find finalized data for item: ${originalItem.description}`);
-                // This is a critical error, we should probably stop.
                 throw new Error(`Finalized data for item "${originalItem.description}" not found.`);
             }
 
@@ -1447,7 +1446,7 @@ export const useAppStore = create<AppState>()(
             const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice as any);
             finalSubtotal += costs.totalPrice;
     
-            return {
+            const itemToAdd: InvoiceItem = {
                 sku: `ORD-${order.id}-${index + 1}`,
                 name: originalItem.description,
                 categoryId: '',
@@ -1468,6 +1467,13 @@ export const useAppStore = create<AppState>()(
                 stoneDetails: originalItem.stoneDetails,
                 diamondDetails: originalItem.diamondDetails,
             };
+             // Clean the item of any undefined values before pushing
+            Object.keys(itemToAdd).forEach(key => {
+                if (itemToAdd[key as keyof InvoiceItem] === undefined) {
+                    delete itemToAdd[key as keyof InvoiceItem];
+                }
+            });
+            finalInvoiceItems.push(itemToAdd);
         });
     
         const totalDiscount = order.advancePayment + additionalDiscount;
@@ -1493,7 +1499,15 @@ export const useAppStore = create<AppState>()(
     
         try {
             const batch = writeBatch(db);
-            batch.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
+            const finalInvoicePayload = { ...newInvoiceData };
+             // Final check for undefined on the main object
+            Object.keys(finalInvoicePayload).forEach(key => {
+                if (finalInvoicePayload[key as keyof typeof finalInvoicePayload] === undefined) {
+                    delete finalInvoicePayload[key as keyof typeof finalInvoicePayload];
+                }
+            });
+
+            batch.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), finalInvoicePayload);
             batch.update(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID), { lastInvoiceNumber: nextInvoiceNumber });
             batch.update(doc(db, FIRESTORE_COLLECTIONS.ORDERS, order.id), { status: 'Completed' });
             
@@ -1710,3 +1724,5 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
+
+    
