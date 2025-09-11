@@ -1089,23 +1089,36 @@ export const useAppStore = create<AppState>()(
     
         try {
             return await runTransaction(db, async (transaction) => {
-                let finalCustomerId = customerInfo.id;
-                let customerName = customerInfo.name;
+                // Perform all READS first
+                const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
+                const settingsDoc = await transaction.get(settingsDocRef);
+                const currentSettings = settingsDoc.data() as Settings;
     
-                if (!finalCustomerId && customerName) {
+                let customerName = customerInfo.name;
+                if (customerInfo.id) {
+                    const custDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerInfo.id));
+                    if (custDoc.exists()) {
+                        customerName = custDoc.data().name;
+                    }
+                }
+    
+                const productDocsPromises = cart.map(cartItem => 
+                    transaction.get(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku))
+                );
+                await Promise.all(productDocsPromises);
+    
+                // All reads are done. Now prepare and perform WRITES.
+                let finalCustomerId = customerInfo.id;
+                if (!finalCustomerId && customerInfo.name) {
                     const newCustId = `cust-${Date.now()}`;
                     const newCustomer: Customer = { 
                         id: newCustId, 
-                        name: customerName, 
+                        name: customerInfo.name, 
                         phone: customerInfo.phone || "" 
                     };
+                    // Set customer to be created
                     transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustId), newCustomer);
                     finalCustomerId = newCustId;
-                } else if (finalCustomerId) {
-                    const custDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, finalCustomerId));
-                    if(custDoc.exists()) {
-                        customerName = custDoc.data().name;
-                    }
                 }
     
                 const ratesForInvoice = {
@@ -1120,23 +1133,13 @@ export const useAppStore = create<AppState>()(
     
                 let subtotal = 0;
                 const invoiceItems: InvoiceItem[] = [];
-                const productsToMove = [];
-    
+                
                 for (const cartItem of cart) {
-                    const productDocRef = doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku);
-                    const productDoc = await transaction.get(productDocRef);
-    
-                    if (productDoc.exists()) {
-                       productsToMove.push(cartItem);
-                    }
-                    
                     const product = cartItem; // Use the (potentially edited) cart item for calculation
-    
                     const costs = _calculateProductCostsInternal(product, ratesForInvoice);
                     if (isNaN(costs.totalPrice)) {
                         throw new Error(`Calculated cost for product ${product.sku} is NaN.`);
                     }
-    
                     const itemTotal = costs.totalPrice;
                     subtotal += itemTotal;
     
@@ -1150,14 +1153,14 @@ export const useAppStore = create<AppState>()(
                         miscChargesIfAny: costs.miscCharges, stoneDetails: product.stoneDetails,
                         diamondDetails: product.diamondDetails, karat: product.karat
                     });
+    
+                    // Schedule product move and deletion
+                    transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, product.sku), product);
+                    transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, product.sku));
                 }
     
                 const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
                 const grandTotal = subtotal - calculatedDiscountAmount;
-                const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
-                const settingsDoc = await transaction.get(settingsDocRef);
-                const currentSettings = settingsDoc.data() as Settings;
-
                 const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
                 const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
     
@@ -1168,13 +1171,8 @@ export const useAppStore = create<AppState>()(
                     customerId: finalCustomerId, customerName: customerName || 'Walk-in Customer'
                 };
     
+                // Schedule all remaining writes
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
-    
-                for (const product of productsToMove) {
-                    transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, product.sku), product);
-                    transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, product.sku));
-                }
-    
                 transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
     
                 const hisaabEntry: Omit<HisaabEntry, 'id'> = {
