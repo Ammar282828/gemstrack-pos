@@ -35,8 +35,8 @@ const productFormSchema = z.object({
   karat: z.enum(karatValues).optional(),
   metalWeightG: z.coerce.number().min(0.001, "Metal weight must be a positive number"),
   // Secondary Metal (optional)
-  secondaryMetalType: z.enum(metalTypeValues).optional(),
-  secondaryMetalKarat: z.enum(karatValues).optional(),
+  secondaryMetalType: z.enum(metalTypeValues).optional().or(z.literal('')),
+  secondaryMetalKarat: z.enum(karatValues).optional().or(z.literal('')),
   secondaryMetalWeightG: z.coerce.number().min(0, "Secondary metal weight must be non-negative").optional(),
   // Other fields
   wastagePercentage: z.coerce.number().min(0).max(100, "Wastage must be between 0 and 100"),
@@ -115,7 +115,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
       categoryId: '', metalType: 'gold', karat: '21k', metalWeightG: 0, wastagePercentage: 10,
       makingCharges: 0, hasDiamonds: false, hasStones: false, stoneWeightG: 0, diamondCharges: 0,
       stoneCharges: 0, miscCharges: 0, imageUrl: "", stoneDetails: "", diamondDetails: "",
-      secondaryMetalType: undefined, secondaryMetalKarat: undefined, secondaryMetalWeightG: undefined,
+      secondaryMetalType: '', secondaryMetalKarat: '', secondaryMetalWeightG: 0,
       isCustomPrice: false, customPrice: 0, description: '',
     },
   });
@@ -138,16 +138,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
   useEffect(() => {
     if (selectedSecondaryMetalType !== 'gold') { form.setValue('secondaryMetalKarat', undefined); }
     if(!selectedSecondaryMetalType){
-      form.setValue('secondaryMetalWeightG', undefined);
-      form.setValue('secondaryMetalKarat', undefined);
+      form.setValue('secondaryMetalWeightG', 0);
+      form.setValue('secondaryMetalKarat', '');
     }
   }, [selectedSecondaryMetalType, form]);
 
   useEffect(() => {
     if (!isMensRing) {
-        form.setValue('secondaryMetalType', undefined);
-        form.setValue('secondaryMetalKarat', undefined);
-        form.setValue('secondaryMetalWeightG', undefined);
+        form.setValue('secondaryMetalType', '');
+        form.setValue('secondaryMetalKarat', '');
+        form.setValue('secondaryMetalWeightG', 0);
     }
   }, [isMensRing, form]);
   
@@ -175,7 +175,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
     }
     
     const storage = getStorage();
-    const storageRef = ref(storage, `product_images/${Date.now()}-${file.name}`);
+    const storageRef = ref(storage, `product_images/${"'" + Date.now() + "'"}-${file.name}`);
     const uploadTask = uploadBytesResumable(storageRef, file);
 
     setIsUploading(true);
@@ -209,7 +209,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
       ...data,
       name: data.isCustomPrice ? (data.description || 'Custom Item') : (data.name || ''),
       karat: data.metalType === 'gold' ? data.karat : undefined,
-      secondaryMetalType: isMensRing ? data.secondaryMetalType : undefined,
+      secondaryMetalType: isMensRing ? (data.secondaryMetalType || undefined) : undefined,
       secondaryMetalKarat: isMensRing && data.secondaryMetalType === 'gold' ? data.secondaryMetalKarat : undefined,
       secondaryMetalWeightG: isMensRing && data.secondaryMetalType ? data.secondaryMetalWeightG : undefined,
     };
@@ -225,11 +225,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
       if (isEditMode && product) {
         await updateProduct(product.sku, processedData as Omit<Product, 'sku'>);
         toast({ title: "Success", description: "Product updated successfully." });
-        router.push(`/products/${product.sku}`);
+        router.push(`/products/${"'" + product.sku + "'"}`);
       } else {
         const newProduct = await addProduct(processedData as ProductDataForAdd);
         if (newProduct) {
-          toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
+          toast({ title: "Success", description: `Product ${"'" + newProduct.name + "'"} (SKU: ${"'" + newProduct.sku + "'"}) added.` });
           if (data.submitAction === 'saveAndAddAnother') {
              const originalCategory = form.getValues('categoryId');
              form.reset({
@@ -237,7 +237,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
                 categoryId: originalCategory, metalType: 'gold', karat: '21k', metalWeightG: 0, wastagePercentage: 10,
                 makingCharges: 0, hasDiamonds: false, hasStones: false, stoneWeightG: 0, diamondCharges: 0,
                 stoneCharges: 0, miscCharges: 0, imageUrl: "", stoneDetails: "", diamondDetails: "",
-                secondaryMetalType: undefined, secondaryMetalKarat: undefined, secondaryMetalWeightG: undefined,
+                secondaryMetalType: '', secondaryMetalKarat: '', secondaryMetalWeightG: 0,
                 isCustomPrice: false, customPrice: 0, description: '',
             });
           } else { router.push('/products'); }
@@ -383,9 +383,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
                           render={({ field }) => (
                           <FormItem>
                               <FormLabel className="flex items-center"><Shield className="mr-2 h-4 w-4" /> Metal Type</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                   <FormControl><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger></FormControl>
                                   <SelectContent>
+                                    <SelectItem value="">None</SelectItem>
                                     {metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>))}
                                     </SelectContent>
                               </Select>
@@ -398,7 +399,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
                           render={({ field }) => (
                           <FormItem>
                               <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4" /> Karat</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                               <FormControl><SelectTrigger><SelectValue placeholder="Select Karat" /></SelectTrigger></FormControl>
                               <SelectContent>{karatValues.map((kVal) => (<SelectItem key={kVal} value={kVal}>{kVal.toUpperCase()}</SelectItem>))}</SelectContent>
                               </Select>
