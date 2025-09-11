@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product } from '@/lib/store';
+import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -36,6 +36,13 @@ declare module 'jspdf' {
     };
   }
 }
+
+type RateInputs = {
+    gold: string;
+    palladium: string;
+    platinum: string;
+    silver: string;
+};
 
 const WALK_IN_CUSTOMER_VALUE = "__WALK_IN__";
 
@@ -61,14 +68,17 @@ export default function CartPage() {
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
   const allInvoices = useAppStore(state => state.generatedInvoices);
-  const { removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCartFromInvoice, deleteInvoice, updateCartItem } = useAppStore();
+  const { removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings } = useAppStore();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [walkInCustomerName, setWalkInCustomerName] = useState('');
   const [walkInCustomerPhone, setWalkInCustomerPhone] = useState('');
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
   
-  const [invoiceGoldRateInput, setInvoiceGoldRateInput] = useState<string>('');
+  const [rateInputs, setRateInputs] = useState<RateInputs>({
+    gold: '', palladium: '', platinum: '', silver: ''
+  });
+  
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
   
   const [paymentAmount, setPaymentAmount] = useState<string>('');
@@ -76,6 +86,8 @@ export default function CartPage() {
   const [isEditingEstimate, setIsEditingEstimate] = useState(false);
   
   const [editingCartItem, setEditingCartItem] = useState<Product | undefined>(undefined);
+  const [isNewProductDialogOpen, setIsNewProductDialogOpen] = useState(false);
+
 
   const phoneForm = useForm<PhoneForm>();
   
@@ -92,41 +104,48 @@ export default function CartPage() {
 
 
   useEffect(() => {
-    if (appReady && settings && typeof settings.goldRatePerGram === 'number' && !isEditingEstimate) {
-      const goldRate21k = settings.goldRatePerGram * (21 / 24);
-      setInvoiceGoldRateInput(goldRate21k.toFixed(2));
+    if (appReady && settings && !isEditingEstimate) {
+      setRateInputs({
+        gold: (settings.goldRatePerGram * (21/24)).toFixed(2),
+        palladium: (settings.palladiumRatePerGram || 0).toFixed(2),
+        platinum: (settings.platinumRatePerGram || 0).toFixed(2),
+        silver: (settings.silverRatePerGram || 0).toFixed(2),
+      });
     } else if (appReady) {
-      console.warn("[GemsTrack] CartPage: Could not set initial invoiceGoldRateInput because settings or goldRatePerGram was missing/invalid.", settings);
-      setInvoiceGoldRateInput("0");
+      setRateInputs({ gold: "0", palladium: "0", platinum: "0", silver: "0" });
     }
   }, [appReady, settings, isEditingEstimate]);
+  
+  const cartMetalTypes = useMemo(() => {
+    return new Set(cartItemsFromStore.map(item => item.metalType));
+  }, [cartItemsFromStore]);
 
-  const cartContainsNonGoldItems = cartItemsFromStore.some(item => item.metalType !== 'gold');
+  const handleRateChange = (metal: keyof RateInputs, value: string) => {
+    setRateInputs(prev => ({ ...prev, [metal]: value }));
+  };
+
   
   const estimatedInvoice = useMemo((): EstimatedInvoice | null => {
     if (!appReady || !settings || cartItemsFromStore.length === 0) return null;
     
-    const parsedGoldRate21k = parseFloat(invoiceGoldRateInput);
-    const hasGoldItems = cartItemsFromStore.some(item => item.metalType === 'gold');
-    
-    if (hasGoldItems && (isNaN(parsedGoldRate21k) || parsedGoldRate21k <= 0)) {
-        return null; // Don't calculate if gold rate is invalid for a cart with a gold items
+    const parsedGoldRate21k = parseFloat(rateInputs.gold);
+    if (cartMetalTypes.has('gold') && (isNaN(parsedGoldRate21k) || parsedGoldRate21k <= 0)) {
+        return null;
     }
     
     const goldRate24k = parsedGoldRate21k * (24 / 21);
 
     const ratesForCalc = {
         goldRatePerGram24k: goldRate24k || 0,
-        palladiumRatePerGram: settings.palladiumRatePerGram || 0,
-        platinumRatePerGram: settings.platinumRatePerGram || 0,
-        silverRatePerGram: settings.silverRatePerGram || 0,
+        palladiumRatePerGram: parseFloat(rateInputs.palladium) || settings.palladiumRatePerGram || 0,
+        platinumRatePerGram: parseFloat(rateInputs.platinum) || settings.platinumRatePerGram || 0,
+        silverRatePerGram: parseFloat(rateInputs.silver) || settings.silverRatePerGram || 0,
     };
     
     let currentSubtotal = 0;
     const estimatedItems: EstimatedInvoice['items'] = [];
 
     cartItemsFromStore.forEach(cartItem => {
-        // Since cartItem is now a full Product object, we can use it directly
         const costs = calculateProductCosts(cartItem, ratesForCalc);
         const itemTotal = costs.totalPrice; // Quantity is always 1
         currentSubtotal += itemTotal;
@@ -137,7 +156,7 @@ export default function CartPage() {
             categoryId: cartItem.categoryId,
             metalType: cartItem.metalType,
             karat: cartItem.karat,
-            metalWeightG: cartItem.metalWeightG,
+            metalWeightG: cartItem.metalWeightG || 0,
             stoneWeightG: cartItem.stoneWeightG,
             quantity: 1,
             unitPrice: itemTotal,
@@ -149,7 +168,7 @@ export default function CartPage() {
             diamondChargesIfAny: costs.diamondCharges,
             stoneChargesIfAny: costs.stoneCharges,
             miscChargesIfAny: costs.miscCharges,
-            originalPrice: itemTotal, // This might need rethinking, but for now it is the calculated price
+            originalPrice: itemTotal,
         });
     });
 
@@ -161,7 +180,7 @@ export default function CartPage() {
         grandTotal: grandTotal,
         items: estimatedItems,
     };
-  }, [appReady, settings, cartItemsFromStore, invoiceGoldRateInput, discountAmountInput]);
+  }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, cartMetalTypes]);
 
 
   const handleGenerateInvoice = async () => {
@@ -181,13 +200,11 @@ export default function CartPage() {
         return;
     }
 
-
-    const parsedGoldRate21k = parseFloat(invoiceGoldRateInput);
+    const parsedGoldRate21k = parseFloat(rateInputs.gold);
     const goldRate24kForInvoice = parsedGoldRate21k * (24 / 21);
     const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
 
-    const hasGoldItems = cartItemsFromStore.some(item => item.metalType === 'gold');
-    if (hasGoldItems && (isNaN(parsedGoldRate21k) || parsedGoldRate21k <= 0)) {
+    if (cartMetalTypes.has('gold') && (isNaN(parsedGoldRate21k) || parsedGoldRate21k <= 0)) {
       toast({ title: "Invalid Gold Rate", description: "Please enter a valid positive 21k gold rate for gold items.", variant: "destructive" });
       return;
     }
@@ -201,6 +218,16 @@ export default function CartPage() {
         toast({ title: "Invalid Discount", description: "Discount cannot be greater than the subtotal.", variant: "destructive" });
         return;
     }
+
+    // Persist rate changes to settings
+    const updatedRateSettings: Partial<Settings> = {
+      goldRatePerGram: goldRate24kForInvoice,
+      palladiumRatePerGram: parseFloat(rateInputs.palladium) || settings.palladiumRatePerGram,
+      platinumRatePerGram: parseFloat(rateInputs.platinum) || settings.platinumRatePerGram,
+      silverRatePerGram: parseFloat(rateInputs.silver) || settings.silverRatePerGram,
+    };
+    await updateSettings(updatedRateSettings);
+    toast({ title: "Rates Updated", description: "Store metal rates have been updated with the values from this estimate."});
 
     const customerForInvoice = isWalkIn
         ? { name: walkInCustomerName, phone: walkInCustomerPhone }
@@ -234,17 +261,19 @@ export default function CartPage() {
   const handleEditEstimate = () => {
     if (!generatedInvoice) return;
     setIsEditingEstimate(true);
-    // Load cart with items from the invoice
     loadCartFromInvoice(generatedInvoice);
-    // Pre-fill form fields
     setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
     if (!generatedInvoice.customerId) {
         setWalkInCustomerName(generatedInvoice.customerName || '');
     }
-    const goldRate21k = (generatedInvoice.goldRateApplied || 0) * (21 / 24);
-    setInvoiceGoldRateInput(goldRate21k.toFixed(2));
+    setRateInputs({
+      gold: ((generatedInvoice.goldRateApplied || 0) * (21/24)).toFixed(2),
+      palladium: (generatedInvoice.palladiumRateApplied || settings.palladiumRatePerGram || 0).toFixed(2),
+      platinum: (generatedInvoice.platinumRateApplied || settings.platinumRatePerGram || 0).toFixed(2),
+      silver: (settings.silverRatePerGram || 0).toFixed(2),
+    });
     setDiscountAmountInput(String(generatedInvoice.discountAmount));
-    setGeneratedInvoice(null); // Go back to cart view
+    setGeneratedInvoice(null);
   };
 
 
@@ -255,7 +284,6 @@ export default function CartPage() {
       return;
     }
     
-    // Use the actual origin of the window to build the link
     const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://gemstrack-pos.web.app';
     const invoiceUrl = `${appUrl}/view-invoice/${invoiceToSend.id}`;
 
@@ -295,7 +323,6 @@ export default function CartPage() {
     function drawHeader(pageNum: number) {
         if (logoUrl) {
             try {
-                // The logo from settings is a Data URL, so it can be added directly without onload.
                 doc.addImage(logoUrl, 'PNG', margin, 15, 40, 10, undefined, 'FAST');
             } catch (e) {
                  console.error("Error adding logo to PDF:", e);
@@ -371,7 +398,7 @@ export default function CartPage() {
         if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
 
-        const metalDisplay = `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: ${item.metalWeightG.toFixed(2)}g`;
+        const metalDisplay = `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: item.metalWeightG.toFixed(2)}g`;
         
         const mainTitle = `${item.name}`;
         const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;
@@ -513,11 +540,15 @@ export default function CartPage() {
     setGeneratedInvoice(null);
     clearCart();
     setIsEditingEstimate(false);
-    if (settings && typeof settings.goldRatePerGram === 'number') {
-        const goldRate21k = settings.goldRatePerGram * (21/24);
-        setInvoiceGoldRateInput(goldRate21k.toFixed(2));
+    if (settings) {
+        setRateInputs({
+            gold: (settings.goldRatePerGram * (21/24)).toFixed(2),
+            palladium: (settings.palladiumRatePerGram || 0).toFixed(2),
+            platinum: (settings.platinumRatePerGram || 0).toFixed(2),
+            silver: (settings.silverRatePerGram || 0).toFixed(2),
+        });
     } else {
-        setInvoiceGoldRateInput("0");
+        setRateInputs({ gold: "0", palladium: "0", platinum: "0", silver: "0" });
     }
     setDiscountAmountInput('0');
   }
@@ -723,10 +754,25 @@ export default function CartPage() {
             </DialogContent>
         </Dialog>
       )}
+      <Dialog open={isNewProductDialogOpen} onOpenChange={setIsNewProductDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Create New Product</DialogTitle>
+            <DialogDescription>Add a new item to your inventory. It will not be added to the current cart automatically.</DialogDescription>
+          </DialogHeader>
+          <ProductForm />
+        </DialogContent>
+      </Dialog>
 
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-primary">Shopping Cart &amp; Estimate</h1>
-        <p className="text-muted-foreground">Review items, set estimate parameters, and generate an estimate.</p>
+      <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+            <h1 className="text-3xl font-bold text-primary">Shopping Cart &amp; Estimate</h1>
+            <p className="text-muted-foreground">Review items, set estimate parameters, and generate an estimate.</p>
+        </div>
+        <Button onClick={() => setIsNewProductDialogOpen(true)}>
+            <PlusCircle className="mr-2 h-5 w-5" />
+            Create New Product
+        </Button>
       </header>
 
       {cartItemsFromStore.length === 0 ? (
@@ -837,28 +883,38 @@ export default function CartPage() {
                     </div>
                 )}
                 <Separator />
-                <div>
-                  <Label htmlFor="invoice-gold-rate" className="flex items-center mb-1 text-sm font-medium">
-                    <SettingsIcon className="w-4 h-4 mr-1 text-muted-foreground" /> Gold Rate for this Estimate (PKR/gram, 21k)
-                  </Label>
-                  <Input
-                    id="invoice-gold-rate"
-                    type="number"
-                    value={invoiceGoldRateInput}
-                    onChange={(e) => setInvoiceGoldRateInput(e.target.value)}
-                    placeholder="e.g., 17500"
-                    className="text-base"
-                    step="0.01"
-                  />
-                   <p className="text-xs text-muted-foreground mt-1">Current store setting for Gold (21k): PKR {(settings?.goldRatePerGram * (21/24) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}/gram.</p>
-                   {cartContainsNonGoldItems && (
-                    <Alert variant="default" className="mt-2 text-xs">
-                        <Info className="h-4 w-4" />
-                        <AlertDescription>
-                            Palladium and Platinum items in this cart will be priced using their current rates from store settings (Pd: {(settings?.palladiumRatePerGram || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }, Pt: {(settings?.platinumRatePerGram || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }).
-                        </AlertDescription>
-                    </Alert>
-                   )}
+                 <div>
+                    <Label className="flex items-center mb-2 text-sm font-medium">
+                        <SettingsIcon className="w-4 h-4 mr-1 text-muted-foreground" />
+                        Metal Rates for this Estimate (PKR/gram)
+                    </Label>
+                    <div className="space-y-3">
+                        {cartMetalTypes.has('gold') && (
+                        <div>
+                            <Label htmlFor="invoice-gold-rate" className="text-xs">Gold (21k)</Label>
+                            <Input id="invoice-gold-rate" type="number" value={rateInputs.gold} onChange={(e) => handleRateChange('gold', e.target.value)} placeholder="e.g., 175000" step="0.01"/>
+                        </div>
+                        )}
+                        {cartMetalTypes.has('palladium') && (
+                        <div>
+                            <Label htmlFor="invoice-palladium-rate" className="text-xs">Palladium</Label>
+                            <Input id="invoice-palladium-rate" type="number" value={rateInputs.palladium} onChange={(e) => handleRateChange('palladium', e.target.value)} placeholder="e.g., 8000" step="0.01"/>
+                        </div>
+                        )}
+                        {cartMetalTypes.has('platinum') && (
+                        <div>
+                            <Label htmlFor="invoice-platinum-rate" className="text-xs">Platinum</Label>
+                            <Input id="invoice-platinum-rate" type="number" value={rateInputs.platinum} onChange={(e) => handleRateChange('platinum', e.target.value)} placeholder="e.g., 12000" step="0.01"/>
+                        </div>
+                        )}
+                        {cartMetalTypes.has('silver') && (
+                        <div>
+                            <Label htmlFor="invoice-silver-rate" className="text-xs">Silver</Label>
+                            <Input id="invoice-silver-rate" type="number" value={rateInputs.silver} onChange={(e) => handleRateChange('silver', e.target.value)} placeholder="e.g., 250" step="0.01"/>
+                        </div>
+                        )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">These rates will be used for this invoice and will update the store's default rates upon generation.</p>
                 </div>
                 <div>
                   <Label htmlFor="discount-amount" className="flex items-center mb-1 text-sm font-medium">
@@ -907,4 +963,3 @@ export default function CartPage() {
     </div>
   );
 }
-

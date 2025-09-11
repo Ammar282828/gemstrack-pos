@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState } from 'react';
@@ -11,9 +12,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { QrCode, ShoppingCart, Trash2, ExternalLink, ListPlus, Loader2, X, VideoOff, ScanLine } from 'lucide-react';
+import { QrCode, ShoppingCart, Trash2, ExternalLink, ListPlus, Loader2, X, VideoOff, ScanLine, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import dynamic from 'next/dynamic';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ProductForm } from '@/components/product/product-form';
 
 const QrScanner = dynamic(() => import('@/components/scanner/qr-scanner'), {
   ssr: false,
@@ -55,6 +58,8 @@ export default function ScanPOSPage() {
   const [skuInput, setSkuInput] = useState('');
   const appReady = useAppReady();
   const [isScannerActive, setIsScannerActive] = useState(true); // Default to active
+  const [isNewProductDialogOpen, setIsNewProductDialogOpen] = useState(false);
+
 
   const { addToCart, removeFromCart: removeFromCartAction, products } = useAppStore(state => ({
       addToCart: state.addToCart,
@@ -91,6 +96,15 @@ export default function ScanPOSPage() {
 
   return (
     <div className="container mx-auto py-8 px-4">
+      <Dialog open={isNewProductDialogOpen} onOpenChange={setIsNewProductDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Create New Product</DialogTitle>
+            <DialogDescription>Add a new item to your inventory. It will not be added to the current cart automatically.</DialogDescription>
+          </DialogHeader>
+          <ProductForm />
+        </DialogContent>
+      </Dialog>
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
         {/* --- Right Column (Cart Summary) - MOVED TO TOP ON MOBILE --- */}
@@ -146,10 +160,14 @@ export default function ScanPOSPage() {
               
               <QrScanner isActive={isScannerActive && appReady} />
               
-              <div className="text-center">
-                <Button size="lg" onClick={() => setIsScannerActive(prev => !prev)} variant={isScannerActive ? "outline" : "default"} className="w-full md:w-auto">
+              <div className="text-center flex flex-col sm:flex-row gap-2 justify-center">
+                <Button size="lg" onClick={() => setIsScannerActive(prev => !prev)} variant={isScannerActive ? "outline" : "default"} className="flex-grow">
                   {isScannerActive ? <VideoOff className="mr-2 h-5 w-5" /> : <ScanLine className="mr-2 h-5 w-5" />}
                   {isScannerActive ? "Stop Scanner" : "Start Scanner"}
+                </Button>
+                 <Button size="lg" variant="secondary" onClick={() => setIsNewProductDialogOpen(true)} className="flex-grow">
+                    <PlusCircle className="mr-2 h-5 w-5" />
+                    Create New Product
                 </Button>
               </div>
 
