@@ -8,9 +8,19 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, startOfDay } from 'date-fns';
-import { Loader2, ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
+import { Loader2, ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerClose,
+} from "@/components/ui/drawer"
+import { Button } from '@/components/ui/button';
 
 type CalendarEventType = (Invoice | Order) & { eventType: 'invoice' | 'order' };
 
@@ -21,6 +31,42 @@ type EventsByDate = {
     events: CalendarEventType[];
   };
 };
+
+
+const EventDetails: React.FC<{ events: CalendarEventType[] | undefined }> = ({ events }) => {
+    if (!events) {
+        return <p className="text-muted-foreground text-center py-10">Select a day on the calendar to see events.</p>;
+    }
+    
+    if (events.length === 0) {
+        return <p className="text-muted-foreground text-center py-10">No events for this day.</p>;
+    }
+
+    return (
+        <div className="space-y-4">
+            {events.map(event => (
+               <Link href={event.eventType === 'order' ? `/orders/${event.id}` : `/cart?invoice_id=${event.id}`} key={event.id} passHref>
+                <div key={event.id} className={cn("p-3 rounded-md border-l-4 hover:bg-muted/50 block cursor-pointer transition-colors", {
+                    'border-green-500': event.eventType === 'invoice',
+                    'border-blue-500': event.eventType === 'order'
+                })}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            {event.eventType === 'invoice' ? <FileText className="h-4 w-4 text-green-500" /> : <ClipboardList className="h-4 w-4 text-blue-500"/>}
+                            <Badge variant="outline" className="text-xs">{event.id}</Badge>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <p className="font-semibold text-sm mt-1">PKR {('grandTotal' in event) ? event.grandTotal.toLocaleString() : 'N/A'}</p>
+                    <p className="text-xs text-muted-foreground">{('customerName' in event) ? event.customerName : 'Walk-in'}</p>
+                    <p className="text-xs text-muted-foreground">{format(parseISO(event.createdAt), 'hh:mm a')}</p>
+                </div>
+               </Link>
+            ))}
+        </div>
+    );
+};
+
 
 export default function CalendarPage() {
   const { 
@@ -34,8 +80,10 @@ export default function CalendarPage() {
   }, [loadGeneratedInvoices, loadOrders]);
 
   const isLoading = isInvoicesLoading || isOrdersLoading;
+  const isMobile = useIsMobile();
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const eventsByDate = useMemo((): EventsByDate => {
     const eventsMap: EventsByDate = {};
@@ -67,10 +115,13 @@ export default function CalendarPage() {
   }, [generatedInvoices, orders]);
 
   const selectedDateString = selectedDate ? format(startOfDay(selectedDate), 'yyyy-MM-dd') : undefined;
-  const eventsForSelectedDay = selectedDateString ? eventsByDate[selectedDateString]?.events : undefined;
+  const eventsForSelectedDay = selectedDateString ? eventsByDate[selectedDateString]?.events : [];
 
   const handleDayClick = (day: Date | undefined) => {
     setSelectedDate(day);
+    if(isMobile) {
+        setIsDrawerOpen(true);
+    }
   };
 
   const EventDay = ({ date }: { date: Date }) => {
@@ -132,45 +183,39 @@ export default function CalendarPage() {
             </CardContent>
         </Card>
         
-        <Card>
-            <CardHeader>
-                <CardTitle>
-                    Events for {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : '...'}
-                </CardTitle>
-                 <CardDescription>
-                    {eventsForSelectedDay ? `${eventsForSelectedDay.length} event(s) found.` : 'No events for this day.'}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ScrollArea className="h-[500px] pr-4">
-                    {eventsForSelectedDay ? (
-                        <div className="space-y-4">
-                            {eventsForSelectedDay.map(event => (
-                               <Link href={event.eventType === 'order' ? `/orders/${event.id}` : '#'} key={event.id}>
-                                <div key={event.id} className={cn("p-3 rounded-md border-l-4 hover:bg-muted/50", {
-                                    'border-green-500': event.eventType === 'invoice',
-                                    'border-blue-500': event.eventType === 'order'
-                                })}>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            {event.eventType === 'invoice' ? <FileText className="h-4 w-4 text-green-500" /> : <ClipboardList className="h-4 w-4 text-blue-500"/>}
-                                            <Badge variant="outline" className="text-xs">{event.id}</Badge>
-                                        </div>
-                                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                    <p className="font-semibold text-sm mt-1">PKR {('grandTotal' in event) ? event.grandTotal.toLocaleString() : 'N/A'}</p>
-                                    <p className="text-xs text-muted-foreground">{('customerName' in event) ? event.customerName : 'Walk-in'}</p>
-                                    <p className="text-xs text-muted-foreground">{format(parseISO(event.createdAt), 'hh:mm a')}</p>
-                                </div>
-                               </Link>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-muted-foreground text-center py-10">Select a day on the calendar to see events.</p>
-                    )}
-                </ScrollArea>
-            </CardContent>
-        </Card>
+        {isMobile ? (
+             <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+                <DrawerContent>
+                     <DrawerHeader className="text-left">
+                        <DrawerTitle>
+                             Events for {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : '...'}
+                        </DrawerTitle>
+                        <DrawerDescription>
+                             {eventsForSelectedDay ? `${eventsForSelectedDay.length} event(s) found.` : 'No events for this day.'}
+                        </DrawerDescription>
+                    </DrawerHeader>
+                     <ScrollArea className="h-[50vh] px-4">
+                         <EventDetails events={eventsForSelectedDay} />
+                    </ScrollArea>
+                </DrawerContent>
+             </Drawer>
+        ) : (
+            <Card>
+                <CardHeader>
+                    <CardTitle>
+                        Events for {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : '...'}
+                    </CardTitle>
+                    <CardDescription>
+                        {eventsForSelectedDay ? `${eventsForSelectedDay.length} event(s) found.` : 'No events for this day.'}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ScrollArea className="h-[500px] pr-4">
+                       <EventDetails events={eventsForSelectedDay} />
+                    </ScrollArea>
+                </CardContent>
+            </Card>
+        )}
       </div>
     </div>
   );
