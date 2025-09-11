@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -147,7 +146,17 @@ export default function ProductDetailPage() {
     );
   }
 
-  const goldRate21k = settings.goldRatePerGram * (21/24);
+  const getRateForProduct = () => {
+    if (productData.metalType !== 'gold' || !productData.karat) return null;
+    const rateKey = `goldRatePerGram${productData.karat}` as keyof Settings;
+    const rate = settings[rateKey] as number | undefined;
+    return {
+      label: `Gold Rate (Store Setting, ${productData.karat.toUpperCase()})`,
+      value: rate || 0
+    };
+  };
+
+  const productRate = getRateForProduct();
 
   return (
     <div className="container mx-auto p-4">
@@ -184,8 +193,8 @@ export default function ProductDetailPage() {
                  </div>
               ) : (
                 <>
-                  {productData.metalType === 'gold' && (
-                      <DetailItem label="Gold Rate (Store Setting, 21k)" value={goldRate21k} unit="/ gram" currency="PKR " />
+                  {productRate && (
+                      <DetailItem label={productRate.label} value={productRate.value} unit="/ gram" currency="PKR " />
                   )}
                   {productData.metalType === 'palladium' && (
                       <DetailItem label="Palladium Rate (Store Setting)" value={settings.palladiumRatePerGram} unit="/ gram" currency="PKR " />
