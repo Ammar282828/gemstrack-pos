@@ -553,6 +553,7 @@ export interface AppState {
   addProduct: (productData: ProductDataForAdd) => Promise<Product | null>;
   updateProduct: (sku: string, updatedProductData: Partial<Omit<Product, 'sku'>>) => Promise<void>;
   deleteProduct: (sku: string) => Promise<void>;
+  deleteLatestProducts: (count: number) => Promise<number>;
   setProductQrCode: (sku: string, qrCodeDataUrl: string) => Promise<void>; // Will update Firestore then local
 
   loadCustomers: () => void;
@@ -862,6 +863,34 @@ export const useAppStore = create<AppState>()(
           console.error(`[GemsTrack Store deleteProduct] Error deleting product SKU ${sku} from Firestore:`, error);
         }
       },
+       deleteLatestProducts: async (count: number) => {
+            if (count <= 0) return 0;
+            console.log(`[deleteLatestProducts] Attempting to delete the latest ${count} products.`);
+            try {
+                const productsRef = collection(db, FIRESTORE_COLLECTIONS.PRODUCTS);
+                const q = query(productsRef, orderBy('__name__', 'desc')); // Firestore sorts document IDs lexicographically.
+                const snapshot = await getDocs(q);
+
+                const productsToDelete = snapshot.docs.slice(0, count);
+
+                if (productsToDelete.length === 0) {
+                    console.log("[deleteLatestProducts] No products found to delete.");
+                    return 0;
+                }
+
+                const batch = writeBatch(db);
+                productsToDelete.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+                await batch.commit();
+                
+                console.log(`[deleteLatestProducts] Successfully deleted ${productsToDelete.length} products.`);
+                return productsToDelete.length;
+            } catch (error) {
+                console.error("[deleteLatestProducts] Error deleting latest products:", error);
+                throw error;
+            }
+        },
        setProductQrCode: async (sku, qrCodeDataUrl) => {
         console.log(`[GemsTrack Store setProductQrCode] Setting QR for SKU ${sku}.`);
         try {

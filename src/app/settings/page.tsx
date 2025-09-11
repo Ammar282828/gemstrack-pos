@@ -21,6 +21,8 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
@@ -44,6 +46,83 @@ const settingsSchema = z.object({
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
+
+const DangerZone: React.FC = () => {
+    const { deleteLatestProducts } = useAppStore();
+    const { toast } = useToast();
+    const [deleteCount, setDeleteCount] = useState<number>(1);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDelete = async () => {
+        if (deleteCount <= 0) {
+            toast({ title: "Invalid Number", description: "Please enter a positive number of products to delete.", variant: "destructive" });
+            return;
+        }
+        setIsDeleting(true);
+        try {
+            const deletedCount = await deleteLatestProducts(deleteCount);
+            toast({ title: "Success", description: `${deletedCount} latest products have been deleted.` });
+        } catch (e: any) {
+            toast({ title: "Error", description: `Failed to delete products: ${e.message}`, variant: "destructive" });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    return (
+        <Card className="border-destructive">
+            <CardHeader>
+                <CardTitle className="text-xl flex items-center text-destructive">
+                    <AlertTriangle className="mr-2 h-5 w-5" /> Danger Zone
+                </CardTitle>
+                <CardDescription>
+                    These are destructive actions. Use them with extreme caution as they cannot be undone.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div>
+                    <Label htmlFor="delete-count">Delete Latest Products</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                        <Input
+                            id="delete-count"
+                            type="number"
+                            value={deleteCount}
+                            onChange={(e) => setDeleteCount(parseInt(e.target.value, 10) || 1)}
+                            min="1"
+                            className="w-32"
+                        />
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" disabled={isDeleting}>
+                                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash className="mr-2 h-4 w-4" />}
+                                    Delete {deleteCount} Product(s)
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the <strong>{deleteCount}</strong> most recently added products from your inventory.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                                        Yes, delete them
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
+                     <p className="text-xs text-muted-foreground mt-2">
+                        This will remove the specified number of products based on the highest SKU numbers.
+                    </p>
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -472,6 +551,7 @@ export default function SettingsPage() {
             </Link>
         </CardContent>
       </Card>
+       <DangerZone />
     </div>
   );
 }
