@@ -115,10 +115,12 @@ export default function QrScanner() {
             setIsScanning(true);
             setHasCameraPermission(true);
 
+            // @ts-ignore
             const capabilities = qrCode.getRunningTrackCapabilities?.();
-            if (capabilities && (capabilities as any).zoom) {
+            if (capabilities && capabilities.zoom) {
               setCameraCapabilities(capabilities);
-              setZoom((capabilities as any).zoom.min);
+              // @ts-ignore
+              setZoom(capabilities.zoom.min);
             }
         }
       } catch (err) {
@@ -156,10 +158,10 @@ export default function QrScanner() {
         return;
       }
       try {
-        const capabilities = html5QrCodeRef.current.getRunningTrackCapabilities?.();
+        // @ts-ignore
         const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
   
-        if (currentTrack && (capabilities as any)?.zoom) {
+        if (currentTrack) {
           await currentTrack.applyConstraints({
             advanced: [{ zoom: zoom }]
           });
