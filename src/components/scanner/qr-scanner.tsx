@@ -70,6 +70,11 @@ export default function QrScanner() {
     const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
 
     if (isAlreadyInCart) {
+        toast({
+            title: "Item Already in Cart",
+            description: `Product with SKU ${decodedText.trim()} is already in your cart.`,
+            variant: "default"
+        });
       return; 
     }
     
@@ -110,12 +115,10 @@ export default function QrScanner() {
             setIsScanning(true);
             setHasCameraPermission(true);
 
-            // @ts-ignore - getRunningTrackCapabilities is not in standard types but exists
             const capabilities = qrCode.getRunningTrackCapabilities?.();
-            if (capabilities?.zoom) {
+            if (capabilities && (capabilities as any).zoom) {
               setCameraCapabilities(capabilities);
-              // @ts-ignore
-              setZoom(capabilities.zoom.min);
+              setZoom((capabilities as any).zoom.min);
             }
         }
       } catch (err) {
@@ -212,9 +215,9 @@ export default function QrScanner() {
             <ZoomOut className="h-5 w-5" />
             <Slider
               id="zoom-slider"
-              min={cameraCapabilities.zoom.min}
-              max={cameraCapabilities.zoom.max}
-              step={cameraCapabilities.zoom.step}
+              min={(cameraCapabilities as any).zoom.min}
+              max={(cameraCapabilities as any).zoom.max}
+              step={(cameraCapabilities as any).zoom.step}
               value={[zoom]}
               onValueChange={(value) => setZoom(value[0])}
             />
