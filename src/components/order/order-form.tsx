@@ -306,13 +306,19 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
   useEffect(() => {
     if (order) {
       form.reset({
-        items: order.items,
+        items: order.items.map(item => ({
+            ...item,
+            sampleImageDataUri: item.sampleImageDataUri || '',
+            referenceSku: item.referenceSku || '',
+            stoneDetails: item.stoneDetails || '',
+            diamondDetails: item.diamondDetails || '',
+        })),
         goldRate: order.goldRate > 0 ? order.goldRate * (21 / 24) : 0,
-        advancePayment: order.advancePayment,
-        advanceGoldDetails: order.advanceGoldDetails,
+        advancePayment: order.advancePayment || 0,
+        advanceGoldDetails: order.advanceGoldDetails || '',
         customerId: order.customerId || WALK_IN_CUSTOMER_VALUE,
-        customerName: order.customerName,
-        customerContact: order.customerContact,
+        customerName: order.customerName || '',
+        customerContact: order.customerContact || '',
       });
     } else if (!isEditMode && settings.goldRatePerGram > 0) {
       const goldRate21k = settings.goldRatePerGram * (21 / 24);
