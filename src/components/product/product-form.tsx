@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -85,6 +84,7 @@ const productFormSchema = z.object({
 });
 
 type ProductFormData = z.infer<typeof productFormSchema>;
+type ProductDataForAdd = Omit<Product, 'sku' | 'qrCodeDataUrl'>;
 
 interface ProductFormProps {
   product?: Product;
@@ -107,7 +107,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const isDialogMode = isCartEditMode || onProductCreated;
+  const isDialogMode = isCartEditMode || !!onProductCreated;
 
 
   const getSafeDefaultValues = (p?: Product): ProductFormData => {
@@ -115,12 +115,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       name: p?.name || '',
       categoryId: p?.categoryId || '',
       metalType: p?.metalType || 'gold',
-      karat: p?.karat,
+      karat: p?.karat || undefined,
       metalWeightG: p?.metalWeightG || 0,
       secondaryMetalType: p?.secondaryMetalType || '',
-      secondaryMetalKarat: p?.secondaryMetalKarat,
+      secondaryMetalKarat: p?.secondaryMetalKarat || undefined,
       secondaryMetalWeightG: p?.secondaryMetalWeightG || 0,
-      wastagePercentage: p?.wastagePercentage || 10,
+      wastagePercentage: p?.wastagePercentage === undefined ? 10 : p.wastagePercentage,
       makingCharges: p?.makingCharges || 0,
       hasDiamonds: p?.hasDiamonds || false,
       hasStones: p?.hasStones || false,
@@ -232,7 +232,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       name: data.isCustomPrice ? (data.description || 'Custom Item') : (data.name || ''),
       karat: data.metalType === 'gold' ? data.karat : undefined,
       secondaryMetalType: isMensRing ? (data.secondaryMetalType || undefined) : undefined,
-      secondaryMetalKarat: isMensRing && data.secondaryMetalType === 'gold' ? data.secondaryMetalKarat : undefined,
+      secondaryMetalKarat: isMensRing && data.secondaryMetalType === 'gold' ? (data.secondaryMetalKarat || undefined) : undefined,
       secondaryMetalWeightG: isMensRing && data.secondaryMetalType ? data.secondaryMetalWeightG : undefined,
     };
     
@@ -532,8 +532,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           }
           {isDialogMode && (
              <div className="p-6 pt-0">
-                <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
-                    <Save className="mr-2 h-4 w-4" />
+                <Button type="submit" disabled={form.formState.isSubmitting || isUploading} className="w-full">
+                    {form.formState.isSubmitting || isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     {isCartEditMode ? 'Apply Changes to Cart Item' : 'Create New Product'}
                 </Button>
             </div>
