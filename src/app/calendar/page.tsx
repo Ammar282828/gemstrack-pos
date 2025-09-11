@@ -169,9 +169,9 @@ export default function CalendarPage() {
                     className="p-0 [&_td]:p-0"
                     classNames={{
                       day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                      day: "h-24 w-full text-base p-1.5 align-top justify-start",
+                      day: "h-24 w-24 text-base p-1.5 align-top justify-start",
                       day_today: "bg-accent text-accent-foreground font-bold",
-                      head_cell: "w-full text-muted-foreground font-medium",
+                      head_cell: "w-24 text-muted-foreground font-medium",
                       table: "w-full h-full",
                       month: "h-full flex flex-col",
                       caption_label: "text-lg font-bold"
