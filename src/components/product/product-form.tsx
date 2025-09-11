@@ -102,8 +102,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
     defaultValues: product ? {
-      ...product,
       name: product.name || '',
+      categoryId: product.categoryId || '',
+      metalType: product.metalType || 'gold',
+      karat: product.karat, // Can be undefined if not gold
+      metalWeightG: product.metalWeightG || 0,
+      secondaryMetalType: product.secondaryMetalType || '',
+      secondaryMetalKarat: product.secondaryMetalKarat || '',
+      secondaryMetalWeightG: product.secondaryMetalWeightG || 0,
+      wastagePercentage: product.wastagePercentage || 0,
+      makingCharges: product.makingCharges || 0,
+      hasDiamonds: product.hasDiamonds || false,
+      hasStones: product.hasStones || false,
+      stoneWeightG: product.stoneWeightG || 0,
+      diamondCharges: product.diamondCharges || 0,
+      stoneCharges: product.stoneCharges || 0,
+      miscCharges: product.miscCharges || 0,
       imageUrl: product.imageUrl || "",
       stoneDetails: product.stoneDetails || "",
       diamondDetails: product.diamondDetails || "",
