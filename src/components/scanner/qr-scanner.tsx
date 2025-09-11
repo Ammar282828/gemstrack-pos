@@ -99,44 +99,46 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     }
     const qrCode = html5QrCodeRef.current;
 
-    const startScanner = () => {
-        if (qrCode && !qrCode.isScanning && scannerState !== 'starting' && scannerState !== 'scanning') {
-            setScannerState('starting');
-            qrCode.start(
-                { facingMode: "environment" },
-                { fps: 15, qrbox: { width: 250, height: 250 } },
-                onScanSuccess,
-                (errorMessage) => {} // onScanFailure - intentionally empty
-            ).then(() => {
-                setScannerState('scanning');
-                try {
-                    const capabilities = qrCode.getRunningTrackCapabilities?.();
-                    if (capabilities) {
-                        setCameraCapabilities(capabilities);
-                        // @ts-ignore
-                        if (capabilities.zoom) setZoom(capabilities.zoom.min);
-                    }
-                } catch(e) {
-                    console.warn("Could not get camera capabilities:", e);
-                }
-            }).catch((err) => {
-                console.error("Failed to start QR scanner:", err);
-                setScannerState('error');
-            });
+    const startScanner = async () => {
+        setScannerState('starting');
+        try {
+          await qrCode.start(
+            { facingMode: "environment" },
+            { fps: 15, qrbox: { width: 250, height: 250 } },
+            onScanSuccess,
+            (errorMessage) => {} // onScanFailure - intentionally empty
+          );
+          setScannerState('scanning');
+          
+          try {
+            const capabilities = qrCode.getRunningTrackCapabilities?.();
+            if (capabilities) {
+               setCameraCapabilities(capabilities);
+               // @ts-ignore
+               if(capabilities.zoom) setZoom(capabilities.zoom.min);
+            }
+          } catch(e) {
+              console.warn("Could not get camera capabilities:", e);
+          }
+
+        } catch (err) {
+          console.error("Failed to start QR scanner:", err);
+          if (String(err).includes("NotAllowedError")) {
+            setScannerState('error');
+          }
         }
     };
 
-    const stopScanner = () => {
-        if (qrCode && qrCode.isScanning) {
-            qrCode.stop().then(() => {
-                setScannerState('stopped');
-                setCameraCapabilities(null);
-            }).catch((err) => {
-                console.error("Error stopping scanner:", err);
-                setScannerState('stopped'); // Force stop state
-            });
-        } else {
+    const stopScanner = async () => {
+        try {
+            if (qrCode && qrCode.isScanning) {
+                await qrCode.stop();
+            }
+        } catch (err) {
+            console.error("Error stopping scanner:", err);
+        } finally {
             setScannerState('stopped');
+            setCameraCapabilities(null);
         }
     };
     
@@ -147,19 +149,24 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     }
 
     return () => {
-      // Ensure scanner is stopped on component unmount
+      // This cleanup runs when the component unmounts or `isActive` changes.
       if (qrCode && qrCode.isScanning) {
-        qrCode.stop().catch(err => {});
+        qrCode.stop().catch(err => {
+            // This error is expected if the scanner is already stopping or stopped.
+            if (!String(err).includes("not been started")) {
+                console.warn("Cleanup stop scanner error:", err);
+            }
+        });
       }
     };
   }, [isActive, onScanSuccess]);
 
  useEffect(() => {
     const applyZoom = async () => {
-        if (!html5QrCodeRef.current?.isScanning) return;
+        if (!html5QrCodeRef.current || !html5QrCodeRef.current.isScanning) return;
         try {
             const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
-            if (currentTrack && cameraCapabilities && (cameraCapabilities as any).zoom) {
+            if (currentTrack && (cameraCapabilities as any)?.zoom) {
                 await currentTrack.applyConstraints({
                     // @ts-ignore
                     advanced: [{ zoom: zoom }]
