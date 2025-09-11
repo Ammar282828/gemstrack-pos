@@ -281,7 +281,7 @@ export default function CartPage() {
 
     const customerForInvoice = isWalkIn
         ? { name: walkInCustomerName, phone: walkInCustomerPhone }
-        : { id: selectedCustomerId, name: customers.find(c => c.id === selectedCustomerId)?.name || '' };
+        : { id: selectedCustomerId, name: customers.find(c => c.id === selectedCustomerId)?.name || '', phone: customers.find(c => c.id === selectedCustomerId)?.phone || '' };
     
     if(isEditingEstimate && generatedInvoice) {
         await deleteInvoice(generatedInvoice.id, true); // Soft delete
@@ -292,13 +292,8 @@ export default function CartPage() {
     if (invoice) {
       setGeneratedInvoice(invoice);
        // Pre-fill WhatsApp number if a customer with a phone number is selected
-      if(invoice.customerId) {
-        const customer = customers.find(c => c.id === invoice.customerId);
-        if(customer?.phone) {
-          phoneForm.setValue('phone', customer.phone);
-        }
-      } else if (walkInCustomerPhone) {
-        phoneForm.setValue('phone', walkInCustomerPhone);
+      if(invoice.customerContact) {
+          phoneForm.setValue('phone', invoice.customerContact);
       }
       setIsEditingEstimate(false);
       toast({ title: "Estimate Generated", description: `Estimate ${invoice.id} created successfully.` });
@@ -314,6 +309,9 @@ export default function CartPage() {
     setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
     if (!generatedInvoice.customerId) {
         setWalkInCustomerName(generatedInvoice.customerName || '');
+        if (generatedInvoice.customerContact) {
+            setWalkInCustomerPhone(generatedInvoice.customerContact);
+        }
     }
     setRateInputs({
         gold18k: (generatedInvoice.ratesApplied.goldRatePerGram18k || settings.goldRatePerGram18k || 0).toFixed(2),

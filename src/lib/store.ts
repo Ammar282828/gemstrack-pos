@@ -302,6 +302,7 @@ export interface Invoice {
   id: string; // Firestore document ID
   customerId?: string;
   customerName?: string;
+  customerContact?: string;
   items: InvoiceItem[];
   subtotal: number;
   discountAmount: number;
@@ -1107,14 +1108,12 @@ export const useAppStore = create<AppState>()(
                 
                 if (!finalCustomerId && customerInfo.name) {
                     const newCustId = `cust-${Date.now()}`;
-                    const newCustomer: Customer = { 
-                        id: newCustId, 
+                    const newCustomer: Omit<Customer, 'id'> = { 
                         name: customerInfo.name, 
                         phone: customerInfo.phone || "" 
                     };
                     transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustId), newCustomer);
                     finalCustomerId = newCustId;
-                    finalCustomerName = newCustomer.name;
                 } else if(finalCustomerId) {
                     const custDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, finalCustomerId));
                     if (custDoc.exists()) {
@@ -1152,6 +1151,7 @@ export const useAppStore = create<AppState>()(
                         wastagePercentage: product.wastagePercentage, makingCharges: costs.makingCharges,
                         diamondChargesIfAny: costs.diamondCharges, stoneChargesIfAny: costs.stoneCharges,
                         miscChargesIfAny: costs.miscCharges,
+                        // Conditionally add optional fields
                         ...(product.karat && { karat: product.karat }),
                         ...(product.stoneDetails && { stoneDetails: product.stoneDetails }),
                         ...(product.diamondDetails && { diamondDetails: product.diamondDetails }),
@@ -1169,21 +1169,23 @@ export const useAppStore = create<AppState>()(
                 const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
                 const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
     
-                const newInvoiceData: Omit<Invoice, 'id'> = {
+                const newInvoiceData: Partial<Omit<Invoice, 'id'>> = {
                     items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
                     amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
                     ratesApplied: ratesForInvoice, 
-                    ...(finalCustomerId && { customerId: finalCustomerId }),
-                    ...(finalCustomerName && { customerName: finalCustomerName }),
                 };
     
+                if (finalCustomerId) newInvoiceData.customerId = finalCustomerId;
+                if (finalCustomerName) newInvoiceData.customerName = finalCustomerName;
+                if (customerInfo.phone) newInvoiceData.customerContact = customerInfo.phone;
+                
                 // Schedule all remaining writes
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
                 transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
     
                 const hisaabEntry: Omit<HisaabEntry, 'id'> = {
                     entityId: finalCustomerId || 'walk-in', entityType: 'customer',
-                    entityName: newInvoiceData.customerName || 'Walk-in Customer', date: newInvoiceData.createdAt as string,
+                    entityName: finalCustomerName || 'Walk-in Customer', date: newInvoiceData.createdAt as string,
                     description: `Invoice ${invoiceId}`, cashDebit: grandTotal, cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0,
                 };
                 transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
