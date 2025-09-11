@@ -72,7 +72,7 @@ export default function CartPage() {
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
   const allInvoices = useAppStore(state => state.generatedInvoices);
-  const { removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings } = useAppStore();
+  const { removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings, addToCart } = useAppStore();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
   const [walkInCustomerName, setWalkInCustomerName] = useState('');
@@ -770,6 +770,12 @@ export default function CartPage() {
     toast({ title: "Item Updated", description: "Cart item details have been saved for this sale."});
   }
 
+  const handleNewProductCreated = (newProduct: Product) => {
+    setIsNewProductDialogOpen(false);
+    addToCart(newProduct.sku);
+    toast({ title: "Added to Cart", description: `${newProduct.name} was created and added to your cart.`});
+  };
+
   console.log("[GemsTrack] CartPage: About to return main cart view JSX. appReady:", appReady, "GeneratedInvoice exists:", !!generatedInvoice);
   return (
     <div className="container mx-auto py-8 px-4">
@@ -794,9 +800,9 @@ export default function CartPage() {
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Create New Product</DialogTitle>
-            <DialogDescription>Add a new item to your inventory. It will not be added to the current cart automatically.</DialogDescription>
+            <DialogDescription>Add a new item to your inventory. It will be added to the current cart automatically upon creation.</DialogDescription>
           </DialogHeader>
-          <ProductForm />
+          <ProductForm onProductCreated={handleNewProductCreated} />
         </DialogContent>
       </Dialog>
 

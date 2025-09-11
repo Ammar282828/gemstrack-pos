@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal, Product } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,15 +94,21 @@ export default function ScanPOSPage() {
     );
   }
 
+  const handleNewProductCreated = (newProduct: Product) => {
+    setIsNewProductDialogOpen(false);
+    addToCart(newProduct.sku);
+    toast({ title: "Added to Cart", description: `${newProduct.name} was created and added to your cart.`});
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       <Dialog open={isNewProductDialogOpen} onOpenChange={setIsNewProductDialogOpen}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Create New Product</DialogTitle>
-            <DialogDescription>Add a new item to your inventory. It will not be added to the current cart automatically.</DialogDescription>
+            <DialogDescription>Add a new item to your inventory. It will be added to the current cart automatically upon creation.</DialogDescription>
           </DialogHeader>
-          <ProductForm />
+          <ProductForm onProductCreated={handleNewProductCreated} />
         </DialogContent>
       </Dialog>
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">

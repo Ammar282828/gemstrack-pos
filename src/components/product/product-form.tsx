@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -87,11 +88,17 @@ type ProductFormData = z.infer<typeof productFormSchema>;
 
 interface ProductFormProps {
   product?: Product;
-  isCartEditMode?: boolean; // New prop for cart editing
-  onCartItemSubmit?: (sku: string, data: Partial<Product>) => void; // New callback
+  isCartEditMode?: boolean;
+  onCartItemSubmit?: (sku: string, data: Partial<Product>) => void;
+  onProductCreated?: (newProduct: Product) => void;
 }
 
-export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMode = false, onCartItemSubmit }) => {
+export const ProductForm: React.FC<ProductFormProps> = ({ 
+  product, 
+  isCartEditMode = false, 
+  onCartItemSubmit, 
+  onProductCreated 
+}) => {
   const router = useRouter();
   const { toast } = useToast();
   const { categories, addProduct, updateProduct } = useAppStore();
@@ -100,8 +107,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // This determines if the form is in a dialog (either for creating a new product from cart/scan, or editing a cart item)
-  const isDialogMode = isCartEditMode || (!isEditMode && !product);
+  const isDialogMode = isCartEditMode || onProductCreated;
 
 
   const getSafeDefaultValues = (p?: Product): ProductFormData => {
@@ -109,10 +115,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
       name: p?.name || '',
       categoryId: p?.categoryId || '',
       metalType: p?.metalType || 'gold',
-      karat: p?.karat || undefined,
+      karat: p?.karat,
       metalWeightG: p?.metalWeightG || 0,
       secondaryMetalType: p?.secondaryMetalType || '',
-      secondaryMetalKarat: p?.secondaryMetalKarat || undefined,
+      secondaryMetalKarat: p?.secondaryMetalKarat,
       secondaryMetalWeightG: p?.secondaryMetalWeightG || 0,
       wastagePercentage: p?.wastagePercentage || 10,
       makingCharges: p?.makingCharges || 0,
@@ -245,18 +251,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
       } else {
         const newProduct = await addProduct(processedData as ProductDataForAdd);
         if (newProduct) {
-          toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
-          if (data.submitAction === 'saveAndAddAnother') {
-             const originalCategory = form.getValues('categoryId');
-             form.reset({
-                name: '',
-                categoryId: originalCategory, metalType: 'gold', karat: '21k', metalWeightG: 0, wastagePercentage: 10,
-                makingCharges: 0, hasDiamonds: false, hasStones: false, stoneWeightG: 0, diamondCharges: 0,
-                stoneCharges: 0, miscCharges: 0, imageUrl: "", stoneDetails: "", diamondDetails: "",
-                secondaryMetalType: '', secondaryMetalKarat: '', secondaryMetalWeightG: 0,
-                isCustomPrice: false, customPrice: 0, description: '',
-            });
-          } else { router.push('/products'); }
+          if (onProductCreated) {
+            onProductCreated(newProduct);
+          } else {
+            toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
+            if (data.submitAction === 'saveAndAddAnother') {
+              const originalCategory = form.getValues('categoryId');
+              form.reset({
+                  name: '',
+                  categoryId: originalCategory, metalType: 'gold', karat: '21k', metalWeightG: 0, wastagePercentage: 10,
+                  makingCharges: 0, hasDiamonds: false, hasStones: false, stoneWeightG: 0, diamondCharges: 0,
+                  stoneCharges: 0, miscCharges: 0, imageUrl: "", stoneDetails: "", diamondDetails: "",
+                  secondaryMetalType: '', secondaryMetalKarat: '', secondaryMetalWeightG: 0,
+                  isCustomPrice: false, customPrice: 0, description: '',
+              });
+            } else { router.push('/products'); }
+          }
         } else {
           toast({ title: "Error", description: "Failed to add product. Check logs for details.", variant: "destructive" });
         }
