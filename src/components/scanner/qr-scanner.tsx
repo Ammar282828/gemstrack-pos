@@ -142,13 +142,10 @@ export default function QrScanner() {
           return;
         }
         try {
-            // @ts-ignore - getRunningTrackCapabilities is not in standard types but exists
             const capabilities = html5QrCodeRef.current.getRunningTrackCapabilities?.();
-            // @ts-ignore - getRunningTrack is not in standard types but exists
             const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
 
             if (currentTrack && (capabilities as any)?.zoom) {
-                // @ts-ignore
                 await currentTrack.applyConstraints({
                     advanced: [{ zoom: zoom }]
                 });
