@@ -100,57 +100,34 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const getSafeDefaultValues = (product?: Product): ProductFormData => {
-    if (product) {
-      return {
-        name: product.name || '',
-        categoryId: product.categoryId || '',
-        metalType: product.metalType || 'gold',
-        karat: product.karat || undefined,
-        metalWeightG: product.metalWeightG || 0,
-        secondaryMetalType: product.secondaryMetalType || '',
-        secondaryMetalKarat: product.secondaryMetalKarat || undefined,
-        secondaryMetalWeightG: product.secondaryMetalWeightG || 0,
-        wastagePercentage: product.wastagePercentage || 0,
-        makingCharges: product.makingCharges || 0,
-        hasDiamonds: product.hasDiamonds || false,
-        hasStones: product.hasStones || false,
-        stoneWeightG: product.stoneWeightG || 0,
-        diamondCharges: product.diamondCharges || 0,
-        stoneCharges: product.stoneCharges || 0,
-        miscCharges: product.miscCharges || 0,
-        imageUrl: product.imageUrl || "",
-        stoneDetails: product.stoneDetails || "",
-        diamondDetails: product.diamondDetails || "",
-        isCustomPrice: product.isCustomPrice || false,
-        customPrice: product.customPrice || 0,
-        description: product.description || '',
-      };
-    }
-    // Defaults for a new product
+  // This determines if the form is in a dialog (either for creating a new product from cart/scan, or editing a cart item)
+  const isDialogMode = isCartEditMode || (!isEditMode && !product);
+
+
+  const getSafeDefaultValues = (p?: Product): ProductFormData => {
     return {
-      name: '',
-      categoryId: '',
-      metalType: 'gold',
-      karat: '21k',
-      metalWeightG: 0,
-      wastagePercentage: 10,
-      makingCharges: 0,
-      hasDiamonds: false,
-      hasStones: false,
-      stoneWeightG: 0,
-      diamondCharges: 0,
-      stoneCharges: 0,
-      miscCharges: 0,
-      imageUrl: "",
-      stoneDetails: "",
-      diamondDetails: "",
-      secondaryMetalType: '',
-      secondaryMetalKarat: undefined,
-      secondaryMetalWeightG: 0,
-      isCustomPrice: false,
-      customPrice: 0,
-      description: '',
+      name: p?.name || '',
+      categoryId: p?.categoryId || '',
+      metalType: p?.metalType || 'gold',
+      karat: p?.karat || undefined,
+      metalWeightG: p?.metalWeightG || 0,
+      secondaryMetalType: p?.secondaryMetalType || '',
+      secondaryMetalKarat: p?.secondaryMetalKarat || undefined,
+      secondaryMetalWeightG: p?.secondaryMetalWeightG || 0,
+      wastagePercentage: p?.wastagePercentage || 10,
+      makingCharges: p?.makingCharges || 0,
+      hasDiamonds: p?.hasDiamonds || false,
+      hasStones: p?.hasStones || false,
+      stoneWeightG: p?.stoneWeightG || 0,
+      diamondCharges: p?.diamondCharges || 0,
+      stoneCharges: p?.stoneCharges || 0,
+      miscCharges: p?.miscCharges || 0,
+      imageUrl: p?.imageUrl || "",
+      stoneDetails: p?.stoneDetails || "",
+      diamondDetails: p?.diamondDetails || "",
+      isCustomPrice: p?.isCustomPrice || false,
+      customPrice: p?.customPrice || 0,
+      description: p?.description || '',
     };
   };
 
@@ -214,7 +191,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
     }
     
     const storage = getStorage();
-    const storageRef = ref(storage, `product_images/${"'" + Date.now() + "'"}-${file.name}`);
+    const storageRef = ref(storage, `product_images/${Date.now()}-${file.name}`);
     const uploadTask = uploadBytesResumable(storageRef, file);
 
     setIsUploading(true);
@@ -264,11 +241,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
       if (isEditMode && product) {
         await updateProduct(product.sku, processedData as Omit<Product, 'sku'>);
         toast({ title: "Success", description: "Product updated successfully." });
-        router.push(`/products/${"'" + product.sku + "'"}`);
+        router.push(`/products/${product.sku}`);
       } else {
         const newProduct = await addProduct(processedData as ProductDataForAdd);
         if (newProduct) {
-          toast({ title: "Success", description: `Product ${"'" + newProduct.name + "'"} (SKU: ${"'" + newProduct.sku + "'"}) added.` });
+          toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
           if (data.submitAction === 'saveAndAddAnother') {
              const originalCategory = form.getValues('categoryId');
              form.reset({
@@ -292,8 +269,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(processAndSubmit)}>
-        <div className={cn(!isCartEditMode && "p-1")}>
-          {!isCartEditMode &&
+        <div className={cn(!isDialogMode && "p-1")}>
+          {!isDialogMode &&
             <CardHeader>
               <CardTitle>{isEditMode ? 'Edit Product' : 'Add New Product'}</CardTitle>
               <CardDescription>
@@ -301,8 +278,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
               </CardDescription>
             </CardHeader>
           }
-           <div className={cn(isCartEditMode ? 'max-h-[70vh]' : 'p-6 pt-0')}>
-             <ScrollArea className={cn(isCartEditMode ? 'h-[70vh] p-4' : '')}>
+           <div className={cn(!isDialogMode && 'p-6 pt-0')}>
+             <ScrollArea className={cn(isDialogMode && 'h-[70vh] p-4')}>
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
@@ -526,7 +503,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
                 </div>
             </ScrollArea>
           </div>
-          {!isCartEditMode &&
+          {!isDialogMode &&
             <CardFooter className="flex flex-col sm:flex-row justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => router.back()} className="w-full sm:w-auto">
                 <Ban className="mr-2 h-4 w-4" /> Cancel
@@ -543,10 +520,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, isCartEditMod
               </Button>
             </CardFooter>
           }
-          {isCartEditMode && (
+          {isDialogMode && (
              <div className="p-6 pt-0">
                 <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
-                    <Save className="mr-2 h-4 w-4" /> Apply Changes to Cart Item
+                    <Save className="mr-2 h-4 w-4" />
+                    {isCartEditMode ? 'Apply Changes to Cart Item' : 'Create New Product'}
                 </Button>
             </div>
           )}
