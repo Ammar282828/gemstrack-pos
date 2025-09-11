@@ -600,15 +600,6 @@ export interface AppState {
   addExpense: (expenseData: Omit<Expense, 'id'>) => Promise<Expense | null>;
   updateExpense: (id: string, updatedExpenseData: Partial<Omit<Expense, 'id'>>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
-
-  // Data clearing actions
-  clearAllProducts: () => Promise<void>;
-  clearAllCustomers: () => Promise<void>;
-  clearAllKarigars: () => Promise<void>;
-  clearAllInvoices: () => Promise<void>;
-  clearAllOrders: () => Promise<void>;
-  clearAllExpenses: () => Promise<void>;
-  clearAllData: () => Promise<void>;
 }
 
 export type EnrichedCartItem = Product & {
@@ -1555,68 +1546,6 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
-
-
-      // Data Clearing Actions
-      clearAllProducts: async () => {
-        set({ isProductsLoading: true });
-        try {
-            await deleteCollection(FIRESTORE_COLLECTIONS.PRODUCTS);
-            await deleteCollection(FIRESTORE_COLLECTIONS.SOLD_PRODUCTS);
-        } finally {
-        }
-      },
-      clearAllCustomers: async () => {
-          set({ isCustomersLoading: true });
-          try {
-              await deleteCollection(FIRESTORE_COLLECTIONS.CUSTOMERS);
-          } finally {
-          }
-      },
-      clearAllKarigars: async () => {
-          set({ isKarigarsLoading: true });
-          try {
-              await deleteCollection(FIRESTORE_COLLECTIONS.KARIGARS);
-          } finally {
-          }
-      },
-      clearAllInvoices: async () => {
-          set({ isInvoicesLoading: true });
-          try {
-              await deleteCollection(FIRESTORE_COLLECTIONS.INVOICES);
-          } finally {
-          }
-      },
-      clearAllOrders: async () => {
-          set({ isOrdersLoading: true });
-          try {
-              await deleteCollection(FIRESTORE_COLLECTIONS.ORDERS);
-          } finally {
-          }
-      },
-      clearAllExpenses: async () => {
-          set({ isExpensesLoading: true });
-          try {
-              await deleteCollection(FIRESTORE_COLLECTIONS.EXPENSES);
-          } finally {
-          }
-      },
-      clearAllData: async () => {
-          console.warn("CLEARING ALL APPLICATION DATA");
-          await Promise.all([
-              get().clearAllProducts(),
-              get().clearAllCustomers(),
-              get().clearAllKarigars(),
-              get().clearAllInvoices(),
-              get().clearAllOrders(),
-              get().clearAllExpenses(),
-              deleteCollection(FIRESTORE_COLLECTIONS.HISAAB), 
-          ]);
-          get().clearCart();
-          console.warn("ALL APPLICATION DATA CLEARED.");
-      },
-
-
     })),
     {
       name: 'gemstrack-pos-storage',
