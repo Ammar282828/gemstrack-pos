@@ -1084,119 +1084,128 @@ export const useAppStore = create<AppState>()(
         );
       },
       generateInvoice: async (customerInfo, invoiceRates, discountAmount) => {
-        const { cart } = get();
-        if (cart.length === 0) return null;
-        console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
-    
-        try {
-            return await runTransaction(db, async (transaction) => {
-                const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
-                const settingsDoc = await transaction.get(settingsDocRef);
-                if (!settingsDoc.exists()) throw new Error("Global settings not found.");
-                const currentSettings = settingsDoc.data() as Settings;
+          const { cart } = get();
+          if (cart.length === 0) return null;
+          console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
 
-                const productDocsPromises = cart.map(cartItem => 
-                    transaction.get(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku))
-                );
-                await Promise.all(productDocsPromises);
-                
-                let finalCustomerId = customerInfo.id;
-                let finalCustomerName = customerInfo.name;
-                
-                if (!finalCustomerId && customerInfo.name) {
-                    const newCustId = `cust-${Date.now()}`;
-                    const newCustomer: Omit<Customer, 'id'> = { 
-                        name: customerInfo.name, 
-                        phone: customerInfo.phone || "" 
-                    };
-                    transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustId), newCustomer);
-                    finalCustomerId = newCustId;
-                } else if(finalCustomerId) {
-                    const custDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, finalCustomerId));
-                    if (custDoc.exists()) {
-                        finalCustomerName = custDoc.data().name;
-                    }
-                }
-    
-                const ratesForInvoice = {
-                    goldRatePerGram24k: invoiceRates.goldRatePerGram24k ?? 0,
-                    goldRatePerGram22k: invoiceRates.goldRatePerGram22k ?? 0,
-                    goldRatePerGram21k: invoiceRates.goldRatePerGram21k ?? 0,
-                    goldRatePerGram18k: invoiceRates.goldRatePerGram18k ?? 0,
-                    palladiumRatePerGram: invoiceRates.palladiumRatePerGram ?? 0,
-                    platinumRatePerGram: invoiceRates.platinumRatePerGram ?? 0,
-                    silverRatePerGram: invoiceRates.silverRatePerGram ?? 0,
-                };
-    
-                let subtotal = 0;
-                const invoiceItems: InvoiceItem[] = [];
-                
-                for (const cartItem of cart) {
-                    const product = cartItem;
-                    const costs = _calculateProductCostsInternal(product, ratesForInvoice);
-                    if (isNaN(costs.totalPrice)) {
-                        throw new Error(`Calculated cost for product ${product.sku} is NaN.`);
-                    }
-                    const itemTotal = costs.totalPrice;
-                    subtotal += itemTotal;
-    
-                    const itemToAdd: InvoiceItem = {
-                        sku: product.sku, name: product.name, categoryId: product.categoryId,
-                        metalType: product.metalType, metalWeightG: product.metalWeightG, stoneWeightG: product.stoneWeightG,
-                        quantity: 1, unitPrice: itemTotal, itemTotal: itemTotal,
-                        metalCost: costs.metalCost, wastageCost: costs.wastageCost,
-                        wastagePercentage: product.wastagePercentage, makingCharges: costs.makingCharges,
-                        diamondChargesIfAny: costs.diamondCharges, stoneChargesIfAny: costs.stoneCharges,
-                        miscChargesIfAny: costs.miscCharges,
-                    };
-                    
-                    // Conditionally add optional fields to avoid 'undefined'
-                    if (product.karat) itemToAdd.karat = product.karat;
-                    if (product.stoneDetails) itemToAdd.stoneDetails = product.stoneDetails;
-                    if (product.diamondDetails) itemToAdd.diamondDetails = product.diamondDetails;
+          try {
+              return await runTransaction(db, async (transaction) => {
+                  const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
+                  const settingsDoc = await transaction.get(settingsDocRef);
+                  if (!settingsDoc.exists()) throw new Error("Global settings not found.");
+                  const currentSettings = settingsDoc.data() as Settings;
 
-                    invoiceItems.push(itemToAdd);
-    
-                    const cleanProduct = Object.fromEntries(Object.entries(product).filter(([_, v]) => v !== undefined));
-                    transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, product.sku), cleanProduct);
-                    transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, product.sku));
-                }
-    
-                const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
-                const grandTotal = subtotal - calculatedDiscountAmount;
-                const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
-                const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
-    
-                const newInvoiceData: Partial<Omit<Invoice, 'id'>> = {
-                    items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
-                    amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
-                    ratesApplied: ratesForInvoice, 
-                };
-    
-                if (finalCustomerId) newInvoiceData.customerId = finalCustomerId;
-                if (finalCustomerName) newInvoiceData.customerName = finalCustomerName;
-                if (customerInfo.phone) newInvoiceData.customerContact = customerInfo.phone;
-                
-                const cleanInvoiceData = Object.fromEntries(Object.entries(newInvoiceData).filter(([_, v]) => v !== undefined));
-                
-                transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), cleanInvoiceData);
-                transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
-    
-                const hisaabEntry: Omit<HisaabEntry, 'id'> = {
-                    entityId: finalCustomerId || 'walk-in', entityType: 'customer',
-                    entityName: finalCustomerName || 'Walk-in Customer', date: newInvoiceData.createdAt as string,
-                    description: `Invoice ${invoiceId}`, cashDebit: grandTotal, cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0,
-                };
-                transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
-                
-                set({ cart: [] });
+                  // --- READS FIRST ---
+                  const productDocsPromises = cart.map(cartItem => transaction.get(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku)));
+                  await Promise.all(productDocsPromises);
+                  
+                  let customerDoc = null;
+                  if (customerInfo.id) {
+                      customerDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerInfo.id));
+                  }
+                  
+                  // --- WRITES SECOND ---
+                  let finalCustomerId = customerInfo.id;
+                  let finalCustomerName = customerInfo.name;
 
-                return { id: invoiceId, ...cleanInvoiceData } as Invoice;
-            });
-        } catch (error) {
-            console.error("[GemsTrack Store generateInvoice] Transaction failed: ", error);
-            return null;
-        }
+                  // Handle new walk-in customer creation
+                  if (!finalCustomerId && customerInfo.name) {
+                      const newCustId = `cust-${Date.now()}`;
+                      const newCustomer: Omit<Customer, 'id'> = { name: customerInfo.name, phone: customerInfo.phone || "" };
+                      transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustId), newCustomer);
+                      finalCustomerId = newCustId;
+                  } else if (customerDoc?.exists()) {
+                      finalCustomerName = customerDoc.data().name;
+                  }
+
+                  const ratesForInvoice = {
+                      goldRatePerGram24k: invoiceRates.goldRatePerGram24k ?? 0,
+                      goldRatePerGram22k: invoiceRates.goldRatePerGram22k ?? 0,
+                      goldRatePerGram21k: invoiceRates.goldRatePerGram21k ?? 0,
+                      goldRatePerGram18k: invoiceRates.goldRatePerGram18k ?? 0,
+                      palladiumRatePerGram: invoiceRates.palladiumRatePerGram ?? 0,
+                      platinumRatePerGram: invoiceRates.platinumRatePerGram ?? 0,
+                      silverRatePerGram: invoiceRates.silverRatePerGram ?? 0,
+                  };
+
+                  let subtotal = 0;
+                  const invoiceItems: InvoiceItem[] = [];
+                  
+                  for (const cartItem of cart) {
+                      const product = cartItem;
+                      const costs = _calculateProductCostsInternal(product, ratesForInvoice);
+                      if (isNaN(costs.totalPrice)) throw new Error(`Calculated cost for product ${product.sku} is NaN.`);
+                      
+                      const itemTotal = costs.totalPrice;
+                      subtotal += itemTotal;
+
+                      const itemToAdd: InvoiceItem = {
+                          sku: product.sku, name: product.name, categoryId: product.categoryId,
+                          metalType: product.metalType, metalWeightG: product.metalWeightG, stoneWeightG: product.stoneWeightG,
+                          quantity: 1, unitPrice: itemTotal, itemTotal: itemTotal,
+                          metalCost: costs.metalCost, wastageCost: costs.wastageCost,
+                          wastagePercentage: product.wastagePercentage, makingCharges: costs.makingCharges,
+                          diamondChargesIfAny: costs.diamondCharges, stoneChargesIfAny: costs.stoneCharges,
+                          miscChargesIfAny: costs.miscCharges,
+                      };
+                      
+                      // Conditionally add optional fields to avoid 'undefined'
+                      if (product.karat) itemToAdd.karat = product.karat;
+                      if (product.stoneDetails) itemToAdd.stoneDetails = product.stoneDetails;
+                      if (product.diamondDetails) itemToAdd.diamondDetails = product.diamondDetails;
+
+                      invoiceItems.push(itemToAdd);
+
+                      const cleanProduct = Object.fromEntries(Object.entries(product).filter(([_, v]) => v !== undefined));
+                      transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, product.sku), cleanProduct);
+                      transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, product.sku));
+                  }
+
+                  const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
+                  const grandTotal = subtotal - calculatedDiscountAmount;
+                  const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
+                  const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
+
+                  const newInvoiceData: Partial<Omit<Invoice, 'id'>> = {
+                      items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
+                      amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
+                      ratesApplied: ratesForInvoice, 
+                      customerId: finalCustomerId, 
+                      customerName: finalCustomerName,
+                  };
+
+                  if (customerInfo.phone) {
+                      newInvoiceData.customerContact = customerInfo.phone;
+                  }
+                  
+                  // Final cleaning of the top-level invoice object
+                  Object.keys(newInvoiceData).forEach(key => {
+                      if (newInvoiceData[key as keyof typeof newInvoiceData] === undefined) {
+                          delete newInvoiceData[key as keyof typeof newInvoiceData];
+                      }
+                  });
+                  
+                  transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
+                  transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
+
+                  const hisaabEntry: Omit<HisaabEntry, 'id'> = {
+                      entityId: finalCustomerId || 'walk-in', // Use 'walk-in' as a string literal ID
+                      entityType: 'customer',
+                      entityName: finalCustomerName || 'Walk-in Customer',
+                      date: newInvoiceData.createdAt!,
+                      description: `Invoice ${invoiceId}`,
+                      cashDebit: grandTotal, cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0,
+                  };
+                  transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
+                  
+                  set({ cart: [] });
+
+                  return { id: invoiceId, ...newInvoiceData } as Invoice;
+              });
+          } catch (error) {
+              console.error("[GemsTrack Store generateInvoice] Transaction failed: ", error);
+              return null;
+          }
       },
 
       updateInvoicePayment: async (invoiceId, paymentAmount) => {
