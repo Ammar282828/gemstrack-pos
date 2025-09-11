@@ -436,54 +436,39 @@ export default function EntityHisaabPage() {
                 </div>
                 
                 {entityHisaab.length > 0 ? (
-                    isKarigar ? (
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* You Gave (Debit) Section */}
-                            <div className="space-y-2">
-                                <h3 className="font-semibold text-lg text-destructive flex items-center"><ArrowUp className="mr-2 h-5 w-5"/>You Gave (Debit)</h3>
-                                <div className="border rounded-md">
-                                    <Table>
-                                        <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                                        <TableBody>
-                                            {givenEntries.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No debit transactions found.</TableCell></TableRow>}
-                                            {givenEntries.map(entry => (
-                                                <TableRow key={entry.id}>
-                                                    <TableCell className="text-xs">{format(parseISO(entry.date), 'dd-MMM-yy')}</TableCell>
-                                                    <TableCell className="text-xs">{entry.description}</TableCell>
-                                                    <TableCell className="text-right text-xs font-medium">
-                                                        {entry.cashDebit > 0 && <div>PKR {entry.cashDebit.toLocaleString()}</div>}
-                                                        {entry.goldDebitGrams > 0 && <div>{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</div>}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+                    <>
+                    {/* Mobile View */}
+                    <div className="md:hidden grid grid-cols-1 gap-4">
+                        <div className="space-y-3">
+                            <h3 className="font-semibold text-lg text-destructive flex items-center"><ArrowUp className="mr-2 h-5 w-5"/>You Gave (Debit)</h3>
+                            {givenEntries.length > 0 ? givenEntries.map(entry => (
+                                <div key={entry.id} className="p-3 border rounded-md bg-muted/30">
+                                    <p className="text-sm font-semibold">{entry.description}</p>
+                                    <p className="text-xs text-muted-foreground">{format(parseISO(entry.date), 'PP')}</p>
+                                    <div className="text-right mt-1">
+                                        {entry.cashDebit > 0 && <p className="font-bold text-sm text-destructive">PKR {entry.cashDebit.toLocaleString()}</p>}
+                                        {entry.goldDebitGrams > 0 && <p className="font-bold text-sm text-destructive">{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
+                                    </div>
                                 </div>
-                            </div>
-                            {/* You Got (Credit) Section */}
-                             <div className="space-y-2">
-                                <h3 className="font-semibold text-lg text-green-600 flex items-center"><ArrowDown className="mr-2 h-5 w-5"/>You Got (Credit)</h3>
-                                <div className="border rounded-md">
-                                    <Table>
-                                        <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
-                                        <TableBody>
-                                             {gotEntries.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">No credit transactions found.</TableCell></TableRow>}
-                                            {gotEntries.map(entry => (
-                                                <TableRow key={entry.id}>
-                                                    <TableCell className="text-xs">{format(parseISO(entry.date), 'dd-MMM-yy')}</TableCell>
-                                                    <TableCell className="text-xs">{entry.description}</TableCell>
-                                                    <TableCell className="text-right text-xs font-medium">
-                                                        {entry.cashCredit > 0 && <div>PKR {entry.cashCredit.toLocaleString()}</div>}
-                                                        {entry.goldCreditGrams > 0 && <div>{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</div>}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+                            )) : <p className="text-sm text-muted-foreground text-center py-4">No debit transactions.</p>}
+                        </div>
+                        <Separator/>
+                        <div className="space-y-3">
+                             <h3 className="font-semibold text-lg text-green-600 flex items-center"><ArrowDown className="mr-2 h-5 w-5"/>You Got (Credit)</h3>
+                              {gotEntries.length > 0 ? gotEntries.map(entry => (
+                                <div key={entry.id} className="p-3 border rounded-md bg-muted/30">
+                                    <p className="text-sm font-semibold">{entry.description}</p>
+                                    <p className="text-xs text-muted-foreground">{format(parseISO(entry.date), 'PP')}</p>
+                                    <div className="text-right mt-1">
+                                        {entry.cashCredit > 0 && <p className="font-bold text-sm text-green-600">PKR {entry.cashCredit.toLocaleString()}</p>}
+                                        {entry.goldCreditGrams > 0 && <p className="font-bold text-sm text-green-600">{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
+                                    </div>
                                 </div>
-                            </div>
-                         </div>
-                    ) : (
+                            )) : <p className="text-sm text-muted-foreground text-center py-4">No credit transactions.</p>}
+                        </div>
+                    </div>
+                    {/* Desktop View */}
+                    <div className="hidden md:block">
                         <ScrollArea className="h-[60vh] w-full">
                             <Table>
                                 <TableHeader className="sticky top-0 bg-muted z-10">
@@ -542,7 +527,8 @@ export default function EntityHisaabPage() {
                                 </TableBody>
                             </Table>
                         </ScrollArea>
-                    )
+                    </div>
+                    </>
                 ) : (
                     <p className="text-center text-muted-foreground py-8">No transactions found. Add one using the buttons above.</p>
                 )}

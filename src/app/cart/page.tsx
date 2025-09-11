@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -60,7 +60,7 @@ export default function CartPage() {
   const customers = useAppStore(state => state.customers);
   const settings = useAppStore(state => state.settings);
   const allInvoices = useAppStore(state => state.generatedInvoices);
-  const { removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment } = useAppStore();
+  const { removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCart, deleteInvoice } = useAppStore();
   const productsInCart = useAppStore(state => state.cart.map(ci => state.products.find(p => p.sku === ci.sku)).filter(Boolean) as Product[]);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
@@ -73,11 +73,12 @@ export default function CartPage() {
   
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [isEditingEstimate, setIsEditingEstimate] = useState(false);
 
   const phoneForm = useForm<PhoneForm>();
   
   useEffect(() => {
-    if (preloadedInvoiceId) {
+    if (preloadedInvoiceId && !isEditingEstimate) {
         const invoice = allInvoices.find(inv => inv.id === preloadedInvoiceId);
         if (invoice) {
             setGeneratedInvoice(invoice);
@@ -85,18 +86,18 @@ export default function CartPage() {
             clearCart();
         }
     }
-  }, [preloadedInvoiceId, allInvoices, clearCart]);
+  }, [preloadedInvoiceId, allInvoices, clearCart, isEditingEstimate]);
 
 
   useEffect(() => {
-    if (appReady && settings && typeof settings.goldRatePerGram === 'number') {
+    if (appReady && settings && typeof settings.goldRatePerGram === 'number' && !isEditingEstimate) {
       const goldRate21k = settings.goldRatePerGram * (21 / 24);
       setInvoiceGoldRateInput(goldRate21k.toFixed(2));
     } else if (appReady) {
       console.warn("[GemsTrack] CartPage: Could not set initial invoiceGoldRateInput because settings or goldRatePerGram was missing/invalid.", settings);
       setInvoiceGoldRateInput("0");
     }
-  }, [appReady, settings]);
+  }, [appReady, settings, isEditingEstimate]);
 
   const cartContainsNonGoldItems = cartItemsFromStore.some(item => item.metalType !== 'gold');
   
@@ -167,7 +168,7 @@ export default function CartPage() {
         return;
     }
     
-    const isWalkIn = selectedCustomerId === undefined;
+    const isWalkIn = selectedCustomerId === undefined || selectedCustomerId === WALK_IN_CUSTOMER_VALUE;
     if (isWalkIn && !walkInCustomerName.trim()) {
         toast({ title: "Customer Name Required", description: "Please enter a name for the walk-in customer.", variant: "destructive" });
         return;
@@ -197,8 +198,14 @@ export default function CartPage() {
     const customerForInvoice = isWalkIn
         ? { name: walkInCustomerName, phone: walkInCustomerPhone }
         : { id: selectedCustomerId, name: customers.find(c => c.id === selectedCustomerId)?.name || '' };
+    
+    const invoiceAction = isEditingEstimate && generatedInvoice ? deleteInvoice : generateInvoiceAction;
+    if(isEditingEstimate && generatedInvoice) {
+        await deleteInvoice(generatedInvoice.id, true); // Soft delete
+    }
 
     const invoice = await generateInvoiceAction(customerForInvoice, goldRate24kForInvoice, parsedDiscountAmount);
+    
     if (invoice) {
       setGeneratedInvoice(invoice);
        // Pre-fill WhatsApp number if a customer with a phone number is selected
@@ -210,11 +217,30 @@ export default function CartPage() {
       } else if (walkInCustomerPhone) {
         phoneForm.setValue('phone', walkInCustomerPhone);
       }
+      setIsEditingEstimate(false);
       toast({ title: "Estimate Generated", description: `Estimate ${invoice.id} created successfully.` });
     } else {
       toast({ title: "Estimate Generation Failed", description: "Could not generate the estimate. Please check inputs and logs.", variant: "destructive" });
     }
   };
+
+  const handleEditEstimate = () => {
+    if (!generatedInvoice) return;
+    setIsEditingEstimate(true);
+    // Load cart with items from the invoice
+    const skus = generatedInvoice.items.map(item => item.sku);
+    loadCart(skus);
+    // Pre-fill form fields
+    setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
+    if (!generatedInvoice.customerId) {
+        setWalkInCustomerName(generatedInvoice.customerName || '');
+    }
+    const goldRate21k = (generatedInvoice.goldRateApplied || 0) * (21 / 24);
+    setInvoiceGoldRateInput(goldRate21k.toFixed(2));
+    setDiscountAmountInput(String(generatedInvoice.discountAmount));
+    setGeneratedInvoice(null); // Go back to cart view
+  };
+
 
   const handleSendWhatsApp = (invoiceToSend: InvoiceType) => {
     const whatsAppNumber = phoneForm.getValues('phone');
@@ -480,6 +506,7 @@ export default function CartPage() {
   const handleNewSale = () => {
     setGeneratedInvoice(null);
     clearCart();
+    setIsEditingEstimate(false);
     if (settings && typeof settings.goldRatePerGram === 'number') {
         const goldRate21k = settings.goldRatePerGram * (21/24);
         setInvoiceGoldRateInput(goldRate21k.toFixed(2));
@@ -551,23 +578,30 @@ export default function CartPage() {
     );
   }
 
-  if (generatedInvoice) {
+  if (generatedInvoice && !isEditingEstimate) {
     const isFullyPaid = generatedInvoice.balanceDue <= 0;
     return (
         <div className="container mx-auto py-8 px-4">
             <Card>
                 <CardHeader>
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start flex-wrap gap-4">
                         <div>
                         <CardTitle className="text-2xl text-primary flex items-center">
                             <Check className="mr-3 h-8 w-8 text-green-500 bg-green-100 rounded-full p-1" />
                             Invoice {isFullyPaid ? 'Paid' : 'Generated'}: {generatedInvoice.id}
                         </CardTitle>
                         <CardDescription>
-                            Invoice for {generatedInvoice.customerName || "Walk-in Customer"} created. Now, record payments received.
+                            Invoice for {generatedInvoice.customerName || "Walk-in Customer"}. Now, record payments received.
                         </CardDescription>
                         </div>
-                        <Button variant="outline" size="sm" onClick={handleNewSale}>Start New Sale</Button>
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={handleEditEstimate}>
+                                <Edit className="mr-2 h-4 w-4"/> Edit Estimate
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={handleNewSale}>
+                                <ArrowLeft className="mr-2 h-4 w-4"/> New Sale
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -589,24 +623,24 @@ export default function CartPage() {
 
                     {!isFullyPaid && (
                         <div className="space-y-4">
-                            <Label htmlFor="payment-amount" className="font-semibold">Enter Payment Received</Label>
-                            <div className="flex items-center gap-2">
+                            <Label htmlFor="payment-amount" className="font-semibold">Record Payment Received</Label>
+                            <div className="flex flex-col sm:flex-row items-center gap-2">
                                 <Input 
                                     id="payment-amount"
                                     type="number"
                                     placeholder="Enter amount received"
                                     value={paymentAmount}
                                     onChange={(e) => setPaymentAmount(e.target.value)}
-                                    className="text-lg h-12"
+                                    className="text-lg h-12 flex-grow"
                                     disabled={isSubmittingPayment}
                                 />
                                 <Button 
                                     onClick={() => handleRecordPayment(parseFloat(paymentAmount))}
                                     disabled={isSubmittingPayment || !paymentAmount || parseFloat(paymentAmount) <= 0}
-                                    className="h-12"
+                                    className="h-12 w-full sm:w-auto"
                                 >
                                     {isSubmittingPayment ? <Loader2 className="animate-spin" /> : <Banknote className="mr-2"/>}
-                                    Record Partial Payment
+                                    Record
                                 </Button>
                             </div>
                             <Button 
@@ -636,7 +670,7 @@ export default function CartPage() {
                             />
                              <Button onClick={() => handleSendWhatsApp(generatedInvoice)}>
                                 <MessageSquare className="mr-2 h-4 w-4"/>
-                                Send Update
+                                Send 
                              </Button>
                         </div>
                     </div>
@@ -762,7 +796,7 @@ export default function CartPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                {selectedCustomerId === undefined && (
+                {(selectedCustomerId === undefined || selectedCustomerId === WALK_IN_CUSTOMER_VALUE) && (
                     <div className="space-y-4 pt-2">
                         <div>
                             <Label htmlFor="walk-in-name">Walk-in Customer Name</Label>
@@ -835,7 +869,7 @@ export default function CartPage() {
               </CardContent>
               <CardFooter>
                 <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={cartItemsFromStore.length === 0 || !estimatedInvoice}>
-                  <FileText className="mr-2 h-5 w-5" /> Generate Invoice
+                  <FileText className="mr-2 h-5 w-5" /> {isEditingEstimate ? 'Update & Finalize Invoice' : 'Generate Invoice'}
                 </Button>
               </CardFooter>
             </Card>
@@ -845,3 +879,4 @@ export default function CartPage() {
     </div>
   );
 }
+

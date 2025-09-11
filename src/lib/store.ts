@@ -560,6 +560,7 @@ export interface AppState {
   removeFromCart: (sku: string) => void;
   updateCartQuantity: (sku: string, quantity: number) => void; // This will now effectively be a toggle.
   clearCart: () => void;
+  loadCart: (skus: string[]) => void;
 
   loadGeneratedInvoices: () => void;
   generateInvoice: (
@@ -568,6 +569,7 @@ export interface AppState {
     discountAmount: number
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number) => Promise<Invoice | null>;
+  deleteInvoice: (invoiceId: string, isEditing?: boolean) => Promise<void>;
   
   loadOrders: () => void;
   addOrder: (orderData: OrderDataForAdd) => Promise<Order | null>;
@@ -976,6 +978,9 @@ export const useAppStore = create<AppState>()(
         // Each item is unique and has a quantity of 1.
       },
       clearCart: () => set((state) => { state.cart = []; }),
+      loadCart: (skus) => set(state => {
+        state.cart = skus.map(sku => ({ sku, quantity: 1 }));
+      }),
 
       loadGeneratedInvoices: () => {
         if (get().hasInvoicesLoaded) return;
@@ -1134,6 +1139,51 @@ export const useAppStore = create<AppState>()(
             console.error(`[updateInvoicePayment] Error updating invoice ${invoiceId} in Firestore:`, error);
             return null;
         }
+      },
+
+      deleteInvoice: async (invoiceId, isEditing = false) => {
+          console.log(`[deleteInvoice] Attempting to delete invoice ${invoiceId}. Is editing flow: ${isEditing}`);
+          try {
+              await runTransaction(db, async (transaction) => {
+                  const invoiceDocRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
+                  const invoiceDoc = await transaction.get(invoiceDocRef);
+                  if (!invoiceDoc.exists()) throw new Error("Invoice not found");
+
+                  const invoiceData = invoiceDoc.data() as Invoice;
+                  
+                  // Restore sold products back to active inventory
+                  for(const item of invoiceData.items) {
+                      const soldProductRef = doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, item.sku);
+                      const soldProductDoc = await transaction.get(soldProductRef);
+                      if (soldProductDoc.exists()) {
+                          const productData = soldProductDoc.data();
+                          transaction.set(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, item.sku), productData);
+                          transaction.delete(soldProductRef);
+                      }
+                  }
+
+                  // Find and delete the corresponding hisaab entry
+                  const hisaabQuery = query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), 
+                    orderBy("date", "desc"));
+                  const hisaabSnapshot = await getDocs(hisaabQuery);
+                  const hisaabEntryToDelete = hisaabSnapshot.docs.find(doc => doc.data().description === `Invoice ${invoiceId}`);
+                  if (hisaabEntryToDelete) {
+                      transaction.delete(hisaabEntryToDelete.ref);
+                  }
+
+                  // Delete the invoice itself
+                  transaction.delete(invoiceDocRef);
+              });
+              
+              if (!isEditing) {
+                // If it's a full delete, we can also decrement the invoice counter, but it can lead to reuse.
+                // It might be safer to not decrement it to avoid ID clashes if an old invoice is referenced somewhere.
+              }
+
+          } catch (e) {
+              console.error(`Failed to delete invoice ${invoiceId}:`, e);
+              throw e;
+          }
       },
 
       loadOrders: () => {
