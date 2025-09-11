@@ -49,7 +49,8 @@ export default function QrScanner({ isActive }: QrScannerProps) {
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const lastScanRef = useRef<{ text: string; time: number } | null>(null);
   
-  const [scannerState, setScannerState] = useState<'stopped' | 'starting' | 'scanning' | 'error'>('stopped');
+  const [isScanning, setIsScanning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [cameraCapabilities, setCameraCapabilities] = useState<MediaTrackCapabilities | null>(null);
@@ -100,7 +101,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     const qrCode = html5QrCodeRef.current;
 
     const startScanner = async () => {
-        setScannerState('starting');
+        setError(null);
         try {
           await qrCode.start(
             { facingMode: "environment" },
@@ -108,58 +109,36 @@ export default function QrScanner({ isActive }: QrScannerProps) {
             onScanSuccess,
             (errorMessage) => {} // onScanFailure - intentionally empty
           );
-          setScannerState('scanning');
+          setIsScanning(true);
           
           try {
-            // @ts-ignore - getRunningTrackCapabilities is not in standard types but exists
-            const capabilities = qrCode.getRunningTrackCapabilities?.();
+            const capabilities = (qrCode as any).getRunningTrackCapabilities?.();
             if (capabilities) {
                setCameraCapabilities(capabilities);
-               // @ts-ignore
                if(capabilities.zoom) setZoom(capabilities.zoom.min);
             }
           } catch(e) {
               console.warn("Could not get camera capabilities:", e);
           }
 
-        } catch (err) {
+        } catch (err: any) {
           console.error("Failed to start QR scanner:", err);
-          if (String(err).includes("NotAllowedError")) {
-            setScannerState('error');
-          }
-        }
-    };
-
-    const stopScanner = async () => {
-        try {
-            if (qrCode && qrCode.isScanning) {
-                await qrCode.stop();
-            }
-        } catch (err) {
-            // This error is expected if the scanner is already stopping or stopped.
-            if (!String(err).includes("not been started")) {
-                console.warn("Cleanup stop scanner error:", err);
-            }
-        } finally {
-            setScannerState('stopped');
-            setCameraCapabilities(null);
+          setError(err.message || "Failed to start scanner.");
+          setIsScanning(false);
         }
     };
     
     if (isActive) {
       startScanner();
-    } else {
-      stopScanner();
     }
 
     return () => {
-      // This cleanup runs when the component unmounts or `isActive` changes.
       if (qrCode && qrCode.isScanning) {
         qrCode.stop().catch(err => {
-            // This error is expected if the scanner is already stopping or stopped.
-            if (!String(err).includes("not been started")) {
-                console.warn("Cleanup stop scanner error:", err);
-            }
+            console.warn("Cleanup stop scanner error:", err);
+        }).finally(() => {
+            setIsScanning(false);
+            setCameraCapabilities(null);
         });
       }
     };
@@ -172,7 +151,6 @@ export default function QrScanner({ isActive }: QrScannerProps) {
             const currentTrack = (html5QrCodeRef.current as any).getRunningTrack?.();
             if (currentTrack && (cameraCapabilities as any)?.zoom) {
                 await currentTrack.applyConstraints({
-                    // @ts-ignore
                     advanced: [{ zoom: zoom }]
                 });
             }
@@ -181,10 +159,10 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         }
     };
 
-    if (scannerState === 'scanning' && cameraCapabilities) {
+    if (isScanning && cameraCapabilities) {
         applyZoom();
     }
-  }, [zoom, scannerState, cameraCapabilities]);
+  }, [zoom, isScanning, cameraCapabilities]);
 
   return (
     <div className="space-y-4">
@@ -197,7 +175,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
           )}
         ></div>
       
-      {scannerState === 'starting' && (
+      {!isScanning && !error && isActive && (
         <div className="text-center py-2 text-muted-foreground">
           <Loader2 className="w-8 h-8 mb-1 mx-auto animate-spin text-primary" />
           <p className="text-sm">Initializing QR Scanner...</p>
@@ -205,16 +183,16 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         </div>
       )}
       
-      {scannerState === 'error' && (
+      {error && (
         <Alert variant="destructive" className="mt-4">
           <AlertTitle>Camera Access Denied or Scanner Error</AlertTitle>
           <AlertDescription>
-            Could not access the camera or start the QR scanner. Please ensure camera permissions are enabled. You can use manual SKU entry or try toggling the scanner.
+            Could not access the camera or start the QR scanner. Please ensure camera permissions are enabled for this site. Error: {error}
           </AlertDescription>
         </Alert>
       )}
 
-      {scannerState === 'scanning' && (cameraCapabilities as any)?.zoom && (
+      {isScanning && (cameraCapabilities as any)?.zoom && (
         <div className="p-4 border rounded-md">
           <Label htmlFor="zoom-slider">Zoom</Label>
           <div className="flex items-center gap-2">
