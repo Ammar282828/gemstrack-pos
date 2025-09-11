@@ -1144,16 +1144,19 @@ export const useAppStore = create<AppState>()(
                     const itemTotal = costs.totalPrice;
                     subtotal += itemTotal;
     
-                    invoiceItems.push({
+                    const itemToAdd: InvoiceItem = {
                         sku: product.sku, name: product.name, categoryId: product.categoryId,
                         metalType: product.metalType, metalWeightG: product.metalWeightG, stoneWeightG: product.stoneWeightG,
                         quantity: 1, unitPrice: itemTotal, itemTotal: itemTotal,
                         metalCost: costs.metalCost, wastageCost: costs.wastageCost,
                         wastagePercentage: product.wastagePercentage, makingCharges: costs.makingCharges,
                         diamondChargesIfAny: costs.diamondCharges, stoneChargesIfAny: costs.stoneCharges,
-                        miscChargesIfAny: costs.miscCharges, stoneDetails: product.stoneDetails,
-                        diamondDetails: product.diamondDetails, karat: product.karat
-                    });
+                        miscChargesIfAny: costs.miscCharges,
+                        ...(product.karat && { karat: product.karat }),
+                        ...(product.stoneDetails && { stoneDetails: product.stoneDetails }),
+                        ...(product.diamondDetails && { diamondDetails: product.diamondDetails }),
+                    };
+                    invoiceItems.push(itemToAdd);
     
                     // Schedule product move and deletion
                     transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, product.sku), product);
@@ -1165,23 +1168,28 @@ export const useAppStore = create<AppState>()(
                 const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
                 const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
     
-                const newInvoiceData: Omit<Invoice, 'id'> = {
+                const newInvoiceData: Partial<Invoice> = {
                     items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
                     amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
                     ratesApplied: ratesForInvoice, 
-                    customerId: finalCustomerId, customerName: finalCustomerName || 'Walk-in Customer'
+                    ...(finalCustomerId && { customerId: finalCustomerId }),
+                    ...(finalCustomerName && { customerName: finalCustomerName }),
                 };
-    
-                // Remove undefined properties before sending to firestore
-                const cleanInvoiceData = Object.fromEntries(Object.entries(newInvoiceData).filter(([_, v]) => v !== undefined));
 
+                // Remove any top-level undefined properties before sending to Firestore
+                Object.keys(newInvoiceData).forEach(key => {
+                    if (newInvoiceData[key as keyof typeof newInvoiceData] === undefined) {
+                        delete newInvoiceData[key as keyof typeof newInvoiceData];
+                    }
+                });
+    
                 // Schedule all remaining writes
-                transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), cleanInvoiceData);
+                transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
                 transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
     
                 const hisaabEntry: Omit<HisaabEntry, 'id'> = {
                     entityId: finalCustomerId || 'walk-in', entityType: 'customer',
-                    entityName: newInvoiceData.customerName || 'Walk-in Customer', date: newInvoiceData.createdAt,
+                    entityName: newInvoiceData.customerName || 'Walk-in Customer', date: newInvoiceData.createdAt as string,
                     description: `Invoice ${invoiceId}`, cashDebit: grandTotal, cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0,
                 };
                 transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
