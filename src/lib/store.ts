@@ -612,6 +612,26 @@ export type EnrichedCartItem = Product & {
 
 const ssrDummyStorage: StateStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {}, };
 
+// Helper function to recursively remove undefined values from an object
+function cleanObject<T extends object>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  
+  const newObj = { ...obj }; // Create a shallow copy
+  
+  for (const key in newObj) {
+    if (newObj[key] === undefined) {
+      delete newObj[key];
+    } else if (typeof newObj[key] === 'object') {
+      // @ts-ignore
+      newObj[key] = cleanObject(newObj[key]); // Recurse into nested objects
+    }
+  }
+  return newObj;
+}
+
+
 export const useAppStore = create<AppState>()(
   persist(
     immer((set, get) => ({
@@ -802,8 +822,7 @@ export const useAppStore = create<AppState>()(
 
         const newProduct: Product = { ...partialProduct, sku: generatedSku } as Product;
         
-        // Remove undefined fields before sending to Firestore
-        const cleanProduct = Object.fromEntries(Object.entries(newProduct).filter(([_, v]) => v !== undefined));
+        const cleanProduct = cleanObject(newProduct);
 
         console.log("[GemsTrack Store addProduct] Attempting to add product:", cleanProduct);
 
@@ -830,7 +849,6 @@ export const useAppStore = create<AppState>()(
 
             let finalUpdatedFields: Partial<Product> = { ...updatedProductData };
             
-            // If it is a custom price product, set its name from the description field
             if (finalUpdatedFields.isCustomPrice && finalUpdatedFields.description) {
               finalUpdatedFields.name = finalUpdatedFields.description;
             } else if (!finalUpdatedFields.isCustomPrice && !finalUpdatedFields.name) {
@@ -856,12 +874,10 @@ export const useAppStore = create<AppState>()(
             }
             const { sku: _s, ...payloadToFirestore } = finalUpdatedFields;
             
-             // Remove undefined fields before sending to Firestore
-            const cleanPayload = Object.fromEntries(Object.entries(payloadToFirestore).filter(([_, v]) => v !== undefined));
+            const cleanPayload = cleanObject(payloadToFirestore);
 
-
-          await setDoc(productRef, cleanPayload, { merge: true });
-          console.log(`[GemsTrack Store updateProduct] Product SKU ${sku} updated successfully.`);
+            await setDoc(productRef, cleanPayload, { merge: true });
+            console.log(`[GemsTrack Store updateProduct] Product SKU ${sku} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateProduct] Error updating product SKU ${sku} in Firestore:`, error);
         }
@@ -1108,7 +1124,6 @@ export const useAppStore = create<AppState>()(
                 let finalCustomerId = customerInfo.id;
                 let finalCustomerName = customerInfo.name;
 
-                // Handle new walk-in customer creation
                 if (!finalCustomerId && customerInfo.name) {
                     const newCustId = `cust-${Date.now()}`;
                     const newCustomerData: Omit<Customer, 'id'> = { name: customerInfo.name, phone: customerInfo.phone || "" };
@@ -1132,33 +1147,27 @@ export const useAppStore = create<AppState>()(
                 const invoiceItems: InvoiceItem[] = [];
                 
                 for (const cartItem of cart) {
-                    const product = cartItem;
-                    const costs = _calculateProductCostsInternal(product, ratesForInvoice);
-                    if (isNaN(costs.totalPrice)) throw new Error(`Calculated cost for product ${product.sku} is NaN.`);
-                    
-                    const itemTotal = costs.totalPrice;
-                    subtotal += itemTotal;
+                    const costs = _calculateProductCostsInternal(cartItem, ratesForInvoice);
+                    subtotal += costs.totalPrice;
 
-                    const itemToAdd: InvoiceItem = {
-                        sku: product.sku, name: product.name, categoryId: product.categoryId,
-                        metalType: product.metalType, metalWeightG: product.metalWeightG, stoneWeightG: product.stoneWeightG,
-                        quantity: 1, unitPrice: itemTotal, itemTotal: itemTotal,
+                    const itemToAdd: Partial<InvoiceItem> = {
+                        sku: cartItem.sku, name: cartItem.name, categoryId: cartItem.categoryId,
+                        metalType: cartItem.metalType, metalWeightG: cartItem.metalWeightG, stoneWeightG: cartItem.stoneWeightG,
+                        quantity: 1, unitPrice: costs.totalPrice, itemTotal: costs.totalPrice,
                         metalCost: costs.metalCost, wastageCost: costs.wastageCost,
-                        wastagePercentage: product.wastagePercentage, makingCharges: costs.makingCharges,
+                        wastagePercentage: cartItem.wastagePercentage, makingCharges: costs.makingCharges,
                         diamondChargesIfAny: costs.diamondCharges, stoneChargesIfAny: costs.stoneCharges,
                         miscChargesIfAny: costs.miscCharges,
                     };
                     
-                    if (product.karat) itemToAdd.karat = product.karat;
-                    if (product.stoneDetails) itemToAdd.stoneDetails = product.stoneDetails;
-                    if (product.diamondDetails) itemToAdd.diamondDetails = product.diamondDetails;
+                    if (cartItem.karat) itemToAdd.karat = cartItem.karat;
+                    if (cartItem.stoneDetails) itemToAdd.stoneDetails = cartItem.stoneDetails;
+                    if (cartItem.diamondDetails) itemToAdd.diamondDetails = cartItem.diamondDetails;
 
-                    invoiceItems.push(itemToAdd);
+                    invoiceItems.push(itemToAdd as InvoiceItem);
 
-                    // Clean the product object before moving to sold_products
-                    const cleanProduct = Object.fromEntries(Object.entries(product).filter(([_, v]) => v !== undefined));
-                    transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, product.sku), cleanProduct);
-                    transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, product.sku));
+                    transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, cartItem.sku), cleanObject(cartItem));
+                    transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku));
                 }
 
                 const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
@@ -1167,21 +1176,17 @@ export const useAppStore = create<AppState>()(
                 const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
 
                 const newInvoiceData: Partial<Invoice> = {
-                    id: invoiceId,
-                    items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
+                    id: invoiceId, items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
                     amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
-                    ratesApplied: ratesForInvoice, 
-                    customerName: finalCustomerName,
+                    ratesApplied: ratesForInvoice, customerName: finalCustomerName,
                 };
                 
-                if (finalCustomerId) {
-                  newInvoiceData.customerId = finalCustomerId;
-                }
-                if (customerInfo.phone) {
-                    newInvoiceData.customerContact = customerInfo.phone;
-                }
+                if (finalCustomerId) newInvoiceData.customerId = finalCustomerId;
+                if (customerInfo.phone) newInvoiceData.customerContact = customerInfo.phone;
                 
-                transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), newInvoiceData);
+                const cleanInvoiceData = cleanObject(newInvoiceData as Invoice);
+                
+                transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), cleanInvoiceData);
                 transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
 
                 const hisaabEntry: Omit<HisaabEntry, 'id'> = {
@@ -1196,7 +1201,7 @@ export const useAppStore = create<AppState>()(
                 
                 set({ cart: [] });
 
-                return newInvoiceData as Invoice;
+                return cleanInvoiceData as Invoice;
             });
         } catch (error) {
             console.error("[GemsTrack Store generateInvoice] Transaction failed: ", error);
@@ -1241,7 +1246,6 @@ export const useAppStore = create<AppState>()(
 
                   const invoiceData = invoiceDoc.data() as Invoice;
                   
-                  // Restore sold products back to active inventory
                   for(const item of invoiceData.items) {
                       const soldProductRef = doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, item.sku);
                       const soldProductDoc = await transaction.get(soldProductRef);
@@ -1252,7 +1256,6 @@ export const useAppStore = create<AppState>()(
                       }
                   }
 
-                  // Find and delete the corresponding hisaab entry
                   const hisaabQuery = query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), 
                     orderBy("date", "desc"));
                   const hisaabSnapshot = await getDocs(hisaabQuery);
@@ -1261,14 +1264,8 @@ export const useAppStore = create<AppState>()(
                       transaction.delete(hisaabEntryToDelete.ref);
                   }
 
-                  // Delete the invoice itself
                   transaction.delete(invoiceDocRef);
               });
-              
-              if (!isEditing) {
-                // If it's a full delete, we can also decrement the invoice counter, but it can lead to reuse.
-                // It might be safer to not decrement it to avoid ID clashes if an old invoice is referenced somewhere.
-              }
 
           } catch (e) {
               console.error(`Failed to delete invoice ${invoiceId}:`, e);
@@ -1503,13 +1500,7 @@ export const useAppStore = create<AppState>()(
     
         try {
             const batch = writeBatch(db);
-            const finalInvoicePayload = { ...newInvoiceData };
-             // Final check for undefined on the main object
-            Object.keys(finalInvoicePayload).forEach(key => {
-                if (finalInvoicePayload[key as keyof typeof finalInvoicePayload] === undefined) {
-                    delete finalInvoicePayload[key as keyof typeof finalInvoicePayload];
-                }
-            });
+            const finalInvoicePayload = cleanObject({ ...newInvoiceData });
 
             batch.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), finalInvoicePayload);
             batch.update(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID), { lastInvoiceNumber: nextInvoiceNumber });
@@ -1728,3 +1719,6 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
+
+
+    
