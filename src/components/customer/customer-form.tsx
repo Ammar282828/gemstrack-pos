@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from 'react';
@@ -19,7 +20,7 @@ import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
 
 const customerSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
   address: z.string().optional(),
@@ -59,13 +60,18 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
 
   const onSubmit = async (data: CustomerFormData) => {
     try {
+      const finalData = {
+        ...data,
+        name: data.name || (data.phone ? `Customer - ${data.phone}` : 'Unnamed Customer')
+      }
+
       if (isEditMode && customer) {
-        await updateCustomer(customer.id, data);
+        await updateCustomer(customer.id, finalData);
         toast({ title: "Success", description: "Customer updated successfully." });
         if (onSubmitSuccess) onSubmitSuccess();
         else router.push(`/customers/${customer.id}`);
       } else {
-        const newCustomer = await addCustomer(data);
+        const newCustomer = await addCustomer(finalData);
         if (newCustomer) {
           toast({ title: "Success", description: "Customer added successfully." });
           if (onSubmitSuccess) onSubmitSuccess();
@@ -97,7 +103,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Full Name</FormLabel>
+                  <FormLabel>Full Name (Optional)</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter customer's full name" {...field} />
                   </FormControl>

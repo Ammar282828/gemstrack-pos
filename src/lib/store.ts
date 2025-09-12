@@ -301,7 +301,7 @@ export interface InvoiceItem {
 export interface Invoice {
   id: string; // Firestore document ID
   customerId?: string;
-  customerName?: string;
+  customerName: string;
   customerContact?: string;
   items: InvoiceItem[];
   subtotal: number;
@@ -623,7 +623,7 @@ function cleanObject<T extends object>(obj: T): T {
   for (const key in newObj) {
     if (newObj[key] === undefined) {
       delete newObj[key];
-    } else if (typeof newObj[key] === 'object') {
+    } else if (typeof newObj[key] === 'object' && newObj[key] !== null) {
       // @ts-ignore
       newObj[key] = cleanObject(newObj[key]); // Recurse into nested objects
     }
@@ -953,7 +953,13 @@ export const useAppStore = create<AppState>()(
       },
       addCustomer: async (customerData) => {
         const newCustomerId = `cust-${Date.now()}`;
-        const newCustomer: Customer = { ...customerData, id: newCustomerId };
+        const newCustomer: Customer = { 
+          name: customerData.name || 'Unnamed Customer',
+          phone: customerData.phone,
+          email: customerData.email,
+          address: customerData.address,
+          id: newCustomerId 
+        };
         console.log("[GemsTrack Store addCustomer] Attempting to add customer:", newCustomer);
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustomerId), newCustomer);
@@ -1164,7 +1170,7 @@ export const useAppStore = create<AppState>()(
                     if (cartItem.stoneDetails) itemToAdd.stoneDetails = cartItem.stoneDetails;
                     if (cartItem.diamondDetails) itemToAdd.diamondDetails = cartItem.diamondDetails;
 
-                    invoiceItems.push(itemToAdd as InvoiceItem);
+                    invoiceItems.push(cleanObject(itemToAdd as InvoiceItem));
 
                     transaction.set(doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, cartItem.sku), cleanObject(cartItem));
                     transaction.delete(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku));
@@ -1175,14 +1181,14 @@ export const useAppStore = create<AppState>()(
                 const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
                 const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
 
-                const newInvoiceData: Partial<Invoice> = {
-                    id: invoiceId, items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
+                const newInvoiceData: Omit<Invoice, 'id'> = {
+                    items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
                     amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
-                    ratesApplied: ratesForInvoice, customerName: finalCustomerName,
+                    ratesApplied: ratesForInvoice, 
+                    customerName: finalCustomerName,
+                    customerId: finalCustomerId,
+                    customerContact: customerInfo.phone
                 };
-                
-                if (finalCustomerId) newInvoiceData.customerId = finalCustomerId;
-                if (customerInfo.phone) newInvoiceData.customerContact = customerInfo.phone;
                 
                 const cleanInvoiceData = cleanObject(newInvoiceData as Invoice);
                 
@@ -1201,7 +1207,7 @@ export const useAppStore = create<AppState>()(
                 
                 set({ cart: [] });
 
-                return cleanInvoiceData as Invoice;
+                return { ...cleanInvoiceData, id: invoiceId } as Invoice;
             });
         } catch (error) {
             console.error("[GemsTrack Store generateInvoice] Transaction failed: ", error);
@@ -1493,7 +1499,8 @@ export const useAppStore = create<AppState>()(
             createdAt: new Date().toISOString(),
             ratesApplied: ratesForInvoice,
             customerId: order.customerId,
-            customerName: order.customerName,
+            customerName: order.customerName || 'Walk-in Customer',
+            customerContact: order.customerContact,
         };
     
         const newInvoice: Invoice = { id: invoiceId, ...newInvoiceData };

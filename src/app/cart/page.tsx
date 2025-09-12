@@ -238,9 +238,15 @@ export default function CartPage() {
     }
     
     const isWalkIn = selectedCustomerId === undefined || selectedCustomerId === WALK_IN_CUSTOMER_VALUE;
-    if (isWalkIn && !walkInCustomerName.trim()) {
-        toast({ title: "Customer Name Required", description: "Please enter a name for the walk-in customer.", variant: "destructive" });
+    
+    let finalWalkInName = walkInCustomerName.trim();
+    if (isWalkIn && !finalWalkInName) {
+      if (walkInCustomerPhone.trim()) {
+        finalWalkInName = `Walk-in Customer - ${walkInCustomerPhone.trim()}`;
+      } else {
+        toast({ title: "Customer Info Missing", description: "Please enter a name or phone number for the walk-in customer.", variant: "destructive" });
         return;
+      }
     }
 
     const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
@@ -280,7 +286,7 @@ export default function CartPage() {
     toast({ title: "Rates Updated", description: "Store metal rates have been updated with the values from this estimate."});
 
     const customerForInvoice = isWalkIn
-        ? { name: walkInCustomerName, phone: walkInCustomerPhone }
+        ? { name: finalWalkInName, phone: walkInCustomerPhone }
         : { id: selectedCustomerId, name: customers.find(c => c.id === selectedCustomerId)?.name || '', phone: customers.find(c => c.id === selectedCustomerId)?.phone || '' };
     
     if(isEditingEstimate && generatedInvoice) {
@@ -934,7 +940,7 @@ export default function CartPage() {
                 {(selectedCustomerId === undefined || selectedCustomerId === WALK_IN_CUSTOMER_VALUE) && (
                     <div className="space-y-4 pt-2">
                         <div>
-                            <Label htmlFor="walk-in-name">Walk-in Customer Name</Label>
+                            <Label htmlFor="walk-in-name">Walk-in Customer Name (Optional)</Label>
                             <Input id="walk-in-name" value={walkInCustomerName} onChange={(e) => setWalkInCustomerName(e.target.value)} placeholder="e.g., John Doe" />
                         </div>
                         <div>
