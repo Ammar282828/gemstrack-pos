@@ -759,7 +759,6 @@ export default function CartPage() {
                         <div className="flex gap-2 mt-2">
                              <PhoneInput
                                 name="phone"
-                                countryCallingCodeEditable={false}
                                 control={phoneForm.control as unknown as Control}
                                 defaultCountry="PK"
                                 international
@@ -773,11 +772,7 @@ export default function CartPage() {
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end space-x-2">
-                    <Button onClick={() => {
-                        if (typeof window !== 'undefined') {
-                            printInvoice(generatedInvoice);
-                        }
-                    }}><Printer className="mr-2 h-4 w-4"/> Print Updated Invoice</Button>
+                    <Button onClick={() => printInvoice(generatedInvoice)}><Printer className="mr-2 h-4 w-4"/> Print Updated Invoice</Button>
                 </CardFooter>
             </Card>
             <div style={{ display: 'none' }}>

@@ -402,7 +402,6 @@ export default function EntityHisaabPage() {
                              <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
                              <PhoneInput
                                 name="phone"
-                                countryCallingCodeEditable={false}
                                 control={phoneForm.control as unknown as Control}
                                 defaultCountry="PK"
                                 international
