@@ -618,17 +618,22 @@ function cleanObject<T extends object>(obj: T): T {
     return obj;
   }
   
-  const newObj = { ...obj }; // Create a shallow copy
+  // If it's an array, map over it and clean each item
+  if (Array.isArray(obj)) {
+    // @ts-ignore
+    return obj.map(item => cleanObject(item));
+  }
   
-  for (const key in newObj) {
-    if (newObj[key] === undefined) {
-      delete newObj[key];
-    } else if (typeof newObj[key] === 'object' && newObj[key] !== null) {
-      // @ts-ignore
-      newObj[key] = cleanObject(newObj[key]); // Recurse into nested objects
+  const newObj: { [key: string]: any } = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const value = obj[key];
+      if (value !== undefined) {
+        newObj[key] = (typeof value === 'object' && value !== null) ? cleanObject(value) : value;
+      }
     }
   }
-  return newObj;
+  return newObj as T;
 }
 
 
@@ -1206,8 +1211,13 @@ export const useAppStore = create<AppState>()(
                 transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
                 
                 set({ cart: [] });
+                
+                const finalInvoice = { ...cleanInvoiceData, id: invoiceId } as Invoice;
+                if(finalInvoice.items && typeof finalInvoice.items === 'object' && !Array.isArray(finalInvoice.items)){
+                  finalInvoice.items = Object.values(finalInvoice.items);
+                }
 
-                return { ...cleanInvoiceData, id: invoiceId } as Invoice;
+                return finalInvoice;
             });
         } catch (error) {
             console.error("[GemsTrack Store generateInvoice] Transaction failed: ", error);
