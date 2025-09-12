@@ -240,12 +240,11 @@ export default function CartPage() {
     const isWalkIn = selectedCustomerId === undefined || selectedCustomerId === WALK_IN_CUSTOMER_VALUE;
     
     let finalWalkInName = walkInCustomerName.trim();
-    if (isWalkIn && !finalWalkInName) {
-      if (walkInCustomerPhone.trim()) {
+    if (isWalkIn) {
+      if (finalWalkInName === '' && walkInCustomerPhone.trim()) {
         finalWalkInName = `Walk-in Customer - ${walkInCustomerPhone.trim()}`;
-      } else {
-        toast({ title: "Customer Info Missing", description: "Please enter a name or phone number for the walk-in customer.", variant: "destructive" });
-        return;
+      } else if (finalWalkInName === '') {
+        finalWalkInName = 'Walk-in Customer';
       }
     }
 
