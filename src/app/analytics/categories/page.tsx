@@ -27,17 +27,15 @@ const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3
 
 
 export default function CategoriesAnalyticsPage() {
-  const { generatedInvoices, categories, isInvoicesLoading, loadGeneratedInvoices, loadCategories } = useAppStore();
+  const { generatedInvoices, categories, isInvoicesLoading, loadGeneratedInvoices, invoicesError } = useAppStore();
   const router = useRouter();
   
   useEffect(() => {
     loadGeneratedInvoices();
-    loadCategories();
-  }, [loadGeneratedInvoices, loadCategories]);
+  }, [loadGeneratedInvoices]);
 
   const isLoading = isInvoicesLoading;
   const loadingError = invoicesError;
-  const { invoicesError } = useAppStore();
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 29),
