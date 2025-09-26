@@ -13,16 +13,7 @@ import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, Scan
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
-
-export const SafeSvg: React.FC<{ svgText?: string; className?: string }> = ({ svgText, className }) => {
-  if (!svgText || typeof svgText !== 'string') {
-    return null;
-  }
-  // Remove width and height attributes to allow CSS to control sizing
-  const cleanedSvg = svgText.replace(/width="[^"]*"/g, '').replace(/height="[^"]*"/g, '');
-
-  return <div className={className} dangerouslySetInnerHTML={{ __html: cleanedSvg }} />;
-};
+import Image from 'next/image';
 
 interface NavItem {
   href: string;
@@ -63,10 +54,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isStoreHydrated = useIsStoreHydrated();
   const settings = useAppStore(state => state.settings);
 
-  // We only render the layout shell. Data loading and authorization happen inside.
   if (!isStoreHydrated) {
-    // Render nothing until the persisted state (cart) is rehydrated from localStorage
-    // This prevents a flash of empty cart on page load.
     return null; 
   }
   
@@ -74,16 +62,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     ? settings.shopLogoSvgBlack || settings.shopLogoSvg 
     : settings.shopLogoSvg;
 
+  const logoDataUri = logoToUse ? `data:image/svg+xml;base64,${btoa(logoToUse)}` : null;
+
   return (
       <SidebarProvider defaultOpen={true}>
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4">
-            <Link href="/" className="flex items-center justify-center text-primary">
-              {logoToUse ? (
-                 <SafeSvg
-                    svgText={logoToUse}
-                    className="w-full h-[25px] group-data-[collapsible=icon]:hidden [&_svg]:h-full [&_svg]:w-auto"
-                  />
+            <Link href="/" className="flex items-center justify-center text-primary h-[25px]">
+              {logoDataUri ? (
+                 <div className="relative w-full h-full group-data-[collapsible=icon]:hidden">
+                    <Image
+                        src={logoDataUri}
+                        alt={settings.shopName || 'Shop Logo'}
+                        fill
+                        className="object-contain"
+                        unoptimized
+                    />
+                 </div>
               ) : (
                  <span className="font-bold text-lg group-data-[collapsible=icon]:hidden">{settings.shopName || "Taheri"}</span>
               )}

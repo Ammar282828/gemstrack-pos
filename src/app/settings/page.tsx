@@ -21,7 +21,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { SafeSvg } from '@/components/layout/app-layout';
+import Image from 'next/image';
 
 const DEVICE_ID_KEY = 'gemstrack-device-id';
 
@@ -457,6 +457,11 @@ export default function SettingsPage() {
     );
   }
 
+  const mainLogoSvg = form.getValues('shopLogoSvg');
+  const mainLogoDataUri = mainLogoSvg ? `data:image/svg+xml;base64,${btoa(mainLogoSvg)}` : null;
+  const blackLogoSvg = form.getValues('shopLogoSvgBlack');
+  const blackLogoDataUri = blackLogoSvg ? `data:image/svg+xml;base64,${btoa(blackLogoSvg)}` : null;
+
   return (
     <div className="container mx-auto p-4 space-y-8">
       <EmergencyLock />
@@ -626,9 +631,9 @@ export default function SettingsPage() {
                             </div>
                           </Button>
                       </FormControl>
-                      {form.getValues('shopLogoSvg') && (
-                          <div className="p-2 border rounded-md w-fit bg-muted text-foreground">
-                              <SafeSvg svgText={form.getValues('shopLogoSvg')} className="h-[40px] w-[150px] [&_svg]:h-full [&_svg]:w-auto" />
+                      {mainLogoDataUri && (
+                          <div className="relative p-2 border rounded-md w-[150px] h-[40px] bg-muted text-foreground">
+                              <Image src={mainLogoDataUri} alt="Main Logo Preview" fill className="object-contain" unoptimized />
                           </div>
                       )}
                     </div>
@@ -656,9 +661,9 @@ export default function SettingsPage() {
                             </div>
                           </Button>
                       </FormControl>
-                      {form.getValues('shopLogoSvgBlack') && (
-                          <div className="p-2 border rounded-md w-fit bg-slate-800 text-white">
-                              <SafeSvg svgText={form.getValues('shopLogoSvgBlack')} className="h-[40px] w-[150px] [&_svg]:h-full [&_svg]:w-auto" />
+                      {blackLogoDataUri && (
+                          <div className="relative p-2 border rounded-md w-[150px] h-[40px] bg-slate-800 text-white">
+                             <Image src={blackLogoDataUri} alt="Invoice Logo Preview" fill className="object-contain" unoptimized />
                           </div>
                       )}
                     </div>
