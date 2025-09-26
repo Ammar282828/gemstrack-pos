@@ -10,11 +10,12 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, parseISO, startOfDay, subDays, isWithinInterval } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard, AlertTriangle } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertTitle } from '@/components/ui/alert';
+import Link from 'next/link';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -260,6 +261,16 @@ export default function AnalyticsPage() {
     setSelectedDayData(dayData);
     setIsSummaryDialogOpen(true);
   };
+  
+  const CardTitleLink: React.FC<{title: string, href: string, children: React.ReactNode}> = ({ title, href, children }) => (
+    <Link href={href} className="group">
+        <CardTitle className="flex justify-between items-center">
+            <span>{title}</span>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+        </CardTitle>
+         {children}
+    </Link>
+  );
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-8">
@@ -484,8 +495,9 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Top Selling Products (by Revenue)</CardTitle>
-                <CardDescription>Top 10 for the selected period.</CardDescription>
+                 <CardTitleLink title="Top Selling Products (by Revenue)" href="/analytics/products">
+                    <CardDescription>Top 10 for the selected period.</CardDescription>
+                </CardTitleLink>
               </CardHeader>
               <CardContent>
                 {analyticsData.topProductsByRevenue.length > 0 ? (
@@ -520,8 +532,9 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Top Selling Products (by Quantity)</CardTitle>
-                <CardDescription>Top 10 for the selected period.</CardDescription>
+                <CardTitleLink title="Top Selling Products (by Quantity)" href="/analytics/products">
+                    <CardDescription>Top 10 for the selected period.</CardDescription>
+                </CardTitleLink>
               </CardHeader>
               <CardContent>
                 {analyticsData.topProductsByQuantity.length > 0 ? (
@@ -558,8 +571,9 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Sales by Category</CardTitle>
-                <CardDescription>Revenue distribution for the selected period.</CardDescription>
+                <CardTitleLink title="Sales by Category" href="/analytics/categories">
+                    <CardDescription>Revenue distribution for the selected period.</CardDescription>
+                </CardTitleLink>
               </CardHeader>
               <CardContent className="pl-2">
                 {analyticsData.salesByCategory.filter(c => c.sales > 0).length > 0 ? (
@@ -616,8 +630,9 @@ export default function AnalyticsPage() {
            <div className="grid grid-cols-1">
              <Card>
               <CardHeader>
-                <CardTitle>Top Customers (by Sales)</CardTitle>
-                <CardDescription>Top 10 for the selected period.</CardDescription>
+                <CardTitleLink title="Top Customers (by Sales)" href="/analytics/customers">
+                    <CardDescription>Top 10 for the selected period.</CardDescription>
+                </CardTitleLink>
               </CardHeader>
               <CardContent>
                 {analyticsData.topCustomers.length > 0 ? (
