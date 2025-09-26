@@ -1,4 +1,5 @@
 
+
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -814,9 +815,9 @@ export const useAppStore = create<AppState>()(
         );
       },
        reAddSoldProductToInventory: async (soldProduct) => {
-        console.log(`[reAddSoldProductToInventory] Attempting to re-add based on SKU: ${soldProduct.sku}`);
+        console.log(`[reAddSoldProductToInventory] Attempting to re-add based on SKU: ${soldProduct?.sku}`);
         if (!soldProduct) {
-            throw new Error(`Sold product with SKU ${soldProduct.sku} not found.`);
+            throw new Error(`Sold product not found.`);
         }
         // Create a new product object, omitting the SKU, and add it.
         const { sku, qrCodeDataUrl, ...productDataForAdd } = soldProduct;
