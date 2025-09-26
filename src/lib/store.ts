@@ -506,10 +506,12 @@ export interface AppState {
   orders: Order[];
   hisaabEntries: HisaabEntry[];
   expenses: Expense[];
+  soldProducts: Product[];
 
   // Loading states
   isSettingsLoading: boolean;
   isProductsLoading: boolean;
+  isSoldProductsLoading: boolean;
   isCustomersLoading: boolean;
   isKarigarsLoading: boolean;
   isInvoicesLoading: boolean;
@@ -520,6 +522,7 @@ export interface AppState {
   // Data loaded flags
   hasSettingsLoaded: boolean;
   hasProductsLoaded: boolean;
+  hasSoldProductsLoaded: boolean;
   hasCustomersLoaded: boolean;
   hasKarigarsLoaded: boolean;
   hasInvoicesLoaded: boolean;
@@ -530,6 +533,7 @@ export interface AppState {
   // Error states
   settingsError: string | null;
   productsError: string | null;
+  soldProductsError: string | null;
   customersError: string | null;
   invoicesError: string | null;
   ordersError: string | null;
@@ -551,6 +555,8 @@ export interface AppState {
   deleteCategory: (id: string) => void;
 
   loadProducts: () => void;
+  loadSoldProducts: () => void;
+  reAddSoldProductToInventory: (sku: string) => Promise<void>;
   addProduct: (productData: ProductDataForAdd) => Promise<Product | null>;
   updateProduct: (sku: string, updatedProductData: Partial<Omit<Product, 'sku'>>) => Promise<void>;
   deleteProduct: (sku: string) => Promise<void>;
@@ -649,6 +655,7 @@ export const useAppStore = create<AppState>()(
       settings: initialSettingsData, // Fallback, will be overwritten by loadSettings
       categories: staticCategories, // Categories remain local for now
       products: [],
+      soldProducts: [],
       customers: [],
       cart: [], // This will be persisted
       generatedInvoices: [],
@@ -659,6 +666,7 @@ export const useAppStore = create<AppState>()(
 
       isSettingsLoading: true,
       isProductsLoading: true,
+      isSoldProductsLoading: true,
       isCustomersLoading: true,
       isKarigarsLoading: true,
       isInvoicesLoading: true,
@@ -668,6 +676,7 @@ export const useAppStore = create<AppState>()(
       
       hasSettingsLoaded: false,
       hasProductsLoaded: false,
+      hasSoldProductsLoaded: false,
       hasCustomersLoaded: false,
       hasKarigarsLoaded: false,
       hasInvoicesLoaded: false,
@@ -677,6 +686,7 @@ export const useAppStore = create<AppState>()(
 
       settingsError: null,
       productsError: null,
+      soldProductsError: null,
       customersError: null,
       invoicesError: null,
       ordersError: null,
@@ -782,6 +792,38 @@ export const useAppStore = create<AppState>()(
             set({ products: [], isProductsLoading: false, productsError: error.message || 'Failed to load products.' });
           }
         );
+      },
+      loadSoldProducts: () => {
+        if (get().hasSoldProductsLoaded) return;
+        set({ isSoldProductsLoading: true, soldProductsError: null });
+        const q = query(collection(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS));
+        onSnapshot(q, 
+          (snapshot) => {
+            const productList = snapshot.docs.map(doc => doc.data() as Product);
+            set({ soldProducts: productList, isSoldProductsLoading: false, hasSoldProductsLoaded: true });
+            console.log(`[GemsTrack Store] Real-time update: ${productList.length} sold products loaded.`);
+          }, 
+          (error) => {
+            console.error("[GemsTrack Store] Error in sold products real-time listener:", error);
+            set({ soldProducts: [], isSoldProductsLoading: false, soldProductsError: error.message || 'Failed to load sold products.' });
+          }
+        );
+      },
+      reAddSoldProductToInventory: async (sku) => {
+        console.log(`[reAddSoldProductToInventory] Attempting to re-add SKU: ${sku}`);
+        await runTransaction(db, async (transaction) => {
+          const soldProductRef = doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, sku);
+          const productRef = doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, sku);
+
+          const soldProductDoc = await transaction.get(soldProductRef);
+          if (!soldProductDoc.exists()) {
+            throw new Error(`Sold product with SKU ${sku} not found.`);
+          }
+
+          const productData = soldProductDoc.data();
+          transaction.set(productRef, productData);
+          transaction.delete(soldProductRef);
+        });
       },
       addProduct: async (productData) => {
         const { categories, products } = get();

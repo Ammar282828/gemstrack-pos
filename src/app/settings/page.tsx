@@ -2,11 +2,11 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, ThemeKey, AVAILABLE_THEMES } from '@/lib/store';
+import { useAppStore, Settings, ThemeKey, AVAILABLE_THEMES, Product } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,13 +15,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const DEVICE_ID_KEY = 'gemstrack-device-id';
 
@@ -131,6 +132,103 @@ const DangerZone: React.FC = () => {
                         This will remove the specified number of products based on the highest SKU numbers.
                     </p>
                 </div>
+            </CardContent>
+        </Card>
+    );
+};
+
+const SoldProductRecovery: React.FC = () => {
+    const { soldProducts, isSoldProductsLoading, loadSoldProducts, reAddSoldProductToInventory } = useAppStore();
+    const { toast } = useToast();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [recoveringSku, setRecoveringSku] = useState<string | null>(null);
+
+    useEffect(() => {
+        loadSoldProducts();
+    }, [loadSoldProducts]);
+
+    const filteredSoldProducts = useMemo(() => {
+        if (!searchTerm) return [];
+        return soldProducts.filter(p => 
+            p.sku.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            p.name.toLowerCase().includes(searchTerm.toLowerCase())
+        ).slice(0, 50); // Limit results for performance
+    }, [soldProducts, searchTerm]);
+
+    const handleReAdd = async (sku: string) => {
+        setRecoveringSku(sku);
+        try {
+            await reAddSoldProductToInventory(sku);
+            toast({
+                title: 'Product Restored',
+                description: `Product ${sku} has been moved back to active inventory.`,
+            });
+        } catch (error: any) {
+            toast({
+                title: 'Error',
+                description: `Failed to restore product: ${error.message}`,
+                variant: 'destructive',
+            });
+        } finally {
+            setRecoveringSku(null);
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-xl flex items-center">
+                    <ArchiveRestore className="mr-2 h-5 w-5" /> Data Recovery
+                </CardTitle>
+                <CardDescription>
+                    Search for a sold product by SKU or name to re-add it to your active inventory.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        placeholder="Search SKU or Name..."
+                        className="pl-9"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                {isSoldProductsLoading && searchTerm && (
+                    <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    </div>
+                )}
+                {filteredSoldProducts.length > 0 && (
+                    <ScrollArea className="h-64 border rounded-md">
+                        <div className="p-2 space-y-1">
+                            {filteredSoldProducts.map(p => (
+                                <div key={p.sku} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                    <div>
+                                        <p className="font-semibold">{p.name}</p>
+                                        <p className="text-sm text-muted-foreground">{p.sku}</p>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleReAdd(p.sku)}
+                                        disabled={recoveringSku === p.sku}
+                                    >
+                                        {recoveringSku === p.sku ? (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                        )}
+                                        Re-Add to Inventory
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                )}
+                {searchTerm && !isSoldProductsLoading && filteredSoldProducts.length === 0 && (
+                    <p className="text-center text-sm text-muted-foreground p-4">No sold products found matching your search.</p>
+                )}
             </CardContent>
         </Card>
     );
@@ -579,6 +677,8 @@ export default function SettingsPage() {
         </form>
       </Form>
       
+       <SoldProductRecovery />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Data Import</CardTitle>
