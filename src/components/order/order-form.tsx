@@ -705,9 +705,28 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                             <FormField control={form.control} name="customerName" render={({ field }) => (
                                <FormItem><FormLabel className="flex items-center"><User className="mr-2 h-4 w-4"/>Walk-in Customer Name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
-                             <FormField control={form.control} name="customerContact" render={({ field }) => (
-                               <FormItem><FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4"/>Walk-in Customer Contact</FormLabel><FormControl><Input placeholder="e.g., 03001234567" {...field} /></FormControl><FormMessage /></FormItem>
-                            )}/>
+                            <FormField
+                                control={form.control}
+                                name="customerContact"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4"/>Walk-in Customer Contact</FormLabel>
+                                    <FormControl>
+                                    <PhoneInput
+                                        name={field.name}
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        onBlur={field.onBlur}
+                                        ref={field.ref}
+                                        international
+                                        defaultCountry="PK"
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                                    />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
                         </div>
                      ) : (
                         <FormField control={form.control} name="customerContact" render={({ field }) => (

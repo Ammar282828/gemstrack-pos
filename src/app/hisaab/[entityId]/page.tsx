@@ -184,6 +184,7 @@ export default function EntityHisaabPage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [dialogMode, setDialogMode] = useState<TransactionMode>('gave');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isReminderOpen, setIsReminderOpen] = useState(false);
   
   const onDeleteEntry = async (entryId: string) => {
       setIsDeleting(entryId);
@@ -244,6 +245,7 @@ export default function EntityHisaabPage() {
 
     window.open(whatsappUrl, '_blank');
     toast({ title: "Redirecting to WhatsApp", description: "Your reminder message is ready to be sent." });
+    setIsReminderOpen(false);
   };
   
   const handlePrintLedger = () => {
@@ -385,19 +387,19 @@ export default function EntityHisaabPage() {
                 <FileText className="mr-2 h-4 w-4" /> Download PDF Report
             </Button>
             {entityType === 'customer' && balances.finalCashBalance > 0 && (
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
+                <Dialog open={isReminderOpen} onOpenChange={setIsReminderOpen}>
+                    <DialogTrigger asChild>
                         <Button variant="default" disabled={!settings}>
                             <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
                         </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Send Payment Reminder</AlertDialogTitle>
-                            <AlertDialogDescription>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Send Payment Reminder</DialogTitle>
+                            <DialogDescription>
                                 This will open WhatsApp with a pre-filled reminder message for the outstanding balance.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
+                            </DialogDescription>
+                        </DialogHeader>
                          <div className="py-4 space-y-2">
                              <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
                              <PhoneInput
@@ -408,12 +410,12 @@ export default function EntityHisaabPage() {
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                             />
                         </div>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleSendReminder}>Send</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                            <Button onClick={handleSendReminder}>Send</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             )}
         </CardFooter>
       </Card>
