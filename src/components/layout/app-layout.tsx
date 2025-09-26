@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import type { ReactNode } from 'react';
@@ -14,6 +13,13 @@ import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, Scan
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
+
+export const SafeSvg: React.FC<{ svgText?: string; className?: string }> = ({ svgText, className }) => {
+  if (!svgText || typeof svgText !== 'string') {
+    return null;
+  }
+  return <div className={className} dangerouslySetInnerHTML={{ __html: svgText }} />;
+};
 
 interface NavItem {
   href: string;
@@ -71,9 +77,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarHeader className="p-4">
             <Link href="/" className="flex items-center justify-center text-primary">
               {logoToUse ? (
-                 <div
+                 <SafeSvg
+                    svgText={logoToUse}
                     className="w-full h-[25px] group-data-[collapsible=icon]:hidden [&_svg]:h-full [&_svg]:w-auto"
-                    dangerouslySetInnerHTML={{ __html: logoToUse }}
                   />
               ) : (
                  <span className="font-bold text-lg group-data-[collapsible=icon]:hidden">{settings.shopName || "Taheri"}</span>

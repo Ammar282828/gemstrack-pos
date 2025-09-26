@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -22,13 +21,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-const SafeSvg: React.FC<{ svgText?: string; className?: string }> = ({ svgText, className }) => {
-  if (!svgText || typeof svgText !== 'string') {
-    return null;
-  }
-  return <div className={className} dangerouslySetInnerHTML={{ __html: svgText }} />;
-};
+import { SafeSvg } from '@/components/layout/app-layout';
 
 const DEVICE_ID_KEY = 'gemstrack-device-id';
 
