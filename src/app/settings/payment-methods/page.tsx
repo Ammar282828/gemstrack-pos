@@ -65,10 +65,9 @@ const PaymentMethodForm: React.FC<{
 export default function PaymentMethodsPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { paymentMethods, updateSettings, settings } = useAppStore(state => ({
+  const { paymentMethods, updateSettings } = useAppStore(state => ({
     paymentMethods: state.settings.paymentMethods,
     updateSettings: state.updateSettings,
-    settings: state.settings,
   }));
   
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -207,13 +206,13 @@ export default function PaymentMethodsPage() {
               </CardHeader>
               <CardContent className="flex-grow space-y-2">
                  <div className="flex justify-center mb-4 p-4 border rounded-md bg-card">
-                    <QRCode
-                        value={getQrValue(method)}
-                        size={150}
-                        bgColor="hsl(var(--card))"
-                        fgColor="hsl(var(--card-foreground))"
-                        level="H"
-                    />
+                    <div className="bg-white p-2 rounded-md">
+                        <QRCode
+                            value={getQrValue(method)}
+                            size={128}
+                            level="H"
+                        />
+                    </div>
                 </div>
                 <div className="flex justify-between items-center py-1.5">
                     <span className="text-sm text-muted-foreground">Account #:</span>
