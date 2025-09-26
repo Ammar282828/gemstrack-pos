@@ -169,14 +169,14 @@ export default function WeprintApiPage() {
             )}
           </ScrollArea>
         </CardContent>
-        <CardFooter className="flex justify-between items-center">
-          <p className="text-sm text-muted-foreground">
-            <span className="font-bold">{selectedSkus.size}</span> products selected for API.
-          </p>
-          <Button onClick={handleSaveChanges} disabled={isSaving}>
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Update API Products
-          </Button>
+        <CardFooter className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <p className="text-sm text-muted-foreground text-center sm:text-left">
+                <span className="font-bold">{selectedSkus.size}</span> products selected for API.
+            </p>
+            <Button onClick={handleSaveChanges} disabled={isSaving} className="w-full sm:w-auto">
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Update API Products
+            </Button>
         </CardFooter>
       </Card>
     </div>
