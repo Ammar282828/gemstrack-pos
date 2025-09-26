@@ -447,9 +447,9 @@ export default function CartPage() {
     const tableColumn = ["#", "Product & Breakdown", "Qty", "Unit Price", "Total"];
     const tableRows: any[][] = [];
 
-    const itemsToPrint = Array.isArray(invoiceToPrint.items) ? invoiceToPrint.items : Object.values(invoiceToPrint.items);
+    const itemsToPrint = Array.isArray(invoiceToPrint.items) ? invoiceToPrint.items : Object.values(invoiceToPrint.items as {[key: string]: InvoiceItem});
 
-    itemsToPrint.forEach((item: InvoiceItem, index) => {
+    itemsToPrint.forEach((item, index) => {
         let breakdownLines = [];
         if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
