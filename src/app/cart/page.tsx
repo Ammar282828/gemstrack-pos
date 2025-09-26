@@ -518,12 +518,12 @@ export default function CartPage() {
 
     doc.setFontSize(10).setFont("helvetica", "normal").setTextColor(0);
     doc.text(`Subtotal:`, totalsX - 60, currentY, { align: 'right' });
-    doc.text(`PKR ${invoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
 
     doc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
     doc.text(`Discount:`, totalsX - 60, currentY, { align: 'right' });
-    doc.text(`- PKR ${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 7;
     
     doc.setFont("helvetica", "normal").setTextColor(0);
@@ -533,18 +533,18 @@ export default function CartPage() {
     
     doc.setFontSize(12).setFont("helvetica", "bold");
     doc.text(`Grand Total:`, totalsX - 60, currentY, { align: 'right' });
-    doc.text(`PKR ${invoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 8;
 
-    if (invoice.amountPaid > 0) {
+    if (invoiceToPrint.amountPaid > 0) {
         doc.setFontSize(10).setFont("helvetica", "normal");
         doc.text(`Amount Paid:`, totalsX - 60, currentY, { align: 'right' });
-        doc.text(`- PKR ${invoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+        doc.text(`- PKR ${invoiceToPrint.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
         currentY += 8;
         
         doc.setFontSize(14).setFont("helvetica", "bold");
         doc.text(`Balance Due:`, totalsX - 60, currentY, { align: 'right' });
-        doc.text(`PKR ${invoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+        doc.text(`PKR ${invoiceToPrint.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     }
 
     const footerStartY = pageHeight - 45;
@@ -581,23 +581,23 @@ export default function CartPage() {
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
 
     if (instaQrCanvas) {
-        pdfDoc.setFontSize(8); pdfDoc.setFont("helvetica", "bold").setTextColor(0);
-        pdfDoc.text("@collectionstaheri", qrStartX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
-        pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
+        doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
+        doc.text("@collectionstaheri", qrStartX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
     }
     if (waQrCanvas) {
         const secondQrX = qrStartX + qrCodeSize + 15;
-        pdfDoc.setFontSize(8); pdfDoc.setFont("helvetica", "bold").setTextColor(0);
-        pdfDoc.text("Join on WhatsApp", secondQrX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
-        pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
+        doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
+        doc.text("Join on WhatsApp", secondQrX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
     }
     
 
-    pdfDoc.autoPrint();
-    window.open(pdfDoc.output('bloburl'), '_blank');
-  }
-
-  if (loading) {
+    doc.autoPrint();
+    window.open(doc.output('bloburl'), '_blank');
+  };
+  
+  if (!appReady) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin" />
@@ -605,72 +605,243 @@ export default function CartPage() {
     );
   }
 
-  if (error || !invoice) {
+  // If viewing a generated invoice, show the finalized view
+  if (generatedInvoice) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-destructive/10 p-4">
-        <Card className="w-full max-w-lg border-destructive">
-            <CardHeader>
-                <h1 className="text-xl font-semibold text-destructive">Error</h1>
-            </CardHeader>
-            <CardContent>
-                <p>{error || "Invoice could not be loaded."}</p>
-            </CardContent>
+      <div className="bg-muted min-h-screen p-4 sm:p-8">
+        <div style={{ display: 'none' }}>
+          <QRCode id="insta-qr-code" value="https://www.instagram.com/collectionstaheri?igsh=bWs4YWgydjJ1cXBz&utm_source=qr" size={128} />
+          <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl?mode=ac_t" size={128} />
+        </div>
+
+        <Card className="max-w-4xl mx-auto shadow-lg">
+           <CardHeader>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                <div>
+                    <CardTitle className="text-2xl font-bold">Estimate Finalized</CardTitle>
+                    <CardDescription>Estimate <span className="font-mono">{generatedInvoice.id}</span> created successfully.</CardDescription>
+                </div>
+                 <div className="flex gap-2 flex-col sm:flex-row">
+                    <Button variant="outline" onClick={handleEditEstimate}>
+                      <Edit className="mr-2 h-4 w-4"/> Edit Estimate
+                    </Button>
+                     <Button onClick={() => printInvoice(generatedInvoice)}>
+                      <Printer className="mr-2 h-4 w-4"/> Print
+                    </Button>
+                 </div>
+            </div>
+           </CardHeader>
+           <CardContent className="space-y-6">
+                <div className="p-4 border rounded-md bg-background">
+                    <div className="flex justify-between items-center mb-4">
+                        <div>
+                            <p className="text-sm text-muted-foreground">Billed to</p>
+                            <p className="font-semibold">{generatedInvoice.customerName || 'Walk-in Customer'}</p>
+                        </div>
+                         <div>
+                            <p className="text-sm text-muted-foreground text-right">Estimate Date</p>
+                            <p className="font-semibold text-right">{new Date(generatedInvoice.createdAt).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <Separator/>
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {generatedInvoice.items.map((item, index) => (
+                                <TableRow key={index}>
+                                    <TableCell>
+                                        <div className="font-medium">{item.name}</div>
+                                        <div className="text-xs text-muted-foreground">{item.sku}</div>
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium">PKR {item.itemTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                     <Separator className="mt-4"/>
+                     <div className="pt-4 space-y-2 text-right">
+                        <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Subtotal:</span> <span className="w-32 font-medium">PKR {generatedInvoice.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Discount:</span> <span className="w-32 font-medium">- PKR {generatedInvoice.discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        <div className="flex justify-end items-center gap-4 text-lg font-bold"><span className="text-muted-foreground">Grand Total:</span> <span className="w-32">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                     </div>
+                </div>
+
+                <Separator />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                         <h3 className="font-semibold text-lg">Send to Customer</h3>
+                         <div className="space-y-2">
+                            <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
+                             <PhoneInput
+                                name="phone"
+                                control={phoneForm.control as unknown as Control}
+                                defaultCountry="PK"
+                                international
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                            />
+                        </div>
+                        <Button onClick={() => handleSendWhatsApp(generatedInvoice)} className="w-full">
+                            <MessageSquare className="mr-2 h-4 w-4"/> Send via WhatsApp
+                        </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                        <h3 className="font-semibold text-lg">Record a Payment</h3>
+                        <div className="space-y-2">
+                            <Label htmlFor="payment-amount">Payment Amount Received (PKR)</Label>
+                            <Input 
+                                id="payment-amount" 
+                                type="number" 
+                                placeholder={`Balance due: ${generatedInvoice.balanceDue.toLocaleString()}`}
+                                value={paymentAmount}
+                                onChange={(e) => setPaymentAmount(e.target.value)}
+                            />
+                        </div>
+                        <Button 
+                            className="w-full"
+                            disabled={!paymentAmount || isSubmittingPayment}
+                            onClick={() => { /* Implement payment submission logic */ }}
+                        >
+                            {isSubmittingPayment ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Banknote className="mr-2 h-4 w-4"/>}
+                            Submit Payment
+                        </Button>
+                    </div>
+                </div>
+                 {generatedInvoice.balanceDue < generatedInvoice.grandTotal && (
+                    <Alert variant="default" className="bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300">
+                        <Check className="h-4 w-4 text-green-600"/>
+                        <AlertTitle>Payment History</AlertTitle>
+                        <AlertDescription>
+                            A total of <strong className="font-semibold">PKR {generatedInvoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</strong> has been paid. 
+                            The outstanding balance is <strong className="font-semibold">PKR {generatedInvoice.balanceDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</strong>.
+                        </AlertDescription>
+                    </Alert>
+                 )}
+
+           </CardContent>
         </Card>
       </div>
     );
   }
-
+  
   return (
-    <div className="bg-muted min-h-screen p-4 sm:p-8">
-      <div style={{ display: 'none' }}>
-        <QRCode id="insta-qr-code" value="https://www.instagram.com/collectionstaheri?igsh=bWs4YWgydjJ1cXBz&utm_source=qr" size={128} />
-        <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl?mode=ac_t" size={128} />
-      </div>
-
-        <Card className="max-w-2xl mx-auto shadow-2xl">
+    <div className="container mx-auto py-8 px-4">
+      {cartItemsFromStore.length === 0 ? (
+          <Card className="max-w-2xl mx-auto">
             <CardHeader className="text-center">
-                <CheckCircle className="mx-auto h-12 w-12 text-green-500"/>
-                <CardTitle className="text-2xl font-bold">Estimate Ready</CardTitle>
-                <CardDescription>
-                    Your estimate <span className="font-mono font-medium text-foreground">{invoice.id}</span> is ready for download.
-                </CardDescription>
+              <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground" />
+              <CardTitle className="text-2xl mt-4">Your Cart is Empty</CardTitle>
+              <CardDescription>
+                Add some products to the cart from the Products page or by using the QR scanner to create an estimate.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="p-4 border rounded-md bg-background">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <p className="text-sm text-muted-foreground">Billed to</p>
-                            <p className="font-semibold">{invoice.customerName || 'Walk-in Customer'}</p>
-                        </div>
-                         <div>
-                            <p className="text-sm text-muted-foreground text-right">Grand Total</p>
-                            <p className="font-semibold text-xl text-primary text-right">PKR {invoice.grandTotal.toLocaleString()}</p>
-                        </div>
-                    </div>
-                     {invoice.amountPaid > 0 && (
-                        <div className="border-t mt-3 pt-3">
-                            <div className="flex justify-between items-center">
-                                <p className="text-sm text-muted-foreground">Amount Paid</p>
-                                <p className="font-semibold text-green-600">- PKR {invoice.amountPaid.toLocaleString()}</p>
-                            </div>
-                            <div className="flex justify-between items-center mt-1">
-                                <p className="text-sm text-muted-foreground">Balance Due</p>
-                                <p className="font-semibold text-destructive">PKR {invoice.balanceDue.toLocaleString()}</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
+              <Link href="/scan" passHref>
+                <Button className="w-full" size="lg">Start Scanning</Button>
+              </Link>
             </CardContent>
-            <CardFooter>
-                 <Button onClick={handlePrint} disabled={!settings} size="lg" className="w-full">
-                    <Download className="mr-2 h-5 w-5" /> Download PDF
-                </Button>
-            </CardFooter>
-        </Card>
-         <footer className="text-center mt-8 text-sm text-muted-foreground">
-            <p>Thank you for your business!</p>
-            {settings?.shopName && <p>&copy; {new Date().getFullYear()} {settings.shopName}</p>}
-        </footer>
+          </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center"><Link href="/scan"><ArrowLeft className="mr-4 h-5 w-5"/></Link> Shopping Cart</CardTitle>
+                        <CardDescription>Review items and apply discounts before generating the final estimate.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ScrollArea className="h-[40vh] pr-2 -mr-2">
+                             <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                    <TableHead>Product</TableHead>
+                                    <TableHead className="text-right">Price</TableHead>
+                                    <TableHead className="w-10"></TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {cartItemsFromStore.map(item => (
+                                        <TableRow key={item.sku}>
+                                            <TableCell>
+                                                <p className="font-medium">{item.name}</p>
+                                                <p className="text-xs text-muted-foreground">{item.sku}</p>
+                                            </TableCell>
+                                            <TableCell className="text-right font-semibold">PKR {calculateProductCosts(item, settings).totalPrice.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                            <TableCell>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeFromCart(item.sku)}>
+                                                    <Trash2 className="h-4 w-4"/>
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    </CardContent>
+                    <CardFooter>
+                       <Button variant="outline" onClick={clearCart}>Clear All Items</Button>
+                    </CardFooter>
+                </Card>
+            </div>
+
+             {/* Sidebar */}
+            <div className="lg:col-span-1 lg:sticky top-8 space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Customer & Rates</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <Select onValueChange={setSelectedCustomerId} defaultValue={WALK_IN_CUSTOMER_VALUE}>
+                            <SelectTrigger><SelectValue/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={WALK_IN_CUSTOMER_VALUE}>Walk-in Customer</SelectItem>
+                                {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        
+                        {selectedCustomerId === WALK_IN_CUSTOMER_VALUE && (
+                            <div className="p-4 border rounded-md space-y-3">
+                                 <div><Label>Walk-in Name (Optional)</Label><Input value={walkInCustomerName} onChange={e => setWalkInCustomerName(e.target.value)} placeholder="e.g. John Doe"/></div>
+                                 <div><Label>Walk-in Contact (Optional)</Label><Input value={walkInCustomerPhone} onChange={e => setWalkInCustomerPhone(e.target.value)} placeholder="e.g. 03001234567"/></div>
+                            </div>
+                        )}
+                        <Separator />
+                        <div className="space-y-2">
+                             <Label>Gold Rates (PKR)</Label>
+                             <div className="grid grid-cols-2 gap-2">
+                                {cartMetalInfo.karats.has('18k') && <div><Label className="text-xs">18k/gram</Label><Input value={rateInputs.gold18k} onChange={e => handleRateChange('gold18k', e.target.value)} /></div>}
+                                {cartMetalInfo.karats.has('21k') && <div><Label className="text-xs">21k/gram</Label><Input value={rateInputs.gold21k} onChange={e => handleRateChange('gold21k', e.target.value)} /></div>}
+                                {cartMetalInfo.karats.has('22k') && <div><Label className="text-xs">22k/gram</Label><Input value={rateInputs.gold22k} onChange={e => handleRateChange('gold22k', e.target.value)} /></div>}
+                                {cartMetalInfo.karats.has('24k') && <div><Label className="text-xs">24k/gram</Label><Input value={rateInputs.gold24k} onChange={e => handleRateChange('gold24k', e.target.value)} /></div>}
+                             </div>
+                        </div>
+
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Final Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="flex justify-between"><span>Subtotal</span><span>PKR {estimatedInvoice?.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="discount" className="flex items-center"><Percent className="mr-2 h-4 w-4"/>Discount</Label>
+                            <Input id="discount" type="number" value={discountAmountInput} onChange={(e) => setDiscountAmountInput(e.target.value)} className="w-32 text-right" placeholder="0"/>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
+                    </CardContent>
+                    <CardFooter>
+                         <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice}>
+                            <FileText className="mr-2 h-5 w-5"/> {isEditingEstimate ? 'Update Estimate' : 'Generate Estimate'}
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </div>
+        </div>
+      )}
     </div>
   );
 }
