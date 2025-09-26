@@ -113,7 +113,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         try {
             await qrCode.start(
                 { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
+                { fps: 15 }, // Increased FPS, removed qrbox for full-frame scanning
                 onScanSuccess,
                 (errorMessage) => { /* ignore */ }
             );
