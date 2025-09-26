@@ -458,9 +458,9 @@ export default function SettingsPage() {
   }
 
   const mainLogoSvg = form.getValues('shopLogoSvg');
-  const mainLogoDataUri = mainLogoSvg ? `data:image/svg+xml;base64,${btoa(mainLogoSvg)}` : null;
+  const mainLogoDataUri = mainLogoSvg ? `data:image/svg+xml,${encodeURIComponent(mainLogoSvg)}` : null;
   const blackLogoSvg = form.getValues('shopLogoSvgBlack');
-  const blackLogoDataUri = blackLogoSvg ? `data:image/svg+xml;base64,${btoa(blackLogoSvg)}` : null;
+  const blackLogoDataUri = blackLogoSvg ? `data:image/svg+xml,${encodeURIComponent(blackLogoSvg)}` : null;
 
   return (
     <div className="container mx-auto p-4 space-y-8">
@@ -811,3 +811,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    

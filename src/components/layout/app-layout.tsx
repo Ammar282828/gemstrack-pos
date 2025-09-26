@@ -62,7 +62,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     ? settings.shopLogoSvgBlack || settings.shopLogoSvg 
     : settings.shopLogoSvg;
 
-  const logoDataUri = logoToUse ? `data:image/svg+xml;base64,${btoa(logoToUse)}` : null;
+  const logoDataUri = logoToUse ? `data:image/svg+xml,${encodeURIComponent(logoToUse)}` : null;
 
   return (
       <SidebarProvider defaultOpen={true}>
@@ -136,3 +136,5 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </SidebarProvider>
   );
 }
+
+    
