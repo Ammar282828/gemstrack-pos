@@ -5,7 +5,7 @@ import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc, runTransaction, getDocsFromCache } from 'firebase/firestore';
-import { db, reinitializeFirebase } from '@/lib/firebase';
+import { db, firebaseConfig } from '@/lib/firebase';
 import { summarizeOrderItems, SummarizeOrderItemsInput } from '@/ai/flows/summarize-order-items-flow';
 
 
@@ -703,8 +703,6 @@ export const useAppStore = create<AppState>()(
         if (get().hasSettingsLoaded) return;
         set({ isSettingsLoading: true, settingsError: null });
         try {
-          // Re-init with default (unlocked) config to fetch settings first.
-          await reinitializeFirebase(false); 
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           const docSnap = await getDoc(settingsDocRef);
           
@@ -715,6 +713,7 @@ export const useAppStore = create<AppState>()(
             loadedSettings = {
               ...initialSettingsData,
               ...firestoreSettings,
+              firebaseConfig: firebaseConfig, // Always use the imported config
               allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
                 ? firestoreSettings.allowedDeviceIds
                 : [],
@@ -725,30 +724,34 @@ export const useAppStore = create<AppState>()(
             };
           } else {
             console.log("[GemsTrack Store loadSettings] No settings found, creating with initial data.");
-            await setDoc(settingsDocRef, initialSettingsData);
-            loadedSettings = initialSettingsData;
+            const settingsWithConfig = {...initialSettingsData, firebaseConfig: firebaseConfig};
+            await setDoc(settingsDocRef, settingsWithConfig);
+            loadedSettings = settingsWithConfig;
+          }
+
+          if (loadedSettings.databaseLocked) {
+              set({ settingsError: "Database access is locked by an administrator." });
           }
 
           set((state) => { state.settings = loadedSettings; });
-          
-          // Now, re-initialize Firebase again based on the retrieved lock status.
-          await reinitializeFirebase(!!loadedSettings.databaseLocked);
-          console.log("[GemsTrack Store loadSettings] Settings loaded and Firebase re-initialized.");
+          console.log("[GemsTrack Store loadSettings] Settings loaded.");
 
         } catch (error: any) {
           console.error("[GemsTrack Store loadSettings] Error loading settings from Firestore:", error);
           set({ settingsError: error.message || 'Failed to connect to the database.' });
           set((state) => { state.settings = initialSettingsData; }); // Fallback
-          await reinitializeFirebase(true); // Lock db on error
         } finally {
           set({ isSettingsLoading: false, hasSettingsLoaded: true });
         }
       },
       updateSettings: async (newSettings) => {
+        const {databaseLocked} = get().settings;
+        if(databaseLocked) {
+            console.warn("[updateSettings] Blocked: Database is locked.");
+            return;
+        }
+
         const currentSettings = get().settings;
-        const wasLocked = currentSettings.databaseLocked;
-        const isNowLocked = newSettings.databaseLocked;
-        
         const updatedSettings = { ...currentSettings, ...newSettings };
         console.log("[GemsTrack Store updateSettings] Attempting to update settings:", updatedSettings);
         set((state) => { state.settings = updatedSettings; });
@@ -756,12 +759,7 @@ export const useAppStore = create<AppState>()(
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           await setDoc(settingsDocRef, updatedSettings, { merge: true });
           console.log("[GemsTrack Store updateSettings] Settings updated successfully in Firestore.");
-
-          if (wasLocked !== isNowLocked) {
-              await reinitializeFirebase(!!isNowLocked);
-          }
-        } catch (error)
-        {
+        } catch (error) {
           console.error("[GemsTrack Store updateSettings] Error updating settings in Firestore:", error);
           set((state) => { state.settings = currentSettings; }); // Revert on error
           throw error;
@@ -784,17 +782,7 @@ export const useAppStore = create<AppState>()(
       }),
 
       loadProducts: () => {
-        if (get().hasProductsLoaded) {
-          // Data is already loaded or a listener is active. If you want to force a refresh from cache:
-          getDocsFromCache(collection(db, FIRESTORE_COLLECTIONS.PRODUCTS)).then(snapshot => {
-            if (!snapshot.empty) {
-                const productList = snapshot.docs.map(doc => doc.data() as Product);
-                set({ products: productList, isProductsLoading: false });
-            }
-          });
-          return;
-        };
-
+        if (get().hasProductsLoaded || get().settings.databaseLocked) return;
         set({ isProductsLoading: true, productsError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.PRODUCTS), orderBy("sku"));
         const unsubscribe = onSnapshot(q, 
@@ -814,7 +802,7 @@ export const useAppStore = create<AppState>()(
         );
       },
       loadSoldProducts: () => {
-        if (get().hasSoldProductsLoaded) return;
+        if (get().hasSoldProductsLoaded || get().settings.databaseLocked) return;
         set({ isSoldProductsLoading: true, soldProductsError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS));
         onSnapshot(q, 
@@ -844,6 +832,7 @@ export const useAppStore = create<AppState>()(
         return newProduct;
     },
       addProduct: async (productData) => {
+        if(get().settings.databaseLocked) return null;
         const { categories, products } = get();
         const category = categories.find(c => c.id === productData.categoryId);
         if (!category) {
@@ -901,6 +890,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       updateProduct: async (sku, updatedProductData) => {
+        if(get().settings.databaseLocked) return;
         const productRef = doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, sku);
         console.log(`[GemsTrack Store updateProduct] Attempting to update product SKU ${sku} with:`, updatedProductData);
         try {
@@ -948,6 +938,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       deleteProduct: async (sku) => {
+        if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store deleteProduct] Attempting to delete product SKU ${sku}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, sku));
@@ -960,7 +951,7 @@ export const useAppStore = create<AppState>()(
         }
       },
        deleteLatestProducts: async (count: number) => {
-            if (count <= 0) return 0;
+            if (get().settings.databaseLocked || count <= 0) return 0;
             console.log(`[deleteLatestProducts] Attempting to delete the latest ${count} products.`);
             try {
                 const productsRef = collection(db, FIRESTORE_COLLECTIONS.PRODUCTS);
@@ -988,6 +979,7 @@ export const useAppStore = create<AppState>()(
             }
         },
        setProductQrCode: async (sku, qrCodeDataUrl) => {
+        if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store setProductQrCode] Setting QR for SKU ${sku}.`);
         try {
             await setDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, sku), { qrCodeDataUrl }, { merge: true });
@@ -997,7 +989,7 @@ export const useAppStore = create<AppState>()(
       },
 
       loadCustomers: () => {
-        if (get().hasCustomersLoaded) return;
+        if (get().hasCustomersLoaded || get().settings.databaseLocked) return;
         set({ isCustomersLoading: true, customersError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS), orderBy("name"));
         const unsubscribe = onSnapshot(q, 
@@ -1017,6 +1009,7 @@ export const useAppStore = create<AppState>()(
         );
       },
       addCustomer: async (customerData) => {
+        if(get().settings.databaseLocked) return null;
         const newCustomerId = `cust-${Date.now()}`;
         const newCustomer: Customer = { 
           name: customerData.name || 'Unnamed Customer',
@@ -1036,6 +1029,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       updateCustomer: async (id, updatedCustomerData) => {
+        if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store updateCustomer] Attempting to update customer ID ${id} with:`, updatedCustomerData);
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), updatedCustomerData, { merge: true });
@@ -1045,6 +1039,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       deleteCustomer: async (id) => {
+        if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store deleteCustomer] Attempting to delete customer ID ${id}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id));
@@ -1055,7 +1050,7 @@ export const useAppStore = create<AppState>()(
       },
 
       loadKarigars: () => {
-        if (get().hasKarigarsLoaded) return;
+        if (get().hasKarigarsLoaded || get().settings.databaseLocked) return;
         set({ isKarigarsLoading: true, karigarsError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.KARIGARS), orderBy("name"));
         const unsubscribe = onSnapshot(q, 
@@ -1075,6 +1070,7 @@ export const useAppStore = create<AppState>()(
         );
       },
       addKarigar: async (karigarData) => {
+        if(get().settings.databaseLocked) return null;
         const newKarigarId = `karigar-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
         const newKarigar: Karigar = { ...karigarData, id: newKarigarId };
         console.log("[GemsTrack Store addKarigar] Attempting to add karigar:", newKarigar);
@@ -1088,6 +1084,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       updateKarigar: async (id, updatedKarigarData) => {
+        if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store updateKarigar] Attempting to update karigar ID ${id} with:`, updatedKarigarData);
          try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id), updatedKarigarData, { merge: true });
@@ -1097,6 +1094,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       deleteKarigar: async (id) => {
+        if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store deleteKarigar] Attempting to delete karigar ID ${id}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id));
@@ -1151,7 +1149,7 @@ export const useAppStore = create<AppState>()(
       }),
 
       loadGeneratedInvoices: () => {
-        if (get().hasInvoicesLoaded) return;
+        if (get().hasInvoicesLoaded || get().settings.databaseLocked) return;
         set({ isInvoicesLoading: true, invoicesError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, 
@@ -1171,6 +1169,7 @@ export const useAppStore = create<AppState>()(
         );
       },
       generateInvoice: async (customerInfo, invoiceRates, discountAmount) => {
+        if(get().settings.databaseLocked) return null;
         const { cart } = get();
         if (cart.length === 0) return null;
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
@@ -1288,6 +1287,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       updateInvoicePayment: async (invoiceId, paymentAmount) => {
+        if(get().settings.databaseLocked) return null;
         const invoice = get().generatedInvoices.find(inv => inv.id === invoiceId);
         if (!invoice) {
             console.error(`[updateInvoicePayment] Invoice with ID ${invoiceId} not found.`);
@@ -1316,6 +1316,7 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteInvoice: async (invoiceId, isEditing = false) => {
+          if(get().settings.databaseLocked) return;
           console.log(`[deleteInvoice] Attempting to delete invoice ${invoiceId}. Is editing flow: ${isEditing}`);
           try {
               await runTransaction(db, async (transaction) => {
@@ -1353,7 +1354,7 @@ export const useAppStore = create<AppState>()(
       },
 
       loadOrders: () => {
-        if (get().hasOrdersLoaded) return;
+        if (get().hasOrdersLoaded || get().settings.databaseLocked) return;
         set({ isOrdersLoading: true, ordersError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, 
@@ -1374,6 +1375,7 @@ export const useAppStore = create<AppState>()(
       },
 
       addOrder: async (orderData) => {
+        if(get().settings.databaseLocked) return null;
         const { settings, addCustomer, customers } = get();
         const nextOrderNumber = (settings.lastOrderNumber || 0) + 1;
         const newOrderId = `ORD-${nextOrderNumber.toString().padStart(6, '0')}`;
@@ -1451,10 +1453,12 @@ export const useAppStore = create<AppState>()(
         }
       },
       updateOrder: async (orderId, updatedOrderData) => {
+        if(get().settings.databaseLocked) return;
         const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
         await setDoc(orderRef, updatedOrderData, { merge: true });
       },
       updateOrderStatus: async (orderId, status) => {
+        if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store updateOrderStatus] Updating order ${orderId} to status: ${status}`);
         try {
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
@@ -1467,6 +1471,7 @@ export const useAppStore = create<AppState>()(
       },
 
       updateOrderItemStatus: async (orderId, itemIndex, isCompleted) => {
+        if(get().settings.databaseLocked) return;
         const order = get().orders.find(o => o.id === orderId);
         if (!order) {
           console.error(`Order with ID ${orderId} not found.`);
@@ -1489,6 +1494,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       generateInvoiceFromOrder: async (order, finalizedItems, additionalDiscount) => {
+        if(get().settings.databaseLocked) return null;
         const { settings } = get();
         let finalSubtotal = 0;
         const ratesForInvoice = order.ratesApplied || {
@@ -1609,7 +1615,7 @@ export const useAppStore = create<AppState>()(
       },
 
       loadHisaab: () => {
-        if (get().hasHisaabLoaded) return;
+        if (get().hasHisaabLoaded || get().settings.databaseLocked) return;
         set({ isHisaabLoading: true, hisaabError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), orderBy("date", "desc"));
         const unsubscribe = onSnapshot(q,
@@ -1629,6 +1635,7 @@ export const useAppStore = create<AppState>()(
         );
       },
       addHisaabEntry: async (entryData) => {
+        if(get().settings.databaseLocked) return null;
         try {
           const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.HISAAB), entryData);
           console.log("[GemsTrack Store addHisaabEntry] Hisaab entry added with ID:", docRef.id);
@@ -1639,6 +1646,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       deleteHisaabEntry: async (entryId: string) => {
+        if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store deleteHisaabEntry] Attempting to delete entry ID ${entryId}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.HISAAB, entryId));
@@ -1650,7 +1658,7 @@ export const useAppStore = create<AppState>()(
       },
       
       loadExpenses: () => {
-        if (get().hasExpensesLoaded) return;
+        if (get().hasExpensesLoaded || get().settings.databaseLocked) return;
         set({ isExpensesLoading: true, expensesError: null });
         const q = query(collection(db, FIRESTORE_COLLECTIONS.EXPENSES), orderBy("date", "desc"));
         const unsubscribe = onSnapshot(q,
@@ -1670,6 +1678,7 @@ export const useAppStore = create<AppState>()(
         );
       },
       addExpense: async (expenseData) => {
+        if(get().settings.databaseLocked) return null;
         try {
           const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.EXPENSES), expenseData);
           console.log("[GemsTrack Store addExpense] Expense added with ID:", docRef.id);
@@ -1680,6 +1689,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       updateExpense: async (id, updatedExpenseData) => {
+        if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store updateExpense] Attempting to update expense ID ${id}`);
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.EXPENSES, id), updatedExpenseData, { merge: true });
@@ -1689,6 +1699,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       deleteExpense: async (id: string) => {
+        if(get().settings.databaseLocked) return;
         console.log(`[GemsTrack Store deleteExpense] Attempting to delete expense ID ${id}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.EXPENSES, id));
