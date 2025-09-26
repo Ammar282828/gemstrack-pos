@@ -68,14 +68,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarProvider defaultOpen={true}>
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4">
-            <Link href="/" className="flex items-center justify-center text-primary h-[25px]">
+            <Link href="/" className="flex items-center justify-start text-primary h-[25px]">
               {logoToUse ? (
                  <div className="relative w-full h-full group-data-[collapsible=icon]:hidden">
                     <Image
                         src={logoToUse}
                         alt={settings.shopName || 'Shop Logo'}
                         fill
-                        className="object-contain"
+                        className="object-contain object-left"
                         unoptimized
                     />
                  </div>
@@ -136,3 +136,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </SidebarProvider>
   );
 }
+
