@@ -216,6 +216,15 @@ export type GoldRates = {
     goldRatePerGram18k: number;
 };
 
+export interface PaymentMethod {
+  id: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  iban?: string;
+  qrCodeUrl?: string;
+}
+
 export interface Settings extends GoldRates {
   palladiumRatePerGram: number;
   platinumRatePerGram: number;
@@ -229,6 +238,7 @@ export interface Settings extends GoldRates {
   lastOrderNumber: number;
   allowedDeviceIds: string[];
   weprintApiSkus: string[];
+  paymentMethods: PaymentMethod[];
   theme: ThemeKey;
   databaseLocked?: boolean; // New kill switch flag
   firebaseConfig?: FirebaseConfigStub;
@@ -457,6 +467,7 @@ const initialSettingsData: Settings = {
   lastOrderNumber: 0,
   allowedDeviceIds: [],
   weprintApiSkus: [],
+  paymentMethods: [],
   theme: 'slate',
   databaseLocked: false,
   firebaseConfig: {
@@ -719,6 +730,9 @@ export const useAppStore = create<AppState>()(
                 : [],
               weprintApiSkus: Array.isArray(firestoreSettings.weprintApiSkus)
                 ? firestoreSettings.weprintApiSkus
+                : [],
+               paymentMethods: Array.isArray(firestoreSettings.paymentMethods)
+                ? firestoreSettings.paymentMethods
                 : [],
               theme: firestoreSettings.theme || 'slate',
             };
@@ -1728,16 +1742,13 @@ export const useAppStore = create<AppState>()(
             theme: state.settings?.theme || 'default',
         }
       }),
-      version: 14, // Incremented version
+      version: 15, // Incremented version
       migrate: (persistedState, version) => {
         const oldState = persistedState as any;
-        if (version < 14) {
-            // No specific migrations needed for this version bump,
-            // but the structure is here for future use.
-            // For example, if we added a new setting that needed a default in persisted state:
-            // if (!oldState.settings.newField) {
-            //   oldState.settings.newField = 'default value';
-            // }
+        if (version < 15) {
+            if (oldState.settings && !oldState.settings.paymentMethods) {
+                oldState.settings.paymentMethods = [];
+            }
         }
         return oldState as AppState;
       },
@@ -1811,3 +1822,4 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
+
