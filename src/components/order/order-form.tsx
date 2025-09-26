@@ -191,7 +191,9 @@ const ImageCapture: React.FC<{
                 <Button type="button" variant="outline" size="sm"><Camera className="mr-2 h-4 w-4"/> Take Photo</Button>
             </DialogTrigger>
             <DialogContent>
-                <DialogHeader><DialogTitle>Take a Photo</DialogTitle></DialogHeader>
+                <DialogHeader>
+                    <DialogTitle>Take a Photo</DialogTitle>
+                </DialogHeader>
                 <video ref={videoRef} autoPlay playsInline className="w-full rounded-md border bg-muted"></video>
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
                 <DialogFooter>
@@ -243,6 +245,9 @@ const ProductSearchDialog: React.FC<{ onAddProduct: (product: Product) => void }
             <DialogContent className="max-w-xl">
                 <DialogHeader>
                     <DialogTitle>Add Product from Inventory</DialogTitle>
+                    <DialogDescription>
+                        Search for an existing product to add it as a template for a new custom order item.
+                    </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
                     <div className="relative">
