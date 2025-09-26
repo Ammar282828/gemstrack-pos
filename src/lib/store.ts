@@ -223,8 +223,8 @@ export interface Settings extends GoldRates {
   shopName: string;
   shopAddress: string;
   shopContact: string;
-  shopLogoSvg?: string;
-  shopLogoSvgBlack?: string;
+  shopLogoUrl?: string;
+  shopLogoUrlBlack?: string;
   lastInvoiceNumber: number;
   lastOrderNumber: number;
   allowedDeviceIds: string[];
@@ -407,7 +407,7 @@ export interface ProductTagFormat {
   layoutType: 'dumbbell' | 'rectangle';
   // Future enhancements:
   // includePrice?: boolean;
-  // includeLogo?: boolean; // Can be inferred if shopLogoSvg exists and space permits
+  // includeLogo?: boolean; // Can be inferred if shopLogoUrl exists and space permits
   // qrCodeSize?: number; // Could be a proportion of tag size
 }
 
@@ -453,7 +453,7 @@ const initialSettingsData: Settings = {
   palladiumRatePerGram: 22000, platinumRatePerGram: 25000, silverRatePerGram: 250,
   shopName: "Taheri", shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
-  shopLogoSvg: "", lastInvoiceNumber: 0,
+  shopLogoUrl: "", lastInvoiceNumber: 0,
   lastOrderNumber: 0,
   allowedDeviceIds: [],
   weprintApiSkus: [],
@@ -1101,6 +1101,7 @@ export const useAppStore = create<AppState>()(
           console.log(`[GemsTrack Store deleteKarigar] Karigar ID ${id} deleted successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store deleteKarigar] Error deleting karigar ID ${id} from Firestore:`, error);
+          throw error;
         }
       },
 

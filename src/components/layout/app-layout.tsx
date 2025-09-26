@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { ReactNode } from 'react';
@@ -59,20 +60,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
   
   const logoToUse = settings.theme === 'default' 
-    ? settings.shopLogoSvgBlack || settings.shopLogoSvg 
-    : settings.shopLogoSvg;
+    ? settings.shopLogoUrlBlack || settings.shopLogoUrl 
+    : settings.shopLogoUrl;
 
-  const logoDataUri = logoToUse ? `data:image/svg+xml,${encodeURIComponent(logoToUse)}` : null;
 
   return (
       <SidebarProvider defaultOpen={true}>
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4">
             <Link href="/" className="flex items-center justify-center text-primary h-[25px]">
-              {logoDataUri ? (
+              {logoToUse ? (
                  <div className="relative w-full h-full group-data-[collapsible=icon]:hidden">
                     <Image
-                        src={logoDataUri}
+                        src={logoToUse}
                         alt={settings.shopName || 'Shop Logo'}
                         fill
                         className="object-contain"
@@ -136,5 +136,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </SidebarProvider>
   );
 }
-
-    

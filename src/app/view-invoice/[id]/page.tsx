@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -85,19 +83,13 @@ export default function ViewInvoicePage() {
     const pageWidth = pdfDoc.internal.pageSize.getWidth();
     const margin = 15;
     
-    const logoToUse = settings.shopLogoSvgBlack || settings.shopLogoSvg;
-    let logoDataUri = '';
-    if (logoToUse) {
-        // Use btoa to encode the SVG string to Base64
-        const encodedSvg = btoa(logoToUse);
-        logoDataUri = `data:image/svg+xml;base64,${encodedSvg}`;
-    }
+    const logoToUse = settings.shopLogoUrlBlack || settings.shopLogoUrl;
 
 
     function drawHeader(pageNum: number) {
-        if (logoDataUri) {
+        if (logoToUse) {
             try {
-                 pdfDoc.addImage(logoDataUri, 'SVG', margin, 15, 40, 10, undefined, 'FAST');
+                 pdfDoc.addImage(logoToUse, 'PNG', margin, 15, 40, 10, undefined, 'FAST');
             } catch (e) {
                  console.error("Error adding logo to PDF:", e);
             }

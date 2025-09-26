@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -22,6 +23,8 @@ import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { Progress } from '@/components/ui/progress';
 
 const DEVICE_ID_KEY = 'gemstrack-device-id';
 
@@ -50,8 +53,8 @@ const settingsSchema = z.object({
   shopName: z.string().min(1, "Shop name is required"),
   shopAddress: z.string().optional(),
   shopContact: z.string().optional(),
-  shopLogoSvg: z.string().optional(),
-  shopLogoSvgBlack: z.string().optional(),
+  shopLogoUrl: z.string().optional(),
+  shopLogoUrlBlack: z.string().optional(),
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
   lastOrderNumber: z.coerce.number().int().min(0, "Last order number must be a non-negative integer"),
   allowedDeviceIds: z.array(z.object({ id: z.string().min(1, "Device ID cannot be empty.") })).optional(),
@@ -330,6 +333,10 @@ export default function SettingsPage() {
   const currentSettings = useAppStore(state => state.settings);
   const updateSettingsAction = useAppStore(state => state.updateSettings);
   const isSettingsLoading = useAppStore(state => state.isSettingsLoading);
+  
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number | null }>({});
+  const [isUploading, setIsUploading] = useState<{ [key: string]: boolean }>({});
+
 
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
 
@@ -350,8 +357,8 @@ export default function SettingsPage() {
       shopName: "",
       shopAddress: "",
       shopContact: "",
-      shopLogoSvg: "",
-      shopLogoSvgBlack: "",
+      shopLogoUrl: "",
+      shopLogoUrlBlack: "",
       lastInvoiceNumber: 0,
       lastOrderNumber: 0,
       allowedDeviceIds: [],
@@ -382,8 +389,8 @@ export default function SettingsPage() {
         shopName: currentSettings.shopName,
         shopAddress: currentSettings.shopAddress || "",
         shopContact: currentSettings.shopContact || "",
-        shopLogoSvg: currentSettings.shopLogoSvg || "",
-        shopLogoSvgBlack: currentSettings.shopLogoSvgBlack || "",
+        shopLogoUrl: currentSettings.shopLogoUrl || "",
+        shopLogoUrlBlack: currentSettings.shopLogoUrlBlack || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
         lastOrderNumber: currentSettings.lastOrderNumber || 0,
         allowedDeviceIds: deviceIdsForForm,
@@ -394,36 +401,44 @@ export default function SettingsPage() {
   }, [currentSettings, form, appReady]);
 
 
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>, isBlackVersion: boolean = false) => {
+ const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>, fieldName: 'shopLogoUrl' | 'shopLogoUrlBlack') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== "image/svg+xml") {
-        toast({ title: "Invalid File Type", description: "Please upload an SVG file.", variant: "destructive" });
-        return;
-    }
-
-    if (file.size > 20 * 1024) { // 20KB size limit for SVGs
-      toast({
-        title: "File Too Large",
-        description: "Please choose an SVG file smaller than 20KB.",
-        variant: "destructive",
-      });
+    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      toast({ title: "Image too large", description: "Please upload an image smaller than 2MB.", variant: "destructive" });
       return;
     }
+    
+    const storage = getStorage();
+    const storageRef = ref(storage, `shop_logos/${Date.now()}-${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const svgContent = reader.result as string;
-      if (isBlackVersion) {
-        form.setValue('shopLogoSvgBlack', svgContent, { shouldValidate: true, shouldDirty: true });
-      } else {
-        form.setValue('shopLogoSvg', svgContent, { shouldValidate: true, shouldDirty: true });
-      }
-      toast({ title: "Logo Loaded", description: "SVG content is ready to be saved." });
-    };
-    reader.readAsText(file);
+    setIsUploading(prev => ({...prev, [fieldName]: true}));
+    setUploadProgress(prev => ({...prev, [fieldName]: 0}));
+
+    uploadTask.on('state_changed',
+        (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(prev => ({...prev, [fieldName]: progress}));
+        },
+        (error) => {
+            console.error("Upload error:", error);
+            toast({ title: "Upload Failed", description: "There was an error uploading the image.", variant: "destructive" });
+            setIsUploading(prev => ({...prev, [fieldName]: false}));
+            setUploadProgress(prev => ({...prev, [fieldName]: null}));
+        },
+        () => {
+            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                form.setValue(fieldName, downloadURL, { shouldValidate: true, shouldDirty: true });
+                setIsUploading(prev => ({...prev, [fieldName]: false}));
+                setUploadProgress(prev => ({...prev, [fieldName]: 100}));
+                toast({ title: "Upload Complete", description: "Logo has been successfully uploaded." });
+            });
+        }
+    );
   };
+
 
   const onSubmit = async (data: SettingsFormData) => {
     try {
@@ -457,10 +472,9 @@ export default function SettingsPage() {
     );
   }
 
-  const mainLogoSvg = form.getValues('shopLogoSvg');
-  const mainLogoDataUri = mainLogoSvg ? `data:image/svg+xml,${encodeURIComponent(mainLogoSvg)}` : null;
-  const blackLogoSvg = form.getValues('shopLogoSvgBlack');
-  const blackLogoDataUri = blackLogoSvg ? `data:image/svg+xml,${encodeURIComponent(blackLogoSvg)}` : null;
+  const mainLogoUrl = form.watch('shopLogoUrl');
+  const blackLogoUrl = form.watch('shopLogoUrlBlack');
+
 
   return (
     <div className="container mx-auto p-4 space-y-8">
@@ -614,64 +628,58 @@ export default function SettingsPage() {
               />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormItem>
-                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Main Shop Logo (SVG)</FormLabel>
+                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Main Shop Logo (PNG/JPG)</FormLabel>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                      <FormControl>
-                        <Button asChild variant="outline" className="relative">
-                            <div>
-                              <Upload className="mr-2 h-4 w-4" />
-                              Upload SVG
-                              <Input
-                                type="file"
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                accept="image/svg+xml"
-                                onChange={(e) => handleLogoUpload(e, false)}
-                              />
-                            </div>
-                          </Button>
-                      </FormControl>
-                      {mainLogoDataUri && (
-                          <div className="relative p-2 border rounded-md w-[150px] h-[40px] bg-muted text-foreground">
-                              <Image src={mainLogoDataUri} alt="Main Logo Preview" fill className="object-contain" unoptimized />
-                          </div>
-                      )}
-                    </div>
-                    <FormDescription>
-                      Upload your main logo in SVG format. Max size: 20KB.
-                    </FormDescription>
+                    <Button asChild variant="outline" className="relative">
+                      <div>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Image
+                        <Input
+                          type="file"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          accept="image/png, image/jpeg"
+                          onChange={(e) => handleLogoUpload(e, 'shopLogoUrl')}
+                          disabled={isUploading['shopLogoUrl']}
+                        />
+                      </div>
+                    </Button>
+                    {isUploading['shopLogoUrl'] && uploadProgress['shopLogoUrl'] !== null && (
+                        <Progress value={uploadProgress['shopLogoUrl']} className="w-full h-2" />
+                    )}
+                    {mainLogoUrl && (
+                      <div className="p-2 border rounded-md w-fit bg-muted">
+                        <Image src={mainLogoUrl} alt="Main Logo Preview" width={150} height={40} className="object-contain max-h-12" unoptimized />
+                      </div>
+                    )}
                   </div>
-                  <FormMessage />
+                  <FormDescription>Upload your main logo. Recommended wide aspect ratio.</FormDescription>
                 </FormItem>
-                <FormItem>
-                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Invoice Logo (Black, SVG)</FormLabel>
+                 <FormItem>
+                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Invoice Logo (Black, PNG/JPG)</FormLabel>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-4">
-                      <FormControl>
-                        <Button asChild variant="outline" className="relative">
-                            <div>
-                              <Upload className="mr-2 h-4 w-4" />
-                              Upload Black SVG
-                              <Input
-                                type="file"
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                accept="image/svg+xml"
-                                onChange={(e) => handleLogoUpload(e, true)}
-                              />
-                            </div>
-                          </Button>
-                      </FormControl>
-                      {blackLogoDataUri && (
-                          <div className="relative p-2 border rounded-md w-[150px] h-[40px] bg-slate-800 text-white">
-                             <Image src={blackLogoDataUri} alt="Invoice Logo Preview" fill className="object-contain" unoptimized />
-                          </div>
-                      )}
-                    </div>
-                    <FormDescription>
-                      Upload a monochrome black SVG logo for PDF invoices.
-                    </FormDescription>
+                    <Button asChild variant="outline" className="relative">
+                      <div>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Image
+                        <Input
+                          type="file"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          accept="image/png, image/jpeg"
+                          onChange={(e) => handleLogoUpload(e, 'shopLogoUrlBlack')}
+                          disabled={isUploading['shopLogoUrlBlack']}
+                        />
+                      </div>
+                    </Button>
+                    {isUploading['shopLogoUrlBlack'] && uploadProgress['shopLogoUrlBlack'] !== null && (
+                        <Progress value={uploadProgress['shopLogoUrlBlack']} className="w-full h-2" />
+                    )}
+                    {blackLogoUrl && (
+                      <div className="p-2 border rounded-md w-fit bg-slate-800">
+                        <Image src={blackLogoUrl} alt="Invoice Logo Preview" width={150} height={40} className="object-contain max-h-12" unoptimized/>
+                      </div>
+                    )}
                   </div>
-                  <FormMessage />
+                  <FormDescription>Upload a monochrome black version for PDF invoices.</FormDescription>
                 </FormItem>
               </div>
               <FormField
@@ -811,5 +819,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
