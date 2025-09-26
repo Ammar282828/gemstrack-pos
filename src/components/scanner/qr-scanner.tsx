@@ -44,6 +44,19 @@ interface QrScannerProps {
   isActive: boolean;
 }
 
+const Viewfinder = () => (
+    <>
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+            <div className="absolute top-4 left-4 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg" />
+            <div className="absolute top-4 right-4 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg" />
+            <div className="absolute bottom-4 left-4 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
+            <div className="absolute bottom-4 right-4 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
+        </div>
+        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500/50 animate-scan-line" />
+    </>
+);
+
+
 export default function QrScanner({ isActive }: QrScannerProps) {
   const { toast } = useToast();
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
@@ -198,7 +211,9 @@ export default function QrScanner({ isActive }: QrScannerProps) {
             " [&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover",
             scanSuccess && "border-green-500 shadow-lg shadow-green-500/50"
           )}
-        ></div>
+        >
+          {scannerState === 'scanning' && <Viewfinder />}
+      </div>
       
       {scannerState === 'starting' && (
         <div className="text-center py-2 text-muted-foreground">
