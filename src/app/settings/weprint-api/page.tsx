@@ -99,7 +99,7 @@ export default function WeprintApiPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-4 sm:py-8">
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">WEPrint API Management</CardTitle>
@@ -111,10 +111,10 @@ export default function WeprintApiPage() {
             <Alert>
                 <Info className="h-4 w-4" />
                 <AlertTitle>API Endpoint</AlertTitle>
-                <AlertDescription className="flex items-center gap-2">
-                    Your curated product list is available at: 
-                    <Link href={apiEndpoint} target="_blank" className="font-mono text-primary hover:underline flex items-center gap-1">
-                        {apiEndpoint} <ExternalLink className="h-3 w-3"/>
+                <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span>Your curated product list is available at:</span>
+                    <Link href={apiEndpoint} target="_blank" className="font-mono text-primary hover:underline flex items-center gap-1 break-all">
+                        {apiEndpoint} <ExternalLink className="h-3 w-3 flex-shrink-0"/>
                     </Link>
                 </AlertDescription>
             </Alert>
@@ -157,9 +157,9 @@ export default function WeprintApiPage() {
                       <span className="ml-2 text-xs text-muted-foreground font-mono">({product.sku})</span>
                     </label>
                      {settings.weprintApiSkus?.includes(product.sku) ? (
-                        <span className="text-xs text-green-600 flex items-center gap-1"><Check className="h-3 w-3"/> Published</span>
+                        <span className="text-xs text-green-600 flex items-center gap-1 flex-shrink-0"><Check className="h-3 w-3"/> Published</span>
                      ) : (
-                        <span className="text-xs text-amber-600 flex items-center gap-1"><X className="h-3 w-3"/> Not Published</span>
+                        <span className="text-xs text-amber-600 flex items-center gap-1 flex-shrink-0"><X className="h-3 w-3"/> Not Published</span>
                      )}
                   </div>
                 ))}
