@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Invoice, Settings, Customer } from '@/lib/store';
+import { Invoice, Settings, Customer, InvoiceItem } from '@/lib/store';
 import { Loader2, Download, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -158,7 +158,9 @@ export default function ViewInvoicePage() {
     const tableColumn = ["#", "Product & Breakdown", "Qty", "Unit Price", "Total"];
     const tableRows: any[][] = [];
 
-    invoice.items.forEach((item, index) => {
+    const itemsToPrint = Array.isArray(invoice.items) ? invoice.items : Object.values(invoice.items as {[key: string]: InvoiceItem});
+    
+    itemsToPrint.forEach((item, index) => {
         let breakdownLines = [];
         if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
@@ -374,5 +376,3 @@ export default function ViewInvoicePage() {
     </div>
   );
 }
-
-    
