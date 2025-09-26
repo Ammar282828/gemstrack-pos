@@ -557,7 +557,7 @@ export interface AppState {
 
   loadProducts: () => void;
   loadSoldProducts: () => void;
-  reAddSoldProductToInventory: (soldProduct: Product) => Promise<void>;
+  reAddSoldProductToInventory: (soldProduct: Product) => Promise<Product | null>;
   addProduct: (productData: ProductDataForAdd) => Promise<Product | null>;
   updateProduct: (sku: string, updatedProductData: Partial<Omit<Product, 'sku'>>) => Promise<void>;
   deleteProduct: (sku: string) => Promise<void>;
@@ -813,21 +813,20 @@ export const useAppStore = create<AppState>()(
           }
         );
       },
-      reAddSoldProductToInventory: async (soldProduct) => {
-          console.log(`[reAddSoldProductToInventory] Attempting to re-add based on SKU: ${soldProduct.sku}`);
-          if (!soldProduct) {
-              throw new Error(`Sold product with SKU ${soldProduct.sku} not found in local store.`);
-          }
-          // Create a new product object, omitting the SKU
-          const { sku: _sku, ...productData } = soldProduct;
-          // The addProduct function will generate a new SKU
-          const newProduct = await get().addProduct(productData);
-
-          if (!newProduct) {
-              throw new Error("Failed to create a new product in the inventory.");
-          }
-          console.log(`[reAddSoldProductToInventory] Successfully re-added product with new SKU: ${newProduct.sku}`);
-      },
+       reAddSoldProductToInventory: async (soldProduct) => {
+        console.log(`[reAddSoldProductToInventory] Attempting to re-add based on SKU: ${soldProduct.sku}`);
+        if (!soldProduct) {
+            throw new Error(`Sold product with SKU ${soldProduct.sku} not found.`);
+        }
+        // Create a new product object, omitting the SKU, and add it.
+        const { sku, qrCodeDataUrl, ...productDataForAdd } = soldProduct;
+        const newProduct = await get().addProduct(productDataForAdd);
+        if (!newProduct) {
+            throw new Error("Failed to create a new product in the inventory from the sold item.");
+        }
+        console.log(`[reAddSoldProductToInventory] Successfully re-added product with new SKU: ${newProduct.sku}`);
+        return newProduct;
+    },
       addProduct: async (productData) => {
         const { categories, products } = get();
         const category = categories.find(c => c.id === productData.categoryId);
@@ -1779,6 +1778,3 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
-
-
-    
