@@ -1255,8 +1255,6 @@ export const useAppStore = create<AppState>()(
                 };
                 transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
                 
-                set({ cart: [] });
-                
                 const finalInvoice = { ...cleanInvoiceData, id: invoiceId } as Invoice;
                 if(finalInvoice.items && typeof finalInvoice.items === 'object' && !Array.isArray(finalInvoice.items)){
                   finalInvoice.items = Object.values(finalInvoice.items);

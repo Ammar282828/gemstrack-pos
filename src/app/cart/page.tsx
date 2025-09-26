@@ -295,6 +295,7 @@ export default function CartPage() {
     const invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount);
     
     if (invoice) {
+      clearCart();
       setGeneratedInvoice(invoice);
        // Pre-fill WhatsApp number if a customer with a phone number is selected
       if(invoice.customerContact) {
@@ -445,7 +446,9 @@ export default function CartPage() {
     const tableColumn = ["#", "Product & Breakdown", "Qty", "Unit Price", "Total"];
     const tableRows: any[][] = [];
 
-    invoiceToPrint.items.forEach((item, index) => {
+    const itemsToPrint = Array.isArray(invoiceToPrint.items) ? invoiceToPrint.items : Object.values(invoiceToPrint.items);
+
+    itemsToPrint.forEach((item, index) => {
         let breakdownLines = [];
         if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
@@ -761,6 +764,7 @@ export default function CartPage() {
                                 name="phone"
                                 control={phoneForm.control as unknown as Control}
                                 defaultCountry="PK"
+                                countryCallingCodeEditable={false}
                                 international
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                             />
