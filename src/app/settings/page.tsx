@@ -23,6 +23,13 @@ import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+const SafeSvg: React.FC<{ svgText?: string; className?: string }> = ({ svgText, className }) => {
+  if (!svgText || typeof svgText !== 'string') {
+    return null;
+  }
+  return <div className={className} dangerouslySetInnerHTML={{ __html: svgText }} />;
+};
+
 const DEVICE_ID_KEY = 'gemstrack-device-id';
 
 function getDeviceId() {
@@ -607,64 +614,68 @@ export default function SettingsPage() {
                   </FormItem>
                 )}
               />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormItem>
                   <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Main Shop Logo (SVG)</FormLabel>
-                  <div className="flex items-center gap-4">
-                    <FormControl>
-                       <Button asChild variant="outline" className="relative">
-                          <div>
-                            <Upload className="mr-2 h-4 w-4" />
-                            Upload SVG
-                            <Input
-                              type="file"
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                              accept="image/svg+xml"
-                              onChange={(e) => handleLogoUpload(e, false)}
-                            />
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-4">
+                      <FormControl>
+                        <Button asChild variant="outline" className="relative">
+                            <div>
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload SVG
+                              <Input
+                                type="file"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                accept="image/svg+xml"
+                                onChange={(e) => handleLogoUpload(e, false)}
+                              />
+                            </div>
+                          </Button>
+                      </FormControl>
+                      {form.getValues('shopLogoSvg') && (
+                          <div className="p-2 border rounded-md w-fit bg-muted text-foreground">
+                              <SafeSvg svgText={form.getValues('shopLogoSvg')} className="h-[40px] w-[150px] [&_svg]:h-full [&_svg]:w-auto" />
                           </div>
-                        </Button>
-                    </FormControl>
-                     {form.getValues('shopLogoSvg') && (
-                        <div className="p-2 border rounded-md w-fit bg-muted text-foreground">
-                            <div className="h-[40px] w-[150px]" dangerouslySetInnerHTML={{ __html: form.getValues('shopLogoSvg')! }} />
-                        </div>
-                     )}
+                      )}
+                    </div>
+                    <FormDescription>
+                      Upload your main logo in SVG format. Max size: 20KB.
+                    </FormDescription>
                   </div>
-                   <FormDescription>
-                     Upload your main logo in SVG format. Max size: 20KB.
-                   </FormDescription>
                   <FormMessage />
                 </FormItem>
                 <FormItem>
                   <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Invoice Logo (Black, SVG)</FormLabel>
-                  <div className="flex items-center gap-4">
-                    <FormControl>
-                       <Button asChild variant="outline" className="relative">
-                          <div>
-                            <Upload className="mr-2 h-4 w-4" />
-                            Upload Black SVG
-                            <Input
-                              type="file"
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                              accept="image/svg+xml"
-                              onChange={(e) => handleLogoUpload(e, true)}
-                            />
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-4">
+                      <FormControl>
+                        <Button asChild variant="outline" className="relative">
+                            <div>
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload Black SVG
+                              <Input
+                                type="file"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                accept="image/svg+xml"
+                                onChange={(e) => handleLogoUpload(e, true)}
+                              />
+                            </div>
+                          </Button>
+                      </FormControl>
+                      {form.getValues('shopLogoSvgBlack') && (
+                          <div className="p-2 border rounded-md w-fit bg-slate-800 text-white">
+                              <SafeSvg svgText={form.getValues('shopLogoSvgBlack')} className="h-[40px] w-[150px] [&_svg]:h-full [&_svg]:w-auto" />
                           </div>
-                        </Button>
-                    </FormControl>
-                     {form.getValues('shopLogoSvgBlack') && (
-                        <div className="p-2 border rounded-md w-fit bg-slate-800 text-white">
-                             <div className="h-[40px] w-[150px]" dangerouslySetInnerHTML={{ __html: form.getValues('shopLogoSvgBlack')! }} />
-                        </div>
-                     )}
+                      )}
+                    </div>
+                    <FormDescription>
+                      Upload a monochrome black SVG logo for PDF invoices.
+                    </FormDescription>
                   </div>
-                   <FormDescription>
-                     Upload a monochrome black SVG logo for PDF invoices.
-                   </FormDescription>
                   <FormMessage />
                 </FormItem>
-                </div>
+              </div>
               <FormField
                 control={form.control}
                 name="lastInvoiceNumber"
