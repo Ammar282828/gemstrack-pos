@@ -375,12 +375,20 @@ export default function CartPage() {
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
-    const logoUrl = settings.shopLogoUrlBlack;
+    
+    // Convert SVG string to data URI for jsPDF
+    const logoToUse = settings.shopLogoSvgBlack || settings.shopLogoSvg;
+    let logoDataUri = '';
+    if (logoToUse) {
+        const encodedSvg = btoa(logoToUse);
+        logoDataUri = `data:image/svg+xml;base64,${encodedSvg}`;
+    }
+
 
     function drawHeader(pageNum: number) {
-        if (logoUrl) {
+        if (logoDataUri) {
             try {
-                doc.addImage(logoUrl, 'PNG', margin, 15, 40, 10, undefined, 'FAST');
+                doc.addImage(logoDataUri, 'SVG', margin, 15, 40, 10, undefined, 'FAST');
             } catch (e) {
                  console.error("Error adding logo to PDF:", e);
             }
@@ -449,7 +457,7 @@ export default function CartPage() {
 
     const itemsToPrint = Array.isArray(invoiceToPrint.items) ? invoiceToPrint.items : Object.values(invoiceToPrint.items as {[key: string]: InvoiceItem});
 
-    itemsToPrint.forEach((item, index) => {
+    itemsToPrint.forEach((item: InvoiceItem, index) => {
         let breakdownLines = [];
         if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);

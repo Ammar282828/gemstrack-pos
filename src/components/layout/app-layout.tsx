@@ -4,13 +4,11 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter,
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset,
 } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -64,16 +62,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
   
   const logoToUse = settings.theme === 'default' 
-    ? settings.shopLogoUrlBlack || settings.shopLogoUrl 
-    : settings.shopLogoUrl;
+    ? settings.shopLogoSvgBlack || settings.shopLogoSvg 
+    : settings.shopLogoSvg;
 
   return (
       <SidebarProvider defaultOpen={true}>
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4">
-            <Link href="/" className="flex items-center gap-2">
-              <Image src={logoToUse || "https://placehold.co/100x25.png"} alt="Shop Logo" width={100} height={25} className="group-data-[collapsible=icon]:hidden object-contain" data-ai-hint="logo" />
-              <Gem className="w-8 h-8 text-primary hidden group-data-[collapsible=icon]:block" />
+            <Link href="/" className="flex items-center justify-center text-primary">
+              {logoToUse ? (
+                 <div
+                    className="w-full h-[25px] group-data-[collapsible=icon]:hidden [&_svg]:h-full [&_svg]:w-auto"
+                    dangerouslySetInnerHTML={{ __html: logoToUse }}
+                  />
+              ) : (
+                 <span className="font-bold text-lg group-data-[collapsible=icon]:hidden">{settings.shopName || "Taheri"}</span>
+              )}
+               <Gem className="w-8 h-8 text-primary hidden group-data-[collapsible=icon]:block" />
             </Link>
           </SidebarHeader>
           <Separator />

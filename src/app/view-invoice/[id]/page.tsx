@@ -84,12 +84,20 @@ export default function ViewInvoicePage() {
     const pageHeight = pdfDoc.internal.pageSize.getHeight();
     const pageWidth = pdfDoc.internal.pageSize.getWidth();
     const margin = 15;
-    const logoUrl = settings.shopLogoUrlBlack;
+    
+    const logoToUse = settings.shopLogoSvgBlack || settings.shopLogoSvg;
+    let logoDataUri = '';
+    if (logoToUse) {
+        // Use btoa to encode the SVG string to Base64
+        const encodedSvg = btoa(logoToUse);
+        logoDataUri = `data:image/svg+xml;base64,${encodedSvg}`;
+    }
+
 
     function drawHeader(pageNum: number) {
-        if (logoUrl) {
+        if (logoDataUri) {
             try {
-                 pdfDoc.addImage(logoUrl, 'PNG', margin, 15, 40, 10, undefined, 'FAST');
+                 pdfDoc.addImage(logoDataUri, 'SVG', margin, 15, 40, 10, undefined, 'FAST');
             } catch (e) {
                  console.error("Error adding logo to PDF:", e);
             }

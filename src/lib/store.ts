@@ -223,8 +223,8 @@ export interface Settings extends GoldRates {
   shopName: string;
   shopAddress: string;
   shopContact: string;
-  shopLogoUrl?: string;
-  shopLogoUrlBlack?: string;
+  shopLogoSvg?: string;
+  shopLogoSvgBlack?: string;
   lastInvoiceNumber: number;
   lastOrderNumber: number;
   allowedDeviceIds: string[];
@@ -407,7 +407,7 @@ export interface ProductTagFormat {
   layoutType: 'dumbbell' | 'rectangle';
   // Future enhancements:
   // includePrice?: boolean;
-  // includeLogo?: boolean; // Can be inferred if shopLogoUrl exists and space permits
+  // includeLogo?: boolean; // Can be inferred if shopLogoSvg exists and space permits
   // qrCodeSize?: number; // Could be a proportion of tag size
 }
 
@@ -453,7 +453,7 @@ const initialSettingsData: Settings = {
   palladiumRatePerGram: 22000, platinumRatePerGram: 25000, silverRatePerGram: 250,
   shopName: "Taheri", shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
-  shopLogoUrl: "https://placehold.co/200x80.png", lastInvoiceNumber: 0,
+  shopLogoSvg: "", lastInvoiceNumber: 0,
   lastOrderNumber: 0,
   allowedDeviceIds: [],
   weprintApiSkus: [],
@@ -607,7 +607,7 @@ export interface AppState {
   loadHisaab: () => void;
   addHisaabEntry: (entryData: Omit<HisaabEntry, 'id'>) => Promise<HisaabEntry | null>;
   deleteHisaabEntry: (entryId: string) => Promise<void>;
-
+  
   loadExpenses: () => void;
   addExpense: (expenseData: Omit<Expense, 'id'>) => Promise<Expense | null>;
   updateExpense: (id: string, updatedExpenseData: Partial<Omit<Expense, 'id'>>) => Promise<void>;
@@ -703,20 +703,18 @@ export const useAppStore = create<AppState>()(
         if (get().hasSettingsLoaded) return;
         set({ isSettingsLoading: true, settingsError: null });
         try {
-          await reinitializeFirebase(false);
+          // Re-init with default (unlocked) config to fetch settings first.
+          await reinitializeFirebase(false); 
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           const docSnap = await getDoc(settingsDocRef);
+          
           let loadedSettings: Settings;
+
           if (docSnap.exists()) {
             const firestoreSettings = docSnap.data() as Partial<Settings>;
-            // Ensure allowedDeviceIds is always an array
             loadedSettings = {
               ...initialSettingsData,
               ...firestoreSettings,
-              firebaseConfig: {
-                ...initialSettingsData.firebaseConfig,
-                projectId: "gemstrack-pos",
-              },
               allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
                 ? firestoreSettings.allowedDeviceIds
                 : [],
@@ -726,13 +724,16 @@ export const useAppStore = create<AppState>()(
               theme: firestoreSettings.theme || 'slate',
             };
           } else {
-            console.log("[GemsTrack Store loadSettings] No settings found in Firestore, creating with initial data.");
+            console.log("[GemsTrack Store loadSettings] No settings found, creating with initial data.");
             await setDoc(settingsDocRef, initialSettingsData);
             loadedSettings = initialSettingsData;
           }
+
           set((state) => { state.settings = loadedSettings; });
+          
+          // Now, re-initialize Firebase again based on the retrieved lock status.
           await reinitializeFirebase(!!loadedSettings.databaseLocked);
-          console.log("[GemsTrack Store loadSettings] Settings loaded successfully from Firestore:", loadedSettings);
+          console.log("[GemsTrack Store loadSettings] Settings loaded and Firebase re-initialized.");
 
         } catch (error: any) {
           console.error("[GemsTrack Store loadSettings] Error loading settings from Firestore:", error);

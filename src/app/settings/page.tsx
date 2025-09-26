@@ -16,7 +16,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search, ExternalLink, ShieldCheck, ShieldAlert } from 'lucide-react';
-import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -51,8 +50,8 @@ const settingsSchema = z.object({
   shopName: z.string().min(1, "Shop name is required"),
   shopAddress: z.string().optional(),
   shopContact: z.string().optional(),
-  shopLogoUrl: z.string().optional(),
-  shopLogoUrlBlack: z.string().optional(),
+  shopLogoSvg: z.string().optional(),
+  shopLogoSvgBlack: z.string().optional(),
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
   lastOrderNumber: z.coerce.number().int().min(0, "Last order number must be a non-negative integer"),
   allowedDeviceIds: z.array(z.object({ id: z.string().min(1, "Device ID cannot be empty.") })).optional(),
@@ -332,8 +331,6 @@ export default function SettingsPage() {
   const updateSettingsAction = useAppStore(state => state.updateSettings);
   const isSettingsLoading = useAppStore(state => state.isSettingsLoading);
 
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [logoPreviewBlack, setLogoPreviewBlack] = useState<string | null>(null);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -353,8 +350,8 @@ export default function SettingsPage() {
       shopName: "",
       shopAddress: "",
       shopContact: "",
-      shopLogoUrl: "",
-      shopLogoUrlBlack: "",
+      shopLogoSvg: "",
+      shopLogoSvgBlack: "",
       lastInvoiceNumber: 0,
       lastOrderNumber: 0,
       allowedDeviceIds: [],
@@ -385,20 +382,14 @@ export default function SettingsPage() {
         shopName: currentSettings.shopName,
         shopAddress: currentSettings.shopAddress || "",
         shopContact: currentSettings.shopContact || "",
-        shopLogoUrl: currentSettings.shopLogoUrl || "",
-        shopLogoUrlBlack: currentSettings.shopLogoUrlBlack || "",
+        shopLogoSvg: currentSettings.shopLogoSvg || "",
+        shopLogoSvgBlack: currentSettings.shopLogoSvgBlack || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
         lastOrderNumber: currentSettings.lastOrderNumber || 0,
         allowedDeviceIds: deviceIdsForForm,
         theme: currentSettings.theme || 'default',
         databaseLocked: currentSettings.databaseLocked || false,
       });
-      if (currentSettings.shopLogoUrl) {
-        setLogoPreview(currentSettings.shopLogoUrl);
-      }
-      if (currentSettings.shopLogoUrlBlack) {
-        setLogoPreviewBlack(currentSettings.shopLogoUrlBlack);
-      }
     }
   }, [currentSettings, form, appReady]);
 
@@ -407,10 +398,15 @@ export default function SettingsPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 200 * 1024) { // 200KB size limit
+    if (file.type !== "image/svg+xml") {
+        toast({ title: "Invalid File Type", description: "Please upload an SVG file.", variant: "destructive" });
+        return;
+    }
+
+    if (file.size > 20 * 1024) { // 20KB size limit for SVGs
       toast({
         title: "File Too Large",
-        description: "Please choose a logo file smaller than 200KB.",
+        description: "Please choose an SVG file smaller than 20KB.",
         variant: "destructive",
       });
       return;
@@ -418,16 +414,15 @@ export default function SettingsPage() {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      const dataUrl = reader.result as string;
+      const svgContent = reader.result as string;
       if (isBlackVersion) {
-        setLogoPreviewBlack(dataUrl);
-        form.setValue('shopLogoUrlBlack', dataUrl, { shouldValidate: true, shouldDirty: true });
+        form.setValue('shopLogoSvgBlack', svgContent, { shouldValidate: true, shouldDirty: true });
       } else {
-        setLogoPreview(dataUrl);
-        form.setValue('shopLogoUrl', dataUrl, { shouldValidate: true, shouldDirty: true });
+        form.setValue('shopLogoSvg', svgContent, { shouldValidate: true, shouldDirty: true });
       }
+      toast({ title: "Logo Loaded", description: "SVG content is ready to be saved." });
     };
-    reader.readAsDataURL(file);
+    reader.readAsText(file);
   };
 
   const onSubmit = async (data: SettingsFormData) => {
@@ -614,58 +609,58 @@ export default function SettingsPage() {
               />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormItem>
-                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Main Shop Logo (for UI)</FormLabel>
+                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Main Shop Logo (SVG)</FormLabel>
                   <div className="flex items-center gap-4">
                     <FormControl>
                        <Button asChild variant="outline" className="relative">
                           <div>
                             <Upload className="mr-2 h-4 w-4" />
-                            Upload Logo
+                            Upload SVG
                             <Input
                               type="file"
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                              accept="image/png, image/jpeg, image/svg+xml, image/webp"
+                              accept="image/svg+xml"
                               onChange={(e) => handleLogoUpload(e, false)}
                             />
                           </div>
                         </Button>
                     </FormControl>
-                     {logoPreview && (
-                        <div className="p-2 border rounded-md w-fit bg-muted">
-                            <Image src={logoPreview} alt="Shop Logo Preview" width={150} height={40} className="object-contain" data-ai-hint="logo store" />
+                     {form.getValues('shopLogoSvg') && (
+                        <div className="p-2 border rounded-md w-fit bg-muted text-foreground">
+                            <div className="h-[40px] w-[150px]" dangerouslySetInnerHTML={{ __html: form.getValues('shopLogoSvg')! }} />
                         </div>
                      )}
                   </div>
                    <FormDescription>
-                     Upload your main logo. Recommended max size: 200KB.
+                     Upload your main logo in SVG format. Max size: 20KB.
                    </FormDescription>
                   <FormMessage />
                 </FormItem>
                 <FormItem>
-                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Invoice Logo (Black)</FormLabel>
+                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Invoice Logo (Black, SVG)</FormLabel>
                   <div className="flex items-center gap-4">
                     <FormControl>
                        <Button asChild variant="outline" className="relative">
                           <div>
                             <Upload className="mr-2 h-4 w-4" />
-                            Upload Black Logo
+                            Upload Black SVG
                             <Input
                               type="file"
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                              accept="image/png, image/jpeg, image/svg+xml, image/webp"
+                              accept="image/svg+xml"
                               onChange={(e) => handleLogoUpload(e, true)}
                             />
                           </div>
                         </Button>
                     </FormControl>
-                     {logoPreviewBlack && (
-                        <div className="p-2 border rounded-md w-fit bg-slate-800">
-                            <Image src={logoPreviewBlack} alt="Shop Logo Preview (Black)" width={150} height={40} className="object-contain" data-ai-hint="logo store" />
+                     {form.getValues('shopLogoSvgBlack') && (
+                        <div className="p-2 border rounded-md w-fit bg-slate-800 text-white">
+                             <div className="h-[40px] w-[150px]" dangerouslySetInnerHTML={{ __html: form.getValues('shopLogoSvgBlack')! }} />
                         </div>
                      )}
                   </div>
                    <FormDescription>
-                     Upload a monochrome black logo for PDF invoices.
+                     Upload a monochrome black SVG logo for PDF invoices.
                    </FormDescription>
                   <FormMessage />
                 </FormItem>
