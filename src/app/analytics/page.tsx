@@ -56,6 +56,7 @@ export default function AnalyticsPage() {
     if (!dateRange || !dateRange.from) return generatedInvoices; 
 
     return generatedInvoices.filter(invoice => {
+      if (!invoice || !invoice.createdAt) return false;
       const invoiceDate = parseISO(invoice.createdAt);
       const toDate = dateRange.to ? startOfDay(dateRange.to) : startOfDay(new Date()); 
       return isWithinInterval(invoiceDate, { start: startOfDay(dateRange.from!), end: toDate });
@@ -66,6 +67,7 @@ export default function AnalyticsPage() {
     if (!dateRange || !dateRange.from) return expenses;
 
     return expenses.filter(expense => {
+      if (!expense || !expense.date) return false;
       const expenseDate = parseISO(expense.date);
       const toDate = dateRange.to ? startOfDay(dateRange.to) : startOfDay(new Date());
       return isWithinInterval(expenseDate, { start: startOfDay(dateRange.from!), end: toDate });
@@ -104,40 +106,47 @@ export default function AnalyticsPage() {
     
     // Process Invoices
     filteredInvoices.forEach(invoice => {
-      totalSales += invoice.grandTotal;
-      totalDiscounts += invoice.discountAmount;
+      if (!invoice) return;
+      totalSales += invoice.grandTotal || 0;
+      totalDiscounts += invoice.discountAmount || 0;
 
       const dateKey = format(startOfDay(parseISO(invoice.createdAt)), 'yyyy-MM-dd');
       if (!salesByDate[dateKey]) {
         salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
       }
-      salesByDate[dateKey].sales += invoice.grandTotal; 
+      salesByDate[dateKey].sales += invoice.grandTotal || 0;
       salesByDate[dateKey].orders += 1;
 
       const customerKey = invoice.customerId || 'walk-in';
       if (!customerPerformance[customerKey]) {
         customerPerformance[customerKey] = { totalSpent: 0, orderCount: 0 };
       }
-      customerPerformance[customerKey].totalSpent += invoice.grandTotal;
+      customerPerformance[customerKey].totalSpent += invoice.grandTotal || 0;
       customerPerformance[customerKey].orderCount += 1;
 
-      invoice.items.forEach(item => {
-        totalItemsSold += item.quantity;
-        salesByDate[dateKey].itemsSold += item.quantity;
+      if (Array.isArray(invoice.items)) {
+        invoice.items.forEach(item => {
+          if (!item) return;
+          const quantity = item.quantity || 0;
+          const itemTotal = item.itemTotal || 0;
 
-        if (!productPerformance[item.sku]) {
-          productPerformance[item.sku] = { quantity: 0, revenue: 0 };
-        }
-        productPerformance[item.sku].quantity += item.quantity;
-        productPerformance[item.sku].revenue += item.itemTotal;
-        
-        if (item.categoryId) {
-             if (!categoryPerformance[item.categoryId]) {
-                categoryPerformance[item.categoryId] = 0;
-            }
-            categoryPerformance[item.categoryId] += item.itemTotal;
-        }
-      });
+          totalItemsSold += quantity;
+          salesByDate[dateKey].itemsSold += quantity;
+
+          if (!productPerformance[item.sku]) {
+            productPerformance[item.sku] = { quantity: 0, revenue: 0 };
+          }
+          productPerformance[item.sku].quantity += quantity;
+          productPerformance[item.sku].revenue += itemTotal;
+          
+          if (item.categoryId) {
+              if (!categoryPerformance[item.categoryId]) {
+                  categoryPerformance[item.categoryId] = 0;
+              }
+              categoryPerformance[item.categoryId] += itemTotal;
+          }
+        });
+      }
     });
 
     const totalOrders = filteredInvoices.length;
@@ -147,11 +156,14 @@ export default function AnalyticsPage() {
     // Process Expenses
     const expenseByCategoryMap: Record<string, number> = {};
     filteredExpenses.forEach(expense => {
-      calcData.totalExpenses += expense.amount;
-      if (!expenseByCategoryMap[expense.category]) {
-        expenseByCategoryMap[expense.category] = 0;
+      if (!expense) return;
+      calcData.totalExpenses += expense.amount || 0;
+      if (expense.category) {
+        if (!expenseByCategoryMap[expense.category]) {
+          expenseByCategoryMap[expense.category] = 0;
+        }
+        expenseByCategoryMap[expense.category] += expense.amount || 0;
       }
-      expenseByCategoryMap[expense.category] += expense.amount;
     });
 
     calcData.expensesByCategory = Object.entries(expenseByCategoryMap)
@@ -210,7 +222,7 @@ export default function AnalyticsPage() {
     if (!selectedDayData) return { invoices: [], products: [] };
     const dayInvoices = filteredInvoices.filter(invoice => format(startOfDay(parseISO(invoice.createdAt)), 'yyyy-MM-dd') === selectedDayData.date);
     const dayProducts: DailySummaryItem[] = dayInvoices.flatMap(invoice => 
-        invoice.items.map(item => ({
+        (invoice.items || []).map(item => ({
             ...item,
             invoiceId: invoice.id,
             customerName: invoice.customerName || 'Walk-in'

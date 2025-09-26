@@ -810,20 +810,20 @@ export const useAppStore = create<AppState>()(
         );
       },
       reAddSoldProductToInventory: async (sku) => {
-        console.log(`[reAddSoldProductToInventory] Attempting to re-add SKU: ${sku}`);
-        await runTransaction(db, async (transaction) => {
-          const soldProductRef = doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, sku);
-          const productRef = doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, sku);
-
-          const soldProductDoc = await transaction.get(soldProductRef);
-          if (!soldProductDoc.exists()) {
-            throw new Error(`Sold product with SKU ${sku} not found.`);
+          console.log(`[reAddSoldProductToInventory] Attempting to re-add based on SKU: ${sku}`);
+          const soldProduct = get().soldProducts.find(p => p.sku === sku);
+          if (!soldProduct) {
+              throw new Error(`Sold product with SKU ${sku} not found in local store.`);
           }
+          // Create a new product object, omitting the SKU
+          const { sku: _sku, ...productData } = soldProduct;
+          // The addProduct function will generate a new SKU
+          const newProduct = await get().addProduct(productData);
 
-          const productData = soldProductDoc.data();
-          transaction.set(productRef, productData);
-          transaction.delete(soldProductRef);
-        });
+          if (!newProduct) {
+              throw new Error("Failed to create a new product in the inventory.");
+          }
+          console.log(`[reAddSoldProductToInventory] Successfully re-added product with new SKU: ${newProduct.sku}`);
       },
       addProduct: async (productData) => {
         const { categories, products } = get();
@@ -1232,7 +1232,7 @@ export const useAppStore = create<AppState>()(
                     items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
                     amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
                     ratesApplied: ratesForInvoice, 
-                    customerName: finalCustomerName,
+                    customerName: finalCustomerName || 'Walk-in Customer',
                     customerId: finalCustomerId,
                     customerContact: customerInfo.phone
                 };
