@@ -1,14 +1,14 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAppStore, PaymentMethod } from '@/lib/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Landmark, MessageSquare, ArrowLeft, Info, Copy, Save, PlusCircle, Trash2, Edit } from 'lucide-react';
+import { Landmark, MessageSquare, ArrowLeft, Info, Copy, Save, PlusCircle, Trash2, Edit, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -73,6 +73,19 @@ export default function PaymentMethodsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredPaymentMethods = useMemo(() => {
+    if (!searchTerm) {
+        return paymentMethods;
+    }
+    const lowercasedFilter = searchTerm.toLowerCase();
+    return paymentMethods.filter(method =>
+        method.bankName.toLowerCase().includes(lowercasedFilter) ||
+        method.accountName.toLowerCase().includes(lowercasedFilter) ||
+        method.accountNumber.includes(searchTerm)
+    );
+  }, [paymentMethods, searchTerm]);
 
 
   const handleCopyToClipboard = (text: string, fieldName: string) => {
@@ -171,25 +184,43 @@ export default function PaymentMethodsPage() {
             </Button>
         </div>
       </header>
+      
+      <Card>
+        <CardHeader>
+            <CardTitle>Search & Filter</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                    placeholder="Search by bank name, account name, or account number..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                />
+            </div>
+        </CardContent>
+      </Card>
 
-      {paymentMethods.length === 0 ? (
+
+      {filteredPaymentMethods.length === 0 ? (
         <Card>
             <CardHeader>
-                <CardTitle>No Payment Methods Configured</CardTitle>
+                <CardTitle>No Payment Methods Found</CardTitle>
             </CardHeader>
             <CardContent>
                 <Alert>
                     <Info className="h-4 w-4" />
                     <AlertTitle>Get Started</AlertTitle>
                     <AlertDescription>
-                        Click "Add New Method" to add your bank account details.
+                        {searchTerm ? "No methods match your search." : "Click 'Add New Method' to add your first bank account."}
                     </AlertDescription>
                 </Alert>
             </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {paymentMethods.map(method => (
+          {filteredPaymentMethods.map(method => (
             <Card key={method.id} className="flex flex-col">
               <CardHeader>
                 <div className="flex justify-between items-start">
