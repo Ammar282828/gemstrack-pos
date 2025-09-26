@@ -7,10 +7,10 @@ import { useAppStore, Order, Invoice } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Loader2, FileText, ClipboardList, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, FileText, ClipboardList, AlertTriangle, User, Calendar, DollarSign, Eye } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -33,8 +33,67 @@ const getStatusBadgeVariant = (status: Order['status'] | 'Paid' | 'Unpaid') => {
     }
 };
 
+const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' => {
+  if (doc.docType === 'order') {
+    return doc.status;
+  }
+  return doc.balanceDue <= 0 ? 'Paid' : 'Unpaid';
+};
+
+
+const DocumentCard: React.FC<{ doc: DocumentType }> = ({ doc }) => {
+    const router = useRouter();
+    const status = getDocStatus(doc);
+    
+    const handleCardClick = () => {
+        if (doc.docType === 'order') {
+            router.push(`/orders/${doc.id}`);
+        } else {
+            router.push(`/cart?invoice_id=${doc.id}`);
+        }
+    };
+
+    return (
+        <Card className="mb-4" onClick={handleCardClick}>
+            <CardContent className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <div className="font-bold text-primary hover:underline text-lg">{doc.id}</div>
+                        <Badge variant={doc.docType === 'order' ? 'secondary' : 'default'} className="capitalize flex items-center gap-1 w-fit mt-1">
+                            {doc.docType === 'order' ? <ClipboardList className="h-3 w-3"/> : <FileText className="h-3 w-3"/>}
+                            {doc.docType}
+                        </Badge>
+                    </div>
+                    <Badge className={cn("border-transparent capitalize", getStatusBadgeVariant(status))}>{status}</Badge>
+                </div>
+                 <div className="text-sm text-foreground space-y-2 pt-2 border-t mt-2">
+                    <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-muted-foreground"/> 
+                        <span>{doc.customerName || 'Walk-in Customer'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground"/> 
+                        <span>{format(parseISO(doc.createdAt), 'MMM dd, yyyy')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-muted-foreground"/> 
+                        <span>Total: <span className="font-bold text-primary">PKR {doc.grandTotal.toLocaleString()}</span></span>
+                    </div>
+                </div>
+            </CardContent>
+             <CardFooter className="p-2 border-t bg-muted/30">
+                <Button variant="ghost" className="w-full justify-center">
+                    <Eye className="w-4 h-4 mr-2" /> View Details
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+};
+
+
 const DocumentRow: React.FC<{ doc: DocumentType }> = ({ doc }) => {
     const router = useRouter();
+    const status = getDocStatus(doc);
 
     const handleRowClick = () => {
         if (doc.docType === 'order') {
@@ -43,9 +102,6 @@ const DocumentRow: React.FC<{ doc: DocumentType }> = ({ doc }) => {
             router.push(`/cart?invoice_id=${doc.id}`);
         }
     };
-    
-    const isPaid = doc.docType === 'invoice' ? doc.balanceDue <= 0 : false;
-    const invoiceStatus = doc.docType === 'invoice' ? (isPaid ? 'Paid' : 'Unpaid') : undefined;
 
     return (
         <TableRow onClick={handleRowClick} className="cursor-pointer">
@@ -62,8 +118,8 @@ const DocumentRow: React.FC<{ doc: DocumentType }> = ({ doc }) => {
             </TableCell>
             <TableCell className="text-right">PKR {doc.grandTotal.toLocaleString()}</TableCell>
              <TableCell>
-                <Badge className={cn("border-transparent capitalize", getStatusBadgeVariant(doc.docType === 'order' ? doc.status : invoiceStatus!))}>
-                     {doc.docType === 'order' ? doc.status : invoiceStatus}
+                <Badge className={cn("border-transparent capitalize", getStatusBadgeVariant(status))}>
+                     {status}
                 </Badge>
             </TableCell>
         </TableRow>
@@ -76,9 +132,9 @@ export default function DocumentsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const appReady = useAppReady();
-  const { orders, invoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices } = useAppStore(state => ({
+  const { orders, generatedInvoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices } = useAppStore(state => ({
     orders: state.orders,
-    invoices: state.generatedInvoices,
+    generatedInvoices: state.generatedInvoices,
     isOrdersLoading: state.isOrdersLoading,
     isInvoicesLoading: state.isInvoicesLoading,
     loadOrders: state.loadOrders,
@@ -97,9 +153,9 @@ export default function DocumentsPage() {
   const combinedDocuments: DocumentType[] = useMemo(() => {
     if (!appReady) return [];
     const orderDocs: DocumentType[] = (orders || []).map(o => ({ ...o, docType: 'order' }));
-    const invoiceDocs: DocumentType[] = (invoices || []).map(i => ({ ...i, docType: 'invoice' }));
+    const invoiceDocs: DocumentType[] = (generatedInvoices || []).map(i => ({ ...i, docType: 'invoice' }));
     return [...orderDocs, ...invoiceDocs].sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
-  }, [appReady, orders, invoices]);
+  }, [appReady, orders, generatedInvoices]);
 
 
   const filteredDocuments = useMemo(() => {
@@ -124,7 +180,7 @@ export default function DocumentsPage() {
     return docs;
   }, [combinedDocuments, dateRange, searchTerm]);
 
-  const renderTable = (docs: DocumentType[]) => {
+  const renderContent = (docs: DocumentType[]) => {
       if (isLoading) {
          return (
             <div className="text-center py-12">
@@ -145,23 +201,31 @@ export default function DocumentsPage() {
           );
       }
       return (
-        <Card>
-            <Table>
-            <TableHeader>
-                <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Total (PKR)</TableHead>
-                    <TableHead>Status</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {docs.map((doc) => <DocumentRow key={`${doc.docType}-${doc.id}`} doc={doc} />)}
-            </TableBody>
-            </Table>
-        </Card>
+        <>
+            {/* Mobile View: Cards */}
+            <div className="md:hidden">
+                {docs.map((doc) => <DocumentCard key={`${doc.docType}-${doc.id}`} doc={doc} />)}
+            </div>
+
+            {/* Desktop View: Table */}
+            <Card className="hidden md:block">
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="text-right">Total (PKR)</TableHead>
+                        <TableHead>Status</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {docs.map((doc) => <DocumentRow key={`${doc.docType}-${doc.id}`} doc={doc} />)}
+                </TableBody>
+                </Table>
+            </Card>
+        </>
       );
   };
   
@@ -208,13 +272,13 @@ export default function DocumentsPage() {
           <TabsTrigger value="orders">Orders ({filteredDocuments.filter(d => d.docType === 'order').length})</TabsTrigger>
         </TabsList>
         <TabsContent value="all">
-          {renderTable(filteredDocuments)}
+          {renderContent(filteredDocuments)}
         </TabsContent>
         <TabsContent value="invoices">
-          {renderTable(filteredDocuments.filter(d => d.docType === 'invoice'))}
+          {renderContent(filteredDocuments.filter(d => d.docType === 'invoice'))}
         </TabsContent>
         <TabsContent value="orders">
-          {renderTable(filteredDocuments.filter(d => d.docType === 'order'))}
+          {renderContent(filteredDocuments.filter(d => d.docType === 'order'))}
         </TabsContent>
       </Tabs>
       
