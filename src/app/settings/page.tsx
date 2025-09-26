@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, ThemeKey, AVAILABLE_THEMES, Product, PaymentMethod } from '@/lib/store';
+import { useAppStore, Settings, ThemeKey, AVAILABLE_THEMES, Product } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,15 +42,6 @@ function getDeviceId() {
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
-const paymentMethodSchema = z.object({
-    id: z.string().optional(),
-    bankName: z.string().min(1, "Bank name is required"),
-    accountName: z.string().min(1, "Account holder name is required"),
-    accountNumber: z.string().min(1, "Account number is required"),
-    iban: z.string().optional(),
-    qrCodeUrl: z.string().url().optional().or(z.literal('')),
-});
-
 const settingsSchema = z.object({
   goldRatePerGram24k: z.coerce.number().min(0, "Rate must be a positive number"),
   goldRatePerGram22k: z.coerce.number().min(0, "Rate must be a positive number"),
@@ -67,7 +58,6 @@ const settingsSchema = z.object({
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
   lastOrderNumber: z.coerce.number().int().min(0, "Last order number must be a non-negative integer"),
   allowedDeviceIds: z.array(z.object({ id: z.string().min(1, "Device ID cannot be empty.") })).optional(),
-  paymentMethods: z.array(paymentMethodSchema).optional(),
   theme: z.enum(themeKeys).default('default'),
   databaseLocked: z.boolean().optional(),
 });
@@ -372,7 +362,6 @@ export default function SettingsPage() {
       lastInvoiceNumber: 0,
       lastOrderNumber: 0,
       allowedDeviceIds: [],
-      paymentMethods: [],
       theme: 'default',
       databaseLocked: false,
     },
@@ -383,18 +372,10 @@ export default function SettingsPage() {
     name: "allowedDeviceIds",
   });
   
-  const { fields: paymentMethodFields, append: appendPaymentMethod, remove: removePaymentMethod } = useFieldArray({
-    control: form.control,
-    name: "paymentMethods",
-  });
-
   React.useEffect(() => {
     if (appReady && currentSettings) {
       const deviceIdsForForm = Array.isArray(currentSettings.allowedDeviceIds) 
         ? currentSettings.allowedDeviceIds.map(id => ({ id })) 
-        : [];
-      const paymentMethodsForForm = Array.isArray(currentSettings.paymentMethods)
-        ? currentSettings.paymentMethods.map(pm => ({...pm}))
         : [];
       
       form.reset({
@@ -413,7 +394,6 @@ export default function SettingsPage() {
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
         lastOrderNumber: currentSettings.lastOrderNumber || 0,
         allowedDeviceIds: deviceIdsForForm,
-        paymentMethods: paymentMethodsForForm,
         theme: currentSettings.theme || 'default',
         databaseLocked: currentSettings.databaseLocked || false,
       });
@@ -421,7 +401,7 @@ export default function SettingsPage() {
   }, [currentSettings, form, appReady]);
 
 
- const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>, fieldName: 'shopLogoUrl' | 'shopLogoUrlBlack' | `paymentMethods.${number}.qrCodeUrl`) => {
+ const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>, fieldName: 'shopLogoUrl' | 'shopLogoUrlBlack') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -450,7 +430,7 @@ export default function SettingsPage() {
         },
         () => {
             getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                form.setValue(fieldName as any, downloadURL, { shouldValidate: true, shouldDirty: true });
+                form.setValue(fieldName, downloadURL, { shouldValidate: true, shouldDirty: true });
                 setIsUploading(prev => ({...prev, [fieldName]: false}));
                 setUploadProgress(prev => ({...prev, [fieldName]: 100}));
                 toast({ title: "Upload Complete", description: "Image has been successfully uploaded." });
@@ -465,7 +445,6 @@ export default function SettingsPage() {
         const settingsToSave: Partial<Settings> = {
             ...data,
             allowedDeviceIds: data.allowedDeviceIds?.map(item => item.id).filter(Boolean) || [],
-            paymentMethods: data.paymentMethods?.map(pm => ({...pm, id: pm.id || `pm-${Date.now()}`})) || [],
         };
         await updateSettingsAction(settingsToSave);
         toast({ title: "Settings Updated", description: "Your shop settings have been saved." });
@@ -740,67 +719,6 @@ export default function SettingsPage() {
                 )}
               />
               <Separator />
-              <div>
-                  <FormLabel className="text-base flex items-center"><Landmark className="h-5 w-5 mr-2 text-muted-foreground" /> Payment Methods</FormLabel>
-                  <FormDescription className="mb-4">
-                    Manage bank accounts for customer payments. <Link href="/settings/payment-methods" className="text-primary underline">Click here to view and share.</Link>
-                  </FormDescription>
-                   <div className="space-y-4">
-                    {paymentMethodFields.map((field, index) => {
-                      const qrCodeUrl = form.watch(`paymentMethods.${index}.qrCodeUrl`);
-                      const fieldName = `paymentMethods.${index}.qrCodeUrl`;
-                      return (
-                        <div key={field.id} className="p-4 border rounded-lg space-y-4 relative">
-                            <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive h-7 w-7" onClick={() => removePaymentMethod(index)}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                               <FormField control={form.control} name={`paymentMethods.${index}.bankName`} render={({ field }) => (<FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="e.g., Meezan Bank" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                               <FormField control={form.control} name={`paymentMethods.${index}.accountName`} render={({ field }) => (<FormItem><FormLabel>Account Name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                               <FormField control={form.control} name={`paymentMethods.${index}.accountNumber`} render={({ field }) => (<FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="e.g., 01234567890" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                               <FormField control={form.control} name={`paymentMethods.${index}.iban`} render={({ field }) => (<FormItem><FormLabel>IBAN (Optional)</FormLabel><FormControl><Input placeholder="e.g., PK12..." {...field} /></FormControl><FormMessage /></FormItem>)} />
-                            </div>
-                            <FormItem>
-                                <FormLabel>QR Code Image</FormLabel>
-                                <div className="flex items-center gap-4">
-                                     <Button asChild variant="outline" size="sm" className="relative">
-                                          <div>
-                                            <Upload className="mr-2 h-4 w-4" />
-                                            Upload QR
-                                            <Input
-                                              type="file"
-                                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                              accept="image/png, image/jpeg"
-                                              onChange={(e) => handleImageUpload(e, fieldName as any)}
-                                              disabled={isUploading[fieldName]}
-                                            />
-                                          </div>
-                                    </Button>
-                                    {isUploading[fieldName] && uploadProgress[fieldName] !== null && (
-                                        <Progress value={uploadProgress[fieldName]} className="w-32 h-2" />
-                                    )}
-                                    {qrCodeUrl && (
-                                      <div className="p-1 border rounded-md w-fit bg-muted">
-                                        <Image src={qrCodeUrl} alt="QR Code Preview" width={64} height={64} className="object-contain" unoptimized />
-                                      </div>
-                                    )}
-                                </div>
-                            </FormItem>
-                        </div>
-                      )
-                    })}
-                     <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => appendPaymentMethod({ bankName: '', accountName: '', accountNumber: '', iban: '' })}
-                    >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Add Payment Method
-                    </Button>
-                   </div>
-              </div>
-              <Separator />
                <div>
                   <FormLabel className="text-base flex items-center"><TabletSmartphone className="h-5 w-5 mr-2 text-muted-foreground" /> Authorized Device IDs</FormLabel>
                   <FormDescription className="mb-4">
@@ -870,6 +788,17 @@ export default function SettingsPage() {
           <CardDescription>Tools for managing your data and integrations.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Link href="/settings/payment-methods" passHref>
+              <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
+                 <div className="flex items-center">
+                    <Landmark className="mr-3 h-5 w-5" />
+                    <div>
+                      <p className="font-semibold">Manage Payment Methods</p>
+                      <p className="text-xs text-muted-foreground">Add or edit your bank account details.</p>
+                  </div>
+                </div>
+              </Button>
+            </Link>
             <Link href="/settings/hisaab-import" passHref>
               <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
                 <div className="flex items-center">
@@ -901,4 +830,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

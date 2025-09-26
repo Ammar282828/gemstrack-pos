@@ -1,32 +1,150 @@
 
+
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
-import { useAppStore, PaymentMethod } from '@/lib/store';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useAppStore, PaymentMethod, Settings } from '@/lib/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Landmark, MessageSquare, ArrowLeft, Info, Copy } from 'lucide-react';
+import { Landmark, MessageSquare, ArrowLeft, Info, Copy, Save, PlusCircle, Trash2, Upload, Loader2, Edit, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { Progress } from '@/components/ui/progress';
 
-const DetailRow: React.FC<{ label: string; value: string; onCopy: () => void }> = ({ label, value, onCopy }) => (
-  <div className="flex justify-between items-center py-1.5">
-    <span className="text-sm text-muted-foreground">{label}:</span>
-    <div className="flex items-center gap-2">
-      <span className="font-semibold text-sm">{value}</span>
-      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onCopy}>
-        <Copy className="h-3.5 w-3.5" />
-      </Button>
-    </div>
-  </div>
-);
+const paymentMethodSchema = z.object({
+    id: z.string().optional(),
+    bankName: z.string().min(1, "Bank name is required"),
+    accountName: z.string().min(1, "Account holder name is required"),
+    accountNumber: z.string().min(1, "Account number is required"),
+    iban: z.string().optional(),
+    qrCodeUrl: z.string().url().optional().or(z.literal('')),
+});
+
+type PaymentMethodFormData = z.infer<typeof paymentMethodSchema>;
+
+const PaymentMethodForm: React.FC<{
+    method?: PaymentMethod;
+    onSave: (data: PaymentMethodFormData) => void;
+    onClose: () => void;
+}> = ({ method, onSave, onClose }) => {
+    const { toast } = useToast();
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+    const form = useForm<PaymentMethodFormData>({
+        resolver: zodResolver(paymentMethodSchema),
+        defaultValues: method || {
+            bankName: '',
+            accountName: '',
+            accountNumber: '',
+            iban: '',
+            qrCodeUrl: '',
+        },
+    });
+
+    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) { // 2MB limit
+            toast({ title: "Image too large", description: "Please upload an image smaller than 2MB.", variant: "destructive" });
+            return;
+        }
+
+        const storage = getStorage();
+        const storageRef = ref(storage, `payment_qrs/${Date.now()}-${file.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        setIsUploading(true);
+        setUploadProgress(0);
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUploadProgress(progress);
+            },
+            (error) => {
+                console.error("Upload error:", error);
+                toast({ title: "Upload Failed", variant: "destructive" });
+                setIsUploading(false);
+                setUploadProgress(null);
+            },
+            () => {
+                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                    form.setValue('qrCodeUrl', downloadURL, { shouldDirty: true, shouldValidate: true });
+                    setIsUploading(false);
+                });
+            }
+        );
+    };
+    
+    const qrCodeUrl = form.watch('qrCodeUrl');
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
+                <FormField name="bankName" control={form.control} render={({ field }) => (<FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="e.g., Meezan Bank" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField name="accountName" control={form.control} render={({ field }) => (<FormItem><FormLabel>Account Name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField name="accountNumber" control={form.control} render={({ field }) => (<FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="e.g., 01234567890" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField name="iban" control={form.control} render={({ field }) => (<FormItem><FormLabel>IBAN (Optional)</FormLabel><FormControl><Input placeholder="e.g., PK12..." {...field} /></FormControl><FormMessage /></FormItem>)} />
+
+                <FormItem>
+                    <FormLabel>QR Code Image</FormLabel>
+                    <div className="flex items-center gap-4">
+                         <Button asChild variant="outline" size="sm" className="relative">
+                              <div>
+                                <Upload className="mr-2 h-4 w-4" />
+                                Upload QR
+                                <Input
+                                  type="file"
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  accept="image/png, image/jpeg"
+                                  onChange={handleImageUpload}
+                                  disabled={isUploading}
+                                />
+                              </div>
+                        </Button>
+                        {isUploading && uploadProgress !== null && <Progress value={uploadProgress} className="w-32 h-2" />}
+                        {qrCodeUrl && (
+                          <div className="p-1 border rounded-md w-fit bg-muted">
+                            <Image src={qrCodeUrl} alt="QR Code Preview" width={64} height={64} className="object-contain" unoptimized />
+                          </div>
+                        )}
+                    </div>
+                </FormItem>
+
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                    <Button type="submit" disabled={isUploading}>
+                        <Save className="mr-2 h-4 w-4" /> Save Method
+                    </Button>
+                </DialogFooter>
+            </form>
+        </Form>
+    );
+};
 
 export default function PaymentMethodsPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const paymentMethods = useAppStore(state => state.settings.paymentMethods);
+  const { paymentMethods, updateSettings } = useAppStore(state => ({
+    paymentMethods: state.settings.paymentMethods,
+    updateSettings: state.updateSettings
+  }));
+  
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingMethod, setEditingMethod] = useState<PaymentMethod | undefined>(undefined);
+  const [isSaving, setIsSaving] = useState(false);
+
 
   const handleCopyToClipboard = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -43,7 +161,6 @@ export default function PaymentMethodsPage() {
     }
     message += `\nPlease send a screenshot of the transaction once completed. Thank you!`;
 
-    // Prompt for customer's number
     const customerNumber = prompt("Please enter the customer's WhatsApp number (e.g., 923001234567):");
     if (customerNumber) {
       const numberOnly = customerNumber.replace(/\D/g, '');
@@ -53,14 +170,73 @@ export default function PaymentMethodsPage() {
     }
   };
 
+  const handleSaveMethod = async (data: PaymentMethodFormData) => {
+    setIsSaving(true);
+    let updatedMethods;
+
+    if (editingMethod) { // Editing existing method
+      updatedMethods = paymentMethods.map(m => m.id === editingMethod.id ? { ...m, ...data } : m);
+    } else { // Adding new method
+      const newMethod: PaymentMethod = { ...data, id: `pm-${Date.now()}` };
+      updatedMethods = [...paymentMethods, newMethod];
+    }
+    
+    try {
+        await updateSettings({ paymentMethods: updatedMethods });
+        toast({ title: "Success", description: `Payment method ${editingMethod ? 'updated' : 'added'} successfully.` });
+        setIsFormOpen(false);
+        setEditingMethod(undefined);
+    } catch (e) {
+        toast({ title: "Error", description: "Failed to save payment method.", variant: "destructive" });
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
+  const handleDeleteMethod = async (id: string) => {
+    setIsSaving(true);
+    const updatedMethods = paymentMethods.filter(m => m.id !== id);
+    try {
+        await updateSettings({ paymentMethods: updatedMethods });
+        toast({ title: "Deleted", description: "Payment method removed." });
+    } catch (e) {
+         toast({ title: "Error", description: "Failed to delete payment method.", variant: "destructive" });
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 space-y-8">
+       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{editingMethod ? 'Edit' : 'Add'} Payment Method</DialogTitle>
+                    <DialogDescription>
+                        Fill in the bank account details. This will be visible to share with customers.
+                    </DialogDescription>
+                </DialogHeader>
+                <PaymentMethodForm
+                    method={editingMethod}
+                    onSave={handleSaveMethod}
+                    onClose={() => setIsFormOpen(false)}
+                />
+            </DialogContent>
+        </Dialog>
+
       <header>
         <Button variant="outline" onClick={() => router.back()} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Settings
         </Button>
-        <h1 className="text-3xl font-bold text-primary flex items-center"><Landmark className="mr-3 h-8 w-8"/>Payment Methods</h1>
-        <p className="text-muted-foreground">Easily share your bank details with customers for seamless payments.</p>
+        <div className="flex justify-between items-start">
+            <div>
+                <h1 className="text-3xl font-bold text-primary flex items-center"><Landmark className="mr-3 h-8 w-8"/>Payment Methods</h1>
+                <p className="text-muted-foreground">Manage your bank details to share with customers for seamless payments.</p>
+            </div>
+            <Button onClick={() => { setEditingMethod(undefined); setIsFormOpen(true); }}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add New Method
+            </Button>
+        </div>
       </header>
 
       {paymentMethods.length === 0 ? (
@@ -73,7 +249,7 @@ export default function PaymentMethodsPage() {
                     <Info className="h-4 w-4" />
                     <AlertTitle>Get Started</AlertTitle>
                     <AlertDescription>
-                        You haven't added any bank accounts yet. Go to the main settings page to add your payment methods.
+                        Click "Add New Method" to add your bank account details.
                     </AlertDescription>
                 </Alert>
             </CardContent>
@@ -83,10 +259,16 @@ export default function PaymentMethodsPage() {
           {paymentMethods.map(method => (
             <Card key={method.id} className="flex flex-col">
               <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <Landmark className="h-6 w-6 text-primary" />
-                  {method.bankName}
-                </CardTitle>
+                <div className="flex justify-between items-start">
+                    <CardTitle className="flex items-center gap-3">
+                      <Landmark className="h-6 w-6 text-primary" />
+                      {method.bankName}
+                    </CardTitle>
+                    <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingMethod(method); setIsFormOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteMethod(method.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                </div>
                 <CardDescription>Account Holder: {method.accountName}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow space-y-2">
@@ -95,8 +277,22 @@ export default function PaymentMethodsPage() {
                         <Image src={method.qrCodeUrl} alt={`${method.bankName} QR Code`} width={150} height={150} className="object-contain"/>
                     </div>
                 )}
-                <DetailRow label="Account #" value={method.accountNumber} onCopy={() => handleCopyToClipboard(method.accountNumber, "Account Number")} />
-                {method.iban && <DetailRow label="IBAN" value={method.iban} onCopy={() => handleCopyToClipboard(method.iban, "IBAN")} />}
+                <div className="flex justify-between items-center py-1.5">
+                    <span className="text-sm text-muted-foreground">Account #:</span>
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm">{method.accountNumber}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyToClipboard(method.accountNumber, "Account Number")}><Copy className="h-3.5 w-3.5" /></Button>
+                    </div>
+                </div>
+                {method.iban && (
+                    <div className="flex justify-between items-center py-1.5">
+                        <span className="text-sm text-muted-foreground">IBAN:</span>
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm">{method.iban}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyToClipboard(method.iban, "IBAN")}><Copy className="h-3.5 w-3.5" /></Button>
+                        </div>
+                    </div>
+                )}
               </CardContent>
               <CardFooter>
                 <Button className="w-full" onClick={() => handleSendWhatsApp(method)}>
@@ -110,4 +306,3 @@ export default function PaymentMethodsPage() {
     </div>
   );
 }
-
