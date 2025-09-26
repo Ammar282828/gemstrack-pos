@@ -14,9 +14,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import QRCode from 'qrcode.react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import PhoneInput from 'react-phone-number-input/react-hook-form-input';
+import 'react-phone-number-input/style.css'
+import { Label } from '@/components/ui/label';
 
 const PAKISTANI_BANKS = [
     "Al Baraka Bank (Pakistan) Limited",
@@ -58,6 +61,8 @@ const paymentMethodSchema = z.object({
 });
 
 type PaymentMethodFormData = z.infer<typeof paymentMethodSchema>;
+
+type PhoneFormData = { phone: string; };
 
 const PaymentMethodForm: React.FC<{
     method?: PaymentMethod;
@@ -127,6 +132,14 @@ export default function PaymentMethodsPage() {
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const [isWhatsAppDialogOpen, setIsWhatsAppDialogOpen] = useState(false);
+  const [selectedMethodForWhatsApp, setSelectedMethodForWhatsApp] = useState<PaymentMethod | null>(null);
+
+  const phoneForm = useForm<PhoneFormData>({
+    defaultValues: { phone: '' }
+  });
+
 
   const filteredPaymentMethods = useMemo(() => {
     if (!searchTerm) {
@@ -146,24 +159,34 @@ export default function PaymentMethodsPage() {
     toast({ title: "Copied to Clipboard", description: `${fieldName} has been copied.` });
   };
 
-  const handleSendWhatsApp = (method: PaymentMethod) => {
+  const openWhatsAppDialog = (method: PaymentMethod) => {
+    setSelectedMethodForWhatsApp(method);
+    setIsWhatsAppDialogOpen(true);
+  };
+
+  const handleSendWhatsApp = (data: PhoneFormData) => {
+    if (!selectedMethodForWhatsApp || !data.phone) {
+        toast({ title: "Missing Information", description: "Please select a method and enter a phone number.", variant: "destructive" });
+        return;
+    }
+
     let message = `Here are the payment details for your order:\n\n`;
-    message += `*Bank:* ${method.bankName}\n`;
-    message += `*Account Name:* ${method.accountName}\n`;
-    message += `*Account Number:* ${method.accountNumber}\n`;
-    if (method.iban) {
-      message += `*IBAN:* ${method.iban}\n`;
+    message += `*Bank:* ${selectedMethodForWhatsApp.bankName}\n`;
+    message += `*Account Name:* ${selectedMethodForWhatsApp.accountName}\n`;
+    message += `*Account Number:* ${selectedMethodForWhatsApp.accountNumber}\n`;
+    if (selectedMethodForWhatsApp.iban) {
+      message += `*IBAN:* ${selectedMethodForWhatsApp.iban}\n`;
     }
     message += `\nPlease send a screenshot of the transaction once completed. Thank you!`;
 
-    const customerNumber = prompt("Please enter the customer's WhatsApp number (e.g., 923001234567):");
-    if (customerNumber) {
-      const numberOnly = customerNumber.replace(/\D/g, '');
-      const whatsappUrl = `https://wa.me/${numberOnly}?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
-      toast({ title: "Redirecting to WhatsApp", description: "Your message is ready to be sent." });
-    }
+    const numberOnly = data.phone.replace(/\D/g, '');
+    const whatsappUrl = `https://wa.me/${numberOnly}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+    toast({ title: "Redirecting to WhatsApp", description: "Your message is ready to be sent." });
+    setIsWhatsAppDialogOpen(false);
+    phoneForm.reset();
   };
+
 
   const handleSaveMethod = async (data: PaymentMethodFormData) => {
     setIsSaving(true);
@@ -220,6 +243,45 @@ export default function PaymentMethodsPage() {
                     onSave={handleSaveMethod}
                     onClose={() => setIsFormOpen(false)}
                 />
+            </DialogContent>
+        </Dialog>
+        
+        <Dialog open={isWhatsAppDialogOpen} onOpenChange={setIsWhatsAppDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Send Payment Details</DialogTitle>
+                    <DialogDescription>
+                        Enter the customer's WhatsApp number to send the details for {selectedMethodForWhatsApp?.bankName}.
+                    </DialogDescription>
+                </DialogHeader>
+                 <Form {...phoneForm}>
+                    <form onSubmit={phoneForm.handleSubmit(handleSendWhatsApp)} className="space-y-4 py-4">
+                        <FormField
+                            control={phoneForm.control}
+                            name="phone"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Customer WhatsApp Number</FormLabel>
+                                <FormControl>
+                                    <PhoneInput
+                                        name={field.name} value={field.value} onChange={field.onChange}
+                                        onBlur={field.onBlur} ref={field.ref} defaultCountry="PK"
+                                        international
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <DialogFooter>
+                            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                            <Button type="submit">
+                                <MessageSquare className="mr-2 h-4 w-4" /> Send
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
             </DialogContent>
         </Dialog>
 
@@ -316,7 +378,7 @@ export default function PaymentMethodsPage() {
                 )}
               </CardContent>
               <CardFooter>
-                <Button className="w-full" onClick={() => handleSendWhatsApp(method)}>
+                <Button className="w-full" onClick={() => openWhatsAppDialog(method)}>
                   <MessageSquare className="mr-2 h-4 w-4" /> Send to Customer
                 </Button>
               </CardFooter>
