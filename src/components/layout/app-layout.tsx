@@ -18,7 +18,10 @@ export const SafeSvg: React.FC<{ svgText?: string; className?: string }> = ({ sv
   if (!svgText || typeof svgText !== 'string') {
     return null;
   }
-  return <div className={className} dangerouslySetInnerHTML={{ __html: svgText }} />;
+  // Remove width and height attributes to allow CSS to control sizing
+  const cleanedSvg = svgText.replace(/width="[^"]*"/g, '').replace(/height="[^"]*"/g, '');
+
+  return <div className={className} dangerouslySetInnerHTML={{ __html: cleanedSvg }} />;
 };
 
 interface NavItem {
