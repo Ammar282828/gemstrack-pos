@@ -2,7 +2,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { getFirestore, type Firestore, enableIndexedDbPersistence, initializeFirestore, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
 
 // --- Your web app's Firebase configuration ---
 // This configuration is hardcoded as requested.
@@ -18,43 +18,60 @@ const firebaseConfig = {
 
 // Initialize Firebase
 let app: FirebaseApp;
+let db: Firestore;
+
 if (!getApps().length) {
     try {
         app = initializeApp(firebaseConfig);
-        console.log("[GemsTrack Firebase Setup] Firebase app initialized successfully with provided config.");
+        db = initializeFirestore(app, {
+            cacheSizeBytes: CACHE_SIZE_UNLIMITED
+        });
+        console.log("[GemsTrack Firebase Setup] Firebase app initialized successfully.");
     } catch (error) {
         console.error("[GemsTrack Firebase Setup] ERROR INITIALIZING FIREBASE APP:", error);
         // @ts-ignore 
-        app = {} as FirebaseApp; // Assign a dummy app to prevent further crashes down the line
+        app = {} as FirebaseApp; 
+        // @ts-ignore
+        db = {} as Firestore;
     }
 } else {
   app = getApp();
+  db = getFirestore(app);
   console.log("[GemsTrack Firebase Setup] Using existing Firebase app instance.");
 }
 
-// Conditionally initialize Auth and Firestore only if the app seems valid
-let auth: Auth;
-let db: Firestore;
+// Enable persistence
+if (typeof window !== 'undefined' && db) {
+  enableIndexedDbPersistence(db)
+    .then(() => console.log("[GemsTrack Firebase Setup] Firestore offline persistence enabled."))
+    .catch((err) => {
+      if (err.code == 'failed-precondition') {
+        console.warn("[GemsTrack Firebase Setup] Multiple tabs open, persistence can only be enabled in one tab at a time.");
+      } else if (err.code == 'unimplemented') {
+        console.warn("[GemsTrack Firebase Setup] The current browser does not support all of the features required to enable persistence.");
+      } else {
+        console.error("[GemsTrack Firebase Setup] Error enabling persistence:", err);
+      }
+    });
+}
 
+// Conditionally initialize Auth only if the app seems valid
+let auth: Auth;
 // @ts-ignore
-if (app && app.name && app.options?.apiKey) { // Check if app is a real FirebaseApp instance
+if (app && app.name && app.options?.apiKey) {
   try {
     auth = getAuth(app);
-    db = getFirestore(app);
-    console.log("[GemsTrack Firebase Setup] Firebase Auth and Firestore services obtained.");
+    console.log("[GemsTrack Firebase Setup] Firebase Auth service obtained.");
   } catch (error) {
-    console.error("[GemsTrack Firebase Setup] Error getting Auth or Firestore service AFTER app initialization.", error);
+    console.error("[GemsTrack Firebase Setup] Error getting Auth service AFTER app initialization.", error);
      // @ts-ignore
     auth = {} as Auth; 
-     // @ts-ignore
-    db = {} as Firestore;
   }
 } else {
-  console.error("[GemsTrack Firebase Setup] Firebase Auth and Firestore NOT initialized because the Firebase app instance appears invalid or unconfigured.");
+  console.error("[GemsTrack Firebase Setup] Firebase Auth NOT initialized because the Firebase app instance appears invalid or unconfigured.");
    // @ts-ignore
   auth = {} as Auth; 
-   // @ts-ignore
-  db = {} as Firestore;
 }
+
 
 export { app, auth, db };
