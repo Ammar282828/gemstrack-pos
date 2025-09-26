@@ -3,22 +3,20 @@
 "use client";
 
 import React, { useState } from 'react';
-import Image from 'next/image';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, PaymentMethod, Settings } from '@/lib/store';
+import { useAppStore, PaymentMethod } from '@/lib/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Landmark, MessageSquare, ArrowLeft, Info, Copy, Save, PlusCircle, Trash2, Upload, Loader2, Edit, X } from 'lucide-react';
+import { Landmark, MessageSquare, ArrowLeft, Info, Copy, Save, PlusCircle, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import QRCode from 'qrcode.react';
 
 const paymentMethodSchema = z.object({
     id: z.string().optional(),
@@ -26,7 +24,6 @@ const paymentMethodSchema = z.object({
     accountName: z.string().min(1, "Account holder name is required"),
     accountNumber: z.string().min(1, "Account number is required"),
     iban: z.string().optional(),
-    qrCodeUrl: z.string().url().optional().or(z.literal('')),
 });
 
 type PaymentMethodFormData = z.infer<typeof paymentMethodSchema>;
@@ -36,9 +33,6 @@ const PaymentMethodForm: React.FC<{
     onSave: (data: PaymentMethodFormData) => void;
     onClose: () => void;
 }> = ({ method, onSave, onClose }) => {
-    const { toast } = useToast();
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
     const form = useForm<PaymentMethodFormData>({
         resolver: zodResolver(paymentMethodSchema),
@@ -47,47 +41,8 @@ const PaymentMethodForm: React.FC<{
             accountName: '',
             accountNumber: '',
             iban: '',
-            qrCodeUrl: '',
         },
     });
-
-    const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        if (file.size > 2 * 1024 * 1024) { // 2MB limit
-            toast({ title: "Image too large", description: "Please upload an image smaller than 2MB.", variant: "destructive" });
-            return;
-        }
-
-        const storage = getStorage();
-        const storageRef = ref(storage, `payment_qrs/${Date.now()}-${file.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, file);
-
-        setIsUploading(true);
-        setUploadProgress(0);
-
-        uploadTask.on('state_changed',
-            (snapshot) => {
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                setUploadProgress(progress);
-            },
-            (error) => {
-                console.error("Upload error:", error);
-                toast({ title: "Upload Failed", variant: "destructive" });
-                setIsUploading(false);
-                setUploadProgress(null);
-            },
-            () => {
-                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                    form.setValue('qrCodeUrl', downloadURL, { shouldDirty: true, shouldValidate: true });
-                    setIsUploading(false);
-                });
-            }
-        );
-    };
-    
-    const qrCodeUrl = form.watch('qrCodeUrl');
 
     return (
         <Form {...form}>
@@ -97,34 +52,9 @@ const PaymentMethodForm: React.FC<{
                 <FormField name="accountNumber" control={form.control} render={({ field }) => (<FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="e.g., 01234567890" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField name="iban" control={form.control} render={({ field }) => (<FormItem><FormLabel>IBAN (Optional)</FormLabel><FormControl><Input placeholder="e.g., PK12..." {...field} /></FormControl><FormMessage /></FormItem>)} />
 
-                <FormItem>
-                    <FormLabel>QR Code Image</FormLabel>
-                    <div className="flex items-center gap-4">
-                         <Button asChild variant="outline" size="sm" className="relative">
-                              <div>
-                                <Upload className="mr-2 h-4 w-4" />
-                                Upload QR
-                                <Input
-                                  type="file"
-                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                  accept="image/png, image/jpeg"
-                                  onChange={handleImageUpload}
-                                  disabled={isUploading}
-                                />
-                              </div>
-                        </Button>
-                        {isUploading && uploadProgress !== null && <Progress value={uploadProgress} className="w-32 h-2" />}
-                        {qrCodeUrl && (
-                          <div className="p-1 border rounded-md w-fit bg-muted">
-                            <Image src={qrCodeUrl} alt="QR Code Preview" width={64} height={64} className="object-contain" unoptimized />
-                          </div>
-                        )}
-                    </div>
-                </FormItem>
-
                 <DialogFooter>
                     <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                    <Button type="submit" disabled={isUploading}>
+                    <Button type="submit">
                         <Save className="mr-2 h-4 w-4" /> Save Method
                     </Button>
                 </DialogFooter>
@@ -205,6 +135,10 @@ export default function PaymentMethodsPage() {
         setIsSaving(false);
     }
   };
+  
+  const getQrValue = (method: PaymentMethod) => {
+      return `Bank: ${method.bankName}\nAccount Name: ${method.accountName}\nAccount #: ${method.accountNumber}${method.iban ? `\nIBAN: ${method.iban}` : ''}`;
+  }
 
   return (
     <div className="container mx-auto p-4 space-y-8">
@@ -272,11 +206,9 @@ export default function PaymentMethodsPage() {
                 <CardDescription>Account Holder: {method.accountName}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow space-y-2">
-                {method.qrCodeUrl && (
-                    <div className="flex justify-center mb-4 p-2 border rounded-md bg-white">
-                        <Image src={method.qrCodeUrl} alt={`${method.bankName} QR Code`} width={150} height={150} className="object-contain"/>
-                    </div>
-                )}
+                 <div className="flex justify-center mb-4 p-2 border rounded-md bg-white">
+                    <QRCode value={getQrValue(method)} size={150} />
+                </div>
                 <div className="flex justify-between items-center py-1.5">
                     <span className="text-sm text-muted-foreground">Account #:</span>
                     <div className="flex items-center gap-2">

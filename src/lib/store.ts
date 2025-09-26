@@ -1,5 +1,4 @@
 
-
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -222,7 +221,6 @@ export interface PaymentMethod {
   accountName: string;
   accountNumber: string;
   iban?: string;
-  qrCodeUrl?: string;
 }
 
 export interface Settings extends GoldRates {
@@ -1822,4 +1820,3 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
-
