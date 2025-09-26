@@ -16,6 +16,38 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import QRCode from 'qrcode.react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const PAKISTANI_BANKS = [
+    "Al Baraka Bank (Pakistan) Limited",
+    "Allied Bank Limited",
+    "Askari Bank",
+    "Bank Alfalah",
+    "Bank Al-Habib",
+    "BankIslami Pakistan",
+    "Bank of Khyber",
+    "Bank of Punjab",
+    "Dubai Islamic Bank",
+    "Faysal Bank",
+    "First Women Bank",
+    "Habib Bank Limited (HBL)",
+    "Habib Metropolitan Bank",
+    "Industrial and Commercial Bank of China",
+    "JS Bank",
+    "MCB Bank",
+    "MCB Islamic Bank",
+    "Meezan Bank",
+    "National Bank of Pakistan",
+    "Samba Bank",
+    "Silkbank Limited",
+    "Sindh Bank",
+    "Soneri Bank",
+    "Standard Chartered Bank (Pakistan)",
+    "Summit Bank",
+    "United Bank Limited (UBL)",
+    "Zarai Taraqiati Bank Limited",
+];
+
 
 const paymentMethodSchema = z.object({
     id: z.string().optional(),
@@ -46,7 +78,28 @@ const PaymentMethodForm: React.FC<{
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSave)} className="space-y-4">
-                <FormField name="bankName" control={form.control} render={({ field }) => (<FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="e.g., Meezan Bank" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                 <FormField
+                    control={form.control}
+                    name="bankName"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Bank Name</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a bank" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {PAKISTANI_BANKS.map((bank) => (
+                                    <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
                 <FormField name="accountName" control={form.control} render={({ field }) => (<FormItem><FormLabel>Account Name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField name="accountNumber" control={form.control} render={({ field }) => (<FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="e.g., 01234567890" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField name="iban" control={form.control} render={({ field }) => (<FormItem><FormLabel>IBAN (Optional)</FormLabel><FormControl><Input placeholder="e.g., PK12..." {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -66,7 +119,7 @@ export default function PaymentMethodsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { paymentMethods, updateSettings } = useAppStore(state => ({
-    paymentMethods: state.settings.paymentMethods,
+    paymentMethods: state.settings.paymentMethods || [],
     updateSettings: state.updateSettings,
   }));
   
