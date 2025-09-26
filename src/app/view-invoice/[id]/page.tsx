@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -29,7 +30,7 @@ export default function ViewInvoicePage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,7 +69,7 @@ export default function ViewInvoicePage() {
         console.error("Error fetching invoice data:", err);
         setError("An error occurred while trying to load the invoice.");
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
@@ -296,7 +297,7 @@ export default function ViewInvoicePage() {
     pdfDoc.save(`Estimate-${invoice.id}.pdf`);
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-muted">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -373,3 +374,5 @@ export default function ViewInvoicePage() {
     </div>
   );
 }
+
+    
