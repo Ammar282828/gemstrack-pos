@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search, ExternalLink } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -149,21 +149,21 @@ const SoldProductRecovery: React.FC = () => {
     const filteredSoldProducts = useMemo(() => {
         if (!searchTerm) return [];
         return soldProducts.filter(p => {
-          if (!p) return false;
-          const lowerCaseSearch = searchTerm.toLowerCase();
-          const matchesSku = p.sku?.toLowerCase().includes(lowerCaseSearch);
-          const matchesName = p.name && p.name.toLowerCase().includes(lowerCaseSearch);
-          return matchesSku || matchesName;
+            if (!p) return false;
+            const lowerCaseSearch = searchTerm.toLowerCase();
+            const matchesSku = p.sku?.toLowerCase().includes(lowerCaseSearch);
+            const matchesName = p.name && p.name.toLowerCase().includes(lowerCaseSearch);
+            return matchesSku || matchesName;
         }).slice(0, 50); // Limit results for performance
     }, [soldProducts, searchTerm]);
 
-    const handleReAdd = async (sku: string) => {
-        setRecoveringSku(sku);
+    const handleReAdd = async (product: Product) => {
+        setRecoveringSku(product.sku);
         try {
-            await reAddSoldProductToInventory(sku);
+            await reAddSoldProductToInventory(product);
             toast({
                 title: 'Product Restored',
-                description: `Product ${sku} has been moved back to active inventory.`,
+                description: `Product ${product.name} has been re-added to inventory with a new SKU.`,
             });
         } catch (error: any) {
             toast({
@@ -183,7 +183,7 @@ const SoldProductRecovery: React.FC = () => {
                     <ArchiveRestore className="mr-2 h-5 w-5" /> Data Recovery
                 </CardTitle>
                 <CardDescription>
-                    Search for a sold product by SKU or name to re-add it to your active inventory.
+                    Search for a sold product by SKU or name to re-add it to your active inventory as a new item.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -213,7 +213,7 @@ const SoldProductRecovery: React.FC = () => {
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => handleReAdd(p.sku)}
+                                        onClick={() => handleReAdd(p)}
                                         disabled={recoveringSku === p.sku}
                                     >
                                         {recoveringSku === p.sku ? (
@@ -679,21 +679,39 @@ export default function SettingsPage() {
         </form>
       </Form>
       
-       <SoldProductRecovery />
-
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Data Import</CardTitle>
-          <CardDescription>Use these tools for importing data from other apps.</CardDescription>
+          <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Data & API Management</CardTitle>
+          <CardDescription>Tools for managing your data and integrations.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Link href="/settings/hisaab-import" passHref>
-              <Button variant="outline" className="w-full">
-                <Import className="mr-2 h-4 w-4" /> Import Hisaab from CSV
+              <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
+                <div className="flex items-center">
+                  <Import className="mr-3 h-5 w-5" />
+                  <div>
+                      <p className="font-semibold">Import Hisaab from CSV</p>
+                      <p className="text-xs text-muted-foreground">Import historical ledgers from other apps.</p>
+                  </div>
+                </div>
+              </Button>
+            </Link>
+             <Link href="/settings/weprint-api" passHref>
+              <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
+                 <div className="flex items-center">
+                    <ExternalLink className="mr-3 h-5 w-5" />
+                    <div>
+                      <p className="font-semibold">WEPrint API Management</p>
+                      <p className="text-xs text-muted-foreground">Curate which products are visible to the API.</p>
+                  </div>
+                </div>
               </Button>
             </Link>
         </CardContent>
       </Card>
+
+       <SoldProductRecovery />
+
        <DangerZone />
     </div>
   );

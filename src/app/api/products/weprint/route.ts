@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Product, Settings, calculateProductCosts } from '@/lib/store';
 
@@ -11,7 +11,12 @@ async function getGlobalSettings(): Promise<Settings | null> {
     const settingsDocRef = doc(db, 'app_settings', 'global');
     const docSnap = await getDoc(settingsDocRef);
     if (docSnap.exists()) {
-        return docSnap.data() as Settings;
+        // Ensure we handle potentially missing weprintApiSkus
+        const data = docSnap.data() as Settings;
+        if (!data.weprintApiSkus) {
+            data.weprintApiSkus = [];
+        }
+        return data;
     }
     return null;
 }
@@ -23,14 +28,29 @@ export async function GET() {
       return NextResponse.json({ error: 'Global settings not found. Please configure settings in the app first.' }, { status: 500 });
     }
 
-    const productsCollectionRef = collection(db, 'products');
-    const productsSnapshot = await getDocs(productsCollectionRef);
-    
-    if (productsSnapshot.empty) {
-        return NextResponse.json([]); // Return empty array if no products found
+    const { weprintApiSkus } = settings;
+
+    if (!weprintApiSkus || weprintApiSkus.length === 0) {
+        return NextResponse.json({ message: "No products have been published to the WEPrint API. Please select products in Settings > WEPrint API Management." });
     }
     
-    const productsList = productsSnapshot.docs.map(doc => doc.data() as Product);
+    // Firestore 'in' queries are limited to 30 items. We need to fetch in batches.
+    const productsList: Product[] = [];
+    const batchSize = 30;
+
+    for (let i = 0; i < weprintApiSkus.length; i += batchSize) {
+        const skuBatch = weprintApiSkus.slice(i, i + batchSize);
+        const productsQuery = query(collection(db, 'products'), where('sku', 'in', skuBatch));
+        const productsSnapshot = await getDocs(productsQuery);
+        
+        productsSnapshot.forEach(doc => {
+            productsList.push(doc.data() as Product);
+        });
+    }
+
+    if (productsList.length === 0) {
+        return NextResponse.json([]);
+    }
 
     const ratesForCalc = {
         goldRatePerGram24k: settings.goldRatePerGram24k,

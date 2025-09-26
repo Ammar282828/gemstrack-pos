@@ -1,5 +1,4 @@
 
-
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -228,6 +227,7 @@ export interface Settings extends GoldRates {
   lastInvoiceNumber: number;
   lastOrderNumber: number;
   allowedDeviceIds: string[];
+  weprintApiSkus: string[];
   theme: ThemeKey;
   firebaseConfig?: FirebaseConfigStub;
 }
@@ -454,6 +454,7 @@ const initialSettingsData: Settings = {
   shopLogoUrl: "https://placehold.co/200x80.png", lastInvoiceNumber: 0,
   lastOrderNumber: 0,
   allowedDeviceIds: [],
+  weprintApiSkus: [],
   theme: 'slate',
   firebaseConfig: {
     projectId: "gemstrack-pos",
@@ -556,7 +557,7 @@ export interface AppState {
 
   loadProducts: () => void;
   loadSoldProducts: () => void;
-  reAddSoldProductToInventory: (sku: string) => Promise<void>;
+  reAddSoldProductToInventory: (soldProduct: Product) => Promise<void>;
   addProduct: (productData: ProductDataForAdd) => Promise<Product | null>;
   updateProduct: (sku: string, updatedProductData: Partial<Omit<Product, 'sku'>>) => Promise<void>;
   deleteProduct: (sku: string) => Promise<void>;
@@ -714,6 +715,9 @@ export const useAppStore = create<AppState>()(
               allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
                 ? firestoreSettings.allowedDeviceIds
                 : [],
+              weprintApiSkus: Array.isArray(firestoreSettings.weprintApiSkus)
+                ? firestoreSettings.weprintApiSkus
+                : [],
               theme: firestoreSettings.theme || 'slate',
             };
             set((state) => { state.settings = finalSettings; });
@@ -809,11 +813,10 @@ export const useAppStore = create<AppState>()(
           }
         );
       },
-      reAddSoldProductToInventory: async (sku) => {
-          console.log(`[reAddSoldProductToInventory] Attempting to re-add based on SKU: ${sku}`);
-          const soldProduct = get().soldProducts.find(p => p.sku === sku);
+      reAddSoldProductToInventory: async (soldProduct) => {
+          console.log(`[reAddSoldProductToInventory] Attempting to re-add based on SKU: ${soldProduct.sku}`);
           if (!soldProduct) {
-              throw new Error(`Sold product with SKU ${sku} not found in local store.`);
+              throw new Error(`Sold product with SKU ${soldProduct.sku} not found in local store.`);
           }
           // Create a new product object, omitting the SKU
           const { sku: _sku, ...productData } = soldProduct;
@@ -1429,7 +1432,7 @@ export const useAppStore = create<AppState>()(
           return null;
         }
       },
-      updateOrder: async (orderId: string, updatedOrderData: Partial<Order>) => {
+      updateOrder: async (orderId, updatedOrderData) => {
         const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
         await setDoc(orderRef, updatedOrderData, { merge: true });
       },
