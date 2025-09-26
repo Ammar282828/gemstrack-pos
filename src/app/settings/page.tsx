@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -14,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search, ExternalLink } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search, ExternalLink, ShieldCheck, ShieldAlert } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -56,9 +57,96 @@ const settingsSchema = z.object({
   lastOrderNumber: z.coerce.number().int().min(0, "Last order number must be a non-negative integer"),
   allowedDeviceIds: z.array(z.object({ id: z.string().min(1, "Device ID cannot be empty.") })).optional(),
   theme: z.enum(themeKeys).default('default'),
+  databaseLocked: z.boolean().optional(),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
+
+const EmergencyLock: React.FC = () => {
+    const { settings, updateSettings } = useAppStore();
+    const { toast } = useToast();
+    const [isLocking, setIsLocking] = useState(false);
+
+    const handleLockDatabase = async () => {
+        setIsLocking(true);
+        try {
+            await updateSettings({ databaseLocked: true });
+            toast({
+                title: "Database Locked",
+                description: "Access has been severed. Reload the app to apply changes.",
+                variant: "destructive",
+                duration: 10000,
+            });
+            // Intentionally do not set isLocking to false, as this is a one-way action.
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to lock the database.", variant: "destructive" });
+            setIsLocking(false);
+        }
+    };
+
+    if (settings.databaseLocked) {
+        return (
+             <Card className="border-green-500 bg-green-500/10">
+                <CardHeader>
+                    <CardTitle className="text-xl flex items-center text-green-600">
+                        <ShieldCheck className="mr-2 h-5 w-5" /> Database Secured
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-green-700 dark:text-green-300">
+                        The connection to the database is currently locked. No data can be read or written. To restore access, you must request a reset from the developer.
+                    </p>
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    return (
+        <Card className="border-destructive bg-destructive/10">
+            <CardHeader>
+                <CardTitle className="text-xl flex items-center text-destructive">
+                    <ShieldAlert className="mr-2 h-5 w-5" /> Emergency Lock
+                </CardTitle>
+                <CardDescription className="text-destructive/80">
+                    This will immediately sever the application's connection to the database.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>WARNING: IRREVERSIBLE ACTION</AlertTitle>
+                    <AlertDescription>
+                        Activating this lock will make the app unusable until a developer manually restores access. This is a final security measure for emergencies.
+                    </AlertDescription>
+                </Alert>
+            </CardContent>
+            <CardFooter>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="lg" className="w-full" disabled={isLocking}>
+                            {isLocking ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ShieldAlert className="mr-2 h-5 w-5" />}
+                            Lock Database Now
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                You are about to lock this application from accessing its database. This action is <strong className="text-destructive">NOT REVERSIBLE</strong> through the user interface.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleLockDatabase} className="bg-destructive hover:bg-destructive/90">
+                                Yes, Lock It Down
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </CardFooter>
+        </Card>
+    );
+};
 
 const DangerZone: React.FC = () => {
     const { deleteLatestProducts } = useAppStore();
@@ -271,6 +359,7 @@ export default function SettingsPage() {
       lastOrderNumber: 0,
       allowedDeviceIds: [],
       theme: 'default',
+      databaseLocked: false,
     },
   });
 
@@ -302,6 +391,7 @@ export default function SettingsPage() {
         lastOrderNumber: currentSettings.lastOrderNumber || 0,
         allowedDeviceIds: deviceIdsForForm,
         theme: currentSettings.theme || 'default',
+        databaseLocked: currentSettings.databaseLocked || false,
       });
       if (currentSettings.shopLogoUrl) {
         setLogoPreview(currentSettings.shopLogoUrl);
@@ -374,6 +464,7 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto p-4 space-y-8">
+      <EmergencyLock />
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <Card>

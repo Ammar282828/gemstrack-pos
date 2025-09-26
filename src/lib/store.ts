@@ -5,7 +5,7 @@ import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc, runTransaction, getDocsFromCache } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, reinitializeFirebase } from '@/lib/firebase';
 import { summarizeOrderItems, SummarizeOrderItemsInput } from '@/ai/flows/summarize-order-items-flow';
 
 
@@ -230,6 +230,7 @@ export interface Settings extends GoldRates {
   allowedDeviceIds: string[];
   weprintApiSkus: string[];
   theme: ThemeKey;
+  databaseLocked?: boolean; // New kill switch flag
   firebaseConfig?: FirebaseConfigStub;
 }
 
@@ -457,6 +458,7 @@ const initialSettingsData: Settings = {
   allowedDeviceIds: [],
   weprintApiSkus: [],
   theme: 'slate',
+  databaseLocked: false,
   firebaseConfig: {
     projectId: "gemstrack-pos",
   }
@@ -701,12 +703,14 @@ export const useAppStore = create<AppState>()(
         if (get().hasSettingsLoaded) return;
         set({ isSettingsLoading: true, settingsError: null });
         try {
+          await reinitializeFirebase(false);
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           const docSnap = await getDoc(settingsDocRef);
+          let loadedSettings: Settings;
           if (docSnap.exists()) {
             const firestoreSettings = docSnap.data() as Partial<Settings>;
             // Ensure allowedDeviceIds is always an array
-            const finalSettings = {
+            loadedSettings = {
               ...initialSettingsData,
               ...firestoreSettings,
               firebaseConfig: {
@@ -721,23 +725,29 @@ export const useAppStore = create<AppState>()(
                 : [],
               theme: firestoreSettings.theme || 'slate',
             };
-            set((state) => { state.settings = finalSettings; });
-            console.log("[GemsTrack Store loadSettings] Settings loaded successfully from Firestore:", finalSettings);
           } else {
             console.log("[GemsTrack Store loadSettings] No settings found in Firestore, creating with initial data.");
             await setDoc(settingsDocRef, initialSettingsData);
-            set((state) => { state.settings = initialSettingsData; });
+            loadedSettings = initialSettingsData;
           }
+          set((state) => { state.settings = loadedSettings; });
+          await reinitializeFirebase(!!loadedSettings.databaseLocked);
+          console.log("[GemsTrack Store loadSettings] Settings loaded successfully from Firestore:", loadedSettings);
+
         } catch (error: any) {
           console.error("[GemsTrack Store loadSettings] Error loading settings from Firestore:", error);
           set({ settingsError: error.message || 'Failed to connect to the database.' });
           set((state) => { state.settings = initialSettingsData; }); // Fallback
+          await reinitializeFirebase(true); // Lock db on error
         } finally {
           set({ isSettingsLoading: false, hasSettingsLoaded: true });
         }
       },
       updateSettings: async (newSettings) => {
         const currentSettings = get().settings;
+        const wasLocked = currentSettings.databaseLocked;
+        const isNowLocked = newSettings.databaseLocked;
+        
         const updatedSettings = { ...currentSettings, ...newSettings };
         console.log("[GemsTrack Store updateSettings] Attempting to update settings:", updatedSettings);
         set((state) => { state.settings = updatedSettings; });
@@ -745,6 +755,10 @@ export const useAppStore = create<AppState>()(
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           await setDoc(settingsDocRef, updatedSettings, { merge: true });
           console.log("[GemsTrack Store updateSettings] Settings updated successfully in Firestore.");
+
+          if (wasLocked !== isNowLocked) {
+              await reinitializeFirebase(!!isNowLocked);
+          }
         } catch (error)
         {
           console.error("[GemsTrack Store updateSettings] Error updating settings in Firestore:", error);
@@ -817,7 +831,7 @@ export const useAppStore = create<AppState>()(
        reAddSoldProductToInventory: async (soldProduct) => {
         console.log(`[reAddSoldProductToInventory] Attempting to re-add based on SKU: ${soldProduct?.sku}`);
         if (!soldProduct) {
-            throw new Error(`Sold product not found.`);
+             throw new Error(`Sold product not found.`);
         }
         // Create a new product object, omitting the SKU, and add it.
         const { sku, qrCodeDataUrl, ...productDataForAdd } = soldProduct;
@@ -1161,7 +1175,7 @@ export const useAppStore = create<AppState>()(
         console.log("[GemsTrack Store generateInvoice] Starting invoice generation...");
 
         try {
-            return await runTransaction(db, async (transaction) => {
+            const result = await runTransaction(db, async (transaction) => {
                 const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
                 const settingsDoc = await transaction.get(settingsDocRef);
                 if (!settingsDoc.exists()) throw new Error("Global settings not found.");
@@ -1262,6 +1276,11 @@ export const useAppStore = create<AppState>()(
 
                 return finalInvoice;
             });
+
+            // This line should be outside the transaction, in the main function body.
+            set(state => { state.cart = []; });
+
+            return result;
         } catch (error) {
             console.error("[GemsTrack Store generateInvoice] Transaction failed: ", error);
             return null;
