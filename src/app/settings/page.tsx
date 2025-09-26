@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -149,10 +148,13 @@ const SoldProductRecovery: React.FC = () => {
 
     const filteredSoldProducts = useMemo(() => {
         if (!searchTerm) return [];
-        return soldProducts.filter(p => 
-            p.sku.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            p.name.toLowerCase().includes(searchTerm.toLowerCase())
-        ).slice(0, 50); // Limit results for performance
+        return soldProducts.filter(p => {
+          if (!p) return false;
+          const lowerCaseSearch = searchTerm.toLowerCase();
+          const matchesSku = p.sku?.toLowerCase().includes(lowerCaseSearch);
+          const matchesName = p.name && p.name.toLowerCase().includes(lowerCaseSearch);
+          return matchesSku || matchesName;
+        }).slice(0, 50); // Limit results for performance
     }, [soldProducts, searchTerm]);
 
     const handleReAdd = async (sku: string) => {
