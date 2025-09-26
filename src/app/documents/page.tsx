@@ -35,7 +35,7 @@ const getStatusBadgeVariant = (status: Order['status'] | 'Paid' | 'Unpaid') => {
 
 const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' => {
   if (doc.docType === 'order') {
-    return doc.status;
+    return (doc as Order).status;
   }
   return doc.balanceDue <= 0 ? 'Paid' : 'Unpaid';
 };
