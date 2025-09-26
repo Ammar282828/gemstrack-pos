@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard } from 'lucide-react';
+import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -34,6 +34,7 @@ const navItems: NavItem[] = [
 
   // Management
   { href: '/orders', label: 'Orders', icon: <ClipboardList /> },
+  { href: '/documents', label: 'Documents', icon: <FileText /> },
   { href: '/calendar', label: 'Calendar', icon: <Calendar /> },
   { href: '/products', label: 'Products', icon: <Gem /> },
   { href: '/customers', label: 'Customers', icon: <Users /> },
