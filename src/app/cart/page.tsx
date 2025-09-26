@@ -122,10 +122,12 @@ export default function CartPage() {
         if (invoice) {
             setGeneratedInvoice(invoice);
              // Since we are loading a finalized invoice, we don't need the cart
-            clearCart();
+            if (cartItemsFromStore.length > 0) {
+              clearCart();
+            }
         }
     }
-  }, [preloadedInvoiceId, allInvoices, clearCart, isEditingEstimate]);
+  }, [preloadedInvoiceId, allInvoices, clearCart, isEditingEstimate, cartItemsFromStore.length]);
 
 
   useEffect(() => {
@@ -295,7 +297,6 @@ export default function CartPage() {
     const invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount);
     
     if (invoice) {
-      clearCart();
       setGeneratedInvoice(invoice);
        // Pre-fill WhatsApp number if a customer with a phone number is selected
       if(invoice.customerContact) {
@@ -448,7 +449,7 @@ export default function CartPage() {
 
     const itemsToPrint = Array.isArray(invoiceToPrint.items) ? invoiceToPrint.items : Object.values(invoiceToPrint.items);
 
-    itemsToPrint.forEach((item, index) => {
+    itemsToPrint.forEach((item: InvoiceItem, index) => {
         let breakdownLines = [];
         if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
