@@ -48,6 +48,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
   const { toast } = useToast();
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const operationLock = useRef(false);
+  const lastScanRef = useRef<{ text: string; time: number } | null>(null);
 
   const [scannerState, setScannerState] = useState<'stopped' | 'starting' | 'scanning' | 'error'>('stopped');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -56,15 +57,26 @@ export default function QrScanner({ isActive }: QrScannerProps) {
   const [cameraCapabilities, setCameraCapabilities] = useState<MediaTrackCapabilities | null>(null);
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText) => {
+    const now = Date.now();
+    const lastScan = lastScanRef.current;
+    
+    // Debounce logic: if the same code was scanned less than 2 seconds ago, ignore it.
+    if (lastScan && lastScan.text === decodedText && (now - lastScan.time) < 2000) {
+        return;
+    }
+
     const state = useAppStore.getState();
     const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
 
     if (isAlreadyInCart) {
-        toast({
-            title: "Item Already in Cart",
-            description: `Product with SKU ${decodedText.trim()} is already in your cart.`,
-            variant: "default"
-        });
+        // Only toast for the first time it sees the duplicate
+        if (!lastScan || lastScan.text !== decodedText) {
+            toast({
+                title: "Item Already in Cart",
+                description: `Product with SKU ${decodedText.trim()} is already in your cart.`,
+                variant: "default"
+            });
+        }
     } else {
         const product = state.products.find(p => p.sku === decodedText.trim());
         if (product) {
@@ -77,6 +89,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
           toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
         }
     }
+    lastScanRef.current = { text: decodedText, time: now };
   }, [toast]);
 
 
@@ -225,5 +238,3 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     </div>
   );
 }
-
-    
