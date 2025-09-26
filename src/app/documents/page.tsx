@@ -76,7 +76,14 @@ export default function DocumentsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const appReady = useAppReady();
-  const { orders, invoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices } = useAppStore();
+  const { orders, invoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices } = useAppStore(state => ({
+    orders: state.orders,
+    invoices: state.generatedInvoices,
+    isOrdersLoading: state.isOrdersLoading,
+    isInvoicesLoading: state.isInvoicesLoading,
+    loadOrders: state.loadOrders,
+    loadGeneratedInvoices: state.loadGeneratedInvoices
+  }));
   
   useEffect(() => {
     if (appReady) {
@@ -89,8 +96,8 @@ export default function DocumentsPage() {
 
   const combinedDocuments: DocumentType[] = useMemo(() => {
     if (!appReady) return [];
-    const orderDocs: DocumentType[] = orders.map(o => ({ ...o, docType: 'order' }));
-    const invoiceDocs: DocumentType[] = invoices.map(i => ({ ...i, docType: 'invoice' }));
+    const orderDocs: DocumentType[] = (orders || []).map(o => ({ ...o, docType: 'order' }));
+    const invoiceDocs: DocumentType[] = (invoices || []).map(i => ({ ...i, docType: 'invoice' }));
     return [...orderDocs, ...invoiceDocs].sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
   }, [appReady, orders, invoices]);
 
