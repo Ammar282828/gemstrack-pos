@@ -257,10 +257,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
             if (data.submitAction === 'saveAndAddAnother') {
               const originalCategory = form.getValues('categoryId');
+              const hadStones = form.getValues('hasStones');
+              const hadDiamonds = form.getValues('hasDiamonds');
               form.reset({
                   name: '',
                   categoryId: originalCategory, metalType: 'gold', karat: '21k', metalWeightG: 0, wastagePercentage: 10,
-                  makingCharges: 0, hasDiamonds: false, hasStones: false, stoneWeightG: 0, diamondCharges: 0,
+                  makingCharges: 0, 
+                  hasStones: hadStones,
+                  hasDiamonds: hadDiamonds,
+                  stoneWeightG: 0, diamondCharges: 0,
                   stoneCharges: 0, miscCharges: 0, imageUrl: "", stoneDetails: "", diamondDetails: "",
                   secondaryMetalType: '', secondaryMetalKarat: '', secondaryMetalWeightG: 0,
                   isCustomPrice: false, customPrice: 0, description: '',
@@ -543,5 +548,3 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     </Form>
   );
 };
-
-    
