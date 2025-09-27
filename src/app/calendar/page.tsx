@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, startOfDay, isSameDay } from 'date-fns';
-import { Loader2, ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X } from 'lucide-react';
+import { Loader2, ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X, Trash2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -20,6 +20,8 @@ import {
   DrawerDescription,
 } from "@/components/ui/drawer"
 import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 type CalendarEventType = (Invoice | Order) & { eventType: 'invoice' | 'order' };
 
@@ -33,6 +35,23 @@ type EventsByDate = {
 
 
 const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selectedDate: Date | undefined }> = ({ events, selectedDate }) => {
+    const { deleteInvoice, deleteOrder } = useAppStore();
+    const { toast } = useToast();
+    
+    const handleDelete = async (event: CalendarEventType) => {
+        try {
+            if (event.eventType === 'invoice') {
+                await deleteInvoice(event.id);
+                toast({ title: 'Invoice Deleted', description: `Invoice ${event.id} has been removed.`});
+            } else {
+                await deleteOrder(event.id);
+                toast({ title: 'Order Deleted', description: `Order ${event.id} has been removed.`});
+            }
+        } catch (e) {
+            toast({ title: 'Error', description: `Failed to delete the document.`, variant: 'destructive'});
+        }
+    };
+
     if (!selectedDate) {
         return <p className="text-muted-foreground text-center py-10">Select a day on the calendar to see its events.</p>;
     }
@@ -44,25 +63,46 @@ const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selected
     return (
         <div className="space-y-3">
             {events.map(event => (
-               <Link href={event.eventType === 'order' ? `/orders/${event.id}` : `/cart?invoice_id=${event.id}`} key={event.id} passHref>
-                <div className={cn("p-3 rounded-lg border-l-4 hover:bg-muted/50 block cursor-pointer transition-colors bg-muted/20", {
+               <div key={event.id} className={cn("p-3 rounded-lg border-l-4 bg-muted/20 flex flex-col md:flex-row justify-between gap-2", {
                     'border-green-500': event.eventType === 'invoice',
                     'border-blue-500': event.eventType === 'order'
                 })}>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            {event.eventType === 'invoice' ? <FileText className="h-4 w-4 text-green-500" /> : <ClipboardList className="h-4 w-4 text-blue-500"/>}
-                            <Badge variant="outline" className="text-xs font-mono">{event.id}</Badge>
+                    <Link href={event.eventType === 'order' ? `/orders/${event.id}` : `/cart?invoice_id=${event.id}`} passHref className="flex-grow">
+                        <div className="flex items-center justify-between cursor-pointer hover:bg-muted/50 rounded-md p-1 -m-1">
+                            <div className="flex items-center gap-2">
+                                {event.eventType === 'invoice' ? <FileText className="h-4 w-4 text-green-500" /> : <ClipboardList className="h-4 w-4 text-blue-500"/>}
+                                <Badge variant="outline" className="text-xs font-mono">{event.id}</Badge>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="mt-2">
-                      <p className="font-semibold text-sm">PKR {('grandTotal' in event) ? event.grandTotal.toLocaleString() : 'N/A'}</p>
-                      <p className="text-xs text-muted-foreground">{('customerName' in event && event.customerName) ? event.customerName : 'Walk-in'}</p>
-                      <p className="text-xs text-muted-foreground">{format(parseISO(event.createdAt), 'hh:mm a')}</p>
+                        <div className="mt-2 pl-1">
+                          <p className="font-semibold text-sm">PKR {('grandTotal' in event) ? event.grandTotal.toLocaleString() : 'N/A'}</p>
+                          <p className="text-xs text-muted-foreground">{('customerName' in event && event.customerName) ? event.customerName : 'Walk-in'}</p>
+                          <p className="text-xs text-muted-foreground">{format(parseISO(event.createdAt), 'hh:mm a')}</p>
+                        </div>
+                    </Link>
+                    <div className="flex-shrink-0 self-end md:self-center">
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the {event.eventType} <strong className="font-mono">{event.id}</strong> and all associated data.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDelete(event)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </div>
                 </div>
-               </Link>
             ))}
         </div>
     );
