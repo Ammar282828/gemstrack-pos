@@ -372,7 +372,7 @@ export default function PaymentMethodsPage() {
                         <span className="text-sm text-muted-foreground">IBAN:</span>
                         <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm">{method.iban}</span>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleCopyToClipboard(method.iban, "IBAN")}><Copy className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => method.iban && handleCopyToClipboard(method.iban, "IBAN")}><Copy className="h-3.5 w-3.5" /></Button>
                         </div>
                     </div>
                 )}
