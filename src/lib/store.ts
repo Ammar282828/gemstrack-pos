@@ -461,7 +461,7 @@ const initialSettingsData: Settings = {
   palladiumRatePerGram: 22000, platinumRatePerGram: 25000, silverRatePerGram: 250,
   shopName: "Taheri", shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
-  shopLogoUrl: "", lastInvoiceNumber: 0,
+  shopLogoUrl: "", shopLogoUrlBlack: "", lastInvoiceNumber: 0,
   lastOrderNumber: 0,
   allowedDeviceIds: [],
   weprintApiSkus: [],
