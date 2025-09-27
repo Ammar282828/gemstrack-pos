@@ -50,6 +50,9 @@ export default function ActivityLogPage() {
     }, [loadActivityLog]);
     
     const filteredLogs = useMemo(() => {
+        if (!Array.isArray(activityLog)) {
+            return [];
+        }
         return activityLog
             .filter(log => {
                 if (typeFilter !== 'All' && !log.eventType.startsWith(typeFilter)) {
@@ -65,7 +68,7 @@ export default function ActivityLogPage() {
             .sort((a,b) => parseISO(b.timestamp).getTime() - parseISO(a.timestamp).getTime());
     }, [activityLog, dateRange, typeFilter]);
 
-    if (isActivityLogLoading) {
+    if (isActivityLogLoading && (!activityLog || activityLog.length === 0)) {
         return (
             <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
                 <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
