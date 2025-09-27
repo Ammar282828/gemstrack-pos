@@ -574,7 +574,7 @@ export default function SettingsPage() {
                               <FormControl>
                                 <Input {...field} placeholder="Enter a unique device ID" />
                               </FormControl>
-                              <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
+                              <Button type="button" variant="destructive" size="icon" onClick={() => removeDeviceId(index)}>
                                 <Trash2 className="h-4 w-4" />
                                 <span className="sr-only">Remove Device ID</span>
                               </Button>
