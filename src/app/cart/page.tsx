@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -27,6 +27,7 @@ import { Control, useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
 import { ProductForm } from '@/components/product/product-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { format } from 'date-fns';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -214,6 +215,7 @@ export default function CartPage() {
             stoneChargesIfAny: costs.stoneCharges,
             miscChargesIfAny: costs.miscCharges,
             originalPrice: itemTotal,
+            paymentHistory: [],
         });
     });
 
@@ -331,6 +333,35 @@ export default function CartPage() {
     });
     setDiscountAmountInput(String(generatedInvoice.discountAmount));
     setGeneratedInvoice(null);
+  };
+  
+    const handleRecordPayment = async () => {
+    if (!generatedInvoice || !paymentAmount) return;
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: "Invalid Amount", description: "Please enter a positive payment amount.", variant: "destructive" });
+      return;
+    }
+     if (amount > generatedInvoice.balanceDue) {
+      toast({ title: "Overpayment", description: `Payment cannot exceed the balance due of PKR ${generatedInvoice.balanceDue.toLocaleString()}.`, variant: "destructive" });
+      return;
+    }
+
+    setIsSubmittingPayment(true);
+    try {
+      const updatedInvoice = await updateInvoicePayment(generatedInvoice.id, amount, new Date().toISOString());
+      if (updatedInvoice) {
+        setGeneratedInvoice(updatedInvoice); // Update local state with the new invoice data
+        setPaymentAmount('');
+        toast({ title: "Payment Recorded", description: `PKR ${amount.toLocaleString()} has been recorded.` });
+      } else {
+        throw new Error("Failed to get updated invoice from the store.");
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to record payment.", variant: "destructive" });
+    } finally {
+      setIsSubmittingPayment(false);
+    }
   };
 
 
@@ -504,6 +535,29 @@ export default function CartPage() {
 
     let finalY = doc.lastAutoTable.finalY || 0;
     
+    // Add payment history if it exists
+    if (invoiceToPrint.paymentHistory && invoiceToPrint.paymentHistory.length > 0) {
+        finalY += 10;
+        doc.setFontSize(10).setFont("helvetica", "bold");
+        doc.text("Payment History", margin, finalY);
+        finalY += 5;
+        const paymentRows = invoiceToPrint.paymentHistory.map(p => [
+            format(new Date(p.date), 'PP'),
+            `PKR ${p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+            p.notes || 'Payment received'
+        ]);
+        doc.autoTable({
+            head: [['Date', 'Amount', 'Notes']],
+            body: paymentRows,
+            startY: finalY,
+            theme: 'striped',
+            headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 9 },
+            styles: { fontSize: 8 },
+        });
+        finalY = doc.lastAutoTable.finalY || finalY;
+    }
+
+
     const footerAndTotalsHeight = 85; // Combined estimated height
     let needsNewPage = finalY + footerAndTotalsHeight > pageHeight - margin;
 
@@ -700,23 +754,48 @@ export default function CartPage() {
                         </div>
                         <Button 
                             className="w-full"
-                            disabled={!paymentAmount || isSubmittingPayment}
-                            onClick={() => { /* Implement payment submission logic */ }}
+                            disabled={!paymentAmount || isSubmittingPayment || generatedInvoice.balanceDue <= 0}
+                            onClick={handleRecordPayment}
                         >
                             {isSubmittingPayment ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Banknote className="mr-2 h-4 w-4"/>}
                             Submit Payment
                         </Button>
                     </div>
                 </div>
-                 {generatedInvoice.balanceDue < generatedInvoice.grandTotal && (
-                    <Alert variant="default" className="bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300">
-                        <Check className="h-4 w-4 text-green-600"/>
-                        <AlertTitle>Payment History</AlertTitle>
-                        <AlertDescription>
-                            A total of <strong className="font-semibold">PKR {generatedInvoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</strong> has been paid. 
-                            The outstanding balance is <strong className="font-semibold">PKR {generatedInvoice.balanceDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</strong>.
-                        </AlertDescription>
-                    </Alert>
+                 {generatedInvoice.paymentHistory && generatedInvoice.paymentHistory.length > 0 && (
+                     <div>
+                        <h3 className="text-lg font-semibold flex items-center mb-2"><List className="mr-2 h-5 w-5"/>Payment History</h3>
+                        <Card>
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead><CalendarIcon className="h-4 w-4 inline-block mr-1"/> Date</TableHead>
+                                            <TableHead>Notes</TableHead>
+                                            <TableHead className="text-right">Amount (PKR)</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {generatedInvoice.paymentHistory.map((p, index) => (
+                                            <TableRow key={index}>
+                                                <TableCell>{format(new Date(p.date), 'PP')}</TableCell>
+                                                <TableCell>{p.notes || 'Payment received'}</TableCell>
+                                                <TableCell className="text-right font-medium">{p.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                        <Alert variant="default" className="mt-4 bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300">
+                            <Check className="h-4 w-4 text-green-600"/>
+                            <AlertTitle>Payment Summary</AlertTitle>
+                            <AlertDescription>
+                                A total of <strong className="font-semibold">PKR {generatedInvoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</strong> has been paid. 
+                                The outstanding balance is <strong className="font-semibold">PKR {generatedInvoice.balanceDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</strong>.
+                            </AlertDescription>
+                        </Alert>
+                     </div>
                  )}
 
            </CardContent>
