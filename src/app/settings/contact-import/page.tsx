@@ -9,6 +9,7 @@ import { AlertTriangle, FileUp, ListChecks, Check, X, Import, Loader2, User, Arr
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
+import vCardParser from 'vcard-parser';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
@@ -33,12 +34,60 @@ export default function ContactImportPage() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setError(null);
-      setParsedData([]);
-      
-      Papa.parse<any>(selectedFile, {
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+    setError(null);
+    setParsedData([]);
+
+    if (selectedFile.name.toLowerCase().endsWith('.vcf') || selectedFile.name.toLowerCase().endsWith('.vcard')) {
+      handleVcfUpload(selectedFile);
+    } else if (selectedFile.name.toLowerCase().endsWith('.csv')) {
+      handleCsvUpload(selectedFile);
+    } else {
+      setError("Unsupported file type. Please upload a .csv or .vcf file.");
+    }
+  };
+
+  const handleVcfUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      try {
+        const cards = vCardParser.parse(text);
+        if (!cards || cards.length === 0) {
+           setError("No contacts found in the VCF file.");
+           return;
+        }
+        
+        const parsedRows: ParsedRow[] = cards.map(card => {
+          const name = card.fn?.[0]?.value || `${card.n?.value?.given || ''} ${card.n?.value?.family || ''}`.trim();
+          const phone = card.tel?.[0]?.value || '';
+          const email = card.email?.[0]?.value || '';
+          // VCF address format is complex, we'll join available fields.
+          const adr = card.adr?.[0]?.value;
+          const address = adr ? [adr.street, adr.locality, adr.region, adr.postalCode, adr.country].filter(Boolean).join(', ') : '';
+          
+          return {
+            Name: name,
+            Phone: phone,
+            Email: email,
+            Address: address,
+            isValid: !!(name || phone),
+          };
+        });
+        setParsedData(parsedRows);
+
+      } catch (parseError) {
+        setError("Failed to parse the VCF file. Please ensure it's a valid vCard file.");
+        console.error("VCF Parse Error:", parseError);
+      }
+    };
+    reader.readAsText(file);
+  };
+  
+  const handleCsvUpload = (file: File) => {
+      Papa.parse<any>(file, {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
@@ -49,10 +98,9 @@ export default function ContactImportPage() {
           
           const requiredHeaders = ['Name', 'Phone', 'Email', 'Address'];
           const actualHeaders = results.meta.fields || [];
-          const missingHeaders = requiredHeaders.filter(h => !actualHeaders.includes(h));
-
-          if (missingHeaders.length > 0) {
-            setError(`Missing required columns in CSV: ${missingHeaders.join(', ')}. Please ensure your file has the correct headers.`);
+          // Check for at least one required header for CSV
+          if (!actualHeaders.includes('Name') && !actualHeaders.includes('Phone')) {
+            setError(`CSV must contain at least a 'Name' or 'Phone' column.`);
             return;
           }
 
@@ -61,12 +109,11 @@ export default function ContactImportPage() {
               Phone: row.Phone || '',
               Email: row.Email || '',
               Address: row.Address || '',
-              isValid: !!(row.Name || row.Phone), // A contact is valid if it has at least a name or a phone number
+              isValid: !!(row.Name || row.Phone),
           }));
           setParsedData(parsedRows);
         },
       });
-    }
   };
 
   const handleImport = async () => {
@@ -118,10 +165,10 @@ export default function ContactImportPage() {
             </Button>
             <CardTitle className="text-2xl flex items-center">
                 <User className="mr-3 h-7 w-7 text-primary" />
-                Import Customers from CSV
+                Import Customers from File
             </CardTitle>
             <CardDescription>
-                Bulk-add customers to your database from a CSV file.
+                Bulk-add customers to your database from a CSV or VCF (vCard) file.
             </CardDescription>
         </header>
 
@@ -131,10 +178,10 @@ export default function ContactImportPage() {
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Instructions & Required Format</AlertTitle>
                 <AlertDescription>
+                <p>You can upload either a CSV or a VCF file.</p>
                 <ul className="list-disc pl-5 mt-2 space-y-1">
-                    <li>Your CSV file must contain the following exact column headers: <strong className="font-mono">Name, Phone, Email, Address</strong>.</li>
-                    <li>Each row represents one customer. At least a <strong className="font-mono">Name</strong> or <strong className="font-mono">Phone</strong> is required for each customer to be considered valid.</li>
-                    <li>Columns can be in any order, but the names must match exactly.</li>
+                    <li><strong>For CSV:</strong> Your file must contain the headers: <strong className="font-mono">Name, Phone, Email, Address</strong>. At least a Name or Phone is required per row.</li>
+                    <li><strong>For VCF/vCard:</strong> Standard vCard format is supported. The system will extract the Full Name (FN), first phone number, and first email address.</li>
                 </ul>
                 </AlertDescription>
             </Alert>
@@ -142,13 +189,13 @@ export default function ContactImportPage() {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
             <div>
-              <label htmlFor="file-upload" className="text-sm font-medium block mb-2">Upload CSV File</label>
+              <label htmlFor="file-upload" className="text-sm font-medium block mb-2">Upload CSV or VCF File</label>
               <div className="flex items-center gap-2">
                  <Button asChild variant="outline" className="relative">
                     <div>
                         <FileUp className="mr-2 h-4 w-4" />
                         {file ? 'Change File' : 'Choose File'}
-                        <input id="file-upload" type="file" accept=".csv" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                        <input id="file-upload" type="file" accept=".csv,.vcf,.vcard" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                     </div>
                 </Button>
                 {file && <span className="text-sm text-muted-foreground">{file.name}</span>}
@@ -205,4 +252,3 @@ export default function ContactImportPage() {
     </div>
   );
 }
-
