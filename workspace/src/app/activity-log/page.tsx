@@ -50,7 +50,9 @@ export default function ActivityLogPage() {
     }, [loadActivityLog]);
     
     const filteredLogs = useMemo(() => {
-        if (!activityLog || activityLog.length === 0) return [];
+        if (!Array.isArray(activityLog)) {
+            return [];
+        }
         return activityLog
             .filter(log => {
                 if (typeFilter !== 'All' && !log.eventType.startsWith(typeFilter)) {
@@ -141,3 +143,5 @@ export default function ActivityLogPage() {
         </div>
     );
 }
+
+    

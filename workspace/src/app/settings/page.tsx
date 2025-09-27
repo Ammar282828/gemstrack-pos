@@ -14,21 +14,16 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search, ExternalLink, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search, ExternalLink, ShieldCheck, ShieldAlert, Landmark } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-const SafeSvg: React.FC<{ svgText?: string; className?: string }> = ({ svgText, className }) => {
-  if (!svgText || typeof svgText !== 'string') {
-    return null;
-  }
-  return <div className={className} dangerouslySetInnerHTML={{ __html: svgText }} />;
-};
-
+import Image from 'next/image';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { Progress } from '@/components/ui/progress';
 
 const DEVICE_ID_KEY = 'gemstrack-device-id';
 
@@ -57,8 +52,8 @@ const settingsSchema = z.object({
   shopName: z.string().min(1, "Shop name is required"),
   shopAddress: z.string().optional(),
   shopContact: z.string().optional(),
-  shopLogoSvg: z.string().optional(),
-  shopLogoSvgBlack: z.string().optional(),
+  shopLogoUrl: z.string().optional(),
+  shopLogoUrlBlack: z.string().optional(),
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
   lastOrderNumber: z.coerce.number().int().min(0, "Last order number must be a non-negative integer"),
   allowedDeviceIds: z.array(z.object({ id: z.string().min(1, "Device ID cannot be empty.") })).optional(),
@@ -154,182 +149,6 @@ const EmergencyLock: React.FC = () => {
     );
 };
 
-const DangerZone: React.FC = () => {
-    const { deleteLatestProducts } = useAppStore();
-    const { toast } = useToast();
-    const [deleteCount, setDeleteCount] = useState<number>(1);
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    const handleDelete = async () => {
-        if (deleteCount <= 0) {
-            toast({ title: "Invalid Number", description: "Please enter a positive number of products to delete.", variant: "destructive" });
-            return;
-        }
-        setIsDeleting(true);
-        try {
-            const deletedCount = await deleteLatestProducts(deleteCount);
-            toast({ title: "Success", description: `${deletedCount} latest products have been deleted.` });
-        } catch (e: any) {
-            toast({ title: "Error", description: `Failed to delete products: ${e.message}`, variant: "destructive" });
-        } finally {
-            setIsDeleting(false);
-        }
-    };
-
-    return (
-        <Card className="border-destructive">
-            <CardHeader>
-                <CardTitle className="text-xl flex items-center text-destructive">
-                    <AlertTriangle className="mr-2 h-5 w-5" /> Danger Zone
-                </CardTitle>
-                <CardDescription>
-                    These are destructive actions. Use them with extreme caution as they cannot be undone.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div>
-                    <Label htmlFor="delete-count">Delete Latest Products</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                        <Input
-                            id="delete-count"
-                            type="number"
-                            value={deleteCount}
-                            onChange={(e) => setDeleteCount(parseInt(e.target.value, 10) || 1)}
-                            min="1"
-                            className="w-32"
-                        />
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="destructive" disabled={isDeleting}>
-                                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash className="mr-2 h-4 w-4" />}
-                                    Delete {deleteCount} Product(s)
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete the <strong>{deleteCount}</strong> most recently added products from your inventory.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                                        Yes, delete them
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </div>
-                     <p className="text-xs text-muted-foreground mt-2">
-                        This will remove the specified number of products based on the highest SKU numbers.
-                    </p>
-                </div>
-            </CardContent>
-        </Card>
-    );
-};
-
-const SoldProductRecovery: React.FC = () => {
-    const { soldProducts, isSoldProductsLoading, loadSoldProducts, reAddSoldProductToInventory } = useAppStore();
-    const { toast } = useToast();
-    const [searchTerm, setSearchTerm] = useState('');
-    const [recoveringSku, setRecoveringSku] = useState<string | null>(null);
-
-    useEffect(() => {
-        loadSoldProducts();
-    }, [loadSoldProducts]);
-
-    const filteredSoldProducts = useMemo(() => {
-        if (!searchTerm) return [];
-        return soldProducts.filter(p => {
-            if (!p) return false;
-            const lowerCaseSearch = searchTerm.toLowerCase();
-            const matchesSku = p.sku?.toLowerCase().includes(lowerCaseSearch);
-            const matchesName = p.name && p.name.toLowerCase().includes(lowerCaseSearch);
-            return matchesSku || matchesName;
-        }).slice(0, 50); // Limit results for performance
-    }, [soldProducts, searchTerm]);
-
-    const handleReAdd = async (product: Product) => {
-        setRecoveringSku(product.sku);
-        try {
-            await reAddSoldProductToInventory(product);
-            toast({
-                title: 'Product Restored',
-                description: `Product ${product.name} has been re-added to inventory with a new SKU.`,
-            });
-        } catch (error: any) {
-            toast({
-                title: 'Error',
-                description: `Failed to restore product: ${error.message}`,
-                variant: 'destructive',
-            });
-        } finally {
-            setRecoveringSku(null);
-        }
-    };
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-xl flex items-center">
-                    <ArchiveRestore className="mr-2 h-5 w-5" /> Data Recovery
-                </CardTitle>
-                <CardDescription>
-                    Search for a sold product by SKU or name to re-add it to your active inventory as a new item.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                        placeholder="Search SKU or Name..."
-                        className="pl-9"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                {isSoldProductsLoading && searchTerm && (
-                    <div className="flex items-center justify-center p-4">
-                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    </div>
-                )}
-                {filteredSoldProducts.length > 0 && (
-                    <ScrollArea className="h-64 border rounded-md">
-                        <div className="p-2 space-y-1">
-                            {filteredSoldProducts.map(p => (
-                                <div key={p.sku} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                    <div>
-                                        <p className="font-semibold">{p.name}</p>
-                                        <p className="text-sm text-muted-foreground">{p.sku}</p>
-                                    </div>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleReAdd(p)}
-                                        disabled={recoveringSku === p.sku}
-                                    >
-                                        {recoveringSku === p.sku ? (
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                        )}
-                                        Re-Add to Inventory
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    </ScrollArea>
-                )}
-                {searchTerm && !isSoldProductsLoading && filteredSoldProducts.length === 0 && (
-                    <p className="text-center text-sm text-muted-foreground p-4">No sold products found matching your search.</p>
-                )}
-            </CardContent>
-        </Card>
-    );
-};
-
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -337,6 +156,10 @@ export default function SettingsPage() {
   const currentSettings = useAppStore(state => state.settings);
   const updateSettingsAction = useAppStore(state => state.updateSettings);
   const isSettingsLoading = useAppStore(state => state.isSettingsLoading);
+  
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number | null }>({});
+  const [isUploading, setIsUploading] = useState<{ [key: string]: boolean }>({});
+
 
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
 
@@ -357,8 +180,8 @@ export default function SettingsPage() {
       shopName: "",
       shopAddress: "",
       shopContact: "",
-      shopLogoSvg: "",
-      shopLogoSvgBlack: "",
+      shopLogoUrl: "",
+      shopLogoUrlBlack: "",
       lastInvoiceNumber: 0,
       lastOrderNumber: 0,
       allowedDeviceIds: [],
@@ -367,11 +190,11 @@ export default function SettingsPage() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: deviceIdFields, append: appendDeviceId, remove: removeDeviceId } = useFieldArray({
     control: form.control,
     name: "allowedDeviceIds",
   });
-
+  
   React.useEffect(() => {
     if (appReady && currentSettings) {
       const deviceIdsForForm = Array.isArray(currentSettings.allowedDeviceIds) 
@@ -389,8 +212,8 @@ export default function SettingsPage() {
         shopName: currentSettings.shopName,
         shopAddress: currentSettings.shopAddress || "",
         shopContact: currentSettings.shopContact || "",
-        shopLogoSvg: currentSettings.shopLogoSvg || "",
-        shopLogoSvgBlack: currentSettings.shopLogoSvgBlack || "",
+        shopLogoUrl: currentSettings.shopLogoUrl || "",
+        shopLogoUrlBlack: currentSettings.shopLogoUrlBlack || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
         lastOrderNumber: currentSettings.lastOrderNumber || 0,
         allowedDeviceIds: deviceIdsForForm,
@@ -401,42 +224,50 @@ export default function SettingsPage() {
   }, [currentSettings, form, appReady]);
 
 
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>, isBlackVersion: boolean = false) => {
+ const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>, fieldName: 'shopLogoUrl' | 'shopLogoUrlBlack') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.type !== "image/svg+xml") {
-        toast({ title: "Invalid File Type", description: "Please upload an SVG file.", variant: "destructive" });
-        return;
-    }
-
-    if (file.size > 20 * 1024) { // 20KB size limit for SVGs
-      toast({
-        title: "File Too Large",
-        description: "Please choose an SVG file smaller than 20KB.",
-        variant: "destructive",
-      });
+    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      toast({ title: "Image too large", description: "Please upload an image smaller than 2MB.", variant: "destructive" });
       return;
     }
+    
+    const storage = getStorage();
+    const storageRef = ref(storage, `app_assets/${Date.now()}-${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const svgContent = reader.result as string;
-      if (isBlackVersion) {
-        form.setValue('shopLogoSvgBlack', svgContent, { shouldValidate: true, shouldDirty: true });
-      } else {
-        form.setValue('shopLogoSvg', svgContent, { shouldValidate: true, shouldDirty: true });
-      }
-      toast({ title: "Logo Loaded", description: "SVG content is ready to be saved." });
-    };
-    reader.readAsText(file);
+    setIsUploading(prev => ({...prev, [fieldName]: true}));
+    setUploadProgress(prev => ({...prev, [fieldName]: 0}));
+
+    uploadTask.on('state_changed',
+        (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(prev => ({...prev, [fieldName]: progress}));
+        },
+        (error) => {
+            console.error("Upload error:", error);
+            toast({ title: "Upload Failed", description: "There was an error uploading the image.", variant: "destructive" });
+            setIsUploading(prev => ({...prev, [fieldName]: false}));
+            setUploadProgress(prev => ({...prev, [fieldName]: null}));
+        },
+        () => {
+            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                form.setValue(fieldName, downloadURL, { shouldValidate: true, shouldDirty: true });
+                setIsUploading(prev => ({...prev, [fieldName]: false}));
+                setUploadProgress(prev => ({...prev, [fieldName]: 100}));
+                toast({ title: "Upload Complete", description: "Image has been successfully uploaded." });
+            });
+        }
+    );
   };
+
 
   const onSubmit = async (data: SettingsFormData) => {
     try {
         const settingsToSave: Partial<Settings> = {
             ...data,
-            allowedDeviceIds: data.allowedDeviceIds?.map(item => item.id).filter(Boolean) || []
+            allowedDeviceIds: data.allowedDeviceIds?.map(item => item.id).filter(Boolean) || [],
         };
         await updateSettingsAction(settingsToSave);
         toast({ title: "Settings Updated", description: "Your shop settings have been saved." });
@@ -463,6 +294,10 @@ export default function SettingsPage() {
       </div>
     );
   }
+
+  const mainLogoUrl = form.watch('shopLogoUrl');
+  const blackLogoUrl = form.watch('shopLogoUrlBlack');
+
 
   return (
     <div className="container mx-auto p-4 space-y-8">
@@ -614,64 +449,62 @@ export default function SettingsPage() {
                   </FormItem>
                 )}
               />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormItem>
-                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Main Shop Logo (SVG)</FormLabel>
-                  <div className="flex items-center gap-4">
-                    <FormControl>
-                       <Button asChild variant="outline" className="relative">
-                          <div>
-                            <Upload className="mr-2 h-4 w-4" />
-                            Upload SVG
-                            <Input
-                              type="file"
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                              accept="image/svg+xml"
-                              onChange={(e) => handleLogoUpload(e, false)}
-                            />
-                          </div>
-                        </Button>
-                    </FormControl>
-                     {form.getValues('shopLogoSvg') && (
-                        <div className="p-2 border rounded-md w-fit bg-muted text-foreground">
-                            <SafeSvg svgText={form.getValues('shopLogoSvg')} className="h-[40px] w-[150px]" />
-                        </div>
-                     )}
+                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Main Shop Logo (PNG/JPG)</FormLabel>
+                  <div className="space-y-2">
+                    <Button asChild variant="outline" className="relative">
+                      <div>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Image
+                        <Input
+                          type="file"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          accept="image/png, image/jpeg"
+                          onChange={(e) => handleImageUpload(e, 'shopLogoUrl')}
+                          disabled={isUploading['shopLogoUrl']}
+                        />
+                      </div>
+                    </Button>
+                    {isUploading['shopLogoUrl'] && uploadProgress['shopLogoUrl'] !== null && (
+                        <Progress value={uploadProgress['shopLogoUrl']} className="w-full h-2" />
+                    )}
+                    {mainLogoUrl && (
+                      <div className="p-2 border rounded-md w-fit bg-muted">
+                        <Image src={mainLogoUrl} alt="Main Logo Preview" width={150} height={40} className="object-contain max-h-12" unoptimized />
+                      </div>
+                    )}
                   </div>
-                   <FormDescription>
-                     Upload your main logo in SVG format. Max size: 20KB.
-                   </FormDescription>
-                  <FormMessage />
+                  <FormDescription>Upload your main logo. Recommended wide aspect ratio.</FormDescription>
                 </FormItem>
-                <FormItem>
-                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Invoice Logo (Black, SVG)</FormLabel>
-                  <div className="flex items-center gap-4">
-                    <FormControl>
-                       <Button asChild variant="outline" className="relative">
-                          <div>
-                            <Upload className="mr-2 h-4 w-4" />
-                            Upload Black SVG
-                            <Input
-                              type="file"
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                              accept="image/svg+xml"
-                              onChange={(e) => handleLogoUpload(e, true)}
-                            />
-                          </div>
-                        </Button>
-                    </FormControl>
-                     {form.getValues('shopLogoSvgBlack') && (
-                        <div className="p-2 border rounded-md w-fit bg-slate-800 text-white">
-                             <SafeSvg svgText={form.getValues('shopLogoSvgBlack')} className="h-[40px] w-[150px]" />
-                        </div>
-                     )}
+                 <FormItem>
+                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Invoice Logo (Black, PNG/JPG)</FormLabel>
+                  <div className="space-y-2">
+                    <Button asChild variant="outline" className="relative">
+                      <div>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Image
+                        <Input
+                          type="file"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          accept="image/png, image/jpeg"
+                          onChange={(e) => handleImageUpload(e, 'shopLogoUrlBlack')}
+                          disabled={isUploading['shopLogoUrlBlack']}
+                        />
+                      </div>
+                    </Button>
+                    {isUploading['shopLogoUrlBlack'] && uploadProgress['shopLogoUrlBlack'] !== null && (
+                        <Progress value={uploadProgress['shopLogoUrlBlack']} className="w-full h-2" />
+                    )}
+                    {blackLogoUrl && (
+                      <div className="p-2 border rounded-md w-fit bg-slate-800">
+                        <Image src={blackLogoUrl} alt="Invoice Logo Preview" width={150} height={40} className="object-contain max-h-12" unoptimized/>
+                      </div>
+                    )}
                   </div>
-                   <FormDescription>
-                     Upload a monochrome black SVG logo for PDF invoices.
-                   </FormDescription>
-                  <FormMessage />
+                  <FormDescription>Upload a monochrome black version for PDF invoices.</FormDescription>
                 </FormItem>
-                </div>
+              </div>
               <FormField
                 control={form.control}
                 name="lastInvoiceNumber"
@@ -729,7 +562,7 @@ export default function SettingsPage() {
                   )}
 
                   <div className="space-y-3">
-                    {fields.map((field, index) => (
+                    {deviceIdFields.map((field, index) => (
                       <FormField
                         key={field.id}
                         control={form.control}
@@ -740,7 +573,7 @@ export default function SettingsPage() {
                               <FormControl>
                                 <Input {...field} placeholder="Enter a unique device ID" />
                               </FormControl>
-                              <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
+                              <Button type="button" variant="destructive" size="icon" onClick={() => removeDeviceId(index)}>
                                 <Trash2 className="h-4 w-4" />
                                 <span className="sr-only">Remove Device ID</span>
                               </Button>
@@ -754,7 +587,7 @@ export default function SettingsPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => append({ id: '' })}
+                      onClick={() => appendDeviceId({ id: '' })}
                     >
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Add Device ID
@@ -778,6 +611,17 @@ export default function SettingsPage() {
           <CardDescription>Tools for managing your data and integrations.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Link href="/settings/contact-import" passHref>
+              <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
+                 <div className="flex items-center">
+                    <Users className="mr-3 h-5 w-5" />
+                    <div>
+                      <p className="font-semibold">Import Customers</p>
+                      <p className="text-xs text-muted-foreground">Bulk import customers from a CSV file.</p>
+                  </div>
+                </div>
+              </Button>
+            </Link>
             <Link href="/settings/hisaab-import" passHref>
               <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
                 <div className="flex items-center">
@@ -802,10 +646,6 @@ export default function SettingsPage() {
             </Link>
         </CardContent>
       </Card>
-
-       <SoldProductRecovery />
-
-       <DangerZone />
     </div>
   );
 }

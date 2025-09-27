@@ -1,5 +1,4 @@
 
-
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -615,7 +614,7 @@ export interface AppState {
 
   // Actions
   loadSettings: () => Promise<void>;
-  updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
+  updateSettings: (newSettings: Partial<Pick<Settings, keyof Settings>>) => Promise<void>;
 
   addCategory: (title: string) => void; // Local category management
   updateCategory: (id: string, title: string) => void;
@@ -661,6 +660,7 @@ export interface AppState {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
   updateOrder: (orderId: string, updatedOrderData: Partial<Order>) => Promise<void>;
+  deleteOrder: (orderId: string) => Promise<void>;
   generateInvoiceFromOrder: (
     order: Order,
     finalizedItems: FinalizedOrderItemData[],
@@ -1585,6 +1585,23 @@ export const useAppStore = create<AppState>()(
         const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
         await setDoc(orderRef, updatedOrderData, { merge: true });
         await addActivityLog('order.update', `Updated order: ${orderId}`, `Details updated`, orderId);
+      },
+      deleteOrder: async (orderId: string) => {
+        if(get().settings.databaseLocked) return;
+        const order = get().orders.find(o => o.id === orderId);
+        if (!order) {
+            console.error(`Order ${orderId} not found for deletion.`);
+            return;
+        }
+        console.log(`[GemsTrack Store deleteOrder] Attempting to delete order ID ${orderId}.`);
+        try {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId));
+          await addActivityLog('order.delete', `Deleted order: ${orderId}`, `Customer: ${order.customerName}`, orderId);
+          console.log(`[GemsTrack Store deleteOrder] Order ID ${orderId} deleted successfully.`);
+        } catch (error) {
+          console.error(`[GemsTrack Store deleteOrder] Error deleting order ID ${orderId} from Firestore:`, error);
+          throw error;
+        }
       },
       updateOrderStatus: async (orderId, status) => {
         if(get().settings.databaseLocked) return;

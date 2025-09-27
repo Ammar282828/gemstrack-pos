@@ -44,12 +44,27 @@ interface QrScannerProps {
   isActive: boolean;
 }
 
+const Viewfinder = () => (
+    <>
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+            <div className="absolute top-4 left-4 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg" />
+            <div className="absolute top-4 right-4 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg" />
+            <div className="absolute bottom-4 left-4 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
+            <div className="absolute bottom-4 right-4 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
+        </div>
+        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500/50 animate-scan-line" />
+    </>
+);
+
+
 export default function QrScanner({ isActive }: QrScannerProps) {
   const { toast } = useToast();
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const operationLock = useRef(false);
   const lastScanRef = useRef<{ text: string; time: number } | null>(null);
-  
+
   const [scannerState, setScannerState] = useState<'stopped' | 'starting' | 'scanning' | 'error'>('stopped');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [cameraCapabilities, setCameraCapabilities] = useState<MediaTrackCapabilities | null>(null);
@@ -62,14 +77,14 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     if (lastScan && lastScan.text === decodedText && (now - lastScan.time) < 2000) {
         return;
     }
-    
+
     const state = useAppStore.getState();
     const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
 
     if (isAlreadyInCart) {
         // Only toast for the first time it sees the duplicate
-        if (!lastScan || lastScan.text !== decodedText) { 
-             toast({
+        if (!lastScan || lastScan.text !== decodedText) {
+            toast({
                 title: "Item Already in Cart",
                 description: `Product with SKU ${decodedText.trim()} is already in your cart.`,
                 variant: "default"
@@ -92,73 +107,86 @@ export default function QrScanner({ isActive }: QrScannerProps) {
 
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {
+        return;
+    }
 
     if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, false);
+        html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, {
+            verbose: false // Set verbose to false for cleaner console logs
+        });
     }
     const qrCode = html5QrCodeRef.current;
 
     const startScanner = async () => {
-        if (scannerState !== 'starting' && scannerState !== 'scanning') {
-          setScannerState('starting');
-          try {
+        if (operationLock.current || qrCode.isScanning) return;
+        operationLock.current = true;
+        
+        setScannerState('starting');
+        setErrorMessage(null);
+
+        try {
             await qrCode.start(
-              { facingMode: "environment" },
-              { fps: 15, qrbox: { width: 250, height: 250 } },
-              onScanSuccess,
-              (errorMessage) => {} // onScanFailure - intentionally empty
+                { facingMode: "environment" },
+                { fps: 15, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                (errorMessage) => { /* ignore */ }
             );
-            setScannerState('scanning');
             
-            // @ts-ignore - getRunningTrackCapabilities is not in standard types but exists
+            setScannerState('scanning');
+            // @ts-ignore
             const capabilities = qrCode.getRunningTrackCapabilities?.();
             if (capabilities) {
                setCameraCapabilities(capabilities);
                // @ts-ignore
                if(capabilities.zoom) setZoom(capabilities.zoom.min);
             }
-          } catch (err) {
-            console.error("Failed to start QR scanner:", err);
+
+        } catch (err: any) {
+            setErrorMessage(err.message || "Failed to start scanner.");
             setScannerState('error');
-          }
+        } finally {
+            operationLock.current = false;
         }
     };
 
     const stopScanner = async () => {
-        if (scannerState === 'scanning' || scannerState === 'starting') {
-          try {
-            if (qrCode && qrCode.isScanning) {
-              await qrCode.stop();
-            }
-          } catch (err) {
-            // Ignore errors if the scanner isn't running or already stopping.
+        if (operationLock.current || !qrCode.isScanning) return;
+        operationLock.current = true;
+        
+        try {
+            await qrCode.stop();
+        } catch (err) {
             if (!String(err).includes("not been started")) {
-               console.error("Error stopping scanner:", err);
+               console.warn("Scanner stop error:", err);
             }
-          } finally {
-             setScannerState('stopped');
-             setCameraCapabilities(null);
-          }
+        } finally {
+            setScannerState('stopped');
+            setCameraCapabilities(null);
+            operationLock.current = false;
         }
     };
-    
+
     if (isActive) {
-      startScanner();
+        startScanner();
     } else {
-      stopScanner();
+        stopScanner();
     }
 
     return () => {
-        stopScanner();
+        if (qrCode && qrCode.isScanning) {
+            stopScanner();
+        }
     };
   }, [isActive, onScanSuccess]);
 
-  useEffect(() => {
+
+ useEffect(() => {
     const applyZoom = async () => {
         if (!html5QrCodeRef.current?.isScanning) return;
         try {
-            const currentTrack = (html5QrCodeRef.current as any).getRunningTrack?.();
+            // @ts-ignore
+            const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
             if (currentTrack && (cameraCapabilities as any)?.zoom) {
                 await currentTrack.applyConstraints({
                     advanced: [{ zoom: zoom }]
@@ -174,7 +202,6 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     }
   }, [zoom, scannerState, cameraCapabilities]);
 
-
   return (
     <div className="space-y-4">
       <div
@@ -184,7 +211,9 @@ export default function QrScanner({ isActive }: QrScannerProps) {
             " [&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover",
             scanSuccess && "border-green-500 shadow-lg shadow-green-500/50"
           )}
-        ></div>
+        >
+          {scannerState === 'scanning' && <Viewfinder />}
+      </div>
       
       {scannerState === 'starting' && (
         <div className="text-center py-2 text-muted-foreground">
@@ -198,7 +227,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         <Alert variant="destructive" className="mt-4">
           <AlertTitle>Camera Access Denied or Scanner Error</AlertTitle>
           <AlertDescription>
-            Could not access the camera or start the QR scanner. Please ensure camera permissions are enabled. You can use manual SKU entry or try toggling the scanner.
+            {errorMessage || 'Could not access the camera. Please ensure permissions are enabled.'}
           </AlertDescription>
         </Alert>
       )}
@@ -224,3 +253,5 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     </div>
   );
 }
+
+    
