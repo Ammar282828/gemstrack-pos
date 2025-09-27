@@ -1266,7 +1266,18 @@ export const useAppStore = create<AppState>()(
                 const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
                 const settingsDoc = await transaction.get(settingsDocRef);
                 if (!settingsDoc.exists()) throw new Error("Global settings not found.");
+                const currentSettings = settingsDoc.data() as Settings;
+
+                // --- READS FIRST ---
+                const productDocsPromises = cart.map(cartItem => transaction.get(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku)));
+                await Promise.all(productDocsPromises);
                 
+                let customerDoc = null;
+                if (customerInfo.id) {
+                    customerDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerInfo.id));
+                }
+                
+                // --- WRITES SECOND ---
                 let finalCustomerId = customerInfo.id;
                 let finalCustomerName = customerInfo.name;
 
@@ -1275,14 +1286,10 @@ export const useAppStore = create<AppState>()(
                     const newCustomerData: Omit<Customer, 'id'> = { name: customerInfo.name, phone: customerInfo.phone || "" };
                     transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustId), newCustomerData);
                     finalCustomerId = newCustId;
-                } else if (customerInfo.id) {
-                     const customerDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerInfo.id));
-                     if (customerDoc.exists()) {
-                         finalCustomerName = customerDoc.data().name;
-                     }
+                } else if (customerDoc?.exists()) {
+                    finalCustomerName = customerDoc.data().name;
                 }
-                
-                const currentSettings = settingsDoc.data() as Settings;
+
                 const ratesForInvoice = {
                     goldRatePerGram24k: invoiceRates.goldRatePerGram24k ?? 0,
                     goldRatePerGram22k: invoiceRates.goldRatePerGram22k ?? 0,
@@ -1987,5 +1994,3 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
-
-    
