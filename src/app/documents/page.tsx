@@ -37,7 +37,7 @@ const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' =>
   if (doc.docType === 'order') {
     return (doc as Order).status;
   }
-  return doc.balanceDue <= 0 ? 'Paid' : 'Unpaid';
+  return (doc as Invoice).balanceDue <= 0 ? 'Paid' : 'Unpaid';
 };
 
 
