@@ -615,7 +615,7 @@ export interface AppState {
 
   // Actions
   loadSettings: () => Promise<void>;
-  updateSettings: (newSettings: Partial<Settings>) => Promise<void>;
+  updateSettings: (newSettings: Partial<Pick<Settings, keyof Settings>>) => Promise<void>;
 
   addCategory: (title: string) => void; // Local category management
   updateCategory: (id: string, title: string) => void;
@@ -1994,3 +1994,4 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
+
