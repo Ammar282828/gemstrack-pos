@@ -611,17 +611,6 @@ export default function SettingsPage() {
           <CardDescription>Tools for managing your data and integrations.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Link href="/settings/payment-methods" passHref>
-              <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
-                 <div className="flex items-center">
-                    <Landmark className="mr-3 h-5 w-5" />
-                    <div>
-                      <p className="font-semibold">Manage Payment Methods</p>
-                      <p className="text-xs text-muted-foreground">Add or edit your bank account details.</p>
-                  </div>
-                </div>
-              </Button>
-            </Link>
             <Link href="/settings/contact-import" passHref>
               <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
                  <div className="flex items-center">
@@ -654,17 +643,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </Button>
-            </Link>
-             <Link href="/settings/backups" passHref>
-                <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
-                    <div className="flex items-center">
-                        <ArchiveRestore className="mr-3 h-5 w-5" />
-                        <div>
-                            <p className="font-semibold">Data Recovery & Backups</p>
-                            <p className="text-xs text-muted-foreground">Restore sold products or manage cloud backups.</p>
-                        </div>
-                    </div>
-                </Button>
             </Link>
         </CardContent>
       </Card>

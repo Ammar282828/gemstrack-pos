@@ -9,7 +9,7 @@ import {
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, ExternalLink } from 'lucide-react';
+import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, ExternalLink, Landmark } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -46,6 +46,8 @@ const navItems: NavItem[] = [
   // System
   { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
   { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
+  { href: '/settings/payment-methods', label: 'Payment Methods', icon: <Landmark /> },
+  { href: '/settings/backups', label: 'Backups', icon: <ArchiveRestore /> },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
