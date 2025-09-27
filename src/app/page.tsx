@@ -1,14 +1,13 @@
 
-
 "use client";
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { useAppStore, selectCartDetails, selectCartSubtotal } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, ShoppingCart, Trash2, ExternalLink, QrCode, Loader2 } from 'lucide-react';
+import { PlusCircle, ShoppingCart, Trash2, ExternalLink, QrCode, Loader2, Gem, Users, Briefcase, ClipboardList, TrendingUp, BookUser, Settings as SettingsIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
@@ -35,6 +34,28 @@ const CartSummaryItem: React.FC<{ item: NonNullable<ReturnType<typeof selectCart
   );
 };
 
+interface QuickLinkCardProps {
+    href: string;
+    icon: React.ReactNode;
+    title: string;
+    description: string;
+    className?: string;
+}
+
+const QuickLinkCard: React.FC<QuickLinkCardProps> = ({ href, icon, title, description, className }) => (
+    <Link href={href} passHref>
+        <Card className={`h-full flex flex-col hover:shadow-primary/10 hover:shadow-lg transition-shadow duration-300 ${className}`}>
+            <CardHeader className="flex-row items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-lg text-primary">{icon}</div>
+                <div>
+                    <CardTitle className="text-lg">{title}</CardTitle>
+                    <CardDescription>{description}</CardDescription>
+                </div>
+            </CardHeader>
+        </Card>
+    </Link>
+);
+
 
 export default function HomePage() {
   const appReady = useAppReady();
@@ -45,7 +66,7 @@ export default function HomePage() {
     loadProducts: state.loadProducts,
   }));
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (appReady) {
       loadProducts();
     }
@@ -62,37 +83,56 @@ export default function HomePage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-4 px-4 space-y-8">
+       <header className="mb-4">
+            <h1 className="text-3xl font-bold text-primary">Dashboard</h1>
+            <p className="text-muted-foreground">Welcome back! Here's a quick overview and access to your tasks.</p>
+        </header>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Left Column: Main Actions */}
+        {/* Left Column: Main Actions & Links */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="shadow-lg text-center">
-            <CardHeader>
-              <CardTitle className="text-2xl md:text-3xl font-bold text-primary mb-2">Taheri Point of Sale</CardTitle>
-              <CardDescription className="text-base md:text-lg text-muted-foreground">Begin a new transaction by scanning product QR codes.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Link href="/scan" passHref>
-                <Button size="lg" className="h-14 px-8 text-lg md:h-16 md:px-10 md:text-xl">
-                  <QrCode className="w-6 h-6 md:w-8 md:h-8 mr-3" />
-                  Start New Sale
-                </Button>
-              </Link>
-              <p className="text-muted-foreground mt-6">or</p>
-              <Link href="/products" passHref>
-                 <Button variant="link" className="mt-2 text-base">Browse Products Manually</Button>
-              </Link>
-            </CardContent>
-            <CardFooter className="flex-col items-center justify-center pt-6 border-t">
-                <p className="text-sm text-muted-foreground mb-2">Need to manage inventory?</p>
-                 <Link href="/products/add" passHref>
-                    <Button variant="outline">
-                        <PlusCircle className="w-5 h-5 mr-2" />
-                        Add New Product
-                    </Button>
-                </Link>
-            </CardFooter>
-          </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <Link href="/scan" passHref>
+                    <Card className="shadow-lg text-center hover:bg-primary/5 transition-colors h-full">
+                        <CardHeader>
+                        <CardTitle className="text-2xl font-bold text-primary mb-2">Start New Sale</CardTitle>
+                        <CardDescription className="text-base text-muted-foreground">Scan products to begin a new transaction.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center justify-center py-8">
+                           <QrCode className="w-16 h-16 text-primary" />
+                        </CardContent>
+                    </Card>
+                 </Link>
+                  <Link href="/orders/add" passHref>
+                     <Card className="shadow-lg text-center hover:bg-primary/5 transition-colors h-full">
+                        <CardHeader>
+                        <CardTitle className="text-2xl font-bold text-primary mb-2">Create Custom Order</CardTitle>
+                        <CardDescription className="text-base text-muted-foreground">Build a new custom order for a client.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center justify-center py-8">
+                            <PlusCircle className="w-16 h-16 text-primary" />
+                        </CardContent>
+                    </Card>
+                  </Link>
+            </div>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle>Quick Access</CardTitle>
+                    <CardDescription>Jump directly to key management areas.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <QuickLinkCard href="/products" icon={<Gem className="h-6 w-6"/>} title="Products" description="Manage inventory" />
+                    <QuickLinkCard href="/orders" icon={<ClipboardList className="h-6 w-6"/>} title="Orders" description="View custom orders" />
+                    <QuickLinkCard href="/customers" icon={<Users className="h-6 w-6"/>} title="Customers" description="Client database" />
+                    <QuickLinkCard href="/karigars" icon={<Briefcase className="h-6 w-6"/>} title="Karigars" description="Artisan accounts" />
+                    <QuickLinkCard href="/analytics" icon={<TrendingUp className="h-6 w-6"/>} title="Analytics" description="Sales & trends" />
+                    <QuickLinkCard href="/hisaab" icon={<BookUser className="h-6 w-6"/>} title="Hisaab" description="Ledger accounts" />
+                    <QuickLinkCard href="/settings" icon={<SettingsIcon className="h-6 w-6"/>} title="Settings" description="System configuration" />
+                </CardContent>
+            </Card>
+
         </div>
 
         {/* Right Column: Cart Summary */}
