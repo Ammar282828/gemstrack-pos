@@ -622,6 +622,17 @@ export default function SettingsPage() {
                 </div>
               </Button>
             </Link>
+            <Link href="/settings/contact-import" passHref>
+              <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
+                 <div className="flex items-center">
+                    <Users className="mr-3 h-5 w-5" />
+                    <div>
+                      <p className="font-semibold">Import Customers</p>
+                      <p className="text-xs text-muted-foreground">Bulk import customers from a CSV file.</p>
+                  </div>
+                </div>
+              </Button>
+            </Link>
             <Link href="/settings/hisaab-import" passHref>
               <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
                 <div className="flex items-center">
@@ -661,4 +672,3 @@ export default function SettingsPage() {
   );
 }
 
-    
