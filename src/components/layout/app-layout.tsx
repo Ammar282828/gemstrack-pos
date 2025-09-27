@@ -23,28 +23,35 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  // Point of Sale
+  // Dashboard
   { href: '/', label: 'Home', icon: <Home /> },
-  { href: '/scan', label: 'Scan / POS', icon: <ScanQrCode /> },
-  { href: '/cart', label: 'Cart / Estimate', icon: <ShoppingCart /> },
 
   { isSeparator: true, href: '#', label: '', icon: <></> },
 
-  // Management
+  // Point of Sale & Orders
+  { href: '/scan', label: 'Scan / POS', icon: <ScanQrCode /> },
+  { href: '/cart', label: 'Cart / Estimate', icon: <ShoppingCart /> },
   { href: '/orders', label: 'Orders', icon: <ClipboardList /> },
-  { href: '/documents', label: 'Documents', icon: <FileText /> },
-  { href: '/calendar', label: 'Calendar', icon: <Calendar /> },
+  
+  { isSeparator: true, href: '#', label: '', icon: <></> },
+  
+  // Management
   { href: '/products', label: 'Products', icon: <Gem /> },
   { href: '/customers', label: 'Customers', icon: <Users /> },
   { href: '/karigars', label: 'Karigars', icon: <Briefcase /> },
-  { href: '/hisaab', label: 'Hisaab / Ledger', icon: <BookUser /> },
+  { href: '/documents', label: 'Documents', icon: <FileText /> },
+  { href: '/calendar', label: 'Calendar', icon: <Calendar /> },
   { href: '/expenses', label: 'Expenses', icon: <CreditCard /> },
+  
+  { isSeparator: true, href: '#', label: '', icon: <></> },
 
-
+  // Financial
+  { href: '/hisaab', label: 'Hisaab / Ledger', icon: <BookUser /> },
+  { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
+  
   { isSeparator: true, href: '#', label: '', icon: <></> },
   
   // System
-  { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
   { href: '/activity-log', label: 'Activity Log', icon: <History /> },
   { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
   { href: '/settings/payment-methods', label: 'Payment Methods', icon: <Landmark /> },
