@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -13,6 +14,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 
 const DangerZone: React.FC = () => {
     const { deleteLatestProducts } = useAppStore();
@@ -194,6 +197,7 @@ const SoldProductRecovery: React.FC = () => {
 
 export default function BackupRestorePage() {
   const projectId = useAppStore(state => state.settings.firebaseConfig?.projectId);
+  const router = useRouter();
 
   const firestoreConsoleUrl = projectId 
     ? `https://console.cloud.google.com/firestore/databases/-default-/pitr?project=${projectId}`
@@ -201,17 +205,18 @@ export default function BackupRestorePage() {
 
   return (
     <div className="container mx-auto p-4 space-y-8">
-       <Card>
-        <CardHeader>
+      <header>
+          <Button variant="outline" onClick={() => router.back()} className="mb-4">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Settings
+          </Button>
           <CardTitle className="text-2xl flex items-center">
-            <ArchiveRestore className="mr-3 h-7 w-7 text-primary" />
-            Data Recovery &amp; Management
+              <ArchiveRestore className="mr-3 h-7 w-7 text-primary" />
+              Data Recovery &amp; Management
           </CardTitle>
           <CardDescription>
-            Advanced tools for restoring data and managing the database. Use these features with caution.
+              Advanced tools for restoring data and managing the database. Use these features with caution.
           </CardDescription>
-        </CardHeader>
-      </Card>
+      </header>
       
       <SoldProductRecovery />
 
@@ -266,3 +271,5 @@ export default function BackupRestorePage() {
     </div>
   );
 }
+
+    

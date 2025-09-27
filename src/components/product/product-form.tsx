@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -65,7 +66,6 @@ const productFormSchema = z.object({
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A positive price is required.", path: ["customPrice"] });
     }
   }
-  // Name validation is removed from here to make it optional for standard items.
 
   if (data.metalType === 'gold' && !data.karat) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Karat is required for gold items.", path: ["karat"] });
@@ -543,3 +543,5 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     </Form>
   );
 };
+
+    

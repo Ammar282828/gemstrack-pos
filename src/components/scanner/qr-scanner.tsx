@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -112,7 +113,9 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     }
 
     if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, false);
+        html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, {
+            verbose: false // Set verbose to false for cleaner console logs
+        });
     }
     const qrCode = html5QrCodeRef.current;
 
@@ -126,7 +129,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         try {
             await qrCode.start(
                 { facingMode: "environment" },
-                { fps: 15 }, // Increased FPS, removed qrbox for full-frame scanning
+                { fps: 15, qrbox: { width: 250, height: 250 } },
                 onScanSuccess,
                 (errorMessage) => { /* ignore */ }
             );
@@ -155,7 +158,6 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         try {
             await qrCode.stop();
         } catch (err) {
-            // This error can happen if stop is called on an already stopped scanner, which is safe to ignore.
             if (!String(err).includes("not been started")) {
                console.warn("Scanner stop error:", err);
             }
@@ -173,7 +175,6 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     }
 
     return () => {
-        // This cleanup ensures the scanner is stopped when the component unmounts.
         if (qrCode && qrCode.isScanning) {
             stopScanner();
         }
@@ -253,3 +254,5 @@ export default function QrScanner({ isActive }: QrScannerProps) {
     </div>
   );
 }
+
+    

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -36,6 +37,7 @@ export default function WeprintApiPage() {
   }, [settings.weprintApiSkus]);
 
   const filteredProducts = useMemo(() => {
+    if (!products) return [];
     return products.filter(product =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.sku.toLowerCase().includes(searchTerm.toLowerCase())
@@ -89,7 +91,7 @@ export default function WeprintApiPage() {
   
   const apiEndpoint = typeof window !== 'undefined' ? `${window.location.origin}/api/products/weprint` : '/api/products/weprint';
 
-  if (!appReady || isProductsLoading) {
+  if (!appReady || (isProductsLoading && products.length === 0)) {
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
@@ -182,3 +184,5 @@ export default function WeprintApiPage() {
     </div>
   );
 }
+
+    
