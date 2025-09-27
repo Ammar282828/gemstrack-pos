@@ -1,4 +1,5 @@
 
+
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -377,6 +378,8 @@ export interface Order {
   customerId?: string;
   customerName?: string;
   customerContact?: string;
+  advanceInExchangeDescription?: string; // For gold/diamonds given by customer
+  advanceInExchangeValue?: number; // Estimated value of the exchange
 }
 
 export type HisaabEntityType = 'customer' | 'karigar';
@@ -520,7 +523,7 @@ export interface AppState {
   categories: Category[]; // Still local for now
   products: Product[];
   customers: Customer[];
-  cart: CartItem[]; // The cart now holds full product objects, not just SKUs.
+  cart: CartItem[]; // This will be persisted
   generatedInvoices: Invoice[];
   karigars: Karigar[];
   orders: Order[];
@@ -1609,12 +1612,13 @@ export const useAppStore = create<AppState>()(
         const grandTotal = finalSubtotal - totalDiscount;
 
         const advancePayment: Payment = {
-            amount: order.advancePayment,
+            amount: order.advancePayment + (order.advanceInExchangeValue || 0),
             date: order.createdAt, // Assume advance was paid on order creation date
-            notes: "Advance payment from custom order."
+            notes: `Advance from Order. Cash: ${order.advancePayment}. Exchange: ${order.advanceInExchangeValue || 0} (${order.advanceInExchangeDescription || ''})`,
         };
-        const paymentHistory: Payment[] = order.advancePayment > 0 ? [advancePayment] : [];
-        const amountPaid = order.advancePayment;
+
+        const paymentHistory: Payment[] = advancePayment.amount > 0 ? [advancePayment] : [];
+        const amountPaid = advancePayment.amount;
         const balanceDue = finalSubtotal - amountPaid - totalDiscount;
     
         const nextInvoiceNumber = (settings.lastInvoiceNumber || 0) + 1;

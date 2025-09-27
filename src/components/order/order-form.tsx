@@ -70,7 +70,8 @@ const orderFormSchema = z.object({
     goldRate22k: z.coerce.number().min(0),
     goldRate24k: z.coerce.number().min(0),
     advancePayment: z.coerce.number().min(0).default(0),
-    advanceGoldDetails: z.string().optional(),
+    advanceInExchangeDescription: z.string().optional(),
+    advanceInExchangeValue: z.coerce.number().min(0).default(0),
     customerId: z.string().optional(),
     customerName: z.string().optional(),
     customerContact: z.string().optional(),
@@ -313,7 +314,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
       items: [],
       goldRate18k: 0, goldRate21k: 0, goldRate22k: 0, goldRate24k: 0,
       advancePayment: 0,
-      advanceGoldDetails: '',
+      advanceInExchangeDescription: '',
+      advanceInExchangeValue: 0,
       customerId: WALK_IN_CUSTOMER_VALUE,
       customerName: '',
       customerContact: '',
@@ -341,7 +343,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         goldRate22k: rates.goldRatePerGram22k || 0,
         goldRate24k: rates.goldRatePerGram24k || 0,
         advancePayment: order.advancePayment || 0,
-        advanceGoldDetails: order.advanceGoldDetails || '',
+        advanceInExchangeDescription: order.advanceInExchangeDescription || '',
+        advanceInExchangeValue: order.advanceInExchangeValue || 0,
         customerId: order.customerId || WALK_IN_CUSTOMER_VALUE,
         customerName: order.customerName || '',
         customerContact: order.customerContact || '',
@@ -400,7 +403,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         subtotal += costs.totalPrice;
     });
 
-    const grandTotal = subtotal - (formValues.advancePayment || 0);
+    const totalAdvance = (formValues.advancePayment || 0) + (formValues.advanceInExchangeValue || 0);
+    const grandTotal = subtotal - totalAdvance;
     
     return { subtotal, grandTotal };
   }, [formValues, settings]);
@@ -469,7 +473,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             items: enrichedItems,
             ratesApplied: ratesForOrder,
             advancePayment: data.advancePayment,
-            advanceGoldDetails: data.advanceGoldDetails,
+            advanceInExchangeDescription: data.advanceInExchangeDescription,
+            advanceInExchangeValue: data.advanceInExchangeValue,
             subtotal,
             grandTotal,
             customerId: finalCustomerId,
@@ -747,19 +752,23 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
 
                     <FormField control={form.control} name="advancePayment" render={({ field }) => (
                        <FormItem>
-                            <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Advance Payment (PKR)</FormLabel>
+                            <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Advance Payment (Cash)</FormLabel>
                             <FormControl><Input type="number" {...field} /></FormControl><FormMessage />
                         </FormItem>
                     )}/>
-                    <FormField control={form.control} name="advanceGoldDetails" render={({ field }) => (
-                       <FormItem>
-                            <FormLabel>Advance Gold Details (Optional)</FormLabel>
-                            <FormControl>
-                                <Textarea placeholder="e.g., 10g old gold (21k) given by customer" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}/>
+                    
+                    <div className="p-3 border rounded-md bg-muted/30">
+                        <p className="font-semibold text-sm mb-2">Advance in Exchange (Gold/Diamonds)</p>
+                        <div className="space-y-2">
+                            <FormField control={form.control} name="advanceInExchangeDescription" render={({ field }) => (
+                               <FormItem><FormLabel className="text-xs">Description of Items Received</FormLabel><FormControl><Textarea placeholder="e.g., Old gold ring (21k, ~5.2g)" {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <FormField control={form.control} name="advanceInExchangeValue" render={({ field }) => (
+                               <FormItem><FormLabel className="text-xs">Estimated Value (PKR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                        </div>
+                    </div>
+
                     <Separator/>
                     <div className="space-y-2 p-3 bg-muted/50 rounded-md">
                         <div className="flex justify-between items-center">
@@ -767,8 +776,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                             <span className="font-semibold text-base">PKR {liveEstimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between items-center text-destructive">
-                            <span className="text-muted-foreground">Advance:</span>
-                            <span className="font-semibold text-base">- PKR {(formValues.advancePayment || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="text-muted-foreground">Advance (Cash + Exchange):</span>
+                            <span className="font-semibold text-base">- PKR {((formValues.advancePayment || 0) + (formValues.advanceInExchangeValue || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </div>
                         <Separator />
                         <div className="flex justify-between items-center text-xl font-bold">

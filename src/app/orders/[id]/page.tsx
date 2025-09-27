@@ -297,6 +297,7 @@ export default function OrderDetailPage() {
   // Robustly handle potentially missing financial data
   const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
+  const advanceInExchangeValue = typeof order.advanceInExchangeValue === 'number' ? order.advanceInExchangeValue : 0;
   const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
   
   const ratesApplied = order.ratesApplied || {};
@@ -454,13 +455,16 @@ export default function OrderDetailPage() {
                   <Separator className="my-6" />
 
                   <div className="flex justify-end">
-                      <div className="w-full max-w-sm space-y-2 p-4 text-lg">
+                      <div className="w-full max-w-sm space-y-2 p-4 text-base">
                           <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                          <div className="flex justify-between"><span>Advance Payment:</span> <span className="font-semibold text-destructive">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                          {order.advanceGoldDetails && (
-                              <div className="pt-2 text-sm">
-                              <p className="font-semibold">Advance Gold Details:</p>
-                              <p className="text-muted-foreground whitespace-pre-wrap">{order.advanceGoldDetails}</p>
+                          <div className="flex justify-between text-destructive"><span>Advance Payment (Cash):</span> <span className="font-semibold">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          {advanceInExchangeValue > 0 && (
+                            <div className="flex justify-between text-destructive"><span>Advance (In-Exchange):</span> <span className="font-semibold">- PKR {advanceInExchangeValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          )}
+                          {order.advanceInExchangeDescription && (
+                              <div className="pt-2 text-sm text-muted-foreground">
+                                  <p className="font-semibold">In-Exchange Details:</p>
+                                  <p className="whitespace-pre-wrap">{order.advanceInExchangeDescription}</p>
                               </div>
                           )}
                           <Separator className="my-2 bg-muted-foreground/20"/>
