@@ -661,6 +661,7 @@ export interface AppState {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
   updateOrder: (orderId: string, updatedOrderData: Partial<Order>) => Promise<void>;
+  deleteOrder: (orderId: string) => Promise<void>;
   generateInvoiceFromOrder: (
     order: Order,
     finalizedItems: FinalizedOrderItemData[],
@@ -1265,18 +1266,7 @@ export const useAppStore = create<AppState>()(
                 const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
                 const settingsDoc = await transaction.get(settingsDocRef);
                 if (!settingsDoc.exists()) throw new Error("Global settings not found.");
-                const currentSettings = settingsDoc.data() as Settings;
-
-                // --- READS FIRST ---
-                const productDocsPromises = cart.map(cartItem => transaction.get(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku)));
-                await Promise.all(productDocsPromises);
                 
-                let customerDoc = null;
-                if (customerInfo.id) {
-                    customerDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerInfo.id));
-                }
-                
-                // --- WRITES SECOND ---
                 let finalCustomerId = customerInfo.id;
                 let finalCustomerName = customerInfo.name;
 
@@ -1285,10 +1275,14 @@ export const useAppStore = create<AppState>()(
                     const newCustomerData: Omit<Customer, 'id'> = { name: customerInfo.name, phone: customerInfo.phone || "" };
                     transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustId), newCustomerData);
                     finalCustomerId = newCustId;
-                } else if (customerDoc?.exists()) {
-                    finalCustomerName = customerDoc.data().name;
+                } else if (customerInfo.id) {
+                     const customerDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerInfo.id));
+                     if (customerDoc.exists()) {
+                         finalCustomerName = customerDoc.data().name;
+                     }
                 }
-
+                
+                const currentSettings = settingsDoc.data() as Settings;
                 const ratesForInvoice = {
                     goldRatePerGram24k: invoiceRates.goldRatePerGram24k ?? 0,
                     goldRatePerGram22k: invoiceRates.goldRatePerGram22k ?? 0,
@@ -1585,6 +1579,23 @@ export const useAppStore = create<AppState>()(
         const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
         await setDoc(orderRef, updatedOrderData, { merge: true });
         await addActivityLog('order.update', `Updated order: ${orderId}`, `Details updated`, orderId);
+      },
+      deleteOrder: async (orderId: string) => {
+        if(get().settings.databaseLocked) return;
+        const order = get().orders.find(o => o.id === orderId);
+        if (!order) {
+            console.error(`Order ${orderId} not found for deletion.`);
+            return;
+        }
+        console.log(`[GemsTrack Store deleteOrder] Attempting to delete order ID ${orderId}.`);
+        try {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId));
+          await addActivityLog('order.delete', `Deleted order: ${orderId}`, `Customer: ${order.customerName}`, orderId);
+          console.log(`[GemsTrack Store deleteOrder] Order ID ${orderId} deleted successfully.`);
+        } catch (error) {
+          console.error(`[GemsTrack Store deleteOrder] Error deleting order ID ${orderId} from Firestore:`, error);
+          throw error;
+        }
       },
       updateOrderStatus: async (orderId, status) => {
         if(get().settings.databaseLocked) return;

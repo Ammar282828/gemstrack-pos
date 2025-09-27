@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAppStore, selectCartDetails, selectCartSubtotal } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
@@ -56,13 +56,20 @@ export default function ScanPOSPage() {
   const appReady = useAppReady();
   const [isScannerActive, setIsScannerActive] = useState(false);
 
-  const { addToCart, removeFromCart: removeFromCartAction, products } = useAppStore(state => ({
+  const { addToCart, removeFromCart: removeFromCartAction, products, loadProducts } = useAppStore(state => ({
       addToCart: state.addToCart,
       removeFromCart: state.removeFromCart,
       products: state.products,
+      loadProducts: state.loadProducts,
   }));
   const cartItems = useAppStore(selectCartDetails);
   const cartSubtotal = useAppStore(selectCartSubtotal);
+
+  useEffect(() => {
+    if (appReady) {
+      loadProducts();
+    }
+  }, [appReady, loadProducts]);
 
   const handleManualSkuAdd = () => {
     if (!skuInput.trim()) {
