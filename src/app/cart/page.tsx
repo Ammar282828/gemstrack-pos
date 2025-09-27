@@ -215,7 +215,6 @@ export default function CartPage() {
             stoneChargesIfAny: costs.stoneCharges,
             miscChargesIfAny: costs.miscCharges,
             originalPrice: itemTotal,
-            paymentHistory: [],
         });
     });
 
