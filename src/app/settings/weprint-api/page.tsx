@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppStore, Product } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ export default function WeprintApiPage() {
     );
   }, [products, searchTerm]);
 
-  const handleToggleSelect = useCallback((sku: string, checked: boolean) => {
+  const handleToggleSelect = (sku: string, checked: boolean) => {
     setSelectedSkus(prev => {
       const newSet = new Set(prev);
       if (checked) {
@@ -52,7 +52,7 @@ export default function WeprintApiPage() {
       }
       return newSet;
     });
-  }, []);
+  };
 
   const handleSelectAllFiltered = () => {
     const filteredSkus = new Set(filteredProducts.map(p => p.sku));
