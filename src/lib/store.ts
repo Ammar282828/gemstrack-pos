@@ -20,7 +20,8 @@ const FIRESTORE_COLLECTIONS = {
   ORDERS: "orders",
   CATEGORIES: "categories", // Note: Categories are still managed locally for now
   HISAAB: "hisaab",
-  EXPENSES: "expenses", // New collection for expenses
+  EXPENSES: "expenses",
+  ACTIVITY_LOG: "activity_log",
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
 
@@ -498,6 +499,45 @@ const staticCategories: Category[] = [
   { id: 'cat018', title: "Men's Rings" },
 ];
 
+export const LOG_EVENT_TYPES = ['product', 'customer', 'karigar', 'invoice', 'order', 'expense'] as const;
+export type LogEventType = 
+  | 'product.create' | 'product.update' | 'product.delete'
+  | 'customer.create' | 'customer.update' | 'customer.delete'
+  | 'karigar.create' | 'karigar.update' | 'karigar.delete'
+  | 'invoice.create' | 'invoice.payment' | 'invoice.delete'
+  | 'order.create' | 'order.update' | 'order.delete'
+  | 'expense.create' | 'expense.update' | 'expense.delete';
+
+export interface ActivityLog {
+    id: string;
+    timestamp: string; // ISO string
+    eventType: LogEventType;
+    description: string; // e.g., "Created new product: RIN-000001"
+    details: string; // e.g., "Product: Gold Ring | By: Murtaza"
+    entityId: string; // ID of the product, customer, etc.
+}
+
+async function addActivityLog(
+  eventType: LogEventType,
+  description: string,
+  details: string,
+  entityId: string
+) {
+    try {
+        const logEntry: Omit<ActivityLog, 'id'> = {
+            timestamp: new Date().toISOString(),
+            eventType,
+            description,
+            details,
+            entityId,
+        };
+        await addDoc(collection(db, FIRESTORE_COLLECTIONS.ACTIVITY_LOG), logEntry);
+    } catch (error) {
+        console.error("Failed to add activity log:", error);
+    }
+}
+
+
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'qrCodeDataUrl'>;
 type OrderDataForAdd = Omit<Order, 'id' | 'createdAt' | 'status'>;
@@ -530,6 +570,7 @@ export interface AppState {
   hisaabEntries: HisaabEntry[];
   expenses: Expense[];
   soldProducts: Product[];
+  activityLog: ActivityLog[];
 
   // Loading states
   isSettingsLoading: boolean;
@@ -541,6 +582,7 @@ export interface AppState {
   isOrdersLoading: boolean;
   isHisaabLoading: boolean;
   isExpensesLoading: boolean;
+  isActivityLogLoading: boolean;
   
   // Data loaded flags
   hasSettingsLoaded: boolean;
@@ -552,6 +594,7 @@ export interface AppState {
   hasOrdersLoaded: boolean;
   hasHisaabLoaded: boolean;
   hasExpensesLoaded: boolean;
+  hasActivityLogLoaded: boolean;
 
   // Error states
   settingsError: string | null;
@@ -563,6 +606,7 @@ export interface AppState {
   karigarsError: string | null;
   hisaabError: string | null;
   expensesError: string | null;
+  activityLogError: string | null;
 
 
   // Zustand specific hydration state
@@ -631,6 +675,8 @@ export interface AppState {
   addExpense: (expenseData: Omit<Expense, 'id'>) => Promise<Expense | null>;
   updateExpense: (id: string, updatedExpenseData: Partial<Omit<Expense, 'id'>>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  
+  loadActivityLog: () => void;
 }
 
 export type EnrichedCartItem = Product & {
@@ -686,6 +732,7 @@ export const useAppStore = create<AppState>()(
       orders: [],
       hisaabEntries: [],
       expenses: [],
+      activityLog: [],
 
       isSettingsLoading: true,
       isProductsLoading: true,
@@ -696,6 +743,7 @@ export const useAppStore = create<AppState>()(
       isOrdersLoading: true,
       isHisaabLoading: true,
       isExpensesLoading: true,
+      isActivityLogLoading: true,
       
       hasSettingsLoaded: false,
       hasProductsLoaded: false,
@@ -706,6 +754,7 @@ export const useAppStore = create<AppState>()(
       hasOrdersLoaded: false,
       hasHisaabLoaded: false,
       hasExpensesLoaded: false,
+      hasActivityLogLoaded: false,
 
       settingsError: null,
       productsError: null,
@@ -716,6 +765,7 @@ export const useAppStore = create<AppState>()(
       karigarsError: null,
       hisaabError: null,
       expensesError: null,
+      activityLogError: null,
 
 
       loadSettings: async () => {
@@ -904,6 +954,7 @@ export const useAppStore = create<AppState>()(
 
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, newProduct.sku), cleanProduct);
+          await addActivityLog('product.create', `Created product: ${newProduct.name}`, `SKU: ${newProduct.sku}`, newProduct.sku);
           console.log("[GemsTrack Store addProduct] Product added successfully to Firestore:", newProduct.sku);
           return newProduct;
         } catch (error) {
@@ -954,6 +1005,7 @@ export const useAppStore = create<AppState>()(
             const cleanPayload = cleanObject(payloadToFirestore);
 
             await setDoc(productRef, cleanPayload, { merge: true });
+            await addActivityLog('product.update', `Updated product: ${finalUpdatedFields.name || currentProduct.name}`, `SKU: ${sku}`, sku);
             console.log(`[GemsTrack Store updateProduct] Product SKU ${sku} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateProduct] Error updating product SKU ${sku} in Firestore:`, error);
@@ -961,12 +1013,14 @@ export const useAppStore = create<AppState>()(
       },
       deleteProduct: async (sku) => {
         if(get().settings.databaseLocked) return;
+        const productName = get().products.find(p => p.sku === sku)?.name || sku;
         console.log(`[GemsTrack Store deleteProduct] Attempting to delete product SKU ${sku}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, sku));
           set(state => {
             state.cart = state.cart.filter(item => item.sku !== sku);
           });
+          await addActivityLog('product.delete', `Deleted product: ${productName}`, `SKU: ${sku}`, sku);
           console.log(`[GemsTrack Store deleteProduct] Product SKU ${sku} deleted successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store deleteProduct] Error deleting product SKU ${sku} from Firestore:`, error);
@@ -990,6 +1044,7 @@ export const useAppStore = create<AppState>()(
                 const batch = writeBatch(db);
                 productsToDelete.forEach(doc => {
                     batch.delete(doc.ref);
+                    addActivityLog('product.delete', `Deleted product: ${doc.data().name}`, `SKU: ${doc.id}`, doc.id);
                 });
                 await batch.commit();
                 
@@ -1043,6 +1098,7 @@ export const useAppStore = create<AppState>()(
         console.log("[GemsTrack Store addCustomer] Attempting to add customer:", newCustomer);
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustomerId), newCustomer);
+          await addActivityLog('customer.create', `Created customer: ${newCustomer.name}`, `ID: ${newCustomerId}`, newCustomerId);
           console.log("[GemsTrack Store addCustomer] Customer added successfully:", newCustomerId);
           return newCustomer;
         } catch (error) {
@@ -1055,6 +1111,7 @@ export const useAppStore = create<AppState>()(
         console.log(`[GemsTrack Store updateCustomer] Attempting to update customer ID ${id} with:`, updatedCustomerData);
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), updatedCustomerData, { merge: true });
+          await addActivityLog('customer.update', `Updated customer: ${updatedCustomerData.name}`, `ID: ${id}`, id);
           console.log(`[GemsTrack Store updateCustomer] Customer ID ${id} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateCustomer] Error updating customer ID ${id} in Firestore:`, error);
@@ -1062,9 +1119,11 @@ export const useAppStore = create<AppState>()(
       },
       deleteCustomer: async (id) => {
         if(get().settings.databaseLocked) return;
+        const customerName = get().customers.find(c => c.id === id)?.name || id;
         console.log(`[GemsTrack Store deleteCustomer] Attempting to delete customer ID ${id}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id));
+          await addActivityLog('customer.delete', `Deleted customer: ${customerName}`, `ID: ${id}`, id);
           console.log(`[GemsTrack Store deleteCustomer] Customer ID ${id} deleted successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store deleteCustomer] Error deleting customer ID ${id} from Firestore:`, error);
@@ -1098,6 +1157,7 @@ export const useAppStore = create<AppState>()(
         console.log("[GemsTrack Store addKarigar] Attempting to add karigar:", newKarigar);
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, newKarigarId), newKarigar);
+          await addActivityLog('karigar.create', `Created karigar: ${newKarigar.name}`, `ID: ${newKarigarId}`, newKarigarId);
           console.log("[GemsTrack Store addKarigar] Karigar added successfully:", newKarigarId);
           return newKarigar;
         } catch (error) {
@@ -1110,6 +1170,7 @@ export const useAppStore = create<AppState>()(
         console.log(`[GemsTrack Store updateKarigar] Attempting to update karigar ID ${id} with:`, updatedKarigarData);
          try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id), updatedKarigarData, { merge: true });
+          await addActivityLog('karigar.update', `Updated karigar: ${updatedKarigarData.name}`, `ID: ${id}`, id);
           console.log(`[GemsTrack Store updateKarigar] Karigar ID ${id} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateKarigar] Error updating karigar ID ${id} in Firestore:`, error);
@@ -1117,9 +1178,11 @@ export const useAppStore = create<AppState>()(
       },
       deleteKarigar: async (id) => {
         if(get().settings.databaseLocked) return;
+        const karigarName = get().karigars.find(k => k.id === id)?.name || id;
         console.log(`[GemsTrack Store deleteKarigar] Attempting to delete karigar ID ${id}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id));
+          await addActivityLog('karigar.delete', `Deleted karigar: ${karigarName}`, `ID: ${id}`, id);
           console.log(`[GemsTrack Store deleteKarigar] Karigar ID ${id} deleted successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store deleteKarigar] Error deleting karigar ID ${id} from Firestore:`, error);
@@ -1293,6 +1356,8 @@ export const useAppStore = create<AppState>()(
                 };
                 transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
                 
+                addActivityLog('invoice.create', `Created invoice ${invoiceId}`, `Customer: ${finalCustomerName || 'Walk-in'} | Total: ${grandTotal.toLocaleString()}`, invoiceId);
+                
                 const finalInvoice = { ...cleanInvoiceData, id: invoiceId } as Invoice;
                 if(finalInvoice.items && typeof finalInvoice.items === 'object' && !Array.isArray(finalInvoice.items)){
                   finalInvoice.items = Object.values(finalInvoice.items);
@@ -1324,7 +1389,7 @@ export const useAppStore = create<AppState>()(
 
                 const invoiceData = invoiceDoc.data() as Invoice;
                 
-                const newPayment: Payment = { amount: paymentAmount, date: paymentDate };
+                const newPayment: Payment = { amount: paymentAmount, date: paymentDate, notes: 'Payment received' };
                 const newPaymentHistory = [...(invoiceData.paymentHistory || []), newPayment];
                 
                 const newAmountPaid = newPaymentHistory.reduce((acc, p) => acc + p.amount, 0);
@@ -1351,6 +1416,8 @@ export const useAppStore = create<AppState>()(
                     goldCreditGrams: 0,
                 };
                 transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
+                addActivityLog('invoice.payment', `Payment received for invoice ${invoiceId}`, `Amount: ${paymentAmount.toLocaleString()} | Customer: ${invoiceData.customerName}`, invoiceId);
+
 
                 return { ...invoiceData, ...updatedFields, id: invoiceId };
             });
@@ -1365,33 +1432,46 @@ export const useAppStore = create<AppState>()(
           if(get().settings.databaseLocked) return;
           console.log(`[deleteInvoice] Attempting to delete invoice ${invoiceId}. Is editing flow: ${isEditing}`);
           try {
-              await runTransaction(db, async (transaction) => {
-                  const invoiceDocRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
-                  const invoiceDoc = await transaction.get(invoiceDocRef);
-                  if (!invoiceDoc.exists()) throw new Error("Invoice not found");
+              const invoiceDocRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
+              const invoiceDoc = await getDoc(invoiceDocRef);
+              if (!invoiceDoc.exists()) {
+                  console.warn(`Invoice ${invoiceId} not found for deletion.`);
+                  return;
+              }
+              const invoiceData = invoiceDoc.data() as Invoice;
 
-                  const invoiceData = invoiceDoc.data() as Invoice;
-                  
+              const batch = writeBatch(db);
+              
+              // Only move products back if it's NOT an edit-and-replace operation
+              if (!isEditing) {
                   for(const item of invoiceData.items) {
                       const soldProductRef = doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, item.sku);
-                      const soldProductDoc = await transaction.get(soldProductRef);
-                      if (soldProductDoc.exists()) {
-                          const productData = soldProductDoc.data();
-                          transaction.set(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, item.sku), productData);
-                          transaction.delete(soldProductRef);
-                      }
+                      // In a real-world scenario with more complex data, you would fetch before setting
+                      // But since we are recreating from invoice data, this is acceptable.
+                      const productData = {
+                          // Reconstruct product data from invoice item
+                          sku: item.sku, name: item.name, categoryId: item.categoryId,
+                          metalType: item.metalType, karat: item.karat, metalWeightG: item.metalWeightG,
+                          stoneWeightG: item.stoneWeightG, wastagePercentage: item.wastagePercentage,
+                          makingCharges: item.makingCharges, hasDiamonds: item.diamondChargesIfAny > 0,
+                          diamondCharges: item.diamondChargesIfAny, stoneCharges: item.stoneChargesIfAny,
+                          miscCharges: item.miscChargesIfAny, stoneDetails: item.stoneDetails, diamondDetails: item.diamondDetails
+                      };
+                      batch.set(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, item.sku), productData);
+                      batch.delete(soldProductRef);
                   }
+              }
 
-                  const hisaabQuery = query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), 
-                    orderBy("date", "desc"));
-                  const hisaabSnapshot = await getDocs(hisaabQuery);
-                  const hisaabEntryToDelete = hisaabSnapshot.docs.find(doc => doc.data().description === `Invoice ${invoiceId}`);
-                  if (hisaabEntryToDelete) {
-                      transaction.delete(hisaabEntryToDelete.ref);
-                  }
+              const hisaabQuery = query(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
+              const hisaabSnapshot = await getDocs(hisaabQuery);
+              const hisaabEntriesToDelete = hisaabSnapshot.docs.filter(doc => doc.data().description.includes(invoiceId));
+              hisaabEntriesToDelete.forEach(doc => batch.delete(doc.ref));
 
-                  transaction.delete(invoiceDocRef);
-              });
+              batch.delete(invoiceDocRef);
+              await batch.commit();
+
+              await addActivityLog('invoice.delete', `Deleted invoice ${invoiceId}`, `Customer: ${invoiceData.customerName}`, invoiceId);
+              console.log(`Successfully deleted invoice ${invoiceId} and related data.`);
 
           } catch (e) {
               console.error(`Failed to delete invoice ${invoiceId}:`, e);
@@ -1488,6 +1568,8 @@ export const useAppStore = create<AppState>()(
 
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
           batch.update(settingsDocRef, { lastOrderNumber: nextOrderNumber });
+          
+          await addActivityLog('order.create', `Created order: ${newOrderId}`, `Customer: ${finalCustomerName || 'Walk-in'} | Total: ${finalGrandTotal.toLocaleString()}`, newOrderId);
 
           await batch.commit();
           console.log(`[GemsTrack Store addOrder] Order ${newOrderId} and settings successfully committed.`);
@@ -1502,6 +1584,7 @@ export const useAppStore = create<AppState>()(
         if(get().settings.databaseLocked) return;
         const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
         await setDoc(orderRef, updatedOrderData, { merge: true });
+        await addActivityLog('order.update', `Updated order: ${orderId}`, `Details updated`, orderId);
       },
       updateOrderStatus: async (orderId, status) => {
         if(get().settings.databaseLocked) return;
@@ -1509,6 +1592,7 @@ export const useAppStore = create<AppState>()(
         try {
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
           await setDoc(orderDocRef, { status }, { merge: true });
+          await addActivityLog('order.update', `Order ${orderId} status changed`, `New status: ${status}`, orderId);
           console.log(`[GemsTrack Store updateOrderStatus] Successfully updated status for order ${orderId}.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateOrderStatus] Error updating status for order ${orderId}:`, error);
@@ -1660,6 +1744,8 @@ export const useAppStore = create<AppState>()(
               goldDebitGrams: 0, goldCreditGrams: 0,
             };
             batch.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
+            
+            await addActivityLog('invoice.create', `Created invoice ${invoiceId} from order ${order.id}`, `Customer: ${newInvoice.customerName} | Total: ${newInvoice.grandTotal.toLocaleString()}`, newInvoice.id);
 
             await batch.commit();
             
@@ -1739,6 +1825,7 @@ export const useAppStore = create<AppState>()(
         if(get().settings.databaseLocked) return null;
         try {
           const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.EXPENSES), expenseData);
+          await addActivityLog('expense.create', `Added expense: ${expenseData.description}`, `Category: ${expenseData.category} | Amount: ${expenseData.amount.toLocaleString()}`, docRef.id);
           console.log("[GemsTrack Store addExpense] Expense added with ID:", docRef.id);
           return { id: docRef.id, ...expenseData };
         } catch (error) {
@@ -1751,6 +1838,7 @@ export const useAppStore = create<AppState>()(
         console.log(`[GemsTrack Store updateExpense] Attempting to update expense ID ${id}`);
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.EXPENSES, id), updatedExpenseData, { merge: true });
+          await addActivityLog('expense.update', `Updated expense: ${updatedExpenseData.description}`, `ID: ${id}`, id);
           console.log(`[GemsTrack Store updateExpense] Expense ID ${id} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateExpense] Error updating expense ID ${id}:`, error);
@@ -1758,14 +1846,37 @@ export const useAppStore = create<AppState>()(
       },
       deleteExpense: async (id: string) => {
         if(get().settings.databaseLocked) return;
+        const expenseDesc = get().expenses.find(e => e.id === id)?.description || id;
         console.log(`[GemsTrack Store deleteExpense] Attempting to delete expense ID ${id}.`);
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.EXPENSES, id));
+          await addActivityLog('expense.delete', `Deleted expense: ${expenseDesc}`, `ID: ${id}`, id);
           console.log(`[GemsTrack Store deleteExpense] Expense ID ${id} deleted successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store deleteExpense] Error deleting expense ID ${id}:`, error);
           throw error;
         }
+      },
+      
+      loadActivityLog: () => {
+        if (get().hasActivityLogLoaded || get().settings.databaseLocked) return;
+        set({ isActivityLogLoading: true, activityLogError: null });
+        const q = query(collection(db, FIRESTORE_COLLECTIONS.ACTIVITY_LOG), orderBy("timestamp", "desc"));
+        const unsubscribe = onSnapshot(q, 
+          (snapshot) => {
+            const logList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ActivityLog));
+            set(state => {
+                state.activityLog = logList;
+                state.isActivityLogLoading = false;
+                state.hasActivityLogLoaded = true;
+            });
+            console.log(`[GemsTrack Store] Real-time update: ${logList.length} activity logs loaded.`);
+          },
+          (error) => {
+            console.error("[GemsTrack Store] Error in activity log real-time listener:", error);
+            set({ activityLog: [], isActivityLogLoading: false, activityLogError: error.message || 'Failed to load activity log.' });
+          }
+        );
       },
     })),
     {
