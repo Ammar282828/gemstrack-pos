@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, Download, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond, Zap, Shield, Gem, Info } from 'lucide-react';
+import { Edit3, Trash2, Download, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond, Zap, Shield, Gem, Info, Printer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -128,6 +128,20 @@ export default function ProductDetailPage() {
     toast({
       title: "Added to Cart",
       description: `${productData.name} has been added to your cart.`,
+    });
+  };
+
+  const handlePrintLabel = () => {
+    if (!productData) return;
+    console.log(`--- Printing Label for ${productData.sku} ---`);
+    console.log("This is where you would construct the ZPL command string.");
+    console.log("Then, send it to the Zebra Browser Print helper application.");
+    // Example ZPL (not real data):
+    // const zplCommand = `^XA ... ^FS ... ^XZ`;
+    // sendToZebraPrinter(zplCommand);
+    toast({
+      title: "Print Action Triggered",
+      description: "Check the developer console for Zebra integration info.",
     });
   };
 
@@ -324,10 +338,13 @@ export default function ProductDetailPage() {
                 ) : (
                   <div className="w-32 h-32 bg-gray-200 flex items-center justify-center text-sm text-gray-500 rounded-md">Generating QR...</div>
                 )}
+                <Button variant="secondary" size="sm" onClick={handlePrintLabel} className="w-full">
+                  <Printer className="mr-2 h-4 w-4" /> Print Label
+                </Button>
                 <Button variant="outline" size="sm" onClick={handleExportCsv} className="w-full">
                   <Download className="mr-2 h-4 w-4" /> Export CSV for this Item
                 </Button>
-                 <p className="text-xs text-muted-foreground text-center">Use this to import into a label printing app like WEPrint.</p>
+                 <p className="text-xs text-muted-foreground text-center">Use CSV to import into a label printing app like WEPrint.</p>
               </CardContent>
             </Card>
         </div>
