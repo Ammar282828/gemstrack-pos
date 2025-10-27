@@ -1283,7 +1283,7 @@ export const useAppStore = create<AppState>()(
 
                 if (!finalCustomerId && customerInfo.name) {
                     const newCustId = `cust-${Date.now()}`;
-                    const newCustomerData: Omit<Customer, 'id'> = { name: customerInfo.name, phone: customerInfo.phone || "" };
+                    const newCustomerData: Omit<Customer, 'id'> = { name: customerInfo.name, phone: customerInfo.phone || "", address: '', email: '' };
                     transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustId), newCustomerData);
                     finalCustomerId = newCustId;
                 } else if (customerDoc?.exists()) {
