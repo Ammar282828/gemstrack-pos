@@ -816,7 +816,7 @@ export const useAppStore = create<AppState>()(
           set({ isSettingsLoading: false, hasSettingsLoaded: true });
         }
       },
-      updateSettings: async (newSettings: Partial<Settings>) => {
+      updateSettings: async (newSettings) => {
         const {databaseLocked} = get().settings;
         if(databaseLocked) {
             console.warn("[updateSettings] Blocked: Database is locked.");
