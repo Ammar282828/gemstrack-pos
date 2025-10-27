@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAppStore, Settings, ThemeKey, AVAILABLE_THEMES, Product } from '@/lib/store';
@@ -25,6 +25,20 @@ import Image from 'next/image';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Progress } from '@/components/ui/progress';
 
+const DEVICE_ID_KEY = 'gemstrack-device-id';
+
+function getDeviceId() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+  if (!deviceId) {
+    deviceId = `device-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    localStorage.setItem(DEVICE_ID_KEY, deviceId);
+  }
+  return deviceId;
+}
+
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
 const settingsSchema = z.object({
@@ -42,6 +56,7 @@ const settingsSchema = z.object({
   shopLogoUrlBlack: z.string().optional(),
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
   lastOrderNumber: z.coerce.number().int().min(0, "Last order number must be a non-negative integer"),
+  allowedDeviceIds: z.array(z.object({ id: z.string().min(1, "Device ID cannot be empty.") })).optional(),
   theme: z.enum(themeKeys).default('default'),
   databaseLocked: z.boolean().optional(),
 });
@@ -145,6 +160,13 @@ export default function SettingsPage() {
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number | null }>({});
   const [isUploading, setIsUploading] = useState<{ [key: string]: boolean }>({});
 
+
+  const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrentDeviceId(getDeviceId());
+  }, []);
+
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
@@ -162,13 +184,23 @@ export default function SettingsPage() {
       shopLogoUrlBlack: "",
       lastInvoiceNumber: 0,
       lastOrderNumber: 0,
+      allowedDeviceIds: [],
       theme: 'default',
       databaseLocked: false,
     },
   });
+
+  const { fields: deviceIdFields, append: appendDeviceId, remove: removeDeviceId } = useFieldArray({
+    control: form.control,
+    name: "allowedDeviceIds",
+  });
   
   React.useEffect(() => {
     if (appReady && currentSettings) {
+      const deviceIdsForForm = Array.isArray(currentSettings.allowedDeviceIds) 
+        ? currentSettings.allowedDeviceIds.map(id => ({ id })) 
+        : [];
+      
       form.reset({
         goldRatePerGram18k: currentSettings.goldRatePerGram18k || 0,
         goldRatePerGram21k: currentSettings.goldRatePerGram21k || 0,
@@ -184,6 +216,7 @@ export default function SettingsPage() {
         shopLogoUrlBlack: currentSettings.shopLogoUrlBlack || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
         lastOrderNumber: currentSettings.lastOrderNumber || 0,
+        allowedDeviceIds: deviceIdsForForm,
         theme: currentSettings.theme || 'default',
         databaseLocked: currentSettings.databaseLocked || false,
       });
@@ -232,11 +265,24 @@ export default function SettingsPage() {
 
   const onSubmit = async (data: SettingsFormData) => {
     try {
-        const settingsToSave: Partial<Settings> = { ...data };
+        const settingsToSave: Partial<Settings> = {
+            ...data,
+            allowedDeviceIds: data.allowedDeviceIds?.map(item => item.id).filter(Boolean) || [],
+        };
         await updateSettingsAction(settingsToSave);
         toast({ title: "Settings Updated", description: "Your shop settings have been saved." });
     } catch (error) {
         toast({ title: "Error", description: "Failed to update settings.", variant: "destructive" });
+    }
+  };
+
+  const handleCopyToClipboard = () => {
+    if (currentDeviceId) {
+      navigator.clipboard.writeText(currentDeviceId);
+      toast({
+        title: "Copied to Clipboard",
+        description: "Your current device ID has been copied.",
+      });
     }
   };
 
@@ -495,6 +541,59 @@ export default function SettingsPage() {
                   </FormItem>
                 )}
               />
+              <Separator />
+               <div>
+                  <FormLabel className="text-base flex items-center"><TabletSmartphone className="h-5 w-5 mr-2 text-muted-foreground" /> Authorized Device IDs</FormLabel>
+                  <FormDescription className="mb-4">
+                    Only devices with an ID on this whitelist will be able to access the app.
+                  </FormDescription>
+                  
+                  {currentDeviceId && (
+                    <div className="p-4 rounded-md bg-muted border mb-4">
+                        <Label>Your Current Device ID</Label>
+                        <div className="flex items-center space-x-2 mt-1">
+                            <Input value={currentDeviceId} readOnly className="font-mono bg-background" />
+                            <Button type="button" variant="outline" size="icon" onClick={handleCopyToClipboard}>
+                                <Copy className="h-4 w-4" />
+                                <span className="sr-only">Copy Device ID</span>
+                            </Button>
+                        </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {deviceIdFields.map((field, index) => (
+                      <FormField
+                        key={field.id}
+                        control={form.control}
+                        name={`allowedDeviceIds.${index}.id`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex items-center gap-2">
+                              <FormControl>
+                                <Input {...field} placeholder="Enter a unique device ID" />
+                              </FormControl>
+                              <Button type="button" variant="destructive" size="icon" onClick={() => removeDeviceId(index)}>
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Remove Device ID</span>
+                              </Button>
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => appendDeviceId({ id: '' })}
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Device ID
+                    </Button>
+                  </div>
+               </div>
             </CardContent>
             <CardFooter>
               <Button type="submit" size="lg" disabled={form.formState.isSubmitting || isSettingsLoading}>

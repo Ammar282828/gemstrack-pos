@@ -235,6 +235,7 @@ export interface Settings extends GoldRates {
   shopLogoUrlBlack?: string;
   lastInvoiceNumber: number;
   lastOrderNumber: number;
+  allowedDeviceIds: string[];
   weprintApiSkus: string[];
   paymentMethods: PaymentMethod[];
   theme: ThemeKey;
@@ -472,6 +473,7 @@ const initialSettingsData: Settings = {
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "", shopLogoUrlBlack: "", lastInvoiceNumber: 0,
   lastOrderNumber: 0,
+  allowedDeviceIds: [],
   weprintApiSkus: [],
   paymentMethods: [],
   theme: 'slate',
@@ -781,6 +783,9 @@ export const useAppStore = create<AppState>()(
               ...initialSettingsData,
               ...firestoreSettings,
               firebaseConfig: firebaseConfig, // Always use the imported config
+              allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
+                ? firestoreSettings.allowedDeviceIds
+                : [],
               weprintApiSkus: Array.isArray(firestoreSettings.weprintApiSkus)
                 ? firestoreSettings.weprintApiSkus
                 : [],
@@ -811,7 +816,7 @@ export const useAppStore = create<AppState>()(
           set({ isSettingsLoading: false, hasSettingsLoaded: true });
         }
       },
-      updateSettings: async (newSettings) => {
+      updateSettings: async (newSettings: Partial<Settings>) => {
         const {databaseLocked} = get().settings;
         if(databaseLocked) {
             console.warn("[updateSettings] Blocked: Database is locked.");
