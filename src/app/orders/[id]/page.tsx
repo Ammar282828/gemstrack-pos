@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -36,6 +36,8 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -62,7 +64,7 @@ type PhoneForm = {
     phone: string;
 };
 
-type NotificationType = 'inProgress' | 'completed';
+type NotificationType = 'inProgress' | 'completed' | 'summary';
 
 // --- Finalize Order Dialog Components ---
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
@@ -254,15 +256,25 @@ export default function OrderDetailPage() {
     }
 
     let message = `Dear ${order.customerName || 'Customer'},\n\n`;
-    message += `This is an update regarding your order *#${order.id}* from ${settings.shopName}.\n\n`;
-
-    if (notificationType === 'inProgress') {
-        message += `We are happy to inform you that your order is now *In Progress*. We will notify you again once it is ready for collection.\n\n`;
-    } else if (notificationType === 'completed') {
-        message += `Great news! Your custom order is now *Completed* and ready for collection.\n\n`;
-        message += `*Amount Due:* PKR ${order.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+    
+    if (notificationType === 'summary') {
+        message += `Here is a summary of your custom order *#${order.id}* from ${settings.shopName}.\n\n`;
+        order.items.forEach((item, index) => {
+            message += `*Item ${index + 1}:* ${item.description}\n`;
+            message += `  - Est. Weight: ${item.estimatedWeightG}g ${item.karat ? `(${item.karat})` : ''}\n`;
+        });
+        message += `\n*Total Balance Due:* PKR ${order.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+        message += `We are working on your order and will notify you of any updates.\n\n`;
+    } else {
+        message += `This is an update regarding your order *#${order.id}* from ${settings.shopName}.\n\n`;
+        if (notificationType === 'inProgress') {
+            message += `We are happy to inform you that your order is now *In Progress*. We will notify you again once it is ready for collection.\n\n`;
+        } else if (notificationType === 'completed') {
+            message += `Great news! Your custom order is now *Completed* and ready for collection.\n\n`;
+            message += `*Amount Due:* PKR ${order.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
+        }
     }
-
+    
     message += `Thank you for your business!`;
 
     const numberOnly = whatsAppNumber.replace(/\D/g, '');
@@ -271,6 +283,91 @@ export default function OrderDetailPage() {
     window.open(whatsappUrl, '_blank');
     toast({ title: "Redirecting to WhatsApp", description: "Your message is ready to be sent." });
     setIsNotificationDialogOpen(false); // Close dialog after sending
+  };
+  
+  const handlePrintOrderSlip = async () => {
+    if (!order || typeof window === 'undefined') return;
+
+    const doc = new jsPDF();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+
+    doc.setFont("helvetica", "bold").setFontSize(22);
+    doc.text('WORKSHOP ORDER SLIP', margin, 22);
+
+    doc.setFont("helvetica", "normal").setFontSize(10);
+    doc.text(`Order ID: ${order.id}`, margin, 35);
+    doc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, 41);
+    doc.text(`Customer: ${order.customerName || 'Walk-in'}`, pageWidth - margin, 35, { align: 'right' });
+    
+    doc.setLineWidth(0.5);
+    doc.line(margin, 48, pageWidth - margin, 48);
+
+    let finalY = 55;
+
+    for (let i = 0; i < order.items.length; i++) {
+        const item = order.items[i];
+        
+        if (finalY + 45 > pageHeight - margin) { // Check if new item block fits
+            doc.addPage();
+            doc.setFontSize(10);
+            doc.setTextColor(150);
+            doc.text(`Order Slip: ${order.id} (continued)`, margin, 15);
+            finalY = 25;
+        }
+
+        doc.setFontSize(12).setFont("helvetica", "bold");
+        doc.text(`Item #${i + 1}: ${item.description}`, margin, finalY);
+        finalY += 7;
+
+        doc.setFontSize(10).setFont("helvetica", "normal");
+        const metalInfo = `Metal: ${item.metalType}, ${item.karat || ''}, Est. Weight: ${item.estimatedWeightG}g`;
+        doc.text(metalInfo, margin + 5, finalY);
+        finalY += 6;
+        
+        const wastageInfo = `Wastage: ${item.wastagePercentage}%`;
+        doc.text(wastageInfo, margin + 5, finalY);
+        finalY += 6;
+        
+        if (item.referenceSku) {
+            doc.text(`Reference SKU: ${item.referenceSku}`, margin + 5, finalY);
+            finalY += 6;
+        }
+        
+        if (item.stoneDetails || item.diamondDetails) {
+            finalY += 4;
+            doc.setFontSize(10).setFont("helvetica", "bold");
+            doc.text('Special Instructions:', margin + 5, finalY);
+            finalY += 5;
+            doc.setFontSize(9).setFont("helvetica", "normal");
+            const detailsText = `${item.stoneDetails || ''}\n${item.diamondDetails || ''}`;
+            const splitText = doc.splitTextToSize(detailsText, pageWidth - (margin * 2) - 10);
+            doc.text(splitText, margin + 10, finalY);
+            finalY += (splitText.length * 4) + 4;
+        }
+        
+        if (item.sampleImageDataUri) {
+            const img = new (window as any).Image();
+            img.src = item.sampleImageDataUri;
+            img.onload = () => {
+                const imgHeight = 40;
+                if (finalY + imgHeight > pageHeight - margin) {
+                    doc.addPage();
+                    finalY = 25;
+                }
+                doc.addImage(img, 'JPEG', margin + 5, finalY, 40, imgHeight);
+                finalY += imgHeight + 5;
+            };
+        }
+        
+        doc.setLineWidth(0.2);
+        doc.line(margin, finalY, pageWidth - margin, finalY);
+        finalY += 8;
+    }
+
+    doc.autoPrint();
+    window.open(doc.output('bloburl'), '_blank');
   };
 
 
@@ -319,8 +416,10 @@ export default function OrderDetailPage() {
             <DialogHeader>
             <DialogTitle className="flex items-center"><MessageSquare className="mr-2 h-5 w-5"/>Notify Customer via WhatsApp</DialogTitle>
             <DialogDescription>
-                The order status has been updated to "{notificationType === 'inProgress' ? 'In Progress' : 'Completed'}".
-                Would you like to send a notification to the customer?
+                {notificationType === 'summary' 
+                    ? `Would you like to send a summary of this order to the customer?` 
+                    : `The order status has been updated. Would you like to send a notification?`
+                }
             </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -338,7 +437,7 @@ export default function OrderDetailPage() {
             <DialogFooter>
             <Button variant="outline" onClick={() => setIsNotificationDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSendWhatsApp}>
-                <MessageSquare className="mr-2 h-4 w-4"/> Send Update
+                <MessageSquare className="mr-2 h-4 w-4"/> Send Message
             </Button>
             </DialogFooter>
         </DialogContent>
@@ -360,6 +459,8 @@ export default function OrderDetailPage() {
                           <CardDescription>Details of the custom order.</CardDescription>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
+                           <Button variant="outline" onClick={handlePrintOrderSlip}><Printer className="mr-2 h-4 w-4"/>Print Slip</Button>
+                           <Button variant="outline" onClick={() => { setNotificationType('summary'); setIsNotificationDialogOpen(true); }}><MessageSquare className="mr-2 h-4 w-4"/>Send to Customer</Button>
                            <Button asChild variant="outline">
                              <Link href={`/orders/${order.id}/edit`}>
                                 <Edit className="mr-2 h-4 w-4" /> Edit Order
