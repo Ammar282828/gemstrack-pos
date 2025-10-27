@@ -311,11 +311,16 @@ export default function OrderDetailPage() {
     doc.text(`Order ID: ${order.id}`, margin, 42);
     doc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, 48);
     doc.text(`Customer: ${order.customerName || 'Walk-in'}`, pageWidth - margin, 42, { align: 'right' });
+
+    doc.setFontSize(10).setFont('helvetica', 'bold');
+    doc.text(`Est. Subtotal: PKR ${order.subtotal.toLocaleString()}`, pageWidth - margin, 48, { align: 'right' });
+    const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
+    doc.text(`Advance Paid: PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, 54, { align: 'right' });
     
     doc.setLineWidth(0.5);
-    doc.line(margin, 55, pageWidth - margin, 55);
+    doc.line(margin, 60, pageWidth - margin, 60);
 
-    let finalY = 62;
+    let finalY = 68;
 
     for (let i = 0; i < order.items.length; i++) {
         const item = order.items[i];
@@ -359,17 +364,22 @@ export default function OrderDetailPage() {
         }
         
         if (item.sampleImageDataUri) {
-            const img = new (window as any).Image();
-            img.src = item.sampleImageDataUri;
-            img.onload = () => {
-                const imgHeight = 40;
-                if (finalY + imgHeight > pageHeight - margin) {
-                    doc.addPage();
-                    finalY = 25;
-                }
-                doc.addImage(img, 'JPEG', margin + 5, finalY, 40, imgHeight);
-                finalY += imgHeight + 5;
-            };
+            try {
+                // Ensure image is loaded before adding
+                const img = new (window as any).Image();
+                img.src = item.sampleImageDataUri;
+                img.onload = () => {
+                    const imgHeight = 40;
+                    if (finalY + imgHeight > pageHeight - margin) {
+                        doc.addPage();
+                        finalY = 25;
+                    }
+                    doc.addImage(img, 'JPEG', margin + 5, finalY, 40, imgHeight);
+                    finalY += imgHeight + 5;
+                };
+            } catch(e) {
+                console.error("Could not add sample image to PDF", e);
+            }
         }
         
         doc.setLineWidth(0.2);
