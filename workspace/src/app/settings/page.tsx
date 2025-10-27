@@ -573,10 +573,12 @@ export default function SettingsPage() {
                               <FormControl>
                                 <Input {...field} placeholder="Enter a unique device ID" />
                               </FormControl>
-                              <Button type="button" variant="destructive" size="icon" onClick={() => removeDeviceId(index)}>
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Remove Device ID</span>
-                              </Button>
+                              {removeDeviceId && (
+                                <Button type="button" variant="destructive" size="icon" onClick={() => removeDeviceId(index)}>
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Remove Device ID</span>
+                                </Button>
+                              )}
                             </div>
                             <FormMessage />
                           </FormItem>
@@ -607,7 +609,7 @@ export default function SettingsPage() {
       
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Data & API Management</CardTitle>
+          <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Data &amp; API Management</CardTitle>
           <CardDescription>Tools for managing your data and integrations.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -650,4 +652,3 @@ export default function SettingsPage() {
   );
 }
 
-    
