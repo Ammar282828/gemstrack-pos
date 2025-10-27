@@ -80,14 +80,21 @@ const orderFormSchema = z.object({
     if (goldItems.length === 0) return true; // No gold items, so no gold rate needed
 
     const has18k = goldItems.some(item => item.karat === '18k');
+    if (has18k && data.goldRate18k <= 0) {
+        return false;
+    }
     const has21k = goldItems.some(item => item.karat === '21k');
+     if (has21k && data.goldRate21k <= 0) {
+        return false;
+    }
     const has22k = goldItems.some(item => item.karat === '22k');
+     if (has22k && data.goldRate22k <= 0) {
+        return false;
+    }
     const has24k = goldItems.some(item => item.karat === '24k');
-
-    if (has18k && data.goldRate18k <= 0) return false;
-    if (has21k && data.goldRate21k <= 0) return false;
-    if (has22k && data.goldRate22k <= 0) return false;
-    if (has24k && data.goldRate24k <= 0) return false;
+     if (has24k && data.goldRate24k <= 0) {
+        return false;
+    }
 
     return true;
 }, {
@@ -729,7 +736,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                         onBlur={field.onBlur}
                                         ref={field.ref}
                                         international
-                                        defaultCountry="PK"
+                                        country="PK"
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                                     />
                                     </FormControl>

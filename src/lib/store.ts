@@ -1090,11 +1090,11 @@ export const useAppStore = create<AppState>()(
         if(get().settings.databaseLocked) return null;
         const newCustomerId = `cust-${Date.now()}`;
         const newCustomer: Customer = { 
+          id: newCustomerId,
           name: customerData.name || 'Unnamed Customer',
-          phone: customerData.phone,
-          email: customerData.email,
-          address: customerData.address,
-          id: newCustomerId 
+          phone: customerData.phone || '',
+          email: customerData.email || '',
+          address: customerData.address || '',
         };
         console.log("[GemsTrack Store addCustomer] Attempting to add customer:", newCustomer);
         try {
@@ -1513,7 +1513,9 @@ export const useAppStore = create<AppState>()(
         if (!finalCustomerId && orderData.customerName) { // New walk-in customer with a name
             const newCustomer = await addCustomer({ 
                 name: orderData.customerName, 
-                phone: orderData.customerContact 
+                phone: orderData.customerContact,
+                email: '',
+                address: '',
             });
             if (newCustomer) {
                 finalCustomerId = newCustomer.id;
