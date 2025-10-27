@@ -4,7 +4,6 @@
 import React, { useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
-import { AuthorizationProvider } from '@/components/auth/authorization-provider';
 import { Loader2 } from 'lucide-react';
 
 export function MainApp({ children }: { children: React.ReactNode }) {
@@ -36,10 +35,6 @@ export function MainApp({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Once settings are loaded, perform authorization check and then render the children.
-  return (
-    <AuthorizationProvider>
-      {children}
-    </AuthorizationProvider>
-  );
+  // Once settings are loaded, render the children.
+  return <>{children}</>;
 }
