@@ -1,5 +1,4 @@
 
-
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -236,7 +235,6 @@ export interface Settings extends GoldRates {
   shopLogoUrlBlack?: string;
   lastInvoiceNumber: number;
   lastOrderNumber: number;
-  allowedDeviceIds: string[];
   weprintApiSkus: string[];
   paymentMethods: PaymentMethod[];
   theme: ThemeKey;
@@ -474,7 +472,6 @@ const initialSettingsData: Settings = {
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "", shopLogoUrlBlack: "", lastInvoiceNumber: 0,
   lastOrderNumber: 0,
-  allowedDeviceIds: [],
   weprintApiSkus: [],
   paymentMethods: [],
   theme: 'slate',
@@ -784,9 +781,6 @@ export const useAppStore = create<AppState>()(
               ...initialSettingsData,
               ...firestoreSettings,
               firebaseConfig: firebaseConfig, // Always use the imported config
-              allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
-                ? firestoreSettings.allowedDeviceIds
-                : [],
               weprintApiSkus: Array.isArray(firestoreSettings.weprintApiSkus)
                 ? firestoreSettings.weprintApiSkus
                 : [],
@@ -1910,7 +1904,6 @@ export const useAppStore = create<AppState>()(
         cart: state.cart,
         settings: { 
             ...state.settings,
-            allowedDeviceIds: Array.isArray(state.settings?.allowedDeviceIds) ? state.settings.allowedDeviceIds : [], 
             theme: state.settings?.theme || 'default',
         }
       }),
@@ -1994,4 +1987,3 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
-
