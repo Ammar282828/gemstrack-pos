@@ -1,4 +1,5 @@
 
+
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -1516,7 +1517,7 @@ export const useAppStore = create<AppState>()(
             });
             if (newCustomer) {
                 finalCustomerId = newCustomer.id;
-                finalCustomerName = newCustomer.name; // Use the name from the created customer
+                finalCustomerName = newCustomer.name;
             }
         } else if (finalCustomerId) { // Existing customer selected
              const customer = customers.find(c => c.id === finalCustomerId);

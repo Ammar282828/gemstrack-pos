@@ -76,18 +76,23 @@ const orderFormSchema = z.object({
     customerName: z.string().optional(),
     customerContact: z.string().optional(),
 }).refine(data => {
-    const has18k = data.items.some(item => item.karat === '18k');
-    const has21k = data.items.some(item => item.karat === '21k');
-    const has22k = data.items.some(item => item.karat === '22k');
-    const has24k = data.items.some(item => item.karat === '24k');
+    const goldItems = data.items.filter(item => item.metalType === 'gold');
+    if (goldItems.length === 0) return true; // No gold items, so no gold rate needed
+
+    const has18k = goldItems.some(item => item.karat === '18k');
+    const has21k = goldItems.some(item => item.karat === '21k');
+    const has22k = goldItems.some(item => item.karat === '22k');
+    const has24k = goldItems.some(item => item.karat === '24k');
+
     if (has18k && data.goldRate18k <= 0) return false;
     if (has21k && data.goldRate21k <= 0) return false;
     if (has22k && data.goldRate22k <= 0) return false;
     if (has24k && data.goldRate24k <= 0) return false;
+
     return true;
 }, {
-    message: "A positive gold rate is required for each gold karat present in the order.",
-    path: ["goldRate21k"], // Arbitrarily attach to one field
+    message: "A positive gold rate is required for each gold karat type present in the order.",
+    path: ["goldRate21k"], // Arbitrarily attach to one field for form-level error display
 });
 
 
