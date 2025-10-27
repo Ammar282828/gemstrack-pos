@@ -38,6 +38,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import QRCode from 'qrcode.react';
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -286,25 +287,35 @@ export default function OrderDetailPage() {
   };
   
   const handlePrintOrderSlip = async () => {
-    if (!order || typeof window === 'undefined') return;
+    if (!order || typeof window === 'undefined' || !settings) return;
 
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
+    
+    const logoToUse = settings.shopLogoUrlBlack || settings.shopLogoUrl;
+
+    if (logoToUse) {
+        try {
+            doc.addImage(logoToUse, 'PNG', margin, 15, 40, 10, undefined, 'FAST');
+        } catch (e) {
+            console.error("Error adding logo to Order Slip PDF:", e);
+        }
+    }
 
     doc.setFont("helvetica", "bold").setFontSize(22);
-    doc.text('WORKSHOP ORDER SLIP', margin, 22);
+    doc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 22, { align: 'right' });
 
     doc.setFont("helvetica", "normal").setFontSize(10);
-    doc.text(`Order ID: ${order.id}`, margin, 35);
-    doc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, 41);
-    doc.text(`Customer: ${order.customerName || 'Walk-in'}`, pageWidth - margin, 35, { align: 'right' });
+    doc.text(`Order ID: ${order.id}`, margin, 42);
+    doc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, 48);
+    doc.text(`Customer: ${order.customerName || 'Walk-in'}`, pageWidth - margin, 42, { align: 'right' });
     
     doc.setLineWidth(0.5);
-    doc.line(margin, 48, pageWidth - margin, 48);
+    doc.line(margin, 55, pageWidth - margin, 55);
 
-    let finalY = 55;
+    let finalY = 62;
 
     for (let i = 0; i < order.items.length; i++) {
         const item = order.items[i];
@@ -365,6 +376,50 @@ export default function OrderDetailPage() {
         doc.line(margin, finalY, pageWidth - margin, finalY);
         finalY += 8;
     }
+    
+    const footerStartY = pageHeight - 45;
+    const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
+    
+    doc.setLineWidth(0.2);
+    doc.line(margin, footerStartY - 10, pageWidth - margin, footerStartY - 10);
+    doc.setFontSize(8).setTextColor(150);
+    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin * 2 - 70 });
+    
+    const contacts = [
+        { name: "Murtaza", number: "0333 2275190" },
+        { name: "Muhammad", number: "0300 8280896" },
+        { name: "Huzaifa", number: "0335 2275553" },
+        { name: "Ammar", number: "0326 2275554" },
+    ];
+    let contactY = footerStartY + 12;
+    doc.setFontSize(8).setFont("helvetica", "bold").setTextColor(50);
+    doc.text("For Orders & Inquiries:", margin, contactY);
+    contactY += 4;
+    doc.setFont("helvetica", "normal").setTextColor(100);
+    contacts.forEach(contact => {
+        doc.text(`${contact.name}: ${contact.number}`, margin, contactY);
+        contactY += 4;
+    });
+
+    const qrCodeSize = 25;
+    const qrSectionWidth = (qrCodeSize * 2) + 15;
+    const qrStartX = pageWidth - margin - qrSectionWidth;
+
+    const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
+    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
+
+    if (instaQrCanvas) {
+        doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
+        doc.text("@collectionstaheri", qrStartX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
+    }
+    if (waQrCanvas) {
+        const secondQrX = qrStartX + qrCodeSize + 15;
+        doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
+        doc.text("Join on WhatsApp", secondQrX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
+        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
+    }
+
 
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
@@ -411,6 +466,10 @@ export default function OrderDetailPage() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
+      <div style={{ display: 'none' }}>
+        <QRCode id="insta-qr-code" value="https://www.instagram.com/collectionstaheri?igsh=bWs4YWgydjJ1cXBz&utm_source=qr" size={128} />
+        <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl?mode=ac_t" size={128} />
+      </div>
       <Dialog open={isNotificationDialogOpen} onOpenChange={setIsNotificationDialogOpen}>
         <DialogContent>
             <DialogHeader>
