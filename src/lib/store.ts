@@ -473,7 +473,7 @@ const initialSettingsData: Settings = {
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "", shopLogoUrlBlack: "", lastInvoiceNumber: 0,
   lastOrderNumber: 0,
-  allowedDeviceIds: [],
+  allowedDeviceIds: ["device-1761585988934-qghkiup"],
   weprintApiSkus: [],
   paymentMethods: [],
   theme: 'slate',
@@ -1909,6 +1909,7 @@ export const useAppStore = create<AppState>()(
         cart: state.cart,
         settings: { 
             ...state.settings,
+            allowedDeviceIds: Array.isArray(state.settings?.allowedDeviceIds) ? state.settings.allowedDeviceIds : [], 
             theme: state.settings?.theme || 'default',
         }
       }),
