@@ -22,6 +22,16 @@ type ParsedRow = {
   isValid: boolean;
 };
 
+// Define the type for a parsed vCard object to satisfy TypeScript
+type VCard = {
+    fn?: { value: string }[];
+    n?: { value: { given?: string; family?: string } };
+    tel?: { value: string }[];
+    email?: { value: string }[];
+    adr?: { value: { street?: string; locality?: string; region?: string; postalCode?: string; country?: string } }[];
+};
+
+
 export default function ContactImportPage() {
   const { addCustomer } = useAppStore();
   const { toast } = useToast();
@@ -54,13 +64,13 @@ export default function ContactImportPage() {
     reader.onload = (e) => {
       const text = e.target?.result as string;
       try {
-        const cards = vCardParser.parse(text);
+        const cards: VCard[] = vCardParser.parse(text);
         if (!cards || cards.length === 0) {
            setError("No contacts found in the VCF file.");
            return;
         }
         
-        const parsedRows: ParsedRow[] = cards.map(card => {
+        const parsedRows: ParsedRow[] = cards.map((card: VCard) => {
           const name = card.fn?.[0]?.value || `${card.n?.value?.given || ''} ${card.n?.value?.family || ''}`.trim();
           const phone = card.tel?.[0]?.value || '';
           const email = card.email?.[0]?.value || '';
