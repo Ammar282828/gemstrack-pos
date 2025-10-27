@@ -1509,15 +1509,16 @@ export const useAppStore = create<AppState>()(
         let finalCustomerId = orderData.customerId;
         let finalCustomerName = orderData.customerName;
 
-        if (!finalCustomerId && orderData.customerName) {
+        if (!finalCustomerId && orderData.customerName) { // New walk-in customer with a name
             const newCustomer = await addCustomer({ 
                 name: orderData.customerName, 
                 phone: orderData.customerContact 
             });
             if (newCustomer) {
                 finalCustomerId = newCustomer.id;
+                finalCustomerName = newCustomer.name; // Use the name from the created customer
             }
-        } else if (finalCustomerId) {
+        } else if (finalCustomerId) { // Existing customer selected
              const customer = customers.find(c => c.id === finalCustomerId);
              if (customer) {
                 finalCustomerName = customer.name;
