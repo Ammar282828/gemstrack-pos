@@ -64,6 +64,13 @@ const UnauthorizedDevice: React.FC = () => {
 
 
 export function AuthorizationProvider({ children }: { children: React.ReactNode }) {
+  // --- TEMPORARILY DISABLED TO ALLOW USER TO REGAIN ACCESS ---
+  // The original logic is commented out below. This will be restored
+  // once the user has had a chance to add their device ID via the UI.
+  
+  return <>{children}</>;
+
+  /*
   const appReady = useAppReady();
   const allowedDeviceIds = useAppStore(state => state.settings.allowedDeviceIds);
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -92,4 +99,5 @@ export function AuthorizationProvider({ children }: { children: React.ReactNode 
   }
 
   return <>{children}</>;
+  */
 }
