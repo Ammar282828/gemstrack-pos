@@ -309,10 +309,24 @@ export default function OrderDetailPage() {
 
     doc.setFont("helvetica", "bold").setFontSize(22);
     doc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 22, { align: 'right' });
-
+    
     doc.setFont("helvetica", "normal").setFontSize(10);
     doc.text(`Order ID: ${order.id}`, margin, 42);
     doc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, 48);
+
+    const rates = order.ratesApplied;
+    let ratesApplied: string[] = [];
+    if (rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
+    if (rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
+    if (rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
+    if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+    if (ratesApplied.length > 0) {
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Rates (PKR): ${ratesApplied.join(' | ')}`, margin, 54);
+    }
+    
+
     doc.text(`Customer: ${order.customerName || 'Walk-in'}`, pageWidth - margin, 42, { align: 'right' });
 
     doc.setFontSize(10).setFont('helvetica', 'bold');
@@ -660,3 +674,4 @@ export default function OrderDetailPage() {
     </div>
   );
 }
+
