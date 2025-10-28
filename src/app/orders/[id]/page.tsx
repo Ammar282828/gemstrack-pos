@@ -6,13 +6,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType } from '@/lib/store';
+import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -196,7 +196,7 @@ export default function OrderDetailPage() {
   const isHydrated = useIsStoreHydrated();
   const order = useAppStore(state => state.orders.find(o => o.id === orderId));
   const settings = useAppStore(state => state.settings);
-  const { updateOrderStatus, updateOrderItemStatus, updateOrder } = useAppStore();
+  const { updateOrderStatus, updateOrderItemStatus, updateOrder, karigars, loadKarigars } = useAppStore();
   
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isUpdatingItem, setIsUpdatingItem] = useState<number | null>(null);
@@ -205,6 +205,9 @@ export default function OrderDetailPage() {
   const [notificationType, setNotificationType] = useState<NotificationType | null>(null);
   const [isFinalizeDialogOpen, setIsFinalizeDialogOpen] = useState(false);
 
+  useEffect(() => {
+    loadKarigars();
+  }, [loadKarigars]);
 
   const phoneForm = useForm<PhoneForm>();
 
@@ -334,7 +337,12 @@ export default function OrderDetailPage() {
         }
 
         doc.setFontSize(12).setFont("helvetica", "bold");
+        const karigarName = karigars.find(k => k.id === item.karigarId)?.name;
         doc.text(`Item #${i + 1}: ${item.description}`, margin, finalY);
+        if (karigarName) {
+            doc.setFontSize(10).setFont("helvetica", "normal");
+            doc.text(`Karigar: ${karigarName}`, pageWidth - margin, finalY, { align: 'right' });
+        }
         finalY += 7;
 
         doc.setFontSize(10).setFont("helvetica", "normal");
@@ -497,7 +505,6 @@ export default function OrderDetailPage() {
                     <PhoneInput
                         name="phone"
                         control={phoneForm.control as unknown as Control}
-                        defaultCountry="PK"
                         international
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1"
                     />
@@ -567,7 +574,9 @@ export default function OrderDetailPage() {
 
                   <h3 className="text-lg font-semibold mb-4">Order Items Checklist</h3>
                   <div className="space-y-4">
-                      {order.items.map((item, index) => (
+                      {order.items.map((item, index) => {
+                          const karigarName = karigars.find(k => k.id === item.karigarId)?.name;
+                          return (
                           <div key={index} className="p-4 border rounded-lg flex flex-col md:flex-row gap-4 bg-muted/30">
                               <div className="flex items-start gap-4 flex-grow">
                                   {item.sampleImageDataUri && (
@@ -577,12 +586,15 @@ export default function OrderDetailPage() {
                                   )}
                                   <div className="flex-grow">
                                       <p className="font-bold">{item.description}</p>
-                                      <p className="text-sm text-muted-foreground">
-                                          Est. Wt: {item.estimatedWeightG}g {item.karat ? `(${item.karat.toUpperCase()})` : ''}
-                                          {item.wastagePercentage > 0 && ` | Wastage: ${item.wastagePercentage}%`}
-                                          {item.referenceSku && ` | Ref: ${item.referenceSku}`}
-                                          {item.sampleGiven && ` | Sample Provided`}
-                                      </p>
+                                      <div className="text-sm text-muted-foreground space-y-1 mt-1">
+                                          <p>
+                                            Est. Wt: {item.estimatedWeightG}g {item.karat ? `(${item.karat.toUpperCase()})` : ''}
+                                            {item.wastagePercentage > 0 && ` | Wastage: ${item.wastagePercentage}%`}
+                                          </p>
+                                          {item.referenceSku && <p>Ref SKU: {item.referenceSku}</p>}
+                                          {item.sampleGiven && <p>Sample Provided by Customer</p>}
+                                          {karigarName && <p className="font-medium flex items-center gap-1"><Briefcase className="w-3 h-3"/>Karigar: {karigarName}</p>}
+                                      </div>
                                       {item.stoneDetails && (
                                           <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
                                               <p className="font-semibold flex items-center"><Gem className="w-3 h-3 mr-1.5"/>Stone Details:</p>
@@ -619,7 +631,7 @@ export default function OrderDetailPage() {
                                   </Label>
                               </div>
                           </div>
-                      ))}
+                      )})}
                   </div>
 
                   <Separator className="my-6" />

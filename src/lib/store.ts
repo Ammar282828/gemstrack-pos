@@ -363,6 +363,7 @@ export interface OrderItem {
   wastageCost?: number;
   totalEstimate?: number;
   metalType: MetalType;
+  karigarId?: string;
 }
 
 export interface Order {
@@ -1512,7 +1513,7 @@ export const useAppStore = create<AppState>()(
 
         if (!finalCustomerId && orderData.customerName) { // New walk-in customer with a name
             const newCustomer = await addCustomer({ 
-                name: orderData.customerName, 
+                name: orderData.customerName || '',
                 phone: orderData.customerContact,
                 email: '',
                 address: '',

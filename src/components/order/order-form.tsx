@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search } from 'lucide-react';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -60,6 +60,7 @@ const orderItemSchema = z.object({
   diamondDetails: z.string().optional(),
   metalType: z.enum(metalTypeValues).default('gold'),
   isCompleted: z.boolean().default(false),
+  karigarId: z.string().optional(),
 });
 
 // Schema for the main form which contains multiple items
@@ -312,13 +313,14 @@ interface OrderFormProps {
 export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
   const { toast } = useToast();
   const router = useRouter();
-  const { settings, customers, isSettingsLoading, isCustomersLoading, loadSettings, loadCustomers, addOrder, updateOrder, products: allProducts } = useAppStore();
+  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, products: allProducts } = useAppStore();
   const isEditMode = !!order;
 
   useEffect(() => {
     loadSettings();
     loadCustomers();
-  }, [loadSettings, loadCustomers]);
+    loadKarigars();
+  }, [loadSettings, loadCustomers, loadKarigars]);
 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderFormSchema),
@@ -435,7 +437,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     };
 
     const enrichedItems: OrderItem[] = data.items.map((item) => {
-        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, isCompleted, metalType, hasStones, stoneWeightG } = item;
+        const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, isCompleted, metalType, hasStones, stoneWeightG, karigarId } = item;
         const productForCalc = {
           categoryId: '', // Custom orders don't have a category
           metalType, karat, metalWeightG: estimatedWeightG,
@@ -444,7 +446,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
           hasStones, stoneWeightG
         };
         const costs = calculateProductCosts(productForCalc, ratesForOrder);
-        return { ...item, isCompleted: isCompleted, metalType: item.metalType, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
+        return { ...item, isCompleted: isCompleted, metalType: item.metalType, karigarId: karigarId, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
     });
 
     if (isEditMode && order) {
@@ -505,7 +507,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     }
   };
   
-  if (isSettingsLoading || isCustomersLoading) {
+  if (isSettingsLoading || isCustomersLoading || isKarigarsLoading) {
     return (
       <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
@@ -533,6 +535,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             isCompleted: false,
             stoneWeightG: product.stoneWeightG || 0,
             hasStones: product.hasStones || false,
+            karigarId: '',
         });
     };
   
@@ -555,6 +558,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         isCompleted: false,
         hasStones: false,
         stoneWeightG: 0,
+        karigarId: '',
     });
   };
 
@@ -610,6 +614,29 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                     <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>Est. Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                              </div>
+                             <FormField
+                                control={form.control}
+                                name={`items.${index}.karigarId`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel className="flex items-center"><Briefcase className="mr-2 h-4 w-4"/>Assign to Karigar</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a karigar" />
+                                        </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                        <SelectItem value="">None</SelectItem>
+                                        {karigars.map(k => (
+                                            <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>
+                                        ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
                               <FormField control={form.control} name={`items.${index}.wastagePercentage`} render={({ field }) => (
                                 <FormItem><FormLabel className="flex items-center"><Percent className="mr-2 h-4 w-4"/>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
