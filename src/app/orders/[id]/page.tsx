@@ -322,11 +322,12 @@ export default function OrderDetailPage() {
     if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
     if (ratesApplied.length > 0) {
         doc.setFontSize(8);
-        doc.setTextColor(150);
+        doc.setTextColor(150); // Grey color for rates
         doc.text(`Rates (PKR): ${ratesApplied.join(' | ')}`, margin, 54);
     }
     
-
+    // Reset color to black for subsequent text
+    doc.setTextColor(0);
     doc.text(`Customer: ${order.customerName || 'Walk-in'}`, pageWidth - margin, 42, { align: 'right' });
 
     doc.setFontSize(10).setFont('helvetica', 'bold');
@@ -348,6 +349,8 @@ export default function OrderDetailPage() {
             doc.setTextColor(150);
             doc.text(`Order Slip: ${order.id} (continued)`, margin, 15);
             finalY = 25;
+            // Reset text color for new page content
+            doc.setTextColor(0);
         }
 
         doc.setFontSize(12).setFont("helvetica", "bold");
@@ -674,4 +677,3 @@ export default function OrderDetailPage() {
     </div>
   );
 }
-
