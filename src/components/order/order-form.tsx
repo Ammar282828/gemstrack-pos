@@ -478,7 +478,18 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     } else {
         const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
         let finalCustomerName = data.customerName;
-        if (finalCustomerId) {
+        
+        if (!finalCustomerId && data.customerName) {
+            const newCustomer = await addCustomer({ 
+                name: data.customerName, 
+                phone: data.customerContact,
+                email: '',
+                address: '',
+            });
+            if (newCustomer) {
+                finalCustomerId = newCustomer.id;
+            }
+        } else if (finalCustomerId) {
           const customer = customers.find(c => c.id === finalCustomerId);
           if (customer) {
             finalCustomerName = customer.name;

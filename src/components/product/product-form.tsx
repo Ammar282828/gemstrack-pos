@@ -36,7 +36,7 @@ const productFormSchema = z.object({
   karat: z.enum(karatValues).optional(),
   metalWeightG: z.coerce.number().min(0.001, "Metal weight must be a positive number"),
   // Secondary Metal (optional)
-  secondaryMetalType: z.enum(metalTypeValues).optional().or(z.literal('')),
+  secondaryMetalType: z.string().optional(),
   secondaryMetalKarat: z.enum(karatValues).optional().or(z.literal('')),
   secondaryMetalWeightG: z.coerce.number().min(0, "Secondary metal weight must be non-negative").optional(),
   // Other fields
@@ -158,7 +158,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   
   useEffect(() => {
     if (selectedSecondaryMetalType !== 'gold') { form.setValue('secondaryMetalKarat', undefined); }
-    if(!selectedSecondaryMetalType){
+    if(!selectedSecondaryMetalType || selectedSecondaryMetalType === 'none'){
       form.setValue('secondaryMetalWeightG', 0);
       form.setValue('secondaryMetalKarat', undefined);
     }
@@ -230,9 +230,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       ...data,
       name: data.isCustomPrice ? (data.description || 'Custom Item') : (data.name || ''),
       karat: data.metalType === 'gold' ? data.karat : undefined,
-      secondaryMetalType: isMensRing ? (data.secondaryMetalType || undefined) : undefined,
-      secondaryMetalKarat: isMensRing && data.secondaryMetalType === 'gold' ? (data.secondaryMetalKarat || undefined) : undefined,
-      secondaryMetalWeightG: isMensRing && data.secondaryMetalType ? data.secondaryMetalWeightG : undefined,
+      secondaryMetalType: isMensRing && data.secondaryMetalType !== 'none' ? (data.secondaryMetalType as MetalType) : undefined,
+      secondaryMetalKarat: isMensRing && data.secondaryMetalType === 'gold' ? (data.secondaryMetalKarat as KaratValue) : undefined,
+      secondaryMetalWeightG: isMensRing && data.secondaryMetalType !== 'none' ? data.secondaryMetalWeightG : undefined,
     };
     
     if (isCartEditMode) {
@@ -445,7 +445,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4" /> Weight (g)</FormLabel>
-                                    <FormControl><Input type="number" step="0.001" placeholder="e.g., 1.25" {...field} disabled={!selectedSecondaryMetalType} /></FormControl>
+                                    <FormControl><Input type="number" step="0.001" placeholder="e.g., 1.25" {...field} disabled={!selectedSecondaryMetalType || selectedSecondaryMetalType === 'none'} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                                 )}
