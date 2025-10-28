@@ -33,6 +33,10 @@ const withPWA = withPWAInit({
   fallbacks: {
     document: '/~offline', // Custom offline fallback page
   },
+  cacheOnFrontEndNav: true, // Cache pages navigated to on the client
+  aggressiveFrontEndNavCaching: true, // Aggressively cache JS and CSS for visited pages
+  reloadOnOnline: true, // Reload the app when it comes back online
+  sw: 'service-worker.js', // service worker file name
 });
 
 export default withPWA(nextConfig);

@@ -1,5 +1,4 @@
 
-
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -713,6 +712,77 @@ function cleanObject<T extends object>(obj: T): T {
   return newObj as T;
 }
 
+/**
+ * Higher-order function to create a data loader for a specific Firestore collection.
+ * It handles loading from cache first, then subscribing to real-time updates from the server.
+ * This ensures a fast initial load while keeping data fresh.
+ */
+const createDataLoader = <T, K extends keyof AppState>(
+  collectionName: string,
+  stateKey: K,
+  loadingKey: keyof AppState,
+  errorKey: keyof AppState,
+  loadedKey: keyof AppState,
+  orderByField: string = "name",
+  orderByDirection: "asc" | "desc" = "asc"
+) => {
+  return async (set: (fn: (state: AppState) => void) => void, get: () => AppState) => {
+    if (get()[loadedKey] || get().settings.databaseLocked) return;
+
+    set(state => {
+      state[loadingKey] = true;
+      state[errorKey] = null;
+    });
+
+    const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
+
+    try {
+      // 1. Load from cache first for instant UI
+      const cacheSnapshot = await getDocsFromCache(q);
+      if (!cacheSnapshot.empty) {
+        const listFromCache = cacheSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
+        set(state => {
+          (state[stateKey] as any) = listFromCache;
+        });
+        console.log(`[GemsTrack Store] Loaded ${listFromCache.length} ${collectionName} from cache.`);
+      }
+    } catch (e) {
+        console.warn(`[GemsTrack Store] Cache read for ${collectionName} failed or was empty.`, e);
+    }
+    
+    // 2. Subscribe to real-time server updates
+    onSnapshot(q,
+      (serverSnapshot) => {
+        const serverList = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
+        set(state => {
+          (state[stateKey] as any) = serverList;
+          state[loadingKey] = false;
+          state[loadedKey] = true;
+          state[errorKey] = null; // Clear previous errors on successful fetch
+        });
+        console.log(`[GemsTrack Store] Real-time update: ${serverList.length} ${collectionName} loaded from server.`);
+      },
+      (error) => {
+        console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
+        set(state => {
+          state[loadingKey] = false;
+          state[errorKey] = error.message || `Failed to load ${collectionName}.`;
+        });
+      }
+    );
+  };
+};
+
+const loadProducts = createDataLoader<Product, 'products'>('products', 'products', 'isProductsLoading', 'productsError', 'hasProductsLoaded', 'sku', 'asc');
+const loadCustomers = createDataLoader<Customer, 'customers'>('customers', 'customers', 'isCustomersLoading', 'customersError', 'hasCustomersLoaded', 'name', 'asc');
+const loadKarigars = createDataLoader<Karigar, 'karigars'>('karigars', 'karigars', 'isKarigarsLoading', 'karigarsError', 'hasKarigarsLoaded', 'name', 'asc');
+const loadInvoices = createDataLoader<Invoice, 'generatedInvoices'>('invoices', 'generatedInvoices', 'isInvoicesLoading', 'invoicesError', 'hasInvoicesLoaded', 'createdAt', 'desc');
+const loadOrders = createDataLoader<Order, 'orders'>('orders', 'orders', 'isOrdersLoading', 'ordersError', 'hasOrdersLoaded', 'createdAt', 'desc');
+const loadHisaab = createDataLoader<HisaabEntry, 'hisaabEntries'>('hisaab', 'hisaabEntries', 'isHisaabLoading', 'hisaabError', 'hasHisaabLoaded', 'date', 'desc');
+const loadExpenses = createDataLoader<Expense, 'expenses'>('expenses', 'expenses', 'isExpensesLoading', 'expensesError', 'hasExpensesLoaded', 'date', 'desc');
+const loadSoldProducts = createDataLoader<Product, 'soldProducts'>('sold_products', 'soldProducts', 'isSoldProductsLoading', 'soldProductsError', 'hasSoldProductsLoaded', 'sku', 'asc');
+const loadActivityLog = createDataLoader<ActivityLog, 'activityLog'>('activity_log', 'activityLog', 'isActivityLogLoading', 'activityLogError', 'hasActivityLogLoaded', 'timestamp', 'desc');
+
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -855,42 +925,16 @@ export const useAppStore = create<AppState>()(
           console.log("[GemsTrack Store deleteCategory] Deleted category with ID:", id);
       }),
 
-      loadProducts: () => {
-        if (get().hasProductsLoaded || get().settings.databaseLocked) return;
-        set({ isProductsLoading: true, productsError: null });
-        const q = query(collection(db, FIRESTORE_COLLECTIONS.PRODUCTS), orderBy("sku"));
-        const unsubscribe = onSnapshot(q, 
-          (snapshot) => {
-            const productList = snapshot.docs.map(doc => doc.data() as Product);
-            set(state => {
-                state.products = productList;
-                state.isProductsLoading = false;
-                state.hasProductsLoaded = true;
-            });
-            console.log(`[GemsTrack Store] Real-time update: ${productList.length} products loaded.`);
-          }, 
-          (error) => {
-            console.error("[GemsTrack Store] Error in products real-time listener:", error);
-            set({ products: [], isProductsLoading: false, productsError: error.message || 'Failed to load products.' });
-          }
-        );
-      },
-      loadSoldProducts: () => {
-        if (get().hasSoldProductsLoaded || get().settings.databaseLocked) return;
-        set({ isSoldProductsLoading: true, soldProductsError: null });
-        const q = query(collection(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS));
-        onSnapshot(q, 
-          (snapshot) => {
-            const productList = snapshot.docs.map(doc => doc.data() as Product);
-            set({ soldProducts: productList, isSoldProductsLoading: false, hasSoldProductsLoaded: true });
-            console.log(`[GemsTrack Store] Real-time update: ${productList.length} sold products loaded.`);
-          }, 
-          (error) => {
-            console.error("[GemsTrack Store] Error in sold products real-time listener:", error);
-            set({ soldProducts: [], isSoldProductsLoading: false, soldProductsError: error.message || 'Failed to load sold products.' });
-          }
-        );
-      },
+      loadProducts: () => loadProducts(set, get),
+      loadSoldProducts: () => loadSoldProducts(set, get),
+      loadCustomers: () => loadCustomers(set, get),
+      loadKarigars: () => loadKarigars(set, get),
+      loadGeneratedInvoices: () => loadInvoices(set, get),
+      loadOrders: () => loadOrders(set, get),
+      loadHisaab: () => loadHisaab(set, get),
+      loadExpenses: () => loadExpenses(set, get),
+      loadActivityLog: () => loadActivityLog(set, get),
+
        reAddSoldProductToInventory: async (soldProduct) => {
         console.log(`[reAddSoldProductToInventory] Attempting to re-add based on SKU: ${soldProduct?.sku}`);
         if (!soldProduct) {
@@ -1067,26 +1111,6 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      loadCustomers: () => {
-        if (get().hasCustomersLoaded || get().settings.databaseLocked) return;
-        set({ isCustomersLoading: true, customersError: null });
-        const q = query(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS), orderBy("name"));
-        const unsubscribe = onSnapshot(q, 
-          (snapshot) => {
-            const customerList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer));
-            set(state => {
-              state.customers = customerList;
-              state.isCustomersLoading = false;
-              state.hasCustomersLoaded = true;
-            });
-            console.log(`[GemsTrack Store] Real-time update: ${customerList.length} customers loaded.`);
-          },
-          (error) => {
-            console.error("[GemsTrack Store] Error in customers real-time listener:", error);
-            set({ customers: [], isCustomersLoading: false, customersError: error.message || 'Failed to load customers.' });
-          }
-        );
-      },
       addCustomer: async (customerData) => {
         if(get().settings.databaseLocked) return null;
         const newCustomerId = `cust-${Date.now()}`;
@@ -1132,26 +1156,6 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      loadKarigars: () => {
-        if (get().hasKarigarsLoaded || get().settings.databaseLocked) return;
-        set({ isKarigarsLoading: true, karigarsError: null });
-        const q = query(collection(db, FIRESTORE_COLLECTIONS.KARIGARS), orderBy("name"));
-        const unsubscribe = onSnapshot(q, 
-          (snapshot) => {
-            const karigarList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Karigar));
-            set(state => {
-              state.karigars = karigarList;
-              state.isKarigarsLoading = false;
-              state.hasKarigarsLoaded = true;
-            });
-            console.log(`[GemsTrack Store] Real-time update: ${karigarList.length} karigars loaded.`);
-          },
-          (error) => {
-            console.error("[GemsTrack Store] Error in karigars real-time listener:", error);
-            set({ karigars: [], isKarigarsLoading: false, karigarsError: error.message || 'Failed to load karigars.' });
-          }
-        );
-      },
       addKarigar: async (karigarData) => {
         if(get().settings.databaseLocked) return null;
         const newKarigarId = `karigar-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
@@ -1236,26 +1240,6 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      loadGeneratedInvoices: () => {
-        if (get().hasInvoicesLoaded || get().settings.databaseLocked) return;
-        set({ isInvoicesLoading: true, invoicesError: null });
-        const q = query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), orderBy("createdAt", "desc"));
-        const unsubscribe = onSnapshot(q, 
-          (snapshot) => {
-            const invoiceList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Invoice));
-            set(state => {
-              state.generatedInvoices = invoiceList;
-              state.isInvoicesLoading = false;
-              state.hasInvoicesLoaded = true;
-            });
-            console.log(`[GemsTrack Store] Real-time update: ${invoiceList.length} invoices loaded.`);
-          },
-          (error) => {
-            console.error("[GemsTrack Store] Error in invoices real-time listener:", error);
-            set({ generatedInvoices: [], isInvoicesLoading: false, invoicesError: error.message || 'Failed to load invoices.' });
-          }
-        );
-      },
       generateInvoice: async (customerInfo, invoiceRates, discountAmount) => {
         if(get().settings.databaseLocked) return null;
         const { cart } = get();
@@ -1479,27 +1463,6 @@ export const useAppStore = create<AppState>()(
               console.error(`Failed to delete invoice ${invoiceId}:`, e);
               throw e;
           }
-      },
-
-      loadOrders: () => {
-        if (get().hasOrdersLoaded || get().settings.databaseLocked) return;
-        set({ isOrdersLoading: true, ordersError: null });
-        const q = query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), orderBy("createdAt", "desc"));
-        const unsubscribe = onSnapshot(q, 
-          (snapshot) => {
-            const orderList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order));
-            set(state => {
-              state.orders = orderList;
-              state.isOrdersLoading = false;
-              state.hasOrdersLoaded = true;
-            });
-            console.log(`[GemsTrack Store] Real-time update: ${orderList.length} orders loaded.`);
-          },
-          (error) => {
-            console.error("[GemsTrack Store] Error in orders real-time listener:", error);
-            set({ orders: [], isOrdersLoading: false, ordersError: error.message || 'Failed to load orders.' });
-          }
-        );
       },
 
       addOrder: async (orderData) => {
@@ -1780,26 +1743,6 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      loadHisaab: () => {
-        if (get().hasHisaabLoaded || get().settings.databaseLocked) return;
-        set({ isHisaabLoading: true, hisaabError: null });
-        const q = query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), orderBy("date", "desc"));
-        const unsubscribe = onSnapshot(q,
-          (snapshot) => {
-            const entryList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as HisaabEntry));
-            set(state => {
-              state.hisaabEntries = entryList;
-              state.isHisaabLoading = false;
-              state.hasHisaabLoaded = true;
-            });
-             console.log(`[GemsTrack Store] Real-time update: ${entryList.length} hisaab entries loaded.`);
-          },
-          (error) => {
-            console.error("[GemsTrack Store] Error in hisaab real-time listener:", error);
-            set({ hisaabEntries: [], isHisaabLoading: false, hisaabError: error.message || 'Failed to load hisaab.' });
-          }
-        );
-      },
       addHisaabEntry: async (entryData) => {
         if(get().settings.databaseLocked) return null;
         try {
@@ -1823,26 +1766,6 @@ export const useAppStore = create<AppState>()(
         }
       },
       
-      loadExpenses: () => {
-        if (get().hasExpensesLoaded || get().settings.databaseLocked) return;
-        set({ isExpensesLoading: true, expensesError: null });
-        const q = query(collection(db, FIRESTORE_COLLECTIONS.EXPENSES), orderBy("date", "desc"));
-        const unsubscribe = onSnapshot(q,
-          (snapshot) => {
-            const expenseList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Expense));
-            set(state => {
-                state.expenses = expenseList;
-                state.isExpensesLoading = false;
-                state.hasExpensesLoaded = true;
-            });
-            console.log(`[GemsTrack Store] Real-time update: ${expenseList.length} expenses loaded.`);
-          },
-          (error) => {
-            console.error("[GemsTrack Store] Error in expenses real-time listener:", error);
-            set({ expenses: [], isExpensesLoading: false, expensesError: error.message || 'Failed to load expenses.' });
-          }
-        );
-      },
       addExpense: async (expenseData) => {
         if(get().settings.databaseLocked) return null;
         try {
@@ -1878,27 +1801,6 @@ export const useAppStore = create<AppState>()(
           console.error(`[GemsTrack Store deleteExpense] Error deleting expense ID ${id}:`, error);
           throw error;
         }
-      },
-      
-      loadActivityLog: () => {
-        if (get().hasActivityLogLoaded || get().settings.databaseLocked) return;
-        set({ isActivityLogLoading: true, activityLogError: null });
-        const q = query(collection(db, FIRESTORE_COLLECTIONS.ACTIVITY_LOG), orderBy("timestamp", "desc"));
-        const unsubscribe = onSnapshot(q, 
-          (snapshot) => {
-            const logList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ActivityLog));
-            set(state => {
-                state.activityLog = logList;
-                state.isActivityLogLoading = false;
-                state.hasActivityLogLoaded = true;
-            });
-            console.log(`[GemsTrack Store] Real-time update: ${logList.length} activity logs loaded.`);
-          },
-          (error) => {
-            console.error("[GemsTrack Store] Error in activity log real-time listener:", error);
-            set({ activityLog: [], isActivityLogLoading: false, activityLogError: error.message || 'Failed to load activity log.' });
-          }
-        );
       },
     })),
     {
