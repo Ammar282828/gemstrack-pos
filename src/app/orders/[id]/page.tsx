@@ -358,8 +358,11 @@ export default function OrderDetailPage() {
         doc.text(`Item #${i + 1}: ${item.description}`, margin, finalY);
         if (karigarName) {
             doc.setFontSize(10).setFont("helvetica", "normal");
-            doc.text(`Karigar: ${karigarName}`, pageWidth - margin, finalY, { align: 'right' });
+            doc.text(`Karigar: ${karigarName}`, pageWidth - margin - 50, finalY, { align: 'right' });
         }
+        
+        doc.setFontSize(10).setFont("helvetica", "bold");
+        doc.text(`Est: PKR ${(item.totalEstimate || 0).toLocaleString()}`, pageWidth - margin, finalY, { align: 'right' });
         finalY += 7;
 
         doc.setFontSize(10).setFont("helvetica", "normal");
@@ -529,7 +532,7 @@ export default function OrderDetailPage() {
             </div>
             <DialogFooter>
             <Button variant="outline" onClick={() => setIsNotificationDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSendWhatsApp}>
+            <Button onClick={() => phoneForm.handleSubmit(handleSendWhatsApp)()}>
                 <MessageSquare className="mr-2 h-4 w-4"/> Send Message
             </Button>
             </DialogFooter>
