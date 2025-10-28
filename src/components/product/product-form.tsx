@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -161,14 +160,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     if (selectedSecondaryMetalType !== 'gold') { form.setValue('secondaryMetalKarat', undefined); }
     if(!selectedSecondaryMetalType){
       form.setValue('secondaryMetalWeightG', 0);
-      form.setValue('secondaryMetalKarat', '');
+      form.setValue('secondaryMetalKarat', undefined);
     }
   }, [selectedSecondaryMetalType, form]);
 
   useEffect(() => {
     if (!isMensRing) {
-        form.setValue('secondaryMetalType', '');
-        form.setValue('secondaryMetalKarat', '');
+        form.setValue('secondaryMetalType', undefined);
+        form.setValue('secondaryMetalKarat', undefined);
         form.setValue('secondaryMetalWeightG', 0);
     }
   }, [isMensRing, form]);
@@ -420,7 +419,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                     <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger></FormControl>
                                         <SelectContent>
-                                          <SelectItem value="">None</SelectItem>
+                                          <SelectItem value="none">None</SelectItem>
                                           {metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>))}
                                           </SelectContent>
                                     </Select>

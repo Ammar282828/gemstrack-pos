@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -207,6 +206,9 @@ const ImageCapture: React.FC<{
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Take a Photo</DialogTitle>
+                     <DialogDescription>
+                        Position the item in the frame and click capture.
+                    </DialogDescription>
                 </DialogHeader>
                 <video ref={videoRef} autoPlay playsInline className="w-full rounded-md border bg-muted"></video>
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
@@ -481,7 +483,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
           if (customer) {
             finalCustomerName = customer.name;
           }
+        } else if (!finalCustomerName && data.customerContact) {
+            finalCustomerName = `Customer - ${data.customerContact}`;
         }
+
 
         const orderToSave: Omit<Order, 'id' | 'createdAt' | 'status'> = {
             items: enrichedItems,
@@ -627,7 +632,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                         </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                        <SelectItem value="">None</SelectItem>
+                                        <SelectItem value="none">None</SelectItem>
                                         {karigars.map(k => (
                                             <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>
                                         ))}
