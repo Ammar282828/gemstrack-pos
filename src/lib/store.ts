@@ -720,9 +720,9 @@ function cleanObject<T extends object>(obj: T): T {
 const createDataLoader = <T, K extends keyof AppState>(
   collectionName: string,
   stateKey: K,
-  loadingKey: keyof Pick<AppState, 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading'>,
-  errorKey: keyof Pick<AppState, 'productsError' | 'customersError' | 'karigarsError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'soldProductsError' | 'activityLogError'>,
-  loadedKey: keyof Pick<AppState, 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded'>,
+  loadingKey: 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading',
+  errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'soldProductsError' | 'activityLogError',
+  loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
   orderByField: string = "name",
   orderByDirection: "asc" | "desc" = "asc"
 ) => {
@@ -730,7 +730,7 @@ const createDataLoader = <T, K extends keyof AppState>(
     if (get()[loadedKey] || get().settings.databaseLocked) return;
 
     set(state => {
-      state[loadingKey] = true;
+      state[loadingKey] = true as any;
       state[errorKey] = null;
     });
 
@@ -756,8 +756,8 @@ const createDataLoader = <T, K extends keyof AppState>(
         const serverList = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
         set(state => {
           (state[stateKey] as any) = serverList;
-          state[loadingKey] = false;
-          state[loadedKey] = true;
+          state[loadingKey] = false as any;
+          state[loadedKey] = true as any;
           state[errorKey] = null; // Clear previous errors on successful fetch
         });
         console.log(`[GemsTrack Store] Real-time update: ${serverList.length} ${collectionName} loaded from server.`);
@@ -765,7 +765,7 @@ const createDataLoader = <T, K extends keyof AppState>(
       (error) => {
         console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
         set(state => {
-          state[loadingKey] = false;
+          state[loadingKey] = false as any;
           state[errorKey] = error.message || `Failed to load ${collectionName}.`;
         });
       }
@@ -1801,27 +1801,6 @@ export const useAppStore = create<AppState>()(
           console.error(`[GemsTrack Store deleteExpense] Error deleting expense ID ${id}:`, error);
           throw error;
         }
-      },
-      
-      loadActivityLog: () => {
-        if (get().hasActivityLogLoaded || get().settings.databaseLocked) return;
-        set({ isActivityLogLoading: true, activityLogError: null });
-        const q = query(collection(db, FIRESTORE_COLLECTIONS.ACTIVITY_LOG), orderBy("timestamp", "desc"));
-        const unsubscribe = onSnapshot(q, 
-          (snapshot) => {
-            const logList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ActivityLog));
-            set(state => {
-                state.activityLog = logList;
-                state.isActivityLogLoading = false;
-                state.hasActivityLogLoaded = true;
-            });
-            console.log(`[GemsTrack Store] Real-time update: ${logList.length} activity logs loaded.`);
-          },
-          (error) => {
-            console.error("[GemsTrack Store] Error in activity log real-time listener:", error);
-            set({ activityLog: [], isActivityLogLoading: false, activityLogError: error.message || 'Failed to load activity log.' });
-          }
-        );
       },
     })),
     {
