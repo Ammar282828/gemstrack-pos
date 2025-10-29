@@ -402,9 +402,11 @@ export default function OrderDetailPage() {
     
     doc.setTextColor(0);
     doc.setFontSize(9).setFont('helvetica', 'bold');
-    doc.text(`Est. Subtotal: PKR ${order.subtotal.toLocaleString()}`, pageWidth - margin, 35, { align: 'right' });
+    doc.text(`Est. Subtotal:`, pageWidth - margin - 35, 35, { align: 'right' });
+    doc.text(`PKR ${(order.subtotal || 0).toLocaleString()}`, pageWidth - margin, 35, { align: 'right' });
+    doc.text(`Advance Paid:`, pageWidth - margin - 35, 40, { align: 'right' });
     const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
-    doc.text(`Advance Paid: PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, 40, { align: 'right' });
+    doc.text(`PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, 40, { align: 'right' });
 
     doc.setLineWidth(0.5);
     doc.line(margin, 50, pageWidth - margin, 50);
@@ -485,43 +487,43 @@ export default function OrderDetailPage() {
         finalY += 7;
     }
     
-    const footerStartY = pageHeight - 38;
+    const footerStartY = pageHeight - 35;
     const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
     
     doc.setLineWidth(0.2);
     doc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
-    doc.setFontSize(7).setTextColor(150);
-    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin * 2 - 50 });
+    doc.setFontSize(6).setTextColor(150);
+    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin * 2 - 45 });
     
     const contacts = [
         { name: "Murtaza", number: "0333 2275190" }, { name: "Muhammad", number: "0300 8280896" },
         { name: "Huzaifa", number: "0335 2275553" }, { name: "Ammar", number: "0326 2275554" },
     ];
-    let contactY = footerStartY + 8;
-    doc.setFontSize(7).setFont("helvetica", "bold").setTextColor(50);
+    let contactY = footerStartY + 6;
+    doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(50);
     doc.text("For Orders & Inquiries:", margin, contactY);
-    contactY += 3.5;
+    contactY += 3;
     doc.setFont("helvetica", "normal").setTextColor(100);
     contacts.forEach(contact => {
         doc.text(`${contact.name}: ${contact.number}`, margin, contactY);
-        contactY += 3.5;
+        contactY += 3;
     });
 
-    const qrCodeSize = 22;
-    const qrSectionWidth = (qrCodeSize * 2) + 10;
+    const qrCodeSize = 20;
+    const qrSectionWidth = (qrCodeSize * 2) + 5;
     const qrStartX = pageWidth - margin - qrSectionWidth;
 
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
 
     if (instaQrCanvas) {
-        doc.setFontSize(7); doc.setFont("helvetica", "bold").setTextColor(0);
+        doc.setFontSize(6); doc.setFont("helvetica", "bold").setTextColor(0);
         doc.text("@collectionstaheri", qrStartX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
         doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
     }
     if (waQrCanvas) {
-        const secondQrX = qrStartX + qrCodeSize + 10;
-        doc.setFontSize(7); doc.setFont("helvetica", "bold").setTextColor(0);
+        const secondQrX = qrStartX + qrCodeSize + 5;
+        doc.setFontSize(6); doc.setFont("helvetica", "bold").setTextColor(0);
         doc.text("Join on WhatsApp", secondQrX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
         doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
     }
@@ -594,6 +596,7 @@ export default function OrderDetailPage() {
                         name="phone"
                         control={phoneForm.control as unknown as Control}
                         international
+                        defaultCountry="PK"
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1"
                     />
                 </div>
