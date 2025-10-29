@@ -720,9 +720,9 @@ function cleanObject<T extends object>(obj: T): T {
 const createDataLoader = <T, K extends keyof AppState>(
   collectionName: string,
   stateKey: K,
-  loadingKey: keyof AppState,
-  errorKey: keyof AppState,
-  loadedKey: keyof AppState,
+  loadingKey: keyof Pick<AppState, 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading'>,
+  errorKey: keyof Pick<AppState, 'productsError' | 'customersError' | 'karigarsError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'soldProductsError' | 'activityLogError'>,
+  loadedKey: keyof Pick<AppState, 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded'>,
   orderByField: string = "name",
   orderByDirection: "asc" | "desc" = "asc"
 ) => {
@@ -1801,6 +1801,27 @@ export const useAppStore = create<AppState>()(
           console.error(`[GemsTrack Store deleteExpense] Error deleting expense ID ${id}:`, error);
           throw error;
         }
+      },
+      
+      loadActivityLog: () => {
+        if (get().hasActivityLogLoaded || get().settings.databaseLocked) return;
+        set({ isActivityLogLoading: true, activityLogError: null });
+        const q = query(collection(db, FIRESTORE_COLLECTIONS.ACTIVITY_LOG), orderBy("timestamp", "desc"));
+        const unsubscribe = onSnapshot(q, 
+          (snapshot) => {
+            const logList = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as ActivityLog));
+            set(state => {
+                state.activityLog = logList;
+                state.isActivityLogLoading = false;
+                state.hasActivityLogLoaded = true;
+            });
+            console.log(`[GemsTrack Store] Real-time update: ${logList.length} activity logs loaded.`);
+          },
+          (error) => {
+            console.error("[GemsTrack Store] Error in activity log real-time listener:", error);
+            set({ activityLog: [], isActivityLogLoading: false, activityLogError: error.message || 'Failed to load activity log.' });
+          }
+        );
       },
     })),
     {
