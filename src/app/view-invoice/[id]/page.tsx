@@ -278,10 +278,10 @@ export default function ViewInvoicePage() {
     pdfDoc.setFontSize(6).setFont("helvetica", "bold").setTextColor(50);
     pdfDoc.text("For Orders & Inquiries:", margin, contactY);
     contactY += 3;
-    pdfDoc.setFont("helvetica", "normal").setTextColor(100);
+    pdfDoc.setFontSize(8).setFont("helvetica", "normal").setTextColor(100);
     contacts.forEach(contact => {
         pdfDoc.text(`${contact.name}: ${contact.number}`, margin, contactY);
-        contactY += 3;
+        contactY += 4;
     });
 
     const qrCodeSize = 20;

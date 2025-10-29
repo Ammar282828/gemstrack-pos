@@ -609,7 +609,7 @@ export default function CartPage() {
     doc.setLineWidth(0.2);
     doc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
     doc.setFontSize(6).setTextColor(150);
-    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin * 2 - 45 }); // Adjusted maxWidth for QR codes
+    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin * 2 - 45 });
     
     const contacts = [
         { name: "Murtaza", number: "0333 2275190" }, { name: "Muhammad", number: "0300 8280896" },
@@ -619,14 +619,14 @@ export default function CartPage() {
     doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(50);
     doc.text("For Orders & Inquiries:", margin, contactY);
     contactY += 3;
-    doc.setFont("helvetica", "normal").setTextColor(100);
+    doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(100);
     contacts.forEach(contact => {
         doc.text(`${contact.name}: ${contact.number}`, margin, contactY);
-        contactY += 3;
+        contactY += 4;
     });
 
     const qrCodeSize = 20;
-    const qrSectionWidth = (qrCodeSize * 2) + 5; // Width of 2 QR codes + spacing
+    const qrSectionWidth = (qrCodeSize * 2) + 5;
     const qrStartX = pageWidth - margin - qrSectionWidth;
 
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;

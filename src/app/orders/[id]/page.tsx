@@ -395,8 +395,7 @@ export default function OrderDetailPage() {
     if (rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
     if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
     if (ratesApplied.length > 0) {
-        doc.setFontSize(7);
-        doc.setTextColor(150);
+        doc.setFontSize(7).setTextColor(150);
         doc.text(`Rates (PKR): ${ratesApplied.join(' | ')}`, margin, 45);
     }
     
@@ -427,13 +426,19 @@ export default function OrderDetailPage() {
 
         doc.setFontSize(10).setFont("helvetica", "bold");
         const karigarName = karigars.find(k => k.id === item.karigarId)?.name;
-        doc.text(`Item #${i + 1}: ${item.description}`, margin, finalY);
         
-        doc.setFontSize(9).setFont("helvetica", "normal");
+        const itemTitle = `Item #${i + 1}: ${item.description}`;
+        const splitTitle = doc.splitTextToSize(itemTitle, pageWidth - margin * 2 - 35); // Reserve space for karigar name
+        doc.text(splitTitle, margin, finalY);
+
+        finalY += (splitTitle.length * 3.5); // Adjust Y based on lines used by title
+
         if (karigarName) {
-            doc.text(`Karigar: ${karigarName}`, pageWidth - margin - 40, finalY, { align: 'right' });
+            doc.setFontSize(8).setFont("helvetica", "normal");
+            doc.text(`Karigar: ${karigarName}`, pageWidth - margin, finalY - 5, { align: 'right' });
         }
-        doc.setFont('helvetica', 'bold');
+        
+        doc.setFontSize(9).setFont('helvetica', 'bold');
         doc.text(`Est: PKR ${(item.totalEstimate || 0).toLocaleString()}`, pageWidth - margin, finalY, { align: 'right' });
 
         finalY += 6;
@@ -503,10 +508,10 @@ export default function OrderDetailPage() {
     doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(50);
     doc.text("For Orders & Inquiries:", margin, contactY);
     contactY += 3;
-    doc.setFont("helvetica", "normal").setTextColor(100);
+    doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(100);
     contacts.forEach(contact => {
         doc.text(`${contact.name}: ${contact.number}`, margin, contactY);
-        contactY += 3;
+        contactY += 4;
     });
 
     const qrCodeSize = 20;
