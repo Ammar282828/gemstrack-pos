@@ -361,7 +361,11 @@ export default function OrderDetailPage() {
   const handlePrintOrderSlip = async () => {
     if (!order || typeof window === 'undefined' || !settings) return;
 
-    const doc = new jsPDF();
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a5'
+    });
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
@@ -391,19 +395,18 @@ export default function OrderDetailPage() {
     if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
     if (ratesApplied.length > 0) {
         doc.setFontSize(8);
-        doc.setTextColor(150); // Grey color for rates
+        doc.setTextColor(150);
         doc.text(`Rates (PKR): ${ratesApplied.join(' | ')}`, margin, 54);
     }
     
-    // Reset color to black for subsequent text
     doc.setTextColor(0);
     doc.text(`Customer: ${order.customerName || 'Walk-in'}`, pageWidth - margin, 42, { align: 'right' });
-
+    
     doc.setFontSize(10).setFont('helvetica', 'bold');
     doc.text(`Est. Subtotal: PKR ${order.subtotal.toLocaleString()}`, pageWidth - margin, 48, { align: 'right' });
     const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
     doc.text(`Advance Paid: PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, 54, { align: 'right' });
-    
+
     doc.setLineWidth(0.5);
     doc.line(margin, 60, pageWidth - margin, 60);
 
@@ -418,20 +421,20 @@ export default function OrderDetailPage() {
             doc.setTextColor(150);
             doc.text(`Order Slip: ${order.id} (continued)`, margin, 15);
             finalY = 25;
-            // Reset text color for new page content
             doc.setTextColor(0);
         }
 
         doc.setFontSize(12).setFont("helvetica", "bold");
         const karigarName = karigars.find(k => k.id === item.karigarId)?.name;
         doc.text(`Item #${i + 1}: ${item.description}`, margin, finalY);
+        
+        doc.setFontSize(10).setFont("helvetica", "normal");
         if (karigarName) {
-            doc.setFontSize(10).setFont("helvetica", "normal");
             doc.text(`Karigar: ${karigarName}`, pageWidth - margin - 50, finalY, { align: 'right' });
         }
-        
-        doc.setFontSize(10).setFont("helvetica", "bold");
+        doc.setFont('helvetica', 'bold');
         doc.text(`Est: PKR ${(item.totalEstimate || 0).toLocaleString()}`, pageWidth - margin, finalY, { align: 'right' });
+
         finalY += 7;
 
         doc.setFontSize(10).setFont("helvetica", "normal");

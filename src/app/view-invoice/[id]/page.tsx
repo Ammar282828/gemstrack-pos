@@ -80,7 +80,11 @@ export default function ViewInvoicePage() {
   const handlePrint = () => {
     if (!invoice || !settings) return;
     
-    const pdfDoc = new jsPDF();
+    const pdfDoc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a5'
+    });
     const pageHeight = pdfDoc.internal.pageSize.getHeight();
     const pageWidth = pdfDoc.internal.pageSize.getWidth();
     const margin = 15;
@@ -377,4 +381,3 @@ export default function ViewInvoicePage() {
     </div>
   );
 }
-
