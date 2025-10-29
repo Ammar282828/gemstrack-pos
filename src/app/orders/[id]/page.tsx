@@ -368,24 +368,25 @@ export default function OrderDetailPage() {
     });
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15;
+    const margin = 10;
     
     const logoToUse = settings.shopLogoUrlBlack || settings.shopLogoUrl;
 
     if (logoToUse) {
         try {
-            doc.addImage(logoToUse, 'PNG', margin, 15, 40, 10, undefined, 'FAST');
+            doc.addImage(logoToUse, 'PNG', margin, 10, 35, 8, undefined, 'FAST');
         } catch (e) {
             console.error("Error adding logo to Order Slip PDF:", e);
         }
     }
 
-    doc.setFont("helvetica", "bold").setFontSize(22);
-    doc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 22, { align: 'right' });
+    doc.setFont("helvetica", "bold").setFontSize(18);
+    doc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 15, { align: 'right' });
     
-    doc.setFont("helvetica", "normal").setFontSize(10);
-    doc.text(`Order ID: ${order.id}`, margin, 42);
-    doc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, 48);
+    doc.setFont("helvetica", "normal").setFontSize(9);
+    doc.text(`Order ID: ${order.id}`, margin, 30);
+    doc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, 35);
+    doc.text(`Customer: ${order.customerName || 'Walk-in'}`, margin, 40);
 
     const rates = order.ratesApplied;
     let ratesApplied: string[] = [];
@@ -394,73 +395,71 @@ export default function OrderDetailPage() {
     if (rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
     if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
     if (ratesApplied.length > 0) {
-        doc.setFontSize(8);
+        doc.setFontSize(7);
         doc.setTextColor(150);
-        doc.text(`Rates (PKR): ${ratesApplied.join(' | ')}`, margin, 54);
+        doc.text(`Rates (PKR): ${ratesApplied.join(' | ')}`, margin, 45);
     }
     
     doc.setTextColor(0);
-    doc.text(`Customer: ${order.customerName || 'Walk-in'}`, pageWidth - margin, 42, { align: 'right' });
-    
-    doc.setFontSize(10).setFont('helvetica', 'bold');
-    doc.text(`Est. Subtotal: PKR ${order.subtotal.toLocaleString()}`, pageWidth - margin, 48, { align: 'right' });
+    doc.setFontSize(9).setFont('helvetica', 'bold');
+    doc.text(`Est. Subtotal: PKR ${order.subtotal.toLocaleString()}`, pageWidth - margin, 35, { align: 'right' });
     const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
-    doc.text(`Advance Paid: PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, 54, { align: 'right' });
+    doc.text(`Advance Paid: PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, 40, { align: 'right' });
 
     doc.setLineWidth(0.5);
-    doc.line(margin, 60, pageWidth - margin, 60);
+    doc.line(margin, 50, pageWidth - margin, 50);
 
-    let finalY = 68;
+    let finalY = 58;
 
     for (let i = 0; i < order.items.length; i++) {
         const item = order.items[i];
         
         if (finalY + 45 > pageHeight - margin) { // Check if new item block fits
             doc.addPage();
-            doc.setFontSize(10);
+            doc.setFontSize(8);
             doc.setTextColor(150);
-            doc.text(`Order Slip: ${order.id} (continued)`, margin, 15);
-            finalY = 25;
+            doc.text(`Order Slip: ${order.id} (continued)`, margin, 10);
+            finalY = 20;
             doc.setTextColor(0);
         }
 
-        doc.setFontSize(12).setFont("helvetica", "bold");
+        doc.setFontSize(10).setFont("helvetica", "bold");
         const karigarName = karigars.find(k => k.id === item.karigarId)?.name;
         doc.text(`Item #${i + 1}: ${item.description}`, margin, finalY);
         
-        doc.setFontSize(10).setFont("helvetica", "normal");
+        doc.setFontSize(9).setFont("helvetica", "normal");
         if (karigarName) {
-            doc.text(`Karigar: ${karigarName}`, pageWidth - margin - 50, finalY, { align: 'right' });
+            doc.text(`Karigar: ${karigarName}`, pageWidth - margin - 40, finalY, { align: 'right' });
         }
         doc.setFont('helvetica', 'bold');
         doc.text(`Est: PKR ${(item.totalEstimate || 0).toLocaleString()}`, pageWidth - margin, finalY, { align: 'right' });
 
-        finalY += 7;
+        finalY += 6;
 
-        doc.setFontSize(10).setFont("helvetica", "normal");
+        doc.setFontSize(8).setFont("helvetica", "normal");
         const metalInfo = `Metal: ${item.metalType}, ${item.karat || ''}, Est. Weight: ${item.estimatedWeightG}g`;
         doc.text(metalInfo, margin + 5, finalY);
-        finalY += 6;
+        finalY += 5;
         
         const wastageInfo = `Wastage: ${item.wastagePercentage}%`;
         doc.text(wastageInfo, margin + 5, finalY);
-        finalY += 6;
+        finalY += 5;
         
         if (item.referenceSku) {
             doc.text(`Reference SKU: ${item.referenceSku}`, margin + 5, finalY);
-            finalY += 6;
+            finalY += 5;
         }
         
         if (item.stoneDetails || item.diamondDetails) {
-            finalY += 4;
-            doc.setFontSize(10).setFont("helvetica", "bold");
+            finalY += 3;
+            doc.setFontSize(9).setFont("helvetica", "bold");
             doc.text('Special Instructions:', margin + 5, finalY);
-            finalY += 5;
-            doc.setFontSize(9).setFont("helvetica", "normal");
+            finalY += 4;
+            doc.setFontSize(8).setFont("helvetica", "normal");
             const detailsText = `${item.stoneDetails || ''}\n${item.diamondDetails || ''}`;
             const splitText = doc.splitTextToSize(detailsText, pageWidth - (margin * 2) - 10);
-            doc.text(splitText, margin + 10, finalY);
-            finalY += (splitText.length * 4) + 4;
+            doc.text(splitText, margin + 8, finalY);
+            finalY += (splitText.length * 3.5) + 3;
         }
         
         if (item.sampleImageDataUri) {
@@ -468,15 +467,14 @@ export default function OrderDetailPage() {
                 // Ensure image is loaded before adding
                 const img = new (window as any).Image();
                 img.src = item.sampleImageDataUri;
-                img.onload = () => {
-                    const imgHeight = 40;
-                    if (finalY + imgHeight > pageHeight - margin) {
-                        doc.addPage();
-                        finalY = 25;
-                    }
-                    doc.addImage(img, 'JPEG', margin + 5, finalY, 40, imgHeight);
-                    finalY += imgHeight + 5;
-                };
+                await new Promise(resolve => { img.onload = resolve; });
+                const imgHeight = 35;
+                if (finalY + imgHeight > pageHeight - margin) {
+                    doc.addPage();
+                    finalY = 20;
+                }
+                doc.addImage(img, 'JPEG', margin + 5, finalY, 35, imgHeight);
+                finalY += imgHeight + 4;
             } catch(e) {
                 console.error("Could not add sample image to PDF", e);
             }
@@ -484,48 +482,46 @@ export default function OrderDetailPage() {
         
         doc.setLineWidth(0.2);
         doc.line(margin, finalY, pageWidth - margin, finalY);
-        finalY += 8;
+        finalY += 7;
     }
     
-    const footerStartY = pageHeight - 45;
+    const footerStartY = pageHeight - 38;
     const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
     
     doc.setLineWidth(0.2);
-    doc.line(margin, footerStartY - 10, pageWidth - margin, footerStartY - 10);
-    doc.setFontSize(8).setTextColor(150);
-    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin * 2 - 70 });
+    doc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
+    doc.setFontSize(7).setTextColor(150);
+    doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - margin * 2 - 50 });
     
     const contacts = [
-        { name: "Murtaza", number: "0333 2275190" },
-        { name: "Muhammad", number: "0300 8280896" },
-        { name: "Huzaifa", number: "0335 2275553" },
-        { name: "Ammar", number: "0326 2275554" },
+        { name: "Murtaza", number: "0333 2275190" }, { name: "Muhammad", number: "0300 8280896" },
+        { name: "Huzaifa", number: "0335 2275553" }, { name: "Ammar", number: "0326 2275554" },
     ];
-    let contactY = footerStartY + 12;
-    doc.setFontSize(8).setFont("helvetica", "bold").setTextColor(50);
+    let contactY = footerStartY + 8;
+    doc.setFontSize(7).setFont("helvetica", "bold").setTextColor(50);
     doc.text("For Orders & Inquiries:", margin, contactY);
-    contactY += 4;
+    contactY += 3.5;
     doc.setFont("helvetica", "normal").setTextColor(100);
     contacts.forEach(contact => {
         doc.text(`${contact.name}: ${contact.number}`, margin, contactY);
-        contactY += 4;
+        contactY += 3.5;
     });
 
-    const qrCodeSize = 25;
-    const qrSectionWidth = (qrCodeSize * 2) + 15;
+    const qrCodeSize = 22;
+    const qrSectionWidth = (qrCodeSize * 2) + 10;
     const qrStartX = pageWidth - margin - qrSectionWidth;
 
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
 
     if (instaQrCanvas) {
-        doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
+        doc.setFontSize(7); doc.setFont("helvetica", "bold").setTextColor(0);
         doc.text("@collectionstaheri", qrStartX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
         doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
     }
     if (waQrCanvas) {
-        const secondQrX = qrStartX + qrCodeSize + 15;
-        doc.setFontSize(8); doc.setFont("helvetica", "bold").setTextColor(0);
+        const secondQrX = qrStartX + qrCodeSize + 10;
+        doc.setFontSize(7); doc.setFont("helvetica", "bold").setTextColor(0);
         doc.text("Join on WhatsApp", secondQrX + qrCodeSize/2, footerStartY - 2, { align: 'center'});
         doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
     }
