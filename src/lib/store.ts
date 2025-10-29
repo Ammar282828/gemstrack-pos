@@ -1,9 +1,10 @@
 
+
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc, runTransaction, getDocsFromCache } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc } from 'firebase/firestore';
 import { db, firebaseConfig } from '@/lib/firebase';
 import { summarizeOrderItems, SummarizeOrderItemsInput } from '@/ai/flows/summarize-order-items-flow';
 
@@ -667,6 +668,7 @@ export interface AppState {
     finalizedItems: FinalizedOrderItemData[],
     additionalDiscount: number
   ) => Promise<Invoice | null>;
+  recordOrderAdvance: (orderId: string, amount: number, notes: string) => Promise<Order | null>;
 
   loadHisaab: () => void;
   addHisaabEntry: (entryData: Omit<HisaabEntry, 'id'>) => Promise<HisaabEntry | null>;
@@ -726,7 +728,7 @@ const createDataLoader = <T, K extends keyof AppState>(
   orderByField: string = "name",
   orderByDirection: "asc" | "desc" = "asc"
 ) => {
-  return async (set: (fn: (state: AppState) => void) => void, get: () => AppState) => {
+  return (set: (fn: (state: AppState) => void) => void, get: () => AppState) => {
     if (get()[loadedKey] || get().settings.databaseLocked) return;
 
     set(state => {
@@ -736,9 +738,8 @@ const createDataLoader = <T, K extends keyof AppState>(
 
     const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
 
-    try {
-      // 1. Load from cache first for instant UI
-      const cacheSnapshot = await getDocsFromCache(q);
+    // 1. Load from cache first for instant UI
+    getDocsFromCache(q).then(cacheSnapshot => {
       if (!cacheSnapshot.empty) {
         const listFromCache = cacheSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
         set(state => {
@@ -746,9 +747,9 @@ const createDataLoader = <T, K extends keyof AppState>(
         });
         console.log(`[GemsTrack Store] Loaded ${listFromCache.length} ${collectionName} from cache.`);
       }
-    } catch (e) {
+    }).catch(e => {
         console.warn(`[GemsTrack Store] Cache read for ${collectionName} failed or was empty.`, e);
-    }
+    });
     
     // 2. Subscribe to real-time server updates
     onSnapshot(q,
@@ -1742,7 +1743,50 @@ export const useAppStore = create<AppState>()(
             return null;
         }
       },
+      recordOrderAdvance: async (orderId, amount, notes) => {
+        if (get().settings.databaseLocked) return null;
+        const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
 
+        try {
+            const updatedOrder = await runTransaction(db, async (transaction) => {
+                const orderDoc = await transaction.get(orderRef);
+                if (!orderDoc.exists()) {
+                    throw new Error("Order not found!");
+                }
+                const orderData = orderDoc.data() as Order;
+                
+                const newAdvancePayment = (orderData.advancePayment || 0) + amount;
+                const newGrandTotal = orderData.subtotal - newAdvancePayment - (orderData.advanceInExchangeValue || 0);
+
+                transaction.update(orderRef, {
+                    advancePayment: newAdvancePayment,
+                    grandTotal: newGrandTotal,
+                });
+                
+                const hisaabEntry: Omit<HisaabEntry, 'id'> = {
+                    entityId: orderData.customerId || 'walk-in',
+                    entityType: 'customer',
+                    entityName: orderData.customerName || 'Walk-in Customer',
+                    date: new Date().toISOString(),
+                    description: `Advance for Order ${orderId}: ${notes}`,
+                    cashDebit: 0,
+                    cashCredit: amount,
+                    goldDebitGrams: 0,
+                    goldCreditGrams: 0,
+                };
+                transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
+
+                await addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${amount.toLocaleString()}`, orderId);
+
+                return { ...orderData, advancePayment: newAdvancePayment, grandTotal: newGrandTotal };
+            });
+            return updatedOrder;
+        } catch (error) {
+            console.error(`Error recording advance for order ${orderId}:`, error);
+            throw error;
+        }
+    },
+      
       addHisaabEntry: async (entryData) => {
         if(get().settings.databaseLocked) return null;
         try {

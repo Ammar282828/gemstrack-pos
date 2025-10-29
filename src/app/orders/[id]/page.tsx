@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogClose,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -186,6 +187,73 @@ const FinalizeOrderDialog: React.FC<{
     );
 };
 
+const recordAdvanceSchema = z.object({
+  amount: z.coerce.number().positive("Amount must be a positive number."),
+  notes: z.string().min(3, "Please add a brief note for the payment.").default('Advance payment received'),
+});
+type RecordAdvanceFormData = z.infer<typeof recordAdvanceSchema>;
+
+const RecordAdvanceDialog: React.FC<{
+    order: Order;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}> = ({ order, open, onOpenChange }) => {
+    const { recordOrderAdvance } = useAppStore();
+    const { toast } = useToast();
+    const form = useForm<RecordAdvanceFormData>({
+      resolver: zodResolver(recordAdvanceSchema),
+      defaultValues: { amount: undefined, notes: 'Advance payment received' }
+    });
+
+    const handleRecordAdvance = async (data: RecordAdvanceFormData) => {
+        try {
+            await recordOrderAdvance(order.id, data.amount, data.notes);
+            toast({
+                title: "Advance Recorded",
+                description: `PKR ${data.amount.toLocaleString()} has been added to the advance for order ${order.id}.`,
+            });
+            onOpenChange(false);
+            form.reset();
+        } catch (error) {
+             toast({
+                title: "Error",
+                description: "Failed to record advance payment.",
+                variant: "destructive",
+            });
+        }
+    };
+    
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Record Additional Advance</DialogTitle>
+                    <DialogDescription>
+                        Add a subsequent advance payment received for order {order.id}. This will update the balance due.
+                    </DialogDescription>
+                </DialogHeader>
+                 <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleRecordAdvance)} className="space-y-4 pt-4">
+                        <FormField control={form.control} name="amount" render={({ field }) => (
+                           <FormItem><FormLabel>Advance Amount (PKR)</FormLabel><FormControl><Input type="number" placeholder="Enter amount received" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="notes" render={({ field }) => (
+                           <FormItem><FormLabel>Notes</FormLabel><FormControl><Input placeholder="e.g., Second advance payment" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <DialogFooter>
+                            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                            <Button type="submit" disabled={form.formState.isSubmitting}>
+                               {form.formState.isSubmitting ? <Loader2 className="animate-spin mr-2"/> : <DollarSign className="mr-2 h-4 w-4"/>}
+                                Record Payment
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -204,6 +272,7 @@ export default function OrderDetailPage() {
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [notificationType, setNotificationType] = useState<NotificationType | null>(null);
   const [isFinalizeDialogOpen, setIsFinalizeDialogOpen] = useState(false);
+  const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
 
   useEffect(() => {
     loadKarigars();
@@ -540,6 +609,8 @@ export default function OrderDetailPage() {
       </Dialog>
       
       {order && <FinalizeOrderDialog order={order} open={isFinalizeDialogOpen} onOpenChange={setIsFinalizeDialogOpen} />}
+      {order && <RecordAdvanceDialog order={order} open={isAdvanceDialogOpen} onOpenChange={setIsAdvanceDialogOpen} />}
+
 
       <Button variant="outline" onClick={() => router.back()} className="mb-0">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
@@ -656,8 +727,9 @@ export default function OrderDetailPage() {
 
                   <Separator className="my-6" />
 
-                  <div className="flex justify-end">
-                      <div className="w-full max-w-sm space-y-2 p-4 text-base">
+                  <div className="flex flex-col md:flex-row justify-end items-start gap-4">
+                     <Button variant="outline" onClick={() => setIsAdvanceDialogOpen(true)}>Record Additional Advance</Button>
+                      <div className="w-full max-w-sm space-y-2 p-4 text-base bg-muted/30 rounded-lg">
                           <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           <div className="flex justify-between text-destructive"><span>Advance Payment (Cash):</span> <span className="font-semibold">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           {advanceInExchangeValue > 0 && (
