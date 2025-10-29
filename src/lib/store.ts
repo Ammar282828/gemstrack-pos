@@ -1,5 +1,4 @@
 
-
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -1847,6 +1846,8 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
+      
+      loadActivityLog: () => loadActivityLog(set, get),
     })),
     {
       name: 'gemstrack-pos-storage',
