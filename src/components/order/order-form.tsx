@@ -26,6 +26,7 @@ import Image from 'next/image';
 import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -315,7 +316,7 @@ interface OrderFormProps {
 export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
   const { toast } = useToast();
   const router = useRouter();
-  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, products: allProducts } = useAppStore();
+  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, addCustomer, products: allProducts } = useAppStore();
   const isEditMode = !!order;
 
   useEffect(() => {
@@ -476,7 +477,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         toast({ title: "Order Updated", description: "The custom order has been successfully updated." });
         router.push(`/orders/${order.id}`);
     } else {
-        const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
+        let finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
         let finalCustomerName = data.customerName;
         
         if (!finalCustomerId && data.customerName) {
