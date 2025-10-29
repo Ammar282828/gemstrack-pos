@@ -317,7 +317,7 @@ interface OrderFormProps {
 export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
   const { toast } = useToast();
   const router = useRouter();
-  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, addCustomer, products: allProducts } = useAppStore();
+  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, addCustomer } = useAppStore();
   const isEditMode = !!order;
 
   useEffect(() => {
@@ -351,18 +351,20 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
       form.reset({
         items: order.items.map(item => ({
             ...item,
+            karat: item.karat || undefined,
             sampleImageDataUri: item.sampleImageDataUri || '',
             referenceSku: item.referenceSku || '',
             stoneDetails: item.stoneDetails || '',
             diamondDetails: item.diamondDetails || '',
+            karigarId: item.karigarId || '',
         })),
         goldRate18k: rates.goldRatePerGram18k || 0,
         goldRate21k: rates.goldRatePerGram21k || 0,
         goldRate22k: rates.goldRatePerGram22k || 0,
         goldRate24k: rates.goldRatePerGram24k || 0,
-        advancePayment: order.advancePayment || 0,
+        advancePayment: Number(order.advancePayment) || 0,
         advanceInExchangeDescription: order.advanceInExchangeDescription || '',
-        advanceInExchangeValue: order.advanceInExchangeValue || 0,
+        advanceInExchangeValue: Number(order.advanceInExchangeValue) || 0,
         customerId: order.customerId || WALK_IN_CUSTOMER_VALUE,
         customerName: order.customerName || '',
         customerContact: order.customerContact || '',
@@ -638,7 +640,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                 render={({ field }) => (
                                     <FormItem>
                                     <FormLabel className="flex items-center"><Briefcase className="mr-2 h-4 w-4"/>Assign to Karigar</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value || ''}>
                                         <FormControl>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select a karigar" />
@@ -781,6 +783,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                         onBlur={field.onBlur}
                                         ref={field.ref}
                                         international
+                                        country="PK"
+                                        defaultCountry="PK"
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                                     />
                                     </FormControl>

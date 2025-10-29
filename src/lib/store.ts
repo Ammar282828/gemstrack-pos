@@ -1551,7 +1551,8 @@ export const useAppStore = create<AppState>()(
       updateOrder: async (orderId, updatedOrderData) => {
         if(get().settings.databaseLocked) return;
         const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
-        await setDoc(orderRef, updatedOrderData, { merge: true });
+        const cleanData = cleanObject(updatedOrderData);
+        await setDoc(orderRef, cleanData, { merge: true });
         await addActivityLog('order.update', `Updated order: ${orderId}`, `Details updated`, orderId);
       },
       deleteOrder: async (orderId: string) => {
@@ -1846,8 +1847,6 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
-      
-      loadActivityLog: () => loadActivityLog(set, get),
     })),
     {
       name: 'gemstrack-pos-storage',
