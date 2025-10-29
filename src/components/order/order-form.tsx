@@ -421,7 +421,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         subtotal += costs.totalPrice;
     });
 
-    const totalAdvance = (formValues.advancePayment || 0) + (formValues.advanceInExchangeValue || 0);
+    const totalAdvance = (Number(formValues.advancePayment) || 0) + (Number(formValues.advanceInExchangeValue) || 0);
     const grandTotal = subtotal - totalAdvance;
     
     return { subtotal, grandTotal };
@@ -833,7 +833,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                         </div>
                         <div className="flex justify-between items-center text-destructive">
                             <span className="text-muted-foreground">Advance (Cash + Exchange):</span>
-                            <span className="font-semibold text-base">- PKR {((formValues.advancePayment || 0) + (formValues.advanceInExchangeValue || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            <span className="font-semibold text-base">- PKR {((Number(formValues.advancePayment) || 0) + (Number(formValues.advanceInExchangeValue) || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </div>
                         <Separator />
                         <div className="flex justify-between items-center text-xl font-bold">

@@ -733,7 +733,7 @@ const createDataLoader = <T, K extends keyof AppState>(
 
     set(state => {
       state[loadingKey] = true as any;
-      state[errorKey] = null;
+      state[errorKey] = null as any;
     });
 
     const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
@@ -1477,7 +1477,7 @@ export const useAppStore = create<AppState>()(
 
         if (!finalCustomerId && orderData.customerName) { // New walk-in customer with a name
             const newCustomer = await addCustomer({ 
-                name: orderData.customerName || '',
+                name: orderData.customerName, 
                 phone: orderData.customerContact,
                 email: '',
                 address: '',
@@ -1682,7 +1682,7 @@ export const useAppStore = create<AppState>()(
         const grandTotal = finalSubtotal - totalDiscount;
 
         const advancePayment: Payment = {
-            amount: order.advancePayment + (order.advanceInExchangeValue || 0),
+            amount: (order.advancePayment || 0) + (order.advanceInExchangeValue || 0),
             date: order.createdAt, // Assume advance was paid on order creation date
             notes: `Advance from Order. Cash: ${order.advancePayment}. Exchange: ${order.advanceInExchangeValue || 0} (${order.advanceInExchangeDescription || ''})`,
         };
@@ -1755,7 +1755,8 @@ export const useAppStore = create<AppState>()(
                 }
                 const orderData = orderDoc.data() as Order;
                 
-                const newAdvancePayment = (orderData.advancePayment || 0) + amount;
+                const currentAdvance = Number(orderData.advancePayment) || 0;
+                const newAdvancePayment = currentAdvance + amount;
                 const newGrandTotal = orderData.subtotal - newAdvancePayment - (orderData.advanceInExchangeValue || 0);
 
                 transaction.update(orderRef, {
@@ -1778,7 +1779,7 @@ export const useAppStore = create<AppState>()(
 
                 await addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${amount.toLocaleString()}`, orderId);
 
-                return { ...orderData, advancePayment: newAdvancePayment, grandTotal: newGrandTotal };
+                return { ...orderData, advancePayment: newAdvancePayment, grandTotal: newGrandTotal } as Order;
             });
             return updatedOrder;
         } catch (error) {
