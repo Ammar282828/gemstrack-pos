@@ -731,8 +731,8 @@ const createDataLoader = <T, K extends keyof AppState>(
     if (get()[loadedKey] || get().settings.databaseLocked) return;
 
     set(state => {
-      (state[loadingKey] as boolean) = true;
-      (state[errorKey] as string | null) = null;
+      state[loadingKey] = true;
+      state[errorKey] = null;
     });
 
     const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
@@ -748,28 +748,44 @@ const createDataLoader = <T, K extends keyof AppState>(
       }
     }).catch(e => {
         console.warn(`[GemsTrack Store] Cache read for ${collectionName} failed or was empty.`, e);
+    }).finally(() => {
+        // 2. After attempting cache read, get from server once to ensure freshness on load.
+        getDocs(q).then(serverSnapshot => {
+            const serverList = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
+            set(state => {
+                (state[stateKey] as any) = serverList;
+                state[loadingKey] = false; // Set loading to false after initial server fetch
+                // Don't set `hasLoaded` yet, wait for listener
+            });
+             console.log(`[GemsTrack Store] Fetched ${serverList.length} ${collectionName} from server.`);
+
+            // 3. Now, attach the real-time listener for subsequent updates.
+            onSnapshot(q,
+              (snapshot) => {
+                const list = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
+                set(state => {
+                  (state[stateKey] as any) = list;
+                  state[loadingKey] = false;
+                  state[loadedKey] = true;
+                  state[errorKey] = null;
+                });
+              },
+              (error) => {
+                console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
+                set(state => {
+                  state[loadingKey] = false;
+                  state[errorKey] = error.message || `Failed to listen for ${collectionName} updates.`;
+                });
+              }
+            );
+        }).catch(error => {
+            console.error(`[GemsTrack Store] Error fetching ${collectionName} from server:`, error);
+            set(state => {
+                state[loadingKey] = false;
+                state[errorKey] = error.message || `Failed to load ${collectionName}.`;
+            });
+        });
     });
-    
-    // 2. Subscribe to real-time server updates
-    onSnapshot(q,
-      (serverSnapshot) => {
-        const serverList = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
-        set(state => {
-          (state[stateKey] as any) = serverList;
-          (state[loadingKey] as boolean) = false;
-          (state[loadedKey] as boolean) = true;
-          (state[errorKey] as string | null) = null; // Clear previous errors on successful fetch
-        });
-        console.log(`[GemsTrack Store] Real-time update: ${serverList.length} ${collectionName} loaded from server.`);
-      },
-      (error) => {
-        console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
-        set(state => {
-          (state[loadingKey] as boolean) = false;
-          (state[errorKey] as string | null) = error.message || `Failed to load ${collectionName}.`;
-        });
-      }
-    );
   };
 };
 
