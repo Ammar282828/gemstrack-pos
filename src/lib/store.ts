@@ -779,7 +779,7 @@ const createDataLoader = <T, K extends keyof AppState>(
 const loadProducts = createDataLoader<Product, 'products'>('products', 'products', 'isProductsLoading', 'productsError', 'hasProductsLoaded', 'sku', 'asc');
 const loadCustomers = createDataLoader<Customer, 'customers'>('customers', 'customers', 'isCustomersLoading', 'customersError', 'hasCustomersLoaded', 'name', 'asc');
 const loadKarigars = createDataLoader<Karigar, 'karigars'>('karigars', 'karigars', 'isKarigarsLoading', 'karigarsError', 'hasKarigarsLoaded', 'name', 'asc');
-const loadInvoices = createDataLoader<Invoice, 'generatedInvoices'>('generatedInvoices', 'generatedInvoices', 'isInvoicesLoading', 'invoicesError', 'hasInvoicesLoaded', 'createdAt', 'desc');
+const loadInvoices = createDataLoader<Invoice, 'generatedInvoices'>('invoices', 'generatedInvoices', 'isInvoicesLoading', 'invoicesError', 'hasInvoicesLoaded', 'createdAt', 'desc');
 const loadOrders = createDataLoader<Order, 'orders'>('orders', 'orders', 'isOrdersLoading', 'ordersError', 'hasOrdersLoaded', 'createdAt', 'desc');
 const loadHisaab = createDataLoader<HisaabEntry, 'hisaabEntries'>('hisaab', 'hisaabEntries', 'isHisaabLoading', 'hisaabError', 'hasHisaabLoaded', 'date', 'desc');
 const loadExpenses = createDataLoader<Expense, 'expenses'>('expenses', 'expenses', 'isExpensesLoading', 'expensesError', 'hasExpensesLoaded', 'date', 'desc');
@@ -1853,7 +1853,6 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
-      loadActivityLog,
     })),
     {
       name: 'gemstrack-pos-storage',
