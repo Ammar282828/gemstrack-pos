@@ -152,7 +152,7 @@ function _calculateProductCostsInternal(
   const isActualGoldCoin = product.categoryId === GOLD_COIN_CATEGORY_ID_INTERNAL && product.metalType === 'gold';
   // Exclude silver from wastage calculation
   const applyWastage = product.metalType === 'gold' || product.metalType === 'platinum' || product.metalType === 'palladium';
-  const wastagePercentage = isActualGoldCoin || !applyWastage ? 0 : (Number(product.wastagePercentage) || 0);
+  const wastagePercentage = isActualGoldCoin || !applyWastage ? (Number(product.wastagePercentage) || 0) : 0;
   const makingCharges = isActualGoldCoin ? 0 : (Number(product.makingCharges) || 0);
   const hasDiamondsValue = isActualGoldCoin ? false : product.hasDiamonds;
   const diamondChargesValue = hasDiamondsValue ? (Number(product.diamondCharges) || 0) : 0;
@@ -731,8 +731,8 @@ const createDataLoader = <T, K extends keyof AppState>(
     if (get()[loadedKey] || get().settings.databaseLocked) return;
 
     set(state => {
-      state[loadingKey] = true as any;
-      state[errorKey] = null as any;
+      (state[loadingKey] as boolean) = true;
+      (state[errorKey] as string | null) = null;
     });
 
     const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
@@ -756,17 +756,17 @@ const createDataLoader = <T, K extends keyof AppState>(
         const serverList = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
         set(state => {
           (state[stateKey] as any) = serverList;
-          state[loadingKey] = false as any;
-          state[loadedKey] = true as any;
-          state[errorKey] = null; // Clear previous errors on successful fetch
+          (state[loadingKey] as boolean) = false;
+          (state[loadedKey] as boolean) = true;
+          (state[errorKey] as string | null) = null; // Clear previous errors on successful fetch
         });
         console.log(`[GemsTrack Store] Real-time update: ${serverList.length} ${collectionName} loaded from server.`);
       },
       (error) => {
         console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
         set(state => {
-          state[loadingKey] = false as any;
-          state[errorKey] = error.message || `Failed to load ${collectionName}.`;
+          (state[loadingKey] as boolean) = false;
+          (state[errorKey] as string | null) = error.message || `Failed to load ${collectionName}.`;
         });
       }
     );
@@ -776,7 +776,7 @@ const createDataLoader = <T, K extends keyof AppState>(
 const loadProducts = createDataLoader<Product, 'products'>('products', 'products', 'isProductsLoading', 'productsError', 'hasProductsLoaded', 'sku', 'asc');
 const loadCustomers = createDataLoader<Customer, 'customers'>('customers', 'customers', 'isCustomersLoading', 'customersError', 'hasCustomersLoaded', 'name', 'asc');
 const loadKarigars = createDataLoader<Karigar, 'karigars'>('karigars', 'karigars', 'isKarigarsLoading', 'karigarsError', 'hasKarigarsLoaded', 'name', 'asc');
-const loadInvoices = createDataLoader<Invoice, 'generatedInvoices'>('invoices', 'generatedInvoices', 'isInvoicesLoading', 'invoicesError', 'hasInvoicesLoaded', 'createdAt', 'desc');
+const loadInvoices = createDataLoader<Invoice, 'generatedInvoices'>('invoices', 'invoices', 'isInvoicesLoading', 'invoicesError', 'hasInvoicesLoaded', 'createdAt', 'desc');
 const loadOrders = createDataLoader<Order, 'orders'>('orders', 'orders', 'isOrdersLoading', 'ordersError', 'hasOrdersLoaded', 'createdAt', 'desc');
 const loadHisaab = createDataLoader<HisaabEntry, 'hisaabEntries'>('hisaab', 'hisaabEntries', 'isHisaabLoading', 'hisaabError', 'hasHisaabLoaded', 'date', 'desc');
 const loadExpenses = createDataLoader<Expense, 'expenses'>('expenses', 'expenses', 'isExpensesLoading', 'expensesError', 'hasExpensesLoaded', 'date', 'desc');
@@ -1684,7 +1684,7 @@ export const useAppStore = create<AppState>()(
         const advancePayment: Payment = {
             amount: (order.advancePayment || 0) + (order.advanceInExchangeValue || 0),
             date: order.createdAt, // Assume advance was paid on order creation date
-            notes: `Advance from Order. Cash: ${order.advancePayment}. Exchange: ${order.advanceInExchangeValue || 0} (${order.advanceInExchangeDescription || ''})`,
+            notes: `Advance from Order. Cash: ${order.advancePayment || 0}. Exchange: ${order.advanceInExchangeValue || 0} (${order.advanceInExchangeDescription || ''})`,
         };
 
         const paymentHistory: Payment[] = advancePayment.amount > 0 ? [advancePayment] : [];
@@ -1945,3 +1945,5 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
+
+    
