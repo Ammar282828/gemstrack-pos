@@ -577,10 +577,12 @@ export default function CartPage() {
     doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 6;
 
-    doc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
-    doc.text(`Discount:`, totalsX - 50, currentY, { align: 'right' });
-    doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    currentY += 6;
+    if (invoiceToPrint.discountAmount > 0) {
+        doc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
+        doc.text(`Discount:`, totalsX - 50, currentY, { align: 'right' });
+        doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+        currentY += 6;
+    }
     
     doc.setFont("helvetica", "normal").setTextColor(0);
     doc.setLineWidth(0.2);
@@ -713,7 +715,7 @@ export default function CartPage() {
                      <Separator className="mt-4"/>
                      <div className="pt-4 space-y-2 text-right">
                         <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Subtotal:</span> <span className="w-32 font-medium">PKR {generatedInvoice.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
-                        <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Discount:</span> <span className="w-32 font-medium">- PKR {generatedInvoice.discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        {generatedInvoice.discountAmount > 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Discount:</span> <span className="w-32 font-medium">- PKR {generatedInvoice.discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
                         <div className="flex justify-end items-center gap-4 text-lg font-bold"><span className="text-muted-foreground">Grand Total:</span> <span className="w-32">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                      </div>
                 </div>

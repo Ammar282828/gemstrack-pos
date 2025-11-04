@@ -236,10 +236,12 @@ export default function ViewInvoicePage() {
     pdfDoc.text(`PKR ${invoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 6;
 
-    pdfDoc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
-    pdfDoc.text(`Discount:`, totalsX - 50, currentY, { align: 'right' });
-    pdfDoc.text(`- PKR ${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    currentY += 6;
+    if (invoice.discountAmount > 0) {
+        pdfDoc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
+        pdfDoc.text(`Discount:`, totalsX - 50, currentY, { align: 'right' });
+        pdfDoc.text(`- PKR ${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+        currentY += 6;
+    }
     
     pdfDoc.setFont("helvetica", "normal").setTextColor(0);
     pdfDoc.setLineWidth(0.2);
