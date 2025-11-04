@@ -1847,8 +1847,6 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
-      
-      loadActivityLog: () => loadActivityLog(set, get),
     })),
     {
       name: 'gemstrack-pos-storage',
