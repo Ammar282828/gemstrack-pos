@@ -73,7 +73,7 @@ const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'plat
 const finalizeOrderItemSchema = z.object({
   description: z.string(), // Readonly
   karat: z.custom<KaratValue>(), // Readonly
-  finalWeightG: z.coerce.number().min(0.1, "Weight must be positive."),
+  finalWeightG: z.coerce.number().min(0.001, "Weight must be a positive number."),
   finalMakingCharges: z.coerce.number().min(0, "Cannot be negative."),
   finalDiamondCharges: z.coerce.number().min(0, "Cannot be negative."),
   finalStoneCharges: z.coerce.number().min(0, "Cannot be negative."),
@@ -401,11 +401,10 @@ export default function OrderDetailPage() {
     
     doc.setTextColor(0);
     doc.setFontSize(9).setFont('helvetica', 'bold');
-    doc.text(`Est. Subtotal:`, pageWidth - margin - 35, 35, { align: 'right' });
-    doc.text(`PKR ${(order.subtotal || 0).toLocaleString()}`, pageWidth - margin, 35, { align: 'right' });
-    doc.text(`Advance Paid:`, pageWidth - margin - 35, 40, { align: 'right' });
+    doc.text(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`, pageWidth - margin, 35, { align: 'right' });
+    doc.text(`Advance Paid:`, pageWidth - margin, 40, { align: 'right' });
     const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
-    doc.text(`PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, 40, { align: 'right' });
+    doc.text(`- PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, 45, { align: 'right' });
 
     doc.setLineWidth(0.5);
     doc.line(margin, 50, pageWidth - margin, 50);
@@ -430,8 +429,8 @@ export default function OrderDetailPage() {
         const itemTitle = `Item #${i + 1}: ${item.description}`;
         const splitTitle = doc.splitTextToSize(itemTitle, pageWidth - margin * 2);
         doc.text(splitTitle, margin, finalY);
-        finalY += (splitTitle.length * 4); // Adjust Y based on lines used by title
-        
+        finalY += (splitTitle.length * 4);
+
         doc.setFontSize(9).setFont('helvetica', 'bold');
         doc.text(`Est: PKR ${(item.totalEstimate || 0).toLocaleString()}`, pageWidth - margin, finalY, { align: 'right' });
         finalY += 6;

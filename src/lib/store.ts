@@ -1616,7 +1616,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       generateInvoiceFromOrder: async (order, finalizedItems, additionalDiscount) => {
-        if(get().settings.databaseLocked) return null;
+        if (get().settings.databaseLocked) return null;
         const { settings } = get();
         let finalSubtotal = 0;
         const ratesForInvoice = order.ratesApplied || {
@@ -1628,12 +1628,12 @@ export const useAppStore = create<AppState>()(
             platinumRatePerGram: settings.platinumRatePerGram,
             silverRatePerGram: settings.silverRatePerGram
         };
-    
+
         const finalInvoiceItems: InvoiceItem[] = [];
         order.items.forEach((originalItem, index) => {
-            const finalizedData = finalizedItems.find(fi => fi.description === originalItem.description);
+            const finalizedData = finalizedItems[index]; // Use index to ensure correct mapping
             if (!finalizedData) {
-                console.error(`Could not find finalized data for item: ${originalItem.description}`);
+                console.error(`Could not find finalized data for item index: ${index}`);
                 throw new Error(`Finalized data for item "${originalItem.description}" not found.`);
             }
 
@@ -1650,10 +1650,10 @@ export const useAppStore = create<AppState>()(
                 stoneCharges: finalizedData.finalStoneCharges,
                 miscCharges: 0,
             };
-    
+
             const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice as any);
             finalSubtotal += costs.totalPrice;
-    
+
             const itemToAdd: InvoiceItem = {
                 sku: `ORD-${order.id}-${index + 1}`,
                 name: originalItem.description,
@@ -1675,31 +1675,25 @@ export const useAppStore = create<AppState>()(
                 stoneDetails: originalItem.stoneDetails,
                 diamondDetails: originalItem.diamondDetails,
             };
-             // Clean the item of any undefined values before pushing
-            Object.keys(itemToAdd).forEach(key => {
-                if (itemToAdd[key as keyof InvoiceItem] === undefined) {
-                    delete itemToAdd[key as keyof InvoiceItem];
-                }
-            });
-            finalInvoiceItems.push(itemToAdd);
+            finalInvoiceItems.push(cleanObject(itemToAdd));
         });
-    
+
         const totalDiscount = additionalDiscount;
         const grandTotal = finalSubtotal - totalDiscount;
 
         const advancePayment: Payment = {
             amount: (order.advancePayment || 0) + (order.advanceInExchangeValue || 0),
-            date: order.createdAt, // Assume advance was paid on order creation date
+            date: order.createdAt,
             notes: `Advance from Order. Cash: ${order.advancePayment || 0}. Exchange: ${order.advanceInExchangeValue || 0} (${order.advanceInExchangeDescription || ''})`,
         };
 
         const paymentHistory: Payment[] = advancePayment.amount > 0 ? [advancePayment] : [];
         const amountPaid = advancePayment.amount;
         const balanceDue = finalSubtotal - amountPaid - totalDiscount;
-    
+
         const nextInvoiceNumber = (settings.lastInvoiceNumber || 0) + 1;
         const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
-    
+
         const newInvoiceData: Omit<Invoice, 'id'> = {
             items: finalInvoiceItems,
             subtotal: finalSubtotal,
@@ -1714,9 +1708,9 @@ export const useAppStore = create<AppState>()(
             customerName: order.customerName || 'Walk-in Customer',
             customerContact: order.customerContact,
         };
-    
+
         const newInvoice: Invoice = { id: invoiceId, ...newInvoiceData };
-    
+
         try {
             const batch = writeBatch(db);
             const finalInvoicePayload = cleanObject({ ...newInvoiceData });
@@ -1724,7 +1718,7 @@ export const useAppStore = create<AppState>()(
             batch.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), finalInvoicePayload);
             batch.update(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID), { lastInvoiceNumber: nextInvoiceNumber });
             batch.update(doc(db, FIRESTORE_COLLECTIONS.ORDERS, order.id), { status: 'Completed' });
-            
+
             const hisaabEntry: Omit<HisaabEntry, 'id'> = {
               entityId: order.customerId || 'walk-in',
               entityType: 'customer',
@@ -1732,7 +1726,7 @@ export const useAppStore = create<AppState>()(
               date: newInvoice.createdAt,
               description: `Final Invoice ${newInvoice.id} from Order ${order.id}`,
               cashDebit: newInvoice.grandTotal,
-              cashCredit: newInvoice.amountPaid, // Credit the advance payment immediately in hisaab
+              cashCredit: newInvoice.amountPaid,
               goldDebitGrams: 0, goldCreditGrams: 0,
             };
             batch.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
@@ -1853,6 +1847,8 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
+      
+      loadActivityLog: () => loadActivityLog(set, get),
     })),
     {
       name: 'gemstrack-pos-storage',
