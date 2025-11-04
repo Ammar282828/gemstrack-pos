@@ -731,8 +731,8 @@ const createDataLoader = <T, K extends keyof AppState>(
     if (get()[loadedKey] || get().settings.databaseLocked) return;
 
     set(state => {
-      state[loadingKey] = true;
-      state[errorKey] = null;
+      state[loadingKey] = true as any;
+      state[errorKey] = null as any;
     });
 
     const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
@@ -754,7 +754,7 @@ const createDataLoader = <T, K extends keyof AppState>(
             const serverList = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
             set(state => {
                 (state[stateKey] as any) = serverList;
-                state[loadingKey] = false; // Set loading to false after initial server fetch
+                state[loadingKey] = false as any; // Set loading to false after initial server fetch
                 // Don't set `hasLoaded` yet, wait for listener
             });
              console.log(`[GemsTrack Store] Fetched ${serverList.length} ${collectionName} from server.`);
@@ -765,24 +765,24 @@ const createDataLoader = <T, K extends keyof AppState>(
                 const list = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
                 set(state => {
                   (state[stateKey] as any) = list;
-                  state[loadingKey] = false;
-                  state[loadedKey] = true;
-                  state[errorKey] = null;
+                  state[loadingKey] = false as any;
+                  state[loadedKey] = true as any;
+                  state[errorKey] = null as any;
                 });
               },
               (error) => {
                 console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
                 set(state => {
-                  state[loadingKey] = false;
-                  state[errorKey] = error.message || `Failed to listen for ${collectionName} updates.`;
+                  state[loadingKey] = false as any;
+                  state[errorKey] = error.message || (`Failed to listen for ${collectionName} updates.` as any);
                 });
               }
             );
         }).catch(error => {
             console.error(`[GemsTrack Store] Error fetching ${collectionName} from server:`, error);
             set(state => {
-                state[loadingKey] = false;
-                state[errorKey] = error.message || `Failed to load ${collectionName}.`;
+                state[loadingKey] = false as any;
+                state[errorKey] = error.message || (`Failed to load ${collectionName}.` as any);
             });
         });
     });
@@ -792,7 +792,7 @@ const createDataLoader = <T, K extends keyof AppState>(
 const loadProducts = createDataLoader<Product, 'products'>('products', 'products', 'isProductsLoading', 'productsError', 'hasProductsLoaded', 'sku', 'asc');
 const loadCustomers = createDataLoader<Customer, 'customers'>('customers', 'customers', 'isCustomersLoading', 'customersError', 'hasCustomersLoaded', 'name', 'asc');
 const loadKarigars = createDataLoader<Karigar, 'karigars'>('karigars', 'karigars', 'isKarigarsLoading', 'karigarsError', 'hasKarigarsLoaded', 'name', 'asc');
-const loadInvoices = createDataLoader<Invoice, 'generatedInvoices'>('invoices', 'invoices', 'isInvoicesLoading', 'invoicesError', 'hasInvoicesLoaded', 'createdAt', 'desc');
+const loadInvoices = createDataLoader<Invoice, 'generatedInvoices'>('invoices', 'generatedInvoices', 'isInvoicesLoading', 'invoicesError', 'hasInvoicesLoaded', 'createdAt', 'desc');
 const loadOrders = createDataLoader<Order, 'orders'>('orders', 'orders', 'isOrdersLoading', 'ordersError', 'hasOrdersLoaded', 'createdAt', 'desc');
 const loadHisaab = createDataLoader<HisaabEntry, 'hisaabEntries'>('hisaab', 'hisaabEntries', 'isHisaabLoading', 'hisaabError', 'hasHisaabLoaded', 'date', 'desc');
 const loadExpenses = createDataLoader<Expense, 'expenses'>('expenses', 'expenses', 'isExpensesLoading', 'expensesError', 'hasExpensesLoaded', 'date', 'desc');
@@ -1506,8 +1506,11 @@ export const useAppStore = create<AppState>()(
              if (customer) {
                 finalCustomerName = customer.name;
              }
+        } else if (!finalCustomerName && orderData.customerContact) {
+            finalCustomerName = `Customer - ${orderData.customerContact}`;
         }
-        
+
+
         const finalSubtotal = Number(orderData.subtotal) || 0;
         const finalGrandTotal = Number(orderData.grandTotal) || 0;
         
@@ -1961,5 +1964,3 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
-
-    
