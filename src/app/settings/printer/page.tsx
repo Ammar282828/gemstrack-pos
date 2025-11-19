@@ -1,14 +1,14 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useAppStore, Product, PrintHistoryEntry } from '@/lib/store';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useAppStore, Product } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Loader2, Printer, XCircle, CheckCircle, History, Repeat, QrCode, PlusCircle, Trash2, Text, Cog } from 'lucide-react';
+import { Search, Loader2, Printer, XCircle, CheckCircle, History, Repeat, QrCode, PlusCircle, Trash2, Text, Cog, Move } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LabelLayout, LabelField, generateZplFromLayout, sendZplToPrinter, checkZebraBrowserPrint } from '@/lib/zebra-printer';
 import { format } from 'date-fns';
@@ -19,6 +19,12 @@ import { Select, SelectContent, SelectTrigger, SelectValue, SelectItem } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { FormItem } from '@/components/ui/form';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+
+const ItemTypes = {
+  FIELD: 'field',
+};
 
 const ProductSearch: React.FC<{ onSelect: (product: Product) => void, selectedProduct: Product | null }> = ({ onSelect, selectedProduct }) => {
   const products = useAppStore(state => state.products);
@@ -87,13 +93,58 @@ const ProductSearch: React.FC<{ onSelect: (product: Product) => void, selectedPr
   );
 };
 
-const TagPreview: React.FC<{ layout: LabelLayout, product: Product | null }> = ({ layout, product }) => {
-    const dpi = 203; // Dots per inch
-    const mmToDots = (mm: number) => (mm / 25.4) * dpi;
+const DraggableField: React.FC<{
+  field: LabelField;
+  layout: LabelLayout;
+  product: Product | null;
+  children: React.ReactNode;
+}> = ({ field, layout, product, children }) => {
+  const [{ isDragging }, drag] = useDrag(() => ({
+    type: ItemTypes.FIELD,
+    item: { id: field.id, x: field.x, y: field.y },
+    collect: (monitor) => ({
+      isDragging: monitor.isDragging(),
+    }),
+  }));
 
-    const widthDots = layout.widthDots;
-    const heightDots = layout.heightDots;
-    const aspectRatio = widthDots / heightDots;
+  const left = (field.x / layout.widthDots) * 100;
+  const top = (field.y / layout.heightDots) * 100;
+
+  return (
+    <div
+      ref={drag}
+      style={{ left: `${left}%`, top: `${top}%` }}
+      className="absolute cursor-move"
+      role="Handle"
+    >
+      {children}
+    </div>
+  );
+};
+
+
+const TagPreview: React.FC<{ layout: LabelLayout; product: Product | null; onFieldMove: (id: string, x: number, y: number) => void; }> = ({ layout, product, onFieldMove }) => {
+    const previewRef = useRef<HTMLDivElement>(null);
+
+    const [, drop] = useDrop(() => ({
+        accept: ItemTypes.FIELD,
+        drop: (item: { id: string; x: number; y: number }, monitor) => {
+            const delta = monitor.getDifferenceFromInitialOffset();
+            if (!delta || !previewRef.current) return;
+
+            const previewRect = previewRef.current.getBoundingClientRect();
+            const scaleX = layout.widthDots / previewRect.width;
+            const scaleY = layout.heightDots / previewRect.height;
+            
+            const newX = Math.round(item.x + delta.x * scaleX);
+            const newY = Math.round(item.y + delta.y * scaleY);
+            
+            onFieldMove(item.id, newX, newY);
+        },
+    }), [layout, onFieldMove]);
+
+
+    const aspectRatio = layout.widthDots / layout.heightDots;
 
     const replacePlaceholders = (template: string): string => {
         if (!product) return template;
@@ -105,31 +156,38 @@ const TagPreview: React.FC<{ layout: LabelLayout, product: Product | null }> = (
     return (
         <div className="p-4 bg-gray-200 rounded-lg flex items-center justify-center">
             <div 
+                ref={previewRef}
                 className="bg-white p-1 relative shadow-md" 
                 style={{ width: '300px', height: `${300 / aspectRatio}px` }}
             >
+                <div ref={drop} className="w-full h-full">
                 {layout.fields.map(field => {
                     const resolvedData = replacePlaceholders(field.data);
-                    const left = (field.x / widthDots) * 100;
-                    const top = (field.y / heightDots) * 100;
 
                     if (field.type === 'text') {
                         return (
-                            <div key={field.id} style={{ left: `${left}%`, top: `${top}%` }} className="absolute text-black font-sans">
-                                <span style={{ fontSize: `${(field.fontSize || 20) * 0.4}px` }}>{resolvedData}</span>
-                            </div>
+                            <DraggableField key={field.id} field={field} layout={layout} product={product}>
+                                <div className="text-black font-sans group p-1 border border-transparent hover:border-dashed hover:border-blue-500">
+                                   <Move className="absolute -top-2 -left-2 h-3 w-3 text-blue-500 opacity-0 group-hover:opacity-100" />
+                                   <span style={{ fontSize: `${(field.fontSize || 20) * 0.4}px` }}>{resolvedData}</span>
+                                </div>
+                            </DraggableField>
                         );
                     }
                     if (field.type === 'qr') {
                         const qrSize = (field.qrMagnification || 2) * 20; // Approximate size
                         return (
-                            <div key={field.id} style={{ left: `${left}%`, top: `${top}%` }} className="absolute">
-                                <QRCode value={resolvedData} size={qrSize} level="H" renderAs="svg" />
-                            </div>
+                             <DraggableField key={field.id} field={field} layout={layout} product={product}>
+                                <div className="group p-1 border border-transparent hover:border-dashed hover:border-blue-500">
+                                  <Move className="absolute -top-2 -left-2 h-3 w-3 text-blue-500 opacity-0 group-hover:opacity-100" />
+                                  <QRCode value={resolvedData} size={qrSize} level="H" renderAs="svg" />
+                                </div>
+                            </DraggableField>
                         );
                     }
                     return null;
                 })}
+                </div>
             </div>
         </div>
     );
@@ -143,7 +201,7 @@ const TagEditor: React.FC<{
     layout: LabelLayout,
     setLayout: React.Dispatch<React.SetStateAction<LabelLayout>>
 }> = ({ layout, setLayout }) => {
-    const { register, control, watch } = useForm({
+    const { register, control, watch, setValue } = useForm({
         defaultValues: { fields: layout.fields }
     });
 
@@ -156,6 +214,11 @@ const TagEditor: React.FC<{
     useEffect(() => {
         setLayout(prev => ({ ...prev, fields: watchedFields as LabelField[] }));
     }, [watchedFields, setLayout]);
+    
+    // When the parent layout changes (e.g., from a drag), update the form fields
+    useEffect(() => {
+        setValue("fields", layout.fields);
+    }, [layout, setValue]);
 
     const addField = (type: 'text' | 'qr') => {
         append({
@@ -229,7 +292,7 @@ const defaultLayout: LabelLayout = {
     ],
 };
 
-export default function PrinterPage() {
+function PrinterPageComponent() {
   const appReady = useAppReady();
   const { loadProducts, addPrintHistory, printHistory } = useAppStore();
   const { toast } = useToast();
@@ -239,6 +302,13 @@ export default function PrinterPage() {
   const [printerStatus, setPrinterStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [currentLayout, setCurrentLayout] = useState<LabelLayout>(defaultLayout);
+  
+  const handleFieldMove = (id: string, x: number, y: number) => {
+    setCurrentLayout(prev => ({
+        ...prev,
+        fields: prev.fields.map(f => f.id === id ? {...f, x, y} : f)
+    }));
+  };
 
   useEffect(() => {
     if (appReady) {
@@ -334,7 +404,7 @@ export default function PrinterPage() {
                     <CardTitle>2. Preview & Print</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <TagPreview layout={currentLayout} product={selectedProduct} />
+                    <TagPreview layout={currentLayout} product={selectedProduct} onFieldMove={handleFieldMove} />
                 </CardContent>
                 <CardFooter className="flex-col gap-4">
                     <Button 
@@ -384,3 +454,12 @@ export default function PrinterPage() {
     </div>
   );
 }
+
+export default function PrinterPage() {
+    return (
+        <DndProvider backend={HTML5Backend}>
+            <PrinterPageComponent />
+        </DndProvider>
+    );
+}
+
