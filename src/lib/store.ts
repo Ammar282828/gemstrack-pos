@@ -517,6 +517,11 @@ export interface ActivityLog {
     entityId: string; // ID of the product, customer, etc.
 }
 
+export interface PrintHistoryEntry {
+  sku: string;
+  timestamp: string; // ISO string
+}
+
 async function addActivityLog(
   eventType: LogEventType,
   description: string,
@@ -571,6 +576,7 @@ export interface AppState {
   expenses: Expense[];
   soldProducts: Product[];
   activityLog: ActivityLog[];
+  printHistory: PrintHistoryEntry[];
 
   // Loading states
   isSettingsLoading: boolean;
@@ -679,6 +685,7 @@ export interface AppState {
   deleteExpense: (id: string) => Promise<void>;
   
   loadActivityLog: () => void;
+  addPrintHistory: (sku: string) => void;
 }
 
 export type EnrichedCartItem = Product & {
@@ -713,11 +720,6 @@ function cleanObject<T extends object>(obj: T): T {
   return newObj as T;
 }
 
-/**
- * Higher-order function to create a data loader for a specific Firestore collection.
- * It handles loading from cache first, then subscribing to real-time updates from the server.
- * This ensures a fast initial load while keeping data fresh.
- */
 const createDataLoader = <T, K extends keyof AppState>(
   collectionName: string,
   stateKey: K,
@@ -736,27 +738,26 @@ const createDataLoader = <T, K extends keyof AppState>(
     });
 
     const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
-
-    // Get from server once to ensure freshness on load.
-    getDocs(q).then(serverSnapshot => {
-        const serverList = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
-        set(state => {
-            (state[stateKey] as any) = serverList;
-            (state as any)[loadingKey] = false;
-            (state as any)[loadedKey] = true; // Mark as loaded after first successful fetch
-        });
-         console.log(`[GemsTrack Store] Fetched ${serverList.length} ${collectionName} from server.`);
-
-        // Now, attach the real-time listener for subsequent updates.
-        onSnapshot(q,
-          (snapshot) => {
-            const list = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
+    
+    // First, try to load from cache for a super fast initial view
+    getDocsFromCache(q).then(cacheSnapshot => {
+        if (!cacheSnapshot.empty) {
+            const list = cacheSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
+            set(state => { (state[stateKey] as any) = list; });
+            console.log(`[GemsTrack Store] Loaded ${list.length} ${collectionName} from cache.`);
+        }
+    }).finally(() => {
+        // Then, set up the real-time listener
+        const unsubscribe = onSnapshot(q,
+          (serverSnapshot) => {
+            const list = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
             set(state => {
               (state[stateKey] as any) = list;
-              (state as any)[loadingKey] = false;
-              (state as any)[loadedKey] = true;
-              (state as any)[errorKey] = null;
+              if ((state as any)[loadingKey]) (state as any)[loadingKey] = false;
+              if (!(state as any)[loadedKey]) (state as any)[loadedKey] = true;
+              if ((state as any)[errorKey]) (state as any)[errorKey] = null;
             });
+            console.log(`[GemsTrack Store] Real-time update: ${list.length} ${collectionName} loaded.`);
           },
           (error) => {
             console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
@@ -766,12 +767,7 @@ const createDataLoader = <T, K extends keyof AppState>(
             });
           }
         );
-    }).catch(error => {
-        console.error(`[GemsTrack Store] Error fetching ${collectionName} from server:`, error);
-        set(state => {
-            (state as any)[loadingKey] = false;
-            (state as any)[errorKey] = error.message || (`Failed to load ${collectionName}.`);
-        });
+        // You might want to store this unsubscribe function somewhere if you need to detach listeners later
     });
   };
 };
@@ -808,6 +804,7 @@ export const useAppStore = create<AppState>()(
       hisaabEntries: [],
       expenses: [],
       activityLog: [],
+      printHistory: [],
 
       isSettingsLoading: true,
       isProductsLoading: true,
@@ -1631,7 +1628,7 @@ export const useAppStore = create<AppState>()(
 
         const finalInvoiceItems: InvoiceItem[] = [];
         order.items.forEach((originalItem, index) => {
-            const finalizedData = finalizedItems[index]; // Use index to ensure correct mapping
+            const finalizedData = finalizedItems[index];
             if (!finalizedData) {
                 console.error(`Could not find finalized data for item index: ${index}`);
                 throw new Error(`Finalized data for item "${originalItem.description}" not found.`);
@@ -1847,6 +1844,12 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
+
+      addPrintHistory: (sku) => set(state => {
+        const newEntry: PrintHistoryEntry = { sku, timestamp: new Date().toISOString() };
+        // Add to the beginning and keep only the last 50 entries
+        state.printHistory = [newEntry, ...state.printHistory].slice(0, 50);
+      }),
     })),
     {
       name: 'gemstrack-pos-storage',
@@ -1859,19 +1862,25 @@ export const useAppStore = create<AppState>()(
       },
       partialize: (state) => ({
         cart: state.cart,
+        printHistory: state.printHistory,
         settings: { 
             ...state.settings,
             allowedDeviceIds: Array.isArray(state.settings?.allowedDeviceIds) ? state.settings.allowedDeviceIds : [], 
             theme: state.settings?.theme || 'default',
         }
       }),
-      version: 15, // Incremented version
+      version: 16,
       migrate: (persistedState, version) => {
         const oldState = persistedState as any;
         if (version < 15) {
             if (oldState.settings && !oldState.settings.paymentMethods) {
                 oldState.settings.paymentMethods = [];
             }
+        }
+        if (version < 16) {
+          if (!oldState.printHistory) {
+            oldState.printHistory = [];
+          }
         }
         return oldState as AppState;
       },
