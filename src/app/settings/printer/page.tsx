@@ -201,9 +201,11 @@ const TagEditor: React.FC<{
     layout: LabelLayout,
     setLayout: React.Dispatch<React.SetStateAction<LabelLayout>>
 }> = ({ layout, setLayout }) => {
-    const { register, control, watch, setValue } = useForm({
+    const form = useForm({
         defaultValues: { fields: layout.fields }
     });
+
+    const { register, control, watch, setValue, getValues } = form;
 
     const { fields, append, remove } = useFieldArray({
         control,
@@ -245,7 +247,6 @@ const TagEditor: React.FC<{
         });
         setLayout(prev => ({...prev, fields: updatedFields as LabelField[]}));
     };
-    const { getValues } = form;
 
     return (
         <Card>
