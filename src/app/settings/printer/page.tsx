@@ -209,19 +209,15 @@ const TagEditor: React.FC<{
         control,
         name: "fields"
     });
-
-    const watchedFields = watch("fields");
-    useEffect(() => {
-        setLayout(prev => ({ ...prev, fields: watchedFields as LabelField[] }));
-    }, [watchedFields, setLayout]);
     
+    const watchedFields = watch("fields");
     // When the parent layout changes (e.g., from a drag), update the form fields
     useEffect(() => {
         setValue("fields", layout.fields);
     }, [layout, setValue]);
 
     const addField = (type: 'text' | 'qr') => {
-        append({
+        const newField: LabelField = {
             id: `field-${Date.now()}`,
             type: type,
             x: 10,
@@ -229,8 +225,27 @@ const TagEditor: React.FC<{
             data: type === 'text' ? 'New Text' : '{sku}',
             fontSize: 20,
             qrMagnification: 2
-        });
+        };
+        append(newField);
+        setLayout(prev => ({...prev, fields: [...prev.fields, newField]}));
     };
+    
+    const removeField = (index: number) => {
+        remove(index);
+        setLayout(prev => ({...prev, fields: prev.fields.filter((_, i) => i !== index)}));
+    };
+    
+    const updateFieldData = (index: number, key: keyof LabelField, value: any) => {
+        const currentFields = getValues('fields');
+        const updatedFields = currentFields.map((field, i) => {
+            if (i === index) {
+                return {...field, [key]: value};
+            }
+            return field;
+        });
+        setLayout(prev => ({...prev, fields: updatedFields as LabelField[]}));
+    };
+    const { getValues } = form;
 
     return (
         <Card>
@@ -249,24 +264,24 @@ const TagEditor: React.FC<{
                     <div className="space-y-4 pr-4">
                         {fields.map((field, index) => (
                             <div key={field.id} className="p-3 border rounded-md relative">
-                                <Button variant="destructive" size="icon" className="absolute -top-3 -right-3 h-6 w-6" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button>
+                                <Button variant="destructive" size="icon" className="absolute -top-3 -right-3 h-6 w-6" onClick={() => removeField(index)}><Trash2 className="h-4 w-4" /></Button>
                                 <div className="grid grid-cols-2 gap-4">
                                      <Controller
                                         control={control}
                                         name={`fields.${index}.type`}
                                         render={({ field: { onChange, value } }) => (
                                            <FormItem><Label>Type</Label>
-                                            <Select onValueChange={onChange} value={value} defaultValue={value}>
+                                            <Select onValueChange={(val) => { onChange(val); updateFieldData(index, 'type', val); }} value={value} defaultValue={value}>
                                                <SelectTrigger><SelectValue/></SelectTrigger>
                                                <SelectContent><SelectItem value="text">Text</SelectItem><SelectItem value="qr">QR Code</SelectItem></SelectContent>
                                             </Select></FormItem>
                                         )}
                                     />
-                                    <FormItem><Label>Content</Label><Input {...register(`fields.${index}.data`)} placeholder="e.g., {sku} or static text" /></FormItem>
-                                    <FormItem><Label>X Position</Label><Input type="number" {...register(`fields.${index}.x`)} /></FormItem>
-                                    <FormItem><Label>Y Position</Label><Input type="number" {...register(`fields.${index}.y`)} /></FormItem>
-                                    {watch(`fields.${index}.type`) === 'text' && <FormItem><Label>Font Size</Label><Input type="number" {...register(`fields.${index}.fontSize`)} /></FormItem>}
-                                    {watch(`fields.${index}.type`) === 'qr' && <FormItem><Label>QR Size</Label><Input type="number" {...register(`fields.${index}.qrMagnification`)} /></FormItem>}
+                                    <FormItem><Label>Content</Label><Input {...register(`fields.${index}.data`)} placeholder="e.g., {sku} or static text" onChange={e => updateFieldData(index, 'data', e.target.value)} /></FormItem>
+                                    <FormItem><Label>X Position</Label><Input type="number" {...register(`fields.${index}.x`)} onChange={e => updateFieldData(index, 'x', parseInt(e.target.value, 10) || 0)} /></FormItem>
+                                    <FormItem><Label>Y Position</Label><Input type="number" {...register(`fields.${index}.y`)} onChange={e => updateFieldData(index, 'y', parseInt(e.target.value, 10) || 0)} /></FormItem>
+                                    {watch(`fields.${index}.type`) === 'text' && <FormItem><Label>Font Size</Label><Input type="number" {...register(`fields.${index}.fontSize`)} onChange={e => updateFieldData(index, 'fontSize', parseInt(e.target.value, 10) || 20)} /></FormItem>}
+                                    {watch(`fields.${index}.type`) === 'qr' && <FormItem><Label>QR Size</Label><Input type="number" {...register(`fields.${index}.qrMagnification`)} onChange={e => updateFieldData(index, 'qrMagnification', parseInt(e.target.value, 10) || 2)} /></FormItem>}
                                 </div>
                             </div>
                         ))}
