@@ -40,42 +40,60 @@ interface ZebraDevice {
 
 // --- ZPL Generation ---
 
+export interface LabelField {
+    id: string;
+    type: 'text' | 'qr';
+    x: number;
+    y: number;
+    data: string; // The content or placeholder (e.g., "SKU: {sku}" or "{qr_content}")
+    // Text-specific properties
+    font?: string; // e.g., 'A0N' for default font
+    fontSize?: number;
+    // QR-specific properties
+    qrMagnification?: number; // e.g., 2, 3, 4
+}
+
+export interface LabelLayout {
+    id: string;
+    name: string;
+    widthDots: number; // Page width in dots
+    heightDots: number; // Page height in dots
+    fields: LabelField[];
+}
+
 /**
- * Generates the ZPL code for a standard dumbbell jewelry tag.
- * @param sku The product SKU to encode in the QR code and text.
+ * Generates ZPL code from a structured layout and product data.
+ * @param layout The LabelLayout object defining the tag.
+ * @param productData The product data to fill in placeholders.
  */
-export function generateDumbbellTagZpl(sku: string): string {
-    // This ZPL is a basic template. You may need to adjust the coordinates
-    // (^FOx,y) and font sizes (^A0N,height,width) to match your specific
-    // label size and layout precisely.
-    // This template assumes a small dumbbell label (e.g., ~2.25" x 0.5").
-    // The coordinates are in dots (assuming a 203 dpi printer).
+export function generateZplFromLayout(layout: LabelLayout, productData: Record<string, any>): string {
+    const replacePlaceholders = (template: string): string => {
+        return template.replace(/\{(\w+)\}/g, (match, key) => {
+            return productData[key] !== undefined ? String(productData[key]) : match;
+        });
+    };
+
+    let zplFields = '';
+    for (const field of layout.fields) {
+        const resolvedData = replacePlaceholders(field.data);
+        if (field.type === 'text') {
+            const font = field.font || 'A0N';
+            const fontSize = field.fontSize || 20;
+            // ZPL fonts scale height and width together, so we provide it twice.
+            zplFields += `^FO${field.x},${field.y}^${font},${fontSize},${fontSize}^FD${resolvedData}^FS\n`;
+        } else if (field.type === 'qr') {
+            const magnification = field.qrMagnification || 2;
+            // Using BQ command for QR code: ^BQN,2,5 -> QR Code, Normal, Model 2, Magnification 5
+            zplFields += `^FO${field.x},${field.y}^BQN,2,${magnification}^FDQA,${resolvedData}^FS\n`;
+        }
+    }
 
     const zpl = `
 ^XA
-~TA000
-~JSN
-^LT0
-^MNW
-^MTD
-^PON
-^PMN
-^LH0,0
-^JMA
-^PR6,6
-~SD20
-^JUS
-^LRN
-^CI27
-^PA0,1,1,0
-^XZ
-^XA
-^MMT
-^PW406
-^LL203
+^PW${layout.widthDots}
+^LL${layout.heightDots}
 ^LS0
-^FO48,40^A0N,20,20^FD${sku}^FS
-^FO48,70^BQN,2,3^FDQA,${sku}^FS
+${zplFields}
 ^PQ1,0,1,Y
 ^XZ
 `;
@@ -88,7 +106,7 @@ export function generateDumbbellTagZpl(sku: string): string {
 let zebraBrowserPrint: ZebraBrowserPrint | null = null;
 let selected_device: ZebraDevice | null = null;
 
-function setupZebraBrowserPrint(): Promise<void> {
+export function checkZebraBrowserPrint(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window === 'undefined') {
         return reject("Zebra Browser Print is only available in the browser.");
@@ -136,7 +154,7 @@ function setupZebraBrowserPrint(): Promise<void> {
 export async function sendZplToPrinter(zpl: string): Promise<void> {
     if (!selected_device) {
         try {
-            await setupZebraBrowserPrint();
+            await checkZebraBrowserPrint();
         } catch (error) {
             throw error; // Propagate the setup error
         }
