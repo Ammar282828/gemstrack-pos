@@ -18,6 +18,7 @@ import { useFieldArray, useForm, Controller } from 'react-hook-form';
 import { Select, SelectContent, SelectTrigger, SelectValue, SelectItem } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
+import { FormItem } from '@/components/ui/form';
 
 const ProductSearch: React.FC<{ onSelect: (product: Product) => void, selectedProduct: Product | null }> = ({ onSelect, selectedProduct }) => {
   const products = useAppStore(state => state.products);
