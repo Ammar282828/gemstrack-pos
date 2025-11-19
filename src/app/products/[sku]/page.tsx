@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, Download, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond, Zap, Shield, Gem, Info, Printer } from 'lucide-react';
+import { Edit3, Trash2, Download, QrCode as QrCodeIcon, ArrowLeft, Weight, Shapes, ShoppingCart, Diamond, Zap, Shield, Gem, Info, Printer, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { generateProductCsv } from '@/lib/csv';
+import { generateDumbbellTagZpl, sendZplToPrinter } from '@/lib/zebra-printer';
 
 
 type ProductWithCalculatedCosts = ReturnType<typeof selectProductWithCosts>;
@@ -76,6 +77,7 @@ export default function ProductDetailPage() {
   const { addToCart } = useAppStore();
 
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | undefined>(undefined);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     if (productData?.qrCodeDataUrl) {
@@ -131,18 +133,29 @@ export default function ProductDetailPage() {
     });
   };
 
-  const handlePrintLabel = () => {
-    if (!productData) return;
-    console.log(`--- Printing Label for ${productData.sku} ---`);
-    console.log("This is where you would construct the ZPL command string.");
-    console.log("Then, send it to the Zebra Browser Print helper application.");
-    // Example ZPL (not real data):
-    // const zplCommand = `^XA ... ^FS ... ^XZ`;
-    // sendToZebraPrinter(zplCommand);
-    toast({
-      title: "Print Action Triggered",
-      description: "Check the developer console for Zebra integration info.",
-    });
+  const handlePrintLabel = async () => {
+    if (!productData) {
+      toast({ title: "Error", description: "Product data not available.", variant: "destructive" });
+      return;
+    }
+
+    setIsPrinting(true);
+    try {
+      const zpl = generateDumbbellTagZpl(productData.sku);
+      await sendZplToPrinter(zpl);
+      toast({
+        title: "Print Job Sent",
+        description: `Label for ${productData.sku} sent to the Zebra printer.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Printer Error",
+        description: error.message || "Could not communicate with the Zebra printer.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   if (!isHydrated) {
@@ -338,8 +351,9 @@ export default function ProductDetailPage() {
                 ) : (
                   <div className="w-32 h-32 bg-gray-200 flex items-center justify-center text-sm text-gray-500 rounded-md">Generating QR...</div>
                 )}
-                <Button variant="secondary" size="sm" onClick={handlePrintLabel} className="w-full">
-                  <Printer className="mr-2 h-4 w-4" /> Print Label
+                <Button variant="secondary" size="sm" onClick={handlePrintLabel} className="w-full" disabled={isPrinting}>
+                  {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2 h-4 w-4" />}
+                  {isPrinting ? 'Sending...' : 'Print Zebra Label'}
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleExportCsv} className="w-full">
                   <Download className="mr-2 h-4 w-4" /> Export CSV for this Item
