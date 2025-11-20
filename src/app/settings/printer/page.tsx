@@ -222,7 +222,7 @@ const TagEditor: React.FC<{
     layout: LabelLayout,
     setLayout: React.Dispatch<React.SetStateAction<LabelLayout>>
 }> = ({ layout, setLayout }) => {
-    const form = useForm({
+     const form = useForm({
         defaultValues: { fields: layout.fields }
     });
 
@@ -236,6 +236,17 @@ const TagEditor: React.FC<{
     useEffect(() => {
         setValue("fields", layout.fields);
     }, [layout, setValue]);
+    
+    const updateFieldData = (index: number, key: keyof LabelField, value: any) => {
+        const currentFields = getValues('fields');
+        const updatedFields = currentFields.map((field, i) => {
+            if (i === index) {
+                return {...field, [key]: value};
+            }
+            return field;
+        });
+        setLayout(prev => ({...prev, fields: updatedFields as LabelField[]}));
+    };
 
     const addField = (type: 'text' | 'qr') => {
         const newField: LabelField = {
@@ -248,23 +259,13 @@ const TagEditor: React.FC<{
             qrMagnification: 2
         };
         append(newField);
+        updateFieldData(fields.length, 'type', type); // This seems redundant, append should handle it. Let's rely on append.
         setLayout(prev => ({...prev, fields: [...prev.fields, newField]}));
     };
     
     const removeField = (index: number) => {
         remove(index);
         setLayout(prev => ({...prev, fields: prev.fields.filter((_, i) => i !== index)}));
-    };
-    
-    const updateFieldData = (index: number, key: keyof LabelField, value: any) => {
-        const currentFields = getValues('fields');
-        const updatedFields = currentFields.map((field, i) => {
-            if (i === index) {
-                return {...field, [key]: value};
-            }
-            return field;
-        });
-        setLayout(prev => ({...prev, fields: updatedFields as LabelField[]}));
     };
 
     return (
