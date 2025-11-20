@@ -124,21 +124,21 @@ const DraggableField: React.FC<{
 };
 
 const DumbbellTagOutline = () => (
-    <svg 
-        className="absolute top-0 left-0 w-full h-full" 
-        viewBox="0 0 664 296" // Use dot dimensions for viewBox
-        preserveAspectRatio="none"
-        fill="none" 
-        xmlns="http://www.w3.org/2000/svg"
+    <svg
+      className="absolute top-0 left-0 w-full h-full"
+      viewBox="0 0 664 296" // Use dot dimensions for viewBox
+      preserveAspectRatio="none"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
     >
-        {/* The two main printable areas */}
-        <rect x="1" y="1" width="280" height="294" stroke="#A1A1AA" strokeWidth="2" rx="10"/>
-        <rect x="383" y="1" width="280" height="294" stroke="#A1A1AA" strokeWidth="2" rx="10"/>
-        
-        {/* The middle non-printable strip */}
-        <rect x="281" y="110" width="102" height="76" fill="#F4F4F5"/>
-        <line x1="281" y1="110" x2="383" y2="110" stroke="#E4E4E7" strokeWidth="1" strokeDasharray="4 4"/>
-        <line x1="281" y1="186" x2="383" y2="186" stroke="#E4E4E7" strokeWidth="1" strokeDasharray="4 4"/>
+      {/* The two main printable areas */}
+      <rect x="1" y="1" width="280" height="294" stroke="#A1A1AA" strokeWidth="2" rx="10" />
+      <rect x="383" y="1" width="280" height="294" stroke="#A1A1AA" strokeWidth="2" rx="10" />
+
+      {/* The middle non-printable strip */}
+      <rect x="281" y="110" width="102" height="76" fill="#F4F4F5" />
+      <line x1="281" y1="110" x2="383" y2="110" stroke="#E4E4E7" strokeWidth="1" strokeDasharray="4 4" />
+      <line x1="281" y1="186" x2="383" y2="186" stroke="#E4E4E7" strokeWidth="1" strokeDasharray="4 4" />
     </svg>
 );
 
@@ -504,3 +504,5 @@ export default function PrinterPage() {
         </DndProvider>
     );
 }
+
+    
