@@ -54,6 +54,9 @@ const navItems: NavItem[] = [
   // System
   { href: '/activity-log', label: 'Activity Log', icon: <History /> },
   { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
+  { href: '/settings/payment-methods', label: 'Payment Methods', icon: <Landmark /> },
+  { href: '/settings/printer', label: 'Printer Hub', icon: <Printer /> },
+  { href: '/settings/backups', label: 'Backups', icon: <ArchiveRestore /> },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
