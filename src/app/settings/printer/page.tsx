@@ -18,7 +18,7 @@ import { useFieldArray, useForm, Controller } from 'react-hook-form';
 import { Select, SelectContent, SelectTrigger, SelectValue, SelectItem } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
-import { FormItem } from '@/components/ui/form';
+import { Form, FormItem } from '@/components/ui/form';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
@@ -113,7 +113,7 @@ const DraggableField: React.FC<{
   return (
     <div
       ref={drag}
-      style={{ left: `${left}%`, top: `${top}%` }}
+      style={{ left: `${left}%`, top: `${top}%`, opacity: isDragging ? 0.5 : 1 }}
       className="absolute cursor-move"
       role="Handle"
     >
@@ -121,6 +121,25 @@ const DraggableField: React.FC<{
     </div>
   );
 };
+
+const DumbbellTagOutline = () => (
+    <svg 
+        className="absolute top-0 left-0 w-full h-full" 
+        viewBox="0 0 664 296" // Use dot dimensions for viewBox
+        preserveAspectRatio="none"
+        fill="none" 
+        xmlns="http://www.w3.org/2000/svg"
+    >
+        {/* The two main printable areas */}
+        <rect x="1" y="1" width="280" height="294" stroke="#A1A1AA" strokeWidth="2" rx="10"/>
+        <rect x="383" y="1" width="280" height="294" stroke="#A1A1AA" strokeWidth="2" rx="10"/>
+        
+        {/* The middle non-printable strip */}
+        <rect x="281" y="110" width="102" height="76" fill="#F4F4F5"/>
+        <line x1="281" y1="110" x2="383" y2="110" stroke="#E4E4E7" strokeWidth="1" strokeDasharray="4 4"/>
+        <line x1="281" y1="186" x2="383" y2="186" stroke="#E4E4E7" strokeWidth="1" strokeDasharray="4 4"/>
+    </svg>
+);
 
 
 const TagPreview: React.FC<{ layout: LabelLayout; product: Product | null; onFieldMove: (id: string, x: number, y: number) => void; }> = ({ layout, product, onFieldMove }) => {
@@ -157,9 +176,10 @@ const TagPreview: React.FC<{ layout: LabelLayout; product: Product | null; onFie
         <div className="p-4 bg-gray-200 rounded-lg flex items-center justify-center">
             <div 
                 ref={previewRef}
-                className="bg-white p-1 relative shadow-md" 
+                className="bg-white relative shadow-md" 
                 style={{ width: '300px', height: `${300 / aspectRatio}px` }}
             >
+                <DumbbellTagOutline />
                 <div ref={drop} className="w-full h-full">
                 {layout.fields.map(field => {
                     const resolvedData = replacePlaceholders(field.data);
@@ -306,7 +326,7 @@ const defaultLayout: LabelLayout = {
     heightDots: 296,
     fields: [
         { id: 'sku-text-left', type: 'text', x: 70, y: 120, data: '{sku}', fontSize: 30 },
-        { id: 'qr-left', type: 'qr', x: 250, y: 50, data: '{sku}', qrMagnification: 5 },
+        { id: 'qr-left', type: 'qr', x: 450, y: 50, data: '{sku}', qrMagnification: 5 },
     ],
 };
 
