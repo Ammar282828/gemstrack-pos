@@ -212,7 +212,6 @@ const TagEditor: React.FC<{
         name: "fields"
     });
     
-    const watchedFields = watch("fields");
     // When the parent layout changes (e.g., from a drag), update the form fields
     useEffect(() => {
         setValue("fields", layout.fields);
@@ -252,7 +251,7 @@ const TagEditor: React.FC<{
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center"><Cog className="mr-2 h-5 w-5" />Tag Editor</CardTitle>
-                <CardDescription>Customize the fields on your label. Use placeholders like `%7Bsku%7D`.</CardDescription>
+                <CardDescription>Customize the fields on your label. Use placeholders like `{'{sku}'}`.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -297,14 +296,17 @@ const TagEditor: React.FC<{
     );
 };
 
+// 8 dots/mm at 203 dpi.
+// Width: 83mm * 8 dots/mm = 664 dots.
+// Height: 37mm * 8 dots/mm = 296 dots.
 const defaultLayout: LabelLayout = {
-    id: 'default-dumbbell',
-    name: 'Default Dumbbell',
-    widthDots: 406,
-    heightDots: 203,
+    id: 'default-dumbbell-large',
+    name: 'Default Dumbbell (83x37mm)',
+    widthDots: 664,
+    heightDots: 296,
     fields: [
-        { id: 'sku-text-left', type: 'text', x: 48, y: 40, data: '{sku}', fontSize: 20 },
-        { id: 'qr-left', type: 'qr', x: 48, y: 70, data: '{sku}', qrMagnification: 3 },
+        { id: 'sku-text-left', type: 'text', x: 70, y: 120, data: '{sku}', fontSize: 30 },
+        { id: 'qr-left', type: 'qr', x: 250, y: 50, data: '{sku}', qrMagnification: 5 },
     ],
 };
 
