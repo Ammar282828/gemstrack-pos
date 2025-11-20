@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Loader2, Printer, XCircle, CheckCircle, History, Repeat, QrCode, PlusCircle, Trash2, Text, Cog, Move } from 'lucide-react';
+import { Search, Loader2, Printer, XCircle, CheckCircle, History, Repeat, QrCode, PlusCircle, Trash2, Text, Cog, Move, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LabelLayout, LabelField, generateZplFromLayout, sendZplToPrinter, checkZebraBrowserPrint } from '@/lib/zebra-printer';
 import { format } from 'date-fns';
@@ -21,6 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { Form, FormItem } from '@/components/ui/form';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { useRouter } from 'next/navigation';
 
 const ItemTypes = {
   FIELD: 'field',
@@ -232,7 +232,6 @@ const TagEditor: React.FC<{
         name: "fields"
     });
     
-    // When the parent layout changes (e.g., from a drag), update the form fields
     useEffect(() => {
         setValue("fields", layout.fields);
     }, [layout, setValue]);
@@ -334,6 +333,7 @@ function PrinterPageComponent() {
   const appReady = useAppReady();
   const { loadProducts, addPrintHistory, printHistory } = useAppStore();
   const { toast } = useToast();
+  const router = useRouter();
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -399,6 +399,9 @@ function PrinterPageComponent() {
   return (
     <div className="container mx-auto py-4 sm:py-8 space-y-8">
       <header>
+         <Button variant="outline" onClick={() => router.back()} className="mb-4">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Settings
+        </Button>
         <h1 className="text-3xl font-bold text-primary flex items-center"><Printer className="mr-3 h-8 w-8"/>Zebra Printer Hub</h1>
         <p className="text-muted-foreground">Build, preview, and print your jewelry tags.</p>
       </header>
@@ -500,4 +503,3 @@ export default function PrinterPage() {
         </DndProvider>
     );
 }
-
