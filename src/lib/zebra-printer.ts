@@ -45,10 +45,15 @@ export interface LabelField {
     type: 'text' | 'qr';
     x: number;
     y: number;
+    rotation?: 0 | 90 | 180 | 270;
     data: string; // The content or placeholder (e.g., "SKU: {sku}" or "{qr_content}")
+    
     // Text-specific properties
-    font?: string; // e.g., 'A0N' for default font
+    fontFamily?: string; // e.g., '0', 'A', 'D' - defaults to '0'
     fontSize?: number;
+    width?: number; // Width of the text block (for wrapping/alignment)
+    textAlign?: 'L' | 'C' | 'R' | 'J'; // Text alignment
+    
     // QR-specific properties
     qrMagnification?: number; // e.g., 2, 3, 4
 }
@@ -73,23 +78,46 @@ export function generateZplFromLayout(layout: LabelLayout, productData: Record<s
         });
     };
 
+    const getOrientationChar = (rotation: number | undefined): string => {
+        switch (rotation) {
+            case 90: return 'R';
+            case 180: return 'I';
+            case 270: return 'B';
+            default: return 'N';
+        }
+    };
+
     let zplFields = '';
     for (const field of layout.fields) {
         const resolvedData = replacePlaceholders(field.data);
+        const orientation = getOrientationChar(field.rotation);
+
         if (field.type === 'text') {
-            const font = field.font || 'A0N';
+            const fontFamily = field.fontFamily || '0';
             const fontSize = field.fontSize || 20;
-            // ZPL fonts scale height and width together, so we provide it twice.
-            zplFields += `^FO${field.x},${field.y}^${font},${fontSize},${fontSize}^FD${resolvedData}^FS\n`;
+            const alignment = field.textAlign || 'L';
+            
+            // If width is provided, use ^FB (Field Block) for alignment and wrapping
+            // ^FBwidth,max_lines,hanging_indent,justification
+            const fieldBlock = field.width ? `^FB${field.width},1,0,${alignment}` : '';
+            
+            // ^Afo,h,w -> f=font, o=orientation
+            zplFields += `^FO${field.x},${field.y}^A${fontFamily}${orientation},${fontSize},${fontSize}${fieldBlock}^FD${resolvedData}^FS\n`;
         } else if (field.type === 'qr') {
             const magnification = field.qrMagnification || 2;
-            // Using BQ command for QR code: ^BQN,2,5 -> QR Code, Normal, Model 2, Magnification 5
-            zplFields += `^FO${field.x},${field.y}^BQN,2,${magnification}^FDQA,${resolvedData}^FS\n`;
+            // Using BQ command for QR code: ^BQo,2,m -> o=orientation
+            zplFields += `^FO${field.x},${field.y}^BQ${orientation},2,${magnification}^FDQA,${resolvedData}^FS\n`;
         }
     }
 
+    // ^MMT: Tear off mode (usually default, but good to ensure)
+    // ^PW: Print width
+    // ^LL: Label length
+    // ^LS: Label shift (optional)
+    // ^CI28: UTF-8 encoding support (essential for special chars)
     const zpl = `
 ^XA
+^CI28
 ^PW${layout.widthDots}
 ^LL${layout.heightDots}
 ^LS0
