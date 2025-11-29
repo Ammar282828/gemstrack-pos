@@ -4,8 +4,10 @@ import type {NextConfig} from 'next';
 import withPWAInit from '@ducanh2912/next-pwa';
 
 const nextConfig: NextConfig = {
+  // output: 'export', // Reverting to standard build to support dynamic routes
   /* config options here */
   images: {
+    // unoptimized: true, // Reverting image optimization setting
     remotePatterns: [
       {
         protocol: 'https',

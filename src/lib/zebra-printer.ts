@@ -128,6 +128,21 @@ ${zplFields}
     return zpl;
 }
 
+// Generates a simple ZPL for a single product to verify connectivity or quick print
+export function generateDumbbellTagZpl(sku: string): string {
+    const layout: LabelLayout = {
+        id: 'simple-tag',
+        name: 'Simple Tag',
+        widthDots: 664, // 83mm
+        heightDots: 296, // 37mm
+        fields: [
+            { id: 'sku', type: 'text', x: 50, y: 150, data: sku, fontSize: 30, rotation: 90 },
+            { id: 'qr', type: 'qr', x: 300, y: 50, data: sku, qrMagnification: 4 }
+        ]
+    };
+    return generateZplFromLayout(layout, { sku });
+}
+
 
 // --- Communication with Zebra Browser Print Application ---
 

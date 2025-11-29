@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from "@/components/ui/checkbox";
-import { Shapes, Search, Tag, Weight, PlusCircle, Eye, Edit3, Trash2, ShoppingCart, Loader2, Download } from 'lucide-react';
+import { Shapes, Search, Tag, Weight, PlusCircle, Eye, Edit3, Trash2, ShoppingCart, Loader2, Download, CopyPlus } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -212,12 +212,20 @@ export default function ProductsPage() {
           <h1 className="text-2xl md:text-3xl font-bold text-primary">Manage Products</h1>
           <p className="text-muted-foreground">View, add, edit, or delete your jewellery items.</p>
         </div>
-        <Link href="/products/add" passHref>
-          <Button size="lg">
-            <PlusCircle className="w-5 h-5 mr-2" />
-            Add New Product
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+            <Link href="/products/bulk-add" passHref>
+                <Button size="lg" variant="secondary">
+                    <CopyPlus className="w-5 h-5 mr-2" />
+                    Bulk Add
+                </Button>
+            </Link>
+            <Link href="/products/add" passHref>
+            <Button size="lg">
+                <PlusCircle className="w-5 h-5 mr-2" />
+                Add New Product
+            </Button>
+            </Link>
+        </div>
       </header>
 
       <Card className="mb-6">
