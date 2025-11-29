@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Calculator, Download, RefreshCcw, Sparkles, Mic, Send } from 'lucide-react';
+import { Calculator, Download, RefreshCcw, Sparkles, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -52,7 +52,6 @@ export default function QuotationGenerator() {
     const settings = useAppStore(state => state.settings);
     const { toast } = useToast();
 
-    // Tabs state
     const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual');
 
     // AI State
@@ -89,8 +88,6 @@ export default function QuotationGenerator() {
 
     const generateRangeData = () => {
         const rows = [];
-        
-        // Lowest Estimate
         if (weightMin > 0) {
             rows.push({
                 label: "Lowest Estimate",
@@ -98,8 +95,6 @@ export default function QuotationGenerator() {
                 ...calculateQuotationCost(weightMin, metalType, karat, currentRate, makingCharges, wastagePercentage, stoneCharges, diamondCharges, miscCharges)
             });
         }
-
-        // Highest Estimate (only if different from min)
         if (weightMax > 0 && weightMax > weightMin) {
             rows.push({
                 label: "Highest Estimate",
@@ -107,64 +102,171 @@ export default function QuotationGenerator() {
                 ...calculateQuotationCost(weightMax, metalType, karat, currentRate, makingCharges, wastagePercentage, stoneCharges, diamondCharges, miscCharges)
             });
         }
-
         return rows;
     };
 
     const tableData = generateRangeData();
 
-    const handleDownloadPDF = (data: any[], titleSuffix: string, customTitle?: string) => {
+    // --- PDF Generation Logic ---
+    const generatePDF = async (productsData: any[], isAiMode: boolean) => {
         const doc = new jsPDF();
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+        const margin = 14;
         
-        doc.setFontSize(18);
-        doc.text(settings.shopName || "Quotation", 14, 20);
+        // 1. Header Section (Logo & Shop Info)
+        const logoUrl = settings.shopLogoUrl || settings.shopLogoUrlBlack;
         
-        doc.setFontSize(12);
-        doc.text(`Product: ${customTitle || productName || "Custom Item"}`, 14, 30);
-        doc.text(`Date: ${format(new Date(), 'PP')}`, 14, 36);
-        
-        if (activeTab === 'manual') {
-             doc.text(`Gold Rate Used: ${currentRate.toLocaleString()} /g`, 14, 42);
-             doc.text("Fixed Charges:", 14, 50);
-             doc.setFontSize(10);
-             doc.text(`Karat: ${karat} | Making: ${makingCharges}`, 14, 56);
-             doc.text(`Wastage: ${wastagePercentage}% | Stone/Diamond/Misc: ${stoneCharges + diamondCharges + miscCharges}`, 14, 62);
-        } else if (activeTab === 'ai' && aiResponse) {
-             doc.setFontSize(10);
-             doc.text(aiResponse.summaryText || "AI Generated Options", 14, 45);
+        if (logoUrl) {
+            try {
+                // Load image asynchronously to ensure it renders
+                const img = new Image();
+                img.src = logoUrl;
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                });
+                
+                // Calculate aspect ratio to fit within 30x30 box while maintaining proportions
+                const maxWidth = 40;
+                const maxHeight = 30;
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width *= maxHeight / height;
+                        height = maxHeight;
+                    }
+                }
+
+                doc.addImage(img, 'PNG', margin, 10, width, height);
+            } catch (e) {
+                console.error("Could not add logo to PDF", e);
+            }
         }
 
-        const tableBody = data.map(row => [
-            row.label || row.scenarioName,
-            typeof row.weight === 'number' ? row.weight.toFixed(3) + ' g' : row.weightG + ' g',
-            // Handle different structure between manual calc and AI output
-            (row.metalCost !== undefined ? row.metalCost : (row.weightG * 0)).toLocaleString(undefined, { maximumFractionDigits: 0 }), // AI output might need raw metal cost calc logic if not provided directly, for now simplifying
-            (row.wastageCost !== undefined ? row.wastageCost : (row.estimatedTotal * 0.1)).toLocaleString(undefined, { maximumFractionDigits: 0 }), // approx for AI
-            (row.total !== undefined ? row.total : row.estimatedTotal).toLocaleString(undefined, { maximumFractionDigits: 0 })
-        ]);
+        // Shop Name & Address
+        doc.setFontSize(20);
+        doc.setFont("helvetica", "bold");
+        doc.text("QUOTATION", pageWidth - margin, 20, { align: 'right' });
+        
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(settings.shopName || "Jewelry Shop", pageWidth - margin, 28, { align: 'right' });
+        doc.text(format(new Date(), 'PPP'), pageWidth - margin, 34, { align: 'right' });
 
-        // For AI table, we might have different columns
-        const head = activeTab === 'manual' 
-            ? [['Scenario', 'Weight', 'Metal Cost', 'Wastage Cost', 'Total Estimate']]
-            : [['Option', 'Weight', 'Karat', 'Charges', 'Total Estimate']];
+        let yPos = 50;
+
+        // 2. Iterate through Products
+        const productsToPrint = isAiMode ? productsData : [{
+            productName: productName || "Custom Item",
+            options: productsData.map(row => ({
+                optionName: row.label,
+                weightG: row.weight,
+                karat: karat,
+                makingCharges: makingCharges,
+                wastagePercentage: wastagePercentage,
+                stoneCharges: stoneCharges,
+                diamondCharges: diamondCharges,
+                miscCharges: miscCharges,
+                estimatedTotal: row.total
+            }))
+        }];
+
+        productsToPrint.forEach((product: any) => {
+            // Product Header Box
+            doc.setFillColor(240, 240, 240); 
+            doc.rect(margin, yPos, pageWidth - (margin * 2), 8, 'F');
             
-        const aiTableBody = data.map(row => [
-            row.scenarioName,
-            row.weightG + 'g',
-            row.karat,
-            (row.makingCharges + (row.stoneCharges||0) + (row.diamondCharges||0)).toLocaleString(),
-            row.estimatedTotal.toLocaleString()
-        ]);
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(0, 0, 0);
+            doc.text(product.productName, margin + 2, yPos + 5.5);
+            
+            yPos += 8;
 
-        autoTable(doc, {
-            startY: activeTab === 'manual' ? 70 : 55,
-            head: activeTab === 'manual' ? head : head,
-            body: activeTab === 'manual' ? tableBody : aiTableBody,
-            theme: 'grid',
-            headStyles: { fillColor: [39, 174, 96] }, 
+            // Table for this product's options
+            const body = product.options.map((opt: any) => [
+                opt.optionName,
+                `${opt.weightG.toFixed(3)} g`,
+                opt.karat,
+                `${opt.wastagePercentage}%`,
+                opt.makingCharges ? opt.makingCharges.toLocaleString() : '-',
+                opt.stoneCharges ? opt.stoneCharges.toLocaleString() : '-',
+                opt.diamondCharges ? opt.diamondCharges.toLocaleString() : '-',
+                opt.estimatedTotal.toLocaleString()
+            ]);
+
+            autoTable(doc, {
+                startY: yPos,
+                head: [['Option', 'Weight', 'Karat', 'Wastage', 'Making', 'Stones', 'Diamond', 'Total']],
+                body: body,
+                theme: 'plain', 
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { 
+                    fillColor: [255, 255, 255], 
+                    textColor: [0, 0, 0], 
+                    fontStyle: 'bold',
+                    lineWidth: { bottom: 0.5 },
+                    lineColor: [0, 0, 0]
+                },
+                bodyStyles: {
+                    lineWidth: { bottom: 0.1 },
+                    lineColor: [200, 200, 200]
+                },
+                columnStyles: {
+                    7: { halign: 'right', fontStyle: 'bold' }, // Total
+                    6: { halign: 'right' }, // Diamond
+                    5: { halign: 'right' }, // Stones
+                    4: { halign: 'right' }, // Making
+                    3: { halign: 'right' }, // Wastage
+                    1: { halign: 'right' }  // Weight
+                },
+                margin: { left: margin, right: margin },
+            });
+
+            // @ts-ignore
+            yPos = doc.lastAutoTable.finalY + 10; 
         });
 
-        doc.save(`Quotation-${titleSuffix}.pdf`);
+        // 3. Footer (Matching invoice style)
+        const footerStartY = pageHeight - 35;
+        const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
+        const contacts = [
+            { name: "Murtaza", number: "0333 2275190" }, { name: "Muhammad", number: "0300 8280896" },
+            { name: "Huzaifa", number: "0335 2275553" }, { name: "Ammar", number: "0326 2275554" },
+        ];
+
+        // Separator line
+        doc.setLineWidth(0.2);
+        doc.setDrawColor(150);
+        doc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
+
+        // Guarantees
+        doc.setFontSize(7);
+        doc.setTextColor(100);
+        doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - (margin * 2) });
+
+        // Contacts
+        let contactX = margin;
+        const contactY = footerStartY + 10;
+        doc.setFontSize(8);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "bold");
+        doc.text("Contact Us:", margin, contactY);
+        
+        // Simple contact listing
+        const contactText = contacts.map(c => `${c.name}: ${c.number}`).join("  |  ");
+        doc.setFont("helvetica", "normal");
+        doc.text(contactText, margin, contactY + 5);
+
+        doc.save(`Quotation-${isAiMode ? 'AI' : 'Manual'}.pdf`);
         toast({ title: "PDF Downloaded", description: "Quotation generated successfully." });
     };
 
@@ -343,7 +445,7 @@ export default function QuotationGenerator() {
                         )}
                     </CardContent>
                     <CardFooter className="pt-4">
-                        <Button className="w-full" onClick={() => handleDownloadPDF(tableData, 'Range')} disabled={tableData.length === 0}>
+                        <Button className="w-full" onClick={() => generatePDF(tableData, false)} disabled={tableData.length === 0}>
                             <Download className="mr-2 h-4 w-4" /> Download PDF Quote
                         </Button>
                     </CardFooter>
@@ -362,23 +464,25 @@ export default function QuotationGenerator() {
                             {aiResponse ? (
                                 <div className="space-y-4">
                                     <p className="text-lg font-medium text-primary">{aiResponse.summaryText}</p>
-                                    <div className="space-y-2">
-                                        {aiResponse.scenarios.map((s: any, i: number) => (
-                                            <div key={i} className="p-3 bg-card border rounded-md shadow-sm">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <h4 className="font-bold">{s.scenarioName}</h4>
-                                                    <span className="text-green-600 font-bold">{s.estimatedTotal.toLocaleString()}</span>
+                                    
+                                    {aiResponse.products.map((product: any, idx: number) => (
+                                        <div key={idx} className="space-y-2">
+                                            <h4 className="font-bold text-md border-b pb-1">{product.productName}</h4>
+                                            {product.options.map((s: any, i: number) => (
+                                                <div key={i} className="p-3 bg-card border rounded-md shadow-sm">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="font-medium">{s.optionName}</span>
+                                                        <span className="text-green-600 font-bold">{s.estimatedTotal.toLocaleString()}</span>
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground mb-2">{s.description}</p>
+                                                    <div className="text-xs grid grid-cols-2 gap-y-1 text-muted-foreground">
+                                                        <span>Weight: {s.weightG}g</span>
+                                                        <span>Karat: {s.karat}</span>
+                                                    </div>
                                                 </div>
-                                                <p className="text-sm text-muted-foreground mb-2">{s.description}</p>
-                                                <div className="text-xs grid grid-cols-2 gap-y-1 text-muted-foreground">
-                                                    <span>Weight: {s.weightG}g</span>
-                                                    <span>Karat: {s.karat}</span>
-                                                    <span>Making: {s.makingCharges}</span>
-                                                    <span>Wastage: {s.wastagePercentage}%</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    ))}
                                 </div>
                             ) : (
                                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
@@ -404,32 +508,36 @@ export default function QuotationGenerator() {
                 <Card className="h-full flex flex-col justify-center items-center bg-muted/10 border-dashed">
                     {aiResponse ? (
                         <div className="text-center space-y-4 p-8">
-                            <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm mx-auto border">
-                                <h3 className="font-serif text-xl font-bold mb-4">{settings.shopName || "Quotation"}</h3>
-                                <p className="text-sm text-muted-foreground mb-4">AI Generated Estimate</p>
-                                <table className="w-full text-left text-sm">
-                                    <thead>
-                                        <tr className="border-b">
-                                            <th className="py-2">Option</th>
-                                            <th className="py-2 text-right">Price</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {aiResponse.scenarios.map((s: any, i: number) => (
-                                            <tr key={i} className="border-b last:border-0">
-                                                <td className="py-2 pr-4">
-                                                    <div className="font-medium">{s.scenarioName}</div>
-                                                    <div className="text-xs text-muted-foreground">{s.weightG}g | {s.karat}</div>
-                                                </td>
-                                                <td className="py-2 text-right font-bold">
-                                                    {s.estimatedTotal.toLocaleString()}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                            <div className="bg-white p-6 rounded-lg shadow-lg max-w-md mx-auto border">
+                                <h3 className="font-serif text-xl font-bold mb-4 text-center">QUOTATION</h3>
+                                
+                                {aiResponse.products.map((product: any, idx: number) => (
+                                    <div key={idx} className="mb-4 text-left">
+                                        <h4 className="font-bold text-sm mb-2">{product.productName}</h4>
+                                        <table className="w-full text-left text-sm">
+                                            <thead>
+                                                <tr className="border-b">
+                                                    <th className="py-1">Option</th>
+                                                    <th className="py-1 text-right">Weight</th>
+                                                    <th className="py-1 text-right">Price</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {product.options.map((s: any, i: number) => (
+                                                    <tr key={i} className="border-b last:border-0">
+                                                        <td className="py-1 pr-2">{s.optionName}</td>
+                                                        <td className="py-1 text-right">{s.weightG}g</td>
+                                                        <td className="py-1 text-right font-bold">
+                                                            {s.estimatedTotal.toLocaleString()}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ))}
                             </div>
-                            <Button size="lg" className="w-full max-w-xs" onClick={() => handleDownloadPDF(aiResponse.scenarios, 'AI-Options', aiInput)}>
+                            <Button size="lg" className="w-full max-w-xs" onClick={() => generatePDF(aiResponse.products, true)} disabled={!aiResponse || aiResponse.products.length === 0}>
                                 <Download className="mr-2 h-4 w-4"/> Download PDF
                             </Button>
                         </div>

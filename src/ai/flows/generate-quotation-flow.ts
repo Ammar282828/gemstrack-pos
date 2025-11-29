@@ -6,7 +6,7 @@ import { z } from 'genkit';
 
 // --- Input Schema ---
 const GenerateQuotationInputSchema = z.object({
-  userRequest: z.string().describe("The user's spoken or written request for quotations. E.g., 'I want 3 options for a 21k bridal set around 50 grams.'"),
+  userRequest: z.string().describe("The user's spoken or written request for quotations. E.g., 'I want options for a 21k bridal set between 40 and 50 grams.'"),
   currentGoldRate24k: z.number().describe("Current gold rate for 24k per gram."),
   currentGoldRate22k: z.number().describe("Current gold rate for 22k per gram."),
   currentGoldRate21k: z.number().describe("Current gold rate for 21k per gram."),
@@ -15,12 +15,11 @@ const GenerateQuotationInputSchema = z.object({
 export type GenerateQuotationInput = z.infer<typeof GenerateQuotationInputSchema>;
 
 // --- Output Schema ---
-// We want the AI to structure the response as a list of quotation scenarios.
-const QuotationScenarioSchema = z.object({
-  scenarioName: z.string().describe("A short name for this option, e.g., 'Budget Option' or 'Heavy Set'."),
-  description: z.string().describe("Brief description of what this option entails."),
-  karat: z.enum(['18k', '21k', '22k', '24k']).describe("The karat used for this calculation."),
-  weightG: z.number().describe("The weight in grams used for this calculation."),
+const QuotationOptionSchema = z.object({
+  optionName: z.string().describe("A short name for this option, e.g., 'Lowest Estimate' or 'Option A'."),
+  description: z.string().optional().describe("Brief details about this specific option."),
+  karat: z.enum(['18k', '21k', '22k', '24k']).describe("The karat used."),
+  weightG: z.number().describe("The weight in grams."),
   makingCharges: z.number().describe("Estimated making charges."),
   wastagePercentage: z.number().describe("Wastage percentage applied."),
   stoneCharges: z.number().optional().describe("Charges for stones if applicable."),
@@ -29,9 +28,15 @@ const QuotationScenarioSchema = z.object({
   estimatedTotal: z.number().describe("The final calculated estimated price."),
 });
 
+const QuotationProductSchema = z.object({
+  productName: z.string().describe("The name of the product, e.g. 'Bridal Set'."),
+  description: z.string().optional().describe("General description of the product."),
+  options: z.array(QuotationOptionSchema).describe("List of variations/options for this product."),
+});
+
 const GenerateQuotationOutputSchema = z.object({
-  scenarios: z.array(QuotationScenarioSchema).describe("A list of generated quotation scenarios based on the user request."),
-  summaryText: z.string().describe("A brief, polite response to the user summarizing what was generated."),
+  products: z.array(QuotationProductSchema).describe("A list of products with their quotation options. Empty if more info is needed."),
+  summaryText: z.string().describe("A response to the user. If info is missing, ask for it here. If generated, summarize the result."),
 });
 export type GenerateQuotationOutput = z.infer<typeof GenerateQuotationOutputSchema>;
 
@@ -52,29 +57,34 @@ const prompt = ai.definePrompt({
   User Request: "{{userRequest}}"
 
   Instructions:
-  1. Analyze the user's request to understand what kind of jewelry they want (e.g., bridal set, ring), the target weight, karat, or budget.
-  2. If they ask for "variations" or "options", create 2-3 logical scenarios (e.g., varying weight, varying karat, or different making charges).
-  3. Calculate the estimated total for each scenario using the provided gold rates.
-     - Formula: (Weight * Rate) + (Weight * Rate * Wastage%) + Making + Stones + Diamonds + Misc.
-     - Use reasonable defaults if not specified:
-       - Default Wastage: 8-12%
-       - Default Making: 2000-5000 per gram depending on complexity (or fixed amount).
-  4. Return a structured JSON object containing these scenarios.
+  1. **Analyze the Request**: Identify the product(s), weight (or range), and karat.
+  2. **Missing Information**: If the user request is vague (e.g., "How much is a ring?" with no weight or karat), **DO NOT** guess. 
+     - Return an empty 'products' list.
+     - Set 'summaryText' to politely ask for the specific details needed (e.g., "Could you please specify the estimated weight and karat for the ring?").
+  3. **Structure**: Group options by Product.
+  4. **Weight Ranges**: If a weight range is provided (e.g., "between 4-6g"), create exactly TWO options: "Lowest Estimate" (min weight) and "Highest Estimate" (max weight).
+  5. **Variations**: If the user asks for "options" (e.g., "3 options for a set"), create distinct options (e.g. varying weights or karats).
+  6. **Calculation**: Calculate prices using: (Weight * Rate) + (Weight * Rate * Wastage%) + Making + Stones/Diamonds.
+     - Use the provided gold rates strictly.
+     - Default Wastage: 10% if not specified.
+     - Default Making: 3000 per gram if not specified.
+  7. Return the result as a structured JSON.
 
-  Example Output Structure (JSON):
+  Example Output (Missing Info):
   {
-    "scenarios": [
+    "products": [],
+    "summaryText": "I can certainly give you a quote. What is the approximate weight and karat you are looking for?"
+  }
+
+  Example Output (Success):
+  {
+    "products": [
       {
-        "scenarioName": "Standard 21k Option",
-        "description": "A classic weight for a bridal set.",
-        "karat": "21k",
-        "weightG": 50,
-        "makingCharges": 50000,
-        "wastagePercentage": 10,
-        "estimatedTotal": ... (calculated value)
+        "productName": "Gold Ring",
+        "options": [ ... ]
       }
     ],
-    "summaryText": "Here are three options for your bridal set, ranging from 45g to 55g."
+    "summaryText": "Here are the estimates for your gold ring based on the current rates."
   }
   `,
 });
