@@ -1,33 +1,39 @@
 
-"use client";
-
-import { useParams } from 'next/navigation';
-import { useAppStore } from '@/lib/store';
-import { useAppReady } from '@/hooks/use-store';
 import { OrderForm } from '@/components/order/order-form';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { useAppStore } from '@/lib/store';
+import { useParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import React, { useEffect } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+
+// Required for static export
+export function generateStaticParams() {
+  return [];
+}
 
 export default function EditOrderPage() {
+  return <EditOrderClient />;
+}
+
+"use client";
+function EditOrderClient() {
   const params = useParams();
   const orderId = params.id as string;
-  
-  const appReady = useAppReady();
   const { orders, isOrdersLoading, loadOrders } = useAppStore();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Ensure orders are loaded when the component mounts if they aren't already
-    if (appReady && orders.length === 0) {
-        loadOrders();
-    }
-  }, [appReady, loadOrders, orders.length]);
-  
+    setMounted(true);
+    loadOrders();
+  }, [loadOrders]);
+
+  if (!mounted) return null;
+
   const order = orders.find(o => o.id === orderId);
 
-  if (!appReady || (isOrdersLoading && !order)) {
-     return (
+  if (isOrdersLoading && !order) {
+    return (
       <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
         <p className="text-lg text-muted-foreground">Loading order data...</p>
@@ -41,7 +47,7 @@ export default function EditOrderPage() {
         <h2 className="text-2xl font-semibold">Order not found</h2>
         <p className="text-muted-foreground">The order with ID "{orderId}" could not be found.</p>
         <Link href="/orders" passHref>
-          <Button variant="link" className="mt-4">Go back to orders list</Button>
+          <Button variant="link" className="mt-4">Go back to orders</Button>
         </Link>
       </div>
     );
@@ -49,7 +55,7 @@ export default function EditOrderPage() {
 
   return (
     <div className="container mx-auto p-4">
-      <OrderForm order={order} />
+      <OrderForm orderToEdit={order} />
     </div>
   );
 }

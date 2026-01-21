@@ -134,7 +134,36 @@ function _calculateProductCostsInternal(
     };
   }
 
-  // The primary metal weight is its gross weight, minus only the stones.
+  // NEW: Special simplified calculation for Silver
+  if (product.metalType === 'silver') {
+    const silverRatePerGram = rates.silverRatePerGram || 0;
+    
+    // For silver, the provided rate is all-inclusive for metal, making, and wastage.
+    const allInSilverCost = (Number(product.metalWeightG) || 0) * silverRatePerGram;
+    
+    const stoneChargesValue = Number(product.stoneCharges) || 0;
+    const miscChargesValue = Number(product.miscCharges) || 0;
+    const diamondChargesValue = Number(product.diamondCharges) || 0;
+
+    const totalPrice = allInSilverCost + stoneChargesValue + diamondChargesValue + miscChargesValue;
+
+    if (isNaN(totalPrice)) {
+      console.error("[GemsTrack Store _calculateProductCostsInternal] CRITICAL: Produced NaN for Silver. Details:", { product, rates });
+      return { metalCost: 0, wastageCost: 0, makingCharges: 0, diamondCharges: 0, stoneCharges: 0, miscCharges: 0, totalPrice: 0 };
+    }
+
+    return {
+      metalCost: allInSilverCost, // This represents the (rate * grams) part.
+      wastageCost: 0, // Considered bundled into the rate.
+      makingCharges: 0, // Considered bundled into the rate.
+      diamondCharges: diamondChargesValue,
+      stoneCharges: stoneChargesValue,
+      miscCharges: miscChargesValue,
+      totalPrice: totalPrice,
+    };
+  }
+
+  // --- Existing logic for Gold, Platinum, etc. ---
   const primaryMetalNetWeightG = Math.max(0, (Number(product.metalWeightG) || 0) - (Number(product.stoneWeightG) || 0));
   if (primaryMetalNetWeightG < 0) {
       console.warn(`[GemsTrack Store _calculateProductCostsInternal] Net primary metal weight is negative for ${product.name}. Clamping to 0.`);
@@ -470,7 +499,7 @@ const CATEGORY_SKU_PREFIXES: Record<string, string> = {
 const initialSettingsData: Settings = {
   goldRatePerGram24k: 240000, goldRatePerGram22k: 220000, goldRatePerGram21k: 210000, goldRatePerGram18k: 180000,
   palladiumRatePerGram: 22000, platinumRatePerGram: 25000, silverRatePerGram: 250,
-  shopName: "Taheri", shopAddress: "123 Jewel Street, Sparkle City",
+  shopName: "MINA", shopAddress: "123 Jewel Street, Sparkle City",
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "", shopLogoUrlBlack: "", lastInvoiceNumber: 0,
   lastOrderNumber: 0,

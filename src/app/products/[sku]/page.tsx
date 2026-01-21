@@ -148,13 +148,21 @@ export default function ProductDetailPage() {
   }
 
   const getRateForProduct = () => {
-    if (productData.metalType !== 'gold' || !productData.karat) return null;
-    const rateKey = `goldRatePerGram${productData.karat}` as keyof Settings;
-    const rate = settings[rateKey] as number | undefined;
-    return {
-      label: `Gold Rate (Store Setting, ${productData.karat.toUpperCase()})`,
-      value: rate || 0
-    };
+    if (productData.metalType === 'gold' && productData.karat) {
+        const rateKey = `goldRatePerGram${productData.karat}` as keyof Settings;
+        const rate = settings[rateKey] as number | undefined;
+        return { label: `Gold Rate (Store Setting, ${productData.karat.toUpperCase()})`, value: rate || 0 };
+    }
+    if (productData.metalType === 'silver') {
+        return { label: 'All-inclusive Silver Rate (Store Setting)', value: settings.silverRatePerGram || 0 };
+    }
+    if (productData.metalType === 'palladium') {
+        return { label: "Palladium Rate (Store Setting)", value: settings.palladiumRatePerGram || 0 };
+    }
+    if (productData.metalType === 'platinum') {
+        return { label: "Platinum Rate (Store Setting)", value: settings.platinumRatePerGram || 0 };
+    }
+    return null;
   };
 
   const productRate = getRateForProduct();
@@ -197,21 +205,23 @@ export default function ProductDetailPage() {
                   {productRate && (
                       <DetailItem label={productRate.label} value={productRate.value} unit="/ gram" currency="PKR " />
                   )}
-                  {productData.metalType === 'palladium' && (
-                      <DetailItem label="Palladium Rate (Store Setting)" value={settings.palladiumRatePerGram} unit="/ gram" currency="PKR " />
-                  )}
-                  {productData.metalType === 'platinum' && (
-                      <DetailItem label="Platinum Rate (Store Setting)" value={settings.platinumRatePerGram} unit="/ gram" currency="PKR " />
-                  )}
-                   {productData.metalType === 'silver' && (
-                      <DetailItem label="Silver Rate (Store Setting)" value={settings.silverRatePerGram} unit="/ gram" currency="PKR " />
-                  )}
                   <Separator className="my-1" />
-                  <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR " />
-                  <Separator className="my-1" />
-                  <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR " />
-                  <Separator className="my-1" />
-                  <DetailItem label="Making Charges" value={productData.makingCharges} currency="PKR " />
+                  
+                  {productData.metalType === 'silver' ? (
+                     <>
+                      <DetailItem label="All-inclusive Silver Cost" value={productData.metalCost} currency="PKR " />
+                      <Separator className="my-1" />
+                     </>
+                  ) : (
+                     <>
+                      <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR " />
+                      <Separator className="my-1" />
+                      <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR " />
+                      <Separator className="my-1" />
+                      <DetailItem label="Making Charges" value={productData.makingCharges} currency="PKR " />
+                    </>
+                  )}
+                  
                   {productData.hasDiamonds && (
                     <>
                       <Separator className="my-1" />
@@ -256,8 +266,11 @@ export default function ProductDetailPage() {
                   </>
                 )}
                 
-                <Separator className="my-1" />
-                <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
+                {productData.metalType !== 'silver' && <>
+                    <Separator className="my-1" />
+                    <DetailItem label="Wastage" value={productData.wastagePercentage} unit="%" />
+                </>}
+
                 <Separator className="my-1" />
                 <DetailItem label="Contains Diamonds" value={productData.hasDiamonds} icon={<Diamond className="w-4 h-4" />} />
                  {(productData.stoneDetails || productData.diamondDetails) && <Separator className="my-1" />}

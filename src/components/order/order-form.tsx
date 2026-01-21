@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -59,7 +58,7 @@ const orderItemSchema = z.object({
   stoneWeightG: z.coerce.number().min(0).default(0),
   stoneDetails: z.string().optional(),
   diamondDetails: z.string().optional(),
-  metalType: z.enum(metalTypeValues).default('gold'),
+  metalType: z.enum(metalTypeValues).default('silver'),
   isCompleted: z.boolean().default(false),
   karigarId: z.string().optional(),
 });
@@ -574,7 +573,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         hasDiamonds: false,
         stoneDetails: '',
         diamondDetails: '',
-        metalType: 'gold',
+        metalType: 'silver',
         isCompleted: false,
         hasStones: false,
         stoneWeightG: 0,

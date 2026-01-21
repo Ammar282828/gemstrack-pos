@@ -113,7 +113,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     return {
       name: p?.name || '',
       categoryId: p?.categoryId || '',
-      metalType: p?.metalType || 'gold',
+      metalType: p?.metalType || 'silver',
       karat: p?.karat || undefined,
       metalWeightG: p?.metalWeightG || 0,
       secondaryMetalType: p?.secondaryMetalType || '',
@@ -179,12 +179,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       form.setValue('miscCharges', 0); form.setValue('stoneDetails', ''); form.setValue('diamondDetails', '');
       form.setValue('stoneWeightG', 0);
       form.setValue('karat', '24k');
+    } else if (selectedMetalType === 'silver') {
+      form.setValue('wastagePercentage', 0); 
+      form.setValue('makingCharges', 0);
     } else {
         if (hasDiamondsValue) { form.setValue('wastagePercentage', 25); } 
         else { form.setValue('wastagePercentage', 10); form.setValue('diamondCharges', 0); form.setValue('diamondDetails', ''); }
         if (!hasStonesValue) { form.setValue('stoneWeightG', 0); form.setValue('stoneDetails', ''); }
     }
-  }, [isGoldCoin, hasDiamondsValue, hasStonesValue, form]);
+  }, [isGoldCoin, hasDiamondsValue, hasStonesValue, form, selectedMetalType]);
   
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -260,7 +263,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               const hadDiamonds = form.getValues('hasDiamonds');
               form.reset({
                   name: '',
-                  categoryId: originalCategory, metalType: 'gold', karat: '21k', metalWeightG: 0, wastagePercentage: 10,
+                  categoryId: originalCategory, metalType: 'silver', karat: undefined, metalWeightG: 0, wastagePercentage: 0,
                   makingCharges: 0, 
                   hasStones: hadStones,
                   hasDiamonds: hadDiamonds,
@@ -482,8 +485,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                             </FormItem>
                           )}
                         />
-                        <FormField control={form.control} name="wastagePercentage" render={({ field }) => (<FormItem><FormLabel>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 10" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="makingCharges" render={({ field }) => (<FormItem><FormLabel>Making Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 5000" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        {selectedMetalType !== 'silver' && <>
+                          <FormField control={form.control} name="wastagePercentage" render={({ field }) => (<FormItem><FormLabel>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 10" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                          <FormField control={form.control} name="makingCharges" render={({ field }) => (<FormItem><FormLabel>Making Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 5000" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        </>}
+
                         {hasStonesValue && <FormField control={form.control} name="stoneWeightG" render={({ field }) => (<FormItem><FormLabel>Stone Weight (grams)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g., 0.5" {...field} /></FormControl><FormMessage /></FormItem>)}/>}
                         {hasDiamondsValue && <FormField control={form.control} name="diamondCharges" render={({ field }) => (<FormItem><FormLabel>Diamond Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 50000" {...field} /></FormControl><FormMessage /></FormItem>)} />}
                         {hasStonesValue && <FormField control={form.control} name="stoneCharges" render={({ field }) => (<FormItem><FormLabel>Stone Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 15000" {...field} /></FormControl><FormMessage /></FormItem>)} />}

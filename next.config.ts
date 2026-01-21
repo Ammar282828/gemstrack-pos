@@ -4,10 +4,10 @@ import type {NextConfig} from 'next';
 import withPWAInit from '@ducanh2912/next-pwa';
 
 const nextConfig: NextConfig = {
-  // output: 'export', // Reverting to standard build to support dynamic routes
+  output: 'export',
   /* config options here */
   images: {
-    // unoptimized: true, // Reverting image optimization setting
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -18,8 +18,6 @@ const nextConfig: NextConfig = {
     ],
   },
   webpack: (config, { isServer }) => {
-    // This is to fix a bug with genkit's dependency on handlebars.
-    // It prevents webpack from trying to use a Node.js-specific feature.
     config.resolve.alias = {
       ...config.resolve.alias,
       'handlebars': 'handlebars/dist/handlebars.js',
@@ -33,12 +31,12 @@ const withPWA = withPWAInit({
   register: true,
   disable: process.env.NODE_ENV === 'development',
   fallbacks: {
-    document: '/~offline', // Custom offline fallback page
+    document: '/~offline', 
   },
-  cacheOnFrontEndNav: true, // Cache pages navigated to on the client
-  aggressiveFrontEndNavCaching: true, // Aggressively cache JS and CSS for visited pages
-  reloadOnOnline: true, // Reload the app when it comes back online
-  sw: 'service-worker.js', // service worker file name
+  cacheOnFrontEndNav: true, 
+  aggressiveFrontEndNavCaching: true, 
+  reloadOnOnline: true, 
+  sw: 'service-worker.js', 
 });
 
 export default withPWA(nextConfig);

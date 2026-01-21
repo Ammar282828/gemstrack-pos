@@ -8,15 +8,14 @@ import { getFirestore, type Firestore, enableIndexedDbPersistence, initializeFir
 // --- Your web app's Firebase configuration ---
 // This is the REAL configuration.
 const firebaseConfig = {
-  apiKey: "AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA",
-  authDomain: "gemstrack-pos.firebaseapp.com",
-  databaseURL: "https://gemstrack-pos-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "gemstrack-pos",
-  storageBucket: "gemstrack-pos.appspot.com",
-  messagingSenderId: "948018742883",
-  appId: "1:948018742883:web:a3a090dde378be96089a56"
-};
-
+    apiKey: "AIzaSyBT0K-wlSllEqY9MU_MunEMUb7puAd4-Lc",
+    authDomain: "silver-brand-pos.firebaseapp.com",
+    projectId: "silver-brand-pos",
+    storageBucket: "silver-brand-pos.firebasestorage.app",
+    messagingSenderId: "139998321108",
+    appId: "1:139998321108:web:8e5c0db3549c014d479e41",
+    measurementId: "G-199P011BHT"
+  };
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;

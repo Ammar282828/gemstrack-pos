@@ -64,7 +64,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="dark">
       <head>
-        <title>Taheri POS</title>
+        <title>MINA</title>
         <meta name="description" content="Jewellery Inventory & Point-of-Sale System" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="manifest" href="/manifest.json" />

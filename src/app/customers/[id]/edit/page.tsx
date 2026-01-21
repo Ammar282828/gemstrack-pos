@@ -1,24 +1,41 @@
 
-"use client";
-
-import { useParams } from 'next/navigation';
-import { useAppStore, Customer } from '@/lib/store';
 import { CustomerForm } from '@/components/customer/customer-form';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { useAppStore } from '@/lib/store';
+import { useParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import React, { useEffect } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+
+// Required for static export
+export function generateStaticParams() {
+  return [];
+}
 
 export default function EditCustomerPage() {
+  // Logic moved to a client component wrapper or handled differently if possible
+  // Since we need useParams which is client-side, we must use a client component.
+  // But generateStaticParams must be in a server component (or page file).
+  // This conflict is why the build fails.
+  // We need to separate the client logic.
+  return <EditCustomerClient />;
+}
+
+// Separate client component
+"use client";
+function EditCustomerClient() {
   const params = useParams();
   const customerId = params.id as string;
-  
   const { customers, isCustomersLoading, loadCustomers } = useAppStore();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     loadCustomers();
   }, [loadCustomers]);
-  
+
+  if (!mounted) return null;
+
   const customer = customers.find(c => c.id === customerId);
 
   if (isCustomersLoading && !customer) {
