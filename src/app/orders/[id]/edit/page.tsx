@@ -1,3 +1,4 @@
+'use client';
 
 import { OrderForm } from '@/components/order/order-form';
 import { useAppStore } from '@/lib/store';
@@ -7,17 +8,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 
-// Required for static export
-export function generateStaticParams() {
-  return [];
-}
-
 export default function EditOrderPage() {
-  return <EditOrderClient />;
-}
-
-"use client";
-function EditOrderClient() {
   const params = useParams();
   const orderId = params.id as string;
   const { orders, isOrdersLoading, loadOrders } = useAppStore();
@@ -55,7 +46,7 @@ function EditOrderClient() {
 
   return (
     <div className="container mx-auto p-4">
-      <OrderForm orderToEdit={order} />
+      <OrderForm order={order} />
     </div>
   );
 }

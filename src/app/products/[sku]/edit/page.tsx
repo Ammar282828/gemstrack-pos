@@ -1,3 +1,4 @@
+'use client';
 
 import { ProductForm } from '@/components/product/product-form';
 import { useAppStore } from '@/lib/store';
@@ -7,17 +8,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 
-// Required for static export
-export function generateStaticParams() {
-  return [];
-}
-
 export default function EditProductPage() {
-  return <EditProductClient />;
-}
-
-"use client";
-function EditProductClient() {
   const params = useParams();
   const sku = params.sku as string;
   const { products, isProductsLoading, loadProducts } = useAppStore();
@@ -55,7 +46,7 @@ function EditProductClient() {
 
   return (
     <div className="container mx-auto p-4">
-      <ProductForm productToEdit={product} />
+      <ProductForm product={product} />
     </div>
   );
 }
