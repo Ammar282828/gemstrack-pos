@@ -28,7 +28,8 @@ const nextConfig: NextConfig = {
 const withPWA = withPWAInit({
   dest: 'public',
   register: true,
-  disable: process.env.NODE_ENV === 'development',
+  // TEMPORARILY DISABLE PWA TO CLEAR OLD CACHES AND FIX 404 ERRORS
+  disable: true, 
   fallbacks: {
     document: '/~offline', 
   },

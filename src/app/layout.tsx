@@ -9,7 +9,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { MainApp } from '@/components/layout/main-app';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
-import React from 'react';
+import React, { useEffect } from 'react';
 import Script from 'next/script';
 
 const inter = Inter({
@@ -24,6 +24,17 @@ function AppBody({ children }: { children: React.ReactNode }) {
 
   // Determine if the current page is the public invoice view
   const isPublicInvoicePage = pathname.startsWith('/view-invoice');
+
+  // TEMPORARY: Unregister all service workers to clear old cache from previous hosting setup
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    }
+  }, []);
 
   // Render a placeholder or nothing until hydration is complete to avoid flash
   if (!isHydrated) {
