@@ -35,6 +35,7 @@ const productFormSchema = z.object({
   metalType: z.enum(metalTypeValues, { required_error: "Metal type is required" }),
   karat: z.enum(karatValues).optional(),
   metalWeightG: z.coerce.number().min(0.001, "Metal weight must be a positive number"),
+  silverRatePerGram: z.coerce.number().min(0).optional(),
   // Secondary Metal (optional)
   secondaryMetalType: z.string().optional(),
   secondaryMetalKarat: z.enum(karatValues).optional().or(z.literal('')),
@@ -116,6 +117,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       metalType: p?.metalType || 'silver',
       karat: p?.karat || undefined,
       metalWeightG: p?.metalWeightG || 0,
+      silverRatePerGram: p?.silverRatePerGram || 0,
       secondaryMetalType: p?.secondaryMetalType || '',
       secondaryMetalKarat: p?.secondaryMetalKarat || undefined,
       secondaryMetalWeightG: p?.secondaryMetalWeightG || 0,
@@ -271,6 +273,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   stoneCharges: 0, miscCharges: 0, imageUrl: "", stoneDetails: "", diamondDetails: "",
                   secondaryMetalType: '', secondaryMetalKarat: '', secondaryMetalWeightG: 0,
                   isCustomPrice: false, customPrice: 0, description: '',
+                  silverRatePerGram: 0,
               });
             } else { router.push('/products'); }
           }
@@ -409,6 +412,22 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           )}
                         />
                     </div>
+                    {selectedMetalType === 'silver' && (
+                        <FormField
+                            control={form.control}
+                            name="silverRatePerGram"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Product-Specific Rate per Gram (PKR)</FormLabel>
+                                    <FormDescription>
+                                        Set an all-inclusive rate for this silver item. If 0, the global rate from settings is used.
+                                    </FormDescription>
+                                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 275" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
 
                     {isMensRing && (
                         <>
@@ -485,10 +504,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                             </FormItem>
                           )}
                         />
-                        {selectedMetalType !== 'silver' && <>
-                          <FormField control={form.control} name="wastagePercentage" render={({ field }) => (<FormItem><FormLabel>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 10" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                          <FormField control={form.control} name="makingCharges" render={({ field }) => (<FormItem><FormLabel>Making Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 5000" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        </>}
+                        {selectedMetalType !== 'silver' && (
+                          <>
+                            <FormField control={form.control} name="wastagePercentage" render={({ field }) => (<FormItem><FormLabel>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" placeholder="e.g., 10" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={form.control} name="makingCharges" render={({ field }) => (<FormItem><FormLabel>Making Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 5000" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                          </>
+                        )}
 
                         {hasStonesValue && <FormField control={form.control} name="stoneWeightG" render={({ field }) => (<FormItem><FormLabel>Stone Weight (grams)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g., 0.5" {...field} /></FormControl><FormMessage /></FormItem>)}/>}
                         {hasDiamondsValue && <FormField control={form.control} name="diamondCharges" render={({ field }) => (<FormItem><FormLabel>Diamond Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 50000" {...field} /></FormControl><FormMessage /></FormItem>)} />}

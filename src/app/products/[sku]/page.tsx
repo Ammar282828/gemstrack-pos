@@ -154,7 +154,10 @@ export default function ProductDetailPage() {
         return { label: `Gold Rate (Store Setting, ${productData.karat.toUpperCase()})`, value: rate || 0 };
     }
     if (productData.metalType === 'silver') {
-        return { label: 'All-inclusive Silver Rate (Store Setting)', value: settings.silverRatePerGram || 0 };
+        if (productData.silverRatePerGram && productData.silverRatePerGram > 0) {
+            return { label: 'Product-Specific Silver Rate', value: productData.silverRatePerGram };
+        }
+        return { label: 'Global Silver Rate (Store Setting)', value: settings.silverRatePerGram || 0 };
     }
     if (productData.metalType === 'palladium') {
         return { label: "Palladium Rate (Store Setting)", value: settings.palladiumRatePerGram || 0 };
@@ -207,15 +210,11 @@ export default function ProductDetailPage() {
                   )}
                   <Separator className="my-1" />
                   
-                  {productData.metalType === 'silver' ? (
-                     <>
-                      <DetailItem label="All-inclusive Silver Cost" value={productData.metalCost} currency="PKR " />
-                      <Separator className="my-1" />
-                     </>
-                  ) : (
-                     <>
-                      <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR " />
-                      <Separator className="my-1" />
+                  <DetailItem label="Metal Cost" value={productData.metalCost} currency="PKR " />
+                  <Separator className="my-1" />
+
+                  {productData.metalType !== 'silver' && (
+                    <>
                       <DetailItem label="Wastage Cost" value={productData.wastageCost} currency="PKR " />
                       <Separator className="my-1" />
                       <DetailItem label="Making Charges" value={productData.makingCharges} currency="PKR " />

@@ -120,6 +120,7 @@ function _calculateProductCostsInternal(
     miscCharges: number;
     isCustomPrice?: boolean;
     customPrice?: number;
+    silverRatePerGram?: number;
   },
   rates: { 
       goldRatePerGram24k: number; goldRatePerGram22k: number; goldRatePerGram21k: number; goldRatePerGram18k: number;
@@ -136,7 +137,8 @@ function _calculateProductCostsInternal(
 
   // NEW: Special simplified calculation for Silver
   if (product.metalType === 'silver') {
-    const silverRatePerGram = rates.silverRatePerGram || 0;
+    // Prioritize the product-specific rate, fall back to the global rate.
+    const silverRatePerGram = product.silverRatePerGram || rates.silverRatePerGram || 0;
     
     // For silver, the provided rate is all-inclusive for metal, making, and wastage.
     const allInSilverCost = (Number(product.metalWeightG) || 0) * silverRatePerGram;
@@ -314,6 +316,7 @@ export interface Product {
   isCustomPrice?: boolean;
   customPrice?: number;
   description?: string;
+  silverRatePerGram?: number;
 }
 
 export interface InvoiceItem {
