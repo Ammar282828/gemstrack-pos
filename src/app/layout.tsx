@@ -25,17 +25,6 @@ function AppBody({ children }: { children: React.ReactNode }) {
   // Determine if the current page is the public invoice view
   const isPublicInvoicePage = pathname.startsWith('/view-invoice');
 
-  // TEMPORARY: Unregister all service workers to clear old cache from previous hosting setup
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for(let registration of registrations) {
-          registration.unregister();
-        }
-      });
-    }
-  }, []);
-
   // Render a placeholder or nothing until hydration is complete to avoid flash
   if (!isHydrated) {
     return (

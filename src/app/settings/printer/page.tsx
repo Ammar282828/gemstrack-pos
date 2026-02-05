@@ -20,6 +20,7 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { produce } from 'immer';
+import { QrCode } from 'lucide-react';
 
 // --- Types ---
 interface LabelField {
@@ -181,17 +182,16 @@ const DraggableField: React.FC<{
 };
 
 const DumbbellTagOutline: React.FC = () => {
-    // Dimensions based on 83x37mm tag (664x296 dots)
-    const viewboxWidth = 664;
-    const viewboxHeight = 296;
-    
-    // Printable area dimensions
-    const areaWidth = 260;
-    const areaHeight = 296;
+    const viewboxWidth = 664; // 83mm
+    const viewboxHeight = 296; // 37mm
 
-    // Middle non-printable strip
-    const stripWidth = viewboxWidth - (areaWidth * 2);
-    const stripHeight = 80;
+    // Printable heads are ~30mm wide (240 dots).
+    const headWidth = 240;
+    
+    // The connecting strip is ~8mm wide (64 dots).
+    const stripHeight = 64; 
+    const stripY = (viewboxHeight - stripHeight) / 2;
+    const stripWidth = viewboxWidth - (headWidth * 2);
 
     return (
         <svg
@@ -202,15 +202,12 @@ const DumbbellTagOutline: React.FC = () => {
             <defs>
                  <mask id="dumbbell-mask">
                     <rect x="0" y="0" width={viewboxWidth} height={viewboxHeight} fill="white" />
-                    <rect 
-                        x={areaWidth} 
-                        y={(viewboxHeight - stripHeight) / 2} 
-                        width={stripWidth} 
-                        height={stripHeight} 
-                        fill="black"
-                    />
+                    {/* Cut out the areas that are NOT part of the tag */}
+                    <rect x={headWidth} y="0" width={stripWidth} height={stripY} fill="black" />
+                    <rect x={headWidth} y={stripY + stripHeight} width={stripWidth} height={viewboxHeight - (stripY + stripHeight)} fill="black" />
                 </mask>
             </defs>
+            {/* The colored background of the tag shape */}
             <rect 
                 x="0" y="0" 
                 width={viewboxWidth} height={viewboxHeight} 
@@ -218,15 +215,14 @@ const DumbbellTagOutline: React.FC = () => {
                 className="text-primary/5"
                 mask="url(#dumbbell-mask)"
             />
-            <rect 
-                x="0" y="0" 
-                width={viewboxWidth} height={viewboxHeight} 
+            {/* The dashed border of the tag shape */}
+            <path 
+                d={`M0,0 L${headWidth},0 L${headWidth},${stripY} L${headWidth + stripWidth},${stripY} L${headWidth + stripWidth},0 L${viewboxWidth},0 L${viewboxWidth},${viewboxHeight} L${headWidth + stripWidth},${viewboxHeight} L${headWidth + stripWidth},${stripY + stripHeight} L${headWidth},${stripY + stripHeight} L${headWidth},${viewboxHeight} L0,${viewboxHeight} Z`}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeDasharray="4 4"
                 className="text-primary/20"
-                mask="url(#dumbbell-mask)"
             />
         </svg>
     );
@@ -272,11 +268,11 @@ const TagPreview: React.FC<{
 
 
 const TagEditor: React.FC<{ layout: LabelLayout; setLayout: (layout: LabelLayout) => void; }> = ({ layout, setLayout }) => {
-  const { control, register, getValues, watch, reset } = useForm({
+  const { control, register, watch, reset } = useForm({
     defaultValues: layout,
   });
 
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control,
     name: 'fields',
   });
@@ -300,7 +296,7 @@ const TagEditor: React.FC<{ layout: LabelLayout; setLayout: (layout: LabelLayout
       {fields.map((item, index) => (
         <Card key={item.id} className="p-4">
           <div className="flex justify-between items-center mb-2">
-            <h4 className="font-semibold">{getValues(`fields.${index}.id`)}</h4>
+            <h4 className="font-semibold">{watch(`fields.${index}.id`)}</h4>
             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => remove(index)}>
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
@@ -329,7 +325,7 @@ const TagEditor: React.FC<{ layout: LabelLayout; setLayout: (layout: LabelLayout
                     control={control}
                     name={`fields.${index}.rotation`}
                     render={({ field }) => (
-                         <select {...field} className="w-full h-10 border rounded-md px-2 bg-background">
+                         <select {...field} value={field.value || 0} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} className="w-full h-10 border rounded-md px-2 bg-background">
                             <option value={0}>0°</option>
                             <option value={90}>90°</option>
                             <option value={180}>180°</option>
