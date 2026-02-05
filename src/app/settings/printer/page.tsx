@@ -364,7 +364,7 @@ function PrinterPageComponent() {
     const updateScale = () => {
       if (previewContainerRef.current) {
         const containerWidth = previewContainerRef.current.offsetWidth;
-        setScale(containerWidth / layout.widthDots);
+        setPreviewScale(containerWidth / layout.widthDots);
       }
     };
     updateScale();
