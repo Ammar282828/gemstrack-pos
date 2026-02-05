@@ -78,8 +78,6 @@ export default function RootLayout({
         <title>MINA</title>
         <meta name="description" content="Jewellery Inventory & Point-of-Sale System" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         {/* Dynamic theme-color will be handled by the theme logic, but we can set a default */}
         <meta name="theme-color" content="#0d1a16" />
         <Script src="https://unpkg.com/zebra-browser-print-wrapper@3.0.0/js/zebra_browser_print_wrapper.js" type="text/javascript"></Script>
