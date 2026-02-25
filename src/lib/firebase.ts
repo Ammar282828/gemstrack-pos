@@ -23,13 +23,15 @@ if (getApps().length === 0) {
   console.log('[GemsTrack Firebase] Initializing new Firebase App instance.');
   app = initializeApp(firebaseConfig);
   try {
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({})
-    });
-    console.log('[GemsTrack Firebase] New Firestore instance with persistence created.');
+    // We are disabling persistent cache to avoid synchronization issues across devices.
+    // The previous implementation used persistentLocalCache({}) which could lead to stale data.
+    // db = initializeFirestore(app, {
+    //   localCache: persistentLocalCache({})
+    // });
+    db = getFirestore(app);
+    console.log('[GemsTrack Firebase] New Firestore instance (in-memory persistence) created.');
   } catch (e) {
-    console.error('[GemsTrack Firebase] Failed to initialize Firestore with persistence:', e);
-    // Fallback to in-memory persistence if persistent fails
+    console.error('[GemsTrack Firebase] Failed to initialize Firestore:', e);
     db = getFirestore(app);
   }
   auth = getAuth(app);

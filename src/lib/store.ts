@@ -1,5 +1,4 @@
 
-
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -763,7 +762,10 @@ const createDataLoader = <T, K extends keyof AppState>(
   orderByDirection: "asc" | "desc" = "asc"
 ) => {
   return (set: (fn: Partial<AppState> | ((state: AppState) => void)) => void, get: () => AppState) => {
-    if (get()[loadedKey] || get().settings.databaseLocked) return;
+    // We do NOT block loading if databaseLocked is true here anymore.
+    // This prevents a race condition where stale "locked" settings block initial data fetch.
+    // Security is handled by Firestore rules and UI logic.
+    if (get()[loadedKey]) return;
 
     set({ [loadingKey]: true, [errorKey]: null } as unknown as Partial<AppState>);
 
