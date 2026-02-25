@@ -15,24 +15,30 @@ const firebaseConfig = {
     appId: "1:288366939838:web:044c8eec0a5610688798ef"
   };
   
-const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const auth: Auth = getAuth(app);
-
-// Initialize Firestore with persistence enabled.
-// The try/catch handles HMR where the instance might already be initialized.
+let app: FirebaseApp;
+let auth: Auth;
 let db: Firestore;
-try {
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache({})
-  });
-  console.log('[GemsTrack Firebase] Offline persistence enabled.');
-} catch (e) {
-  // This will likely throw on hot-reloads, which is fine.
-  // We can then just get the existing instance.
-  db = getFirestore(app);
-  console.log("[GemsTrack Firebase] Re-using existing Firestore instance.");
+
+if (getApps().length === 0) {
+  console.log('[GemsTrack Firebase] Initializing new Firebase App instance.');
+  app = initializeApp(firebaseConfig);
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({})
+    });
+    console.log('[GemsTrack Firebase] New Firestore instance with persistence created.');
+  } catch (e) {
+    console.error('[GemsTrack Firebase] Failed to initialize Firestore with persistence:', e);
+    // Fallback to in-memory persistence if persistent fails
+    db = getFirestore(app);
+  }
+  auth = getAuth(app);
+} else {
+  console.log('[GemsTrack Firebase] Re-using existing Firebase App instance.');
+  app = getApp();
+  auth = getAuth(app);
+  db = getFirestore(app); // Get the already initialized instance
 }
 
 
 export { app, auth, db, firebaseConfig };
-

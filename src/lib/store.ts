@@ -762,38 +762,35 @@ const createDataLoader = <T, K extends keyof AppState>(
   orderByField: string = "name",
   orderByDirection: "asc" | "desc" = "asc"
 ) => {
-  return (set: (fn: (state: AppState) => void) => void, get: () => AppState) => {
+  return (set: (fn: Partial<AppState> | ((state: AppState) => void)) => void, get: () => AppState) => {
     if (get()[loadedKey] || get().settings.databaseLocked) return;
 
-    set(state => {
-      (state as any)[loadingKey] = true;
-      (state as any)[errorKey] = null;
-    });
+    set({ [loadingKey]: true, [errorKey]: null } as unknown as Partial<AppState>);
 
     const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
     
     const unsubscribe = onSnapshot(q,
       (serverSnapshot) => {
         const list = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
-        set(state => {
-          (state[stateKey] as any) = list;
-          if ((state as any)[loadingKey]) (state as any)[loadingKey] = false;
-          if (!(state as any)[loadedKey]) (state as any)[loadedKey] = true;
-          if ((state as any)[errorKey]) (state as any)[errorKey] = null;
-        });
+        
+        set({
+          [stateKey]: list,
+          [loadingKey]: false,
+          [loadedKey]: true,
+          [errorKey]: null,
+        } as unknown as Partial<AppState>);
+
         const source = serverSnapshot.metadata.fromCache ? "cache" : "server";
         console.log(`[GemsTrack Store] Data for ${collectionName} loaded from ${source}. Count: ${list.length}`);
       },
       (error) => {
         console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
-        set(state => {
-          (state as any)[loadingKey] = false;
-          (state as any)[errorKey] = error.message || (`Failed to listen for ${collectionName} updates.`);
-        });
+        set({
+          [loadingKey]: false,
+          [errorKey]: error.message || (`Failed to listen for ${collectionName} updates.`),
+        } as unknown as Partial<AppState>);
       }
     );
-    // We should ideally store and call `unsubscribe` when the component unmounts,
-    // but for a global store that lives for the app's lifetime, this is often acceptable.
   };
 };
 
@@ -1986,4 +1983,3 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
-
