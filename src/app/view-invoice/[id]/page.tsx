@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import QRCode from 'qrcode.react';
 import { format } from 'date-fns';
 
 // Re-declare module for jsPDF in this file as well
@@ -265,23 +264,15 @@ export default function ViewInvoicePage() {
     }
 
     const footerStartY = pageHeight - 35;
-    const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
     const contacts = [
-        { name: "Murtaza", number: "0333 2275190" }, { name: "Muhammad", number: "0300 8280896" },
-        { name: "Huzaifa", number: "0335 2275553" }, { name: "Ammar", number: "0326 2275554" },
+        { name: "Mina Khalid", number: "0316 1930960" },
+        { name: "Ammar Mansa", number: "0326 2275554" },
     ];
-    const qrCodeSize = 20;
-    const qrSectionWidth = (qrCodeSize * 2) + 5;
-    const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 5;
-    const qrStartX = pageWidth - margin - qrSectionWidth;
 
     pdfDoc.setLineWidth(0.2);
     pdfDoc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
 
-    pdfDoc.setFontSize(6).setTextColor(150);
-    pdfDoc.text(guaranteesText, margin, footerStartY, { maxWidth: textBlockWidth });
-
-    let contactY = footerStartY + 10;
+    let contactY = footerStartY;
     pdfDoc.setFontSize(6).setFont("helvetica", "bold").setTextColor(50);
     pdfDoc.text("For Orders & Inquiries:", margin, contactY);
     contactY += 3;
@@ -290,21 +281,6 @@ export default function ViewInvoicePage() {
         pdfDoc.text(`${contact.name}: ${contact.number}`, margin, contactY);
         contactY += 4;
     });
-
-    const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
-    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
-
-    if (instaQrCanvas) {
-        pdfDoc.setFontSize(6); pdfDoc.setFont("helvetica", "bold").setTextColor(0);
-        pdfDoc.text("@collectionstaheri", qrStartX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
-        pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
-    }
-    if (waQrCanvas) {
-        const secondQrX = qrStartX + qrCodeSize + 5;
-        pdfDoc.setFontSize(6); pdfDoc.setFont("helvetica", "bold").setTextColor(0);
-        pdfDoc.text("Join on WhatsApp", secondQrX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
-        pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
-    }
     
     pdfDoc.save(`Estimate-${invoice.id}.pdf`);
   }
@@ -334,11 +310,6 @@ export default function ViewInvoicePage() {
 
   return (
     <div className="bg-muted min-h-screen p-4 sm:p-8">
-      <div style={{ display: 'none' }}>
-        <QRCode id="insta-qr-code" value="https://www.instagram.com/collectionstaheri?igsh=bWs4YWgydjJ1cXBz&utm_source=qr" size={128} />
-        <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl?mode=ac_t" size={128} />
-      </div>
-
         <Card className="max-w-2xl mx-auto shadow-2xl">
             <CardHeader className="text-center">
                 <CheckCircle className="mx-auto h-12 w-12 text-green-500"/>

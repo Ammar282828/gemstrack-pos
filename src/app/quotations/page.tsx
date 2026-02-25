@@ -235,12 +235,11 @@ export default function QuotationGenerator() {
             yPos = doc.lastAutoTable.finalY + 10; 
         });
 
-        // 3. Footer (Matching invoice style)
+        // 3. Footer
         const footerStartY = pageHeight - 35;
-        const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
         const contacts = [
-            { name: "Murtaza", number: "0333 2275190" }, { name: "Muhammad", number: "0300 8280896" },
-            { name: "Huzaifa", number: "0335 2275553" }, { name: "Ammar", number: "0326 2275554" },
+            { name: "Mina Khalid", number: "0316 1930960" },
+            { name: "Ammar Mansa", number: "0326 2275554" },
         ];
 
         // Separator line
@@ -248,20 +247,13 @@ export default function QuotationGenerator() {
         doc.setDrawColor(150);
         doc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
 
-        // Guarantees
-        doc.setFontSize(7);
-        doc.setTextColor(100);
-        doc.text(guaranteesText, margin, footerStartY, { maxWidth: pageWidth - (margin * 2) });
-
         // Contacts
-        let contactX = margin;
-        const contactY = footerStartY + 10;
+        const contactY = footerStartY;
         doc.setFontSize(8);
         doc.setTextColor(0, 0, 0);
         doc.setFont("helvetica", "bold");
         doc.text("Contact Us:", margin, contactY);
-        
-        // Simple contact listing
+
         const contactText = contacts.map(c => `${c.name}: ${c.number}`).join("  |  ");
         doc.setFont("helvetica", "normal");
         doc.text(contactText, margin, contactY + 5);

@@ -39,7 +39,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import QRCode from 'qrcode.react';
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -491,23 +490,15 @@ export default function OrderDetailPage() {
     }
     
     const footerStartY = pageHeight - 35;
-    const guaranteesText = "Gold used is independently tested & verified by Swiss Lab Ltd., confirming 21k (0.875 fineness). Crafted exclusively from premium ARY GOLD.";
     const contacts = [
-        { name: "Murtaza", number: "0333 2275190" }, { name: "Muhammad", number: "0300 8280896" },
-        { name: "Huzaifa", number: "0335 2275553" }, { name: "Ammar", number: "0326 2275554" },
+        { name: "Mina Khalid", number: "0316 1930960" },
+        { name: "Ammar Mansa", number: "0326 2275554" },
     ];
-    const qrCodeSize = 20;
-    const qrSectionWidth = (qrCodeSize * 2) + 5;
-    const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 5;
-    const qrStartX = pageWidth - margin - qrSectionWidth;
 
     doc.setLineWidth(0.2);
     doc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
 
-    doc.setFontSize(6).setTextColor(150);
-    doc.text(guaranteesText, margin, footerStartY, { maxWidth: textBlockWidth });
-
-    let contactY = footerStartY + 10;
+    let contactY = footerStartY;
     doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(50);
     doc.text("For Orders & Inquiries:", margin, contactY);
     contactY += 3;
@@ -516,21 +507,6 @@ export default function OrderDetailPage() {
         doc.text(`${contact.name}: ${contact.number}`, margin, contactY);
         contactY += 4;
     });
-
-    const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
-    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
-
-    if (instaQrCanvas) {
-        doc.setFontSize(6); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("@collectionstaheri", qrStartX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
-        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
-    }
-    if (waQrCanvas) {
-        const secondQrX = qrStartX + qrCodeSize + 5;
-        doc.setFontSize(6); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("Join on WhatsApp", secondQrX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
-        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
-    }
 
 
     doc.autoPrint();
@@ -578,10 +554,6 @@ export default function OrderDetailPage() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
-      <div style={{ display: 'none' }}>
-        <QRCode id="insta-qr-code" value="https://www.instagram.com/collectionstaheri?igsh=bWs4YWgydjJ1cXBz&utm_source=qr" size={128} />
-        <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl?mode=ac_t" size={128} />
-      </div>
       <Dialog open={isNotificationDialogOpen} onOpenChange={setIsNotificationDialogOpen}>
         <DialogContent>
             <DialogHeader>
