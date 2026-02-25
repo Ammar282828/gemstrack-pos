@@ -159,55 +159,53 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const isMensRing = selectedCategoryId === MENS_RING_CATEGORY_ID;
 
   useEffect(() => {
-    const newValues = { ...getValues() };
-    let changed = false;
-
     if (isGoldCoin) {
-        const goldCoinDefaults = {
-            hasDiamonds: false, hasStones: false, diamondCharges: 0, wastagePercentage: 0, makingCharges: 0,
-            stoneCharges: 0, miscCharges: 0, stoneDetails: '', diamondDetails: '', stoneWeightG: 0, karat: '24k' as KaratValue
-        };
-        Object.assign(newValues, goldCoinDefaults);
-        changed = true;
+        setValue('hasDiamonds', false);
+        setValue('hasStones', false);
+        setValue('diamondCharges', 0);
+        setValue('wastagePercentage', 0);
+        setValue('makingCharges', 0);
+        setValue('stoneCharges', 0);
+        setValue('miscCharges', 0);
+        setValue('stoneDetails', '');
+        setValue('diamondDetails', '');
+        setValue('stoneWeightG', 0);
+        setValue('karat', '24k');
     } else if (selectedMetalType === 'silver') {
-        const silverDefaults = { wastagePercentage: 0, makingCharges: 0 };
-        Object.assign(newValues, silverDefaults);
-        changed = true;
+        setValue('wastagePercentage', 0);
+        setValue('makingCharges', 0);
     } else {
         if (hasDiamondsValue) {
-            if (newValues.wastagePercentage !== 25) { newValues.wastagePercentage = 25; changed = true; }
+            if (getValues('wastagePercentage') !== 25) setValue('wastagePercentage', 25);
         } else {
-            if (newValues.wastagePercentage !== 10) { newValues.wastagePercentage = 10; changed = true; }
-            if (newValues.diamondCharges !== 0) { newValues.diamondCharges = 0; changed = true; }
-            if (newValues.diamondDetails !== '') { newValues.diamondDetails = ''; changed = true; }
+            if (getValues('wastagePercentage') !== 10) setValue('wastagePercentage', 10);
+            if (getValues('diamondCharges') !== 0) setValue('diamondCharges', 0);
+            if (getValues('diamondDetails') !== '') setValue('diamondDetails', '');
         }
         if (!hasStonesValue) {
-            if (newValues.stoneWeightG !== 0) { newValues.stoneWeightG = 0; changed = true; }
-            if (newValues.stoneDetails !== '') { newValues.stoneDetails = ''; changed = true; }
+            if (getValues('stoneWeightG') !== 0) setValue('stoneWeightG', 0);
+            if (getValues('stoneDetails') !== '') setValue('stoneDetails', '');
         }
     }
+
     if (selectedMetalType !== 'gold') {
-        if(newValues.karat) { newValues.karat = undefined; changed = true; }
-    } else if (!newValues.karat) {
-        newValues.karat = '21k'; changed = true;
+        if (getValues('karat')) setValue('karat', undefined);
+    } else if (!getValues('karat')) {
+        setValue('karat', '21k');
     }
 
-    if(!isMensRing && (newValues.secondaryMetalType || newValues.secondaryMetalWeightG)) {
-        newValues.secondaryMetalType = undefined;
-        newValues.secondaryMetalKarat = undefined;
-        newValues.secondaryMetalWeightG = 0;
-        changed = true;
+    if (!isMensRing) {
+        if (getValues('secondaryMetalType') || getValues('secondaryMetalWeightG')) {
+            setValue('secondaryMetalType', undefined);
+            setValue('secondaryMetalKarat', undefined);
+            setValue('secondaryMetalWeightG', 0);
+        }
     }
-     if (selectedSecondaryMetalType && selectedSecondaryMetalType !== 'gold' && newValues.secondaryMetalKarat) {
-        newValues.secondaryMetalKarat = undefined;
-        changed = true;
-    }
-
-    if(changed) {
-        form.reset(newValues, { keepValues: true });
+    if (selectedSecondaryMetalType && selectedSecondaryMetalType !== 'gold') {
+        if (getValues('secondaryMetalKarat')) setValue('secondaryMetalKarat', undefined);
     }
 
-  }, [isGoldCoin, hasDiamondsValue, hasStonesValue, selectedMetalType, isMensRing, selectedSecondaryMetalType, form]);
+  }, [isGoldCoin, hasDiamondsValue, hasStonesValue, selectedMetalType, isMensRing, selectedSecondaryMetalType, setValue, getValues]);
   
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
