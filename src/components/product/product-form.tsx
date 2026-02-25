@@ -189,7 +189,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         else { form.setValue('wastagePercentage', 10); form.setValue('diamondCharges', 0); form.setValue('diamondDetails', ''); }
         if (!hasStonesValue) { form.setValue('stoneWeightG', 0); form.setValue('stoneDetails', ''); }
     }
-  }, [isGoldCoin, hasDiamondsValue, hasStonesValue, form, selectedMetalType]);
+  }, [isGoldCoin, hasDiamondsValue, hasStonesValue, selectedMetalType, form.setValue]);
   
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
