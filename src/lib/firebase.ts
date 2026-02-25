@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { getFirestore, type Firestore, initializeFirestore, persistentLocalCache } from "firebase/firestore";
 
 // --- Your web app's Firebase configuration ---
 // This is the REAL configuration.
@@ -25,40 +25,39 @@ function initializeDb() {
     console.log('[GemsTrack Firebase] Initializing...');
 
     if (getApps().length) {
-        console.log('[GemsTrack Firebase] Already initialized.');
         app = getApp();
+        console.log('[GemsTrack Firebase] Re-using existing Firebase app.');
     } else {
-        console.log('[GemsTrack Firebase] No Firebase app found. Initializing...');
         app = initializeApp(firebaseConfig);
+        console.log('[GemsTrack Firebase] New Firebase app initialized.');
     }
 
     try {
-        // This is the modern way to enable offline persistence for multiple tabs.
+        // This is the modern, robust way to enable offline persistence.
         db = initializeFirestore(app, {
-            localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+            localCache: persistentLocalCache(/* No options for single-tab */)
         });
-        console.log('[GemsTrack Firebase] Offline persistence enabled with multi-tab support.');
+        console.log('[GemsTrack Firebase] Offline persistence enabled.');
     } catch (e: any) {
-        if (e.code === 'failed-precondition') {
-            console.warn('[GemsTrack Firebase] Multiple tabs open, trying single-tab persistence.');
-             try {
-                db = initializeFirestore(app, { localCache: persistentLocalCache() });
-                console.log('[GemsTrack Firebase] Offline persistence enabled for single tab.');
-             } catch(e2: any) {
-                console.error('[GemsTrack Firebase] Error initializing Firestore with single-tab persistence:', e2);
-             }
-        } else if (e.code === 'unimplemented') {
-            console.warn('[GemsTrack Firebase] The current browser does not support all of the features required to enable persistence.');
-        } else if (!db) {
-            console.error('[GemsTrack Firebase] Error initializing Firestore. Have you enabled it in the Firebase console?');
-            console.error(e);
+        console.error('[GemsTrack Firebase] Error initializing Firestore with persistence:', e);
+        // Fallback to in-memory DB if persistence fails for any reason
+        if (!db) {
+            db = getFirestore(app);
+            console.warn('[GemsTrack Firebase] Initialized with in-memory cache only.');
         }
     }
 
     auth = getAuth(app);
 }
-if (typeof window !== 'undefined') {
+
+// Ensure this runs only on the client and only once.
+if (typeof window !== 'undefined' && !getApps().length) {
     initializeDb();
+} else if (getApps().length) {
+    // If app is already initialized (e.g., during hot-reloads), just get the instances
+    app = getApp();
+    db = getFirestore(app);
+    auth = getAuth(app);
 }
 
 
