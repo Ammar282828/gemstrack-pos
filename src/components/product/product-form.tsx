@@ -143,53 +143,57 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     defaultValues: getSafeDefaultValues(product),
   });
 
-  const selectedCategoryId = form.watch('categoryId');
-  const selectedMetalType = form.watch('metalType');
-  const selectedSecondaryMetalType = form.watch('secondaryMetalType');
-  const hasDiamondsValue = form.watch('hasDiamonds');
-  const hasStonesValue = form.watch('hasStones');
-  const isCustomPrice = form.watch('isCustomPrice');
-  const imageUrl = form.watch('imageUrl');
+  const { watch, setValue } = form;
+
+  const selectedCategoryId = watch('categoryId');
+  const selectedMetalType = watch('metalType');
+  const selectedSecondaryMetalType = watch('secondaryMetalType');
+  const hasDiamondsValue = watch('hasDiamonds');
+  const hasStonesValue = watch('hasStones');
+  const isCustomPrice = watch('isCustomPrice');
+  const imageUrl = watch('imageUrl');
+  const karat = watch('karat');
+
   const isGoldCoin = selectedCategoryId === GOLD_COIN_CATEGORY_ID && selectedMetalType === 'gold';
   const isMensRing = selectedCategoryId === MENS_RING_CATEGORY_ID;
 
   useEffect(() => {
-    if (selectedMetalType !== 'gold') { form.setValue('karat', undefined); } 
-    else if (!form.getValues('karat')) { form.setValue('karat', '21k'); }
-  }, [selectedMetalType, form]);
+    if (selectedMetalType !== 'gold') { setValue('karat', undefined); } 
+    else if (!karat) { setValue('karat', '21k'); }
+  }, [selectedMetalType, karat, setValue]);
   
   useEffect(() => {
-    if (selectedSecondaryMetalType !== 'gold') { form.setValue('secondaryMetalKarat', undefined); }
+    if (selectedSecondaryMetalType !== 'gold') { setValue('secondaryMetalKarat', undefined); }
     if(!selectedSecondaryMetalType || selectedSecondaryMetalType === 'none'){
-      form.setValue('secondaryMetalWeightG', 0);
-      form.setValue('secondaryMetalKarat', undefined);
+      setValue('secondaryMetalWeightG', 0);
+      setValue('secondaryMetalKarat', undefined);
     }
-  }, [selectedSecondaryMetalType, form]);
+  }, [selectedSecondaryMetalType, setValue]);
 
   useEffect(() => {
     if (!isMensRing) {
-        form.setValue('secondaryMetalType', undefined);
-        form.setValue('secondaryMetalKarat', undefined);
-        form.setValue('secondaryMetalWeightG', 0);
+        setValue('secondaryMetalType', undefined);
+        setValue('secondaryMetalKarat', undefined);
+        setValue('secondaryMetalWeightG', 0);
     }
-  }, [isMensRing, form]);
+  }, [isMensRing, setValue]);
   
   useEffect(() => {
     if (isGoldCoin) {
-      form.setValue('hasDiamonds', false); form.setValue('hasStones', false); form.setValue('diamondCharges', 0);
-      form.setValue('wastagePercentage', 0); form.setValue('makingCharges', 0); form.setValue('stoneCharges', 0);
-      form.setValue('miscCharges', 0); form.setValue('stoneDetails', ''); form.setValue('diamondDetails', '');
-      form.setValue('stoneWeightG', 0);
-      form.setValue('karat', '24k');
+      setValue('hasDiamonds', false); setValue('hasStones', false); setValue('diamondCharges', 0);
+      setValue('wastagePercentage', 0); setValue('makingCharges', 0); setValue('stoneCharges', 0);
+      setValue('miscCharges', 0); setValue('stoneDetails', ''); setValue('diamondDetails', '');
+      setValue('stoneWeightG', 0);
+      setValue('karat', '24k');
     } else if (selectedMetalType === 'silver') {
-      form.setValue('wastagePercentage', 0); 
-      form.setValue('makingCharges', 0);
+      setValue('wastagePercentage', 0); 
+      setValue('makingCharges', 0);
     } else {
-        if (hasDiamondsValue) { form.setValue('wastagePercentage', 25); } 
-        else { form.setValue('wastagePercentage', 10); form.setValue('diamondCharges', 0); form.setValue('diamondDetails', ''); }
-        if (!hasStonesValue) { form.setValue('stoneWeightG', 0); form.setValue('stoneDetails', ''); }
+        if (hasDiamondsValue) { setValue('wastagePercentage', 25); } 
+        else { setValue('wastagePercentage', 10); setValue('diamondCharges', 0); setValue('diamondDetails', ''); }
+        if (!hasStonesValue) { setValue('stoneWeightG', 0); setValue('stoneDetails', ''); }
     }
-  }, [isGoldCoin, hasDiamondsValue, hasStonesValue, selectedMetalType, form.setValue]);
+  }, [isGoldCoin, hasDiamondsValue, hasStonesValue, selectedMetalType, setValue]);
   
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -220,7 +224,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         },
         () => {
             getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                form.setValue('imageUrl', downloadURL, { shouldValidate: true, shouldDirty: true });
+                setValue('imageUrl', downloadURL, { shouldValidate: true, shouldDirty: true });
                 setIsUploading(false);
                 setUploadProgress(100);
                 toast({ title: "Upload Complete", description: "Image has been successfully uploaded." });
