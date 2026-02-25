@@ -93,24 +93,7 @@ interface ProductFormProps {
   onProductCreated?: (newProduct: Product) => void;
 }
 
-export const ProductForm: React.FC<ProductFormProps> = ({ 
-  product, 
-  isCartEditMode = false, 
-  onCartItemSubmit, 
-  onProductCreated 
-}) => {
-  const router = useRouter();
-  const { toast } = useToast();
-  const { categories, addProduct, updateProduct } = useAppStore();
-  const isEditMode = !!product;
-  
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-
-  const isDialogMode = isCartEditMode || !!onProductCreated;
-
-
-  const getSafeDefaultValues = (p?: Product): ProductFormData => {
+const getSafeDefaultValues = (p?: Product): ProductFormData => {
     return {
       name: p?.name || '',
       categoryId: p?.categoryId || '',
@@ -136,14 +119,32 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       customPrice: p?.customPrice || 0,
       description: p?.description || '',
     };
-  };
+};
+
+export const ProductForm: React.FC<ProductFormProps> = ({ 
+  product, 
+  isCartEditMode = false, 
+  onCartItemSubmit, 
+  onProductCreated 
+}) => {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { categories, addProduct, updateProduct } = useAppStore();
+  const isEditMode = !!product;
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const isDialogMode = isCartEditMode || !!onProductCreated;
+
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
     defaultValues: getSafeDefaultValues(product),
   });
 
-  const { watch, setValue } = form;
+  const { watch, setValue, getValues, control, register } = form;
 
   const selectedCategoryId = watch('categoryId');
   const selectedMetalType = watch('metalType');
@@ -158,42 +159,55 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const isMensRing = selectedCategoryId === MENS_RING_CATEGORY_ID;
 
   useEffect(() => {
-    if (selectedMetalType !== 'gold') { setValue('karat', undefined); } 
-    else if (!karat) { setValue('karat', '21k'); }
-  }, [selectedMetalType, karat, setValue]);
-  
-  useEffect(() => {
-    if (selectedSecondaryMetalType !== 'gold') { setValue('secondaryMetalKarat', undefined); }
-    if(!selectedSecondaryMetalType || selectedSecondaryMetalType === 'none'){
-      setValue('secondaryMetalWeightG', 0);
-      setValue('secondaryMetalKarat', undefined);
-    }
-  }, [selectedSecondaryMetalType, setValue]);
+    const newValues = { ...getValues() };
+    let changed = false;
 
-  useEffect(() => {
-    if (!isMensRing) {
-        setValue('secondaryMetalType', undefined);
-        setValue('secondaryMetalKarat', undefined);
-        setValue('secondaryMetalWeightG', 0);
-    }
-  }, [isMensRing, setValue]);
-  
-  useEffect(() => {
     if (isGoldCoin) {
-      setValue('hasDiamonds', false); setValue('hasStones', false); setValue('diamondCharges', 0);
-      setValue('wastagePercentage', 0); setValue('makingCharges', 0); setValue('stoneCharges', 0);
-      setValue('miscCharges', 0); setValue('stoneDetails', ''); setValue('diamondDetails', '');
-      setValue('stoneWeightG', 0);
-      setValue('karat', '24k');
+        const goldCoinDefaults = {
+            hasDiamonds: false, hasStones: false, diamondCharges: 0, wastagePercentage: 0, makingCharges: 0,
+            stoneCharges: 0, miscCharges: 0, stoneDetails: '', diamondDetails: '', stoneWeightG: 0, karat: '24k' as KaratValue
+        };
+        Object.assign(newValues, goldCoinDefaults);
+        changed = true;
     } else if (selectedMetalType === 'silver') {
-      setValue('wastagePercentage', 0); 
-      setValue('makingCharges', 0);
+        const silverDefaults = { wastagePercentage: 0, makingCharges: 0 };
+        Object.assign(newValues, silverDefaults);
+        changed = true;
     } else {
-        if (hasDiamondsValue) { setValue('wastagePercentage', 25); } 
-        else { setValue('wastagePercentage', 10); setValue('diamondCharges', 0); setValue('diamondDetails', ''); }
-        if (!hasStonesValue) { setValue('stoneWeightG', 0); setValue('stoneDetails', ''); }
+        if (hasDiamondsValue) {
+            if (newValues.wastagePercentage !== 25) { newValues.wastagePercentage = 25; changed = true; }
+        } else {
+            if (newValues.wastagePercentage !== 10) { newValues.wastagePercentage = 10; changed = true; }
+            if (newValues.diamondCharges !== 0) { newValues.diamondCharges = 0; changed = true; }
+            if (newValues.diamondDetails !== '') { newValues.diamondDetails = ''; changed = true; }
+        }
+        if (!hasStonesValue) {
+            if (newValues.stoneWeightG !== 0) { newValues.stoneWeightG = 0; changed = true; }
+            if (newValues.stoneDetails !== '') { newValues.stoneDetails = ''; changed = true; }
+        }
     }
-  }, [isGoldCoin, hasDiamondsValue, hasStonesValue, selectedMetalType, setValue]);
+    if (selectedMetalType !== 'gold') {
+        if(newValues.karat) { newValues.karat = undefined; changed = true; }
+    } else if (!newValues.karat) {
+        newValues.karat = '21k'; changed = true;
+    }
+
+    if(!isMensRing && (newValues.secondaryMetalType || newValues.secondaryMetalWeightG)) {
+        newValues.secondaryMetalType = undefined;
+        newValues.secondaryMetalKarat = undefined;
+        newValues.secondaryMetalWeightG = 0;
+        changed = true;
+    }
+     if (selectedSecondaryMetalType && selectedSecondaryMetalType !== 'gold' && newValues.secondaryMetalKarat) {
+        newValues.secondaryMetalKarat = undefined;
+        changed = true;
+    }
+
+    if(changed) {
+        form.reset(newValues, { keepValues: true });
+    }
+
+  }, [isGoldCoin, hasDiamondsValue, hasStonesValue, selectedMetalType, isMensRing, selectedSecondaryMetalType, form]);
   
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -235,6 +249,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
 
   const processAndSubmit = async (data: ProductFormData) => {
+    setIsSubmitting(true);
     const processedData: Partial<Product> = {
       ...data,
       name: data.isCustomPrice ? (data.description || 'Custom Item') : (data.name || ''),
@@ -248,6 +263,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       if (onCartItemSubmit && product) {
         onCartItemSubmit(product.sku, processedData);
       }
+      setIsSubmitting(false);
       return;
     }
 
@@ -264,21 +280,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           } else {
             toast({ title: "Success", description: `Product ${newProduct.name} (SKU: ${newProduct.sku}) added.` });
             if (data.submitAction === 'saveAndAddAnother') {
-              const originalCategory = form.getValues('categoryId');
-              const hadStones = form.getValues('hasStones');
-              const hadDiamonds = form.getValues('hasDiamonds');
-              form.reset({
-                  name: '',
-                  categoryId: originalCategory, metalType: 'silver', karat: undefined, metalWeightG: 0, wastagePercentage: 0,
-                  makingCharges: 0, 
-                  hasStones: hadStones,
-                  hasDiamonds: hadDiamonds,
-                  stoneWeightG: 0, diamondCharges: 0,
-                  stoneCharges: 0, miscCharges: 0, imageUrl: "", stoneDetails: "", diamondDetails: "",
-                  secondaryMetalType: '', secondaryMetalKarat: '', secondaryMetalWeightG: 0,
-                  isCustomPrice: false, customPrice: 0, description: '',
-                  silverRatePerGram: 0,
-              });
+                const originalCategory = getValues('categoryId');
+                form.reset(getSafeDefaultValues());
+                setValue('categoryId', originalCategory);
             } else { router.push('/products'); }
           }
         } else {
@@ -287,6 +291,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       }
     } catch (error) {
         toast({ title: "Error", description: `Failed to save product: ${(error as Error).message}`, variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
     }
   };
   
@@ -554,21 +560,21 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 <Ban className="mr-2 h-4 w-4" /> Cancel
               </Button>
               {!isEditMode && (
-                  <Button type="submit" disabled={form.formState.isSubmitting || isUploading} onClick={() => form.setValue('submitAction', 'saveAndAddAnother')} className="w-full sm:w-auto">
-                      {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                  <Button type="submit" disabled={isSubmitting || isUploading} onClick={() => form.setValue('submitAction', 'saveAndAddAnother')} className="w-full sm:w-auto">
+                      {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
                       Save & Add Another
                   </Button>
               )}
-              <Button type="submit" disabled={form.formState.isSubmitting || isUploading} onClick={() => form.setValue('submitAction', 'saveAndClose')} className="w-full sm:w-auto">
-                {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              <Button type="submit" disabled={isSubmitting || isUploading} onClick={() => form.setValue('submitAction', 'saveAndClose')} className="w-full sm:w-auto">
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 {isEditMode ? 'Save Changes' : 'Add Product & Close'}
               </Button>
             </CardFooter>
           }
           {isDialogMode && (
              <div className="p-6 pt-0">
-                <Button type="submit" disabled={form.formState.isSubmitting || isUploading} className="w-full">
-                    {form.formState.isSubmitting || isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                <Button type="submit" disabled={isSubmitting || isUploading} className="w-full">
+                    {isSubmitting || isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     {isCartEditMode ? 'Apply Changes to Cart Item' : 'Create New Product'}
                 </Button>
             </div>
