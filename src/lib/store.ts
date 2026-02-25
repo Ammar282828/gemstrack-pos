@@ -1499,15 +1499,14 @@ export const useAppStore = create<AppState>()(
       addOrder: async (orderData) => {
         if(get().settings.databaseLocked) return null;
         const { settings, addCustomer, customers } = get();
-        const nextOrderNumber = (settings.lastOrderNumber || 0) + 1;
-        const newOrderId = `ORD-${nextOrderNumber.toString().padStart(6, '0')}`;
 
+        // Pre-transaction: resolve customer (writes to Firestore, must happen before the transaction)
         let finalCustomerId = orderData.customerId;
         let finalCustomerName = orderData.customerName;
 
-        if (!finalCustomerId && orderData.customerName) { // New walk-in customer with a name
-            const newCustomer = await addCustomer({ 
-                name: orderData.customerName, 
+        if (!finalCustomerId && orderData.customerName) {
+            const newCustomer = await addCustomer({
+                name: orderData.customerName,
                 phone: orderData.customerContact,
                 email: '',
                 address: '',
@@ -1516,19 +1515,17 @@ export const useAppStore = create<AppState>()(
                 finalCustomerId = newCustomer.id;
                 finalCustomerName = newCustomer.name;
             }
-        } else if (finalCustomerId) { // Existing customer selected
+        } else if (finalCustomerId) {
              const customer = customers.find(c => c.id === finalCustomerId);
-             if (customer) {
-                finalCustomerName = customer.name;
-             }
+             if (customer) finalCustomerName = customer.name;
         } else if (!finalCustomerName && orderData.customerContact) {
             finalCustomerName = `Customer - ${orderData.customerContact}`;
         }
 
-
         const finalSubtotal = Number(orderData.subtotal) || 0;
         const finalGrandTotal = Number(orderData.grandTotal) || 0;
-        
+
+        // Pre-transaction: AI summary (async, cannot run inside a Firestore transaction)
         const summaryInput: SummarizeOrderItemsInput = {
             items: orderData.items.map(item => ({
                 description: item.description,
@@ -1537,7 +1534,7 @@ export const useAppStore = create<AppState>()(
             })),
         };
         const summaryResult = await summarizeOrderItems(summaryInput);
-        
+
         const ratesApplied = {
             goldRatePerGram18k: settings.goldRatePerGram18k,
             goldRatePerGram21k: settings.goldRatePerGram21k,
@@ -1548,37 +1545,42 @@ export const useAppStore = create<AppState>()(
             silverRatePerGram: settings.silverRatePerGram
         };
 
-        const newOrder: Omit<Order, 'id'> = {
-          ...orderData,
-          customerId: finalCustomerId,
-          customerName: finalCustomerName,
-          subtotal: finalSubtotal,
-          grandTotal: finalGrandTotal,
-          createdAt: new Date().toISOString(),
-          status: 'Pending',
-          summary: summaryResult.summary,
-          ratesApplied: ratesApplied,
-        };
-        
-        const finalOrder: Order = { ...newOrder, id: newOrderId };
-        console.log("[GemsTrack Store addOrder] Attempting to save order:", finalOrder);
+        const createdAt = new Date().toISOString();
 
         try {
-          const batch = writeBatch(db);
-          const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, newOrderId);
-          batch.set(orderDocRef, finalOrder);
-
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
-          batch.update(settingsDocRef, { lastOrderNumber: nextOrderNumber });
-          
-          await addActivityLog('order.create', `Created order: ${newOrderId}`, `Customer: ${finalCustomerName || 'Walk-in'} | Total: ${finalGrandTotal.toLocaleString()}`, newOrderId);
 
-          await batch.commit();
-          console.log(`[GemsTrack Store addOrder] Order ${newOrderId} and settings successfully committed.`);
-          
+          const finalOrder = await runTransaction(db, async (transaction) => {
+            const settingsDoc = await transaction.get(settingsDocRef);
+            if (!settingsDoc.exists()) throw new Error("Global settings not found.");
+            const currentSettings = settingsDoc.data() as Settings;
+
+            const nextOrderNumber = (currentSettings.lastOrderNumber || 0) + 1;
+            const newOrderId = `ORD-${nextOrderNumber.toString().padStart(6, '0')}`;
+
+            const order: Order = {
+              ...orderData,
+              id: newOrderId,
+              customerId: finalCustomerId,
+              customerName: finalCustomerName,
+              subtotal: finalSubtotal,
+              grandTotal: finalGrandTotal,
+              createdAt,
+              status: 'Pending',
+              summary: summaryResult.summary,
+              ratesApplied: ratesApplied,
+            };
+
+            transaction.set(doc(db, FIRESTORE_COLLECTIONS.ORDERS, newOrderId), order);
+            transaction.update(settingsDocRef, { lastOrderNumber: nextOrderNumber });
+            return order;
+          });
+
+          await addActivityLog('order.create', `Created order: ${finalOrder.id}`, `Customer: ${finalCustomerName || 'Walk-in'} | Total: ${finalGrandTotal.toLocaleString()}`, finalOrder.id);
+          console.log(`[GemsTrack Store addOrder] Order ${finalOrder.id} saved successfully.`);
           return finalOrder;
         } catch (error) {
-          console.error(`[GemsTrack Store addOrder] Error saving order ${newOrderId} to Firestore:`, error);
+          console.error(`[GemsTrack Store addOrder] Error saving order to Firestore:`, error);
           return null;
         }
       },
@@ -1719,10 +1721,7 @@ export const useAppStore = create<AppState>()(
         const amountPaid = advancePayment.amount;
         const balanceDue = finalSubtotal - amountPaid - totalDiscount;
 
-        const nextInvoiceNumber = (settings.lastInvoiceNumber || 0) + 1;
-        const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
-
-        const newInvoiceData: Omit<Invoice, 'id'> = {
+        const baseInvoiceData: Omit<Invoice, 'id'> = {
             items: finalInvoiceItems,
             subtotal: finalSubtotal,
             discountAmount: totalDiscount,
@@ -1737,35 +1736,43 @@ export const useAppStore = create<AppState>()(
             customerContact: order.customerContact,
         };
 
-        const newInvoice: Invoice = { id: invoiceId, ...newInvoiceData };
-
         try {
-            const batch = writeBatch(db);
-            const finalInvoicePayload = cleanObject({ ...newInvoiceData });
+            const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
 
-            batch.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), finalInvoicePayload);
-            batch.update(doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID), { lastInvoiceNumber: nextInvoiceNumber });
-            batch.update(doc(db, FIRESTORE_COLLECTIONS.ORDERS, order.id), { status: 'Completed' });
+            const finalInvoice = await runTransaction(db, async (transaction) => {
+                const settingsDoc = await transaction.get(settingsDocRef);
+                if (!settingsDoc.exists()) throw new Error("Global settings not found.");
+                const currentSettings = settingsDoc.data() as Settings;
 
-            const hisaabEntry: Omit<HisaabEntry, 'id'> = {
-              entityId: order.customerId || 'walk-in',
-              entityType: 'customer',
-              entityName: order.customerName || 'Walk-in Customer',
-              date: newInvoice.createdAt,
-              description: `Final Invoice ${newInvoice.id} from Order ${order.id}`,
-              cashDebit: newInvoice.grandTotal,
-              cashCredit: newInvoice.amountPaid,
-              goldDebitGrams: 0, goldCreditGrams: 0,
-            };
-            batch.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
-            
-            await addActivityLog('invoice.create', `Created invoice ${invoiceId} from order ${order.id}`, `Customer: ${newInvoice.customerName} | Total: ${newInvoice.grandTotal.toLocaleString()}`, newInvoice.id);
+                const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
+                const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
 
-            await batch.commit();
-            
+                const newInvoice: Invoice = { id: invoiceId, ...baseInvoiceData };
+                const payload = cleanObject({ ...baseInvoiceData });
+
+                const hisaabEntry: Omit<HisaabEntry, 'id'> = {
+                    entityId: order.customerId || 'walk-in',
+                    entityType: 'customer',
+                    entityName: order.customerName || 'Walk-in Customer',
+                    date: newInvoice.createdAt,
+                    description: `Final Invoice ${invoiceId} from Order ${order.id}`,
+                    cashDebit: newInvoice.grandTotal,
+                    cashCredit: newInvoice.amountPaid,
+                    goldDebitGrams: 0, goldCreditGrams: 0,
+                };
+
+                transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), payload);
+                transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
+                transaction.update(doc(db, FIRESTORE_COLLECTIONS.ORDERS, order.id), { status: 'Completed' });
+                transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
+
+                return newInvoice;
+            });
+
+            await addActivityLog('invoice.create', `Created invoice ${finalInvoice.id} from order ${order.id}`, `Customer: ${finalInvoice.customerName} | Total: ${finalInvoice.grandTotal.toLocaleString()}`, finalInvoice.id);
+
             set(state => { state.clearCart(); });
-            
-            return newInvoice;
+            return finalInvoice;
         } catch (error) {
             console.error("Error finalizing order into invoice:", error);
             return null;
@@ -1894,13 +1901,8 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         cart: state.cart,
         printHistory: state.printHistory,
-        settings: { 
-            ...state.settings,
-            allowedDeviceIds: Array.isArray(state.settings?.allowedDeviceIds) ? state.settings.allowedDeviceIds : [], 
-            theme: state.settings?.theme || 'default',
-        }
       }),
-      version: 16,
+      version: 17,
       migrate: (persistedState, version) => {
         const oldState = persistedState as any;
         if (version < 15) {
@@ -1912,6 +1914,10 @@ export const useAppStore = create<AppState>()(
           if (!oldState.printHistory) {
             oldState.printHistory = [];
           }
+        }
+        if (version < 17) {
+          // Settings are no longer persisted locally; they sync exclusively from Firestore.
+          delete oldState.settings;
         }
         return oldState as AppState;
       },
