@@ -1,3 +1,4 @@
+
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
@@ -16,25 +17,22 @@ const firebaseConfig = {
   
 const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth: Auth = getAuth(app);
-let db: Firestore;
 
+// Initialize Firestore with persistence enabled.
+// The try/catch handles HMR where the instance might already be initialized.
+let db: Firestore;
 try {
   db = initializeFirestore(app, {
-    localCache: persistentLocalCache({}),
+    localCache: persistentLocalCache({})
   });
   console.log('[GemsTrack Firebase] Offline persistence enabled.');
-} catch (e: any) {
-  if (e.code === 'failed-precondition') {
-    console.warn('[GemsTrack Firebase] Multiple tabs open, persistence can only be enabled in one. Reverting to memory-only cache for this tab.');
-    db = getFirestore(app);
-  } else if (e.code === 'unimplemented') {
-    console.warn('[GemsTrack Firebase] The current browser does not support all of the features required to enable persistence.');
-    db = getFirestore(app);
-  } else {
-    // This is likely the "already initialized" error during hot-reloads
-    console.log("[GemsTrack Firebase] Re-using existing Firestore instance.");
-    db = getFirestore(app);
-  }
+} catch (e) {
+  // This will likely throw on hot-reloads, which is fine.
+  // We can then just get the existing instance.
+  db = getFirestore(app);
+  console.log("[GemsTrack Firebase] Re-using existing Firestore instance.");
 }
 
+
 export { app, auth, db, firebaseConfig };
+

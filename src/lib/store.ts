@@ -925,14 +925,19 @@ export const useAppStore = create<AppState>()(
         const currentSettings = get().settings;
         const updatedSettings = { ...currentSettings, ...newSettings };
         console.log("[GemsTrack Store updateSettings] Attempting to update settings:", updatedSettings);
+        
+        // Optimistic update for UI responsiveness
         set((state) => { state.settings = updatedSettings; });
+
         try {
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
-          await setDoc(settingsDocRef, updatedSettings, { merge: true });
+          // Use the 'cleanObject' helper to prevent 'undefined' values from being sent to Firestore
+          await setDoc(settingsDocRef, cleanObject(updatedSettings), { merge: true });
           console.log("[GemsTrack Store updateSettings] Settings updated successfully in Firestore.");
         } catch (error) {
           console.error("[GemsTrack Store updateSettings] Error updating settings in Firestore:", error);
-          set((state) => { state.settings = currentSettings; }); // Revert on error
+          // Revert on error to keep UI consistent with the database
+          set((state) => { state.settings = currentSettings; }); 
           throw error;
         }
       },
@@ -1655,7 +1660,7 @@ export const useAppStore = create<AppState>()(
 
         const finalInvoiceItems: InvoiceItem[] = [];
         order.items.forEach((originalItem, index) => {
-            const finalizedData = finalizedItems[index];
+            const finalizedData = finalizedItems[index]; // Use index for reliability
             if (!finalizedData) {
                 console.error(`Could not find finalized data for item index: ${index}`);
                 throw new Error(`Finalized data for item "${originalItem.description}" not found.`);
@@ -1981,3 +1986,4 @@ export const selectProductWithCosts = (sku: string, state: AppState): (Product &
 };
 
 console.log("[GemsTrack Store] store.ts: Module fully evaluated.");
+
