@@ -1,4 +1,5 @@
 
+
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
@@ -771,36 +772,28 @@ const createDataLoader = <T, K extends keyof AppState>(
 
     const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
     
-    // First, try to load from cache for a super fast initial view
-    getDocsFromCache(q).then(cacheSnapshot => {
-        if (!cacheSnapshot.empty) {
-            const list = cacheSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
-            set(state => { (state[stateKey] as any) = list; });
-            console.log(`[GemsTrack Store] Loaded ${list.length} ${collectionName} from cache.`);
-        }
-    }).finally(() => {
-        // Then, set up the real-time listener
-        const unsubscribe = onSnapshot(q,
-          (serverSnapshot) => {
-            const list = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
-            set(state => {
-              (state[stateKey] as any) = list;
-              if ((state as any)[loadingKey]) (state as any)[loadingKey] = false;
-              if (!(state as any)[loadedKey]) (state as any)[loadedKey] = true;
-              if ((state as any)[errorKey]) (state as any)[errorKey] = null;
-            });
-            console.log(`[GemsTrack Store] Real-time update: ${list.length} ${collectionName} loaded.`);
-          },
-          (error) => {
-            console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
-            set(state => {
-              (state as any)[loadingKey] = false;
-              (state as any)[errorKey] = error.message || (`Failed to listen for ${collectionName} updates.`);
-            });
-          }
-        );
-        // You might want to store this unsubscribe function somewhere if you need to detach listeners later
-    });
+    const unsubscribe = onSnapshot(q,
+      (serverSnapshot) => {
+        const list = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
+        set(state => {
+          (state[stateKey] as any) = list;
+          if ((state as any)[loadingKey]) (state as any)[loadingKey] = false;
+          if (!(state as any)[loadedKey]) (state as any)[loadedKey] = true;
+          if ((state as any)[errorKey]) (state as any)[errorKey] = null;
+        });
+        const source = serverSnapshot.metadata.fromCache ? "cache" : "server";
+        console.log(`[GemsTrack Store] Data for ${collectionName} loaded from ${source}. Count: ${list.length}`);
+      },
+      (error) => {
+        console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
+        set(state => {
+          (state as any)[loadingKey] = false;
+          (state as any)[errorKey] = error.message || (`Failed to listen for ${collectionName} updates.`);
+        });
+      }
+    );
+    // We should ideally store and call `unsubscribe` when the component unmounts,
+    // but for a global store that lives for the app's lifetime, this is often acceptable.
   };
 };
 
