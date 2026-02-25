@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import QRCode from 'qrcode.react';
 import { format } from 'date-fns';
 
 // Re-declare module for jsPDF in this file as well
@@ -268,6 +269,10 @@ export default function ViewInvoicePage() {
         { name: "Mina Khalid", number: "0316 1930960" },
         { name: "Ammar Mansa", number: "0326 2275554" },
     ];
+    const qrCodeSize = 20;
+    const qrSectionWidth = (qrCodeSize * 2) + 5;
+    const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 5;
+    const qrStartX = pageWidth - margin - qrSectionWidth;
 
     pdfDoc.setLineWidth(0.2);
     pdfDoc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
@@ -281,6 +286,21 @@ export default function ViewInvoicePage() {
         pdfDoc.text(`${contact.name}: ${contact.number}`, margin, contactY);
         contactY += 4;
     });
+
+    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
+    const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
+
+    if (waQrCanvas) {
+        pdfDoc.setFontSize(6); pdfDoc.setFont("helvetica", "bold").setTextColor(0);
+        pdfDoc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
+        pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
+    }
+    if (instaQrCanvas) {
+        const secondQrX = qrStartX + qrCodeSize + 5;
+        pdfDoc.setFontSize(6); pdfDoc.setFont("helvetica", "bold").setTextColor(0);
+        pdfDoc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
+        pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
+    }
     
     pdfDoc.save(`Estimate-${invoice.id}.pdf`);
   }
@@ -310,6 +330,10 @@ export default function ViewInvoicePage() {
 
   return (
     <div className="bg-muted min-h-screen p-4 sm:p-8">
+      <div style={{ display: 'none' }}>
+        <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H" size={128} />
+        <QRCode id="insta-qr-code" value="https://www.instagram.com/houseofmina__?igsh=aTAyZWQycWVudm43&utm_source=qr" size={128} />
+      </div>
         <Card className="max-w-2xl mx-auto shadow-2xl">
             <CardHeader className="text-center">
                 <CheckCircle className="mx-auto h-12 w-12 text-green-500"/>

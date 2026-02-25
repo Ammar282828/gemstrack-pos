@@ -17,6 +17,7 @@ import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Se
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import QRCode from 'qrcode.react';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -609,6 +610,10 @@ export default function CartPage() {
         { name: "Mina Khalid", number: "0316 1930960" },
         { name: "Ammar Mansa", number: "0326 2275554" },
     ];
+    const qrCodeSize = 20;
+    const qrSectionWidth = (qrCodeSize * 2) + 5;
+    const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 5;
+    const qrStartX = pageWidth - margin - qrSectionWidth;
 
     doc.setLineWidth(0.2);
     doc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
@@ -622,6 +627,21 @@ export default function CartPage() {
         doc.text(`${contact.name}: ${contact.number}`, margin, contactY);
         contactY += 4;
     });
+
+    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
+    const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
+
+    if (waQrCanvas) {
+        doc.setFontSize(6); doc.setFont("helvetica", "bold").setTextColor(0);
+        doc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
+        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
+    }
+    if (instaQrCanvas) {
+        const secondQrX = qrStartX + qrCodeSize + 5;
+        doc.setFontSize(6); doc.setFont("helvetica", "bold").setTextColor(0);
+        doc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
+        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
+    }
 
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
@@ -639,6 +659,10 @@ export default function CartPage() {
   if (generatedInvoice) {
     return (
       <div className="bg-muted min-h-screen p-4 sm:p-8">
+        <div style={{ display: 'none' }}>
+          <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H" size={128} />
+          <QRCode id="insta-qr-code" value="https://www.instagram.com/houseofmina__?igsh=aTAyZWQycWVudm43&utm_source=qr" size={128} />
+        </div>
         <Card className="max-w-4xl mx-auto shadow-lg">
            <CardHeader>
             <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
