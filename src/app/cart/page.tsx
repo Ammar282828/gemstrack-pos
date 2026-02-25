@@ -610,37 +610,37 @@ export default function CartPage() {
         { name: "Mina Khalid", number: "0316 1930960" },
         { name: "Ammar Mansa", number: "0326 2275554" },
     ];
-    const qrCodeSize = 20;
-    const qrSectionWidth = (qrCodeSize * 2) + 5;
-    const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 5;
+    const qrCodeSize = 17;
+    const qrGap = 4;
+    const qrSectionWidth = (qrCodeSize * 2) + qrGap;
+    const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
     const qrStartX = pageWidth - margin - qrSectionWidth;
 
+    // Separator
     doc.setLineWidth(0.2);
-    doc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
+    doc.line(margin, footerStartY - 4, pageWidth - margin, footerStartY - 4);
 
-    let contactY = footerStartY;
-    doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(50);
-    doc.text("For Orders & Inquiries:", margin, contactY);
-    contactY += 3;
-    doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(100);
-    contacts.forEach(contact => {
-        doc.text(`${contact.name}: ${contact.number}`, margin, contactY);
-        contactY += 4;
-    });
+    // Left: label + contacts
+    doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
+    doc.text("For Orders & Inquiries:", margin, footerStartY + 4, { maxWidth: textBlockWidth });
+    doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(80);
+    doc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 10, { maxWidth: textBlockWidth });
+    doc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 16, { maxWidth: textBlockWidth });
 
+    // Right: QR codes with titles
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
 
     if (waQrCanvas) {
-        doc.setFontSize(6); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
-        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
+        doc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
+        doc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY + 4, { align: 'center' });
+        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 6, qrCodeSize, qrCodeSize);
     }
     if (instaQrCanvas) {
-        const secondQrX = qrStartX + qrCodeSize + 5;
-        doc.setFontSize(6); doc.setFont("helvetica", "bold").setTextColor(0);
-        doc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
-        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
+        const secondQrX = qrStartX + qrCodeSize + qrGap;
+        doc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
+        doc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY + 4, { align: 'center' });
+        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 6, qrCodeSize, qrCodeSize);
     }
 
     doc.autoPrint();

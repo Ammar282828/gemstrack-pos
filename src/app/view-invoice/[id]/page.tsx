@@ -269,37 +269,37 @@ export default function ViewInvoicePage() {
         { name: "Mina Khalid", number: "0316 1930960" },
         { name: "Ammar Mansa", number: "0326 2275554" },
     ];
-    const qrCodeSize = 20;
-    const qrSectionWidth = (qrCodeSize * 2) + 5;
-    const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 5;
+    const qrCodeSize = 17;
+    const qrGap = 4;
+    const qrSectionWidth = (qrCodeSize * 2) + qrGap;
+    const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
     const qrStartX = pageWidth - margin - qrSectionWidth;
 
+    // Separator
     pdfDoc.setLineWidth(0.2);
-    pdfDoc.line(margin, footerStartY - 5, pageWidth - margin, footerStartY - 5);
+    pdfDoc.line(margin, footerStartY - 4, pageWidth - margin, footerStartY - 4);
 
-    let contactY = footerStartY;
-    pdfDoc.setFontSize(6).setFont("helvetica", "bold").setTextColor(50);
-    pdfDoc.text("For Orders & Inquiries:", margin, contactY);
-    contactY += 3;
-    pdfDoc.setFontSize(8).setFont("helvetica", "normal").setTextColor(100);
-    contacts.forEach(contact => {
-        pdfDoc.text(`${contact.name}: ${contact.number}`, margin, contactY);
-        contactY += 4;
-    });
+    // Left: label + contacts
+    pdfDoc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
+    pdfDoc.text("For Orders & Inquiries:", margin, footerStartY + 4, { maxWidth: textBlockWidth });
+    pdfDoc.setFontSize(8).setFont("helvetica", "normal").setTextColor(80);
+    pdfDoc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 10, { maxWidth: textBlockWidth });
+    pdfDoc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 16, { maxWidth: textBlockWidth });
 
+    // Right: QR codes with titles
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
 
     if (waQrCanvas) {
-        pdfDoc.setFontSize(6); pdfDoc.setFont("helvetica", "bold").setTextColor(0);
-        pdfDoc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
-        pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY, qrCodeSize, qrCodeSize);
+        pdfDoc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
+        pdfDoc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY + 4, { align: 'center' });
+        pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 6, qrCodeSize, qrCodeSize);
     }
     if (instaQrCanvas) {
-        const secondQrX = qrStartX + qrCodeSize + 5;
-        pdfDoc.setFontSize(6); pdfDoc.setFont("helvetica", "bold").setTextColor(0);
-        pdfDoc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY - 2, { align: 'center' });
-        pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY, qrCodeSize, qrCodeSize);
+        const secondQrX = qrStartX + qrCodeSize + qrGap;
+        pdfDoc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
+        pdfDoc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY + 4, { align: 'center' });
+        pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 6, qrCodeSize, qrCodeSize);
     }
     
     pdfDoc.save(`Estimate-${invoice.id}.pdf`);
