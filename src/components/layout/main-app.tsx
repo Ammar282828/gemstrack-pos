@@ -8,19 +8,26 @@ import { Loader2 } from 'lucide-react';
 
 export function MainApp({ children }: { children: React.ReactNode }) {
   const isStoreHydrated = useIsStoreHydrated();
-  const { 
-    loadSettings, isSettingsLoading, hasSettingsLoaded
+  const {
+    loadSettings, isSettingsLoading, hasSettingsLoaded,
+    loadProducts,
   } = useAppStore();
 
   useEffect(() => {
     // This effect runs once when the store is rehydrated.
-    // It now ONLY loads the essential settings needed for startup.
-    // Other data will be loaded on-demand by the pages that need it.
-    if (isStoreHydrated && !hasSettingsLoaded) {
-      console.log("[GemsTrack MainApp] Store hydrated. Loading essential settings.");
-      loadSettings();
+    // Loads settings and kicks off the products real-time listener so that
+    // products sync across devices from app startup, regardless of which page
+    // the user lands on first.
+    if (isStoreHydrated) {
+      if (!hasSettingsLoaded) {
+        console.log("[GemsTrack MainApp] Store hydrated. Loading essential settings.");
+        loadSettings();
+      }
+      // loadProducts is guarded internally by hasProductsLoaded, so calling it
+      // here is always safe — subsequent calls from individual pages are no-ops.
+      loadProducts();
     }
-  }, [isStoreHydrated, hasSettingsLoaded, loadSettings]);
+  }, [isStoreHydrated, hasSettingsLoaded, loadSettings, loadProducts]);
 
   // Show a loading screen until the persisted state is rehydrated AND settings have loaded.
   // Settings are required for authorization and basic app functionality.
