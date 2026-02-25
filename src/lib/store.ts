@@ -868,50 +868,52 @@ export const useAppStore = create<AppState>()(
       loadSettings: async () => {
         if (get().hasSettingsLoaded) return;
         set({ isSettingsLoading: true, settingsError: null });
-        try {
-          const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
-          const docSnap = await getDoc(settingsDocRef);
-          
-          let loadedSettings: Settings;
 
-          if (docSnap.exists()) {
-            const firestoreSettings = docSnap.data() as Partial<Settings>;
-            loadedSettings = {
-              ...initialSettingsData,
-              ...firestoreSettings,
-              firebaseConfig: firebaseConfig, // Always use the imported config
-              allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds)
-                ? firestoreSettings.allowedDeviceIds
-                : [],
-              weprintApiSkus: Array.isArray(firestoreSettings.weprintApiSkus)
-                ? firestoreSettings.weprintApiSkus
-                : [],
-               paymentMethods: Array.isArray(firestoreSettings.paymentMethods)
-                ? firestoreSettings.paymentMethods
-                : [],
-              theme: firestoreSettings.theme || 'slate',
-            };
-          } else {
-            console.log("[GemsTrack Store loadSettings] No settings found, creating with initial data.");
-            const settingsWithConfig = {...initialSettingsData, firebaseConfig: firebaseConfig};
-            await setDoc(settingsDocRef, settingsWithConfig);
-            loadedSettings = settingsWithConfig;
-          }
+        const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
+        
+        onSnapshot(settingsDocRef,
+            (docSnap) => {
+                let loadedSettings: Settings;
+                if (docSnap.exists()) {
+                    const firestoreSettings = docSnap.data() as Partial<Settings>;
+                    loadedSettings = {
+                        ...initialSettingsData,
+                        ...firestoreSettings,
+                        firebaseConfig: firebaseConfig,
+                        allowedDeviceIds: Array.isArray(firestoreSettings.allowedDeviceIds) ? firestoreSettings.allowedDeviceIds : [],
+                        weprintApiSkus: Array.isArray(firestoreSettings.weprintApiSkus) ? firestoreSettings.weprintApiSkus : [],
+                        paymentMethods: Array.isArray(firestoreSettings.paymentMethods) ? firestoreSettings.paymentMethods : [],
+                        theme: firestoreSettings.theme || 'slate',
+                    };
+                } else {
+                    console.log("[GemsTrack Store loadSettings] No settings found, creating with initial data.");
+                    const settingsWithConfig = { ...initialSettingsData, firebaseConfig: firebaseConfig };
+                    setDoc(settingsDocRef, settingsWithConfig); // set and forget
+                    loadedSettings = settingsWithConfig;
+                }
 
-          if (loadedSettings.databaseLocked) {
-              set({ settingsError: "Database access is locked by an administrator." });
-          }
+                if (loadedSettings.databaseLocked) {
+                    set({ settingsError: "Database access is locked by an administrator." });
+                }
 
-          set((state) => { state.settings = loadedSettings; });
-          console.log("[GemsTrack Store loadSettings] Settings loaded.");
-
-        } catch (error: any) {
-          console.error("[GemsTrack Store loadSettings] Error loading settings from Firestore:", error);
-          set({ settingsError: error.message || 'Failed to connect to the database.' });
-          set((state) => { state.settings = initialSettingsData; }); // Fallback
-        } finally {
-          set({ isSettingsLoading: false, hasSettingsLoaded: true });
-        }
+                set((state) => {
+                    state.settings = loadedSettings;
+                    state.isSettingsLoading = false;
+                    state.hasSettingsLoaded = true;
+                    state.settingsError = null;
+                });
+                console.log("[GemsTrack Store loadSettings] Real-time settings update received.");
+            },
+            (error: any) => {
+                console.error("[GemsTrack Store loadSettings] Error in real-time listener:", error);
+                set({
+                    settingsError: error.message || 'Failed to connect to settings database.',
+                    isSettingsLoading: false,
+                    hasSettingsLoaded: true, // Mark as loaded even on error to unblock UI
+                    settings: initialSettingsData, // Fallback
+                });
+            }
+        );
       },
       updateSettings: async (newSettings) => {
         const {databaseLocked} = get().settings;

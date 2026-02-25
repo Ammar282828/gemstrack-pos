@@ -14,51 +14,27 @@ const firebaseConfig = {
     appId: "1:288366939838:web:044c8eec0a5610688798ef"
   };
   
-let app: FirebaseApp;
-let auth: Auth;
+const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const auth: Auth = getAuth(app);
 let db: Firestore;
 
-// --- Initialize Firebase ---
-// This function initializes Firebase and sets up local persistence.
-// It ensures that Firebase is only initialized once.
-function initializeDb() {
-    console.log('[GemsTrack Firebase] Initializing...');
-
-    if (getApps().length) {
-        app = getApp();
-        console.log('[GemsTrack Firebase] Re-using existing Firebase app.');
-    } else {
-        app = initializeApp(firebaseConfig);
-        console.log('[GemsTrack Firebase] New Firebase app initialized.');
-    }
-
-    try {
-        // This is the modern, robust way to enable offline persistence.
-        db = initializeFirestore(app, {
-            localCache: persistentLocalCache(/* No options for single-tab */)
-        });
-        console.log('[GemsTrack Firebase] Offline persistence enabled.');
-    } catch (e: any) {
-        console.error('[GemsTrack Firebase] Error initializing Firestore with persistence:', e);
-        // Fallback to in-memory DB if persistence fails for any reason
-        if (!db) {
-            db = getFirestore(app);
-            console.warn('[GemsTrack Firebase] Initialized with in-memory cache only.');
-        }
-    }
-
-    auth = getAuth(app);
-}
-
-// Ensure this runs only on the client and only once.
-if (typeof window !== 'undefined' && !getApps().length) {
-    initializeDb();
-} else if (getApps().length) {
-    // If app is already initialized (e.g., during hot-reloads), just get the instances
-    app = getApp();
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({}),
+  });
+  console.log('[GemsTrack Firebase] Offline persistence enabled.');
+} catch (e: any) {
+  if (e.code === 'failed-precondition') {
+    console.warn('[GemsTrack Firebase] Multiple tabs open, persistence can only be enabled in one. Reverting to memory-only cache for this tab.');
     db = getFirestore(app);
-    auth = getAuth(app);
+  } else if (e.code === 'unimplemented') {
+    console.warn('[GemsTrack Firebase] The current browser does not support all of the features required to enable persistence.');
+    db = getFirestore(app);
+  } else {
+    // This is likely the "already initialized" error during hot-reloads
+    console.log("[GemsTrack Firebase] Re-using existing Firestore instance.");
+    db = getFirestore(app);
+  }
 }
 
-
-export { app, auth, db, firebaseConfig, initializeDb };
+export { app, auth, db, firebaseConfig };
