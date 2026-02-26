@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search, ExternalLink, ShieldCheck, ShieldAlert, Landmark, RefreshCw, CheckCircle2, Link2Off } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search, ExternalLink, ShieldCheck, ShieldAlert, Landmark, RefreshCw, CheckCircle2, Link2Off, ShoppingBag } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -720,7 +720,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl flex items-center">
-            <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M15.337 23.979l7.216-1.561s-2.597-17.566-2.617-17.69c-.018-.124-.124-.207-.248-.207-.124 0-2.342-.049-2.342-.049s-1.562-1.512-1.719-1.669v21.176zm-1.925 0L13.268.803c-.043-.018-.098-.025-.154-.012L11.61.985S10.9.207 10.176.207C6.86.207 5.302 4.261 5.302 4.261l-3.275.998S.455 5.936.418 6.102L.003 23.979h13.409zm-4.5-13.147c0 0 .875-.238 1.938-.238.236 0 .471.018.695.055.014-.479.014-.992-.021-1.506-.177-2.534-1.237-3.762-2.436-3.762-1.207 0-2.174 1.248-2.174 2.83 0 .826.315 1.537.77 2.075l.025.015 1.203.531z"/></svg>
+            <ShoppingBag className="mr-2 h-5 w-5" />
             Shopify Integration
           </CardTitle>
           <CardDescription>Import your Shopify orders, customers, and products into GemsTrack.</CardDescription>
