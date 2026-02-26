@@ -1,7 +1,8 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -14,7 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search, ExternalLink, ShieldCheck, ShieldAlert, Landmark } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search, ExternalLink, ShieldCheck, ShieldAlert, Landmark, RefreshCw, CheckCircle2, Link2Off } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -159,6 +161,58 @@ export default function SettingsPage() {
   
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number | null }>({});
   const [isUploading, setIsUploading] = useState<{ [key: string]: boolean }>({});
+
+  // Shopify
+  const searchParams = useSearchParams();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncOptions, setSyncOptions] = useState({ syncOrders: true, syncCustomers: true, syncProducts: false });
+
+  useEffect(() => {
+    const shopifyStatus = searchParams.get('shopify');
+    if (shopifyStatus === 'connected') {
+      toast({ title: 'Shopify Connected', description: 'Your Shopify store has been linked successfully.' });
+      window.history.replaceState({}, '', '/settings');
+    } else if (shopifyStatus === 'error') {
+      const reason = searchParams.get('reason') || 'unknown';
+      toast({ title: 'Shopify Connection Failed', description: `Error: ${reason}. Please try again.`, variant: 'destructive' });
+      window.history.replaceState({}, '', '/settings');
+    }
+  }, [searchParams, toast]);
+
+  const handleConnectShopify = () => {
+    const shop = currentSettings?.shopifyStoreDomain || 'houseofmina.myshopify.com';
+    window.location.href = `/api/shopify/auth?shop=${shop}`;
+  };
+
+  const handleDisconnectShopify = async () => {
+    await updateSettingsAction({ shopifyAccessToken: '', shopifyStoreDomain: '', shopifyLastSyncedAt: '' } as any);
+    toast({ title: 'Shopify Disconnected' });
+  };
+
+  const handleSyncNow = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch('/api/shopify/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(syncOptions),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
+      const { results } = data;
+      toast({
+        title: 'Sync Complete',
+        description: `Imported: ${results.orders} orders, ${results.customers} customers, ${results.products} products. Skipped (already exist): ${results.skipped}.`,
+      });
+      if (results.errors?.length) {
+        toast({ title: 'Sync Warnings', description: results.errors.join(', '), variant: 'destructive' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Sync Failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
 
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
@@ -644,6 +698,67 @@ export default function SettingsPage() {
                 </div>
               </Button>
             </Link>
+        </CardContent>
+      </Card>
+
+      {/* Shopify Integration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl flex items-center">
+            <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M15.337 23.979l7.216-1.561s-2.597-17.566-2.617-17.69c-.018-.124-.124-.207-.248-.207-.124 0-2.342-.049-2.342-.049s-1.562-1.512-1.719-1.669v21.176zm-1.925 0L13.268.803c-.043-.018-.098-.025-.154-.012L11.61.985S10.9.207 10.176.207C6.86.207 5.302 4.261 5.302 4.261l-3.275.998S.455 5.936.418 6.102L.003 23.979h13.409zm-4.5-13.147c0 0 .875-.238 1.938-.238.236 0 .471.018.695.055.014-.479.014-.992-.021-1.506-.177-2.534-1.237-3.762-2.436-3.762-1.207 0-2.174 1.248-2.174 2.83 0 .826.315 1.537.77 2.075l.025.015 1.203.531z"/></svg>
+            Shopify Integration
+          </CardTitle>
+          <CardDescription>Import your Shopify orders, customers, and products into GemsTrack.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {currentSettings?.shopifyAccessToken ? (
+            <>
+              <div className="flex items-center gap-2 text-green-600">
+                <CheckCircle2 className="h-5 w-5" />
+                <span className="font-medium">Connected to {currentSettings.shopifyStoreDomain}</span>
+              </div>
+              {currentSettings.shopifyLastSyncedAt && (
+                <p className="text-sm text-muted-foreground">
+                  Last synced: {new Date(currentSettings.shopifyLastSyncedAt).toLocaleString()}
+                </p>
+              )}
+              <div className="space-y-2">
+                <p className="text-sm font-medium">What to import:</p>
+                <div className="flex flex-col gap-2 pl-1">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox checked={syncOptions.syncOrders} onCheckedChange={v => setSyncOptions(p => ({ ...p, syncOrders: !!v }))} />
+                    Orders (as invoices)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox checked={syncOptions.syncCustomers} onCheckedChange={v => setSyncOptions(p => ({ ...p, syncCustomers: !!v }))} />
+                    Customers
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox checked={syncOptions.syncProducts} onCheckedChange={v => setSyncOptions(p => ({ ...p, syncProducts: !!v }))} />
+                    Products (imports with default jewelry values — review after sync)
+                  </label>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSyncNow} disabled={isSyncing}>
+                  {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  {isSyncing ? 'Syncing...' : 'Sync Now'}
+                </Button>
+                <Button variant="outline" onClick={handleDisconnectShopify}>
+                  <Link2Off className="mr-2 h-4 w-4" />
+                  Disconnect
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">No Shopify store connected. Click below to link your store via OAuth.</p>
+              <Button onClick={handleConnectShopify}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Connect to Shopify
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

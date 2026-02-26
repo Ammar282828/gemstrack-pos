@@ -272,6 +272,9 @@ export interface Settings extends GoldRates {
   theme: ThemeKey;
   databaseLocked?: boolean; // New kill switch flag
   firebaseConfig?: FirebaseConfigStub;
+  shopifyStoreDomain?: string;
+  shopifyAccessToken?: string;
+  shopifyLastSyncedAt?: string;
 }
 
 export interface Category {

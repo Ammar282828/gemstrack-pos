@@ -7,17 +7,12 @@ runConfig:
   # cpu: 1
   # memoryMiB: 512
 
-# Environment variables and secrets.
-# env:
-  # Configure environment variables.
-  # See https://firebase.google.com/docs/app-hosting/configure#user-defined-environment
-  # - variable: MESSAGE
-  #   value: Hello world!
-  #   availability:
-  #     - BUILD
-  #     - RUNTIME
-
-  # Grant access to secrets in Cloud Secret Manager.
-  # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
-  # - variable: MY_SECRET
-  #   secret: mySecretRef
+env:
+  - variable: SHOPIFY_API_KEY
+    value: 1c2467806ff47ad68ffc2cd4b9720b26
+    availability:
+      - RUNTIME
+  - variable: SHOPIFY_API_SECRET
+    secret: SHOPIFY_API_SECRET
+    availability:
+      - RUNTIME
