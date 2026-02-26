@@ -370,11 +370,10 @@ export default function OrderDetailPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 10;
     
-    const logoToUse = settings.shopLogoUrlBlack || settings.shopLogoUrl;
-
-    if (logoToUse) {
+    const logoImg = document.getElementById('shop-logo') as HTMLImageElement;
+    if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
         try {
-            doc.addImage(logoToUse, 'PNG', margin, 10, 35, 8, undefined, 'FAST');
+            doc.addImage(logoImg, 'PNG', margin, 10, 50, 12, undefined, 'FAST');
         } catch (e) {
             console.error("Error adding logo to Order Slip PDF:", e);
         }
@@ -575,6 +574,7 @@ export default function OrderDetailPage() {
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div style={{ display: 'none' }}>
+        <img id="shop-logo" src={settings?.shopLogoUrlBlack || settings?.shopLogoUrl || ''} crossOrigin="anonymous" alt="" />
         <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H" size={128} />
         <QRCode id="insta-qr-code" value="https://www.instagram.com/houseofmina__?igsh=aTAyZWQycWVudm43&utm_source=qr" size={128} />
       </div>

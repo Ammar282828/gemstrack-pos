@@ -410,12 +410,11 @@ export default function CartPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 10;
 
-    const logoToUse = settings.shopLogoUrlBlack || settings.shopLogoUrl;
-
     function drawHeader(pageNum: number) {
-      if (logoToUse) {
+      const logoImg = document.getElementById('shop-logo') as HTMLImageElement;
+      if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
         try {
-          doc.addImage(logoToUse, 'PNG', margin, 10, 35, 8, undefined, 'FAST');
+          doc.addImage(logoImg, 'PNG', margin, 10, 50, 12, undefined, 'FAST');
         } catch (e) {
           console.error("Error adding logo image to PDF:", e);
         }
@@ -660,6 +659,7 @@ export default function CartPage() {
     return (
       <div className="bg-muted min-h-screen p-4 sm:p-8">
         <div style={{ display: 'none' }}>
+          <img id="shop-logo" src={settings?.shopLogoUrlBlack || settings?.shopLogoUrl || ''} crossOrigin="anonymous" alt="" />
           <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H" size={128} />
           <QRCode id="insta-qr-code" value="https://www.instagram.com/houseofmina__?igsh=aTAyZWQycWVudm43&utm_source=qr" size={128} />
         </div>
