@@ -411,11 +411,14 @@ export default function CartPage() {
     const margin = 10;
 
     let logoDataUrl: string | null = null;
+    let logoFormat: string = 'PNG';
     const logoUrl = settings?.shopLogoUrlBlack || settings?.shopLogoUrl;
     if (logoUrl) {
       try {
-        const res = await fetch(logoUrl);
+        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`;
+        const res = await fetch(proxyUrl);
         const blob = await res.blob();
+        logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
         logoDataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
@@ -430,7 +433,7 @@ export default function CartPage() {
     function drawHeader(pageNum: number) {
       if (logoDataUrl) {
         try {
-          doc.addImage(logoDataUrl, 'PNG', margin, 10, 50, 12, undefined, 'FAST');
+          doc.addImage(logoDataUrl, logoFormat, margin, 8, 35, 11, undefined, 'FAST');
         } catch (e) {
           console.error("Error adding logo image to PDF:", e);
         }
@@ -633,14 +636,14 @@ export default function CartPage() {
 
     // Separator
     doc.setLineWidth(0.2);
-    doc.line(margin, footerStartY - 4, pageWidth - margin, footerStartY - 4);
+    doc.line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
 
     // Left: label + contacts
     doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
-    doc.text("For Orders & Inquiries:", margin, footerStartY + 4, { maxWidth: textBlockWidth });
+    doc.text("For Orders & Inquiries:", margin, footerStartY + 2, { maxWidth: textBlockWidth });
     doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(80);
-    doc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 10, { maxWidth: textBlockWidth });
-    doc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 16, { maxWidth: textBlockWidth });
+    doc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 8, { maxWidth: textBlockWidth });
+    doc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 14, { maxWidth: textBlockWidth });
 
     // Right: QR codes with titles
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
@@ -648,14 +651,14 @@ export default function CartPage() {
 
     if (waQrCanvas) {
         doc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
-        doc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY + 4, { align: 'center' });
-        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 6, qrCodeSize, qrCodeSize);
+        doc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY + 2, { align: 'center' });
+        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 4, qrCodeSize, qrCodeSize);
     }
     if (instaQrCanvas) {
         const secondQrX = qrStartX + qrCodeSize + qrGap;
         doc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
-        doc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY + 4, { align: 'center' });
-        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 6, qrCodeSize, qrCodeSize);
+        doc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY + 2, { align: 'center' });
+        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize);
     }
 
     doc.autoPrint();

@@ -371,11 +371,14 @@ export default function OrderDetailPage() {
     const margin = 10;
     
     let logoDataUrl: string | null = null;
+    let logoFormat: string = 'PNG';
     const logoUrl = settings.shopLogoUrlBlack || settings.shopLogoUrl;
     if (logoUrl) {
         try {
-            const res = await fetch(logoUrl);
+            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`;
+            const res = await fetch(proxyUrl);
             const blob = await res.blob();
+            logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
             logoDataUrl = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onloadend = () => resolve(reader.result as string);
@@ -386,21 +389,40 @@ export default function OrderDetailPage() {
             console.error("Error loading logo:", e);
         }
     }
-    if (logoDataUrl) {
-        try {
-            doc.addImage(logoDataUrl, 'PNG', margin, 10, 50, 12, undefined, 'FAST');
-        } catch (e) {
-            console.error("Error adding logo to Order Slip PDF:", e);
+
+    function drawHeader(pageNum: number) {
+        if (logoDataUrl) {
+            try {
+                doc.addImage(logoDataUrl, logoFormat, margin, 8, 35, 11, undefined, 'FAST');
+            } catch (e) {
+                console.error("Error adding logo to Order Slip PDF:", e);
+            }
+        }
+        doc.setFont("helvetica", "bold").setFontSize(18);
+        doc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 15, { align: 'right' });
+        doc.setLineWidth(0.5);
+        doc.line(margin, 25, pageWidth - margin, 25);
+        if (pageNum > 1) {
+            doc.setFontSize(8).setTextColor(150);
+            doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+            doc.setTextColor(0);
         }
     }
 
-    doc.setFont("helvetica", "bold").setFontSize(18);
-    doc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 15, { align: 'right' });
-    
-    doc.setFont("helvetica", "normal").setFontSize(9);
-    doc.text(`Order ID: ${order.id}`, margin, 30);
-    doc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, 35);
-    doc.text(`Customer: ${order.customerName || 'Walk-in'}`, margin, 40);
+    drawHeader(1);
+
+    // Order info section
+    let infoY = 32;
+    doc.setFontSize(9).setTextColor(100).setFont("helvetica", "bold");
+    doc.text('ORDER DETAILS:', margin, infoY);
+    doc.setLineWidth(0.2);
+    doc.line(margin, infoY + 2, pageWidth - margin, infoY + 2);
+    infoY += 7;
+
+    doc.setFont("helvetica", "normal").setTextColor(0).setFontSize(9);
+    doc.text(`Order ID: ${order.id}`, margin, infoY);
+    doc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, infoY + 5);
+    doc.text(`Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10);
 
     const rates = order.ratesApplied;
     let ratesApplied: string[] = [];
@@ -410,31 +432,27 @@ export default function OrderDetailPage() {
     if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
     if (ratesApplied.length > 0) {
         doc.setFontSize(7).setTextColor(150);
-        doc.text(`Rates (PKR): ${ratesApplied.join(' | ')}`, margin, 45);
+        doc.text(`Rates (PKR): ${ratesApplied.join(' | ')}`, margin, infoY + 15);
     }
-    
-    doc.setTextColor(0);
-    doc.setFontSize(9).setFont('helvetica', 'bold');
-    doc.text(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`, pageWidth - margin, 35, { align: 'right' });
-    doc.text(`Advance Paid:`, pageWidth - margin, 40, { align: 'right' });
+
+    doc.setTextColor(0).setFontSize(9).setFont('helvetica', 'bold');
+    doc.text(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`, pageWidth - margin, infoY + 5, { align: 'right' });
+    doc.text(`Advance Paid:`, pageWidth - margin, infoY + 10, { align: 'right' });
     const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
-    doc.text(`- PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, 45, { align: 'right' });
+    doc.text(`- PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, infoY + 15, { align: 'right' });
 
     doc.setLineWidth(0.5);
-    doc.line(margin, 50, pageWidth - margin, 50);
+    doc.line(margin, infoY + 20, pageWidth - margin, infoY + 20);
 
-    let finalY = 58;
+    let finalY = infoY + 28;
 
     for (let i = 0; i < order.items.length; i++) {
         const item = order.items[i];
         
-        if (finalY + 45 > pageHeight - margin) { // Check if new item block fits
+        if (finalY + 45 > pageHeight - margin) {
             doc.addPage();
-            doc.setFontSize(8);
-            doc.setTextColor(150);
-            doc.text(`Order Slip: ${order.id} (continued)`, margin, 10);
-            finalY = 20;
-            doc.setTextColor(0);
+            drawHeader(doc.getNumberOfPages());
+            finalY = 32;
         }
 
         const karigarName = karigars.find(k => k.id === item.karigarId)?.name;
@@ -517,14 +535,14 @@ export default function OrderDetailPage() {
 
     // Separator
     doc.setLineWidth(0.2);
-    doc.line(margin, footerStartY - 4, pageWidth - margin, footerStartY - 4);
+    doc.line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
 
     // Left: label + contacts
     doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
-    doc.text("For Orders & Inquiries:", margin, footerStartY + 4, { maxWidth: textBlockWidth });
+    doc.text("For Orders & Inquiries:", margin, footerStartY + 2, { maxWidth: textBlockWidth });
     doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(80);
-    doc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 10, { maxWidth: textBlockWidth });
-    doc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 16, { maxWidth: textBlockWidth });
+    doc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 8, { maxWidth: textBlockWidth });
+    doc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 14, { maxWidth: textBlockWidth });
 
     // Right: QR codes with titles
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
@@ -532,14 +550,14 @@ export default function OrderDetailPage() {
 
     if (waQrCanvas) {
         doc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
-        doc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY + 4, { align: 'center' });
-        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 6, qrCodeSize, qrCodeSize);
+        doc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY + 2, { align: 'center' });
+        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 4, qrCodeSize, qrCodeSize);
     }
     if (instaQrCanvas) {
         const secondQrX = qrStartX + qrCodeSize + qrGap;
         doc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
-        doc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY + 4, { align: 'center' });
-        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 6, qrCodeSize, qrCodeSize);
+        doc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY + 2, { align: 'center' });
+        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize);
     }
 
 
