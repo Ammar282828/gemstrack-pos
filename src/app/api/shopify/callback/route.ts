@@ -1,28 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { FIRESTORE_PROJECT_ID, FIRESTORE_API_KEY, APP_URL } from '../_lib';
 
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY!;
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET!;
-const FIRESTORE_PROJECT_ID = 'hom-pos-52710474-ceeea';
-const FIRESTORE_API_KEY = 'AIzaSyBJsDVAI_b7RvnSf-cpnSNLXQ-R0OH0qU4';
-const APP_URL = 'https://studio--hom-pos-52710474-ceeea.us-central1.hosted.app';
 
 function validateHmac(params: URLSearchParams, secret: string): boolean {
   const hmac = params.get('hmac');
   if (!hmac) return false;
-
   const entries: string[] = [];
-  params.forEach((value, key) => {
-    if (key !== 'hmac') entries.push(`${key}=${value}`);
-  });
+  params.forEach((value, key) => { if (key !== 'hmac') entries.push(`${key}=${value}`); });
   entries.sort();
-
   const digest = crypto.createHmac('sha256', secret).update(entries.join('&')).digest('hex');
   try {
     return crypto.timingSafeEqual(Buffer.from(digest, 'hex'), Buffer.from(hmac, 'hex'));
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
 export async function GET(request: NextRequest) {
@@ -33,7 +25,6 @@ export async function GET(request: NextRequest) {
   if (!state || state !== stateCookie) {
     return NextResponse.redirect(`${APP_URL}/settings?shopify=error&reason=state`);
   }
-
   if (!validateHmac(searchParams, SHOPIFY_API_SECRET)) {
     return NextResponse.redirect(`${APP_URL}/settings?shopify=error&reason=hmac`);
   }
@@ -54,7 +45,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/settings?shopify=error&reason=token`);
   }
 
-  // Save token to Firestore via REST API
+  // Save token + domain to Firestore
   const firestoreUrl =
     `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents/app_settings/global` +
     `?key=${FIRESTORE_API_KEY}` +
@@ -70,6 +61,13 @@ export async function GET(request: NextRequest) {
         shopifyStoreDomain: { stringValue: shop },
       },
     }),
+  });
+
+  // Auto-register webhooks for real-time sync
+  await fetch(`${APP_URL}/api/shopify/register-webhooks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shop, token: accessToken }),
   });
 
   const response = NextResponse.redirect(`${APP_URL}/settings?shopify=connected`);

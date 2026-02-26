@@ -165,6 +165,7 @@ export default function SettingsPage() {
   // Shopify
   const searchParams = useSearchParams();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isRegisteringWebhooks, setIsRegisteringWebhooks] = useState(false);
   const [syncOptions, setSyncOptions] = useState({ syncOrders: true, syncCustomers: true, syncProducts: false });
 
   useEffect(() => {
@@ -187,6 +188,20 @@ export default function SettingsPage() {
   const handleDisconnectShopify = async () => {
     await updateSettingsAction({ shopifyAccessToken: '', shopifyStoreDomain: '', shopifyLastSyncedAt: '' } as any);
     toast({ title: 'Shopify Disconnected' });
+  };
+
+  const handleRegisterWebhooks = async () => {
+    setIsRegisteringWebhooks(true);
+    try {
+      const res = await fetch('/api/shopify/register-webhooks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      toast({ title: 'Webhooks Registered', description: `Registered: ${data.registered?.join(', ') || 'none new'}. Already active: ${data.skipped?.length || 0}.` });
+    } catch (e: any) {
+      toast({ title: 'Webhook Registration Failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsRegisteringWebhooks(false);
+    }
   };
 
   const handleSyncNow = async () => {
@@ -739,10 +754,14 @@ export default function SettingsPage() {
                   </label>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button onClick={handleSyncNow} disabled={isSyncing}>
                   {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                   {isSyncing ? 'Syncing...' : 'Sync Now'}
+                </Button>
+                <Button variant="outline" onClick={handleRegisterWebhooks} disabled={isRegisteringWebhooks}>
+                  {isRegisteringWebhooks ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                  Re-register Webhooks
                 </Button>
                 <Button variant="outline" onClick={handleDisconnectShopify}>
                   <Link2Off className="mr-2 h-4 w-4" />
