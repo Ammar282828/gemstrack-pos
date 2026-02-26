@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -163,22 +162,23 @@ export default function SettingsPage() {
   const [isUploading, setIsUploading] = useState<{ [key: string]: boolean }>({});
 
   // Shopify
-  const searchParams = useSearchParams();
   const [isSyncing, setIsSyncing] = useState(false);
   const [isRegisteringWebhooks, setIsRegisteringWebhooks] = useState(false);
   const [syncOptions, setSyncOptions] = useState({ syncOrders: true, syncCustomers: true, syncProducts: false });
 
   useEffect(() => {
-    const shopifyStatus = searchParams.get('shopify');
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const shopifyStatus = params.get('shopify');
     if (shopifyStatus === 'connected') {
       toast({ title: 'Shopify Connected', description: 'Your Shopify store has been linked successfully.' });
       window.history.replaceState({}, '', '/settings');
     } else if (shopifyStatus === 'error') {
-      const reason = searchParams.get('reason') || 'unknown';
+      const reason = params.get('reason') || 'unknown';
       toast({ title: 'Shopify Connection Failed', description: `Error: ${reason}. Please try again.`, variant: 'destructive' });
       window.history.replaceState({}, '', '/settings');
     }
-  }, [searchParams, toast]);
+  }, [toast]);
 
   const handleConnectShopify = () => {
     const shop = currentSettings?.shopifyStoreDomain || 'houseofmina.myshopify.com';
