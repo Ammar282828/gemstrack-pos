@@ -15,8 +15,10 @@ env:
   - variable: SHOPIFY_API_SECRET
     secret: SHOPIFY_API_SECRET
     availability:
+      - BUILD
       - RUNTIME
   - variable: GOOGLE_GENAI_API_KEY
     secret: GOOGLE_GENAI_API_KEY
     availability:
+      - BUILD
       - RUNTIME
