@@ -395,7 +395,7 @@ export default function CartPage() {
   };
 
 
-  const printInvoice = (invoiceToPrint: InvoiceType) => {
+  const printInvoice = async (invoiceToPrint: InvoiceType) => {
     if (typeof window === 'undefined') {
       toast({ title: "Error", description: "PDF generation is only available in the browser.", variant: "destructive" });
       return;
@@ -410,11 +410,27 @@ export default function CartPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 10;
 
+    let logoDataUrl: string | null = null;
+    const logoUrl = settings?.shopLogoUrlBlack || settings?.shopLogoUrl;
+    if (logoUrl) {
+      try {
+        const res = await fetch(logoUrl);
+        const blob = await res.blob();
+        logoDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) {
+        console.error("Error loading logo:", e);
+      }
+    }
+
     function drawHeader(pageNum: number) {
-      const logoImg = document.getElementById('shop-logo') as HTMLImageElement;
-      if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+      if (logoDataUrl) {
         try {
-          doc.addImage(logoImg, 'PNG', margin, 10, 50, 12, undefined, 'FAST');
+          doc.addImage(logoDataUrl, 'PNG', margin, 10, 50, 12, undefined, 'FAST');
         } catch (e) {
           console.error("Error adding logo image to PDF:", e);
         }

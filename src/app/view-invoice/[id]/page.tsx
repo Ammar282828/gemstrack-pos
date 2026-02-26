@@ -78,9 +78,9 @@ export default function ViewInvoicePage() {
     fetchInvoiceData();
   }, [invoiceId]);
   
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!invoice || !settings) return;
-    
+
     const pdfDoc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -89,12 +89,28 @@ export default function ViewInvoicePage() {
     const pageHeight = pdfDoc.internal.pageSize.getHeight();
     const pageWidth = pdfDoc.internal.pageSize.getWidth();
     const margin = 10;
-    
+
+    let logoDataUrl: string | null = null;
+    const logoUrl = settings.shopLogoUrlBlack || settings.shopLogoUrl;
+    if (logoUrl) {
+      try {
+        const res = await fetch(logoUrl);
+        const blob = await res.blob();
+        logoDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) {
+        console.error("Error loading logo:", e);
+      }
+    }
+
     function drawHeader(pageNum: number) {
-        const logoImg = document.getElementById('shop-logo') as HTMLImageElement;
-        if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+        if (logoDataUrl) {
             try {
-                pdfDoc.addImage(logoImg, 'PNG', margin, 10, 50, 12, undefined, 'FAST');
+                pdfDoc.addImage(logoDataUrl, 'PNG', margin, 10, 50, 12, undefined, 'FAST');
             } catch (e) {
                 console.error("Error adding logo to PDF:", e);
             }

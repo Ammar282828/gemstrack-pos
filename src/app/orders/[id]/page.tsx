@@ -370,10 +370,25 @@ export default function OrderDetailPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 10;
     
-    const logoImg = document.getElementById('shop-logo') as HTMLImageElement;
-    if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+    let logoDataUrl: string | null = null;
+    const logoUrl = settings.shopLogoUrlBlack || settings.shopLogoUrl;
+    if (logoUrl) {
         try {
-            doc.addImage(logoImg, 'PNG', margin, 10, 50, 12, undefined, 'FAST');
+            const res = await fetch(logoUrl);
+            const blob = await res.blob();
+            logoDataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        } catch (e) {
+            console.error("Error loading logo:", e);
+        }
+    }
+    if (logoDataUrl) {
+        try {
+            doc.addImage(logoDataUrl, 'PNG', margin, 10, 50, 12, undefined, 'FAST');
         } catch (e) {
             console.error("Error adding logo to Order Slip PDF:", e);
         }
