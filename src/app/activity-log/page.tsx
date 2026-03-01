@@ -5,12 +5,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAppStore, ActivityLog, LOG_EVENT_TYPES, LogEventType } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, History, Filter, Calendar as CalendarIcon, User, Package, FileText, Briefcase, CreditCard } from 'lucide-react';
+import { Loader2, History, Filter, Calendar as CalendarIcon, User, Package, FileText, Briefcase, CreditCard, RotateCcw } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import type { DateRange } from "react-day-picker";
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 const eventIcons: Record<LogEventType, React.ReactNode> = {
     'product.create': <Package className="h-4 w-4" />,
@@ -40,10 +42,21 @@ const getEventTypeColor = (eventType: LogEventType) => {
     return 'text-muted-foreground';
 };
 
+const REVERTABLE_EVENTS: LogEventType[] = ['invoice.create', 'order.create', 'expense.create'];
+
+const revertConsequences: Partial<Record<LogEventType, string>> = {
+    'invoice.create': 'All sold products will be restored to active inventory, and all ledger entries for this invoice will be permanently deleted.',
+    'order.create': 'The order will be permanently deleted.',
+    'expense.create': 'The expense record will be permanently deleted.',
+};
+
 export default function ActivityLogPage() {
-    const { activityLog, isActivityLogLoading, loadActivityLog } = useAppStore();
+    const { activityLog, isActivityLogLoading, loadActivityLog, deleteInvoice, deleteOrder, deleteExpense } = useAppStore();
     const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
     const [typeFilter, setTypeFilter] = useState<string>('All');
+    const [revertTarget, setRevertTarget] = useState<ActivityLog | null>(null);
+    const [isReverting, setIsReverting] = useState(false);
+    const { toast } = useToast();
     
     useEffect(() => {
         loadActivityLog();
@@ -67,6 +80,26 @@ export default function ActivityLogPage() {
             })
             .sort((a,b) => parseISO(b.timestamp).getTime() - parseISO(a.timestamp).getTime());
     }, [activityLog, dateRange, typeFilter]);
+
+    const handleRevert = async () => {
+        if (!revertTarget) return;
+        setIsReverting(true);
+        try {
+            if (revertTarget.eventType === 'invoice.create') {
+                await deleteInvoice(revertTarget.entityId);
+            } else if (revertTarget.eventType === 'order.create') {
+                await deleteOrder(revertTarget.entityId);
+            } else if (revertTarget.eventType === 'expense.create') {
+                await deleteExpense(revertTarget.entityId);
+            }
+            toast({ title: 'Reverted', description: `"${revertTarget.description}" has been undone.` });
+            setRevertTarget(null);
+        } catch {
+            toast({ title: 'Revert Failed', description: 'Something went wrong. Please try again.', variant: 'destructive' });
+        } finally {
+            setIsReverting(false);
+        }
+    };
 
     if (isActivityLogLoading && (!activityLog || activityLog.length === 0)) {
         return (
@@ -127,6 +160,17 @@ export default function ActivityLogPage() {
                                             <p>{format(parseISO(log.timestamp), 'PP')}</p>
                                             <p>{format(parseISO(log.timestamp), 'p')}</p>
                                         </div>
+                                        {REVERTABLE_EVENTS.includes(log.eventType) && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-destructive flex-shrink-0 mt-0.5"
+                                                onClick={() => setRevertTarget(log)}
+                                                title="Revert this action"
+                                            >
+                                                <RotateCcw className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -140,6 +184,31 @@ export default function ActivityLogPage() {
                     </ScrollArea>
                 </CardContent>
             </Card>
+        <Dialog open={!!revertTarget} onOpenChange={(open) => { if (!open) setRevertTarget(null); }}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Revert this action?</DialogTitle>
+                    <DialogDescription>
+                        <span className="font-medium text-foreground">{revertTarget?.description}</span>
+                        <br />
+                        <span className="text-muted-foreground text-xs">{revertTarget && format(parseISO(revertTarget.timestamp), 'PPp')}</span>
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-2 text-sm text-muted-foreground">
+                    {revertTarget && revertConsequences[revertTarget.eventType]}
+                    <p className="mt-2 font-medium text-destructive">This cannot be undone.</p>
+                </div>
+                <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => setRevertTarget(null)} disabled={isReverting}>
+                        Cancel
+                    </Button>
+                    <Button variant="destructive" onClick={handleRevert} disabled={isReverting}>
+                        {isReverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                        {isReverting ? 'Reverting...' : 'Revert'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
         </div>
     );
 }

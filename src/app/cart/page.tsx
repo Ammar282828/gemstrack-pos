@@ -114,6 +114,22 @@ export default function CartPage() {
   const [editingCartItem, setEditingCartItem] = useState<Product | undefined>(undefined);
   const [isNewProductDialogOpen, setIsNewProductDialogOpen] = useState(false);
 
+  // Silver item inline editor
+  const [silverEditItem, setSilverEditItem] = useState<Product | null>(null);
+  const [editRate, setEditRate] = useState('');
+  const [editWeight, setEditWeight] = useState('');
+  const [useManualPrice, setUseManualPrice] = useState(false);
+  const [editManualPrice, setEditManualPrice] = useState('');
+
+  useEffect(() => {
+    if (silverEditItem) {
+      setEditRate(silverEditItem.silverRatePerGram?.toString() ?? parseFloat(rateInputs.silver || '0').toFixed(2));
+      setEditWeight(silverEditItem.metalWeightG?.toString() ?? '');
+      setUseManualPrice(silverEditItem.isCustomPrice ?? false);
+      setEditManualPrice(silverEditItem.customPrice?.toString() ?? '');
+    }
+  }, [silverEditItem]);
+
 
   const phoneForm = useForm<PhoneForm>();
   
@@ -274,13 +290,15 @@ export default function CartPage() {
     }
     
     const ratesForInvoice: Partial<Settings> = {
-        goldRatePerGram18k: parseFloat(rateInputs.gold18k) || settings.goldRatePerGram18k,
-        goldRatePerGram21k: parseFloat(rateInputs.gold21k) || settings.goldRatePerGram21k,
-        goldRatePerGram22k: parseFloat(rateInputs.gold22k) || settings.goldRatePerGram22k,
-        goldRatePerGram24k: parseFloat(rateInputs.gold24k) || settings.goldRatePerGram24k,
-        palladiumRatePerGram: parseFloat(rateInputs.palladium) || settings.palladiumRatePerGram,
-        platinumRatePerGram: parseFloat(rateInputs.platinum) || settings.platinumRatePerGram,
-        silverRatePerGram: parseFloat(rateInputs.silver) || settings.silverRatePerGram,
+        ...(cartMetalInfo.metals.has('gold') && {
+            goldRatePerGram18k: parseFloat(rateInputs.gold18k) || settings.goldRatePerGram18k,
+            goldRatePerGram21k: parseFloat(rateInputs.gold21k) || settings.goldRatePerGram21k,
+            goldRatePerGram22k: parseFloat(rateInputs.gold22k) || settings.goldRatePerGram22k,
+            goldRatePerGram24k: parseFloat(rateInputs.gold24k) || settings.goldRatePerGram24k,
+        }),
+        ...(cartMetalInfo.metals.has('palladium') && { palladiumRatePerGram: parseFloat(rateInputs.palladium) || settings.palladiumRatePerGram }),
+        ...(cartMetalInfo.metals.has('platinum') && { platinumRatePerGram: parseFloat(rateInputs.platinum) || settings.platinumRatePerGram }),
+        ...(cartMetalInfo.metals.has('silver') && { silverRatePerGram: parseFloat(rateInputs.silver) || settings.silverRatePerGram }),
     };
 
     // Persist rate changes to settings
@@ -860,12 +878,25 @@ export default function CartPage() {
                                             <TableCell>
                                                 <p className="font-medium">{item.name}</p>
                                                 <p className="text-xs text-muted-foreground">{item.sku}</p>
+                                                {item.metalType === 'silver' && item.isCustomPrice && (
+                                                    <p className="text-xs text-amber-600 font-medium">Manual: PKR {item.customPrice?.toLocaleString()}</p>
+                                                )}
+                                                {item.metalType === 'silver' && !item.isCustomPrice && item.silverRatePerGram && (
+                                                    <p className="text-xs text-blue-500">Rate: {item.silverRatePerGram}/g · {item.metalWeightG}g</p>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right font-semibold">PKR {calculateProductCosts(item, settings).totalPrice.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                            <TableCell>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeFromCart(item.sku)}>
-                                                    <Trash2 className="h-4 w-4"/>
-                                                </Button>
+                                            <TableCell className="w-20">
+                                                <div className="flex items-center gap-1">
+                                                    {item.metalType === 'silver' && (
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setSilverEditItem(item)}>
+                                                            <Edit className="h-4 w-4"/>
+                                                        </Button>
+                                                    )}
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeFromCart(item.sku)}>
+                                                        <Trash2 className="h-4 w-4"/>
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -894,10 +925,10 @@ export default function CartPage() {
                             </SelectContent>
                         </Select>
                         
-                        {selectedCustomerId === WALK_IN_CUSTOMER_VALUE && (
+                        {(selectedCustomerId === WALK_IN_CUSTOMER_VALUE || selectedCustomerId === undefined) && (
                             <div className="p-4 border rounded-md space-y-3">
-                                 <div><Label>Walk-in Name (Optional)</Label><Input value={walkInCustomerName} onChange={e => setWalkInCustomerName(e.target.value)} placeholder="e.g., John Doe"/></div>
-                                 <div><Label>Walk-in Contact (Optional)</Label><Input value={walkInCustomerPhone} onChange={e => setWalkInCustomerPhone(e.target.value)} placeholder="e.g., 03001234567"/></div>
+                                 <div><Label>Walk-in Name <span className="text-muted-foreground text-xs">(Optional)</span></Label><Input value={walkInCustomerName} onChange={e => setWalkInCustomerName(e.target.value)} placeholder="e.g., John Doe"/></div>
+                                 <div><Label>Walk-in Contact <span className="text-muted-foreground text-xs">(Optional)</span></Label><Input value={walkInCustomerPhone} onChange={e => setWalkInCustomerPhone(e.target.value)} placeholder="e.g., 03001234567"/></div>
                             </div>
                         )}
                         <Separator />
@@ -935,6 +966,76 @@ export default function CartPage() {
             </div>
         </div>
       )}
+
+      {/* Silver Item Edit Dialog */}
+      <Dialog open={!!silverEditItem} onOpenChange={(open) => { if (!open) setSilverEditItem(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Silver Item</DialogTitle>
+            <DialogDescription>{silverEditItem?.name} · {silverEditItem?.sku}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Rate per gram (PKR)</Label>
+                <Input
+                  type="number"
+                  value={editRate}
+                  onChange={e => setEditRate(e.target.value)}
+                  disabled={useManualPrice}
+                  placeholder="e.g. 150"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Weight (g)</Label>
+                <Input
+                  type="number"
+                  value={editWeight}
+                  onChange={e => setEditWeight(e.target.value)}
+                  disabled={useManualPrice}
+                  placeholder="e.g. 25.5"
+                />
+              </div>
+            </div>
+            <Separator />
+            <div className="flex items-center gap-2">
+              <input
+                id="use-manual-price"
+                type="checkbox"
+                checked={useManualPrice}
+                onChange={e => setUseManualPrice(e.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              <Label htmlFor="use-manual-price" className="cursor-pointer">Use manual price instead</Label>
+            </div>
+            {useManualPrice && (
+              <div className="space-y-1">
+                <Label>Manual Price (PKR)</Label>
+                <Input
+                  type="number"
+                  value={editManualPrice}
+                  onChange={e => setEditManualPrice(e.target.value)}
+                  placeholder="e.g. 5000"
+                  autoFocus
+                />
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setSilverEditItem(null)}>Cancel</Button>
+              <Button onClick={() => {
+                if (!silverEditItem) return;
+                updateCartItem(silverEditItem.sku, {
+                  metalWeightG: parseFloat(editWeight) || silverEditItem.metalWeightG,
+                  silverRatePerGram: parseFloat(editRate) || undefined,
+                  isCustomPrice: useManualPrice,
+                  customPrice: useManualPrice ? (parseFloat(editManualPrice) || 0) : undefined,
+                });
+                setSilverEditItem(null);
+              }}>Apply</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

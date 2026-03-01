@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { FIRESTORE_PROJECT_ID, FIRESTORE_API_KEY, APP_URL } from '../_lib';
+import { FIRESTORE_PROJECT_ID, FIRESTORE_API_KEY } from '../_lib';
 
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY!;
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET!;
@@ -22,11 +22,15 @@ export async function GET(request: NextRequest) {
   const stateCookie = request.cookies.get('shopify_oauth_state')?.value;
   const state = searchParams.get('state');
 
+  const host = request.headers.get('host') || '';
+  const isLocalhost = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+  const appUrl = isLocalhost ? `http://${host}` : `https://${host}`;
+
   if (!state || state !== stateCookie) {
-    return NextResponse.redirect(`${APP_URL}/settings?shopify=error&reason=state`);
+    return NextResponse.redirect(`${appUrl}/settings?shopify=error&reason=state`);
   }
   if (!validateHmac(searchParams, SHOPIFY_API_SECRET)) {
-    return NextResponse.redirect(`${APP_URL}/settings?shopify=error&reason=hmac`);
+    return NextResponse.redirect(`${appUrl}/settings?shopify=error&reason=hmac`);
   }
 
   const shop = searchParams.get('shop')!;
@@ -42,7 +46,7 @@ export async function GET(request: NextRequest) {
   const accessToken = tokenData.access_token;
 
   if (!accessToken) {
-    return NextResponse.redirect(`${APP_URL}/settings?shopify=error&reason=token`);
+    return NextResponse.redirect(`${appUrl}/settings?shopify=error&reason=token`);
   }
 
   // Save token + domain to Firestore
@@ -64,13 +68,13 @@ export async function GET(request: NextRequest) {
   });
 
   // Auto-register webhooks for real-time sync
-  await fetch(`${APP_URL}/api/shopify/register-webhooks`, {
+  await fetch(`${appUrl}/api/shopify/register-webhooks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ shop, token: accessToken }),
   });
 
-  const response = NextResponse.redirect(`${APP_URL}/settings?shopify=connected`);
+  const response = NextResponse.redirect(`${appUrl}/settings?shopify=connected`);
   response.cookies.delete('shopify_oauth_state');
   return response;
 }

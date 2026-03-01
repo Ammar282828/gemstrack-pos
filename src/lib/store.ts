@@ -1477,7 +1477,7 @@ export const useAppStore = create<AppState>()(
                           diamondCharges: item.diamondChargesIfAny, stoneCharges: item.stoneChargesIfAny,
                           miscCharges: item.miscChargesIfAny, stoneDetails: item.stoneDetails, diamondDetails: item.diamondDetails
                       };
-                      batch.set(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, item.sku), productData);
+                      batch.set(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, item.sku), cleanObject(productData));
                       batch.delete(soldProductRef);
                   }
               }

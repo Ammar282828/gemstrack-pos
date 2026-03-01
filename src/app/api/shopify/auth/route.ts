@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY!;
-const APP_URL = 'https://studio--hom-pos-52710474-ceeea.us-central1.hosted.app';
-const REDIRECT_URI = `${APP_URL}/api/shopify/callback`;
 const SCOPES = 'read_orders,read_customers,read_products';
 
 export async function GET(request: NextRequest) {
@@ -13,15 +11,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid or missing shop parameter' }, { status: 400 });
   }
 
+  if (!SHOPIFY_API_KEY) {
+    return NextResponse.json({ error: 'SHOPIFY_API_KEY is not configured' }, { status: 500 });
+  }
+
+  const host = request.headers.get('host') || '';
+  const isLocalhost = host.startsWith('localhost') || host.startsWith('127.0.0.1');
+  const appUrl = isLocalhost ? `http://${host}` : `https://${host}`;
+  const redirectUri = `${appUrl}/api/shopify/callback`;
+
   const state = crypto.randomBytes(16).toString('hex');
   const authUrl =
     `https://${shop}/admin/oauth/authorize` +
     `?client_id=${SHOPIFY_API_KEY}` +
     `&scope=${SCOPES}` +
-    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&state=${state}`;
 
   const response = NextResponse.redirect(authUrl);
-  response.cookies.set('shopify_oauth_state', state, { httpOnly: true, secure: true, maxAge: 3600, path: '/' });
+  response.cookies.set('shopify_oauth_state', state, { httpOnly: true, secure: !isLocalhost, maxAge: 3600, path: '/' });
   return response;
 }

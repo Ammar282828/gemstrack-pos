@@ -1,24 +1,19 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAppStore, Product } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Loader2, FileSpreadsheet, History, Download, ArrowLeft, Trash2, PlusCircle, MinusCircle, Move, RotateCw, ZoomIn } from 'lucide-react';
+import { Search, Loader2, FileSpreadsheet, Download, ArrowLeft, Trash2, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateProductCsv } from '@/lib/csv';
-import { format } from 'date-fns';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
 import { produce } from 'immer';
 import { QrCode } from 'lucide-react';
 
@@ -43,9 +38,6 @@ interface LabelLayout {
   fields: LabelField[];
 }
 
-const ItemTypes = {
-  FIELD: 'field',
-};
 
 // --- Default Layout ---
 const defaultLayout: LabelLayout = {
@@ -139,37 +131,19 @@ const ProductSearch: React.FC<{ onSelect: (product: Product) => void, selectedPr
 };
 
 
-const DraggableField: React.FC<{
-  field: LabelField;
-  scale: number;
-  onMove: (id: string, x: number, y: number) => void;
-}> = ({ field, scale, onMove }) => {
-  const ref = useRef<HTMLDivElement>(null);
-
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: ItemTypes.FIELD,
-    item: { id: field.id, x: field.x, y: field.y },
-    collect: (monitor) => ({
-      isDragging: !!monitor.isDragging(),
-    }),
-  }), [field.id, field.x, field.y]);
-
-  drag(ref);
-
+const FieldPreview: React.FC<{ field: LabelField; scale: number }> = ({ field, scale }) => {
   const style: React.CSSProperties = {
     left: `${field.x * scale}px`,
     top: `${field.y * scale}px`,
     transform: `rotate(${field.rotation || 0}deg)`,
     transformOrigin: 'top left',
-    opacity: isDragging ? 0.5 : 1,
     position: 'absolute',
-    cursor: 'move',
     whiteSpace: 'nowrap',
     fontSize: `${(field.fontSize || 20) * scale}px`,
   };
 
   return (
-    <div ref={ref} style={style}>
+    <div style={style}>
       {field.type === 'text' ? (
         <span className="border border-dashed border-blue-500 p-1">{field.data}</span>
       ) : (
@@ -232,34 +206,13 @@ const DumbbellTagOutline: React.FC = () => {
 const TagPreview: React.FC<{
   layout: LabelLayout;
   scale: number;
-  onMove: (id: string, x: number, y: number) => void;
-}> = ({ layout, scale, onMove }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [{ canDrop, isOver }, drop] = useDrop(() => ({
-    accept: ItemTypes.FIELD,
-    drop(item: { id: string; x: number, y: number }, monitor) {
-      const delta = monitor.getDifferenceFromInitialOffset();
-      if (delta) {
-        const left = Math.round(item.x + delta.x / scale);
-        const top = Math.round(item.y + delta.y / scale);
-        onMove(item.id, left, top);
-      }
-      return undefined;
-    },
-    collect: (monitor) => ({
-      isOver: monitor.isOver(),
-      canDrop: monitor.canDrop(),
-    }),
-  }), [onMove, scale]);
-
-  drop(ref);
-
+}> = ({ layout, scale }) => {
   return (
     <div className="w-full relative bg-card border rounded-md overflow-hidden" style={{ aspectRatio: `${layout.widthDots} / ${layout.heightDots}` }}>
-      <div ref={ref} className="relative w-full h-full">
-         <DumbbellTagOutline />
+      <div className="relative w-full h-full">
+        <DumbbellTagOutline />
         {layout.fields.map(field => (
-          <DraggableField key={field.id} field={field} scale={scale} onMove={onMove} />
+          <FieldPreview key={field.id} field={field} scale={scale} />
         ))}
       </div>
     </div>
@@ -267,77 +220,71 @@ const TagPreview: React.FC<{
 };
 
 
-const TagEditor: React.FC<{ layout: LabelLayout; setLayout: (layout: LabelLayout) => void; }> = ({ layout, setLayout }) => {
-  const { control, register, watch, reset } = useForm({
-    defaultValues: layout,
-  });
+const TagEditor: React.FC<{ layout: LabelLayout; setLayout: React.Dispatch<React.SetStateAction<LabelLayout>>; }> = ({ layout, setLayout }) => {
+  const handleFieldChange = useCallback((index: number, key: keyof LabelField, value: unknown) => {
+    setLayout(
+      produce(draft => {
+        (draft.fields[index] as Record<string, unknown>)[key] = value;
+      })
+    );
+  }, [setLayout]);
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: 'fields',
-  });
+  const addField = useCallback(() => {
+    setLayout(
+      produce(draft => {
+        draft.fields.push({ id: `field-${Date.now()}`, type: 'text', x: 10, y: 10, data: 'New Text', fontSize: 20 });
+      })
+    );
+  }, [setLayout]);
 
-  // Watch for changes and update the parent state
-  useEffect(() => {
-    const subscription = watch((value) => {
-        // We cast because watch returns DeepPartial, but we know it's the full form
-        setLayout(value as LabelLayout);
-    });
-    return () => subscription.unsubscribe();
-  }, [watch, setLayout]);
-
-  // Reset the form if the layout prop changes from the outside (e.g., from drag-and-drop)
-  useEffect(() => {
-    reset(layout);
-  }, [layout, reset]);
+  const removeField = useCallback((index: number) => {
+    setLayout(
+      produce(draft => {
+        draft.fields.splice(index, 1);
+      })
+    );
+  }, [setLayout]);
 
   return (
     <div className="space-y-4">
-      {fields.map((item, index) => (
-        <Card key={item.id} className="p-4">
+      {layout.fields.map((field, index) => (
+        <Card key={field.id} className="p-4">
           <div className="flex justify-between items-center mb-2">
-            <h4 className="font-semibold">{watch(`fields.${index}.id`)}</h4>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => remove(index)}>
+            <h4 className="font-semibold">{field.id}</h4>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeField(index)}>
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input type="hidden" {...register(`fields.${index}.id`)} />
             <div className="space-y-1">
               <Label>X</Label>
-              <Input type="number" {...register(`fields.${index}.x`, { valueAsNumber: true })} />
+              <Input type="number" value={field.x} onChange={(e) => handleFieldChange(index, 'x', parseInt(e.target.value, 10) || 0)} />
             </div>
             <div className="space-y-1">
               <Label>Y</Label>
-              <Input type="number" {...register(`fields.${index}.y`, { valueAsNumber: true })} />
+              <Input type="number" value={field.y} onChange={(e) => handleFieldChange(index, 'y', parseInt(e.target.value, 10) || 0)} />
             </div>
-             <div className="space-y-1">
+            <div className="space-y-1">
               <Label>Data</Label>
-              <Input {...register(`fields.${index}.data`)} />
+              <Input value={field.data} onChange={(e) => handleFieldChange(index, 'data', e.target.value)} />
             </div>
             <div className="space-y-1">
               <Label>Font Size</Label>
-              <Input type="number" {...register(`fields.${index}.fontSize`, { valueAsNumber: true })} />
+              <Input type="number" value={field.fontSize ?? 20} onChange={(e) => handleFieldChange(index, 'fontSize', parseInt(e.target.value, 10) || 20)} />
             </div>
-             <div className="space-y-1">
+            <div className="space-y-1">
               <Label>Rotation</Label>
-                <Controller
-                    control={control}
-                    name={`fields.${index}.rotation`}
-                    render={({ field }) => (
-                         <select {...field} value={field.value || 0} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} className="w-full h-10 border rounded-md px-2 bg-background">
-                            <option value={0}>0°</option>
-                            <option value={90}>90°</option>
-                            <option value={180}>180°</option>
-                            <option value={270}>270°</option>
-                        </select>
-                    )}
-                />
+              <select value={field.rotation ?? 0} onChange={(e) => handleFieldChange(index, 'rotation', parseInt(e.target.value, 10))} className="w-full h-10 border rounded-md px-2 bg-background">
+                <option value={0}>0°</option>
+                <option value={90}>90°</option>
+                <option value={180}>180°</option>
+                <option value={270}>270°</option>
+              </select>
             </div>
           </div>
         </Card>
       ))}
-      <Button variant="outline" onClick={() => append({ id: `new-field-${Date.now()}`, type: 'text', x: 10, y: 10, data: 'New Text', fontSize: 20 })}>
+      <Button variant="outline" onClick={addField}>
         <PlusCircle className="mr-2 h-4 w-4" /> Add Text Field
       </Button>
     </div>
@@ -347,7 +294,7 @@ const TagEditor: React.FC<{ layout: LabelLayout; setLayout: (layout: LabelLayout
 
 function PrinterPageComponent() {
   const appReady = useAppReady();
-  const { loadProducts, products, settings, addPrintHistory, printHistory } = useAppStore();
+  const { loadProducts, settings, addPrintHistory } = useAppStore();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -372,18 +319,6 @@ function PrinterPageComponent() {
     return () => window.removeEventListener('resize', updateScale);
   }, [layout.widthDots]);
 
-  const handleMoveField = (id: string, x: number, y: number) => {
-    setLayout(
-      produce(draft => {
-        const field = draft.fields.find(f => f.id === id);
-        if (field) {
-          field.x = x;
-          field.y = y;
-        }
-      })
-    );
-  };
-  
   const handleDownloadCsv = (product: Product | null) => {
     if (!product) {
         toast({ title: "No Product Selected", description: "Please select a product to export.", variant: "destructive" });
@@ -404,8 +339,7 @@ function PrinterPageComponent() {
   }
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <div className="container mx-auto py-4 sm:py-8 space-y-8">
+    <div className="container mx-auto py-4 sm:py-8 space-y-8">
         <header>
            <Button variant="outline" onClick={() => router.back()} className="mb-4">
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Settings
@@ -422,7 +356,7 @@ function PrinterPageComponent() {
                 <CardDescription>Drag and drop fields to position them on the tag.</CardDescription>
               </CardHeader>
               <CardContent ref={previewContainerRef}>
-                <TagPreview layout={layout} scale={previewScale} onMove={handleMoveField} />
+                <TagPreview layout={layout} scale={previewScale} />
               </CardContent>
             </Card>
           </div>
@@ -460,7 +394,6 @@ function PrinterPageComponent() {
           </div>
         </div>
       </div>
-    </DndProvider>
   );
 }
 
