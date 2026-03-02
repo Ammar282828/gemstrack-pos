@@ -21,7 +21,6 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '../ui/separator';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
@@ -306,9 +305,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               </CardDescription>
             </CardHeader>
           }
-           <div className={cn(!isDialogMode && 'p-6 pt-0')}>
-             <ScrollArea className={cn(isDialogMode && 'h-[70vh] p-4')}>
-                <div className="space-y-6">
+           <div className={cn(!isDialogMode && 'p-6 pt-0', isDialogMode && 'p-4')}>
+             <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control} name="categoryId"
@@ -550,7 +548,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       <FormMessage />
                   </FormItem>
                 </div>
-            </ScrollArea>
           </div>
           {!isDialogMode &&
             <CardFooter className="flex flex-col sm:flex-row justify-end gap-2">
