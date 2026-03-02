@@ -110,6 +110,9 @@ export default function CartPage() {
   });
   
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
+  const [exchangeDescription, setExchangeDescription] = useState('');
+  const [exchangeAmount1Input, setExchangeAmount1Input] = useState<string>('');
+  const [exchangeAmount2Input, setExchangeAmount2Input] = useState<string>('');
   
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
@@ -259,14 +262,16 @@ export default function CartPage() {
     });
 
     const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
-    const grandTotal = currentSubtotal - parsedDiscountAmount;
+    const parsedExchange1 = parseFloat(exchangeAmount1Input) || 0;
+    const parsedExchange2 = parseFloat(exchangeAmount2Input) || 0;
+    const grandTotal = currentSubtotal - parsedDiscountAmount - parsedExchange1 - parsedExchange2;
 
     return {
         subtotal: currentSubtotal,
         grandTotal: grandTotal,
         items: estimatedItems,
     };
-  }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, cartMetalInfo]);
+  }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, exchangeAmount1Input, exchangeAmount2Input, cartMetalInfo]);
 
 
   const handleGenerateInvoice = async () => {
@@ -337,7 +342,11 @@ export default function CartPage() {
         await deleteInvoice(generatedInvoice.id, true); // Soft delete
     }
 
-    const invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount);
+    const exchangeInfo = (exchangeDescription.trim() || parseFloat(exchangeAmount1Input) || parseFloat(exchangeAmount2Input))
+        ? { description: exchangeDescription.trim(), amount1: parseFloat(exchangeAmount1Input) || 0, amount2: parseFloat(exchangeAmount2Input) || 0 }
+        : undefined;
+
+    const invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo);
     
     if (invoice) {
       setGeneratedInvoice(invoice);
@@ -643,6 +652,23 @@ export default function CartPage() {
         doc.text(`Discount:`, totalsX - 50, currentY, { align: 'right' });
         doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
         currentY += 6;
+    }
+
+    if (invoiceToPrint.exchangeAmount1 || invoiceToPrint.exchangeAmount2) {
+        doc.setFont("helvetica", "bold").setTextColor(30, 100, 180);
+        const exchLabel = invoiceToPrint.exchangeDescription ? `Exchange (${invoiceToPrint.exchangeDescription}):` : `Exchange:`;
+        doc.text(exchLabel, totalsX - 50, currentY, { align: 'right' });
+        currentY += 5;
+        if (invoiceToPrint.exchangeAmount1) {
+            doc.setFont("helvetica", "normal");
+            doc.text(`- PKR ${invoiceToPrint.exchangeAmount1.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+            currentY += 5;
+        }
+        if (invoiceToPrint.exchangeAmount2) {
+            doc.setFont("helvetica", "normal");
+            doc.text(`- PKR ${invoiceToPrint.exchangeAmount2.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+            currentY += 5;
+        }
     }
     
     doc.setFont("helvetica", "normal").setTextColor(0);
@@ -1006,6 +1032,14 @@ export default function CartPage() {
                         <div className="flex items-center justify-between">
                             <Label htmlFor="discount" className="flex items-center"><Percent className="mr-2 h-4 w-4"/>Discount</Label>
                             <Input id="discount" type="number" value={discountAmountInput} onChange={(e) => setDiscountAmountInput(e.target.value)} className="w-32 text-right" placeholder="0"/>
+                        </div>
+                        <div className="space-y-2 p-3 border rounded-md bg-muted/40">
+                            <Label className="text-sm font-medium">Exchange / Trade-in</Label>
+                            <Input placeholder="Description (e.g. Old 22k ring)" value={exchangeDescription} onChange={e => setExchangeDescription(e.target.value)} />
+                            <div className="grid grid-cols-2 gap-2">
+                                <Input type="number" placeholder="Amount 1 (PKR)" value={exchangeAmount1Input} onChange={e => setExchangeAmount1Input(e.target.value)} />
+                                <Input type="number" placeholder="Amount 2 (PKR)" value={exchangeAmount2Input} onChange={e => setExchangeAmount2Input(e.target.value)} />
+                            </div>
                         </div>
                         <Separator />
                         <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>

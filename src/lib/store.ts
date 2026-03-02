@@ -359,6 +359,9 @@ export interface Invoice {
   items: InvoiceItem[];
   subtotal: number;
   discountAmount: number;
+  exchangeDescription?: string;
+  exchangeAmount1?: number;
+  exchangeAmount2?: number;
   grandTotal: number;
   amountPaid: number;
   balanceDue: number;
@@ -694,7 +697,8 @@ export interface AppState {
   generateInvoice: (
     customerInfo: { id?: string; name: string; phone?: string },
     invoiceRates: Partial<Settings>,
-    discountAmount: number
+    discountAmount: number,
+    exchangeInfo?: { description: string; amount1: number; amount2: number }
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string) => Promise<Invoice | null>;
   deleteInvoice: (invoiceId: string, isEditing?: boolean) => Promise<void>;
@@ -1282,7 +1286,7 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      generateInvoice: async (customerInfo, invoiceRates, discountAmount) => {
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?) => {
         if(get().settings.databaseLocked) return null;
         const { cart } = get();
         if (cart.length === 0) return null;
@@ -1356,18 +1360,22 @@ export const useAppStore = create<AppState>()(
                 }
 
                 const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
-                const grandTotal = subtotal - calculatedDiscountAmount;
+                const exchangeTotal = (exchangeInfo?.amount1 || 0) + (exchangeInfo?.amount2 || 0);
+                const grandTotal = subtotal - calculatedDiscountAmount - exchangeTotal;
                 const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
                 const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
 
                 const newInvoiceData: Omit<Invoice, 'id'> = {
                     items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
                     amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
-                    ratesApplied: ratesForInvoice, 
+                    ratesApplied: ratesForInvoice,
                     paymentHistory: [],
                     customerName: finalCustomerName || 'Walk-in Customer',
                     customerId: finalCustomerId,
-                    customerContact: customerInfo.phone
+                    customerContact: customerInfo.phone,
+                    ...(exchangeInfo?.description && { exchangeDescription: exchangeInfo.description }),
+                    ...(exchangeInfo?.amount1 && { exchangeAmount1: exchangeInfo.amount1 }),
+                    ...(exchangeInfo?.amount2 && { exchangeAmount2: exchangeInfo.amount2 }),
                 };
                 
                 const cleanInvoiceData = cleanObject(newInvoiceData as Invoice);
