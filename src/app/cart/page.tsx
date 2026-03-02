@@ -69,11 +69,12 @@ export default function CartPage() {
   const preloadedInvoiceId = searchParams.get('invoice_id');
 
   const appReady = useAppReady();
-  const { cartItemsFromStore, customers, settings, allInvoices, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings, addToCart, loadCustomers, loadGeneratedInvoices } = useAppStore(state => ({
+  const { cartItemsFromStore, customers, settings, allInvoices, products, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings, addToCart, addProductToCart, loadCustomers, loadGeneratedInvoices, loadProducts } = useAppStore(state => ({
     cartItemsFromStore: state.cart,
     customers: state.customers,
     settings: state.settings,
     allInvoices: state.generatedInvoices,
+    products: state.products,
     removeFromCart: state.removeFromCart,
     clearCart: state.clearCart,
     generateInvoice: state.generateInvoice,
@@ -84,14 +85,17 @@ export default function CartPage() {
     updateCartItem: state.updateCartItem,
     updateSettings: state.updateSettings,
     addToCart: state.addToCart,
+    addProductToCart: state.addProductToCart,
     loadCustomers: state.loadCustomers,
     loadGeneratedInvoices: state.loadGeneratedInvoices,
+    loadProducts: state.loadProducts,
   }));
 
   useEffect(() => {
     if(appReady) {
       loadCustomers();
       loadGeneratedInvoices();
+      loadProducts();
     }
   }, [appReady, loadCustomers, loadGeneratedInvoices]);
 
@@ -113,6 +117,26 @@ export default function CartPage() {
   
   const [editingCartItem, setEditingCartItem] = useState<Product | undefined>(undefined);
   const [isNewProductDialogOpen, setIsNewProductDialogOpen] = useState(false);
+
+  const [skuInput, setSkuInput] = useState('');
+
+  const handleAddBySku = () => {
+    const sku = skuInput.trim().toUpperCase();
+    if (!sku) return;
+    const found = products.find(p => p.sku === sku);
+    if (!found) {
+      toast({ title: 'Product not found', description: `No product with SKU "${sku}"`, variant: 'destructive' });
+      return;
+    }
+    if (cartItemsFromStore.find(i => i.sku === sku)) {
+      toast({ title: 'Already in cart', description: `${found.name} is already in the cart.` });
+      setSkuInput('');
+      return;
+    }
+    addToCart(sku);
+    toast({ title: 'Added to cart', description: found.name });
+    setSkuInput('');
+  };
 
   // Silver item inline editor
   const [silverEditItem, setSilverEditItem] = useState<Product | null>(null);
@@ -492,7 +516,6 @@ export default function CartPage() {
     if (invoiceToPrint.customerId && invoiceToPrint.customerName) {
         const customer = customers.find(c => c.id === invoiceToPrint.customerId);
         customerInfo = `${invoiceToPrint.customerName}\n`;
-        if (customer?.address) customerInfo += `${customer.address}\n`;
         if (customer?.phone) customerInfo += `Phone: ${customer.phone}\n`;
         if (customer?.email) customerInfo += `Email: ${customer.email}`;
     }
@@ -531,7 +554,9 @@ export default function CartPage() {
         if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
 
-        const metalDisplay = `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: ${(item.metalWeightG || 0).toFixed(2)}g`;
+        const metalDisplay = item.isCustomPrice
+            ? `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}`
+            : `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: ${(item.metalWeightG || 0).toFixed(2)}g`;
         
         const mainTitle = `${item.name}`;
         const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;
@@ -847,10 +872,24 @@ export default function CartPage() {
                 Add some products to the cart from the Products page or by using the QR scanner to create an estimate.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <Link href="/scan" passHref>
                 <Button className="w-full" size="lg">Start Scanning</Button>
               </Link>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Or enter SKU directly..."
+                  value={skuInput}
+                  onChange={e => setSkuInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddBySku()}
+                />
+                <Button variant="secondary" onClick={handleAddBySku}>
+                  <PlusCircle className="h-4 w-4 mr-1"/> Add
+                </Button>
+                <Button variant="outline" onClick={() => setIsNewProductDialogOpen(true)}>
+                  New
+                </Button>
+              </div>
             </CardContent>
           </Card>
       ) : (
@@ -904,8 +943,22 @@ export default function CartPage() {
                             </Table>
                         </ScrollArea>
                     </CardContent>
-                    <CardFooter>
-                       <Button variant="outline" onClick={clearCart}>Clear All Items</Button>
+                    <CardFooter className="flex flex-col gap-3 items-stretch">
+                        <div className="flex gap-2">
+                            <Input
+                                placeholder="Enter SKU to add product..."
+                                value={skuInput}
+                                onChange={e => setSkuInput(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleAddBySku()}
+                            />
+                            <Button variant="secondary" onClick={handleAddBySku}>
+                                <PlusCircle className="h-4 w-4 mr-1"/> Add
+                            </Button>
+                            <Button variant="outline" onClick={() => setIsNewProductDialogOpen(true)}>
+                                New
+                            </Button>
+                        </div>
+                        <Button variant="outline" onClick={clearCart} className="w-full">Clear All Items</Button>
                     </CardFooter>
                 </Card>
             </div>
@@ -966,6 +1019,23 @@ export default function CartPage() {
             </div>
         </div>
       )}
+
+      {/* New Product Dialog */}
+      <Dialog open={isNewProductDialogOpen} onOpenChange={setIsNewProductDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Product</DialogTitle>
+            <DialogDescription>Create a new product and it will be added to inventory and your cart.</DialogDescription>
+          </DialogHeader>
+          <ProductForm
+            onProductCreated={(newProduct) => {
+              addProductToCart(newProduct);
+              setIsNewProductDialogOpen(false);
+              toast({ title: 'Added to cart', description: `${newProduct.name} (${newProduct.sku})` });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Silver Item Edit Dialog */}
       <Dialog open={!!silverEditItem} onOpenChange={(open) => { if (!open) setSilverEditItem(null); }}>

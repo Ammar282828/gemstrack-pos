@@ -342,6 +342,7 @@ export interface InvoiceItem {
   miscChargesIfAny: number;
   stoneDetails?: string;
   diamondDetails?: string;
+  isCustomPrice?: boolean;
 }
 
 export interface Payment {
@@ -682,6 +683,7 @@ export interface AppState {
   deleteKarigar: (id: string) => Promise<void>;
 
   addToCart: (sku: string) => void;
+  addProductToCart: (product: Product) => void;
   removeFromCart: (sku: string) => void;
   updateCartItem: (sku: string, updatedProductData: Partial<Product>) => void;
   clearCart: () => void;
@@ -1239,6 +1241,12 @@ export const useAppStore = create<AppState>()(
             }
           }
       }),
+      addProductToCart: (product) => set((state) => {
+          const existingItem = state.cart.find((item) => item.sku === product.sku);
+          if (!existingItem) {
+              state.cart.push({ ...product, quantity: 1 });
+          }
+      }),
       removeFromCart: (sku) => set((state) => { state.cart = state.cart.filter((item) => item.sku !== sku); }),
       updateCartItem: (sku, updatedProductData) => set(state => {
         const cartIndex = state.cart.findIndex(item => item.sku === sku);
@@ -1339,6 +1347,7 @@ export const useAppStore = create<AppState>()(
                     if (cartItem.karat) itemToAdd.karat = cartItem.karat;
                     if (cartItem.stoneDetails) itemToAdd.stoneDetails = cartItem.stoneDetails;
                     if (cartItem.diamondDetails) itemToAdd.diamondDetails = cartItem.diamondDetails;
+                    if (cartItem.isCustomPrice) itemToAdd.isCustomPrice = true;
 
                     invoiceItems.push(cleanObject(itemToAdd as InvoiceItem));
 
