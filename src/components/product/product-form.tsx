@@ -33,7 +33,7 @@ const productFormSchema = z.object({
   // Primary Metal
   metalType: z.enum(metalTypeValues, { required_error: "Metal type is required" }),
   karat: z.enum(karatValues).optional(),
-  metalWeightG: z.coerce.number().min(0.001, "Metal weight must be a positive number"),
+  metalWeightG: z.coerce.number().min(0),
   silverRatePerGram: z.coerce.number().min(0).optional(),
   // Secondary Metal (optional)
   secondaryMetalType: z.string().optional(),
@@ -66,19 +66,24 @@ const productFormSchema = z.object({
     }
   }
 
-  if (data.metalType === 'gold' && !data.karat) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Karat is required for gold items.", path: ["karat"] });
+  if (!data.isCustomPrice && (!data.metalWeightG || data.metalWeightG < 0.001)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Metal weight must be a positive number", path: ["metalWeightG"] });
   }
-  if (data.secondaryMetalType === 'gold' && !data.secondaryMetalKarat) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Karat is required for secondary gold metal.", path: ["secondaryMetalKarat"] });
-  }
-  if (data.secondaryMetalType && (!data.secondaryMetalWeightG || data.secondaryMetalWeightG <= 0)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A positive weight is required for secondary metal.", path: ["secondaryMetalWeightG"] });
-  }
-  
-  const totalMetalWeight = (data.metalWeightG || 0) + (data.secondaryMetalWeightG || 0);
-  if (data.stoneWeightG > totalMetalWeight) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Stone weight cannot be greater than the total metal weight.", path: ["stoneWeightG"] });
+
+  if (!data.isCustomPrice) {
+    if (data.metalType === 'gold' && !data.karat) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Karat is required for gold items.", path: ["karat"] });
+    }
+    if (data.secondaryMetalType === 'gold' && !data.secondaryMetalKarat) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Karat is required for secondary gold metal.", path: ["secondaryMetalKarat"] });
+    }
+    if (data.secondaryMetalType && (!data.secondaryMetalWeightG || data.secondaryMetalWeightG <= 0)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A positive weight is required for secondary metal.", path: ["secondaryMetalWeightG"] });
+    }
+    const totalMetalWeight = (data.metalWeightG || 0) + (data.secondaryMetalWeightG || 0);
+    if (data.stoneWeightG > totalMetalWeight) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Stone weight cannot be greater than the total metal weight.", path: ["stoneWeightG"] });
+    }
   }
 });
 
