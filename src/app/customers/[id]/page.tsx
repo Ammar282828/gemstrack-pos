@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, Brain, AlertTriangle, Loader2, BookUser, ClipboardList, FileText } from 'lucide-react';
+import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, BookUser, ClipboardList, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -25,7 +25,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { analyzeCustomerTrends, AnalyzeCustomerTrendsOutput, AnalyzeCustomerTrendsInput } from '@/ai/flows/analyze-customer-trends-flow';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -68,9 +67,6 @@ export default function CustomerDetailPage() {
 
   const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
-  const [customerTrends, setCustomerTrends] = useState<AnalyzeCustomerTrendsOutput | null>(null);
-  const [isLoadingTrends, setIsLoadingTrends] = useState(false);
-  const [trendsError, setTrendsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isHydrated) {
@@ -94,50 +90,6 @@ export default function CustomerDetailPage() {
     }
   }, [isHydrated, customerId, allInvoices, allOrders]);
 
-  useEffect(() => {
-    const fetchTrends = async () => {
-      if (isHydrated && customer && customerInvoices.length > 0) {
-        setIsLoadingTrends(true);
-        setTrendsError(null);
-        try {
-          const flowInvoices = customerInvoices.map(inv => ({
-            id: inv.id,
-            createdAt: inv.createdAt,
-            grandTotal: inv.grandTotal,
-            items: inv.items.map(item => ({
-              sku: item.sku,
-              name: item.name,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              itemTotal: item.itemTotal,
-            })),
-          }));
-
-          const input: AnalyzeCustomerTrendsInput = {
-            customerId: customer.id,
-            customerName: customer.name,
-            invoices: flowInvoices,
-          };
-          const trends = await analyzeCustomerTrends(input);
-          setCustomerTrends(trends);
-        } catch (error) {
-          console.error("Error fetching customer trends:", error);
-          setTrendsError("Failed to analyze customer trends. Please try again later.");
-          toast({
-            title: "AI Analysis Failed",
-            description: "Could not retrieve customer purchasing trends.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsLoadingTrends(false);
-        }
-      } else if (customer && customerInvoices.length === 0) {
-        setCustomerTrends(null);
-      }
-    };
-
-    fetchTrends();
-  }, [isHydrated, customer, customerInvoices, toast]);
 
 
   const handleDeleteCustomer = () => {
@@ -209,43 +161,6 @@ export default function CustomerDetailPage() {
             </CardFooter>
           </Card>
 
-           <Card>
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center">
-                <Brain className="mr-2 h-5 w-5 text-primary" /> AI Customer Insights
-              </CardTitle>
-              <CardDescription>Purchasing trends and preferences for {customer.name}.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingTrends && (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
-                  <p className="text-muted-foreground">Analyzing trends...</p>
-                </div>
-              )}
-              {trendsError && !isLoadingTrends && (
-                <div className="flex items-center text-destructive py-4">
-                  <AlertTriangle className="mr-2 h-5 w-5" />
-                  <p>{trendsError}</p>
-                </div>
-              )}
-              {!isLoadingTrends && !trendsError && customerTrends && (
-                <div className="space-y-3 text-sm">
-                  <div><strong className="text-foreground">Summary:</strong> {customerTrends.summary}</div>
-                  <div><strong className="text-foreground">Preferred Categories:</strong> {customerTrends.preferredCategories.join(', ') || 'N/A'}</div>
-                  <div><strong className="text-foreground">Purchase Frequency:</strong> {customerTrends.purchaseFrequency || 'N/A'}</div>
-                  <div><strong className="text-foreground">Average Spend:</strong> PKR {customerTrends.averageTransactionValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                  <div><strong className="text-foreground">Next Purchase Suggestion:</strong> {customerTrends.potentialNextPurchase || 'N/A'}</div>
-                </div>
-              )}
-              {!isLoadingTrends && !trendsError && !customerTrends && customerInvoices.length === 0 && (
-                <p className="text-muted-foreground text-center py-4">No transaction history available to analyze trends.</p>
-              )}
-               {!isLoadingTrends && !trendsError && !customerTrends && customerInvoices.length > 0 && (
-                 <p className="text-muted-foreground text-center py-4">AI insights will appear here once generated.</p>
-               )}
-            </CardContent>
-          </Card>
         </div>
 
         <div className="lg:col-span-2 space-y-6">

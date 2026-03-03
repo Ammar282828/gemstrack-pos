@@ -5,7 +5,6 @@ import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc } from 'firebase/firestore';
 import { db, firebaseConfig } from '@/lib/firebase';
-import { summarizeOrderItems, SummarizeOrderItemsInput } from '@/ai/flows/summarize-order-items-flow';
 
 
 // --- Firestore Collection Names ---
@@ -1569,15 +1568,12 @@ export const useAppStore = create<AppState>()(
         const finalSubtotal = Number(orderData.subtotal) || 0;
         const finalGrandTotal = Number(orderData.grandTotal) || 0;
 
-        // Pre-transaction: AI summary (async, cannot run inside a Firestore transaction)
-        const summaryInput: SummarizeOrderItemsInput = {
-            items: orderData.items.map(item => ({
-                description: item.description,
-                karat: item.karat,
-                estimatedWeightG: item.estimatedWeightG,
-            })),
+        // Generate a simple summary from item descriptions
+        const summaryResult = {
+            summary: orderData.items.length === 1
+                ? (orderData.items[0].description || 'Custom order')
+                : orderData.items.map(i => i.description).filter(Boolean).join(', ') || 'Custom order',
         };
-        const summaryResult = await summarizeOrderItems(summaryInput);
 
         const ratesApplied = {
             goldRatePerGram18k: settings.goldRatePerGram18k,
