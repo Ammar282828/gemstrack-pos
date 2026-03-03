@@ -117,6 +117,7 @@ export default function CartPage() {
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [isEditingEstimate, setIsEditingEstimate] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | undefined>(undefined);
   
   const [editingCartItem, setEditingCartItem] = useState<Product | undefined>(undefined);
   const [isNewProductDialogOpen, setIsNewProductDialogOpen] = useState(false);
@@ -338,23 +339,23 @@ export default function CartPage() {
         ? { name: finalWalkInName, phone: walkInCustomerPhone }
         : { id: selectedCustomerId, name: customers.find(c => c.id === selectedCustomerId)?.name || '', phone: customers.find(c => c.id === selectedCustomerId)?.phone || '' };
     
-    if(isEditingEstimate && generatedInvoice) {
-        await deleteInvoice(generatedInvoice.id, true); // Soft delete
+    if(isEditingEstimate && editingInvoiceId) {
+        await deleteInvoice(editingInvoiceId, true); // Soft delete to restore products
     }
 
     const exchangeInfo = (exchangeDescription.trim() || parseFloat(exchangeAmount1Input) || parseFloat(exchangeAmount2Input))
         ? { description: exchangeDescription.trim(), amount1: parseFloat(exchangeAmount1Input) || 0, amount2: parseFloat(exchangeAmount2Input) || 0 }
         : undefined;
 
-    const invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate && generatedInvoice ? generatedInvoice.id : undefined);
-    
+    const invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined);
+
     if (invoice) {
       setGeneratedInvoice(invoice);
-       // Pre-fill WhatsApp number if a customer with a phone number is selected
       if(invoice.customerContact) {
           phoneForm.setValue('phone', invoice.customerContact);
       }
       setIsEditingEstimate(false);
+      setEditingInvoiceId(undefined);
       toast({ title: "Estimate Generated", description: `Estimate ${invoice.id} created successfully.` });
     } else {
       toast({ title: "Estimate Generation Failed", description: "Could not generate the estimate. Please check inputs and logs.", variant: "destructive" });
@@ -382,6 +383,10 @@ export default function CartPage() {
         silver: (generatedInvoice.ratesApplied.silverRatePerGram || settings.silverRatePerGram || 0).toFixed(2),
     });
     setDiscountAmountInput(String(generatedInvoice.discountAmount));
+    setExchangeDescription(generatedInvoice.exchangeDescription || '');
+    setExchangeAmount1Input(generatedInvoice.exchangeAmount1 ? String(generatedInvoice.exchangeAmount1) : '');
+    setExchangeAmount2Input(generatedInvoice.exchangeAmount2 ? String(generatedInvoice.exchangeAmount2) : '');
+    setEditingInvoiceId(generatedInvoice.id);
     setGeneratedInvoice(null);
   };
   

@@ -1303,10 +1303,24 @@ export const useAppStore = create<AppState>()(
                 // --- READS FIRST ---
                 const productDocsPromises = cart.map(cartItem => transaction.get(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku)));
                 await Promise.all(productDocsPromises);
-                
+
                 let customerDoc = null;
                 if (customerInfo.id) {
                     customerDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerInfo.id));
+                }
+
+                // Read existing invoice to preserve payment history and creation date
+                let existingAmountPaid = 0;
+                let existingPaymentHistory: Payment[] = [];
+                let existingCreatedAt: string | undefined;
+                if (existingInvoiceId) {
+                    const existingInvoiceDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, existingInvoiceId));
+                    if (existingInvoiceDoc.exists()) {
+                        const existingData = existingInvoiceDoc.data() as Omit<Invoice, 'id'>;
+                        existingAmountPaid = existingData.amountPaid || 0;
+                        existingPaymentHistory = existingData.paymentHistory || [];
+                        existingCreatedAt = existingData.createdAt;
+                    }
                 }
                 
                 // --- WRITES SECOND ---
@@ -1376,9 +1390,11 @@ export const useAppStore = create<AppState>()(
 
                 const newInvoiceData: Omit<Invoice, 'id'> = {
                     items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
-                    amountPaid: 0, balanceDue: grandTotal, createdAt: new Date().toISOString(),
+                    amountPaid: existingAmountPaid,
+                    balanceDue: grandTotal - existingAmountPaid,
+                    createdAt: existingCreatedAt || new Date().toISOString(),
                     ratesApplied: ratesForInvoice,
-                    paymentHistory: [],
+                    paymentHistory: existingPaymentHistory,
                     customerName: finalCustomerName || 'Walk-in Customer',
                     customerId: finalCustomerId,
                     customerContact: customerInfo.phone,
