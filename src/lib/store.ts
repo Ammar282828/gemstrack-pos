@@ -698,7 +698,8 @@ export interface AppState {
     customerInfo: { id?: string; name: string; phone?: string },
     invoiceRates: Partial<Settings>,
     discountAmount: number,
-    exchangeInfo?: { description: string; amount1: number; amount2: number }
+    exchangeInfo?: { description: string; amount1: number; amount2: number },
+    existingInvoiceId?: string
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string) => Promise<Invoice | null>;
   deleteInvoice: (invoiceId: string, isEditing?: boolean) => Promise<void>;
@@ -1286,7 +1287,7 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?) => {
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?) => {
         if(get().settings.databaseLocked) return null;
         const { cart } = get();
         if (cart.length === 0) return null;
@@ -1362,8 +1363,16 @@ export const useAppStore = create<AppState>()(
                 const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
                 const exchangeTotal = (exchangeInfo?.amount1 || 0) + (exchangeInfo?.amount2 || 0);
                 const grandTotal = subtotal - calculatedDiscountAmount - exchangeTotal;
-                const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
-                const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
+
+                // Reuse existing ID when editing so the invoice number is never consumed twice
+                let invoiceId: string;
+                if (existingInvoiceId) {
+                    invoiceId = existingInvoiceId;
+                } else {
+                    const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
+                    invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
+                    transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
+                }
 
                 const newInvoiceData: Omit<Invoice, 'id'> = {
                     items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
@@ -1377,11 +1386,10 @@ export const useAppStore = create<AppState>()(
                     ...(exchangeInfo?.amount1 && { exchangeAmount1: exchangeInfo.amount1 }),
                     ...(exchangeInfo?.amount2 && { exchangeAmount2: exchangeInfo.amount2 }),
                 };
-                
+
                 const cleanInvoiceData = cleanObject(newInvoiceData as Invoice);
-                
+
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), cleanInvoiceData);
-                transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
 
                 const hisaabEntry: Omit<HisaabEntry, 'id'> = {
                     entityId: finalCustomerId || 'walk-in',

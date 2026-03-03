@@ -346,7 +346,7 @@ export default function CartPage() {
         ? { description: exchangeDescription.trim(), amount1: parseFloat(exchangeAmount1Input) || 0, amount2: parseFloat(exchangeAmount2Input) || 0 }
         : undefined;
 
-    const invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo);
+    const invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate && generatedInvoice ? generatedInvoice.id : undefined);
     
     if (invoice) {
       setGeneratedInvoice(invoice);
