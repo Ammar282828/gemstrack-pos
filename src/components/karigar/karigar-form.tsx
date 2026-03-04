@@ -14,6 +14,9 @@ import { useAppStore, Karigar } from '@/lib/store';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, User, Phone, StickyNote } from 'lucide-react';
+import PhoneInput from 'react-phone-number-input/react-hook-form-input';
+import 'react-phone-number-input/style.css';
+import { normalizePhoneNumber } from '@/lib/utils';
 
 const karigarSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -40,7 +43,7 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
     resolver: zodResolver(karigarSchema),
     defaultValues: karigar ? {
       name: karigar.name,
-      contact: karigar.contact || "",
+      contact: normalizePhoneNumber(karigar.contact) || "",
       notes: karigar.notes || "",
     } : {
       name: '',
@@ -114,12 +117,18 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-base">Contact Information (Optional)</FormLabel>
-                  <div className="flex items-center">
-                        <Phone className="h-5 w-5 mr-2 text-muted-foreground" />
-                        <FormControl>
-                            <Input type="text" placeholder="e.g., 0300-1234567" {...field} />
-                        </FormControl>
-                    </div>
+                  <FormControl>
+                    <PhoneInput
+                      name={field.name}
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                      international
+                      defaultCountry="PK"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

@@ -17,7 +17,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input/react-hook-form-input';
-import 'react-phone-number-input/style.css'
+import 'react-phone-number-input/style.css';
+import { normalizePhoneNumber } from '@/lib/utils';
 
 const customerSchema = z.object({
   name: z.string().optional(),
@@ -45,7 +46,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
     resolver: zodResolver(customerSchema),
     defaultValues: customer ? {
       name: customer.name || '',
-      phone: customer.phone || "",
+      phone: normalizePhoneNumber(customer.phone) || "",
       email: customer.email || "",
       address: customer.address || "",
     } : {
@@ -125,7 +126,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
                             onBlur={field.onBlur}
                             ref={field.ref}
                             international
-                            country="PK"
+                            defaultCountry="PK"
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                         />
                     </FormControl>

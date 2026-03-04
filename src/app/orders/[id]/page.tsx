@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -326,7 +326,7 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     if(order?.customerContact) {
-      phoneForm.setValue('phone', order.customerContact);
+      phoneForm.setValue('phone', normalizePhoneNumber(order.customerContact));
     }
   }, [order, phoneForm]);
 

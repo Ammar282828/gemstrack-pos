@@ -35,7 +35,7 @@ import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -176,7 +176,7 @@ export default function EntityHisaabPage() {
 
   React.useEffect(() => {
     if (entity && entityType === 'customer' && (entity as Customer).phone) {
-        phoneForm.setValue('phone', (entity as Customer).phone || '');
+        phoneForm.setValue('phone', normalizePhoneNumber((entity as Customer).phone));
     }
   }, [entity, entityType, phoneForm]);
 
@@ -406,6 +406,7 @@ export default function EntityHisaabPage() {
                                 name="phone"
                                 control={phoneForm.control as unknown as Control}
                                 international
+                                defaultCountry="PK"
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                             />
                         </div>

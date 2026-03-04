@@ -23,7 +23,9 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import PhoneInput from 'react-phone-number-input/react-hook-form-input';
-import 'react-phone-number-input/style.css'
+import StandalonePhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
+import { normalizePhoneNumber } from '@/lib/utils';
 import { Control, useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
 import { ProductForm } from '@/components/product/product-form';
@@ -353,7 +355,7 @@ export default function CartPage() {
     if (invoice) {
       setGeneratedInvoice(invoice);
       if(invoice.customerContact) {
-          phoneForm.setValue('phone', invoice.customerContact);
+          phoneForm.setValue('phone', normalizePhoneNumber(invoice.customerContact));
       }
       setIsEditingEstimate(false);
       setEditingInvoiceId(undefined);
@@ -1016,13 +1018,18 @@ export default function CartPage() {
                                 onSelect={({ name, customerId, phone }) => {
                                     setWalkInCustomerName(name);
                                     setSelectedCustomerId(customerId || WALK_IN_CUSTOMER_VALUE);
-                                    if (phone !== undefined) setWalkInCustomerPhone(phone);
+                                    if (phone !== undefined) setWalkInCustomerPhone(normalizePhoneNumber(phone));
                                 }}
                             />
                         </div>
                         <div>
                             <Label>Contact <span className="text-muted-foreground text-xs">(Optional)</span></Label>
-                            <Input value={walkInCustomerPhone} onChange={e => setWalkInCustomerPhone(e.target.value)} placeholder="e.g., 03001234567"/>
+                            <StandalonePhoneInput
+                                international
+                                defaultCountry="PK"
+                                value={walkInCustomerPhone || undefined}
+                                onChange={(val) => setWalkInCustomerPhone(val || '')}
+                            />
                         </div>
                         <Separator />
                         <div className="space-y-2">
