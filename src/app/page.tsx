@@ -1,77 +1,137 @@
 
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal, Order } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, ShoppingCart, Trash2, ExternalLink, QrCode, Loader2, Gem, Users, Briefcase, ClipboardList, TrendingUp, BookUser, Settings as SettingsIcon } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  PlusCircle, ShoppingCart, Trash2, ExternalLink, QrCode, Loader2, Gem, Users,
+  Briefcase, ClipboardList, TrendingUp, BookUser, Settings as SettingsIcon,
+  FileText, ArrowRight, TrendingDown, DollarSign, Clock, PackageSearch,
+} from 'lucide-react';
+import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
+import { cn } from '@/lib/utils';
 
-const CartSummaryItem: React.FC<{ item: NonNullable<ReturnType<typeof selectCartDetails>[0]>, removeFromCart: (sku: string) => void }> = ({ item, removeFromCart }) => {
-  return (
-    <div className="flex justify-between items-center py-2">
-      <div>
-        <p className="font-medium text-sm leading-tight">{item.name}</p>
-        <p className="text-xs text-muted-foreground">Qty: {item.quantity} &bull; Unit: PKR {item.totalPrice.toLocaleString()}</p>
-      </div>
-      <div className="flex items-center space-x-2">
-        <p className="font-semibold text-sm text-primary">PKR {item.lineItemTotal.toLocaleString()}</p>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-7 w-7 text-destructive hover:bg-destructive/10" 
-          onClick={() => removeFromCart(item.sku)}
-          aria-label={`Remove ${item.name} from cart`}
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </Button>
-      </div>
+// --- Cart item ---
+const CartSummaryItem: React.FC<{
+  item: NonNullable<ReturnType<typeof selectCartDetails>[0]>;
+  removeFromCart: (sku: string) => void;
+}> = ({ item, removeFromCart }) => (
+  <div className="flex justify-between items-center py-2">
+    <div>
+      <p className="font-medium text-sm leading-tight">{item.name}</p>
+      <p className="text-xs text-muted-foreground">Qty: {item.quantity} &bull; PKR {item.totalPrice.toLocaleString()}</p>
     </div>
+    <div className="flex items-center space-x-2">
+      <p className="font-semibold text-sm text-primary">PKR {item.lineItemTotal.toLocaleString()}</p>
+      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => removeFromCart(item.sku)}>
+        <Trash2 className="w-3.5 h-3.5" />
+      </Button>
+    </div>
+  </div>
+);
+
+// --- Stat card ---
+const StatCard: React.FC<{ title: string; value: string; sub?: string; icon: React.ReactNode; color?: string }> = ({ title, value, sub, icon, color = 'text-primary' }) => (
+  <Card>
+    <CardContent className="p-5 flex items-center gap-4">
+      <div className={cn("p-3 rounded-lg bg-primary/10", color === 'text-primary' ? 'bg-primary/10' : color === 'text-green-600' ? 'bg-green-500/10' : color === 'text-orange-500' ? 'bg-orange-500/10' : 'bg-primary/10')}>
+        <div className={color}>{icon}</div>
+      </div>
+      <div>
+        <p className="text-sm text-muted-foreground">{title}</p>
+        <p className="text-2xl font-bold">{value}</p>
+        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+      </div>
+    </CardContent>
+  </Card>
+);
+
+// --- Ongoing order row ---
+const OngoingOrderRow: React.FC<{ order: Order }> = ({ order }) => {
+  const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
+  const statusColor = order.status === 'Pending'
+    ? 'bg-yellow-500/80 text-yellow-50'
+    : 'bg-blue-500/80 text-blue-50';
+
+  return (
+    <Link href={`/orders/${order.id}`} className="flex items-center justify-between py-3 px-1 hover:bg-muted/40 rounded-md transition-colors group">
+      <div className="flex items-center gap-3 min-w-0">
+        <Badge className={cn("border-transparent flex-shrink-0", statusColor)}>{order.status}</Badge>
+        <div className="min-w-0">
+          <p className="font-semibold text-sm">{order.id}</p>
+          <p className="text-xs text-muted-foreground truncate">{order.customerName || 'Walk-in'}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="text-right">
+          <p className="text-sm font-semibold text-primary">PKR {grandTotal.toLocaleString()}</p>
+          <p className="text-xs text-muted-foreground">{format(parseISO(order.createdAt), 'MMM d')}</p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+      </div>
+    </Link>
   );
 };
 
-interface QuickLinkCardProps {
-    href: string;
-    icon: React.ReactNode;
-    title: string;
-    description: string;
-    className?: string;
-}
-
-const QuickLinkCard: React.FC<QuickLinkCardProps> = ({ href, icon, title, description, className }) => (
-    <Link href={href} passHref>
-        <Card className={`h-full flex flex-col hover:shadow-primary/10 hover:shadow-lg transition-shadow duration-300 ${className}`}>
-            <CardHeader className="flex-row items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-lg text-primary">{icon}</div>
-                <div>
-                    <CardTitle className="text-lg">{title}</CardTitle>
-                    <CardDescription>{description}</CardDescription>
-                </div>
-            </CardHeader>
-        </Card>
-    </Link>
-);
-
+const QUICK_LINKS = [
+  { href: '/scan', icon: <QrCode className="h-5 w-5" />, label: 'New Sale' },
+  { href: '/orders/add', icon: <PlusCircle className="h-5 w-5" />, label: 'New Order' },
+  { href: '/products', icon: <Gem className="h-5 w-5" />, label: 'Products' },
+  { href: '/orders', icon: <ClipboardList className="h-5 w-5" />, label: 'Orders' },
+  { href: '/customers', icon: <Users className="h-5 w-5" />, label: 'Customers' },
+  { href: '/karigars', icon: <Briefcase className="h-5 w-5" />, label: 'Karigars' },
+  { href: '/analytics', icon: <TrendingUp className="h-5 w-5" />, label: 'Analytics' },
+  { href: '/hisaab', icon: <BookUser className="h-5 w-5" />, label: 'Hisaab' },
+  { href: '/documents', icon: <FileText className="h-5 w-5" />, label: 'Documents' },
+  { href: '/settings', icon: <SettingsIcon className="h-5 w-5" />, label: 'Settings' },
+];
 
 export default function HomePage() {
   const appReady = useAppReady();
-  const { cartItems, cartSubtotal, removeFromCartAction, loadProducts } = useAppStore(state => ({
+  const { cartItems, cartSubtotal, removeFromCartAction, loadProducts, orders, loadOrders, generatedInvoices, loadGeneratedInvoices } = useAppStore(state => ({
     cartItems: selectCartDetails(state),
     cartSubtotal: selectCartSubtotal(state),
     removeFromCartAction: state.removeFromCart,
     loadProducts: state.loadProducts,
+    orders: state.orders,
+    loadOrders: state.loadOrders,
+    generatedInvoices: state.generatedInvoices,
+    loadGeneratedInvoices: state.loadGeneratedInvoices,
   }));
 
   React.useEffect(() => {
     if (appReady) {
       loadProducts();
+      loadOrders();
+      loadGeneratedInvoices();
     }
-  }, [appReady, loadProducts]);
+  }, [appReady, loadProducts, loadOrders, loadGeneratedInvoices]);
 
+  const { ongoingOrders, monthlyRevenue, monthlyInvoiceCount } = useMemo(() => {
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+
+    const ongoing = orders
+      .filter(o => o.status === 'Pending' || o.status === 'In Progress')
+      .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
+
+    const monthInvoices = generatedInvoices.filter(inv => {
+      const d = parseISO(inv.createdAt);
+      return d >= monthStart && d <= monthEnd;
+    });
+
+    const revenue = monthInvoices.reduce((sum, inv) => sum + (inv.amountPaid || 0), 0);
+
+    return { ongoingOrders: ongoing, monthlyRevenue: revenue, monthlyInvoiceCount: monthInvoices.length };
+  }, [orders, generatedInvoices]);
 
   if (!appReady) {
     return (
@@ -83,59 +143,91 @@ export default function HomePage() {
   }
 
   return (
-    <div className="container mx-auto py-4 px-4 space-y-8">
-       <header className="mb-4">
-            <h1 className="text-3xl font-bold text-primary">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back! Here's a quick overview and access to your tasks.</p>
-        </header>
+    <div className="container mx-auto py-4 px-4 space-y-6">
+      <header>
+        <h1 className="text-3xl font-bold text-primary">Dashboard</h1>
+        <p className="text-muted-foreground">Welcome back! Here's your store overview.</p>
+      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Left Column: Main Actions & Links */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left / main column */}
         <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <Link href="/scan" passHref>
-                    <Card className="shadow-lg text-center hover:bg-primary/5 transition-colors h-full">
-                        <CardHeader>
-                        <CardTitle className="text-2xl font-bold text-primary mb-2">Start New Sale</CardTitle>
-                        <CardDescription className="text-base text-muted-foreground">Scan products to begin a new transaction.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex flex-col items-center justify-center py-8">
-                           <QrCode className="w-16 h-16 text-primary" />
-                        </CardContent>
-                    </Card>
-                 </Link>
-                  <Link href="/orders/add" passHref>
-                     <Card className="shadow-lg text-center hover:bg-primary/5 transition-colors h-full">
-                        <CardHeader>
-                        <CardTitle className="text-2xl font-bold text-primary mb-2">Create Custom Order</CardTitle>
-                        <CardDescription className="text-base text-muted-foreground">Build a new custom order for a client.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex flex-col items-center justify-center py-8">
-                            <PlusCircle className="w-16 h-16 text-primary" />
-                        </CardContent>
-                    </Card>
-                  </Link>
-            </div>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle>Quick Access</CardTitle>
-                    <CardDescription>Jump directly to key management areas.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <QuickLinkCard href="/products" icon={<Gem className="h-6 w-6"/>} title="Products" description="Manage inventory" />
-                    <QuickLinkCard href="/orders" icon={<ClipboardList className="h-6 w-6"/>} title="Orders" description="View custom orders" />
-                    <QuickLinkCard href="/customers" icon={<Users className="h-6 w-6"/>} title="Customers" description="Client database" />
-                    <QuickLinkCard href="/karigars" icon={<Briefcase className="h-6 w-6"/>} title="Karigars" description="Artisan accounts" />
-                    <QuickLinkCard href="/analytics" icon={<TrendingUp className="h-6 w-6"/>} title="Analytics" description="Sales & trends" />
-                    <QuickLinkCard href="/hisaab" icon={<BookUser className="h-6 w-6"/>} title="Hisaab" description="Ledger accounts" />
-                    <QuickLinkCard href="/settings" icon={<SettingsIcon className="h-6 w-6"/>} title="Settings" description="System configuration" />
-                </CardContent>
-            </Card>
 
+          {/* Stat cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <StatCard
+              title="Revenue This Month"
+              value={`PKR ${monthlyRevenue.toLocaleString()}`}
+              sub={`${monthlyInvoiceCount} invoice${monthlyInvoiceCount !== 1 ? 's' : ''}`}
+              icon={<DollarSign className="h-5 w-5" />}
+              color="text-green-600"
+            />
+            <StatCard
+              title="Ongoing Orders"
+              value={String(ongoingOrders.length)}
+              sub={`${ongoingOrders.filter(o => o.status === 'Pending').length} pending · ${ongoingOrders.filter(o => o.status === 'In Progress').length} in progress`}
+              icon={<Clock className="h-5 w-5" />}
+              color="text-orange-500"
+            />
+            <StatCard
+              title="Cart Items"
+              value={String(cartItems.length)}
+              sub={cartItems.length > 0 ? `PKR ${cartSubtotal.toLocaleString()} subtotal` : 'No active sale'}
+              icon={<ShoppingCart className="h-5 w-5" />}
+              color="text-primary"
+            />
+          </div>
+
+          {/* Ongoing orders */}
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2"><Clock className="h-4 w-4" /> Ongoing Orders</CardTitle>
+                <CardDescription>Pending and in-progress custom orders</CardDescription>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/orders">View all <ArrowRight className="ml-1 h-4 w-4" /></Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {ongoingOrders.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <PackageSearch className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No ongoing orders</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[260px] pr-2">
+                  <div className="divide-y">
+                    {ongoingOrders.map(order => (
+                      <OngoingOrderRow key={order.id} order={order} />
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick buttons */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Quick Access</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {QUICK_LINKS.map(({ href, icon, label }) => (
+                  <Button key={href} asChild variant="outline" className="flex flex-col h-16 gap-1.5">
+                    <Link href={href}>
+                      {icon}
+                      <span className="text-xs">{label}</span>
+                    </Link>
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Right Column: Cart Summary */}
+        {/* Right column: cart */}
         <div className="lg:col-span-1 sticky top-8">
           <Card className="shadow-lg">
             <CardHeader>
@@ -146,7 +238,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               {cartItems.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">Scan or add products to start a sale.</p>
+                <p className="text-muted-foreground text-center py-4 text-sm">Scan or add products to start a sale.</p>
               ) : (
                 <ScrollArea className="h-[300px] pr-3 mb-4">
                   <div className="space-y-1">
@@ -179,4 +271,3 @@ export default function HomePage() {
     </div>
   );
 }
-
