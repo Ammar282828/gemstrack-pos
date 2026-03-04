@@ -317,6 +317,7 @@ export default function OrderDetailPage() {
   const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
   const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
+  const [isRevertAndEditDialogOpen, setIsRevertAndEditDialogOpen] = useState(false);
 
   useEffect(() => {
     loadKarigars();
@@ -339,6 +340,21 @@ export default function OrderDetailPage() {
         setIsRevertDialogOpen(false);
     } catch {
         toast({ title: "Error", description: "Failed to revert order.", variant: "destructive" });
+    } finally {
+        setIsReverting(false);
+    }
+  };
+
+  const handleRevertAndEdit = async () => {
+    if (!order?.invoiceId) return;
+    setIsReverting(true);
+    try {
+        await revertOrderFromInvoice(order.id, order.invoiceId);
+        toast({ title: "Invoice Cancelled", description: `Invoice ${order.invoiceId} removed. You can now edit the order.` });
+        setIsRevertAndEditDialogOpen(false);
+        router.push(`/orders/${order.id}/edit`);
+    } catch {
+        toast({ title: "Error", description: "Failed to cancel invoice before editing.", variant: "destructive" });
     } finally {
         setIsReverting(false);
     }
@@ -709,6 +725,24 @@ export default function OrderDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={isRevertAndEditDialogOpen} onOpenChange={setIsRevertAndEditDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Invoice & Edit Order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Invoice <strong>{order?.invoiceId}</strong> will be permanently cancelled and its hisaab entries removed before you can edit. You can re-finalize a new invoice after editing. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isReverting}>Keep Invoice</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRevertAndEdit} disabled={isReverting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isReverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />}
+              Cancel Invoice & Edit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <Button variant="outline" onClick={() => router.back()} className="mb-0">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
@@ -735,6 +769,9 @@ export default function OrderDetailPage() {
                            )}
                            {order.invoiceId ? (
                              <>
+                               <Button variant="outline" onClick={() => setIsRevertAndEditDialogOpen(true)}>
+                                 <Edit className="mr-2 h-4 w-4" /> Edit Order
+                               </Button>
                                <Button variant="outline" asChild>
                                  <Link href={`/cart?invoice_id=${order.invoiceId}`}>
                                    <FileText className="mr-2 h-4 w-4" /> View Invoice ({order.invoiceId})
