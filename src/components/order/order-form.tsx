@@ -829,6 +829,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                         )}
                     />
 
+                    {(formValues.items || []).some(item => !item.isManualPrice && item.metalType === 'gold') && (
                     <div className="space-y-2">
                         <Label className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rates (PKR/gram)</Label>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 border rounded-md">
@@ -839,6 +840,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                         </div>
                         <FormDescription>This rate applies to all items in this estimate.</FormDescription>
                     </div>
+                    )}
 
                     <FormField control={form.control} name="advancePayment" render={({ field }) => (
                        <FormItem>
