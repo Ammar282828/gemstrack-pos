@@ -30,6 +30,7 @@ const eventIcons: Record<LogEventType, React.ReactNode> = {
     'order.create': <FileText className="h-4 w-4" />,
     'order.update': <FileText className="h-4 w-4" />,
     'order.delete': <FileText className="h-4 w-4" />,
+    'order.revert': <FileText className="h-4 w-4" />,
     'expense.create': <CreditCard className="h-4 w-4" />,
     'expense.update': <CreditCard className="h-4 w-4" />,
     'expense.delete': <CreditCard className="h-4 w-4" />,
