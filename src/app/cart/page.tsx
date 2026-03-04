@@ -743,8 +743,16 @@ export default function CartPage() {
         doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize);
     }
 
-    doc.autoPrint();
-    window.open(doc.output('bloburl'), '_blank');
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      const link = document.createElement('a');
+      link.href = doc.output('datauristring');
+      link.download = 'invoice.pdf';
+      link.click();
+    } else {
+      doc.autoPrint();
+      window.open(doc.output('bloburl'), '_blank');
+    }
   };
   
   if (!appReady) {

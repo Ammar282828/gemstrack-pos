@@ -622,8 +622,16 @@ export default function OrderDetailPage() {
     }
 
 
-    doc.autoPrint();
-    window.open(doc.output('bloburl'), '_blank');
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      const link = document.createElement('a');
+      link.href = doc.output('datauristring');
+      link.download = 'order-slip.pdf';
+      link.click();
+    } else {
+      doc.autoPrint();
+      window.open(doc.output('bloburl'), '_blank');
+    }
   };
 
 
