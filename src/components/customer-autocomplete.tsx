@@ -65,9 +65,17 @@ export const CustomerAutocomplete: React.FC<Props> = ({
         placeholder={placeholder}
         autoComplete="off"
       />
-      {open && filtered.length > 0 && (
+      {open && (
         <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
           <ScrollArea className="max-h-48">
+            <button
+              type="button"
+              onMouseDown={() => { setQuery(''); setOpen(false); onSelect({ name: '', customerId: undefined, phone: '' }); }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2 border-b"
+            >
+              <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+              <span className="text-muted-foreground italic">Walk-in Customer</span>
+            </button>
             {filtered.map(c => (
               <button
                 key={c.id}
