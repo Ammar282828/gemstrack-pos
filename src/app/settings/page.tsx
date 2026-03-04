@@ -702,17 +702,6 @@ export default function SettingsPage() {
                 </div>
               </Button>
             </Link>
-             <Link href="/settings/weprint-api" passHref>
-              <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
-                 <div className="flex items-center">
-                    <ExternalLink className="mr-3 h-5 w-5" />
-                    <div>
-                      <p className="font-semibold">WEPrint API Management</p>
-                      <p className="text-xs text-muted-foreground">Curate which products are visible to the API.</p>
-                  </div>
-                </div>
-              </Button>
-            </Link>
         </CardContent>
       </Card>
 

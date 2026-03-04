@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue } from '@/lib/store';
+import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories } from '@/lib/store';
 import { CustomerAutocomplete } from '@/components/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -497,11 +497,11 @@ export default function CartPage() {
       }
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(18);
-      doc.text('ESTIMATE', pageWidth - margin, 15, { align: 'right' });
+      doc.setFontSize(14);
+      doc.text('ESTIMATE', pageWidth - margin, 14, { align: 'right' });
       
-      doc.setLineWidth(0.5);
-      doc.line(margin, 25, pageWidth - margin, 25);
+      doc.setLineWidth(0.4);
+      doc.line(margin, 22, pageWidth - margin, 22);
 
       if (pageNum > 1) {
           doc.setFontSize(8);
@@ -512,20 +512,20 @@ export default function CartPage() {
     
     drawHeader(1);
     
-    let infoY = 32;
-    doc.setFontSize(9);
+    let infoY = 28;
+    doc.setFontSize(7);
     doc.setTextColor(100);
     doc.setFont("helvetica", "bold");
     doc.text('BILL TO:', margin, infoY);
     doc.text('INVOICE DETAILS:', pageWidth / 2, infoY);
 
     doc.setLineWidth(0.2);
-    doc.line(margin, infoY + 2, pageWidth - margin, infoY + 2);
+    doc.line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
 
-    infoY += 7;
+    infoY += 6;
     doc.setFont("helvetica", "normal");
     doc.setTextColor(0);
-    doc.setFontSize(9);
+    doc.setFontSize(8);
 
     let customerInfo = "Walk-in Customer";
     if (invoiceToPrint.customerId && invoiceToPrint.customerName) {
@@ -540,24 +540,26 @@ export default function CartPage() {
     invoiceDetails += `Date: ${new Date(invoiceToPrint.createdAt).toLocaleDateString()}`;
     doc.text(invoiceDetails, pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
     
-    const rates = invoiceToPrint.ratesApplied;
+    const rates = (invoiceToPrint.ratesApplied || {}) as Record<string, number>;
+    const itemsToPrint = Array.isArray(invoiceToPrint.items) ? invoiceToPrint.items : Object.values(invoiceToPrint.items as {[key: string]: InvoiceItem});
+    const hasGoldItems = itemsToPrint.some((i: InvoiceItem) => i.metalType === 'gold');
     let ratesApplied: string[] = [];
-    if (rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
-    if (rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
-    if (rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
-    if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+    if (hasGoldItems) {
+      if (rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
+      if (rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
+      if (rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
+      if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+    }
 
     if (ratesApplied.length > 0) {
-        doc.setFontSize(7);
+        doc.setFontSize(6.5);
         doc.setTextColor(150);
-        doc.text(ratesApplied.join(' | '), pageWidth / 2, infoY + 10, { lineHeightFactor: 1.4 });
+        doc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, infoY + 10, { lineHeightFactor: 1.4 });
     }
     
-    const tableStartY = infoY + 20;
+    const tableStartY = infoY + (ratesApplied.length > 0 ? 18 : 13);
     const tableColumn = ["#", "Product & Breakdown", "Qty", "Unit", "Total"];
     const tableRows: any[][] = [];
-
-    const itemsToPrint = Array.isArray(invoiceToPrint.items) ? invoiceToPrint.items : Object.values(invoiceToPrint.items as {[key: string]: InvoiceItem});
 
     itemsToPrint.forEach((item: InvoiceItem, index) => {
         let breakdownLines = [];
@@ -569,14 +571,15 @@ export default function CartPage() {
         if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
 
-        const metalDisplay = item.isCustomPrice
-            ? `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}`
-            : `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : ''}, Wt: ${(item.metalWeightG || 0).toFixed(2)}g`;
+        const metalTypeName = item.metalType === 'silver' ? '925 Sterling Silver' : item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1);
+        const karat = item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : '';
+        const weightPart = item.metalWeightG > 0 ? `, Wt: ${(item.metalWeightG || 0).toFixed(2)}g` : '';
+        const metalDisplay = `${metalTypeName}${karat}${weightPart}`;
         
         const mainTitle = `${item.name}`;
         const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;
-        
-        const fullDescription = `${mainTitle}\n${subTitle}${breakdownText ? `${breakdownText}` : ''}`;
+        const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
+        const fullDescription = `${categoryTitle ? categoryTitle.toUpperCase() + '\n' : ''}${mainTitle}\n${subTitle}${breakdownText ? `${breakdownText}` : ''}`;
 
         const itemData = [
             index + 1,
@@ -593,14 +596,14 @@ export default function CartPage() {
         body: tableRows,
         startY: tableStartY,
         theme: 'grid',
-        headStyles: { fillColor: [240, 240, 240], textColor: 50, fontStyle: 'bold', fontSize: 8, },
-        styles: { fontSize: 8, cellPadding: 2, valign: 'top', },
+        headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
+        styles: { fontSize: 7.5, cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
         columnStyles: {
-            0: { cellWidth: 8, halign: 'center' },
+            0: { cellWidth: 7, halign: 'center' },
             1: { cellWidth: 'auto' },
-            2: { cellWidth: 10, halign: 'right' },
-            3: { cellWidth: 25, halign: 'right' },
-            4: { cellWidth: 25, halign: 'right' },
+            2: { cellWidth: 9, halign: 'right' },
+            3: { cellWidth: 22, halign: 'right' },
+            4: { cellWidth: 22, halign: 'right' },
         },
         didDrawPage: (data: { pageNumber: number, settings: { startY: number } }) => {
             if (data.pageNumber > 1) {
@@ -698,29 +701,31 @@ export default function CartPage() {
         doc.text(`PKR ${invoiceToPrint.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     }
 
-    const footerStartY = pageHeight - 35;
+    const footerStartY = pageHeight - 36;
     const contacts = [
         { name: "Mina Khalid", number: "0316 1930960" },
         { name: "Ammar Mansa", number: "0326 2275554" },
     ];
-    const qrCodeSize = 17;
-    const qrGap = 4;
+    const qrCodeSize = 16;
+    const qrGap = 3;
     const qrSectionWidth = (qrCodeSize * 2) + qrGap;
     const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
     const qrStartX = pageWidth - margin - qrSectionWidth;
 
-    // Separator
     doc.setLineWidth(0.2);
     doc.line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
 
-    // Left: label + contacts
     doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
     doc.text("For Orders & Inquiries:", margin, footerStartY + 2, { maxWidth: textBlockWidth });
-    doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(80);
-    doc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 8, { maxWidth: textBlockWidth });
-    doc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 14, { maxWidth: textBlockWidth });
+    doc.setFontSize(7.5).setFont("helvetica", "normal").setTextColor(30);
+    doc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 6, { maxWidth: textBlockWidth });
+    doc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 10, { maxWidth: textBlockWidth });
 
-    // Right: QR codes with titles
+    doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(80);
+    doc.text("Bank Al Habib  |  House of Mina", margin, footerStartY + 16, { maxWidth: textBlockWidth });
+    doc.setFontSize(6).setFont("helvetica", "normal").setTextColor(100);
+    doc.text("IBAN: PK42 BAHL 1227 0981 0022 7801", margin, footerStartY + 20, { maxWidth: textBlockWidth });
+
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
 

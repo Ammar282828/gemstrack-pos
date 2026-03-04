@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -44,6 +44,7 @@ const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'plat
 
 // Schema for a single custom order item
 const orderItemSchema = z.object({
+  itemCategory: z.string().optional(),
   description: z.string().min(3, "Description is required"),
   karat: z.enum(karatValues).optional(),
   estimatedWeightG: z.coerce.number().min(0).default(0),
@@ -359,6 +360,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
       form.reset({
         items: order.items.map(item => ({
             ...item,
+            itemCategory: item.itemCategory || '',
             karat: item.karat || undefined,
             sampleImageDataUri: item.sampleImageDataUri || '',
             referenceSku: item.referenceSku || '',
@@ -556,6 +558,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
 
     const handleAddInventoryProduct = (product: Product) => {
         append({
+            itemCategory: product.categoryId || '',
             description: product.name,
             karat: product.karat || '21k',
             estimatedWeightG: product.metalWeightG,
@@ -581,6 +584,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
   
   const handleAddNewItem = () => {
     append({
+        itemCategory: '',
         description: '',
         karat: '21k',
         estimatedWeightG: 0,
@@ -633,9 +637,46 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                     <span className="sr-only">Remove Item</span>
                                 </Button>
                             )}
-                            <FormField control={form.control} name={`items.${index}.description`} render={({ field }) => (
-                                <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g., Custom 22k gold ring with ruby stone" {...field} rows={2}/></FormControl><FormMessage /></FormItem>
-                            )}/>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <FormField control={form.control} name={`items.${index}.itemCategory`} render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Category</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value || ''} defaultValue={field.value || ''}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                {staticCategories.map(cat => (
+                                                    <SelectItem key={cat.id} value={cat.id}>{cat.title}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <div className="md:col-span-2">
+                                    <FormField control={form.control} name={`items.${index}.description`} render={({ field }) => (
+                                        <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g., Custom ring with ruby stone" {...field} rows={2}/></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                </div>
+                            </div>
+
+                            {/* Metal + Karat — always visible so they are recorded even in manual price mode */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name={`items.${index}.metalType`} render={({ field }) => (
+                                    <FormItem><FormLabel>Metal</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                        <SelectContent>{metalTypeValues.map(m => <SelectItem key={m} value={m}>{m === 'silver' ? '925 Sterling Silver' : m.charAt(0).toUpperCase() + m.slice(1)}</SelectItem>)}</SelectContent>
+                                    </Select><FormMessage /></FormItem>
+                                )}/>
+                                {form.watch(`items.${index}.metalType`) === 'gold' &&
+                                    <FormField control={form.control} name={`items.${index}.karat`} render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4"/>Karat</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                            <SelectContent>{karatValues.map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
+                                        </Select><FormMessage /></FormItem>
+                                    )}/>
+                                }
+                            </div>
 
                             {/* Manual price toggle */}
                             <FormField control={form.control} name={`items.${index}.isManualPrice`} render={({ field }) => (
@@ -678,25 +719,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                 /* Auto-calculated mode */
                                 <>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                   <FormField control={form.control} name={`items.${index}.metalType`} render={({ field }) => (
-                                    <FormItem><FormLabel>Metal</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                        <SelectContent>{metalTypeValues.map(m => <SelectItem key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</SelectItem>)}</SelectContent>
-                                    </Select><FormMessage /></FormItem>
-                                    )}/>
-                                    {form.watch(`items.${index}.metalType`) === 'gold' &&
-                                        <FormField control={form.control} name={`items.${index}.karat`} render={({ field }) => (
-                                            <FormItem><FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4"/>Karat</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                                <SelectContent>{karatValues.map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
-                                            </Select><FormMessage /></FormItem>
-                                        )}/>
-                                    }
                                     <FormField control={form.control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
                                         <FormItem>
                                             <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>
-                                                {form.watch(`items.${index}.metalType`) === 'silver' ? 'Weight (g) × Silver Rate/g' : 'Est. Weight (g)'}
+                                                {form.watch(`items.${index}.metalType`) === 'silver' ? 'Weight (g) × 925 Sterling Silver Rate/g' : 'Est. Weight (g)'}
                                             </FormLabel>
                                             <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
                                             <FormMessage />
@@ -829,7 +855,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                         )}
                     />
 
-                    {(formValues.items || []).some(item => !item.isManualPrice && item.metalType === 'gold') && (
+                    {(formValues.items || []).some(item => item.metalType === 'gold') && (
                     <div className="space-y-2">
                         <Label className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rates (PKR/gram)</Label>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 border rounded-md">

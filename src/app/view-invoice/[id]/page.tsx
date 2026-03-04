@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Invoice, Settings, Customer, InvoiceItem } from '@/lib/store';
+import { Invoice, Settings, Customer, InvoiceItem, staticCategories } from '@/lib/store';
 import { Loader2, Download, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -113,21 +113,21 @@ export default function ViewInvoicePage() {
     function drawHeader(pageNum: number) {
         if (logoDataUrl) {
             try {
-                pdfDoc.addImage(logoDataUrl, logoFormat, margin, 8, 35, 11, undefined, 'FAST');
+                pdfDoc.addImage(logoDataUrl, logoFormat, margin, 7, 32, 10, undefined, 'FAST');
             } catch (e) {
                 console.error("Error adding logo to PDF:", e);
             }
         }
         
         pdfDoc.setFont("helvetica", "bold");
-        pdfDoc.setFontSize(18);
-        pdfDoc.text('ESTIMATE', pageWidth - margin, 15, { align: 'right' });
+        pdfDoc.setFontSize(14);
+        pdfDoc.text('ESTIMATE', pageWidth - margin, 14, { align: 'right' });
         
-        pdfDoc.setLineWidth(0.5);
-        pdfDoc.line(margin, 25, pageWidth - margin, 25);
+        pdfDoc.setLineWidth(0.4);
+        pdfDoc.line(margin, 22, pageWidth - margin, 22);
 
         if (pageNum > 1) {
-            pdfDoc.setFontSize(8);
+            pdfDoc.setFontSize(7);
             pdfDoc.setTextColor(150);
             pdfDoc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, {align: 'right'});
         }
@@ -135,20 +135,20 @@ export default function ViewInvoicePage() {
     
     drawHeader(1);
     
-    let infoY = 32;
-    pdfDoc.setFontSize(9);
+    let infoY = 28;
+    pdfDoc.setFontSize(7);
     pdfDoc.setTextColor(100);
     pdfDoc.setFont("helvetica", "bold");
     pdfDoc.text('BILL TO:', margin, infoY);
-    pdfDoc.text('INVOICE DETAILS:', pageWidth / 2, infoY);
+    pdfDoc.text('INVOICE DETAILS:', pageWidth / 2 + 2, infoY);
 
     pdfDoc.setLineWidth(0.2);
-    pdfDoc.line(margin, infoY + 2, pageWidth - margin, infoY + 2);
+    pdfDoc.line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
 
-    infoY += 7;
+    infoY += 6;
     pdfDoc.setFont("helvetica", "normal");
     pdfDoc.setTextColor(0);
-    pdfDoc.setFontSize(9);
+    pdfDoc.setFontSize(8);
 
     let customerInfo = "Walk-in Customer";
     if (customer) {
@@ -165,9 +165,9 @@ export default function ViewInvoicePage() {
     invoiceDetails += `Date: ${new Date(invoice.createdAt).toLocaleDateString()}`;
     pdfDoc.text(invoiceDetails, pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
     
-    const rates = invoice.ratesApplied;
+    const rates = (invoice.ratesApplied || {}) as Record<string, number>;
     const itemsList = invoice.items as InvoiceItem[];
-    const hasGoldItems = itemsList.some(i => i.metalType === 'gold' && i.metalWeightG > 0);
+    const hasGoldItems = itemsList.some(i => i.metalType === 'gold');
     let ratesApplied: string[] = [];
     if (hasGoldItems) {
       if (rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
@@ -177,12 +177,12 @@ export default function ViewInvoicePage() {
     }
 
     if (ratesApplied.length > 0) {
-        pdfDoc.setFontSize(7);
+        pdfDoc.setFontSize(6.5);
         pdfDoc.setTextColor(150);
-        pdfDoc.text(ratesApplied.join(' | '), pageWidth / 2, infoY + 10, { lineHeightFactor: 1.4 });
+        pdfDoc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, infoY + 10, { lineHeightFactor: 1.4 });
     }
     
-    const tableStartY = infoY + 20;
+    const tableStartY = infoY + (ratesApplied.length > 0 ? 18 : 13);
     const tableColumn = ["#", "Product & Breakdown", "Qty", "Unit", "Total"];
     const tableRows: any[][] = [];
 
@@ -198,7 +198,7 @@ export default function ViewInvoicePage() {
         if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
 
-        const metalTypeName = item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1);
+        const metalTypeName = item.metalType === 'silver' ? '925 Sterling Silver' : item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1);
         const karat = item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : '';
         const weightPart = item.metalWeightG > 0 ? `, Wt: ${item.metalWeightG.toFixed(2)}g` : '';
         const metalDisplay = `${metalTypeName}${karat}${weightPart}`;
@@ -206,7 +206,8 @@ export default function ViewInvoicePage() {
         const mainTitle = `${item.name}`;
         const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;
         
-        const fullDescription = `${mainTitle}\n${subTitle}${breakdownText ? `${breakdownText}` : ''}`;
+        const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
+        const fullDescription = `${categoryTitle ? categoryTitle.toUpperCase() + '\n' : ''}${mainTitle}\n${subTitle}${breakdownText ? `${breakdownText}` : ''}`;
 
         const itemData = [
             index + 1,
@@ -223,14 +224,14 @@ export default function ViewInvoicePage() {
         body: tableRows,
         startY: tableStartY,
         theme: 'grid',
-        headStyles: { fillColor: [240, 240, 240], textColor: 50, fontStyle: 'bold', fontSize: 8, },
-        styles: { fontSize: 8, cellPadding: 2, valign: 'top', },
+        headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
+        styles: { fontSize: 7.5, cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
         columnStyles: {
-            0: { cellWidth: 8, halign: 'center' },
+            0: { cellWidth: 7, halign: 'center' },
             1: { cellWidth: 'auto' },
-            2: { cellWidth: 10, halign: 'right' },
-            3: { cellWidth: 25, halign: 'right' },
-            4: { cellWidth: 25, halign: 'right' },
+            2: { cellWidth: 9, halign: 'right' },
+            3: { cellWidth: 22, halign: 'right' },
+            4: { cellWidth: 22, halign: 'right' },
         },
         didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
             if (data.pageNumber > 1) {
@@ -243,7 +244,7 @@ export default function ViewInvoicePage() {
 
     let finalY = pdfDoc.lastAutoTable.finalY || 0;
     
-    const footerAndTotalsHeight = 70;
+    const footerAndTotalsHeight = 80;
     let needsNewPage = finalY + footerAndTotalsHeight > pageHeight - margin;
 
     if (needsNewPage) {
@@ -288,29 +289,31 @@ export default function ViewInvoicePage() {
         pdfDoc.text(`PKR ${invoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     }
 
-    const footerStartY = pageHeight - 35;
+    const footerStartY = pageHeight - 36;
     const contacts = [
         { name: "Mina Khalid", number: "0316 1930960" },
         { name: "Ammar Mansa", number: "0326 2275554" },
     ];
-    const qrCodeSize = 17;
-    const qrGap = 4;
+    const qrCodeSize = 16;
+    const qrGap = 3;
     const qrSectionWidth = (qrCodeSize * 2) + qrGap;
     const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
     const qrStartX = pageWidth - margin - qrSectionWidth;
 
-    // Separator
     pdfDoc.setLineWidth(0.2);
     pdfDoc.line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
 
-    // Left: label + contacts
     pdfDoc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
     pdfDoc.text("For Orders & Inquiries:", margin, footerStartY + 2, { maxWidth: textBlockWidth });
-    pdfDoc.setFontSize(8).setFont("helvetica", "normal").setTextColor(80);
-    pdfDoc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 8, { maxWidth: textBlockWidth });
-    pdfDoc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 14, { maxWidth: textBlockWidth });
+    pdfDoc.setFontSize(7.5).setFont("helvetica", "normal").setTextColor(30);
+    pdfDoc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 6, { maxWidth: textBlockWidth });
+    pdfDoc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 10, { maxWidth: textBlockWidth });
 
-    // Right: QR codes with titles
+    pdfDoc.setFontSize(6).setFont("helvetica", "bold").setTextColor(80);
+    pdfDoc.text("Bank Al Habib  |  House of Mina", margin, footerStartY + 16, { maxWidth: textBlockWidth });
+    pdfDoc.setFontSize(6).setFont("helvetica", "normal").setTextColor(100);
+    pdfDoc.text("IBAN: PK42 BAHL 1227 0981 0022 7801", margin, footerStartY + 20, { maxWidth: textBlockWidth });
+
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
 

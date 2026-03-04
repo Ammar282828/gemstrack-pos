@@ -68,29 +68,31 @@ export default function QrScanner({ isActive }: QrScannerProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [hwZoom, setHwZoom] = useState<{ min: number; max: number; step: number } | null>(null);
   const [cameraCapabilities, setCameraCapabilities] = useState<MediaTrackCapabilities | null>(null);
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText) => {
     const now = Date.now();
     const lastScan = lastScanRef.current;
-    
-    // Debounce logic: if the same code was scanned less than 2 seconds ago, ignore it.
-    if (lastScan && lastScan.text === decodedText && (now - lastScan.time) < 2000) {
+    const DEBOUNCE_MS = 2000;
+
+    // Suppress the same code within the debounce window entirely (no toast, no action)
+    if (lastScan && lastScan.text === decodedText && (now - lastScan.time) < DEBOUNCE_MS) {
         return;
     }
+
+    // Always update lastScan immediately so rapid re-reads are suppressed
+    lastScanRef.current = { text: decodedText, time: now };
 
     const state = useAppStore.getState();
     const isAlreadyInCart = state.cart.some(item => item.sku === decodedText.trim());
 
     if (isAlreadyInCart) {
-        // Only toast for the first time it sees the duplicate
-        if (!lastScan || lastScan.text !== decodedText) {
-            toast({
-                title: "Item Already in Cart",
-                description: `Product with SKU ${decodedText.trim()} is already in your cart.`,
-                variant: "default"
-            });
-        }
+        toast({
+            title: "Already in Cart",
+            description: `${decodedText.trim()} is already added.`,
+            variant: "default"
+        });
     } else {
         const product = state.products.find(p => p.sku === decodedText.trim());
         if (product) {
@@ -100,10 +102,9 @@ export default function QrScanner({ isActive }: QrScannerProps) {
           setScanSuccess(true);
           setTimeout(() => setScanSuccess(false), 300);
         } else {
-          toast({ title: "Product Not Found", description: `No product found with scanned SKU: ${decodedText.trim()}`, variant: "destructive" });
+          toast({ title: "Product Not Found", description: `No product found with SKU: ${decodedText.trim()}`, variant: "destructive" });
         }
     }
-    lastScanRef.current = { text: decodedText, time: now };
   }, [toast]);
 
 
@@ -114,7 +115,8 @@ export default function QrScanner({ isActive }: QrScannerProps) {
 
     if (!html5QrCodeRef.current) {
         html5QrCodeRef.current = new Html5Qrcode(qrReaderElementId, {
-            verbose: false // Set verbose to false for cleaner console logs
+            verbose: false,
+            experimentalFeatures: { useBarCodeDetectorIfSupported: true },
         });
     }
     const qrCode = html5QrCodeRef.current;
@@ -129,9 +131,16 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         try {
             await qrCode.start(
                 { facingMode: "environment" },
-                { fps: 15, qrbox: { width: 250, height: 250 } },
+                {
+                    fps: 30,
+                    qrbox: (viewfinderWidth, viewfinderHeight) => ({
+                        width: Math.min(Math.floor(viewfinderWidth * 0.85), 400),
+                        height: Math.min(Math.floor(viewfinderHeight * 0.85), 400),
+                    }),
+                    aspectRatio: 1.0,
+                },
                 onScanSuccess,
-                (errorMessage) => { /* ignore */ }
+                () => { /* ignore per-frame errors */ }
             );
             
             setScannerState('scanning');
@@ -139,8 +148,13 @@ export default function QrScanner({ isActive }: QrScannerProps) {
             const capabilities = qrCode.getRunningTrackCapabilities?.();
             if (capabilities) {
                setCameraCapabilities(capabilities);
-               // @ts-ignore
-               if(capabilities.zoom) setZoom(capabilities.zoom.min);
+               if ((capabilities as any)?.zoom) {
+                 setHwZoom({
+                   min: (capabilities as any).zoom.min,
+                   max: (capabilities as any).zoom.max,
+                   step: (capabilities as any).zoom.step || 0.1,
+                 });
+               }
             }
 
         } catch (err: any) {
@@ -164,6 +178,8 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         } finally {
             setScannerState('stopped');
             setCameraCapabilities(null);
+            setHwZoom(null);
+            setZoom(1);
             operationLock.current = false;
         }
     };
@@ -188,20 +204,28 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         try {
             // @ts-ignore
             const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
-            if (currentTrack && (cameraCapabilities as any)?.zoom) {
+            if (currentTrack && hwZoom) {
+                const clampedZoom = Math.min(Math.max(zoom, hwZoom.min), hwZoom.max);
                 await currentTrack.applyConstraints({
-                    advanced: [{ zoom: zoom }]
+                    advanced: [{ zoom: clampedZoom }]
                 });
             }
         } catch(e) {
-            console.warn("Could not apply zoom", e);
+            console.warn("Could not apply hardware zoom", e);
         }
     };
 
-    if (scannerState === 'scanning' && cameraCapabilities) {
+    if (scannerState === 'scanning') {
         applyZoom();
+        // Apply CSS digital zoom to video element
+        const videoEl = document.querySelector(`#${qrReaderElementId} video`) as HTMLVideoElement | null;
+        if (videoEl) {
+            videoEl.style.transform = `scale(${zoom})`;
+            videoEl.style.transformOrigin = 'center center';
+            videoEl.style.transition = 'transform 0.1s ease';
+        }
     }
-  }, [zoom, scannerState, cameraCapabilities]);
+  }, [zoom, scannerState, hwZoom, cameraCapabilities]);
 
   return (
     <div className="space-y-4">
@@ -233,20 +257,26 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         </Alert>
       )}
 
-      {scannerState === 'scanning' && (cameraCapabilities as any)?.zoom && (
-        <div className="p-4 border rounded-md">
-          <Label htmlFor="zoom-slider">Zoom</Label>
-          <div className="flex items-center gap-2">
-            <ZoomOut className="h-5 w-5" />
+      {scannerState === 'scanning' && (
+        <div className="p-4 border rounded-md space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="zoom-slider" className="flex items-center gap-1">
+              <ZoomIn className="h-4 w-4" /> Zoom
+            </Label>
+            <span className="text-sm font-mono text-muted-foreground">{zoom.toFixed(1)}×</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <ZoomOut className="h-5 w-5 flex-shrink-0" />
             <Slider
               id="zoom-slider"
-              min={(cameraCapabilities as any).zoom.min}
-              max={(cameraCapabilities as any).zoom.max}
-              step={(cameraCapabilities as any).zoom.step}
+              min={1}
+              max={5}
+              step={0.1}
               value={[zoom]}
               onValueChange={(value) => setZoom(value[0])}
+              className="flex-1"
             />
-            <ZoomIn className="h-5 w-5" />
+            <ZoomIn className="h-5 w-5 flex-shrink-0" />
           </div>
         </div>
       )}

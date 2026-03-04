@@ -6,13 +6,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar } from '@/lib/store';
+import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar, staticCategories } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,16 @@ import {
   DialogClose,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -296,7 +306,7 @@ export default function OrderDetailPage() {
   const isHydrated = useIsStoreHydrated();
   const order = useAppStore(state => state.orders.find(o => o.id === orderId));
   const settings = useAppStore(state => state.settings);
-  const { updateOrderStatus, updateOrderItemStatus, updateOrder, karigars, loadKarigars } = useAppStore();
+  const { updateOrderStatus, updateOrderItemStatus, updateOrder, karigars, loadKarigars, revertOrderFromInvoice } = useAppStore();
   
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isUpdatingItem, setIsUpdatingItem] = useState<number | null>(null);
@@ -305,6 +315,8 @@ export default function OrderDetailPage() {
   const [notificationType, setNotificationType] = useState<NotificationType | null>(null);
   const [isFinalizeDialogOpen, setIsFinalizeDialogOpen] = useState(false);
   const [isAdvanceDialogOpen, setIsAdvanceDialogOpen] = useState(false);
+  const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
+  const [isReverting, setIsReverting] = useState(false);
 
   useEffect(() => {
     loadKarigars();
@@ -317,6 +329,20 @@ export default function OrderDetailPage() {
       phoneForm.setValue('phone', order.customerContact);
     }
   }, [order, phoneForm]);
+
+  const handleRevert = async () => {
+    if (!order?.invoiceId) return;
+    setIsReverting(true);
+    try {
+        await revertOrderFromInvoice(order.id, order.invoiceId);
+        toast({ title: "Order Reverted", description: `Invoice ${order.invoiceId} has been cancelled and order is now editable.` });
+        setIsRevertDialogOpen(false);
+    } catch {
+        toast({ title: "Error", description: "Failed to revert order.", variant: "destructive" });
+    } finally {
+        setIsReverting(false);
+    }
+  };
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
     if (!order) return;
@@ -427,17 +453,17 @@ export default function OrderDetailPage() {
     function drawHeader(pageNum: number) {
         if (logoDataUrl) {
             try {
-                doc.addImage(logoDataUrl, logoFormat, margin, 8, 35, 11, undefined, 'FAST');
+                doc.addImage(logoDataUrl, logoFormat, margin, 7, 32, 10, undefined, 'FAST');
             } catch (e) {
                 console.error("Error adding logo to Order Slip PDF:", e);
             }
         }
-        doc.setFont("helvetica", "bold").setFontSize(18);
-        doc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 15, { align: 'right' });
-        doc.setLineWidth(0.5);
-        doc.line(margin, 25, pageWidth - margin, 25);
+        doc.setFont("helvetica", "bold").setFontSize(14);
+        doc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 14, { align: 'right' });
+        doc.setLineWidth(0.4);
+        doc.line(margin, 22, pageWidth - margin, 22);
         if (pageNum > 1) {
-            doc.setFontSize(8).setTextColor(150);
+            doc.setFontSize(7).setTextColor(150);
             doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
             doc.setTextColor(0);
         }
@@ -446,143 +472,124 @@ export default function OrderDetailPage() {
     drawHeader(1);
 
     // Order info section
-    let infoY = 32;
-    doc.setFontSize(9).setTextColor(100).setFont("helvetica", "bold");
+    let infoY = 28;
+    doc.setFontSize(7).setTextColor(100).setFont("helvetica", "bold");
     doc.text('ORDER DETAILS:', margin, infoY);
     doc.setLineWidth(0.2);
-    doc.line(margin, infoY + 2, pageWidth - margin, infoY + 2);
-    infoY += 7;
+    doc.line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
+    infoY += 6;
 
-    doc.setFont("helvetica", "normal").setTextColor(0).setFontSize(9);
+    doc.setFont("helvetica", "normal").setTextColor(0).setFontSize(8.5);
     doc.text(`Order ID: ${order.id}`, margin, infoY);
     doc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, infoY + 5);
     doc.text(`Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10);
 
     const rates = order.ratesApplied;
+    const hasGoldItems = order.items.some(i => i.metalType === 'gold');
     let ratesApplied: string[] = [];
-    if (rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
-    if (rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
-    if (rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
-    if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+    if (hasGoldItems) {
+        if (rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
+        if (rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
+        if (rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
+        if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+    }
     if (ratesApplied.length > 0) {
-        doc.setFontSize(7).setTextColor(150);
-        doc.text(`Rates (PKR): ${ratesApplied.join(' | ')}`, margin, infoY + 15);
+        doc.setFontSize(6.5).setTextColor(150);
+        doc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, infoY + 15);
     }
 
-    doc.setTextColor(0).setFontSize(9).setFont('helvetica', 'bold');
+    doc.setTextColor(0).setFontSize(8.5).setFont('helvetica', 'bold');
     doc.text(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`, pageWidth - margin, infoY + 5, { align: 'right' });
     doc.text(`Advance Paid:`, pageWidth - margin, infoY + 10, { align: 'right' });
     const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
     doc.text(`- PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, infoY + 15, { align: 'right' });
 
-    doc.setLineWidth(0.5);
+    doc.setLineWidth(0.3);
     doc.line(margin, infoY + 20, pageWidth - margin, infoY + 20);
 
-    let finalY = infoY + 28;
+    let finalY = infoY + 27;
 
+    // Build items table (autoTable)
+    const tableRows: any[][] = [];
     for (let i = 0; i < order.items.length; i++) {
         const item = order.items[i];
-        
-        if (finalY + 45 > pageHeight - margin) {
-            doc.addPage();
-            drawHeader(doc.getNumberOfPages());
-            finalY = 32;
-        }
+        const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
+        const metalName = item.metalType === 'silver'
+            ? '925 Sterling Silver'
+            : `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.karat ? ` (${item.karat.toUpperCase()})` : ''}`;
+        const metalLine = item.isManualPrice
+            ? metalName
+            : `${metalName}  |  Est. Wt: ${item.estimatedWeightG}g${item.metalType !== 'silver' && item.wastagePercentage > 0 ? `  |  Wastage: ${item.wastagePercentage}%` : ''}`;
 
-        const karigarName = karigars.find(k => k.id === item.karigarId)?.name;
-        
-        doc.setFontSize(10).setFont("helvetica", "bold");
-        const itemTitle = `Item #${i + 1}: ${item.description}`;
-        const splitTitle = doc.splitTextToSize(itemTitle, pageWidth - margin * 2);
-        doc.text(splitTitle, margin, finalY);
-        finalY += (splitTitle.length * 4);
+        let detailLines = [];
+        if (categoryTitle) detailLines.push(categoryTitle.toUpperCase());
+        detailLines.push(item.description);
+        detailLines.push(metalLine);
+        if (item.referenceSku) detailLines.push(`Ref SKU: ${item.referenceSku}`);
+        if (item.stoneDetails) detailLines.push(`Instructions: ${item.stoneDetails}`);
+        if (item.diamondDetails) detailLines.push(`Instructions: ${item.diamondDetails}`);
 
-        doc.setFontSize(9).setFont('helvetica', 'bold');
-        doc.text(`Est: PKR ${(item.totalEstimate || 0).toLocaleString()}`, pageWidth - margin, finalY, { align: 'right' });
-        finalY += 6;
-
-        if (karigarName) {
-            doc.setFontSize(8).setFont("helvetica", "normal");
-            doc.text(`Karigar: ${karigarName}`, margin + 5, finalY);
-            finalY += 5;
-        }
-
-        doc.setFontSize(8).setFont("helvetica", "normal");
-        if (item.isManualPrice) {
-            doc.text(`Price: PKR ${(item.manualPrice || item.totalEstimate || 0).toLocaleString()}`, margin + 5, finalY);
-            finalY += 5;
-        } else {
-            const metalInfo = `Metal: ${item.metalType}, ${item.karat || ''}, Est. Weight: ${item.estimatedWeightG}g`;
-            doc.text(metalInfo, margin + 5, finalY);
-            finalY += 5;
-            const wastageInfo = `Wastage: ${item.wastagePercentage}%`;
-            doc.text(wastageInfo, margin + 5, finalY);
-            finalY += 5;
-        }
-        
-        if (item.referenceSku) {
-            doc.text(`Reference SKU: ${item.referenceSku}`, margin + 5, finalY);
-            finalY += 5;
-        }
-        
-        if (item.stoneDetails || item.diamondDetails) {
-            finalY += 3;
-            doc.setFontSize(9).setFont("helvetica", "bold");
-            doc.text('Special Instructions:', margin + 5, finalY);
-            finalY += 4;
-            doc.setFontSize(8).setFont("helvetica", "normal");
-            const detailsText = `${item.stoneDetails || ''}\n${item.diamondDetails || ''}`;
-            const splitText = doc.splitTextToSize(detailsText, pageWidth - (margin * 2) - 10);
-            doc.text(splitText, margin + 8, finalY);
-            finalY += (splitText.length * 3.5) + 3;
-        }
-        
-        if (item.sampleImageDataUri) {
-            try {
-                // Ensure image is loaded before adding
-                const img = new (window as any).Image();
-                img.src = item.sampleImageDataUri;
-                await new Promise(resolve => { img.onload = resolve; });
-                const imgHeight = 35;
-                if (finalY + imgHeight > pageHeight - margin) {
-                    doc.addPage();
-                    finalY = 20;
-                }
-                doc.addImage(img, 'JPEG', margin + 5, finalY, 35, imgHeight);
-                finalY += imgHeight + 4;
-            } catch(e) {
-                console.error("Could not add sample image to PDF", e);
-            }
-        }
-        
-        doc.setLineWidth(0.2);
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-        finalY += 7;
+        tableRows.push([
+            i + 1,
+            detailLines.join('\n'),
+            `PKR ${(item.totalEstimate || 0).toLocaleString()}`,
+        ]);
     }
+
+    doc.autoTable({
+        head: [['#', 'Item Details', 'Est. Price']],
+        body: tableRows,
+        startY: finalY,
+        theme: 'grid',
+        headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
+        styles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
+        columnStyles: {
+            0: { cellWidth: 7, halign: 'center' },
+            1: { cellWidth: 'auto' },
+            2: { cellWidth: 28, halign: 'right' },
+        },
+        didParseCell: (data: any) => {
+            // Make category row bold, description normal, metal gray
+            if (data.column.index === 1 && data.cell.raw) {
+                data.cell.styles.fontStyle = 'normal';
+            }
+        },
+        didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
+            if (data.pageNumber > 1) {
+                doc.setPage(data.pageNumber);
+                data.settings.startY = 30;
+            }
+            drawHeader(data.pageNumber);
+        },
+    });
+
+    finalY = doc.lastAutoTable.finalY || finalY;
     
-    const footerStartY = pageHeight - 35;
+    const footerStartY = pageHeight - 36;
     const contacts = [
         { name: "Mina Khalid", number: "0316 1930960" },
         { name: "Ammar Mansa", number: "0326 2275554" },
     ];
-    const qrCodeSize = 17;
-    const qrGap = 4;
+    const qrCodeSize = 16;
+    const qrGap = 3;
     const qrSectionWidth = (qrCodeSize * 2) + qrGap;
     const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
     const qrStartX = pageWidth - margin - qrSectionWidth;
 
-    // Separator
     doc.setLineWidth(0.2);
     doc.line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
 
-    // Left: label + contacts
     doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
     doc.text("For Orders & Inquiries:", margin, footerStartY + 2, { maxWidth: textBlockWidth });
-    doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(80);
-    doc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 8, { maxWidth: textBlockWidth });
-    doc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 14, { maxWidth: textBlockWidth });
+    doc.setFontSize(7.5).setFont("helvetica", "normal").setTextColor(30);
+    doc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 6, { maxWidth: textBlockWidth });
+    doc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 10, { maxWidth: textBlockWidth });
 
-    // Right: QR codes with titles
+    doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(80);
+    doc.text("Bank Al Habib  |  House of Mina", margin, footerStartY + 16, { maxWidth: textBlockWidth });
+    doc.setFontSize(6).setFont("helvetica", "normal").setTextColor(100);
+    doc.text("IBAN: PK42 BAHL 1227 0981 0022 7801", margin, footerStartY + 20, { maxWidth: textBlockWidth });
+
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
 
@@ -684,6 +691,24 @@ export default function OrderDetailPage() {
       {order && <FinalizeOrderDialog order={order} open={isFinalizeDialogOpen} onOpenChange={setIsFinalizeDialogOpen} />}
       {order && <RecordAdvanceDialog order={order} open={isAdvanceDialogOpen} onOpenChange={setIsAdvanceDialogOpen} />}
 
+      <AlertDialog open={isRevertDialogOpen} onOpenChange={setIsRevertDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revert & Cancel Invoice?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently cancel invoice <strong>{order?.invoiceId}</strong> and revert this order back to &ldquo;In Progress&rdquo; so it can be edited and re-finalized. Any hisaab entries linked to the invoice will also be removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isReverting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRevert} disabled={isReverting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isReverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+              Yes, Revert Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <Button variant="outline" onClick={() => router.back()} className="mb-0">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
@@ -701,15 +726,28 @@ export default function OrderDetailPage() {
                       <div className="flex flex-wrap items-center gap-2">
                            <Button variant="outline" onClick={handlePrintOrderSlip}><Printer className="mr-2 h-4 w-4"/>Print Slip</Button>
                            <Button variant="outline" onClick={() => { setNotificationType('summary'); setIsNotificationDialogOpen(true); }}><MessageSquare className="mr-2 h-4 w-4"/>Send to Customer</Button>
-                           <Button asChild variant="outline">
-                             <Link href={`/orders/${order.id}/edit`}>
-                                <Edit className="mr-2 h-4 w-4" /> Edit Order
-                             </Link>
-                           </Button>
-                           {order.status === 'Completed' && (
-                            <Button onClick={() => setIsFinalizeDialogOpen(true)}>
-                                <FileText className="mr-2 h-4 w-4" /> Finalize & Generate Invoice
-                            </Button>
+                           {!order.invoiceId && (
+                             <Button asChild variant="outline">
+                               <Link href={`/orders/${order.id}/edit`}>
+                                 <Edit className="mr-2 h-4 w-4" /> Edit Order
+                               </Link>
+                             </Button>
+                           )}
+                           {order.invoiceId ? (
+                             <>
+                               <Button variant="outline" asChild>
+                                 <Link href={`/cart?invoice_id=${order.invoiceId}`}>
+                                   <FileText className="mr-2 h-4 w-4" /> View Invoice ({order.invoiceId})
+                                 </Link>
+                               </Button>
+                               <Button variant="destructive" onClick={() => setIsRevertDialogOpen(true)}>
+                                 <RotateCcw className="mr-2 h-4 w-4" /> Revert & Cancel Invoice
+                               </Button>
+                             </>
+                           ) : order.status === 'Completed' && (
+                             <Button onClick={() => setIsFinalizeDialogOpen(true)}>
+                               <FileText className="mr-2 h-4 w-4" /> Finalize & Generate Invoice
+                             </Button>
                            )}
                           <Badge className={cn("text-base border-transparent", getPaymentBadgeClass(getPaymentStatus(order)))}>
                               <CreditCard className="w-3.5 h-3.5 mr-1.5" />{getPaymentStatus(order)}
@@ -752,16 +790,25 @@ export default function OrderDetailPage() {
                                       </div>
                                   )}
                                   <div className="flex-grow">
+                                      {item.itemCategory && (
+                                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory}</span>
+                                      )}
                                       <p className="font-bold">{item.description}</p>
                                       <div className="text-sm text-muted-foreground space-y-1 mt-1">
-                                          {item.isManualPrice ? (
-                                            <p>Price: PKR {(item.manualPrice || item.totalEstimate || 0).toLocaleString()}</p>
-                                          ) : (
-                                          <p>
-                                            Est. Wt: {item.estimatedWeightG}g {item.karat ? `(${item.karat.toUpperCase()})` : ''}
-                                            {item.wastagePercentage > 0 && ` | Wastage: ${item.wastagePercentage}%`}
-                                          </p>
-                                          )}
+                                          {(() => {
+                                            const mName = item.metalType === 'silver' ? '925 Sterling Silver' : `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.karat ? ` (${item.karat.toUpperCase()})` : ''}`;
+                                            return item.isManualPrice ? (
+                                              <>
+                                                <p className="font-medium">{mName}</p>
+                                                <p>Price: PKR {(item.manualPrice || item.totalEstimate || 0).toLocaleString()}</p>
+                                              </>
+                                            ) : (
+                                              <p>
+                                                {mName} | Est. Wt: {item.estimatedWeightG}g
+                                                {item.metalType !== 'silver' && item.wastagePercentage > 0 && ` | Wastage: ${item.wastagePercentage}%`}
+                                              </p>
+                                            );
+                                          })()}
                                           {item.referenceSku && <p>Ref SKU: {item.referenceSku}</p>}
                                           {item.sampleGiven && <p>Sample Provided by Customer</p>}
                                           {karigarName && <p className="font-medium flex items-center gap-1"><Briefcase className="w-3 h-3"/>Karigar: {karigarName}</p>}

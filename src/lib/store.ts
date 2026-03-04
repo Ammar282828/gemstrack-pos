@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc, deleteField } from 'firebase/firestore';
 import { db, firebaseConfig } from '@/lib/firebase';
 
 
@@ -343,6 +343,7 @@ export interface InvoiceItem {
   diamondDetails?: string;
   isCustomPrice?: boolean;
   isManualPrice?: boolean;
+  itemCategory?: string;
 }
 
 export interface Payment {
@@ -384,6 +385,7 @@ export const ORDER_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled
 export type OrderStatus = typeof ORDER_STATUSES[number];
 
 export interface OrderItem {
+  itemCategory?: string;
   description: string;
   karat?: KaratValue;
   estimatedWeightG: number;
@@ -425,6 +427,7 @@ export interface Order {
   customerContact?: string;
   advanceInExchangeDescription?: string; // For gold/diamonds given by customer
   advanceInExchangeValue?: number; // Estimated value of the exchange
+  invoiceId?: string; // Set when order is finalized into an invoice
 }
 
 export type HisaabEntityType = 'customer' | 'karigar';
@@ -529,7 +532,7 @@ const initialSettingsData: Settings = {
   }
 };
 
-const staticCategories: Category[] = [
+export const staticCategories: Category[] = [
   { id: 'cat001', title: 'Rings' }, { id: 'cat002', title: 'Tops' },
   { id: 'cat003', title: 'Balis' }, { id: 'cat004', title: 'Lockets' },
   { id: 'cat005', title: 'Bracelets' }, { id: 'cat006', title: 'Bracelet and Ring Set' },
@@ -723,6 +726,7 @@ export interface AppState {
     finalizedItems: FinalizedOrderItemData[],
     additionalDiscount: number
   ) => Promise<Invoice | null>;
+  revertOrderFromInvoice: (orderId: string, invoiceId: string) => Promise<void>;
   recordOrderAdvance: (orderId: string, amount: number, notes: string) => Promise<Order | null>;
 
   loadHisaab: () => void;
@@ -1764,8 +1768,9 @@ export const useAppStore = create<AppState>()(
 
             finalSubtotal += itemPrice;
 
+            const numericPart = String(order.id).replace(/^ORD-/, '');
             const itemToAdd: InvoiceItem = {
-                sku: `ORD-${order.id}-${index + 1}`,
+                sku: `ORD-${numericPart}-${index + 1}`,
                 name: originalItem.description,
                 categoryId: '',
                 metalType: originalItem.metalType,
@@ -1785,6 +1790,7 @@ export const useAppStore = create<AppState>()(
                 stoneDetails: originalItem.stoneDetails,
                 diamondDetails: originalItem.diamondDetails,
                 ...(finalizedData.isManualPrice && { isManualPrice: true }),
+                ...(originalItem.itemCategory && { itemCategory: originalItem.itemCategory }),
             };
             finalInvoiceItems.push(cleanObject(itemToAdd));
         });
@@ -1837,6 +1843,7 @@ export const useAppStore = create<AppState>()(
                 transaction.update(doc(db, FIRESTORE_COLLECTIONS.ORDERS, order.id), {
                     status: 'Completed',
                     grandTotal: Math.max(0, balanceDue),
+                    invoiceId: invoiceId,
                 });
 
                 return newInvoice;
@@ -1882,6 +1889,20 @@ export const useAppStore = create<AppState>()(
         } catch (error) {
             console.error("Error finalizing order into invoice:", error);
             return null;
+        }
+      },
+      revertOrderFromInvoice: async (orderId, invoiceId) => {
+        if (get().settings.databaseLocked) return;
+        try {
+            await get().deleteInvoice(invoiceId, true);
+            await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId),
+                { status: 'In Progress', invoiceId: deleteField() },
+                { merge: true }
+            );
+            await addActivityLog('order.revert', `Reverted order ${orderId}`, `Cancelled invoice ${invoiceId}`, orderId);
+        } catch (error) {
+            console.error("Error reverting order from invoice:", error);
+            throw error;
         }
       },
       recordOrderAdvance: async (orderId, amount, notes) => {
