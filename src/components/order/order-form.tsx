@@ -416,7 +416,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
 
     (formValues.items || []).forEach(item => {
         if (item.isManualPrice) {
-            subtotal += item.manualPrice || 0;
+            subtotal += Number(item.manualPrice) || 0;
             return;
         }
 
