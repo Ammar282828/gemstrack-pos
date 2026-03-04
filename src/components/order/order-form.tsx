@@ -18,6 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase } from 'lucide-react';
+import { CustomerAutocomplete } from '@/components/customer-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -791,62 +792,42 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                     <CardTitle className="flex items-center"><List className="mr-2 h-5 w-5"/>Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <FormItem>
+                        <FormLabel className="flex items-center"><User className="mr-2 h-4 w-4"/>Customer</FormLabel>
+                        <CustomerAutocomplete
+                            customers={customers}
+                            value={form.watch('customerName') || ''}
+                            placeholder="Type customer name..."
+                            onSelect={({ name, customerId, phone }) => {
+                                form.setValue('customerName', name);
+                                form.setValue('customerId', customerId || WALK_IN_CUSTOMER_VALUE);
+                                if (phone !== undefined) form.setValue('customerContact', phone);
+                            }}
+                        />
+                        <FormMessage />
+                    </FormItem>
                     <FormField
                         control={form.control}
-                        name="customerId"
+                        name="customerContact"
                         render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Customer</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a customer" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        <SelectItem value={WALK_IN_CUSTOMER_VALUE}>Walk-in Customer</SelectItem>
-                                        {customers.map(c => (
-                                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
+                        <FormItem>
+                            <FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4"/>Contact</FormLabel>
+                            <FormControl>
+                            <PhoneInput
+                                name={field.name}
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                ref={field.ref}
+                                international
+                                country="PK"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                            />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
                         )}
                     />
-                     {selectedCustomerId === WALK_IN_CUSTOMER_VALUE ? (
-                        <div className="space-y-4 pt-2">
-                            <FormField control={form.control} name="customerName" render={({ field }) => (
-                               <FormItem><FormLabel className="flex items-center"><User className="mr-2 h-4 w-4"/>Walk-in Customer Name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField
-                                control={form.control}
-                                name="customerContact"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4"/>Walk-in Customer Contact</FormLabel>
-                                    <FormControl>
-                                    <PhoneInput
-                                        name={field.name}
-                                        value={field.value}
-                                        onChange={field.onChange}
-                                        onBlur={field.onBlur}
-                                        ref={field.ref}
-                                        international
-                                        country="PK"
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                                    />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                        </div>
-                     ) : (
-                        <FormField control={form.control} name="customerContact" render={({ field }) => (
-                            <FormItem><FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4"/>Customer Contact (Read-only)</FormLabel><FormControl><Input {...field} readOnly className="bg-muted/50"/></FormControl></FormItem>
-                         )}/>
-                     )}
 
                     <div className="space-y-2">
                         <Label className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rates (PKR/gram)</Label>

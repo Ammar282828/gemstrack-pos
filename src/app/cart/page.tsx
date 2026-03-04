@@ -6,6 +6,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue } from '@/lib/store';
+import { CustomerAutocomplete } from '@/components/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1001,20 +1002,23 @@ export default function CartPage() {
                         <CardTitle>Customer & Rates</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <Select onValueChange={setSelectedCustomerId} defaultValue={WALK_IN_CUSTOMER_VALUE}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={WALK_IN_CUSTOMER_VALUE}>Walk-in Customer</SelectItem>
-                                {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        
-                        {(selectedCustomerId === WALK_IN_CUSTOMER_VALUE || selectedCustomerId === undefined) && (
-                            <div className="p-4 border rounded-md space-y-3">
-                                 <div><Label>Walk-in Name <span className="text-muted-foreground text-xs">(Optional)</span></Label><Input value={walkInCustomerName} onChange={e => setWalkInCustomerName(e.target.value)} placeholder="e.g., John Doe"/></div>
-                                 <div><Label>Walk-in Contact <span className="text-muted-foreground text-xs">(Optional)</span></Label><Input value={walkInCustomerPhone} onChange={e => setWalkInCustomerPhone(e.target.value)} placeholder="e.g., 03001234567"/></div>
-                            </div>
-                        )}
+                        <div className="space-y-2">
+                            <Label>Customer Name</Label>
+                            <CustomerAutocomplete
+                                customers={customers}
+                                value={walkInCustomerName}
+                                placeholder="Type customer name..."
+                                onSelect={({ name, customerId, phone }) => {
+                                    setWalkInCustomerName(name);
+                                    setSelectedCustomerId(customerId || WALK_IN_CUSTOMER_VALUE);
+                                    if (phone !== undefined) setWalkInCustomerPhone(phone);
+                                }}
+                            />
+                        </div>
+                        <div>
+                            <Label>Contact <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                            <Input value={walkInCustomerPhone} onChange={e => setWalkInCustomerPhone(e.target.value)} placeholder="e.g., 03001234567"/>
+                        </div>
                         <Separator />
                         <div className="space-y-2">
                              <Label>Gold Rates (PKR)</Label>
