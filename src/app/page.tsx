@@ -15,7 +15,7 @@ import {
   Briefcase, ClipboardList, TrendingUp, BookUser, Settings as SettingsIcon,
   FileText, ArrowRight, TrendingDown, DollarSign, Clock, PackageSearch,
 } from 'lucide-react';
-import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
+import { format, parseISO, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 // --- Cart item ---
@@ -116,21 +116,16 @@ export default function HomePage() {
 
   const { ongoingOrders, monthlyRevenue, monthlyInvoiceCount } = useMemo(() => {
     const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
+    const last30 = subDays(now, 30);
 
     const ongoing = orders
       .filter(o => o.status === 'Pending' || o.status === 'In Progress')
       .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
 
-    const monthInvoices = generatedInvoices.filter(inv => {
-      const d = parseISO(inv.createdAt);
-      return d >= monthStart && d <= monthEnd;
-    });
+    const recentInvoices = generatedInvoices.filter(inv => parseISO(inv.createdAt) >= last30);
+    const revenue = recentInvoices.reduce((sum, inv) => sum + (inv.amountPaid || 0), 0);
 
-    const revenue = monthInvoices.reduce((sum, inv) => sum + (inv.amountPaid || 0), 0);
-
-    return { ongoingOrders: ongoing, monthlyRevenue: revenue, monthlyInvoiceCount: monthInvoices.length };
+    return { ongoingOrders: ongoing, monthlyRevenue: revenue, monthlyInvoiceCount: recentInvoices.length };
   }, [orders, generatedInvoices]);
 
   if (!appReady) {
@@ -156,7 +151,7 @@ export default function HomePage() {
           {/* Stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard
-              title="Revenue This Month"
+              title="Revenue (Last 30 Days)"
               value={`PKR ${monthlyRevenue.toLocaleString()}`}
               sub={`${monthlyInvoiceCount} invoice${monthlyInvoiceCount !== 1 ? 's' : ''}`}
               icon={<DollarSign className="h-5 w-5" />}
