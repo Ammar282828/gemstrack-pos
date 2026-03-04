@@ -366,7 +366,9 @@ export default function OrderDetailPage() {
         message += `Here is a summary of your custom order *#${order.id}* from ${settings.shopName}.\n\n`;
         order.items.forEach((item, index) => {
             message += `*Item ${index + 1}:* ${item.description}\n`;
-            message += `  - Est. Weight: ${item.estimatedWeightG}g ${item.karat ? `(${item.karat})` : ''}\n`;
+            if (!item.isManualPrice) {
+                message += `  - Est. Weight: ${item.estimatedWeightG}g ${item.karat ? `(${item.karat})` : ''}\n`;
+            }
         });
         message += `\n*Total Balance Due:* PKR ${order.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
         message += `We are working on your order and will notify you of any updates.\n\n`;
@@ -506,13 +508,17 @@ export default function OrderDetailPage() {
         }
 
         doc.setFontSize(8).setFont("helvetica", "normal");
-        const metalInfo = `Metal: ${item.metalType}, ${item.karat || ''}, Est. Weight: ${item.estimatedWeightG}g`;
-        doc.text(metalInfo, margin + 5, finalY);
-        finalY += 5;
-        
-        const wastageInfo = `Wastage: ${item.wastagePercentage}%`;
-        doc.text(wastageInfo, margin + 5, finalY);
-        finalY += 5;
+        if (item.isManualPrice) {
+            doc.text(`Price: PKR ${(item.manualPrice || item.totalEstimate || 0).toLocaleString()}`, margin + 5, finalY);
+            finalY += 5;
+        } else {
+            const metalInfo = `Metal: ${item.metalType}, ${item.karat || ''}, Est. Weight: ${item.estimatedWeightG}g`;
+            doc.text(metalInfo, margin + 5, finalY);
+            finalY += 5;
+            const wastageInfo = `Wastage: ${item.wastagePercentage}%`;
+            doc.text(wastageInfo, margin + 5, finalY);
+            finalY += 5;
+        }
         
         if (item.referenceSku) {
             doc.text(`Reference SKU: ${item.referenceSku}`, margin + 5, finalY);
@@ -748,10 +754,14 @@ export default function OrderDetailPage() {
                                   <div className="flex-grow">
                                       <p className="font-bold">{item.description}</p>
                                       <div className="text-sm text-muted-foreground space-y-1 mt-1">
+                                          {item.isManualPrice ? (
+                                            <p>Price: PKR {(item.manualPrice || item.totalEstimate || 0).toLocaleString()}</p>
+                                          ) : (
                                           <p>
                                             Est. Wt: {item.estimatedWeightG}g {item.karat ? `(${item.karat.toUpperCase()})` : ''}
                                             {item.wastagePercentage > 0 && ` | Wastage: ${item.wastagePercentage}%`}
                                           </p>
+                                          )}
                                           {item.referenceSku && <p>Ref SKU: {item.referenceSku}</p>}
                                           {item.sampleGiven && <p>Sample Provided by Customer</p>}
                                           {karigarName && <p className="font-medium flex items-center gap-1"><Briefcase className="w-3 h-3"/>Karigar: {karigarName}</p>}
