@@ -618,11 +618,11 @@ export default function OrderDetailPage() {
     );
   }
 
-  // Robustly handle potentially missing financial data
-  const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
+  // Always derive subtotal live from items so it stays consistent with item estimates
+  const subtotal = order.items.reduce((sum, item) => sum + (Number(item.totalEstimate) || 0), 0);
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
   const advanceInExchangeValue = typeof order.advanceInExchangeValue === 'number' ? order.advanceInExchangeValue : 0;
-  const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
+  const grandTotal = subtotal - advancePayment - advanceInExchangeValue;
   
   const ratesApplied = order.ratesApplied || {};
   
