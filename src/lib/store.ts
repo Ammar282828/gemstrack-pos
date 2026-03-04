@@ -404,6 +404,8 @@ export interface OrderItem {
   totalEstimate?: number;
   metalType: MetalType;
   karigarId?: string;
+  isManualPrice?: boolean;
+  manualPrice?: number;
 }
 
 export interface Order {
