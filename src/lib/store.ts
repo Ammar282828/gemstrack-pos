@@ -553,7 +553,7 @@ export type LogEventType =
   | 'customer.create' | 'customer.update' | 'customer.delete'
   | 'karigar.create' | 'karigar.update' | 'karigar.delete'
   | 'invoice.create' | 'invoice.payment' | 'invoice.delete'
-  | 'order.create' | 'order.update' | 'order.delete'
+  | 'order.create' | 'order.update' | 'order.delete' | 'order.revert'
   | 'expense.create' | 'expense.update' | 'expense.delete';
 
 export interface ActivityLog {
