@@ -89,11 +89,19 @@ const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'plat
 const finalizeOrderItemSchema = z.object({
   description: z.string(), // Readonly
   karat: z.custom<KaratValue>(), // Readonly
-  finalWeightG: z.coerce.number().min(0.001, "Weight must be a positive number."),
+  metalType: z.enum(metalTypeValues), // Readonly
+  isManualPrice: z.boolean().default(false),
+  finalManualPrice: z.coerce.number().min(0).default(0),
+  finalWeightG: z.coerce.number().min(0).default(0),
   finalMakingCharges: z.coerce.number().min(0, "Cannot be negative."),
   finalDiamondCharges: z.coerce.number().min(0, "Cannot be negative."),
   finalStoneCharges: z.coerce.number().min(0, "Cannot be negative."),
-  metalType: z.enum(metalTypeValues), // Readonly, corrected type
+}).superRefine((data, ctx) => {
+  if (data.isManualPrice) {
+    if (data.finalManualPrice <= 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Final price must be greater than 0", path: ['finalManualPrice'] });
+  } else {
+    if (data.finalWeightG <= 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Weight must be a positive number.", path: ['finalWeightG'] });
+  }
 });
 
 const finalizeOrderSchema = z.object({
@@ -118,11 +126,13 @@ const FinalizeOrderDialog: React.FC<{
             items: order.items.map(item => ({
                 description: item.description,
                 karat: item.karat,
+                metalType: item.metalType,
+                isManualPrice: item.isManualPrice || false,
+                finalManualPrice: item.manualPrice || item.totalEstimate || 0,
                 finalWeightG: item.estimatedWeightG,
                 finalMakingCharges: item.makingCharges,
                 finalDiamondCharges: item.diamondCharges,
                 finalStoneCharges: item.stoneCharges,
-                metalType: item.metalType,
             })),
             additionalDiscount: 0,
         }
@@ -165,20 +175,26 @@ const FinalizeOrderDialog: React.FC<{
                                 {fields.map((field, index) => (
                                     <Card key={field.id} className="p-4 bg-muted/50">
                                         <p className="font-bold text-sm mb-2">Item #{index + 1}: {form.getValues(`items.${index}.description`)}</p>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <FormField control={form.control} name={`items.${index}.finalWeightG`} render={({ field }) => (
-                                                <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4"/>Final Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                                        {form.watch(`items.${index}.isManualPrice`) ? (
+                                            <FormField control={form.control} name={`items.${index}.finalManualPrice`} render={({ field }) => (
+                                                <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Final Price (PKR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                                             )}/>
-                                            <FormField control={form.control} name={`items.${index}.finalMakingCharges`} render={({ field }) => (
-                                                <FormItem><FormLabel className="flex items-center"><Gem className="mr-2 h-4"/>Final Making Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                            )}/>
-                                            <FormField control={form.control} name={`items.${index}.finalDiamondCharges`} render={({ field }) => (
-                                                <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4"/>Final Diamond Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                            )}/>
-                                            <FormField control={form.control} name={`items.${index}.finalStoneCharges`} render={({ field }) => (
-                                                <FormItem><FormLabel>Final Stone Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                            )}/>
-                                        </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <FormField control={form.control} name={`items.${index}.finalWeightG`} render={({ field }) => (
+                                                    <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4"/>Final Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                                                )}/>
+                                                <FormField control={form.control} name={`items.${index}.finalMakingCharges`} render={({ field }) => (
+                                                    <FormItem><FormLabel className="flex items-center"><Gem className="mr-2 h-4"/>Final Making Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                                )}/>
+                                                <FormField control={form.control} name={`items.${index}.finalDiamondCharges`} render={({ field }) => (
+                                                    <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4"/>Final Diamond Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                                )}/>
+                                                <FormField control={form.control} name={`items.${index}.finalStoneCharges`} render={({ field }) => (
+                                                    <FormItem><FormLabel>Final Stone Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                                )}/>
+                                            </div>
+                                        )}
                                     </Card>
                                 ))}
                             </div>

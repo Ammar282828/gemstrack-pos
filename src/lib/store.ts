@@ -598,6 +598,8 @@ type FinalizedOrderItemData = {
     finalMakingCharges: number;
     finalDiamondCharges: number;
     finalStoneCharges: number;
+    isManualPrice?: boolean;
+    finalManualPrice?: number;
 };
 
 
@@ -1734,22 +1736,32 @@ export const useAppStore = create<AppState>()(
                 throw new Error(`Finalized data for item "${originalItem.description}" not found.`);
             }
 
-            const productForCostCalc = {
-                metalType: originalItem.metalType,
-                karat: originalItem.karat,
-                metalWeightG: finalizedData.finalWeightG,
-                stoneWeightG: originalItem.stoneWeightG,
-                hasStones: originalItem.hasStones,
-                wastagePercentage: originalItem.wastagePercentage,
-                makingCharges: finalizedData.finalMakingCharges,
-                hasDiamonds: originalItem.hasDiamonds,
-                diamondCharges: finalizedData.finalDiamondCharges,
-                stoneCharges: finalizedData.finalStoneCharges,
-                miscCharges: 0,
-            };
+            let itemPrice: number;
+            let itemCosts: { metalCost: number; wastageCost: number; makingCharges: number; diamondCharges: number; stoneCharges: number };
 
-            const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice as any);
-            finalSubtotal += costs.totalPrice;
+            if (finalizedData.isManualPrice) {
+                itemPrice = Number(finalizedData.finalManualPrice) || 0;
+                itemCosts = { metalCost: 0, wastageCost: 0, makingCharges: 0, diamondCharges: 0, stoneCharges: 0 };
+            } else {
+                const productForCostCalc = {
+                    metalType: originalItem.metalType,
+                    karat: originalItem.karat,
+                    metalWeightG: finalizedData.finalWeightG,
+                    stoneWeightG: originalItem.stoneWeightG,
+                    hasStones: originalItem.hasStones,
+                    wastagePercentage: originalItem.wastagePercentage,
+                    makingCharges: finalizedData.finalMakingCharges,
+                    hasDiamonds: originalItem.hasDiamonds,
+                    diamondCharges: finalizedData.finalDiamondCharges,
+                    stoneCharges: finalizedData.finalStoneCharges,
+                    miscCharges: 0,
+                };
+                const costs = _calculateProductCostsInternal(productForCostCalc, ratesForInvoice as any);
+                itemPrice = costs.totalPrice;
+                itemCosts = { metalCost: costs.metalCost, wastageCost: costs.wastageCost, makingCharges: costs.makingCharges, diamondCharges: costs.diamondCharges, stoneCharges: costs.stoneCharges };
+            }
+
+            finalSubtotal += itemPrice;
 
             const itemToAdd: InvoiceItem = {
                 sku: `ORD-${order.id}-${index + 1}`,
@@ -1757,17 +1769,17 @@ export const useAppStore = create<AppState>()(
                 categoryId: '',
                 metalType: originalItem.metalType,
                 karat: originalItem.karat,
-                metalWeightG: finalizedData.finalWeightG,
+                metalWeightG: finalizedData.isManualPrice ? 0 : finalizedData.finalWeightG,
                 stoneWeightG: originalItem.stoneWeightG,
                 quantity: 1,
-                unitPrice: costs.totalPrice,
-                itemTotal: costs.totalPrice,
-                metalCost: costs.metalCost,
-                wastageCost: costs.wastageCost,
+                unitPrice: itemPrice,
+                itemTotal: itemPrice,
+                metalCost: itemCosts.metalCost,
+                wastageCost: itemCosts.wastageCost,
                 wastagePercentage: originalItem.wastagePercentage,
-                makingCharges: costs.makingCharges,
-                diamondChargesIfAny: costs.diamondCharges,
-                stoneChargesIfAny: costs.stoneCharges,
+                makingCharges: itemCosts.makingCharges,
+                diamondChargesIfAny: itemCosts.diamondCharges,
+                stoneChargesIfAny: itemCosts.stoneCharges,
                 miscChargesIfAny: 0,
                 stoneDetails: originalItem.stoneDetails,
                 diamondDetails: originalItem.diamondDetails,
