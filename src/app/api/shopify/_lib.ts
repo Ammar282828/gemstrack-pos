@@ -2,7 +2,7 @@ import crypto from 'crypto';
 
 export const FIRESTORE_PROJECT_ID = 'hom-pos-52710474-ceeea';
 export const FIRESTORE_API_KEY = 'AIzaSyBJsDVAI_b7RvnSf-cpnSNLXQ-R0OH0qU4';
-export const SHOPIFY_API_VERSION = '2024-01';
+export const SHOPIFY_API_VERSION = '2026-01';
 export const APP_URL = 'https://studio--hom-pos-52710474-ceeea.us-central1.hosted.app';
 
 // --- Webhook HMAC validation ---

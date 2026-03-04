@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -50,6 +50,22 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
       case 'Cancelled': return 'bg-red-500/80 text-red-50';
       default: return 'secondary';
     }
+};
+
+type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
+const getPaymentStatus = (order: Order): PaymentStatus => {
+  const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
+  const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
+  if (grandTotal <= 0) return 'Paid';
+  if (advancePayment > 0) return 'Partial';
+  return 'Unpaid';
+};
+const getPaymentBadgeClass = (status: PaymentStatus) => {
+  switch (status) {
+    case 'Paid': return 'bg-green-500/80 text-green-50';
+    case 'Partial': return 'bg-orange-500/80 text-orange-50';
+    case 'Unpaid': return 'bg-red-500/80 text-red-50';
+  }
 };
 
 const DetailItem: React.FC<{ label: string; value?: string | number; children?: React.ReactNode; icon?: React.ReactNode }> = ({ label, value, children, icon }) => (
@@ -673,6 +689,9 @@ export default function OrderDetailPage() {
                                 <FileText className="mr-2 h-4 w-4" /> Finalize & Generate Invoice
                             </Button>
                            )}
+                          <Badge className={cn("text-base border-transparent", getPaymentBadgeClass(getPaymentStatus(order)))}>
+                              <CreditCard className="w-3.5 h-3.5 mr-1.5" />{getPaymentStatus(order)}
+                          </Badge>
                           <Badge className={cn("text-base border-transparent", getStatusBadgeVariant(order.status))}>
                               {order.status}
                           </Badge>

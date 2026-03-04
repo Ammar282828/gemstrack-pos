@@ -7,7 +7,7 @@ import { useAppStore, Invoice, Product, Category, Customer, Expense, InvoiceItem
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { format, parseISO, startOfDay, subDays, isWithinInterval } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight } from 'lucide-react';
@@ -59,7 +59,7 @@ export default function AnalyticsPage() {
     return generatedInvoices.filter(invoice => {
       if (!invoice || !invoice.createdAt) return false;
       const invoiceDate = parseISO(invoice.createdAt);
-      const toDate = dateRange.to ? startOfDay(dateRange.to) : startOfDay(new Date()); 
+      const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
       return isWithinInterval(invoiceDate, { start: startOfDay(dateRange.from!), end: toDate });
     });
   }, [generatedInvoices, dateRange]);
@@ -70,7 +70,7 @@ export default function AnalyticsPage() {
     return expenses.filter(expense => {
       if (!expense || !expense.date) return false;
       const expenseDate = parseISO(expense.date);
-      const toDate = dateRange.to ? startOfDay(dateRange.to) : startOfDay(new Date());
+      const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
       return isWithinInterval(expenseDate, { start: startOfDay(dateRange.from!), end: toDate });
     });
   }, [expenses, dateRange]);

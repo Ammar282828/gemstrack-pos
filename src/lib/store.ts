@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc } from 'firebase/firestore';
 import { db, firebaseConfig } from '@/lib/firebase';
 
 
@@ -367,6 +367,9 @@ export interface Invoice {
   createdAt: string; // ISO string
   ratesApplied: Partial<Settings>;
   paymentHistory: Payment[];
+  sourceOrderId?: string; // Set when invoice is created from an order
+  source?: string; // 'shopify_import' | 'shopify' for imported/synced orders
+  shopifyOrderName?: string;
 }
 
 export interface Karigar {
@@ -432,12 +435,13 @@ export interface HisaabEntry {
   description: string;
   // Amount customer/karigar owes us.
   // This increases when we give them goods/services on credit (e.g. invoice).
-  cashDebit: number; 
+  cashDebit: number;
   // Amount we owe customer/karigar.
   // This increases when they pay us, give us goods.
   cashCredit: number;
   goldDebitGrams: number; // Gold we gave them
   goldCreditGrams: number; // Gold they gave us
+  linkedInvoiceId?: string; // Set for auto-managed outstanding balance entries
 }
 
 export const EXPENSE_CATEGORIES = [
@@ -1406,16 +1410,6 @@ export const useAppStore = create<AppState>()(
 
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), cleanInvoiceData);
 
-                const hisaabEntry: Omit<HisaabEntry, 'id'> = {
-                    entityId: finalCustomerId || 'walk-in',
-                    entityType: 'customer',
-                    entityName: finalCustomerName || 'Walk-in Customer',
-                    date: newInvoiceData.createdAt!,
-                    description: `Invoice ${invoiceId}`,
-                    cashDebit: grandTotal, cashCredit: 0, goldDebitGrams: 0, goldCreditGrams: 0,
-                };
-                transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
-                
                 addActivityLog('invoice.create', `Created invoice ${invoiceId}`, `Customer: ${finalCustomerName || 'Walk-in'} | Total: ${grandTotal.toLocaleString()}`, invoiceId);
                 
                 const finalInvoice = { ...cleanInvoiceData, id: invoiceId } as Invoice;
@@ -1428,6 +1422,22 @@ export const useAppStore = create<AppState>()(
 
             // This line should be outside the transaction, in the main function body.
             set(state => { state.cart = []; });
+
+            // If there's an outstanding balance, track it in hisaab
+            if (result && result.balanceDue > 0) {
+                await addDoc(collection(db, FIRESTORE_COLLECTIONS.HISAAB), {
+                    entityId: result.customerId || 'walk-in',
+                    entityType: 'customer',
+                    entityName: result.customerName || 'Walk-in Customer',
+                    date: result.createdAt,
+                    description: `Outstanding balance for Invoice ${result.id}`,
+                    cashDebit: result.balanceDue,
+                    cashCredit: 0,
+                    goldDebitGrams: 0,
+                    goldCreditGrams: 0,
+                    linkedInvoiceId: result.id,
+                });
+            }
 
             return result;
         } catch (error) {
@@ -1463,24 +1473,35 @@ export const useAppStore = create<AppState>()(
                 
                 transaction.update(invoiceRef, updatedFields);
                 
-                // Add to Hisaab as well
-                const hisaabEntry: Omit<HisaabEntry, 'id'> = {
-                    entityId: invoiceData.customerId || 'walk-in',
-                    entityType: 'customer',
-                    entityName: invoiceData.customerName,
-                    date: paymentDate,
-                    description: `Payment for Invoice ${invoiceId}`,
-                    cashDebit: 0,
-                    cashCredit: paymentAmount,
-                    goldDebitGrams: 0,
-                    goldCreditGrams: 0,
-                };
-                transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
                 addActivityLog('invoice.payment', `Payment received for invoice ${invoiceId}`, `Amount: ${paymentAmount.toLocaleString()} | Customer: ${invoiceData.customerName}`, invoiceId);
 
 
                 return { ...invoiceData, ...updatedFields, id: invoiceId };
             });
+            if (updatedInvoice) {
+                // Update or remove the outstanding balance hisaab entry
+                const hisaabSnap = await getDocs(query(
+                    collection(db, FIRESTORE_COLLECTIONS.HISAAB),
+                    where('linkedInvoiceId', '==', invoiceId)
+                ));
+                if (!hisaabSnap.empty) {
+                    const entryRef = hisaabSnap.docs[0].ref;
+                    if (updatedInvoice.balanceDue <= 0) {
+                        await deleteDoc(entryRef);
+                    } else {
+                        await updateDoc(entryRef, { cashDebit: updatedInvoice.balanceDue });
+                    }
+                }
+
+                // Sync the source order's grandTotal if this invoice came from an order
+                if (updatedInvoice.sourceOrderId) {
+                    await updateDoc(
+                        doc(db, FIRESTORE_COLLECTIONS.ORDERS, updatedInvoice.sourceOrderId),
+                        { grandTotal: Math.max(0, updatedInvoice.balanceDue) }
+                    );
+                }
+            }
+
             return updatedInvoice;
         } catch (error) {
             console.error(`Error updating invoice payment for ${invoiceId}:`, error);
@@ -1598,6 +1619,10 @@ export const useAppStore = create<AppState>()(
             const nextOrderNumber = (currentSettings.lastOrderNumber || 0) + 1;
             const newOrderId = `ORD-${nextOrderNumber.toString().padStart(6, '0')}`;
 
+            const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, newOrderId);
+            const existingOrder = await transaction.get(orderDocRef);
+            if (existingOrder.exists()) throw new Error(`Order ID ${newOrderId} already exists. lastOrderNumber may be out of sync.`);
+
             const order: Order = {
               ...orderData,
               id: newOrderId,
@@ -1611,7 +1636,7 @@ export const useAppStore = create<AppState>()(
               ratesApplied: ratesApplied,
             };
 
-            transaction.set(doc(db, FIRESTORE_COLLECTIONS.ORDERS, newOrderId), order);
+            transaction.set(orderDocRef, order);
             transaction.update(settingsDocRef, { lastOrderNumber: nextOrderNumber });
             return order;
           });
@@ -1774,6 +1799,7 @@ export const useAppStore = create<AppState>()(
             customerId: order.customerId,
             customerName: order.customerName || 'Walk-in Customer',
             customerContact: order.customerContact,
+            sourceOrderId: order.id,
         };
 
         try {
@@ -1790,21 +1816,12 @@ export const useAppStore = create<AppState>()(
                 const newInvoice: Invoice = { id: invoiceId, ...baseInvoiceData };
                 const payload = cleanObject({ ...baseInvoiceData });
 
-                const hisaabEntry: Omit<HisaabEntry, 'id'> = {
-                    entityId: order.customerId || 'walk-in',
-                    entityType: 'customer',
-                    entityName: order.customerName || 'Walk-in Customer',
-                    date: newInvoice.createdAt,
-                    description: `Final Invoice ${invoiceId} from Order ${order.id}`,
-                    cashDebit: newInvoice.grandTotal,
-                    cashCredit: newInvoice.amountPaid,
-                    goldDebitGrams: 0, goldCreditGrams: 0,
-                };
-
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), payload);
                 transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
-                transaction.update(doc(db, FIRESTORE_COLLECTIONS.ORDERS, order.id), { status: 'Completed' });
-                transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
+                transaction.update(doc(db, FIRESTORE_COLLECTIONS.ORDERS, order.id), {
+                    status: 'Completed',
+                    grandTotal: Math.max(0, balanceDue),
+                });
 
                 return newInvoice;
             });
@@ -1812,6 +1829,39 @@ export const useAppStore = create<AppState>()(
             await addActivityLog('invoice.create', `Created invoice ${finalInvoice.id} from order ${order.id}`, `Customer: ${finalInvoice.customerName} | Total: ${finalInvoice.grandTotal.toLocaleString()}`, finalInvoice.id);
 
             set(state => { state.clearCart(); });
+
+            if (finalInvoice) {
+                if (finalInvoice.balanceDue > 0) {
+                    // Customer still owes money — track in hisaab
+                    await addDoc(collection(db, FIRESTORE_COLLECTIONS.HISAAB), {
+                        entityId: finalInvoice.customerId || 'walk-in',
+                        entityType: 'customer',
+                        entityName: finalInvoice.customerName || 'Walk-in Customer',
+                        date: finalInvoice.createdAt,
+                        description: `Outstanding balance for Invoice ${finalInvoice.id}`,
+                        cashDebit: finalInvoice.balanceDue,
+                        cashCredit: 0,
+                        goldDebitGrams: 0,
+                        goldCreditGrams: 0,
+                        linkedInvoiceId: finalInvoice.id,
+                    });
+                } else if (finalInvoice.balanceDue < 0) {
+                    // Advance was more than the final total — we owe the customer the difference
+                    await addDoc(collection(db, FIRESTORE_COLLECTIONS.HISAAB), {
+                        entityId: finalInvoice.customerId || 'walk-in',
+                        entityType: 'customer',
+                        entityName: finalInvoice.customerName || 'Walk-in Customer',
+                        date: finalInvoice.createdAt,
+                        description: `Excess advance returned for Invoice ${finalInvoice.id}`,
+                        cashDebit: 0,
+                        cashCredit: Math.abs(finalInvoice.balanceDue),
+                        goldDebitGrams: 0,
+                        goldCreditGrams: 0,
+                        linkedInvoiceId: finalInvoice.id,
+                    });
+                }
+            }
+
             return finalInvoice;
         } catch (error) {
             console.error("Error finalizing order into invoice:", error);
@@ -1839,19 +1889,8 @@ export const useAppStore = create<AppState>()(
                     grandTotal: newGrandTotal,
                 });
                 
-                const hisaabEntry: Omit<HisaabEntry, 'id'> = {
-                    entityId: orderData.customerId || 'walk-in',
-                    entityType: 'customer',
-                    entityName: orderData.customerName || 'Walk-in Customer',
-                    date: new Date().toISOString(),
-                    description: `Advance for Order ${orderId}: ${notes}`,
-                    cashDebit: 0,
-                    cashCredit: amount,
-                    goldDebitGrams: 0,
-                    goldCreditGrams: 0,
-                };
-                transaction.set(doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB)), hisaabEntry);
-
+                // No hisaab entry here — the advance is captured as cashCredit when
+                // the order is finalized to an invoice, avoiding double-counting.
                 await addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${amount.toLocaleString()}`, orderId);
 
                 return { ...orderData, advancePayment: newAdvancePayment, grandTotal: newGrandTotal } as Order;

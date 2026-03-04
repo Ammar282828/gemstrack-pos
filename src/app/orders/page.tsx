@@ -10,12 +10,30 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, DollarSign } from 'lucide-react';
+import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, DollarSign, CreditCard } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+
+type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
+
+const getPaymentStatus = (order: Order): PaymentStatus => {
+  const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
+  const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
+  if (grandTotal <= 0) return 'Paid';
+  if (advancePayment > 0) return 'Partial';
+  return 'Unpaid';
+};
+
+const getPaymentBadgeClass = (status: PaymentStatus) => {
+  switch (status) {
+    case 'Paid': return 'bg-green-500/80 text-green-50';
+    case 'Partial': return 'bg-orange-500/80 text-orange-50';
+    case 'Unpaid': return 'bg-red-500/80 text-red-50';
+  }
+};
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
     switch (status) {
@@ -53,7 +71,10 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
                 <Link href={`/orders/${order.id}`} className="font-bold text-primary hover:underline text-lg">
                     {order.id}
                 </Link>
-                <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
+                <div className="flex items-center gap-1.5">
+                  <Badge className={cn("border-transparent", getPaymentBadgeClass(getPaymentStatus(order)))}>{getPaymentStatus(order)}</Badge>
+                  <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
+                </div>
             </div>
             
             {order.summary && (
@@ -147,7 +168,8 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
           </div>
         </TableCell>
          <TableCell className="hidden xl:table-cell text-right">
-          <div className="flex flex-col items-end">
+          <div className="flex flex-col items-end gap-1">
+              <Badge className={cn("border-transparent text-xs", getPaymentBadgeClass(getPaymentStatus(order)))}>{getPaymentStatus(order)}</Badge>
               <div className="text-xs text-muted-foreground">Bal: <span className="font-semibold text-foreground">{grandTotal.toLocaleString()}</span></div>
               <div className="text-xs text-muted-foreground">Adv: <span className="font-semibold text-foreground">{advancePayment.toLocaleString()}</span></div>
               <div className="text-xs text-muted-foreground border-t mt-1 pt-1">Total: <span className="font-bold text-foreground">{subtotal.toLocaleString()}</span></div>
@@ -194,6 +216,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
+  const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'All'>('All');
   
   const appReady = useAppReady();
   const { orders, isOrdersLoading, loadOrders } = useAppStore(state => ({
@@ -213,13 +236,14 @@ export default function OrdersPage() {
     if (!appReady) return [];
     return orders.filter(order =>
         (statusFilter === 'All' || order.status === statusFilter) &&
+        (paymentFilter === 'All' || getPaymentStatus(order) === paymentFilter) &&
         (
             order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (order.customerContact && order.customerContact.includes(searchTerm))
         )
-    ).sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime()); // Sort by most recent
-  }, [orders, searchTerm, appReady, statusFilter]);
+    ).sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
+  }, [orders, searchTerm, appReady, statusFilter, paymentFilter]);
 
   if (!appReady) {
     return (
@@ -280,6 +304,24 @@ export default function OrdersPage() {
                 })}
               >
                 {status}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-sm font-medium text-muted-foreground mr-2 flex items-center"><CreditCard className="w-4 h-4 mr-1"/>Payment:</span>
+            {(['All', 'Paid', 'Partial', 'Unpaid'] as const).map((ps) => (
+              <Button
+                key={ps}
+                variant={paymentFilter === ps ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPaymentFilter(ps)}
+                className={cn(paymentFilter !== ps && "hover:bg-muted/50", {
+                  'bg-green-500/20 border-green-500/50 text-green-800 hover:bg-green-500/30 dark:text-green-200': paymentFilter === 'Paid' && ps === 'Paid',
+                  'bg-orange-500/20 border-orange-500/50 text-orange-800 hover:bg-orange-500/30 dark:text-orange-200': paymentFilter === 'Partial' && ps === 'Partial',
+                  'bg-red-500/20 border-red-500/50 text-red-800 hover:bg-red-500/30 dark:text-red-200': paymentFilter === 'Unpaid' && ps === 'Unpaid',
+                })}
+              >
+                {ps}
               </Button>
             ))}
           </div>
