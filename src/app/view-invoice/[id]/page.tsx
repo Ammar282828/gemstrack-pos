@@ -166,13 +166,18 @@ export default function ViewInvoicePage() {
     pdfDoc.text(invoiceDetails, pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
     
     const rates = invoice.ratesApplied;
-    const hasGoldItems = (invoice.items as InvoiceItem[]).some(i => i.metalType === 'gold' && i.metalWeightG > 0);
+    const itemsList = invoice.items as InvoiceItem[];
+    const hasGoldItems = itemsList.some(i => i.metalType === 'gold' && i.metalWeightG > 0);
+    const hasSilverItems = itemsList.some(i => i.metalType === 'silver' && i.metalWeightG > 0);
     let ratesApplied: string[] = [];
     if (hasGoldItems) {
       if (rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
       if (rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
       if (rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
       if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+    }
+    if (hasSilverItems && rates.silverRatePerGram) {
+      ratesApplied.push(`Silver: ${rates.silverRatePerGram.toLocaleString()}/g`);
     }
 
     if (ratesApplied.length > 0) {

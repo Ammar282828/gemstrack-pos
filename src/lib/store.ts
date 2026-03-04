@@ -342,6 +342,7 @@ export interface InvoiceItem {
   stoneDetails?: string;
   diamondDetails?: string;
   isCustomPrice?: boolean;
+  isManualPrice?: boolean;
 }
 
 export interface Payment {
@@ -1528,13 +1529,12 @@ export const useAppStore = create<AppState>()(
               const batch = writeBatch(db);
               
               // Only move products back if it's NOT an edit-and-replace operation
+              // Order-generated items (SKU starts with 'ORD-') were never in the products collection, skip them
               if (!isEditing) {
                   for(const item of invoiceData.items) {
+                      if (item.sku.startsWith('ORD-')) continue;
                       const soldProductRef = doc(db, FIRESTORE_COLLECTIONS.SOLD_PRODUCTS, item.sku);
-                      // In a real-world scenario with more complex data, you would fetch before setting
-                      // But since we are recreating from invoice data, this is acceptable.
                       const productData = {
-                          // Reconstruct product data from invoice item
                           sku: item.sku, name: item.name, categoryId: item.categoryId,
                           metalType: item.metalType, karat: item.karat, metalWeightG: item.metalWeightG,
                           stoneWeightG: item.stoneWeightG, wastagePercentage: item.wastagePercentage,
@@ -1547,10 +1547,11 @@ export const useAppStore = create<AppState>()(
                   }
               }
 
-              const hisaabQuery = query(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
-              const hisaabSnapshot = await getDocs(hisaabQuery);
-              const hisaabEntriesToDelete = hisaabSnapshot.docs.filter(doc => doc.data().description.includes(invoiceId));
-              hisaabEntriesToDelete.forEach(doc => batch.delete(doc.ref));
+              const hisaabSnapshot = await getDocs(query(
+                  collection(db, FIRESTORE_COLLECTIONS.HISAAB),
+                  where('linkedInvoiceId', '==', invoiceId)
+              ));
+              hisaabSnapshot.docs.forEach(doc => batch.delete(doc.ref));
 
               batch.delete(invoiceDocRef);
               await batch.commit();
@@ -1783,6 +1784,7 @@ export const useAppStore = create<AppState>()(
                 miscChargesIfAny: 0,
                 stoneDetails: originalItem.stoneDetails,
                 diamondDetails: originalItem.diamondDetails,
+                ...(finalizedData.isManualPrice && { isManualPrice: true }),
             };
             finalInvoiceItems.push(cleanObject(itemToAdd));
         });
