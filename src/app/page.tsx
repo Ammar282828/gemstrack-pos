@@ -114,7 +114,7 @@ export default function HomePage() {
     }
   }, [appReady, loadProducts, loadOrders, loadGeneratedInvoices]);
 
-  const { ongoingOrders, monthlyRevenue, monthlyInvoiceCount } = useMemo(() => {
+  const { ongoingOrders, monthlyRevenue, monthlyInvoiceCount, monthlyOrderCount } = useMemo(() => {
     const now = new Date();
     const last30 = subDays(now, 30);
 
@@ -123,9 +123,19 @@ export default function HomePage() {
       .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
 
     const recentInvoices = generatedInvoices.filter(inv => parseISO(inv.createdAt) >= last30);
-    const revenue = recentInvoices.reduce((sum, inv) => sum + (inv.amountPaid || 0), 0);
+    const invoiceRevenue = recentInvoices.reduce((sum, inv) => sum + (inv.amountPaid || 0), 0);
 
-    return { ongoingOrders: ongoing, monthlyRevenue: revenue, monthlyInvoiceCount: recentInvoices.length };
+    const recentOrders = orders.filter(o =>
+      parseISO(o.createdAt) >= last30 &&
+      o.status !== 'Cancelled' &&
+      !o.invoiceId
+    );
+    const orderRevenue = recentOrders.reduce((sum, o) => sum + (o.grandTotal || 0), 0);
+
+    const revenue = invoiceRevenue + orderRevenue;
+    const invoiceCount = recentInvoices.length;
+
+    return { ongoingOrders: ongoing, monthlyRevenue: revenue, monthlyInvoiceCount: invoiceCount, monthlyOrderCount: recentOrders.length };
   }, [orders, generatedInvoices]);
 
   if (!appReady) {
@@ -153,7 +163,7 @@ export default function HomePage() {
             <StatCard
               title="Revenue (Last 30 Days)"
               value={`PKR ${monthlyRevenue.toLocaleString()}`}
-              sub={`${monthlyInvoiceCount} invoice${monthlyInvoiceCount !== 1 ? 's' : ''}`}
+              sub={`${monthlyInvoiceCount} invoice${monthlyInvoiceCount !== 1 ? 's' : ''}${monthlyOrderCount > 0 ? ` · ${monthlyOrderCount} order${monthlyOrderCount !== 1 ? 's' : ''}` : ''}`}
               icon={<DollarSign className="h-5 w-5" />}
               color="text-green-600"
             />
