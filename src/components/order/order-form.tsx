@@ -326,7 +326,7 @@ interface OrderFormProps {
 export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
   const { toast } = useToast();
   const router = useRouter();
-  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, addCustomer } = useAppStore();
+  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder } = useAppStore();
   const isEditMode = !!order;
 
   useEffect(() => {
@@ -496,32 +496,21 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             subtotal,
             grandTotal,
         };
-        await updateOrder(order.id, updatedOrderData);
-        toast({ title: "Order Updated", description: "The custom order has been successfully updated." });
-        router.push(`/orders/${order.id}`);
-    } else {
-        let finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
-        let finalCustomerName = data.customerName;
-        
-        if (!finalCustomerId && data.customerName) {
-            const newCustomer = await addCustomer({ 
-                name: data.customerName, 
-                phone: data.customerContact,
-                email: '',
-                address: '',
-            });
-            if (newCustomer) {
-                finalCustomerId = newCustomer.id;
-            }
-        } else if (finalCustomerId) {
-          const customer = customers.find(c => c.id === finalCustomerId);
-          if (customer) {
-            finalCustomerName = customer.name;
-          }
-        } else if (!finalCustomerName && data.customerContact) {
-            finalCustomerName = `Customer - ${data.customerContact}`;
+        try {
+            await updateOrder(order.id, updatedOrderData);
+            toast({ title: "Order Updated", description: "The custom order has been successfully updated." });
+            router.push(`/orders/${order.id}`);
+        } catch (err) {
+            console.error("Order update error:", err);
+            toast({ title: "Error", description: "Failed to update the order. Please try again.", variant: "destructive" });
         }
-
+    } else {
+        const finalCustomerId = data.customerId === WALK_IN_CUSTOMER_VALUE ? undefined : data.customerId;
+        let finalCustomerName = data.customerName;
+        if (finalCustomerId) {
+          const customer = customers.find(c => c.id === finalCustomerId);
+          if (customer) finalCustomerName = customer.name;
+        }
 
         const orderToSave: Omit<Order, 'id' | 'createdAt' | 'status'> = {
             items: enrichedItems,
@@ -536,13 +525,17 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             customerContact: data.customerContact,
         };
 
-        const newOrder = await addOrder(orderToSave);
-
-        if (newOrder) {
-            toast({ title: `Order ${newOrder.id} Created`, description: "Custom order has been saved." });
-            router.push(`/orders/${newOrder.id}`);
-        } else {
-            toast({ title: "Error", description: "Failed to save the custom order.", variant: "destructive" });
+        try {
+            const newOrder = await addOrder(orderToSave);
+            if (newOrder) {
+                toast({ title: `Order ${newOrder.id} Created`, description: "Custom order has been saved." });
+                router.push(`/orders/${newOrder.id}`);
+            } else {
+                toast({ title: "Error", description: "Failed to save the custom order. Please try again.", variant: "destructive" });
+            }
+        } catch (err) {
+            console.error("Order save error:", err);
+            toast({ title: "Error", description: "An unexpected error occurred. Please try again.", variant: "destructive" });
         }
     }
   };
@@ -845,7 +838,6 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                 onChange={field.onChange}
                                 onBlur={field.onBlur}
                                 ref={field.ref}
-                                international
                                 defaultCountry="PK"
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                             />
