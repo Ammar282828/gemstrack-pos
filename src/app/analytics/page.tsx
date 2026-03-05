@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useAppStore, Invoice, Product, Category, Customer, Expense, InvoiceItem } from '@/lib/store';
+import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -27,21 +27,22 @@ type ExpenseByCategoryData = { category: string; amount: number };
 
 export default function AnalyticsPage() {
   const { 
-    generatedInvoices, products, categories, customers, expenses,
-    isInvoicesLoading, isProductsLoading, isCustomersLoading, isExpensesLoading,
-    invoicesError, productsError, customersError, expensesError,
-    loadGeneratedInvoices, loadProducts, loadCustomers, loadExpenses 
+    generatedInvoices, orders, products, categories, customers, expenses,
+    isInvoicesLoading, isOrdersLoading, isProductsLoading, isCustomersLoading, isExpensesLoading,
+    invoicesError, ordersError, productsError, customersError, expensesError,
+    loadGeneratedInvoices, loadOrders, loadProducts, loadCustomers, loadExpenses 
   } = useAppStore();
 
   useEffect(() => {
     loadGeneratedInvoices();
+    loadOrders();
     loadProducts();
     loadCustomers();
     loadExpenses();
-  }, [loadGeneratedInvoices, loadProducts, loadCustomers, loadExpenses]);
+  }, [loadGeneratedInvoices, loadOrders, loadProducts, loadCustomers, loadExpenses]);
 
-  const isLoading = isInvoicesLoading || isProductsLoading || isCustomersLoading || isExpensesLoading;
-  const loadingError = invoicesError || productsError || customersError || expensesError;
+  const isLoading = isInvoicesLoading || isOrdersLoading || isProductsLoading || isCustomersLoading || isExpensesLoading;
+  const loadingError = invoicesError || ordersError || productsError || customersError || expensesError;
 
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -63,6 +64,19 @@ export default function AnalyticsPage() {
       return isWithinInterval(invoiceDate, { start: startOfDay(dateRange.from!), end: toDate });
     });
   }, [generatedInvoices, dateRange]);
+
+  // Uninvoiced orders only (not Cancelled, no invoiceId — those are already counted in invoice revenue)
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      if (!order || !order.createdAt) return false;
+      if (order.status === 'Cancelled') return false;
+      if (order.invoiceId) return false; // already counted via invoice
+      if (!dateRange || !dateRange.from) return true;
+      const orderDate = parseISO(order.createdAt);
+      const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
+      return isWithinInterval(orderDate, { start: startOfDay(dateRange.from!), end: toDate });
+    });
+  }, [orders, dateRange]);
   
   const filteredExpenses = useMemo(() => {
     if (!dateRange || !dateRange.from) return expenses;
@@ -79,6 +93,8 @@ export default function AnalyticsPage() {
   const analyticsData = useMemo(() => {
     const calcData = {
         totalSales: 0,
+        invoiceSales: 0,
+        orderSales: 0,
         totalOrders: 0,
         averageOrderValue: 0,
         totalItemsSold: 0,
@@ -93,7 +109,7 @@ export default function AnalyticsPage() {
         expensesByCategory: [] as ExpenseByCategoryData[],
       };
 
-    if (filteredInvoices.length === 0 && filteredExpenses.length === 0) {
+    if (filteredInvoices.length === 0 && filteredOrders.length === 0 && filteredExpenses.length === 0) {
       return calcData;
     }
 
@@ -150,7 +166,30 @@ export default function AnalyticsPage() {
       }
     });
 
-    const totalOrders = filteredInvoices.length;
+    // Process uninvoiced Orders into revenue
+    let orderSales = 0;
+    filteredOrders.forEach(order => {
+      if (!order) return;
+      const amount = order.grandTotal || 0;
+      totalSales += amount;
+      orderSales += amount;
+
+      const dateKey = format(startOfDay(parseISO(order.createdAt)), 'yyyy-MM-dd');
+      if (!salesByDate[dateKey]) {
+        salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
+      }
+      salesByDate[dateKey].sales += order.grandTotal || 0;
+      salesByDate[dateKey].orders += 1;
+
+      const customerKey = order.customerId || 'walk-in';
+      if (!customerPerformance[customerKey]) {
+        customerPerformance[customerKey] = { totalSpent: 0, orderCount: 0 };
+      }
+      customerPerformance[customerKey].totalSpent += order.grandTotal || 0;
+      customerPerformance[customerKey].orderCount += 1;
+    });
+
+    const totalOrders = filteredInvoices.length + filteredOrders.length;
     calcData.averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
     calcData.averageItemsPerOrder = totalOrders > 0 ? totalItemsSold / totalOrders : 0;
     
@@ -211,13 +250,15 @@ export default function AnalyticsPage() {
       .slice(0, 10);
       
     calcData.totalSales = totalSales;
+    calcData.invoiceSales = totalSales - orderSales;
+    calcData.orderSales = orderSales;
     calcData.totalOrders = totalOrders;
     calcData.totalItemsSold = totalItemsSold;
     calcData.totalDiscounts = totalDiscounts;
 
     return calcData;
 
-  }, [filteredInvoices, filteredExpenses, products, categories, customers]);
+  }, [filteredInvoices, filteredOrders, filteredExpenses, products, categories, customers]);
   
   const dailyBreakdown = useMemo(() => {
     if (!selectedDayData) return { invoices: [], products: [] };
@@ -335,16 +376,16 @@ export default function AnalyticsPage() {
         <DateRangePicker date={dateRange} onDateChange={setDateRange} />
       </header>
 
-      {filteredInvoices.length === 0 && dateRange?.from ? ( 
+      {filteredInvoices.length === 0 && filteredOrders.length === 0 && dateRange?.from ? ( 
         <Card>
           <CardHeader>
             <CardTitle>No Data Available for Selected Range</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">There are no invoices in the selected date range. Try adjusting the dates or make some sales!</p>
+            <p className="text-muted-foreground">There are no invoices or orders in the selected date range. Try adjusting the dates or make some sales!</p>
           </CardContent>
         </Card>
-      ) : generatedInvoices.length === 0 && expenses.length === 0 ? ( 
+      ) : generatedInvoices.length === 0 && orders.length === 0 && expenses.length === 0 ? ( 
         <Card>
           <CardHeader>
             <CardTitle>No Data Available</CardTitle>
@@ -364,6 +405,10 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">PKR {analyticsData.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Invoices: PKR {analyticsData.invoiceSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  {analyticsData.orderSales > 0 && ` · Orders: PKR ${analyticsData.orderSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                </p>
               </CardContent>
             </Card>
             <Card>
