@@ -373,11 +373,10 @@ export default function CartPage() {
     setIsEditingEstimate(true);
     loadCartFromInvoice(generatedInvoice);
     setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
-    if (!generatedInvoice.customerId) {
-        setWalkInCustomerName(generatedInvoice.customerName || '');
-        if (generatedInvoice.customerContact) {
-            setWalkInCustomerPhone(generatedInvoice.customerContact);
-        }
+    // Always restore customer name and phone regardless of walk-in vs registered customer
+    setWalkInCustomerName(generatedInvoice.customerName || '');
+    if (generatedInvoice.customerContact) {
+        setWalkInCustomerPhone(generatedInvoice.customerContact);
     }
     setRateInputs({
         gold18k: (generatedInvoice.ratesApplied.goldRatePerGram18k || settings.goldRatePerGram18k || 0).toFixed(2),
