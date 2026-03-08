@@ -40,7 +40,11 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Force-resolve the auth token so Firestore has it before children mount
+        await firebaseUser.getIdToken();
+      }
       setUser(firebaseUser);
       setIsLoading(false);
     });
