@@ -3,9 +3,13 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Only authenticated Firebase users (signed in via Google) can read/write.
+    // Only specific authorised Google accounts can read/write.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null
+        && request.auth.token.email in [
+          'potatomasta501@gmail.com',
+          'minakhalid00@gmail.com'
+        ];
     }
   }
 }

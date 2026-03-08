@@ -15,6 +15,14 @@ import { Loader2, LogIn } from 'lucide-react';
 
 const googleProvider = new GoogleAuthProvider();
 
+const ALLOWED_EMAILS = [
+  'potatomasta501@gmail.com',
+  'minakhalid00@gmail.com',
+];
+
+const isAllowed = (user: User | null) =>
+  !!user?.email && ALLOWED_EMAILS.includes(user.email.toLowerCase());
+
 interface AuthContextValue {
   user: User | null;
   signOut: () => Promise<void>;
@@ -42,6 +50,14 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        if (!isAllowed(firebaseUser)) {
+          // Immediately sign out accounts not on the allowlist
+          await firebaseSignOut(auth);
+          setError('This Google account is not authorised to access this app.');
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
         // Force-resolve the auth token so Firestore has it before children mount
         await firebaseUser.getIdToken();
       }
