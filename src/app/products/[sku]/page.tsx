@@ -133,12 +133,17 @@ export default function ProductDetailPage() {
   };
 
   if (!isHydrated) {
-    return <div className="container mx-auto p-4"><p>Loading product details...</p></div>;
+    return (
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading product details...</p>
+      </div>
+    );
   }
 
   if (!productData) {
     return (
-      <div className="container mx-auto p-4 text-center">
+      <div className="container mx-auto py-8 px-4 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
         <h2 className="text-2xl font-semibold">Product not found</h2>
         <Link href="/products" passHref>
           <Button variant="link" className="mt-4">Go back to products</Button>
@@ -171,7 +176,7 @@ export default function ProductDetailPage() {
   const productRate = getRateForProduct();
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto py-8 px-4">
       <Button variant="outline" onClick={() => router.back()} className="mb-6">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to List
       </Button>

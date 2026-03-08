@@ -345,11 +345,11 @@ export default function EntityHisaabPage() {
   return (
     <div className="container mx-auto py-8 px-4 space-y-6">
        <AddTransactionDialog mode={dialogMode} open={isDialogOpen} onOpenChange={setIsDialogOpen} onSubmit={onAddEntry} entityType={entityType} />
-       <header className="mb-2">
+       <header className="mb-6">
          <Button variant="outline" onClick={() => router.back()} className="mb-4">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Summary
         </Button>
-        <h1 className="text-3xl font-bold text-primary flex items-center">
+        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center">
             {entityType === 'customer' ? <User className="mr-3 h-8 w-8"/> : <Briefcase className="mr-3 h-8 w-8"/>}
             Ledger for {entity.name}
         </h1>

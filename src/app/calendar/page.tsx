@@ -199,7 +199,7 @@ export default function CalendarPage() {
   return (
     <div className="container mx-auto py-8 px-4 h-full">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-primary flex items-center"><CalendarIcon className="mr-3 h-8 w-8"/>Activity Calendar</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><CalendarIcon className="mr-3 h-8 w-8"/>Activity Calendar</h1>
         <p className="text-muted-foreground">Visualize your sales and custom orders over time.</p>
         <div className="flex items-center gap-4 mt-2 text-sm">
             <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-green-500"></div> Sales Invoices</div>

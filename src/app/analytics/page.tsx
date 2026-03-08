@@ -462,10 +462,10 @@ export default function AnalyticsPage() {
           </DialogContent>
       </Dialog>
       
-      <header className="flex flex-col gap-3 mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <header className="flex flex-col gap-3 mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
           <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-primary">Store Analytics</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-primary">Store Analytics</h1>
               <p className="text-muted-foreground text-sm">Sales, products &amp; customer insights.</p>
           </div>
           <DateRangePicker date={dateRange} onDateChange={(r) => { setDateRange(r); setActiveQuickSelect('custom'); }} />

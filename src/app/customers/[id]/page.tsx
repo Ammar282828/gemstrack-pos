@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, BookUser, ClipboardList, FileText } from 'lucide-react';
+import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, BookUser, ClipboardList, FileText, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -100,12 +100,17 @@ export default function CustomerDetailPage() {
   };
 
   if (!isHydrated) {
-    return <div className="container mx-auto p-4"><p>Loading customer details...</p></div>;
+    return (
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+        <p className="text-lg text-muted-foreground">Loading customer details...</p>
+      </div>
+    );
   }
 
   if (!customer) {
     return (
-      <div className="container mx-auto p-4 text-center">
+      <div className="container mx-auto py-8 px-4 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
         <h2 className="text-2xl font-semibold">Customer not found</h2>
         <Link href="/customers" passHref>
           <Button variant="link" className="mt-4">Go back to customers</Button>
@@ -115,7 +120,7 @@ export default function CustomerDetailPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="container mx-auto py-8 px-4 space-y-6">
       <Button variant="outline" onClick={() => router.back()} className="mb-0">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to List
       </Button>

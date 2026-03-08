@@ -124,10 +124,10 @@ export default function KarigarsPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-4xl">
-      <header className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="container mx-auto py-8 px-4">
+      <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Briefcase className="w-6 h-6 text-primary" />Karigars</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Briefcase className="w-8 h-8 mr-3 text-primary" />Karigars</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{karigars.length} artisan{karigars.length !== 1 ? 's' : ''} · PKR {Object.values(totalsMap).reduce((a, b) => a + b, 0).toLocaleString()} total paid</p>
         </div>
         <Link href="/karigars/add">
@@ -135,20 +135,24 @@ export default function KarigarsPage() {
         </Link>
       </header>
 
-      <div className="relative mb-5">
-        <Input
-          type="search"
-          placeholder="Search by name or contact..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-      </div>
+      <Card className="mb-5">
+        <CardContent className="p-4">
+          <div className="relative">
+            <Input
+              type="search"
+              placeholder="Search by name or contact..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
 
       {isKarigarsLoading ? (
         <div className="text-center py-12">
-          <Loader2 className="w-10 h-10 mx-auto text-primary animate-spin mb-3" />
+          <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
       ) : filteredKarigars.length > 0 ? (
@@ -180,8 +184,8 @@ export default function KarigarsPage() {
           </Card>
         </>
       ) : (
-        <div className="text-center py-12 bg-card rounded-lg">
-          <Briefcase className="w-14 h-14 mx-auto text-muted-foreground mb-4" />
+        <div className="text-center py-12 bg-card rounded-lg shadow">
+          <Briefcase className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Karigars Found</h3>
           <p className="text-muted-foreground text-sm">
             {searchTerm ? "Try adjusting your search term." : "Add your first karigar to get started."}

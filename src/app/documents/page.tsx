@@ -393,7 +393,7 @@ export default function DocumentsPage() {
       }
       if (docs.length === 0) {
           return (
-             <div className="text-center py-12 bg-card rounded-lg shadow-sm">
+             <div className="text-center py-12 bg-card rounded-lg shadow">
                 <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold mb-2">No Documents Found</h3>
                 <p className="text-muted-foreground">

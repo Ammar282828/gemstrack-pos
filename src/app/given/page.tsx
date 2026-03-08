@@ -285,10 +285,10 @@ export default function GivenItemsPage() {
   return (
     <div className="container mx-auto py-8 px-4">
       {/* Header */}
-      <header className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
-            <HandCoins className="w-7 h-7" /> Given Items
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center">
+            <HandCoins className="w-8 h-8 mr-3" /> Given Items
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             Track samples, repairs, or anything given to karigars or customers.
@@ -329,9 +329,9 @@ export default function GivenItemsPage() {
               placeholder="Search by item or recipient…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-9"
+              className="pl-10"
             />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           </div>
           <div className="flex gap-2">
             {(['all', 'out', 'returned'] as const).map(s => (
@@ -352,11 +352,11 @@ export default function GivenItemsPage() {
       {/* Table */}
       {isGivenItemsLoading ? (
         <div className="text-center py-12">
-          <Loader2 className="w-10 h-10 mx-auto animate-spin text-primary mb-3" />
+          <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary mb-4" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 bg-card rounded-lg shadow">
-          <HandCoins className="w-14 h-14 mx-auto text-muted-foreground mb-4" />
+          <HandCoins className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-1">Nothing here yet</h3>
           <p className="text-muted-foreground text-sm">
             {search || statusFilter !== 'all' ? 'No items match your filter.' : 'Tap "Record Item Given" to get started.'}

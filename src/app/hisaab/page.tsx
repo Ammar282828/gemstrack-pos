@@ -247,7 +247,7 @@ export default function HisaabPage() {
         />
        
        <header className="mb-8">
-        <h1 className="text-3xl font-bold text-primary flex items-center"><BookUser className="mr-3 h-8 w-8"/>Hisaab / Ledger</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><BookUser className="mr-3 h-8 w-8"/>Hisaab / Ledger</h1>
         <p className="text-muted-foreground">Summary of all outstanding accounts for customers and karigars.</p>
       </header>
       
@@ -286,11 +286,11 @@ export default function HisaabPage() {
                 placeholder="Search by name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-11"
+                className="pl-10"
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             </div>
-             <Button variant="outline" onClick={handlePrintReport} className="h-11 flex-shrink-0">
+             <Button variant="outline" onClick={handlePrintReport} className="flex-shrink-0">
                 <FileText className="mr-2 h-4 w-4"/>
                 Export PDF
             </Button>
@@ -323,11 +323,11 @@ export default function HisaabPage() {
                   ))}
               </div>
           ) : (
-              <Card>
-                <CardContent className="text-center py-10">
-                    <p className="text-muted-foreground">{searchTerm ? 'No accounts match your search.' : 'All accounts are settled. No outstanding balances found.'}</p>
-                </CardContent>
-              </Card>
+              <div className="text-center py-12 bg-card rounded-lg shadow">
+                  <BookUser className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">{searchTerm ? 'No Accounts Found' : 'All Settled'}</h3>
+                  <p className="text-muted-foreground text-sm">{searchTerm ? 'No accounts match your search.' : 'All accounts are settled. No outstanding balances found.'}</p>
+              </div>
           )}
       </div>
 

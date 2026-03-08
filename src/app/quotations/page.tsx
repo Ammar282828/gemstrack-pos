@@ -255,9 +255,9 @@ export default function QuotationGenerator() {
     };
 
     return (
-        <div className="container mx-auto py-6 space-y-6">
-            <header>
-                <h1 className="text-3xl font-bold text-primary flex items-center">
+        <div className="container mx-auto py-8 px-4 space-y-6">
+            <header className="mb-8">
+                <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center">
                     <Calculator className="mr-3 h-8 w-8" /> Quotation Generator
                 </h1>
                 <p className="text-muted-foreground">Create dynamic price quotes for customers.</p>

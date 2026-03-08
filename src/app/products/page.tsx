@@ -277,9 +277,9 @@ export default function ProductsPage() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <header className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary">Products</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Shapes className="w-8 h-8 mr-3"/>Products</h1>
           <p className="text-muted-foreground text-sm">{allStoreProducts.length} items in inventory</p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -307,9 +307,9 @@ export default function ProductsPage() {
                 placeholder="Search by name or SKU…"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+                className="pl-10"
               />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             </div>
             <div className="flex gap-1 border rounded-md p-0.5">
               <Button

@@ -155,9 +155,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="container mx-auto py-4 px-4 space-y-6">
-      <header>
-        <h1 className="text-3xl font-bold text-primary">Dashboard</h1>
+    <div className="container mx-auto py-8 px-4 space-y-6">
+      <header className="mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-primary">Dashboard</h1>
         <p className="text-muted-foreground">Welcome back! Here's your store overview.</p>
       </header>
 

@@ -13,6 +13,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const eventIcons: Record<LogEventType, React.ReactNode> = {
     'product.create': <Package className="h-4 w-4" />,
@@ -121,9 +122,9 @@ export default function ActivityLogPage() {
 
     return (
         <div className="container mx-auto py-8 px-4 space-y-6">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-primary flex items-center"><History className="mr-3 h-8 w-8"/> Activity Log</h1>
+                    <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><History className="mr-3 h-8 w-8"/> Activity Log</h1>
                     <p className="text-muted-foreground">A chronological record of all significant actions taken in the system.</p>
                 </div>
             </header>
@@ -134,21 +135,19 @@ export default function ActivityLogPage() {
                 </CardHeader>
                 <CardContent className="flex flex-col sm:flex-row gap-4">
                      <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />
-                     <div className="flex flex-wrap gap-2 items-center">
-                        <span className="text-sm font-medium text-muted-foreground mr-2">Event Type:</span>
-                        <Button
-                        variant={typeFilter === 'All' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setTypeFilter('All')}
-                        >All</Button>
-                        {LOG_EVENT_TYPES.map((cat) => (
-                        <Button
-                            key={cat}
-                            variant={typeFilter === cat ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => setTypeFilter(cat)}
-                            >{cat.charAt(0).toUpperCase() + cat.slice(1)}</Button>
-                        ))}
+                     <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="text-sm font-medium text-muted-foreground flex-shrink-0">Event Type:</span>
+                        <Select value={typeFilter} onValueChange={setTypeFilter}>
+                            <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All</SelectItem>
+                                {LOG_EVENT_TYPES.map((cat) => (
+                                    <SelectItem key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardContent>
             </Card>
@@ -161,7 +160,7 @@ export default function ActivityLogPage() {
                                 {filteredLogs.map(log => (
                                     <div key={log.id} className="flex items-start gap-4 p-3 border-b">
                                         <div className="mt-1">{eventIcons[log.eventType]}</div>
-                                        <div className="flex-grow">
+                                        <div className="flex-grow min-w-0">
                                             <p className={`font-semibold ${getEventTypeColor(log.eventType)}`}>{log.description}</p>
                                             <p className="text-sm text-muted-foreground">{log.details}</p>
                                         </div>
@@ -184,10 +183,10 @@ export default function ActivityLogPage() {
                                 ))}
                             </div>
                        ) : (
-                           <div className="text-center text-muted-foreground py-16">
-                               <History className="h-12 w-12 mx-auto mb-4"/>
-                               <p className="font-semibold">No Activity Found</p>
-                               <p className="text-sm">There are no log entries for the selected filters.</p>
+                           <div className="text-center py-12">
+                               <History className="w-16 h-16 mx-auto text-muted-foreground mb-4"/>
+                               <h3 className="text-xl font-semibold mb-2">No Activity Found</h3>
+                               <p className="text-sm text-muted-foreground">There are no log entries for the selected filters.</p>
                            </div>
                        )}
                     </ScrollArea>

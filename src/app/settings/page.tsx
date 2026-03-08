@@ -357,7 +357,7 @@ export default function SettingsPage() {
 
   if (!appReady || (isSettingsLoading && !form.formState.isDirty) ) { 
     return (
-      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
         <p className="text-lg text-muted-foreground">Loading settings...</p>
       </div>
@@ -369,7 +369,7 @@ export default function SettingsPage() {
 
 
   return (
-    <div className="container mx-auto p-4 space-y-8">
+    <div className="container mx-auto py-8 px-4 space-y-8">
       <EmergencyLock />
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>

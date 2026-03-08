@@ -170,7 +170,7 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 overflow-x-hidden">
+    <div className="container mx-auto py-8 px-4">
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent>
           <DialogHeader>
