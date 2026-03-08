@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories } from '@/lib/store';
-import { CustomerAutocomplete } from '@/components/customer-autocomplete';
+import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
