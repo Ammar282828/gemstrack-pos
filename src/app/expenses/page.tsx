@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Edit, Trash2, CreditCard, Loader2, Filter, FileText, User } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, CreditCard, Loader2, Filter, FileText, User, ChevronDown } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ExpenseForm } from '@/components/expense/expense-form';
@@ -169,7 +170,7 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4 overflow-x-hidden">
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent>
           <DialogHeader>
@@ -186,7 +187,7 @@ export default function ExpensesPage() {
           </h1>
           <p className="text-muted-foreground">Track all your operational costs and expenditures.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={handlePrintReport} disabled={!settings || filteredExpenses.length === 0}>
                 <FileText className="mr-2 h-4 w-4" /> Download Report
             </Button>
@@ -223,23 +224,21 @@ export default function ExpensesPage() {
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           </div>
-           <div className="flex flex-col sm:flex-row gap-4">
+           <div className="flex flex-col sm:flex-row gap-3">
                 <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />
-                <div className="flex flex-wrap gap-2 items-center">
-                    <span className="text-sm font-medium text-muted-foreground flex items-center"><Filter className="w-4 h-4 mr-1"/>Category:</span>
-                    <Button
-                    variant={categoryFilter === 'All' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setCategoryFilter('All')}
-                    >All</Button>
-                    {EXPENSE_CATEGORIES.map((cat) => (
-                    <Button
-                        key={cat}
-                        variant={categoryFilter === cat ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setCategoryFilter(cat)}
-                        >{cat}</Button>
-                    ))}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <span className="text-sm font-medium text-muted-foreground flex items-center flex-shrink-0"><Filter className="w-4 h-4 mr-1"/>Category:</span>
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger className="flex-1 sm:w-48">
+                            <SelectValue placeholder="All Categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="All">All</SelectItem>
+                            {EXPENSE_CATEGORIES.map((cat) => (
+                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
         </CardContent>
