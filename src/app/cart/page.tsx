@@ -172,13 +172,17 @@ export default function CartPage() {
         const invoice = allInvoices.find(inv => inv.id === preloadedInvoiceId);
         if (invoice) {
             setGeneratedInvoice(invoice);
-             // Since we are loading a finalized invoice, we don't need the cart
-            if (cartItemsFromStore.length > 0) {
-              clearCart();
-            }
+            // Always clear the cart when viewing a preloaded invoice — we never want
+            // the active cart to bleed into the invoice view.
+            clearCart();
         }
     }
-  }, [preloadedInvoiceId, allInvoices, clearCart, isEditingEstimate, cartItemsFromStore.length]);
+    // NOTE: cartItemsFromStore.length is intentionally excluded from deps.
+    // Including it caused a race condition: loadCartFromInvoice (Zustand, sync) would
+    // update cart length, the effect would re-fire before React committed
+    // isEditingEstimate=true, and clearCart() would wipe the just-loaded items.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preloadedInvoiceId, allInvoices, clearCart, isEditingEstimate]);
 
 
   useEffect(() => {
@@ -371,6 +375,7 @@ export default function CartPage() {
   const handleEditEstimate = () => {
     if (!generatedInvoice) return;
     setIsEditingEstimate(true);
+    clearCart(); // Ensure no stale items linger before loading invoice items
     loadCartFromInvoice(generatedInvoice);
     setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
     // Always restore customer name and phone regardless of walk-in vs registered customer
