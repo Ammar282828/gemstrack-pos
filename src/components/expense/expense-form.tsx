@@ -175,12 +175,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
         ) : (
           <div className="space-y-1">
             <label className="text-sm font-medium flex items-center"><Briefcase className="mr-2 h-4 w-4"/> Link to Karigar (optional)</label>
-            <Select value={selectedKarigarId} onValueChange={setSelectedKarigarId}>
+            <Select value={selectedKarigarId || '__none__'} onValueChange={v => setSelectedKarigarId(v === '__none__' ? '' : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="None — not a karigar payment" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="__none__">None — not a karigar payment</SelectItem>
                 {karigars.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
               </SelectContent>
             </Select>
