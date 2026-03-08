@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useAppStore, MetalType, KaratValue } from '@/lib/store';
+import { STORE_CONFIG } from '@/lib/store-config';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -230,8 +231,8 @@ export default function QuotationGenerator() {
         // 3. Footer
         const footerStartY = pageHeight - 35;
         const contacts = [
-            { name: "Mina Khalid", number: "0316 1930960" },
-            { name: "Ammar Mansa", number: "0326 2275554" },
+            { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
+            { name: STORE_CONFIG.contact2Name, number: STORE_CONFIG.contact2Number },
         ];
 
         // Separator line

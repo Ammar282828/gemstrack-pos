@@ -12,13 +12,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, LogIn } from 'lucide-react';
+import { STORE_CONFIG } from '@/lib/store-config';
 
 const googleProvider = new GoogleAuthProvider();
 
-const ALLOWED_EMAILS = [
-  'potatomasta501@gmail.com',
-  'minakhalid00@gmail.com',
-];
+const ALLOWED_EMAILS = STORE_CONFIG.allowedEmails;
 
 const isAllowed = (user: User | null) =>
   !!user?.email && ALLOWED_EMAILS.includes(user.email.toLowerCase());
@@ -101,7 +99,7 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
               <LogIn className="h-7 w-7 text-primary" />
             </div>
-            <CardTitle className="text-2xl">MINA</CardTitle>
+            <CardTitle className="text-2xl">{STORE_CONFIG.name}</CardTitle>
             <CardDescription>Sign in to access your store dashboard</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pb-6">

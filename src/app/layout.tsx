@@ -12,6 +12,7 @@ import { useIsStoreHydrated } from '@/hooks/use-store';
 import React, { useEffect } from 'react';
 import Script from 'next/script';
 import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
+import { STORE_CONFIG } from '@/lib/store-config';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -74,7 +75,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="dark">
       <head>
-        <title>MINA</title>
+        <title>{STORE_CONFIG.name}</title>
         <meta name="description" content="Jewellery Inventory & Point-of-Sale System" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/* Dynamic theme-color will be handled by the theme logic, but we can set a default */}

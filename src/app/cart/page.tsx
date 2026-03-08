@@ -6,6 +6,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories } from '@/lib/store';
+import { STORE_CONFIG } from '@/lib/store-config';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -757,8 +758,8 @@ export default function CartPage() {
 
     const footerStartY = pageHeight - 36;
     const contacts = [
-        { name: "Mina Khalid", number: "0316 1930960" },
-        { name: "Ammar Mansa", number: "0326 2275554" },
+        { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
+        { name: STORE_CONFIG.contact2Name, number: STORE_CONFIG.contact2Number },
     ];
     const qrCodeSize = 16;
     const qrGap = 3;
@@ -776,9 +777,9 @@ export default function CartPage() {
     doc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 10, { maxWidth: textBlockWidth });
 
     doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(80);
-    doc.text("Bank Al Habib  |  House of Mina", margin, footerStartY + 16, { maxWidth: textBlockWidth });
+    doc.text(STORE_CONFIG.bankLine, margin, footerStartY + 16, { maxWidth: textBlockWidth });
     doc.setFontSize(6).setFont("helvetica", "normal").setTextColor(100);
-    doc.text("IBAN: PK42 BAHL 1227 0981 0022 7801", margin, footerStartY + 20, { maxWidth: textBlockWidth });
+    doc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, footerStartY + 20, { maxWidth: textBlockWidth });
 
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
@@ -827,8 +828,8 @@ export default function CartPage() {
       <div className="bg-muted min-h-screen p-4 sm:p-8">
         <div style={{ display: 'none' }}>
           <img id="shop-logo" src={settings?.shopLogoUrlBlack || settings?.shopLogoUrl || ''} crossOrigin="anonymous" alt="" />
-          <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H" size={128} />
-          <QRCode id="insta-qr-code" value="https://www.instagram.com/houseofmina__?igsh=aTAyZWQycWVudm43&utm_source=qr" size={128} />
+          <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
+          <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
         </div>
         <Card className="max-w-4xl mx-auto shadow-lg">
            <CardHeader>
