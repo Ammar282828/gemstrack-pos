@@ -121,6 +121,7 @@ export default function CartPage() {
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [isEditingEstimate, setIsEditingEstimate] = useState(false);
+  const isEditingEstimateRef = React.useRef(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | undefined>(undefined);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
@@ -166,6 +167,18 @@ export default function CartPage() {
 
 
   const phoneForm = useForm<PhoneForm>();
+
+  // If the user navigates away (back button) while editing an estimate, the cart
+  // was loaded with invoice items but never cleared. Wipe it on unmount.
+  useEffect(() => {
+    return () => {
+      if (isEditingEstimateRef.current) {
+        clearCart();
+      }
+    };
+    // clearCart is stable (Zustand action ref), safe to include
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   useEffect(() => {
     if (preloadedInvoiceId && !isEditingEstimate) {
@@ -365,6 +378,7 @@ export default function CartPage() {
           phoneForm.setValue('phone', normalizePhoneNumber(invoice.customerContact));
       }
       setIsEditingEstimate(false);
+      isEditingEstimateRef.current = false;
       setEditingInvoiceId(undefined);
       toast({ title: "Estimate Generated", description: `Estimate ${invoice.id} created successfully.` });
     } else {
@@ -375,6 +389,7 @@ export default function CartPage() {
   const handleEditEstimate = () => {
     if (!generatedInvoice) return;
     setIsEditingEstimate(true);
+    isEditingEstimateRef.current = true;
     clearCart(); // Ensure no stale items linger before loading invoice items
     loadCartFromInvoice(generatedInvoice);
     setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
