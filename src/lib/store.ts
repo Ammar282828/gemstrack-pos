@@ -211,6 +211,33 @@ function _calculateProductCostsInternal(
   };
 }
 
+/** Public helper — computes the selling price for a product given current settings rates. */
+export function calculateProductPrice(product: {
+  metalType: MetalType;
+  karat?: KaratValue | string;
+  metalWeightG: number;
+  secondaryMetalType?: MetalType;
+  secondaryMetalKarat?: KaratValue;
+  secondaryMetalWeightG?: number;
+  stoneWeightG: number;
+  wastagePercentage: number;
+  makingCharges: number;
+  hasDiamonds: boolean;
+  diamondCharges: number;
+  stoneCharges: number;
+  miscCharges: number;
+  isCustomPrice?: boolean;
+  customPrice?: number;
+  categoryId?: string;
+  name?: string;
+  silverRatePerGram?: number;
+}, rates: {
+  goldRatePerGram24k: number; goldRatePerGram22k: number; goldRatePerGram21k: number; goldRatePerGram18k: number;
+  palladiumRatePerGram: number; platinumRatePerGram: number; silverRatePerGram: number;
+}): number {
+  return _calculateProductCostsInternal(product, rates).totalPrice;
+}
+
 // --- Type Definitions ---
 export type MetalType = 'gold' | 'palladium' | 'platinum' | 'silver';
 export type KaratValue = '18k' | '21k' | '22k' | '24k';
