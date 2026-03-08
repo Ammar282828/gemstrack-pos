@@ -1455,6 +1455,10 @@ export const useAppStore = create<AppState>()(
                 miscCharges: item.miscChargesIfAny,
                 stoneDetails: item.stoneDetails,
                 diamondDetails: item.diamondDetails,
+                // Restore manual price override — without this the price gets
+                // recalculated from metal weights giving a different total.
+                isCustomPrice: item.isCustomPrice || false,
+                customPrice: item.isCustomPrice ? item.unitPrice : undefined,
                 quantity: 1
             };
         });
