@@ -26,11 +26,18 @@ function AppBody({ children }: { children: React.ReactNode }) {
   // Determine if the current page is the public invoice view
   const isPublicInvoicePage = pathname.startsWith('/view-invoice');
 
-  // Render a placeholder or nothing until hydration is complete to avoid flash
+  // Render with the saved theme immediately (read from localStorage synchronously)
+  // so there is no flash of the default light theme before Zustand rehydrates.
   if (!isHydrated) {
+    let earlyTheme = 'slate';
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('gemstrack-pos-storage');
+        if (stored) earlyTheme = JSON.parse(stored)?.state?.settings?.theme ?? 'slate';
+      } catch {}
+    }
     return (
-      <body className={`${inter.variable} font-sans antialiased`}>
-        {/* You can add a splash screen or loader here if desired */}
+      <body suppressHydrationWarning className={`${inter.variable} font-sans antialiased theme-${earlyTheme}`}>
       </body>
     );
   }
