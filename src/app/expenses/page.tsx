@@ -226,7 +226,7 @@ export default function ExpensesPage() {
            <div className="flex flex-col sm:flex-row gap-4">
                 <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />
                 <div className="flex flex-wrap gap-2 items-center">
-                    <span className="text-sm font-medium text-muted-foreground mr-2 flex items-center"><Filter className="w-4 h-4 mr-1"/>Category:</span>
+                    <span className="text-sm font-medium text-muted-foreground flex items-center"><Filter className="w-4 h-4 mr-1"/>Category:</span>
                     <Button
                     variant={categoryFilter === 'All' ? 'default' : 'outline'}
                     size="sm"
@@ -251,20 +251,61 @@ export default function ExpensesPage() {
             <p className="text-muted-foreground">Refreshing expense list...</p>
          </div>
       ) : filteredExpenses.length > 0 ? (
-        <Card>
+        <>
+          {/* Mobile: Cards */}
+          <div className="md:hidden space-y-3">
+            {filteredExpenses.map((expense) => {
+              const k = expense.karigarId ? karigars.find(k => k.id === expense.karigarId) : null;
+              return (
+                <Card key={expense.id}>
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate">{expense.description}</p>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          <Badge variant="secondary" className="text-xs">{expense.category}</Badge>
+                          {k && <Badge variant="outline" className="text-xs"><User className="h-3 w-3 mr-1"/>{k.name}</Badge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{format(parseISO(expense.date), 'MMM dd, yyyy')}</p>
+                      </div>
+                      <p className="font-bold text-primary flex-shrink-0">PKR {expense.amount.toLocaleString()}</p>
+                    </div>
+                    <div className="flex justify-end gap-1 mt-3 border-t pt-2">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditExpense(expense)}>
+                        <Edit className="h-4 w-4 mr-1" /> Edit
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4 mr-1" /> Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the expense record. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteExpense(expense.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+          {/* Desktop: Table */}
+          <Card className="hidden md:block">
             <Table>
-            <TableHeader>
+              <TableHeader>
                 <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount (PKR)</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Amount (PKR)</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-            </TableHeader>
-            <TableBody>
+              </TableHeader>
+              <TableBody>
                 {filteredExpenses.map((expense) => (
-                <TableRow key={expense.id}>
+                  <TableRow key={expense.id}>
                     <TableCell>{format(parseISO(expense.date), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>{expense.category}</TableCell>
                     <TableCell>
@@ -278,26 +319,28 @@ export default function ExpensesPage() {
                     </TableCell>
                     <TableCell className="text-right font-medium">{expense.amount.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleEditExpense(expense)}>
-                            <Edit className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
+                      <Button variant="ghost" size="icon" onClick={() => handleEditExpense(expense)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the expense record. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteExpense(expense.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                          <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the expense record. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteExpense(expense.id)}>Delete</AlertDialogAction></AlertDialogFooter>
                         </AlertDialogContent>
-                        </AlertDialog>
+                      </AlertDialog>
                     </TableCell>
-                </TableRow>
+                  </TableRow>
                 ))}
-            </TableBody>
+              </TableBody>
             </Table>
-        </Card>
+          </Card>
+        </>
+
       ) : (
         <div className="text-center py-12 bg-card rounded-lg shadow">
           <CreditCard className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
