@@ -204,45 +204,6 @@ export default function KarigarDetailPage() {
           </Card>
           
           <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Gold Transaction History</CardTitle>
-              <CardDescription>Detailed log of gold transactions only.</CardDescription>
-            </CardHeader>            <CardContent>
-                <ScrollArea className="h-[400px]">
-                    {karigarHisaab.filter(e => e.goldDebitGrams > 0 || e.goldCreditGrams > 0).length > 0 ? (
-                    <Table>
-                        <TableHeader>
-                        <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead className="text-right">Gold</TableHead>
-                            <TableHead className="text-right">Balance</TableHead>
-                        </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                        {karigarHisaab.filter(e => e.goldDebitGrams > 0 || e.goldCreditGrams > 0).map(entry => (
-                            <TableRow key={entry.id}>
-                            <TableCell>{format(parseISO(entry.date), 'dd-MMM-yy')}</TableCell>
-                            <TableCell>{entry.description}</TableCell>
-                            <TableCell className={cn("text-right font-medium", entry.goldDebitGrams > 0 ? 'text-destructive' : 'text-green-600')}>
-                                {entry.goldDebitGrams > 0 ? 
-                                    <span><ArrowUp className="inline h-3 w-3 mr-1"/>{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</span> :
-                                    <span><ArrowDown className="inline h-3 w-3 mr-1"/>{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</span>
-                                }
-                            </TableCell>
-                            <TableCell className="text-right">{entry.runningGoldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} g</TableCell>
-                            </TableRow>
-                        ))}
-                        </TableBody>
-                    </Table>
-                    ) : (
-                    <p className="text-muted-foreground text-center py-4">No gold transactions recorded yet for this karigar.</p>
-                    )}
-                </ScrollArea>
-            </CardContent>
-          </Card>
-
-          <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div>
                 <CardTitle className="text-xl">Cash Payment History</CardTitle>
