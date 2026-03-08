@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import {
   Edit3, Trash2, ArrowLeft, User, Phone, StickyNote,
-  PlusCircle, Banknote, CheckCircle2, ChevronDown, ChevronUp, Lock, Unlock, AlertTriangle
+  PlusCircle, Banknote, CheckCircle2, ChevronDown, ChevronUp, Lock, Unlock, History
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -107,6 +107,55 @@ const ClosedBatchCard: React.FC<{
   );
 };
 
+const PreHisaabCard: React.FC<{ expenses: Expense[] }> = ({ expenses }) => {
+  const [open, setOpen] = useState(false);
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
+  return (
+    <Card className="border-muted bg-muted/10">
+      <CardHeader
+        className="flex flex-row items-center justify-between cursor-pointer select-none py-3 px-4"
+        onClick={() => setOpen(o => !o)}
+      >
+        <div className="flex items-center gap-3">
+          <History className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <p className="font-semibold text-sm">Pre-Hisaab</p>
+            <p className="text-xs text-muted-foreground">Recorded before the batch system</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge variant="secondary" className="text-sm font-bold">PKR {total.toLocaleString()}</Badge>
+          <Badge variant="outline" className="text-xs">{expenses.length} payment{expenses.length !== 1 ? 's' : ''}</Badge>
+          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </div>
+      </CardHeader>
+      {open && (
+        <CardContent className="pt-0 pb-3 px-4">
+          <Separator className="mb-3" />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead><TableHead>Description</TableHead>
+                <TableHead>Category</TableHead><TableHead className="text-right">PKR</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {expenses.map(e => (
+                <TableRow key={e.id}>
+                  <TableCell className="whitespace-nowrap text-sm">{format(parseISO(e.date), 'dd MMM yy')}</TableCell>
+                  <TableCell className="text-sm">{e.description}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{e.category}</TableCell>
+                  <TableCell className="text-right font-medium text-sm">{e.amount.toLocaleString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      )}
+    </Card>
+  );
+};
+
 export default function KarigarDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -124,6 +173,7 @@ export default function KarigarDetailPage() {
   const [isNewBatchOpen, setIsNewBatchOpen] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [newBatchLabel, setNewBatchLabel] = useState('');
+  const [carryOverLabel, setCarryOverLabel] = useState('');
 
   useEffect(() => {
     loadExpenses();
@@ -184,7 +234,13 @@ export default function KarigarDetailPage() {
     if (!openBatch) return;
     try {
       await closeKarigarBatch(openBatch.id, new Date().toISOString(), openBatchTotal);
-      toast({ title: "Hisaab Settled", description: `"${openBatch.label}" closed — PKR ${openBatchTotal.toLocaleString()}.` });
+      if (carryOverLabel.trim()) {
+        await createKarigarBatch({ karigarId, label: carryOverLabel.trim(), startDate: new Date().toISOString() });
+        toast({ title: "Settled & New Hisaab Started", description: `"${openBatch.label}" closed. "${carryOverLabel.trim()}" is now active.` });
+      } else {
+        toast({ title: "Hisaab Settled", description: `"${openBatch.label}" closed — PKR ${openBatchTotal.toLocaleString()}.` });
+      }
+      setCarryOverLabel('');
       setIsCloseDialogOpen(false);
     } catch {
       toast({ title: "Error", description: "Failed to settle hisaab.", variant: "destructive" });
@@ -296,19 +352,29 @@ export default function KarigarDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isCloseDialogOpen} onOpenChange={setIsCloseDialogOpen}>
+      <Dialog open={isCloseDialogOpen} onOpenChange={(v) => { setIsCloseDialogOpen(v); if (!v) setCarryOverLabel(''); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-600" />Settle & Close Hisaab</DialogTitle>
             <DialogDescription>
-              Closing <strong>{openBatch?.label}</strong> with total <strong>PKR {openBatchTotal.toLocaleString()}</strong>.
-              No more payments can be added after closing.
+              Closing <strong>{openBatch?.label}</strong> · total <strong>PKR {openBatchTotal.toLocaleString()}</strong>.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-2 py-1">
+            <Label htmlFor="carryOverLabel">Carry over to new hisaab? <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input
+              id="carryOverLabel"
+              placeholder="New hisaab name, e.g. April 2026"
+              value={carryOverLabel}
+              onChange={e => setCarryOverLabel(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCloseBatch()}
+            />
+            <p className="text-xs text-muted-foreground">Leave blank to just settle without starting a new hisaab.</p>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCloseDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setIsCloseDialogOpen(false); setCarryOverLabel(''); }}>Cancel</Button>
             <Button onClick={handleCloseBatch} className="bg-green-600 hover:bg-green-700">
-              <Lock className="mr-2 h-4 w-4" />Settle & Close
+              <Lock className="mr-2 h-4 w-4" />{carryOverLabel.trim() ? 'Settle & Carry Over' : 'Settle & Close'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -406,42 +472,12 @@ export default function KarigarDetailPage() {
         </div>
       )}
 
-      {/* Historic / unbatched payments */}
+      {/* Pre-Hisaab (unbatched) — shown as one collapsed hisaab */}
       {unbatchedExpenses.length > 0 && (
-        <Card className="border-muted bg-muted/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />Historic Payments (Pre-Hisaab)
-            </CardTitle>
-            <CardDescription className="text-xs">Recorded before the batch system — not assigned to any hisaab.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between items-center p-3 rounded-lg bg-muted/50 mb-3">
-              <span className="text-sm font-medium">Subtotal</span>
-              <span className="font-bold">PKR {unbatchedExpenses.reduce((s, e) => s + e.amount, 0).toLocaleString()}</span>
-            </div>
-            <ScrollArea className="max-h-60">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead><TableHead>Description</TableHead>
-                    <TableHead>Category</TableHead><TableHead className="text-right">PKR</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {unbatchedExpenses.map(e => (
-                    <TableRow key={e.id}>
-                      <TableCell className="text-sm whitespace-nowrap">{format(parseISO(e.date), 'dd MMM yy')}</TableCell>
-                      <TableCell className="text-sm">{e.description}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{e.category}</TableCell>
-                      <TableCell className="text-right font-medium text-sm">{e.amount.toLocaleString()}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Pre-Hisaab</h3>
+          <PreHisaabCard expenses={unbatchedExpenses} />
+        </div>
       )}
     </div>
   );
