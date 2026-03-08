@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAppStore, ActivityLog, LOG_EVENT_TYPES, LogEventType } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, History, Filter, Calendar as CalendarIcon, User, Package, FileText, Briefcase, CreditCard, RotateCcw } from 'lucide-react';
+import { Loader2, History, Filter, Calendar as CalendarIcon, User, Package, FileText, Briefcase, CreditCard, RotateCcw, TrendingUp } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import type { DateRange } from "react-day-picker";
@@ -34,6 +34,9 @@ const eventIcons: Record<LogEventType, React.ReactNode> = {
     'expense.create': <CreditCard className="h-4 w-4" />,
     'expense.update': <CreditCard className="h-4 w-4" />,
     'expense.delete': <CreditCard className="h-4 w-4" />,
+    'revenue.create': <TrendingUp className="h-4 w-4" />,
+    'revenue.update': <TrendingUp className="h-4 w-4" />,
+    'revenue.delete': <TrendingUp className="h-4 w-4" />,
 };
 
 const getEventTypeColor = (eventType: LogEventType) => {

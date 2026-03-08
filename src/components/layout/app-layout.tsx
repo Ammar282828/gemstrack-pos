@@ -43,6 +43,7 @@ const navItems: NavItem[] = [
   { href: '/documents', label: 'Documents', icon: <FileText /> },
   { href: '/calendar', label: 'Calendar', icon: <Calendar /> },
   { href: '/expenses', label: 'Expenses', icon: <CreditCard /> },
+  { href: '/additional-revenue', label: 'Extra Revenue', icon: <TrendingUp /> },
   
   { isSeparator: true, href: '#', label: '', icon: <></> },
 

@@ -19,6 +19,7 @@ const FIRESTORE_COLLECTIONS = {
   CATEGORIES: "categories", // Note: Categories are still managed locally for now
   HISAAB: "hisaab",
   EXPENSES: "expenses",
+  ADDITIONAL_REVENUE: "additional_revenue",
   ACTIVITY_LOG: "activity_log",
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
@@ -465,6 +466,13 @@ export interface Expense {
 }
 
 
+export interface AdditionalRevenue {
+  id: string;
+  date: string; // ISO String
+  description: string;
+  amount: number;
+}
+
 // --- Product Tag Format Definitions ---
 export interface ProductTagFormat {
   id: string;
@@ -554,7 +562,8 @@ export type LogEventType =
   | 'karigar.create' | 'karigar.update' | 'karigar.delete'
   | 'invoice.create' | 'invoice.payment' | 'invoice.delete'
   | 'order.create' | 'order.update' | 'order.delete' | 'order.revert'
-  | 'expense.create' | 'expense.update' | 'expense.delete';
+  | 'expense.create' | 'expense.update' | 'expense.delete'
+  | 'revenue.create' | 'revenue.update' | 'revenue.delete';
 
 export interface ActivityLog {
     id: string;
@@ -624,6 +633,7 @@ export interface AppState {
   orders: Order[];
   hisaabEntries: HisaabEntry[];
   expenses: Expense[];
+  additionalRevenues: AdditionalRevenue[];
   soldProducts: Product[];
   activityLog: ActivityLog[];
   printHistory: PrintHistoryEntry[];
@@ -638,6 +648,7 @@ export interface AppState {
   isOrdersLoading: boolean;
   isHisaabLoading: boolean;
   isExpensesLoading: boolean;
+  isAdditionalRevenueLoading: boolean;
   isActivityLogLoading: boolean;
   
   // Data loaded flags
@@ -650,6 +661,7 @@ export interface AppState {
   hasOrdersLoaded: boolean;
   hasHisaabLoaded: boolean;
   hasExpensesLoaded: boolean;
+  hasAdditionalRevenueLoaded: boolean;
   hasActivityLogLoaded: boolean;
 
   // Error states
@@ -662,6 +674,7 @@ export interface AppState {
   karigarsError: string | null;
   hisaabError: string | null;
   expensesError: string | null;
+  additionalRevenueError: string | null;
   activityLogError: string | null;
 
 
@@ -737,6 +750,11 @@ export interface AppState {
   addExpense: (expenseData: Omit<Expense, 'id'>) => Promise<Expense | null>;
   updateExpense: (id: string, updatedExpenseData: Partial<Omit<Expense, 'id'>>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+
+  loadAdditionalRevenues: () => void;
+  addAdditionalRevenue: (data: Omit<AdditionalRevenue, 'id'>) => Promise<AdditionalRevenue | null>;
+  updateAdditionalRevenue: (id: string, data: Partial<Omit<AdditionalRevenue, 'id'>>) => Promise<void>;
+  deleteAdditionalRevenue: (id: string) => Promise<void>;
   
   loadActivityLog: () => void;
   addPrintHistory: (sku: string) => void;
@@ -777,9 +795,9 @@ function cleanObject<T extends object>(obj: T): T {
 const createDataLoader = <T, K extends keyof AppState>(
   collectionName: string,
   stateKey: K,
-  loadingKey: 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading',
-  errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'soldProductsError' | 'activityLogError',
-  loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
+  loadingKey: 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isAdditionalRevenueLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading',
+  errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'additionalRevenueError' | 'soldProductsError' | 'activityLogError',
+  loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasAdditionalRevenueLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
   orderByField: string = "name",
   orderByDirection: "asc" | "desc" = "asc"
 ) => {
@@ -825,6 +843,7 @@ const loadInvoices = createDataLoader<Invoice, 'generatedInvoices'>('invoices', 
 const loadOrders = createDataLoader<Order, 'orders'>('orders', 'orders', 'isOrdersLoading', 'ordersError', 'hasOrdersLoaded', 'createdAt', 'desc');
 const loadHisaab = createDataLoader<HisaabEntry, 'hisaabEntries'>('hisaab', 'hisaabEntries', 'isHisaabLoading', 'hisaabError', 'hasHisaabLoaded', 'date', 'desc');
 const loadExpenses = createDataLoader<Expense, 'expenses'>('expenses', 'expenses', 'isExpensesLoading', 'expensesError', 'hasExpensesLoaded', 'date', 'desc');
+const loadAdditionalRevenues = createDataLoader<AdditionalRevenue, 'additionalRevenues'>('additional_revenue', 'additionalRevenues', 'isAdditionalRevenueLoading', 'additionalRevenueError', 'hasAdditionalRevenueLoaded', 'date', 'desc');
 const loadSoldProducts = createDataLoader<Product, 'soldProducts'>('sold_products', 'soldProducts', 'isSoldProductsLoading', 'soldProductsError', 'hasSoldProductsLoaded', 'sku', 'asc');
 const loadActivityLog = createDataLoader<ActivityLog, 'activityLog'>('activity_log', 'activityLog', 'isActivityLogLoading', 'activityLogError', 'hasActivityLogLoaded', 'timestamp', 'desc');
 
@@ -849,6 +868,7 @@ export const useAppStore = create<AppState>()(
       orders: [],
       hisaabEntries: [],
       expenses: [],
+      additionalRevenues: [],
       activityLog: [],
       printHistory: [],
 
@@ -861,6 +881,7 @@ export const useAppStore = create<AppState>()(
       isOrdersLoading: true,
       isHisaabLoading: true,
       isExpensesLoading: true,
+      isAdditionalRevenueLoading: true,
       isActivityLogLoading: true,
       
       hasSettingsLoaded: false,
@@ -872,6 +893,7 @@ export const useAppStore = create<AppState>()(
       hasOrdersLoaded: false,
       hasHisaabLoaded: false,
       hasExpensesLoaded: false,
+      hasAdditionalRevenueLoaded: false,
       hasActivityLogLoaded: false,
 
       settingsError: null,
@@ -883,6 +905,7 @@ export const useAppStore = create<AppState>()(
       karigarsError: null,
       hisaabError: null,
       expensesError: null,
+      additionalRevenueError: null,
       activityLogError: null,
 
 
@@ -986,6 +1009,7 @@ export const useAppStore = create<AppState>()(
       loadOrders: () => loadOrders(set, get),
       loadHisaab: () => loadHisaab(set, get),
       loadExpenses: () => loadExpenses(set, get),
+      loadAdditionalRevenues: () => loadAdditionalRevenues(set, get),
       loadActivityLog: () => loadActivityLog(set, get),
 
        reAddSoldProductToInventory: async (soldProduct) => {
@@ -1995,6 +2019,38 @@ export const useAppStore = create<AppState>()(
           console.log(`[GemsTrack Store deleteExpense] Expense ID ${id} deleted successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store deleteExpense] Error deleting expense ID ${id}:`, error);
+          throw error;
+        }
+      },
+
+      addAdditionalRevenue: async (data) => {
+        if(get().settings.databaseLocked) return null;
+        try {
+          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.ADDITIONAL_REVENUE), data);
+          await addActivityLog('revenue.create', `Added revenue: ${data.description}`, `Amount: ${data.amount.toLocaleString()}`, docRef.id);
+          return { id: docRef.id, ...data };
+        } catch (error) {
+          console.error('[GemsTrack Store addAdditionalRevenue] Error:', error);
+          return null;
+        }
+      },
+      updateAdditionalRevenue: async (id, data) => {
+        if(get().settings.databaseLocked) return;
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ADDITIONAL_REVENUE, id), data, { merge: true });
+          await addActivityLog('revenue.update', `Updated revenue: ${data.description}`, `ID: ${id}`, id);
+        } catch (error) {
+          console.error(`[GemsTrack Store updateAdditionalRevenue] Error:`, error);
+        }
+      },
+      deleteAdditionalRevenue: async (id: string) => {
+        if(get().settings.databaseLocked) return;
+        const desc = get().additionalRevenues.find(r => r.id === id)?.description || id;
+        try {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ADDITIONAL_REVENUE, id));
+          await addActivityLog('revenue.delete', `Deleted revenue: ${desc}`, `ID: ${id}`, id);
+        } catch (error) {
+          console.error(`[GemsTrack Store deleteAdditionalRevenue] Error:`, error);
           throw error;
         }
       },
