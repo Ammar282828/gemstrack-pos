@@ -126,7 +126,7 @@ export default function HomePage() {
       .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
 
     const recentInvoices = generatedInvoices.filter(inv => parseISO(inv.createdAt) >= last30);
-    const invoiceRevenue = recentInvoices.reduce((sum, inv) => sum + (inv.amountPaid || 0), 0);
+    const invoiceRevenue = recentInvoices.reduce((sum, inv) => sum + (inv.grandTotal || 0), 0);
 
     const recentOrders = orders.filter(o =>
       parseISO(o.createdAt) >= last30 &&
