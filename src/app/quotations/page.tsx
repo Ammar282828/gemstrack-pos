@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useToast } from '@/hooks/use-toast';
+import { openPDFWindowForIOS, savePDF } from '@/lib/utils';
 
 // Helper to calculate costs locally for arbitrary values
 function calculateQuotationCost(
@@ -99,6 +100,7 @@ export default function QuotationGenerator() {
 
     // --- PDF Generation Logic ---
     const generatePDF = async (productsData: any[], isAiMode: boolean) => {
+        const iOSWin = openPDFWindowForIOS();
         const doc = new jsPDF();
         const pageHeight = doc.internal.pageSize.height;
         const pageWidth = doc.internal.pageSize.width;
@@ -248,7 +250,7 @@ export default function QuotationGenerator() {
         doc.setFont("helvetica", "normal");
         doc.text(contactText, margin, contactY + 5);
 
-        doc.save(`Quotation-${isAiMode ? 'AI' : 'Manual'}.pdf`);
+        savePDF(doc, `Quotation-${isAiMode ? 'AI' : 'Manual'}.pdf`, iOSWin);
         toast({ title: "PDF Downloaded", description: "Quotation generated successfully." });
     };
 

@@ -25,7 +25,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import StandalonePhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
-import { normalizePhoneNumber } from '@/lib/utils';
+import { normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { Control, useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
 import { ProductForm } from '@/components/product/product-form';
@@ -463,6 +463,7 @@ export default function CartPage() {
       return;
     }
 
+    const iOSWin = openPDFWindowForIOS();
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -746,16 +747,7 @@ export default function CartPage() {
         doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize);
     }
 
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIOS) {
-      const link = document.createElement('a');
-      link.href = doc.output('datauristring');
-      link.download = 'invoice.pdf';
-      link.click();
-    } else {
-      doc.autoPrint();
-      window.open(doc.output('bloburl'), '_blank');
-    }
+    savePDF(doc, `Invoice-${invoiceToPrint.id}.pdf`, iOSWin);
   };
   
   if (!appReady) {

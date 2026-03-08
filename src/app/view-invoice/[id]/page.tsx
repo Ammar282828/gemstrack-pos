@@ -8,6 +8,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Invoice, Settings, Customer, InvoiceItem, staticCategories } from '@/lib/store';
 import { Loader2, Download, CheckCircle } from 'lucide-react';
+import { openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
@@ -81,6 +82,7 @@ export default function ViewInvoicePage() {
   const handlePrint = async () => {
     if (!invoice || !settings) return;
 
+    const iOSWin = openPDFWindowForIOS();
     const pdfDoc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -329,7 +331,7 @@ export default function ViewInvoicePage() {
         pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize);
     }
     
-    pdfDoc.save(`Estimate-${invoice.id}.pdf`);
+    savePDF(pdfDoc, `Estimate-${invoice.id}.pdf`, iOSWin);
   }
 
   if (isLoading) {

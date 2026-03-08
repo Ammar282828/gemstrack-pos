@@ -35,7 +35,7 @@ import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
-import { cn, normalizePhoneNumber } from '@/lib/utils';
+import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -253,7 +253,8 @@ export default function EntityHisaabPage() {
         toast({ title: "Error", description: "Entity or settings data is not available for printing.", variant: "destructive" });
         return;
     }
-    
+
+    const iOSWin = openPDFWindowForIOS();
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
@@ -316,7 +317,7 @@ export default function EntityHisaabPage() {
         }
     });
 
-    doc.save(`Ledger-${entity.name}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    savePDF(doc, `Ledger-${entity.name}-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
   };
 
   const isLoading = !appReady || isHisaabLoading || isCustomersLoading || isKarigarsLoading;

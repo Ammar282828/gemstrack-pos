@@ -17,7 +17,7 @@ import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 
 
 type AccountSummary = {
@@ -189,6 +189,7 @@ export default function HisaabPage() {
         return;
     }
 
+    const iOSWin = openPDFWindowForIOS();
     const doc = new jsPDF();
     doc.setFont("helvetica", "bold").setFontSize(18);
     doc.text(`Hisaab Summary Report`, 14, 22);
@@ -222,7 +223,7 @@ export default function HisaabPage() {
         headStyles: { fillColor: [41, 128, 185], textColor: 255 },
     });
 
-    doc.save(`Hisaab-Summary-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    savePDF(doc, `Hisaab-Summary-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
     toast({ title: "Report Downloaded", description: "Hisaab summary PDF has been generated." });
   };
 

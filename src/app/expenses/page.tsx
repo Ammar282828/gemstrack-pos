@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
-import { cn } from '@/lib/utils';
+import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -111,6 +111,7 @@ export default function ExpensesPage() {
         return;
     }
 
+    const iOSWin = openPDFWindowForIOS();
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFont("helvetica", "bold").setFontSize(18);
@@ -153,7 +154,7 @@ export default function ExpensesPage() {
         { align: 'right' }
     );
 
-    doc.save(`Expense-Report-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    savePDF(doc, `Expense-Report-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
     toast({ title: "Report Downloaded", description: "Expense report PDF has been generated." });
   };
 
