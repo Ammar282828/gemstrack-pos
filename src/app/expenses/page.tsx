@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -253,7 +254,8 @@ export default function ExpensesPage() {
             {filteredExpenses.map((expense) => {
               const k = expense.karigarId ? karigars.find(k => k.id === expense.karigarId) : null;
               return (
-                <Card key={expense.id}>
+                <SwipeToDelete key={expense.id} onDelete={() => handleDeleteExpense(expense.id)} className="rounded-lg border overflow-hidden">
+                <Card className="border-0 shadow-none rounded-none">
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-1 min-w-0">
@@ -270,20 +272,10 @@ export default function ExpensesPage() {
                       <Button variant="ghost" size="sm" onClick={() => handleEditExpense(expense)}>
                         <Edit className="h-4 w-4 mr-1" /> Edit
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4 mr-1" /> Delete
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the expense record. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteExpense(expense.id)}>Delete</AlertDialogAction></AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
                     </div>
                   </CardContent>
                 </Card>
+                </SwipeToDelete>
               );
             })}
           </div>

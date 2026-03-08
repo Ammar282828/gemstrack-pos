@@ -38,6 +38,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 
 
 // Re-declare module for jsPDF in this file as well
@@ -447,7 +448,8 @@ export default function EntityHisaabPage() {
                         <div className="space-y-3">
                             <h3 className="font-semibold text-lg text-destructive flex items-center"><ArrowUp className="mr-2 h-5 w-5"/>You Gave (Debit)</h3>
                             {givenEntries.length > 0 ? givenEntries.map(entry => (
-                                <div key={entry.id} className="p-3 border rounded-md bg-muted/30">
+                                <SwipeToDelete key={entry.id} onDelete={() => onDeleteEntry(entry.id)} className="rounded-md border overflow-hidden">
+                                <div className="p-3 bg-muted/30">
                                     <p className="text-sm font-semibold">{entry.description}</p>
                                     <p className="text-xs text-muted-foreground">{format(parseISO(entry.date), 'PP')}</p>
                                     <div className="text-right mt-1">
@@ -455,13 +457,15 @@ export default function EntityHisaabPage() {
                                         {entry.goldDebitGrams > 0 && <p className="font-bold text-sm text-destructive">{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
                                     </div>
                                 </div>
+                                </SwipeToDelete>
                             )) : <p className="text-sm text-muted-foreground text-center py-4">No debit transactions.</p>}
                         </div>
                         <Separator/>
                         <div className="space-y-3">
                              <h3 className="font-semibold text-lg text-green-600 flex items-center"><ArrowDown className="mr-2 h-5 w-5"/>You Got (Credit)</h3>
                               {gotEntries.length > 0 ? gotEntries.map(entry => (
-                                <div key={entry.id} className="p-3 border rounded-md bg-muted/30">
+                                <SwipeToDelete key={entry.id} onDelete={() => onDeleteEntry(entry.id)} className="rounded-md border overflow-hidden">
+                                <div className="p-3 bg-muted/30">
                                     <p className="text-sm font-semibold">{entry.description}</p>
                                     <p className="text-xs text-muted-foreground">{format(parseISO(entry.date), 'PP')}</p>
                                     <div className="text-right mt-1">
@@ -469,6 +473,7 @@ export default function EntityHisaabPage() {
                                         {entry.goldCreditGrams > 0 && <p className="font-bold text-sm text-green-600">{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
                                     </div>
                                 </div>
+                                </SwipeToDelete>
                             )) : <p className="text-sm text-muted-foreground text-center py-4">No credit transactions.</p>}
                         </div>
                     </div>

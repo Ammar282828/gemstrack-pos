@@ -2,6 +2,7 @@
 "use client";
 
 import type { ReactNode } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -10,7 +11,7 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, Calculator, LogOut, HandCoins } from 'lucide-react';
+import { Home, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, Calculator, LogOut, HandCoins, WifiOff } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -81,15 +82,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isStoreHydrated = useIsStoreHydrated();
   const settings = useAppStore(state => state.settings);
+  const cartCount = useAppStore(state => state.cart.length);
   const { user, signOut } = useAuth();
+  const [isOnline, setIsOnline] = useState(true);
 
-  if (!isStoreHydrated) {
-    return null; 
-  }
-  
-  const logoToUse = settings.theme === 'default' 
-    ? settings.shopLogoUrlBlack || settings.shopLogoUrl 
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline  = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online',  handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online',  handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  if (!isStoreHydrated) return null;
+
+  const logoToUse = settings.theme === 'default'
+    ? settings.shopLogoUrlBlack || settings.shopLogoUrl
     : settings.shopLogoUrl;
+
+  const bottomNavItems = [
+    { href: '/',       label: 'Home',   icon: <Home className="w-5 h-5" /> },
+    { href: '/scan',   label: 'Scan',   icon: <ScanQrCode className="w-5 h-5" /> },
+    { href: '/cart',   label: 'Cart',   icon: <ShoppingCart className="w-5 h-5" />, badge: cartCount },
+    { href: '/orders', label: 'Orders', icon: <ClipboardList className="w-5 h-5" /> },
+    { href: '/hisaab', label: 'Hisaab', icon: <BookUser className="w-5 h-5" /> },
+  ];
 
   return (
       <SidebarProvider defaultOpen={true}>
@@ -189,9 +210,47 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <header className="sticky top-0 z-40 flex items-center h-14 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
             <SidebarTrigger className="md:hidden" />
           </header>
-          <main className="flex-1 p-4 overflow-auto md:p-6">
+
+          {/* Offline banner */}
+          {!isOnline && (
+            <div className="flex items-center justify-center gap-2 px-4 py-2 bg-yellow-500 text-yellow-950 text-sm font-medium">
+              <WifiOff className="w-4 h-4 flex-shrink-0" />
+              You're offline — changes will sync when reconnected.
+            </div>
+          )}
+
+          {/* Extra bottom padding on mobile so content clears the bottom nav */}
+          <main className="flex-1 p-4 overflow-auto md:p-6 pb-20 md:pb-6">
             {children}
           </main>
+
+          {/* Bottom nav — mobile only */}
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-stretch bg-background border-t h-16 safe-area-inset-bottom">
+            {bottomNavItems.map((item) => {
+              const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors',
+                    isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <span className="relative">
+                    {item.icon}
+                    {item.badge ? (
+                      <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-0.5 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-bold leading-none">
+                        {item.badge}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span>{item.label}</span>
+                  {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-primary" />}
+                </Link>
+              );
+            })}
+          </nav>
         </SidebarInset>
       </SidebarProvider>
   );
