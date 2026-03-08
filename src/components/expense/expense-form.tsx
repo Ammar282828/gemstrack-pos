@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAppStore, Expense, EXPENSE_CATEGORIES } from '@/lib/store';
+import { useAppStore, Expense, EXPENSE_CATEGORIES, Karigar } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Ban, Calendar, DollarSign, Type } from 'lucide-react';
+import { Save, Ban, Calendar, DollarSign, Type, Briefcase } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
@@ -31,11 +31,15 @@ type ExpenseFormData = z.infer<typeof expenseSchema>;
 interface ExpenseFormProps {
   expense?: Expense;
   onSubmitSuccess: () => void;
+  lockedKarigarId?: string; // Pre-links this expense to a karigar (cannot be changed)
 }
 
-export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSuccess }) => {
+export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSuccess, lockedKarigarId }) => {
   const { toast } = useToast();
-  const { addExpense, updateExpense } = useAppStore();
+  const { addExpense, updateExpense, karigars, loadKarigars } = useAppStore();
+  const [selectedKarigarId, setSelectedKarigarId] = useState(expense?.karigarId || '');
+
+  useEffect(() => { loadKarigars(); }, [loadKarigars]);
 
   const form = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseSchema),
@@ -54,12 +58,18 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
   const isOtherCategory = !EXPENSE_CATEGORIES.includes(form.watch('category') as any) && form.watch('category') !== '';
 
   const onSubmit = async (data: ExpenseFormData) => {
+    const effectiveKarigarId = lockedKarigarId || selectedKarigarId || undefined;
+    const payload: Omit<Expense, 'id'> = {
+      ...data,
+      date: data.date.toISOString(),
+      ...(effectiveKarigarId && { karigarId: effectiveKarigarId }),
+    };
     try {
       if (isEditMode && expense) {
-        await updateExpense(expense.id, { ...data, date: data.date.toISOString() });
+        await updateExpense(expense.id, payload);
         toast({ title: "Success", description: "Expense updated successfully." });
       } else {
-        await addExpense({ ...data, date: data.date.toISOString() });
+        await addExpense(payload);
         toast({ title: "Success", description: "Expense added successfully." });
       }
       onSubmitSuccess();
@@ -147,6 +157,27 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
             </FormItem>
           )}
         />
+        {/* Karigar link — locked when opened from karigar page, optional dropdown otherwise */}
+        {lockedKarigarId ? (
+          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md border text-sm">
+            <Briefcase className="h-4 w-4 text-muted-foreground"/>
+            <span className="text-muted-foreground">Linked Karigar:</span>
+            <span className="font-medium">{karigars.find(k => k.id === lockedKarigarId)?.name || lockedKarigarId}</span>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <label className="text-sm font-medium flex items-center"><Briefcase className="mr-2 h-4 w-4"/> Link to Karigar (optional)</label>
+            <Select value={selectedKarigarId} onValueChange={setSelectedKarigarId}>
+              <SelectTrigger>
+                <SelectValue placeholder="None — not a karigar payment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {karigars.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onSubmitSuccess}>
             <Ban className="mr-2 h-4 w-4" /> Cancel

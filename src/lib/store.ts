@@ -453,7 +453,7 @@ export interface HisaabEntry {
 
 export const EXPENSE_CATEGORIES = [
   'Rent', 'Salaries', 'Utilities', 'Marketing', 'Supplies', 
-  'Repairs & Maintenance', 'Taxes', 'Travel', 'Other'
+  'Repairs & Maintenance', 'Taxes', 'Travel', 'Making Charges', 'Other'
 ] as const;
 export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
 
@@ -463,6 +463,7 @@ export interface Expense {
   category: ExpenseCategory | string; // Allow 'Other' as custom string
   description: string;
   amount: number;
+  karigarId?: string; // Links this expense to a karigar payment
 }
 
 

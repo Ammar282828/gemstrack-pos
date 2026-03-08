@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Edit, Trash2, CreditCard, Loader2, Filter, FileText } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, CreditCard, Loader2, Filter, FileText, User } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ExpenseForm } from '@/components/expense/expense-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -46,14 +47,15 @@ export default function ExpensesPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
 
   const appReady = useAppReady();
-  const { expenses, deleteExpense, isExpensesLoading, loadExpenses, settings } = useAppStore();
+  const { expenses, deleteExpense, isExpensesLoading, loadExpenses, settings, karigars, loadKarigars } = useAppStore();
   const { toast } = useToast();
 
   useEffect(() => {
     if (appReady) {
       loadExpenses();
+      loadKarigars();
     }
-  }, [appReady, loadExpenses]);
+  }, [appReady, loadExpenses, loadKarigars]);
 
   const handleDeleteExpense = async (id: string) => {
     await deleteExpense(id);
@@ -264,7 +266,15 @@ export default function ExpensesPage() {
                 <TableRow key={expense.id}>
                     <TableCell>{format(parseISO(expense.date), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>{expense.category}</TableCell>
-                    <TableCell>{expense.description}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <span>{expense.description}</span>
+                        {expense.karigarId && (() => {
+                          const k = karigars.find(k => k.id === expense.karigarId);
+                          return k ? <Badge variant="outline" className="text-xs w-fit"><User className="h-3 w-3 mr-1"/>{k.name}</Badge> : null;
+                        })()}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right font-medium">{expense.amount.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => handleEditExpense(expense)}>
