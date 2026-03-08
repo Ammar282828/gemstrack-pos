@@ -45,6 +45,8 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
         return 'bg-green-500/80 text-green-50';
       case 'Cancelled':
         return 'bg-red-500/80 text-red-50';
+      case 'Refunded':
+        return 'bg-purple-500/80 text-purple-50';
       default:
         return 'secondary';
     }
@@ -301,6 +303,7 @@ export default function OrdersPage() {
                     'bg-blue-500/20 border-blue-500/50 text-blue-800 hover:bg-blue-500/30 dark:text-blue-200': statusFilter === 'In Progress' && status === 'In Progress',
                     'bg-green-500/20 border-green-500/50 text-green-800 hover:bg-green-500/30 dark:text-green-200': statusFilter === 'Completed' && status === 'Completed',
                     'bg-red-500/20 border-red-500/50 text-red-800 hover:bg-red-500/30 dark:text-red-200': statusFilter === 'Cancelled' && status === 'Cancelled',
+                    'bg-purple-500/20 border-purple-500/50 text-purple-800 hover:bg-purple-500/30 dark:text-purple-200': statusFilter === 'Refunded' && status === 'Refunded',
                 })}
               >
                 {status}

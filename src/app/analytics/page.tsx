@@ -71,6 +71,7 @@ export default function AnalyticsPage() {
     return orders.filter(order => {
       if (!order || !order.createdAt) return false;
       if (order.status === 'Cancelled') return false;
+      if (order.status === 'Refunded') return false;
       if (order.invoiceId) return false; // already counted via invoice
       if (!dateRange || !dateRange.from) return true;
       const orderDate = parseISO(order.createdAt);

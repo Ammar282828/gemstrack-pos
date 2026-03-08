@@ -58,6 +58,7 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
       case 'In Progress': return 'bg-blue-500/80 text-blue-50';
       case 'Completed': return 'bg-green-500/80 text-green-50';
       case 'Cancelled': return 'bg-red-500/80 text-red-50';
+      case 'Refunded': return 'bg-purple-500/80 text-purple-50';
       default: return 'secondary';
     }
 };
@@ -306,7 +307,7 @@ export default function OrderDetailPage() {
   const isHydrated = useIsStoreHydrated();
   const order = useAppStore(state => state.orders.find(o => o.id === orderId));
   const settings = useAppStore(state => state.settings);
-  const { updateOrderStatus, updateOrderItemStatus, updateOrder, karigars, loadKarigars, revertOrderFromInvoice } = useAppStore();
+  const { updateOrderStatus, updateOrderItemStatus, updateOrder, karigars, loadKarigars, revertOrderFromInvoice, refundOrder } = useAppStore();
   
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isUpdatingItem, setIsUpdatingItem] = useState<number | null>(null);
@@ -318,6 +319,8 @@ export default function OrderDetailPage() {
   const [isRevertDialogOpen, setIsRevertDialogOpen] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   const [isRevertAndEditDialogOpen, setIsRevertAndEditDialogOpen] = useState(false);
+  const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
+  const [isRefunding, setIsRefunding] = useState(false);
 
   useEffect(() => {
     loadKarigars();
@@ -357,6 +360,20 @@ export default function OrderDetailPage() {
         toast({ title: "Error", description: "Failed to cancel invoice before editing.", variant: "destructive" });
     } finally {
         setIsReverting(false);
+    }
+  };
+
+  const handleRefund = async () => {
+    if (!order) return;
+    setIsRefunding(true);
+    try {
+        await refundOrder(order.id);
+        toast({ title: "Order Refunded", description: `Order ${order.id} has been marked as refunded and stock restored.` });
+        setIsRefundDialogOpen(false);
+    } catch {
+        toast({ title: "Error", description: "Failed to process refund.", variant: "destructive" });
+    } finally {
+        setIsRefunding(false);
     }
   };
 
@@ -751,6 +768,28 @@ export default function OrderDetailPage() {
       </AlertDialog>
 
 
+      <AlertDialog open={isRefundDialogOpen} onOpenChange={setIsRefundDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refund this Order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark order <strong>{order?.id}</strong> as <strong>Refunded</strong>.
+              {order?.invoiceId
+                ? <> Invoice <strong>{order.invoiceId}</strong> will be permanently deleted, all hisaab entries removed, and items returned to stock.</>
+                : ' The order record will be kept but removed from revenue calculations.'
+              }{' '}This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRefunding}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRefund} disabled={isRefunding} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isRefunding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+              Yes, Refund Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Button variant="outline" onClick={() => router.back()} className="mb-0">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
       </Button>
@@ -791,6 +830,11 @@ export default function OrderDetailPage() {
                            ) : order.status === 'Completed' && (
                              <Button onClick={() => setIsFinalizeDialogOpen(true)}>
                                <FileText className="mr-2 h-4 w-4" /> Finalize & Generate Invoice
+                             </Button>
+                           )}
+                           {order.status !== 'Cancelled' && order.status !== 'Refunded' && (
+                             <Button variant="outline" onClick={() => setIsRefundDialogOpen(true)} className="border-destructive text-destructive hover:bg-destructive/10">
+                               <RotateCcw className="mr-2 h-4 w-4" /> Refund Order
                              </Button>
                            )}
                           <Badge className={cn("text-base border-transparent", getPaymentBadgeClass(getPaymentStatus(order)))}>

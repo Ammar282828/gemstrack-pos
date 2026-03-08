@@ -382,7 +382,7 @@ export interface Karigar {
   notes?: string;
 }
 
-export const ORDER_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled'] as const;
+export const ORDER_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Refunded'] as const;
 export type OrderStatus = typeof ORDER_STATUSES[number];
 
 export interface OrderItem {
@@ -561,7 +561,7 @@ export type LogEventType =
   | 'customer.create' | 'customer.update' | 'customer.delete'
   | 'karigar.create' | 'karigar.update' | 'karigar.delete'
   | 'invoice.create' | 'invoice.payment' | 'invoice.delete'
-  | 'order.create' | 'order.update' | 'order.delete' | 'order.revert'
+  | 'order.create' | 'order.update' | 'order.delete' | 'order.revert' | 'order.refund'
   | 'expense.create' | 'expense.update' | 'expense.delete'
   | 'revenue.create' | 'revenue.update' | 'revenue.delete';
 
@@ -740,6 +740,7 @@ export interface AppState {
     additionalDiscount: number
   ) => Promise<Invoice | null>;
   revertOrderFromInvoice: (orderId: string, invoiceId: string) => Promise<void>;
+  refundOrder: (orderId: string) => Promise<void>;
   recordOrderAdvance: (orderId: string, amount: number, notes: string) => Promise<Order | null>;
 
   loadHisaab: () => void;
@@ -1926,6 +1927,26 @@ export const useAppStore = create<AppState>()(
             await addActivityLog('order.revert', `Reverted order ${orderId}`, `Cancelled invoice ${invoiceId}`, orderId);
         } catch (error) {
             console.error("Error reverting order from invoice:", error);
+            throw error;
+        }
+      },
+      refundOrder: async (orderId) => {
+        if (get().settings.databaseLocked) return;
+        const order = get().orders.find(o => o.id === orderId);
+        if (!order) return;
+        try {
+            if (order.invoiceId) {
+                // Delete invoice AND restore stock (isEditing=false)
+                await get().deleteInvoice(order.invoiceId, false);
+            }
+            await setDoc(
+                doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId),
+                { status: 'Refunded', invoiceId: deleteField() },
+                { merge: true }
+            );
+            await addActivityLog('order.refund', `Refunded order ${orderId}`, `Customer: ${order.customerName || 'Unknown'}`, orderId);
+        } catch (error) {
+            console.error('[refundOrder] Error:', error);
             throw error;
         }
       },

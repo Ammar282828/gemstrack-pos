@@ -131,6 +131,7 @@ export default function HomePage() {
     const recentOrders = orders.filter(o =>
       parseISO(o.createdAt) >= last30 &&
       o.status !== 'Cancelled' &&
+      o.status !== 'Refunded' &&
       !o.invoiceId
     );
     const orderRevenue = recentOrders.reduce((sum, o) => sum + (o.grandTotal || 0), 0);
