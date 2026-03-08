@@ -172,9 +172,17 @@ export default function CalendarPage() {
     if (!dayData) return null;
 
     return (
-      <div className="absolute bottom-1 left-1 right-1 flex flex-col items-center text-[9px] leading-tight gap-0.5">
-        {dayData.invoices > 0 && <Badge variant="secondary" className="w-full justify-start h-auto p-0.5 px-1 bg-green-500/10 text-green-700 dark:text-green-300">Sales: {dayData.invoices}</Badge>}
-        {dayData.orders > 0 && <Badge variant="secondary" className="w-full justify-start h-auto p-0.5 px-1 bg-blue-500/10 text-blue-700 dark:text-blue-300">Orders: {dayData.orders}</Badge>}
+      <div className="flex flex-col gap-0.5 mt-0.5 w-full">
+        {dayData.invoices > 0 && (
+          <span className="w-full rounded text-[9px] leading-tight px-1 py-0.5 bg-green-500/15 text-green-700 dark:text-green-300 truncate">
+            {dayData.invoices} sale{dayData.invoices > 1 ? 's' : ''}
+          </span>
+        )}
+        {dayData.orders > 0 && (
+          <span className="w-full rounded text-[9px] leading-tight px-1 py-0.5 bg-blue-500/15 text-blue-700 dark:text-blue-300 truncate">
+            {dayData.orders} order{dayData.orders > 1 ? 's' : ''}
+          </span>
+        )}
       </div>
     );
   };
@@ -200,28 +208,42 @@ export default function CalendarPage() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2">
-            <CardContent className="p-1 md:p-2">
+        <Card className="lg:col-span-2 overflow-hidden">
+            <CardContent className="p-2 sm:p-4">
                  <Calendar
                     mode="single"
                     selected={selectedDate}
                     onSelect={handleDayClick}
-                    className="p-0"
+                    className="w-full"
                     classNames={{
-                      day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                      day: "relative h-auto aspect-square p-1.5 align-top", // Use aspect-ratio for scaling
-                      day_today: "bg-accent text-accent-foreground",
-                      head_cell: "text-muted-foreground rounded-md w-full font-normal text-sm", // Let flexbox handle width
+                      months: "w-full",
+                      month: "w-full space-y-3",
+                      caption: "flex justify-center pt-1 relative items-center",
+                      caption_label: "text-base font-semibold",
+                      nav: "space-x-1 flex items-center",
+                      nav_button: "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+                      nav_button_previous: "absolute left-1",
+                      nav_button_next: "absolute right-1",
                       table: "w-full border-collapse",
-                      month: "space-y-4",
-                      caption_label: "text-lg font-bold"
+                      head_row: "flex w-full",
+                      head_cell: "text-muted-foreground rounded-md flex-1 font-normal text-xs text-center pb-1",
+                      row: "flex w-full mt-1 gap-0.5",
+                      cell: "flex-1 min-h-[70px] sm:min-h-[80px] rounded-md border border-border/40 p-0 relative hover:bg-accent/50 transition-colors cursor-pointer [&:has([aria-selected])]:bg-primary/10",
+                      day: "w-full h-full p-1.5 flex flex-col items-start text-sm font-normal aria-selected:opacity-100",
+                      day_selected: "bg-primary/10 text-foreground font-semibold rounded-md",
+                      day_today: "border-primary border-2",
+                      day_outside: "opacity-30",
+                      day_disabled: "opacity-30 cursor-not-allowed",
                     }}
                     components={{
                         DayContent: (props) => (
-                           <div className="relative w-full h-full flex flex-col">
-                             <time dateTime={props.date.toISOString()} className={cn("self-start", isSameDay(props.date, new Date()) && "font-bold")}>
+                           <div className="w-full h-full flex flex-col">
+                             <span className={cn(
+                               "text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full mb-0.5",
+                               isSameDay(props.date, new Date()) && "bg-primary text-primary-foreground"
+                             )}>
                                {format(props.date, 'd')}
-                             </time>
+                             </span>
                              <EventDay date={props.date} />
                            </div>
                         )
