@@ -10,7 +10,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval, startOfYear, endOfYear, getYear } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -59,29 +59,30 @@ export default function AnalyticsPage() {
 
 
   const yearlySummary = useMemo(() => {
-    const yearMap: Record<number, { revenue: number; expenses: number }> = {};
+    const yearMap: Record<number, { revenue: number; expenses: number; unpaid: number }> = {};
     generatedInvoices.forEach(inv => {
       if (!inv?.createdAt) return;
       const yr = getYear(parseISO(inv.createdAt));
-      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0 };
+      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
       yearMap[yr].revenue += inv.grandTotal || 0;
+      yearMap[yr].unpaid += inv.balanceDue || 0;
     });
     orders.forEach(order => {
       if (!order?.createdAt || order.status === 'Cancelled' || order.status === 'Refunded' || order.invoiceId) return;
       const yr = getYear(parseISO(order.createdAt));
-      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0 };
+      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
       yearMap[yr].revenue += order.grandTotal || 0;
     });
     additionalRevenues.forEach(r => {
       if (!r?.date) return;
       const yr = getYear(parseISO(r.date));
-      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0 };
+      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
       yearMap[yr].revenue += r.amount || 0;
     });
     expenses.forEach(exp => {
       if (!exp?.date) return;
       const yr = getYear(parseISO(exp.date));
-      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0 };
+      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
       yearMap[yr].expenses += exp.amount || 0;
     });
     return Object.entries(yearMap)
@@ -89,6 +90,7 @@ export default function AnalyticsPage() {
         year: parseInt(year),
         revenue: data.revenue,
         expenses: data.expenses,
+        unpaid: data.unpaid,
         netProfit: data.revenue - data.expenses,
       }))
       .sort((a, b) => b.year - a.year);
@@ -147,6 +149,7 @@ export default function AnalyticsPage() {
         invoiceSales: 0,
         orderSales: 0,
         extraRevenue: 0,
+        totalUnpaid: 0,
         totalOrders: 0,
         averageOrderValue: 0,
         totalItemsSold: 0,
@@ -168,6 +171,7 @@ export default function AnalyticsPage() {
     let totalSales = 0;
     let totalItemsSold = 0;
     let totalDiscounts = 0;
+    let totalUnpaid = 0;
     const salesByDate: Record<string, { sales: number; orders: number; itemsSold: number }> = {};
     const productPerformance: Record<string, { quantity: number; revenue: number }> = {};
     const categoryPerformance: Record<string, number> = {};
@@ -178,6 +182,7 @@ export default function AnalyticsPage() {
       if (!invoice) return;
       totalSales += invoice.grandTotal || 0;
       totalDiscounts += invoice.discountAmount || 0;
+      totalUnpaid += invoice.balanceDue || 0;
 
       const dateKey = format(startOfDay(parseISO(invoice.createdAt)), 'yyyy-MM-dd');
       if (!salesByDate[dateKey]) {
@@ -319,6 +324,7 @@ export default function AnalyticsPage() {
     calcData.invoiceSales = totalSales - orderSales - extraRevenue;
     calcData.orderSales = orderSales;
     calcData.extraRevenue = extraRevenue;
+    calcData.totalUnpaid = totalUnpaid;
     calcData.totalOrders = totalOrders;
     calcData.totalItemsSold = totalItemsSold;
     calcData.totalDiscounts = totalDiscounts;
@@ -563,6 +569,20 @@ export default function AnalyticsPage() {
                 </>
               );
             })()}
+            {analyticsData.totalUnpaid > 0 && (
+              <Card className="border-amber-500/40">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Outstanding Balance</CardTitle>
+                  <Clock className="h-4 w-4 text-amber-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-amber-600">
+                    PKR {analyticsData.totalUnpaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Unpaid balance on invoices in this period</p>
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
@@ -625,6 +645,7 @@ export default function AnalyticsPage() {
                     <TableRow>
                       <TableHead>Year</TableHead>
                       <TableHead className="text-right">Revenue (PKR)</TableHead>
+                      <TableHead className="text-right text-amber-600">Unpaid (PKR)</TableHead>
                       <TableHead className="text-right">Expenses (PKR)</TableHead>
                       <TableHead className="text-right text-blue-600">Est. Profit (40%)</TableHead>
                       <TableHead className="text-right">Net Profit (PKR)</TableHead>
@@ -640,6 +661,9 @@ export default function AnalyticsPage() {
                       >
                         <TableCell className="font-semibold">{row.year}</TableCell>
                         <TableCell className="text-right">{row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                        <TableCell className="text-right font-medium text-amber-600">
+                          {row.unpaid > 0 ? row.unpaid.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}
+                        </TableCell>
                         <TableCell className="text-right text-destructive">{row.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                         <TableCell className="text-right font-medium text-blue-600">
                           {(row.revenue * 0.40).toLocaleString(undefined, { maximumFractionDigits: 0 })}
