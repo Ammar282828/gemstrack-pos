@@ -5,12 +5,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAppStore, Karigar, HisaabEntry, Expense } from '@/lib/store';
+import { useAppStore, Expense } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Edit3, Trash2, ArrowLeft, User, Phone, StickyNote, BookUser, ArrowDown, ArrowUp, PlusCircle, Banknote } from 'lucide-react';
+import { Edit3, Trash2, ArrowLeft, User, Phone, StickyNote, PlusCircle, Banknote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -26,7 +26,6 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ExpenseForm } from '@/components/expense/expense-form';
 
@@ -48,37 +47,14 @@ export default function KarigarDetailPage() {
 
   const isHydrated = useIsStoreHydrated();
   const karigar = useAppStore(state => state.karigars.find(k => k.id === karigarId));
-  const allHisaabEntries = useAppStore(state => state.hisaabEntries);
   const expenses = useAppStore(state => state.expenses);
   const deleteKarigarAction = useAppStore(state => state.deleteKarigar);
-  const { loadHisaab, loadExpenses } = useAppStore();
+  const { loadExpenses } = useAppStore();
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
 
   useEffect(() => {
-    loadHisaab();
     loadExpenses();
-  }, [loadHisaab, loadExpenses]);
-
-  const { karigarHisaab, balances } = React.useMemo(() => {
-    const filteredEntries = allHisaabEntries
-      .filter(entry => entry.entityId === karigarId)
-      .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
-
-    let cashBalance = 0;
-    let goldBalance = 0;
-    
-    const entriesWithBalances = filteredEntries.map(entry => {
-        cashBalance += (entry.cashDebit - entry.cashCredit);
-        goldBalance += (entry.goldDebitGrams - entry.goldCreditGrams);
-        return { ...entry, runningGoldBalance: goldBalance };
-    });
-
-    return {
-        karigarHisaab: entriesWithBalances.reverse(), // Show most recent first
-        balances: { finalCashBalance: cashBalance, finalGoldBalance: goldBalance }
-    };
-
-  }, [allHisaabEntries, karigarId]);
+  }, [loadExpenses]);
 
   const karigarExpenses = React.useMemo(() => {
     return expenses
@@ -146,11 +122,6 @@ export default function KarigarDetailPage() {
               <DetailItem label="Notes" value={karigar.notes} icon={<StickyNote className="w-4 h-4" />} />
             </CardContent>
             <CardFooter className="flex flex-col space-y-2">
-                <Button asChild className="w-full">
-                    <Link href={`/hisaab/${karigar.id}?type=karigar`}>
-                        <BookUser className="mr-2 h-4 w-4" /> View Full Hisaab
-                    </Link>
-                </Button>
               <div className="flex space-x-2 w-full">
                 <Button asChild variant="outline" className="flex-1">
                     <Link href={`/karigars/${karigarId}/edit`}>
@@ -172,37 +143,6 @@ export default function KarigarDetailPage() {
         </div>
 
         <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Gold Account Summary</CardTitle>
-              <CardDescription>
-                Overview of gold transactions with {karigar.name}. 
-                A positive balance means the karigar owes you gold. A negative balance means you owe them gold.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-lg bg-red-500/10 text-destructive">
-                      <p className="text-sm font-semibold">Receivable (Karigar owes you)</p>
-                      <p className="text-xl font-bold">{Math.max(0, balances.finalGoldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })} g</p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400">
-                      <p className="text-sm font-semibold">Payable (You owe Karigar)</p>
-                      <p className="text-xl font-bold">{Math.abs(Math.min(0, balances.finalGoldBalance)).toLocaleString(undefined, { minimumFractionDigits: 3 })} g</p>
-                  </div>
-              </div>
-               <Separator className="my-4"/>
-               <div className="p-4 rounded-lg bg-muted/50">
-                  <h4 className="font-semibold">Cash Balance Summary</h4>
-                  {balances.finalCashBalance >= 0 ? (
-                      <p>You need to pay them <strong className="text-destructive">PKR {balances.finalCashBalance.toLocaleString()}</strong>.</p>
-                  ) : (
-                      <p>They need to pay you <strong className="text-green-600">PKR {Math.abs(balances.finalCashBalance).toLocaleString()}</strong>.</p>
-                  )}
-              </div>
-            </CardContent>
-          </Card>
-          
           <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div>
