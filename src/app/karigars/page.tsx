@@ -11,10 +11,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Edit3, Briefcase, Phone, StickyNote, Loader2, Eye, User, Banknote } from 'lucide-react';
+import { Search, PlusCircle, Edit3, Briefcase, Phone, StickyNote, Loader2, Eye, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const KarigarCard: React.FC<{ karigar: Karigar; totalPaid: number; activeHisaab: string | null }> = ({ karigar, totalPaid, activeHisaab }) => (
+const KarigarCard: React.FC<{ karigar: Karigar; activeHisaab: string | null }> = ({ karigar, activeHisaab }) => (
   <Link href={`/karigars/${karigar.id}`}>
     <Card className="mb-3 hover:shadow-md transition-shadow cursor-pointer">
       <CardContent className="p-4">
@@ -29,17 +29,13 @@ const KarigarCard: React.FC<{ karigar: Karigar; totalPaid: number; activeHisaab:
             </div>
             {karigar.contact && <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5"><Phone className="h-3 w-3" />{karigar.contact}</p>}
           </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-xs text-muted-foreground">Total Paid</p>
-            <p className="font-bold text-destructive">PKR {totalPaid.toLocaleString()}</p>
-          </div>
         </div>
       </CardContent>
     </Card>
   </Link>
 );
 
-const KarigarRow: React.FC<{ karigar: Karigar; totalPaid: number; activeHisaab: string | null }> = ({ karigar, totalPaid, activeHisaab }) => (
+const KarigarRow: React.FC<{ karigar: Karigar; activeHisaab: string | null }> = ({ karigar, activeHisaab }) => (
   <TableRow className="cursor-pointer">
     <TableCell>
       <Link href={`/karigars/${karigar.id}`} className="font-medium text-primary hover:underline flex items-center gap-2">
@@ -55,7 +51,6 @@ const KarigarRow: React.FC<{ karigar: Karigar; totalPaid: number; activeHisaab: 
         ? <Badge className="text-xs">{activeHisaab}</Badge>
         : <span className="text-muted-foreground text-sm">—</span>}
     </TableCell>
-    <TableCell className="font-bold text-destructive">PKR {totalPaid.toLocaleString()}</TableCell>
     <TableCell className="text-right">
       <div className="flex justify-end gap-1">
         <Button asChild size="sm" variant="ghost">
@@ -74,27 +69,17 @@ export default function KarigarsPage() {
 
   const appReady = useAppReady();
   const karigars = useAppStore(state => state.karigars);
-  const expenses = useAppStore(state => state.expenses);
   const karigarBatches = useAppStore(state => state.karigarBatches);
   const isKarigarsLoading = useAppStore(state => state.isKarigarsLoading);
-  const { deleteKarigar: deleteKarigarAction, loadKarigars, loadExpenses, loadKarigarBatches } = useAppStore();
+  const { deleteKarigar: deleteKarigarAction, loadKarigars, loadKarigarBatches } = useAppStore();
   const { toast } = useToast();
 
   useEffect(() => {
     if (appReady) {
       loadKarigars();
-      loadExpenses();
       loadKarigarBatches();
     }
-  }, [appReady, loadKarigars, loadExpenses, loadKarigarBatches]);
-
-  const totalsMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const e of expenses) {
-      if (e.karigarId) map[e.karigarId] = (map[e.karigarId] ?? 0) + e.amount;
-    }
-    return map;
-  }, [expenses]);
+  }, [appReady, loadKarigars, loadKarigarBatches]);
 
   const activeHisaabMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -111,8 +96,8 @@ export default function KarigarsPage() {
         k.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (k.contact && k.contact.includes(searchTerm))
       )
-      .sort((a, b) => (totalsMap[b.id] ?? 0) - (totalsMap[a.id] ?? 0));
-  }, [karigars, searchTerm, appReady, totalsMap]);
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [karigars, searchTerm, appReady]);
 
   if (!appReady) {
     return (
@@ -128,7 +113,7 @@ export default function KarigarsPage() {
       <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Briefcase className="w-8 h-8 mr-3 text-primary" />Karigars</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{karigars.length} artisan{karigars.length !== 1 ? 's' : ''} · PKR {Object.values(totalsMap).reduce((a, b) => a + b, 0).toLocaleString()} total paid</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{karigars.length} artisan{karigars.length !== 1 ? 's' : ''}</p>
         </div>
         <Link href="/karigars/add">
           <Button><PlusCircle className="w-4 h-4 mr-2" />Add Karigar</Button>
@@ -160,7 +145,7 @@ export default function KarigarsPage() {
           {/* Mobile: Cards */}
           <div className="md:hidden">
             {filteredKarigars.map(k => (
-              <KarigarCard key={k.id} karigar={k} totalPaid={totalsMap[k.id] ?? 0} activeHisaab={activeHisaabMap[k.id] ?? null} />
+              <KarigarCard key={k.id} karigar={k} activeHisaab={activeHisaabMap[k.id] ?? null} />
             ))}
           </div>
           {/* Desktop: Table */}
@@ -171,13 +156,12 @@ export default function KarigarsPage() {
                   <TableHead>Name</TableHead>
                   <TableHead><Phone className="inline mr-1 h-3.5 w-3.5" />Contact</TableHead>
                   <TableHead>Active Hisaab</TableHead>
-                  <TableHead><Banknote className="inline mr-1 h-3.5 w-3.5" />Total Paid</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredKarigars.map(k => (
-                  <KarigarRow key={k.id} karigar={k} totalPaid={totalsMap[k.id] ?? 0} activeHisaab={activeHisaabMap[k.id] ?? null} />
+                  <KarigarRow key={k.id} karigar={k} activeHisaab={activeHisaabMap[k.id] ?? null} />
                 ))}
               </TableBody>
             </Table>
