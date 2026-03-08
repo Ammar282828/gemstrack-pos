@@ -32,9 +32,10 @@ interface ExpenseFormProps {
   expense?: Expense;
   onSubmitSuccess: () => void;
   lockedKarigarId?: string; // Pre-links this expense to a karigar (cannot be changed)
+  lockedBatchId?: string;   // Pre-assigns to a specific hisaab batch
 }
 
-export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSuccess, lockedKarigarId }) => {
+export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSuccess, lockedKarigarId, lockedBatchId }) => {
   const { toast } = useToast();
   const { addExpense, updateExpense, karigars, loadKarigars } = useAppStore();
   const [selectedKarigarId, setSelectedKarigarId] = useState(expense?.karigarId || '');
@@ -63,6 +64,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
       ...data,
       date: data.date.toISOString(),
       ...(effectiveKarigarId && { karigarId: effectiveKarigarId }),
+      ...(lockedBatchId && { batchId: lockedBatchId }),
     };
     try {
       if (isEditMode && expense) {

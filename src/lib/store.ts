@@ -20,6 +20,7 @@ const FIRESTORE_COLLECTIONS = {
   HISAAB: "hisaab",
   EXPENSES: "expenses",
   ADDITIONAL_REVENUE: "additional_revenue",
+  KARIGAR_BATCHES: "karigar_batches",
   ACTIVITY_LOG: "activity_log",
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
@@ -464,6 +465,16 @@ export interface Expense {
   description: string;
   amount: number;
   karigarId?: string; // Links this expense to a karigar payment
+  batchId?: string;   // Links this expense to a karigar hisaab batch
+}
+
+export interface KarigarBatch {
+  id: string;
+  karigarId: string;
+  label: string;       // e.g., "March 2026"
+  startDate: string;   // ISO
+  closedDate?: string; // ISO — undefined means open/current
+  totalPaid?: number;  // Stored when closed for quick display
 }
 
 
@@ -631,6 +642,7 @@ export interface AppState {
   cart: CartItem[]; // This will be persisted
   generatedInvoices: Invoice[];
   karigars: Karigar[];
+  karigarBatches: KarigarBatch[];
   orders: Order[];
   hisaabEntries: HisaabEntry[];
   expenses: Expense[];
@@ -645,6 +657,7 @@ export interface AppState {
   isSoldProductsLoading: boolean;
   isCustomersLoading: boolean;
   isKarigarsLoading: boolean;
+  isKarigarBatchesLoading: boolean;
   isInvoicesLoading: boolean;
   isOrdersLoading: boolean;
   isHisaabLoading: boolean;
@@ -658,6 +671,7 @@ export interface AppState {
   hasSoldProductsLoaded: boolean;
   hasCustomersLoaded: boolean;
   hasKarigarsLoaded: boolean;
+  hasKarigarBatchesLoaded: boolean;
   hasInvoicesLoaded: boolean;
   hasOrdersLoaded: boolean;
   hasHisaabLoaded: boolean;
@@ -673,6 +687,7 @@ export interface AppState {
   invoicesError: string | null;
   ordersError: string | null;
   karigarsError: string | null;
+  karigarBatchesError: string | null;
   hisaabError: string | null;
   expensesError: string | null;
   additionalRevenueError: string | null;
@@ -709,6 +724,10 @@ export interface AppState {
   addKarigar: (karigarData: Omit<Karigar, 'id'>) => Promise<Karigar | null>;
   updateKarigar: (id: string, updatedKarigarData: Partial<Omit<Karigar, 'id'>>) => Promise<void>;
   deleteKarigar: (id: string) => Promise<void>;
+  loadKarigarBatches: () => void;
+  createKarigarBatch: (data: Omit<KarigarBatch, 'id'>) => Promise<KarigarBatch | null>;
+  closeKarigarBatch: (batchId: string, closedDate: string, totalPaid: number) => Promise<void>;
+  deleteKarigarBatch: (batchId: string) => Promise<void>;
 
   addToCart: (sku: string) => void;
   addProductToCart: (product: Product) => void;
@@ -841,6 +860,7 @@ const createDataLoader = <T, K extends keyof AppState>(
 const loadProducts = createDataLoader<Product, 'products'>('products', 'products', 'isProductsLoading', 'productsError', 'hasProductsLoaded', 'sku', 'asc');
 const loadCustomers = createDataLoader<Customer, 'customers'>('customers', 'customers', 'isCustomersLoading', 'customersError', 'hasCustomersLoaded', 'name', 'asc');
 const loadKarigars = createDataLoader<Karigar, 'karigars'>('karigars', 'karigars', 'isKarigarsLoading', 'karigarsError', 'hasKarigarsLoaded', 'name', 'asc');
+const loadKarigarBatches = createDataLoader<KarigarBatch, 'karigarBatches'>('karigar_batches', 'karigarBatches', 'isKarigarBatchesLoading', 'karigarBatchesError', 'hasKarigarBatchesLoaded', 'startDate', 'asc');
 const loadInvoices = createDataLoader<Invoice, 'generatedInvoices'>('invoices', 'generatedInvoices', 'isInvoicesLoading', 'invoicesError', 'hasInvoicesLoaded', 'createdAt', 'desc');
 const loadOrders = createDataLoader<Order, 'orders'>('orders', 'orders', 'isOrdersLoading', 'ordersError', 'hasOrdersLoaded', 'createdAt', 'desc');
 const loadHisaab = createDataLoader<HisaabEntry, 'hisaabEntries'>('hisaab', 'hisaabEntries', 'isHisaabLoading', 'hisaabError', 'hasHisaabLoaded', 'date', 'desc');
@@ -867,6 +887,7 @@ export const useAppStore = create<AppState>()(
       cart: [], // This will be persisted
       generatedInvoices: [],
       karigars: [],
+      karigarBatches: [],
       orders: [],
       hisaabEntries: [],
       expenses: [],
@@ -879,6 +900,7 @@ export const useAppStore = create<AppState>()(
       isSoldProductsLoading: true,
       isCustomersLoading: true,
       isKarigarsLoading: true,
+      isKarigarBatchesLoading: true,
       isInvoicesLoading: true,
       isOrdersLoading: true,
       isHisaabLoading: true,
@@ -891,6 +913,7 @@ export const useAppStore = create<AppState>()(
       hasSoldProductsLoaded: false,
       hasCustomersLoaded: false,
       hasKarigarsLoaded: false,
+      hasKarigarBatchesLoaded: false,
       hasInvoicesLoaded: false,
       hasOrdersLoaded: false,
       hasHisaabLoaded: false,
@@ -905,6 +928,7 @@ export const useAppStore = create<AppState>()(
       invoicesError: null,
       ordersError: null,
       karigarsError: null,
+      karigarBatchesError: null,
       hisaabError: null,
       expensesError: null,
       additionalRevenueError: null,
@@ -1007,6 +1031,7 @@ export const useAppStore = create<AppState>()(
       loadSoldProducts: () => loadSoldProducts(set, get),
       loadCustomers: () => loadCustomers(set, get),
       loadKarigars: () => loadKarigars(set, get),
+      loadKarigarBatches: () => loadKarigarBatches(set, get),
       loadGeneratedInvoices: () => loadInvoices(set, get),
       loadOrders: () => loadOrders(set, get),
       loadHisaab: () => loadHisaab(set, get),
@@ -1271,6 +1296,47 @@ export const useAppStore = create<AppState>()(
           console.log(`[GemsTrack Store deleteKarigar] Karigar ID ${id} deleted successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store deleteKarigar] Error deleting karigar ID ${id} from Firestore:`, error);
+          throw error;
+        }
+      },
+
+      createKarigarBatch: async (data) => {
+        if(get().settings.databaseLocked) return null;
+        try {
+          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.KARIGAR_BATCHES), data);
+          const newBatch: KarigarBatch = { id: docRef.id, ...data };
+          set(state => { state.karigarBatches.push(newBatch); });
+          return newBatch;
+        } catch (error) {
+          console.error('[GemsTrack Store createKarigarBatch] Error:', error);
+          return null;
+        }
+      },
+
+      closeKarigarBatch: async (batchId, closedDate, totalPaid) => {
+        if(get().settings.databaseLocked) return;
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGAR_BATCHES, batchId), { closedDate, totalPaid }, { merge: true });
+          set(state => {
+            const idx = state.karigarBatches.findIndex(b => b.id === batchId);
+            if (idx !== -1) {
+              state.karigarBatches[idx].closedDate = closedDate;
+              state.karigarBatches[idx].totalPaid = totalPaid;
+            }
+          });
+        } catch (error) {
+          console.error('[GemsTrack Store closeKarigarBatch] Error:', error);
+          throw error;
+        }
+      },
+
+      deleteKarigarBatch: async (batchId) => {
+        if(get().settings.databaseLocked) return;
+        try {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGAR_BATCHES, batchId));
+          set(state => { state.karigarBatches = state.karigarBatches.filter(b => b.id !== batchId); });
+        } catch (error) {
+          console.error('[GemsTrack Store deleteKarigarBatch] Error:', error);
           throw error;
         }
       },
