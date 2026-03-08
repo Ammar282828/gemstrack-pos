@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -30,6 +30,7 @@ import { Control, useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
 import { ProductForm } from '@/components/product/product-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 
 declare module 'jspdf' {
@@ -121,6 +122,8 @@ export default function CartPage() {
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [isEditingEstimate, setIsEditingEstimate] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | undefined>(undefined);
+  const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
+  const [isRefunding, setIsRefunding] = useState(false);
   
   const [editingCartItem, setEditingCartItem] = useState<Product | undefined>(undefined);
   const [isNewProductDialogOpen, setIsNewProductDialogOpen] = useState(false);
@@ -763,6 +766,21 @@ export default function CartPage() {
     );
   }
 
+  const handleRefundInvoice = async () => {
+    if (!generatedInvoice) return;
+    setIsRefunding(true);
+    try {
+      await deleteInvoice(generatedInvoice.id, false); // false = restore stock
+      toast({ title: 'Invoice Refunded', description: `Invoice ${generatedInvoice.id} has been deleted and items returned to stock.` });
+      setIsRefundDialogOpen(false);
+      setGeneratedInvoice(null);
+    } catch {
+      toast({ title: 'Error', description: 'Failed to process refund.', variant: 'destructive' });
+    } finally {
+      setIsRefunding(false);
+    }
+  };
+
   // If viewing a generated invoice, show the finalized view
   if (generatedInvoice) {
     return (
@@ -785,6 +803,9 @@ export default function CartPage() {
                     </Button>
                      <Button onClick={() => printInvoice(generatedInvoice)}>
                       <Printer className="mr-2 h-4 w-4"/> Print
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsRefundDialogOpen(true)} className="border-destructive text-destructive hover:bg-destructive/10">
+                      <RotateCcw className="mr-2 h-4 w-4"/> Refund
                     </Button>
                  </div>
             </div>
@@ -909,6 +930,23 @@ export default function CartPage() {
   
   return (
     <div className="container mx-auto py-8 px-4">
+      <AlertDialog open={isRefundDialogOpen} onOpenChange={setIsRefundDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refund this Invoice?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Invoice <strong>{generatedInvoice?.id}</strong> will be permanently deleted, all hisaab entries removed, and all items returned to stock. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRefunding}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRefundInvoice} disabled={isRefunding} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isRefunding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+              Yes, Refund Invoice
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {cartItemsFromStore.length === 0 ? (
           <Card className="max-w-2xl mx-auto">
             <CardHeader className="text-center">
