@@ -174,7 +174,7 @@ export default function ExpensesPage() {
           <DialogHeader>
             <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
           </DialogHeader>
-          <ExpenseForm expense={editingExpense} onSubmitSuccess={handleFormSuccess} />
+          <ExpenseForm key={editingExpense?.id ?? 'new'} expense={editingExpense} onSubmitSuccess={handleFormSuccess} />
         </DialogContent>
       </Dialog>
 

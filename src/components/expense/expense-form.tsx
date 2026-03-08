@@ -46,7 +46,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
     resolver: zodResolver(expenseSchema),
     defaultValues: expense ? {
       ...expense,
-      date: new Date(expense.date),
+      date: (() => {
+        if (!expense.date) return new Date();
+        // Handle Firestore Timestamp objects
+        if (typeof (expense.date as any).toDate === 'function') return (expense.date as any).toDate();
+        const d = new Date(expense.date as string);
+        return isNaN(d.getTime()) ? new Date() : d;
+      })(),
     } : {
       date: new Date(),
       category: '',

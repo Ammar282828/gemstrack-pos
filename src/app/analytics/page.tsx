@@ -7,12 +7,13 @@ import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, Invo
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval, startOfYear, endOfYear, getYear } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
@@ -51,9 +52,47 @@ export default function AnalyticsPage() {
     to: new Date(),
   });
   
+  const [activeQuickSelect, setActiveQuickSelect] = useState<string>('last-30');
+  
   const [selectedDayData, setSelectedDayData] = useState<SalesOverTimeData | null>(null);
   const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
 
+
+  const yearlySummary = useMemo(() => {
+    const yearMap: Record<number, { revenue: number; expenses: number }> = {};
+    generatedInvoices.forEach(inv => {
+      if (!inv?.createdAt) return;
+      const yr = getYear(parseISO(inv.createdAt));
+      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0 };
+      yearMap[yr].revenue += inv.grandTotal || 0;
+    });
+    orders.forEach(order => {
+      if (!order?.createdAt || order.status === 'Cancelled' || order.status === 'Refunded' || order.invoiceId) return;
+      const yr = getYear(parseISO(order.createdAt));
+      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0 };
+      yearMap[yr].revenue += order.grandTotal || 0;
+    });
+    additionalRevenues.forEach(r => {
+      if (!r?.date) return;
+      const yr = getYear(parseISO(r.date));
+      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0 };
+      yearMap[yr].revenue += r.amount || 0;
+    });
+    expenses.forEach(exp => {
+      if (!exp?.date) return;
+      const yr = getYear(parseISO(exp.date));
+      if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0 };
+      yearMap[yr].expenses += exp.amount || 0;
+    });
+    return Object.entries(yearMap)
+      .map(([year, data]) => ({
+        year: parseInt(year),
+        revenue: data.revenue,
+        expenses: data.expenses,
+        netProfit: data.revenue - data.expenses,
+      }))
+      .sort((a, b) => b.year - a.year);
+  }, [generatedInvoices, orders, expenses, additionalRevenues]);
 
   const filteredInvoices = useMemo(() => {
     if (!dateRange || !dateRange.from) return generatedInvoices; 
@@ -120,7 +159,6 @@ export default function AnalyticsPage() {
         topCustomers: [] as TopCustomerData[],
         totalExpenses: 0,
         expensesByCategory: [] as ExpenseByCategoryData[],
-        extraRevenue: 0,
       };
 
     if (filteredInvoices.length === 0 && filteredOrders.length === 0 && filteredExpenses.length === 0 && filteredAdditionalRevenues.length === 0) {
@@ -327,6 +365,27 @@ export default function AnalyticsPage() {
     );
   }
 
+  const handleQuickSelect = (key: string) => {
+    const now = new Date();
+    setActiveQuickSelect(key);
+    if (key === 'last-30') {
+      setDateRange({ from: subDays(now, 29), to: now });
+    } else if (key === 'last-90') {
+      setDateRange({ from: subDays(now, 89), to: now });
+    } else if (key === 'this-year') {
+      setDateRange({ from: startOfYear(now), to: now });
+    } else if (key === 'last-year') {
+      const lastYear = new Date(now.getFullYear() - 1, 0, 1);
+      setDateRange({ from: startOfYear(lastYear), to: endOfYear(lastYear) });
+    } else if (key === 'all-time') {
+      setDateRange(undefined);
+    } else if (key.startsWith('year-')) {
+      const yr = parseInt(key.replace('year-', ''));
+      const yearDate = new Date(yr, 0, 1);
+      setDateRange({ from: startOfYear(yearDate), to: endOfYear(yearDate) });
+    }
+  };
+
   const handleDayClick = (dayData: SalesOverTimeData) => {
     setSelectedDayData(dayData);
     setIsSummaryDialogOpen(true);
@@ -397,12 +456,28 @@ export default function AnalyticsPage() {
           </DialogContent>
       </Dialog>
       
-      <header className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
-        <div>
-            <h1 className="text-3xl font-bold text-primary">Store Analytics</h1>
-            <p className="text-muted-foreground">Get insights into your sales, products, and customer performance.</p>
+      <header className="flex flex-col gap-4 mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+              <h1 className="text-3xl font-bold text-primary">Store Analytics</h1>
+              <p className="text-muted-foreground">Get insights into your sales, products, and customer performance.</p>
+          </div>
+          <DateRangePicker date={dateRange} onDateChange={(r) => { setDateRange(r); setActiveQuickSelect('custom'); }} />
         </div>
-        <DateRangePicker date={dateRange} onDateChange={setDateRange} />
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mr-1">Quick:</span>
+          {([
+            { key: 'last-30', label: 'Last 30 Days' },
+            { key: 'last-90', label: 'Last 90 Days' },
+            { key: 'this-year', label: 'This Year' },
+            { key: 'last-year', label: 'Last Year' },
+            { key: 'all-time', label: 'All Time' },
+          ] as const).map(btn => (
+            <Button key={btn.key} variant={activeQuickSelect === btn.key ? 'default' : 'outline'} size="sm" onClick={() => handleQuickSelect(btn.key)}>
+              {btn.label}
+            </Button>
+          ))}
+        </div>
       </header>
 
       {filteredInvoices.length === 0 && filteredOrders.length === 0 && dateRange?.from ? ( 
@@ -450,6 +525,29 @@ export default function AnalyticsPage() {
                 <div className="text-2xl font-bold text-destructive">PKR {analyticsData.totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               </CardContent>
             </Card>
+            {(() => {
+              const netProfit = analyticsData.totalSales - analyticsData.totalExpenses;
+              const margin = analyticsData.totalSales > 0 ? (netProfit / analyticsData.totalSales) * 100 : 0;
+              return (
+                <Card className={netProfit >= 0 ? 'border-green-500/40' : 'border-red-500/40'}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+                    {netProfit >= 0
+                      ? <TrendingUp className="h-4 w-4 text-green-600" />
+                      : <TrendingDown className="h-4 w-4 text-destructive" />
+                    }
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                      PKR {netProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% margin` : 'No revenue in period'}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })()}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
@@ -496,6 +594,50 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Yearly Performance Summary — not affected by date filter */}
+          {yearlySummary.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" /> Yearly Performance Overview
+                </CardTitle>
+                <CardDescription>All-time revenue, expenses &amp; profit by year. Click a row to filter analytics to that year.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Year</TableHead>
+                      <TableHead className="text-right">Revenue (PKR)</TableHead>
+                      <TableHead className="text-right">Expenses (PKR)</TableHead>
+                      <TableHead className="text-right">Net Profit (PKR)</TableHead>
+                      <TableHead className="text-right">Margin</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {yearlySummary.map(row => (
+                      <TableRow
+                        key={row.year}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleQuickSelect(`year-${row.year}`)}
+                      >
+                        <TableCell className="font-semibold">{row.year}</TableCell>
+                        <TableCell className="text-right">{row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                        <TableCell className="text-right text-destructive">{row.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                        <TableCell className={`text-right font-semibold ${row.netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                          {row.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground text-sm">
+                          {row.revenue > 0 ? `${((row.netProfit / row.revenue) * 100).toFixed(1)}%` : '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Charts Section */}
           <Card className="lg:col-span-2">

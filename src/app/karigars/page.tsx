@@ -106,11 +106,13 @@ export default function KarigarsPage() {
 
   const filteredKarigars = useMemo(() => {
     if (!appReady) return [];
-    return karigars.filter(k =>
-      k.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (k.contact && k.contact.includes(searchTerm))
-    );
-  }, [karigars, searchTerm, appReady]);
+    return karigars
+      .filter(k =>
+        k.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (k.contact && k.contact.includes(searchTerm))
+      )
+      .sort((a, b) => (totalsMap[b.id] ?? 0) - (totalsMap[a.id] ?? 0));
+  }, [karigars, searchTerm, appReady, totalsMap]);
 
   if (!appReady) {
     return (
