@@ -4,7 +4,7 @@ import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc, deleteField } from 'firebase/firestore';
-import { db, firebaseConfig } from '@/lib/firebase';
+import { db, auth, firebaseConfig } from '@/lib/firebase';
 
 
 // --- Firestore Collection Names ---
@@ -823,37 +823,46 @@ const createDataLoader = <T, K extends keyof AppState>(
   orderByDirection: "asc" | "desc" = "asc"
 ) => {
   return (set: (fn: Partial<AppState> | ((state: AppState) => void)) => void, get: () => AppState) => {
-    // We do NOT block loading if databaseLocked is true here anymore.
-    // This prevents a race condition where stale "locked" settings block initial data fetch.
-    // Security is handled by Firestore rules and UI logic.
     if (get()[loadedKey]) return;
 
     set({ [loadingKey]: true, [errorKey]: null } as unknown as Partial<AppState>);
 
     const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
-    
-    const unsubscribe = onSnapshot(q,
-      (serverSnapshot) => {
-        const list = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
-        
-        set({
-          [stateKey]: list,
-          [loadingKey]: false,
-          [loadedKey]: true,
-          [errorKey]: null,
-        } as unknown as Partial<AppState>);
 
-        const source = serverSnapshot.metadata.fromCache ? "cache" : "server";
-        console.log(`[GemsTrack Store] Data for ${collectionName} loaded from ${source}. Count: ${list.length}`);
-      },
-      (error) => {
-        console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
-        set({
-          [loadingKey]: false,
-          [errorKey]: error.message || (`Failed to listen for ${collectionName} updates.`),
-        } as unknown as Partial<AppState>);
-      }
-    );
+    const attachListener = (retryCount = 0) => {
+      const unsubscribe = onSnapshot(q,
+        (serverSnapshot) => {
+          const list = serverSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as T));
+          
+          set({
+            [stateKey]: list,
+            [loadingKey]: false,
+            [loadedKey]: true,
+            [errorKey]: null,
+          } as unknown as Partial<AppState>);
+
+          const source = serverSnapshot.metadata.fromCache ? "cache" : "server";
+          console.log(`[GemsTrack Store] Data for ${collectionName} loaded from ${source}. Count: ${list.length}`);
+        },
+        (error) => {
+          // Retry on permission-denied if the user is authenticated — this is a transient
+          // timing issue where the Firestore SDK hasn't received the auth token yet.
+          if (error.code === 'permission-denied' && auth.currentUser && retryCount < 4) {
+            const delay = 500 * Math.pow(2, retryCount); // 500ms, 1s, 2s, 4s
+            console.warn(`[GemsTrack Store] permission-denied on ${collectionName}, retrying in ${delay}ms (attempt ${retryCount + 1})`);
+            setTimeout(() => attachListener(retryCount + 1), delay);
+            return;
+          }
+          console.error(`[GemsTrack Store] Error in ${collectionName} real-time listener:`, error);
+          set({
+            [loadingKey]: false,
+            [errorKey]: error.message || (`Failed to listen for ${collectionName} updates.`),
+          } as unknown as Partial<AppState>);
+        }
+      );
+    };
+
+    attachListener();
   };
 };
 
