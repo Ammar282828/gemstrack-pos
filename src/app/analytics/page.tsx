@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem } from '@/lib/store';
+import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem, AdditionalRevenue } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -27,10 +27,10 @@ type ExpenseByCategoryData = { category: string; amount: number };
 
 export default function AnalyticsPage() {
   const { 
-    generatedInvoices, orders, products, categories, customers, expenses,
-    isInvoicesLoading, isOrdersLoading, isProductsLoading, isCustomersLoading, isExpensesLoading,
+    generatedInvoices, orders, products, categories, customers, expenses, additionalRevenues,
+    isInvoicesLoading, isOrdersLoading, isProductsLoading, isCustomersLoading, isExpensesLoading, isAdditionalRevenueLoading,
     invoicesError, ordersError, productsError, customersError, expensesError,
-    loadGeneratedInvoices, loadOrders, loadProducts, loadCustomers, loadExpenses 
+    loadGeneratedInvoices, loadOrders, loadProducts, loadCustomers, loadExpenses, loadAdditionalRevenues
   } = useAppStore();
 
   useEffect(() => {
@@ -39,9 +39,10 @@ export default function AnalyticsPage() {
     loadProducts();
     loadCustomers();
     loadExpenses();
-  }, [loadGeneratedInvoices, loadOrders, loadProducts, loadCustomers, loadExpenses]);
+    loadAdditionalRevenues();
+  }, [loadGeneratedInvoices, loadOrders, loadProducts, loadCustomers, loadExpenses, loadAdditionalRevenues]);
 
-  const isLoading = isInvoicesLoading || isOrdersLoading || isProductsLoading || isCustomersLoading || isExpensesLoading;
+  const isLoading = isInvoicesLoading || isOrdersLoading || isProductsLoading || isCustomersLoading || isExpensesLoading || isAdditionalRevenueLoading;
   const loadingError = invoicesError || ordersError || productsError || customersError || expensesError;
 
 
@@ -89,12 +90,23 @@ export default function AnalyticsPage() {
     });
   }, [expenses, dateRange]);
 
+  const filteredAdditionalRevenues = useMemo(() => {
+    if (!dateRange || !dateRange.from) return additionalRevenues;
+    return additionalRevenues.filter(r => {
+      if (!r || !r.date) return false;
+      const d = parseISO(r.date);
+      const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
+      return isWithinInterval(d, { start: startOfDay(dateRange.from!), end: toDate });
+    });
+  }, [additionalRevenues, dateRange]);
+
 
   const analyticsData = useMemo(() => {
     const calcData = {
         totalSales: 0,
         invoiceSales: 0,
         orderSales: 0,
+        extraRevenue: 0,
         totalOrders: 0,
         averageOrderValue: 0,
         totalItemsSold: 0,
@@ -107,9 +119,10 @@ export default function AnalyticsPage() {
         topCustomers: [] as TopCustomerData[],
         totalExpenses: 0,
         expensesByCategory: [] as ExpenseByCategoryData[],
+        extraRevenue: 0,
       };
 
-    if (filteredInvoices.length === 0 && filteredOrders.length === 0 && filteredExpenses.length === 0) {
+    if (filteredInvoices.length === 0 && filteredOrders.length === 0 && filteredExpenses.length === 0 && filteredAdditionalRevenues.length === 0) {
       return calcData;
     }
 
@@ -249,16 +262,31 @@ export default function AnalyticsPage() {
       .sort((a, b) => b.totalSpent - a.totalSpent)
       .slice(0, 10);
       
+    // Process Additional Revenue into salesOverTime
+    let extraRevenue = 0;
+    filteredAdditionalRevenues.forEach(r => {
+      if (!r) return;
+      const amount = r.amount || 0;
+      totalSales += amount;
+      extraRevenue += amount;
+      const dateKey = format(startOfDay(parseISO(r.date)), 'yyyy-MM-dd');
+      if (!salesByDate[dateKey]) {
+        salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
+      }
+      salesByDate[dateKey].sales += amount;
+    });
+
     calcData.totalSales = totalSales;
-    calcData.invoiceSales = totalSales - orderSales;
+    calcData.invoiceSales = totalSales - orderSales - extraRevenue;
     calcData.orderSales = orderSales;
+    calcData.extraRevenue = extraRevenue;
     calcData.totalOrders = totalOrders;
     calcData.totalItemsSold = totalItemsSold;
     calcData.totalDiscounts = totalDiscounts;
 
     return calcData;
 
-  }, [filteredInvoices, filteredOrders, filteredExpenses, products, categories, customers]);
+  }, [filteredInvoices, filteredOrders, filteredExpenses, filteredAdditionalRevenues, products, categories, customers]);
   
   const dailyBreakdown = useMemo(() => {
     if (!selectedDayData) return { invoices: [], products: [] };
@@ -408,6 +436,7 @@ export default function AnalyticsPage() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Invoices: PKR {analyticsData.invoiceSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   {analyticsData.orderSales > 0 && ` · Orders: PKR ${analyticsData.orderSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                  {analyticsData.extraRevenue > 0 && ` · Extra: PKR ${analyticsData.extraRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                 </p>
               </CardContent>
             </Card>

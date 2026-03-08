@@ -95,7 +95,7 @@ const QUICK_LINKS = [
 
 export default function HomePage() {
   const appReady = useAppReady();
-  const { cartItems, cartSubtotal, removeFromCartAction, loadProducts, orders, loadOrders, generatedInvoices, loadGeneratedInvoices } = useAppStore(state => ({
+  const { cartItems, cartSubtotal, removeFromCartAction, loadProducts, orders, loadOrders, generatedInvoices, loadGeneratedInvoices, additionalRevenues, loadAdditionalRevenues } = useAppStore(state => ({
     cartItems: selectCartDetails(state),
     cartSubtotal: selectCartSubtotal(state),
     removeFromCartAction: state.removeFromCart,
@@ -104,6 +104,8 @@ export default function HomePage() {
     loadOrders: state.loadOrders,
     generatedInvoices: state.generatedInvoices,
     loadGeneratedInvoices: state.loadGeneratedInvoices,
+    additionalRevenues: state.additionalRevenues,
+    loadAdditionalRevenues: state.loadAdditionalRevenues,
   }));
 
   React.useEffect(() => {
@@ -111,8 +113,9 @@ export default function HomePage() {
       loadProducts();
       loadOrders();
       loadGeneratedInvoices();
+      loadAdditionalRevenues();
     }
-  }, [appReady, loadProducts, loadOrders, loadGeneratedInvoices]);
+  }, [appReady, loadProducts, loadOrders, loadGeneratedInvoices, loadAdditionalRevenues]);
 
   const { ongoingOrders, monthlyRevenue, monthlyInvoiceCount, monthlyOrderCount } = useMemo(() => {
     const now = new Date();
@@ -132,11 +135,14 @@ export default function HomePage() {
     );
     const orderRevenue = recentOrders.reduce((sum, o) => sum + (o.grandTotal || 0), 0);
 
-    const revenue = invoiceRevenue + orderRevenue;
+    const recentExtraRevenues = additionalRevenues.filter(r => parseISO(r.date) >= last30);
+    const extraRevenue = recentExtraRevenues.reduce((sum, r) => sum + (r.amount || 0), 0);
+
+    const revenue = invoiceRevenue + orderRevenue + extraRevenue;
     const invoiceCount = recentInvoices.length;
 
     return { ongoingOrders: ongoing, monthlyRevenue: revenue, monthlyInvoiceCount: invoiceCount, monthlyOrderCount: recentOrders.length };
-  }, [orders, generatedInvoices]);
+  }, [orders, generatedInvoices, additionalRevenues]);
 
   if (!appReady) {
     return (
