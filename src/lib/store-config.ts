@@ -12,11 +12,15 @@ export const STORE_CONFIG = {
   // App / branding
   name:            process.env.NEXT_PUBLIC_STORE_NAME            ?? 'MINA',
 
-  // PDF footer — contacts
+  // PDF footer — contacts (contact3/4 are optional, leave blank to omit)
   contact1Name:    process.env.NEXT_PUBLIC_STORE_CONTACT1_NAME   ?? 'Mina Khalid',
   contact1Number:  process.env.NEXT_PUBLIC_STORE_CONTACT1_NUMBER ?? '0316 1930960',
   contact2Name:    process.env.NEXT_PUBLIC_STORE_CONTACT2_NAME   ?? 'Ammar Mansa',
   contact2Number:  process.env.NEXT_PUBLIC_STORE_CONTACT2_NUMBER ?? '0326 2275554',
+  contact3Name:    process.env.NEXT_PUBLIC_STORE_CONTACT3_NAME   ?? '',
+  contact3Number:  process.env.NEXT_PUBLIC_STORE_CONTACT3_NUMBER ?? '',
+  contact4Name:    process.env.NEXT_PUBLIC_STORE_CONTACT4_NAME   ?? '',
+  contact4Number:  process.env.NEXT_PUBLIC_STORE_CONTACT4_NUMBER ?? '',
 
   // PDF footer — bank
   bankLine:        process.env.NEXT_PUBLIC_STORE_BANK_LINE        ?? 'Bank Al Habib  |  House of Mina',

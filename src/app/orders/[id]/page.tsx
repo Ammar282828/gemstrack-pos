@@ -606,7 +606,9 @@ export default function OrderDetailPage() {
     const contacts = [
         { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
         { name: STORE_CONFIG.contact2Name, number: STORE_CONFIG.contact2Number },
-    ];
+        { name: STORE_CONFIG.contact3Name, number: STORE_CONFIG.contact3Number },
+        { name: STORE_CONFIG.contact4Name, number: STORE_CONFIG.contact4Number },
+    ].filter(c => c.name && c.number);
     const qrCodeSize = 16;
     const qrGap = 3;
     const qrSectionWidth = (qrCodeSize * 2) + qrGap;
@@ -619,13 +621,16 @@ export default function OrderDetailPage() {
     doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
     doc.text("For Orders & Inquiries:", margin, footerStartY + 2, { maxWidth: textBlockWidth });
     doc.setFontSize(7.5).setFont("helvetica", "normal").setTextColor(30);
-    doc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 6, { maxWidth: textBlockWidth });
-    doc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 10, { maxWidth: textBlockWidth });
-
+    contacts.forEach((c, i) => {
+      doc.text(`${c.name}: ${c.number}`, margin, footerStartY + 6 + i * 4, { maxWidth: textBlockWidth });
+    });
+    const afterContacts = footerStartY + 6 + contacts.length * 4;
     doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(80);
-    doc.text(STORE_CONFIG.bankLine, margin, footerStartY + 16, { maxWidth: textBlockWidth });
-    doc.setFontSize(6).setFont("helvetica", "normal").setTextColor(100);
-    doc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, footerStartY + 20, { maxWidth: textBlockWidth });
+    doc.text(STORE_CONFIG.bankLine, margin, afterContacts + 2, { maxWidth: textBlockWidth });
+    if (STORE_CONFIG.iban) {
+      doc.setFontSize(6).setFont("helvetica", "normal").setTextColor(100);
+      doc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, afterContacts + 6, { maxWidth: textBlockWidth });
+    }
 
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;

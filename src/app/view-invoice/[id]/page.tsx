@@ -296,7 +296,9 @@ export default function ViewInvoicePage() {
     const contacts = [
         { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
         { name: STORE_CONFIG.contact2Name, number: STORE_CONFIG.contact2Number },
-    ];
+        { name: STORE_CONFIG.contact3Name, number: STORE_CONFIG.contact3Number },
+        { name: STORE_CONFIG.contact4Name, number: STORE_CONFIG.contact4Number },
+    ].filter(c => c.name && c.number);
     const qrCodeSize = 16;
     const qrGap = 3;
     const qrSectionWidth = (qrCodeSize * 2) + qrGap;
@@ -309,13 +311,16 @@ export default function ViewInvoicePage() {
     pdfDoc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
     pdfDoc.text("For Orders & Inquiries:", margin, footerStartY + 2, { maxWidth: textBlockWidth });
     pdfDoc.setFontSize(7.5).setFont("helvetica", "normal").setTextColor(30);
-    pdfDoc.text(`${contacts[0].name}: ${contacts[0].number}`, margin, footerStartY + 6, { maxWidth: textBlockWidth });
-    pdfDoc.text(`${contacts[1].name}: ${contacts[1].number}`, margin, footerStartY + 10, { maxWidth: textBlockWidth });
-
+    contacts.forEach((c, i) => {
+      pdfDoc.text(`${c.name}: ${c.number}`, margin, footerStartY + 6 + i * 4, { maxWidth: textBlockWidth });
+    });
+    const afterContacts = footerStartY + 6 + contacts.length * 4;
     pdfDoc.setFontSize(6).setFont("helvetica", "bold").setTextColor(80);
-    pdfDoc.text(STORE_CONFIG.bankLine, margin, footerStartY + 16, { maxWidth: textBlockWidth });
-    pdfDoc.setFontSize(6).setFont("helvetica", "normal").setTextColor(100);
-    pdfDoc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, footerStartY + 20, { maxWidth: textBlockWidth });
+    pdfDoc.text(STORE_CONFIG.bankLine, margin, afterContacts + 2, { maxWidth: textBlockWidth });
+    if (STORE_CONFIG.iban) {
+      pdfDoc.setFontSize(6).setFont("helvetica", "normal").setTextColor(100);
+      pdfDoc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, afterContacts + 6, { maxWidth: textBlockWidth });
+    }
 
     const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
     const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
