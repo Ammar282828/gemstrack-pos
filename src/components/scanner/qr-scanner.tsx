@@ -144,17 +144,24 @@ export default function QrScanner({ isActive }: QrScannerProps) {
             );
             
             setScannerState('scanning');
-            // @ts-ignore
-            const capabilities = qrCode.getRunningTrackCapabilities?.();
-            if (capabilities) {
-               setCameraCapabilities(capabilities);
-               if ((capabilities as any)?.zoom) {
-                 setHwZoom({
-                   min: (capabilities as any).zoom.min,
-                   max: (capabilities as any).zoom.max,
-                   step: (capabilities as any).zoom.step || 0.1,
-                 });
-               }
+            // Read capabilities directly from the running track — more reliable on iOS
+            // than html5-qrcode's wrapper methods.
+            try {
+                // @ts-ignore
+                const track = html5QrCodeRef.current?.getRunningTrack?.() as MediaStreamTrack | undefined;
+                const caps = track?.getCapabilities?.() as any;
+                if (caps) {
+                    setCameraCapabilities(caps);
+                    if (caps.zoom) {
+                        setHwZoom({
+                            min: caps.zoom.min,
+                            max: caps.zoom.max,
+                            step: caps.zoom.step || 0.1,
+                        });
+                    }
+                }
+            } catch (_) {
+                // capabilities not supported on this device
             }
 
         } catch (err: any) {
@@ -201,38 +208,43 @@ export default function QrScanner({ isActive }: QrScannerProps) {
  useEffect(() => {
     const applyZoom = async () => {
         if (!html5QrCodeRef.current?.isScanning) return;
+        // Try hardware zoom directly from the running track — works on iOS 15.4+ and Android Chrome
         try {
             // @ts-ignore
-            const currentTrack = html5QrCodeRef.current.getRunningTrack?.();
-            if (currentTrack && hwZoom) {
-                const clampedZoom = Math.min(Math.max(zoom, hwZoom.min), hwZoom.max);
-                await currentTrack.applyConstraints({
-                    advanced: [{ zoom: clampedZoom }]
-                });
+            const track = html5QrCodeRef.current?.getRunningTrack?.() as MediaStreamTrack | undefined;
+            if (track) {
+                const caps = track.getCapabilities?.() as any;
+                if (caps?.zoom) {
+                    const clampedZoom = Math.min(Math.max(zoom, caps.zoom.min), caps.zoom.max);
+                    await track.applyConstraints({ advanced: [{ zoom: clampedZoom } as any] });
+                }
             }
         } catch(e) {
-            console.warn("Could not apply hardware zoom", e);
+            // hardware zoom not supported — CSS digital zoom handles it below
         }
-    };
-
-    if (scannerState === 'scanning') {
-        applyZoom();
-        // Apply CSS digital zoom to video element
+        // CSS digital zoom — always applied as primary/fallback.
+        // Note: overflow:hidden does NOT clip <video> on iOS Safari;
+        // clip-path:inset() on the container is used instead.
         const videoEl = document.querySelector(`#${qrReaderElementId} video`) as HTMLVideoElement | null;
         if (videoEl) {
             videoEl.style.transform = `scale(${zoom})`;
             videoEl.style.transformOrigin = 'center center';
             videoEl.style.transition = 'transform 0.1s ease';
         }
+    };
+
+    if (scannerState === 'scanning') {
+        applyZoom();
     }
-  }, [zoom, scannerState, hwZoom, cameraCapabilities]);
+  }, [zoom, scannerState]);
 
   return (
     <div className="space-y-4">
       <div
           id={qrReaderElementId}
           className={cn(
-            "w-full border-4 border-transparent rounded-md bg-muted overflow-hidden mx-auto max-w-lg relative transition-all duration-300 min-h-[250px]",
+            // clip-path clips <video> on iOS Safari where overflow-hidden does not
+            "w-full border-4 border-transparent rounded-md bg-muted overflow-hidden [clip-path:inset(0_round_0.375rem)] mx-auto max-w-lg relative transition-all duration-300 min-h-[250px]",
             " [&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover",
             scanSuccess && "border-green-500 shadow-lg shadow-green-500/50"
           )}
