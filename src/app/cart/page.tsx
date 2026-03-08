@@ -935,7 +935,7 @@ export default function CartPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Refund this Invoice?</AlertDialogTitle>
             <AlertDialogDescription>
-              Invoice <strong>{generatedInvoice?.id}</strong> will be permanently deleted, all hisaab entries removed, and all items returned to stock. This action cannot be undone.
+              Invoice <strong>{(generatedInvoice as InvoiceType | null)?.id}</strong> will be permanently deleted, all hisaab entries removed, and all items returned to stock. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
