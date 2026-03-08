@@ -10,18 +10,19 @@ import { db, auth, firebaseConfig } from '@/lib/firebase';
 // --- Firestore Collection Names ---
 const FIRESTORE_COLLECTIONS = {
   SETTINGS: "app_settings",
-  PRODUCTS: "products", // Represents ACTIVE inventory
-  SOLD_PRODUCTS: "sold_products", // Archive of sold items
+  PRODUCTS: "products",
+  SOLD_PRODUCTS: "sold_products",
   CUSTOMERS: "customers",
   KARIGARS: "karigars",
   INVOICES: "invoices",
   ORDERS: "orders",
-  CATEGORIES: "categories", // Note: Categories are still managed locally for now
+  CATEGORIES: "categories",
   HISAAB: "hisaab",
   EXPENSES: "expenses",
   ADDITIONAL_REVENUE: "additional_revenue",
   KARIGAR_BATCHES: "karigar_batches",
   ACTIVITY_LOG: "activity_log",
+  GIVEN_ITEMS: "given_items",
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
 
@@ -512,6 +513,21 @@ export interface AdditionalRevenue {
   amount: number;
 }
 
+export type GivenItemStatus = 'out' | 'returned';
+export type GivenItemRecipientType = 'karigar' | 'customer' | 'other';
+
+export interface GivenItem {
+  id: string;
+  date: string;           // ISO – date given
+  description: string;    // what was given (e.g. "gold ring sample", "repair bangle")
+  recipientType: GivenItemRecipientType;
+  recipientName: string;  // free-text or resolved name
+  recipientId?: string;   // karigarId or customerId if linked
+  notes?: string;
+  status: GivenItemStatus;
+  returnedDate?: string;  // ISO – when it came back
+}
+
 // --- Product Tag Format Definitions ---
 export interface ProductTagFormat {
   id: string;
@@ -602,7 +618,8 @@ export type LogEventType =
   | 'invoice.create' | 'invoice.payment' | 'invoice.delete'
   | 'order.create' | 'order.update' | 'order.delete' | 'order.revert' | 'order.refund'
   | 'expense.create' | 'expense.update' | 'expense.delete'
-  | 'revenue.create' | 'revenue.update' | 'revenue.delete';
+  | 'revenue.create' | 'revenue.update' | 'revenue.delete'
+  | 'given.create' | 'given.update' | 'given.delete' | 'given.returned';
 
 export interface ActivityLog {
     id: string;
@@ -674,6 +691,7 @@ export interface AppState {
   hisaabEntries: HisaabEntry[];
   expenses: Expense[];
   additionalRevenues: AdditionalRevenue[];
+  givenItems: GivenItem[];
   soldProducts: Product[];
   activityLog: ActivityLog[];
   printHistory: PrintHistoryEntry[];
@@ -690,6 +708,7 @@ export interface AppState {
   isHisaabLoading: boolean;
   isExpensesLoading: boolean;
   isAdditionalRevenueLoading: boolean;
+  isGivenItemsLoading: boolean;
   isActivityLogLoading: boolean;
   
   // Data loaded flags
@@ -704,6 +723,7 @@ export interface AppState {
   hasHisaabLoaded: boolean;
   hasExpensesLoaded: boolean;
   hasAdditionalRevenueLoaded: boolean;
+  hasGivenItemsLoaded: boolean;
   hasActivityLogLoaded: boolean;
 
   // Error states
@@ -718,6 +738,7 @@ export interface AppState {
   hisaabError: string | null;
   expensesError: string | null;
   additionalRevenueError: string | null;
+  givenItemsError: string | null;
   activityLogError: string | null;
 
 
@@ -803,7 +824,13 @@ export interface AppState {
   addAdditionalRevenue: (data: Omit<AdditionalRevenue, 'id'>) => Promise<AdditionalRevenue | null>;
   updateAdditionalRevenue: (id: string, data: Partial<Omit<AdditionalRevenue, 'id'>>) => Promise<void>;
   deleteAdditionalRevenue: (id: string) => Promise<void>;
-  
+
+  loadGivenItems: () => void;
+  addGivenItem: (data: Omit<GivenItem, 'id'>) => Promise<GivenItem | null>;
+  updateGivenItem: (id: string, data: Partial<Omit<GivenItem, 'id'>>) => Promise<void>;
+  deleteGivenItem: (id: string) => Promise<void>;
+  markGivenItemReturned: (id: string, returnedDate: string) => Promise<void>;
+
   loadActivityLog: () => void;
   addPrintHistory: (sku: string) => void;
 }
@@ -843,9 +870,9 @@ function cleanObject<T extends object>(obj: T): T {
 const createDataLoader = <T, K extends keyof AppState>(
   collectionName: string,
   stateKey: K,
-  loadingKey: 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isKarigarBatchesLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isAdditionalRevenueLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading',
-  errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'karigarBatchesError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'additionalRevenueError' | 'soldProductsError' | 'activityLogError',
-  loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasKarigarBatchesLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasAdditionalRevenueLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
+  loadingKey: 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isKarigarBatchesLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isAdditionalRevenueLoading' | 'isGivenItemsLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading',
+  errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'karigarBatchesError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'additionalRevenueError' | 'givenItemsError' | 'soldProductsError' | 'activityLogError',
+  loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasKarigarBatchesLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasAdditionalRevenueLoaded' | 'hasGivenItemsLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
   orderByField: string = "name",
   orderByDirection: "asc" | "desc" = "asc"
 ) => {
@@ -902,6 +929,7 @@ const loadOrders = createDataLoader<Order, 'orders'>('orders', 'orders', 'isOrde
 const loadHisaab = createDataLoader<HisaabEntry, 'hisaabEntries'>('hisaab', 'hisaabEntries', 'isHisaabLoading', 'hisaabError', 'hasHisaabLoaded', 'date', 'desc');
 const loadExpenses = createDataLoader<Expense, 'expenses'>('expenses', 'expenses', 'isExpensesLoading', 'expensesError', 'hasExpensesLoaded', 'date', 'desc');
 const loadAdditionalRevenues = createDataLoader<AdditionalRevenue, 'additionalRevenues'>('additional_revenue', 'additionalRevenues', 'isAdditionalRevenueLoading', 'additionalRevenueError', 'hasAdditionalRevenueLoaded', 'date', 'desc');
+const loadGivenItems = createDataLoader<GivenItem, 'givenItems'>('given_items', 'givenItems', 'isGivenItemsLoading', 'givenItemsError', 'hasGivenItemsLoaded', 'date', 'desc');
 const loadSoldProducts = createDataLoader<Product, 'soldProducts'>('sold_products', 'soldProducts', 'isSoldProductsLoading', 'soldProductsError', 'hasSoldProductsLoaded', 'sku', 'asc');
 const loadActivityLog = createDataLoader<ActivityLog, 'activityLog'>('activity_log', 'activityLog', 'isActivityLogLoading', 'activityLogError', 'hasActivityLogLoaded', 'timestamp', 'desc');
 
@@ -928,6 +956,7 @@ export const useAppStore = create<AppState>()(
       hisaabEntries: [],
       expenses: [],
       additionalRevenues: [],
+      givenItems: [],
       activityLog: [],
       printHistory: [],
 
@@ -942,6 +971,7 @@ export const useAppStore = create<AppState>()(
       isHisaabLoading: true,
       isExpensesLoading: true,
       isAdditionalRevenueLoading: true,
+      isGivenItemsLoading: true,
       isActivityLogLoading: true,
       
       hasSettingsLoaded: false,
@@ -955,6 +985,7 @@ export const useAppStore = create<AppState>()(
       hasHisaabLoaded: false,
       hasExpensesLoaded: false,
       hasAdditionalRevenueLoaded: false,
+      hasGivenItemsLoaded: false,
       hasActivityLogLoaded: false,
 
       settingsError: null,
@@ -968,6 +999,7 @@ export const useAppStore = create<AppState>()(
       hisaabError: null,
       expensesError: null,
       additionalRevenueError: null,
+      givenItemsError: null,
       activityLogError: null,
 
 
@@ -1073,6 +1105,7 @@ export const useAppStore = create<AppState>()(
       loadHisaab: () => loadHisaab(set, get),
       loadExpenses: () => loadExpenses(set, get),
       loadAdditionalRevenues: () => loadAdditionalRevenues(set, get),
+      loadGivenItems: () => loadGivenItems(set, get),
       loadActivityLog: () => loadActivityLog(set, get),
 
        reAddSoldProductToInventory: async (soldProduct) => {
@@ -2175,6 +2208,49 @@ export const useAppStore = create<AppState>()(
           await addActivityLog('revenue.delete', `Deleted revenue: ${desc}`, `ID: ${id}`, id);
         } catch (error) {
           console.error(`[GemsTrack Store deleteAdditionalRevenue] Error:`, error);
+          throw error;
+        }
+      },
+
+      addGivenItem: async (data) => {
+        if (get().settings.databaseLocked) return null;
+        try {
+          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS), data);
+          await addActivityLog('given.create', `Given item: ${data.description}`, `To: ${data.recipientName}`, docRef.id);
+          return { id: docRef.id, ...data };
+        } catch (error) {
+          console.error('[GemsTrack Store addGivenItem] Error:', error);
+          return null;
+        }
+      },
+      updateGivenItem: async (id, data) => {
+        if (get().settings.databaseLocked) return;
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS, id), data, { merge: true });
+          await addActivityLog('given.update', `Updated given item`, `ID: ${id}`, id);
+        } catch (error) {
+          console.error(`[GemsTrack Store updateGivenItem] Error:`, error);
+        }
+      },
+      deleteGivenItem: async (id) => {
+        if (get().settings.databaseLocked) return;
+        const desc = get().givenItems.find(g => g.id === id)?.description || id;
+        try {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS, id));
+          await addActivityLog('given.delete', `Deleted given item: ${desc}`, `ID: ${id}`, id);
+        } catch (error) {
+          console.error(`[GemsTrack Store deleteGivenItem] Error:`, error);
+          throw error;
+        }
+      },
+      markGivenItemReturned: async (id, returnedDate) => {
+        if (get().settings.databaseLocked) return;
+        const item = get().givenItems.find(g => g.id === id);
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS, id), { status: 'returned', returnedDate }, { merge: true });
+          await addActivityLog('given.returned', `Item returned: ${item?.description || id}`, `From: ${item?.recipientName || ''}`, id);
+        } catch (error) {
+          console.error(`[GemsTrack Store markGivenItemReturned] Error:`, error);
           throw error;
         }
       },

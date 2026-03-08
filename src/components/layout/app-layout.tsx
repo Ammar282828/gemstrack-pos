@@ -9,7 +9,7 @@ import {
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, ExternalLink, Landmark, History, Calculator, LogOut } from 'lucide-react';
+import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, ExternalLink, Landmark, History, Calculator, LogOut, HandCoins } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -46,6 +46,7 @@ const navItems: NavItem[] = [
   { href: '/calendar', label: 'Calendar', icon: <Calendar /> },
   { href: '/expenses', label: 'Expenses', icon: <CreditCard /> },
   { href: '/additional-revenue', label: 'Extra Revenue', icon: <TrendingUp /> },
+  { href: '/given', label: 'Given Items', icon: <HandCoins /> },
   
   { isSeparator: true, href: '#', label: '', icon: <></> },
 
