@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -122,9 +122,12 @@ export default function CartPage() {
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [isEditingEstimate, setIsEditingEstimate] = useState(false);
   const isEditingEstimateRef = React.useRef(false);
+  const editingInvoiceOriginalRef = React.useRef<InvoiceType | null>(null);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | undefined>(undefined);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
+  const [pendingPreloadedInvoice, setPendingPreloadedInvoice] = useState<InvoiceType | null>(null);
+  const [isCartClearWarningOpen, setIsCartClearWarningOpen] = useState(false);
   
   const [editingCartItem, setEditingCartItem] = useState<Product | undefined>(undefined);
   const [isNewProductDialogOpen, setIsNewProductDialogOpen] = useState(false);
@@ -184,13 +187,17 @@ export default function CartPage() {
     if (preloadedInvoiceId && !isEditingEstimate) {
         const invoice = allInvoices.find(inv => inv.id === preloadedInvoiceId);
         if (invoice) {
-            setGeneratedInvoice(invoice);
-            // Always clear the cart when viewing a preloaded invoice — we never want
-            // the active cart to bleed into the invoice view.
-            clearCart();
+            // If current sale has items, warn before silently wiping them
+            if (cartItemsFromStore.length > 0) {
+                setPendingPreloadedInvoice(invoice);
+                setIsCartClearWarningOpen(true);
+            } else {
+                setGeneratedInvoice(invoice);
+                clearCart();
+            }
         }
     }
-    // NOTE: cartItemsFromStore.length is intentionally excluded from deps.
+    // NOTE: cartItemsFromStore.length is intentionally excluded from the deps below.
     // Including it caused a race condition: loadCartFromInvoice (Zustand, sync) would
     // update cart length, the effect would re-fire before React committed
     // isEditingEstimate=true, and clearCart() would wipe the just-loaded items.
@@ -362,9 +369,10 @@ export default function CartPage() {
         ? { name: finalWalkInName, phone: walkInCustomerPhone }
         : { id: selectedCustomerId, name: customers.find(c => c.id === selectedCustomerId)?.name || '', phone: customers.find(c => c.id === selectedCustomerId)?.phone || '' };
     
-    if(isEditingEstimate && editingInvoiceId) {
-        await deleteInvoice(editingInvoiceId, true); // Soft delete to restore products
-    }
+    // NOTE: we do NOT delete the invoice before re-generating it. generateInvoice
+    // uses transaction.set (overwrite) with the same ID, so the invoice is always
+    // valid. Old hisaab cleanup is handled inside generateInvoice after the
+    // transaction succeeds, so payment history can never be lost.
 
     const exchangeInfo = (exchangeDescription.trim() || parseFloat(exchangeAmount1Input) || parseFloat(exchangeAmount2Input))
         ? { description: exchangeDescription.trim(), amount1: parseFloat(exchangeAmount1Input) || 0, amount2: parseFloat(exchangeAmount2Input) || 0 }
@@ -386,8 +394,21 @@ export default function CartPage() {
     }
   };
 
+  const handleCancelEdit = () => {
+    clearCart();
+    setIsEditingEstimate(false);
+    isEditingEstimateRef.current = false;
+    setEditingInvoiceId(undefined);
+    // Restore the invoice view the user came from
+    if (editingInvoiceOriginalRef.current) {
+      setGeneratedInvoice(editingInvoiceOriginalRef.current);
+      editingInvoiceOriginalRef.current = null;
+    }
+  };
+
   const handleEditEstimate = () => {
     if (!generatedInvoice) return;
+    editingInvoiceOriginalRef.current = generatedInvoice; // cache for cancel
     setIsEditingEstimate(true);
     isEditingEstimateRef.current = true;
     clearCart(); // Ensure no stale items linger before loading invoice items
@@ -941,6 +962,31 @@ export default function CartPage() {
   
   return (
     <div className="container mx-auto py-8 px-4">
+      {/* Warn before clearing an active sale when a preloaded invoice link is opened */}
+      <AlertDialog open={isCartClearWarningOpen} onOpenChange={setIsCartClearWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear current sale?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have items in your current sale. Opening this invoice will discard them. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingPreloadedInvoice(null)}>Keep current sale</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => {
+              if (pendingPreloadedInvoice) {
+                clearCart();
+                setGeneratedInvoice(pendingPreloadedInvoice);
+                setPendingPreloadedInvoice(null);
+              }
+              setIsCartClearWarningOpen(false);
+            }}>
+              Discard &amp; Open Invoice
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={isRefundDialogOpen} onOpenChange={setIsRefundDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1120,10 +1166,15 @@ export default function CartPage() {
                         <Separator />
                         <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
                     </CardContent>
-                    <CardFooter>
+                    <CardFooter className="flex flex-col gap-2">
                          <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice}>
                             <FileText className="mr-2 h-5 w-5"/> {isEditingEstimate ? 'Update Estimate' : 'Generate Estimate'}
                         </Button>
+                        {isEditingEstimate && (
+                            <Button size="lg" variant="outline" className="w-full" onClick={handleCancelEdit}>
+                                <Ban className="mr-2 h-5 w-5"/> Cancel Edit
+                            </Button>
+                        )}
                     </CardFooter>
                 </Card>
             </div>

@@ -1597,6 +1597,25 @@ export const useAppStore = create<AppState>()(
             // This line should be outside the transaction, in the main function body.
             set(state => { state.cart = []; });
 
+            // When editing an existing invoice, clean up its old hisaab entries so
+            // we don't end up with duplicate balance entries after re-creation.
+            // This runs AFTER the transaction so the invoice is always safe first.
+            if (existingInvoiceId) {
+                try {
+                    const oldHisaabSnap = await getDocs(query(
+                        collection(db, FIRESTORE_COLLECTIONS.HISAAB),
+                        where('linkedInvoiceId', '==', existingInvoiceId)
+                    ));
+                    if (!oldHisaabSnap.empty) {
+                        const hisaabBatch = writeBatch(db);
+                        oldHisaabSnap.docs.forEach(d => hisaabBatch.delete(d.ref));
+                        await hisaabBatch.commit();
+                    }
+                } catch (e) {
+                    console.warn('[generateInvoice] Could not clean up old hisaab entries, continuing:', e);
+                }
+            }
+
             // If there's an outstanding balance, track it in hisaab
             if (result && result.balanceDue > 0) {
                 await addDoc(collection(db, FIRESTORE_COLLECTIONS.HISAAB), {
