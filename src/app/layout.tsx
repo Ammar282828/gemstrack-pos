@@ -11,6 +11,7 @@ import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import React, { useEffect } from 'react';
 import Script from 'next/script';
+import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -44,11 +45,13 @@ function AppBody({ children }: { children: React.ReactNode }) {
         </>
       ) : (
         // For internal app pages, wrap with the full layout and auth providers
-        <AppLayout>
-            <MainApp>
-              {children}
-            </MainApp>
-        </AppLayout>
+        <GoogleAuthGate>
+          <AppLayout>
+              <MainApp>
+                {children}
+              </MainApp>
+          </AppLayout>
+        </GoogleAuthGate>
       )}
       {!isPublicInvoicePage && <Toaster />}
     </body>

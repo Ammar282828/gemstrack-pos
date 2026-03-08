@@ -9,11 +9,13 @@ import {
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, ExternalLink, Landmark, History, Calculator } from 'lucide-react';
+import { Home, Package, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, ExternalLink, Landmark, History, Calculator, LogOut } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import Image from 'next/image';
+import { useAuth } from '@/components/auth/google-auth-gate';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface NavItem {
   href: string;
@@ -64,6 +66,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isStoreHydrated = useIsStoreHydrated();
   const settings = useAppStore(state => state.settings);
+  const { user, signOut } = useAuth();
 
   if (!isStoreHydrated) {
     return null; 
@@ -126,8 +129,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </ScrollArea>
           </SidebarContent>
           <Separator />
-          <SidebarFooter className="p-4 group-data-[collapsible=icon]:p-2">
-            <div className="group-data-[collapsible=icon]:hidden text-xs text-muted-foreground">
+          <SidebarFooter className="p-3 group-data-[collapsible=icon]:p-2">
+            {user && (
+              <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+                <Avatar className="h-7 w-7 flex-shrink-0">
+                  <AvatarImage src={user.photoURL ?? undefined} />
+                  <AvatarFallback>{user.displayName?.[0] ?? user.email?.[0] ?? '?'}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
+                  <p className="text-xs font-medium truncate">{user.displayName || user.email}</p>
+                </div>
+                <button
+                  onClick={signOut}
+                  title="Sign out"
+                  className="group-data-[collapsible=icon]:hidden text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            <div className="group-data-[collapsible=icon]:hidden text-xs text-muted-foreground mt-1">
               © {new Date().getFullYear()}
             </div>
           </SidebarFooter>
