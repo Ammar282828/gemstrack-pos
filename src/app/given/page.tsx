@@ -363,93 +363,149 @@ export default function GivenItemsPage() {
           </p>
         </div>
       ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Item / Description</TableHead>
-                <TableHead>Given To</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(item => (
-                <TableRow key={item.id} className={item.status === 'returned' ? 'opacity-60' : ''}>
-                  <TableCell className="whitespace-nowrap text-sm">
-                    {format(parseISO(item.date), 'd MMM yy')}
-                  </TableCell>
-                  <TableCell className="font-medium">{item.description}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-muted-foreground">{RECIPIENT_ICON[item.recipientType]}</span>
-                      <span className="text-sm">{item.recipientName}</span>
+        <>
+          {/* Mobile: Cards */}
+          <div className="md:hidden space-y-3">
+            {filtered.map(item => (
+              <Card key={item.id} className={item.status === 'returned' ? 'opacity-60' : ''}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{item.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {format(parseISO(item.date), 'd MMM yy')} · {RECIPIENT_ICON[item.recipientType]} {item.recipientName}
+                      </p>
                     </div>
-                  </TableCell>
-                  <TableCell>
                     {item.status === 'out' ? (
-                      <Badge variant="outline" className="border-amber-400 text-amber-600 gap-1">
+                      <Badge variant="outline" className="border-amber-400 text-amber-600 gap-1 flex-shrink-0">
                         <Clock className="w-3 h-3" /> Out
                       </Badge>
                     ) : (
-                      <div>
-                        <Badge variant="outline" className="border-green-500 text-green-600 gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Returned
-                        </Badge>
-                        {item.returnedDate && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {format(parseISO(item.returnedDate), 'd MMM yy')}
-                          </p>
-                        )}
-                      </div>
+                      <Badge variant="outline" className="border-green-500 text-green-600 gap-1 flex-shrink-0">
+                        <CheckCircle2 className="w-3 h-3" /> Returned
+                      </Badge>
                     )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[180px] truncate">
-                    {item.notes || '—'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end items-center gap-1">
-                      {item.status === 'out' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs text-green-700 border-green-400 hover:bg-green-50"
-                          onClick={() => handleMarkReturned(item)}
-                        >
-                          <CheckCircle2 className="w-3 h-3 mr-1" /> Got Back
-                        </Button>
-                      )}
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
-                        <Edit className="w-3.5 h-3.5" />
+                  </div>
+                  {item.notes && <p className="text-xs text-muted-foreground mb-2">{item.notes}</p>}
+                  <div className="flex justify-end gap-1 border-t pt-2">
+                    {item.status === 'out' && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs text-green-700 border-green-400 hover:bg-green-50"
+                        onClick={() => handleMarkReturned(item)}>
+                        <CheckCircle2 className="w-3 h-3 mr-1" /> Got Back
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              &quot;{item.description}&quot; — given to {item.recipientName}. This cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(item.id)}>Delete</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
+                    )}
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
+                      <Edit className="w-3.5 h-3.5" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            &quot;{item.description}&quot; — given to {item.recipientName}. This cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(item.id)}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {/* Desktop: Table */}
+          <Card className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Item / Description</TableHead>
+                  <TableHead>Given To</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(item => (
+                  <TableRow key={item.id} className={item.status === 'returned' ? 'opacity-60' : ''}>
+                    <TableCell className="whitespace-nowrap text-sm">
+                      {format(parseISO(item.date), 'd MMM yy')}
+                    </TableCell>
+                    <TableCell className="font-medium">{item.description}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">{RECIPIENT_ICON[item.recipientType]}</span>
+                        <span className="text-sm">{item.recipientName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {item.status === 'out' ? (
+                        <Badge variant="outline" className="border-amber-400 text-amber-600 gap-1">
+                          <Clock className="w-3 h-3" /> Out
+                        </Badge>
+                      ) : (
+                        <div>
+                          <Badge variant="outline" className="border-green-500 text-green-600 gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Returned
+                          </Badge>
+                          {item.returnedDate && (
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {format(parseISO(item.returnedDate), 'd MMM yy')}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-[180px] truncate">
+                      {item.notes || '—'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end items-center gap-1">
+                        {item.status === 'out' && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-green-700 border-green-400 hover:bg-green-50"
+                            onClick={() => handleMarkReturned(item)}>
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Got Back
+                          </Button>
+                        )}
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
+                          <Edit className="w-3.5 h-3.5" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                &quot;{item.description}&quot; — given to {item.recipientName}. This cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(item.id)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </>
       )}
 
       {/* Add / Edit dialog */}

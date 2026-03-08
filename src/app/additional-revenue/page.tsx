@@ -265,30 +265,27 @@ export default function AdditionalRevenuePage() {
           <p className="text-muted-foreground">Loading revenue entries...</p>
         </div>
       ) : filtered.length > 0 ? (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount (PKR)</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{format(parseISO(r.date), 'MMM dd, yyyy')}</TableCell>
-                  <TableCell>{r.description}</TableCell>
-                  <TableCell className="text-right font-medium">{r.amount.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(r)}>
-                      <Edit className="h-4 w-4" />
+        <>
+          {/* Mobile: Cards */}
+          <div className="md:hidden space-y-3">
+            {filtered.map((r) => (
+              <Card key={r.id}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{r.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{format(parseISO(r.date), 'MMM dd, yyyy')}</p>
+                    </div>
+                    <p className="font-bold text-primary flex-shrink-0">PKR {r.amount.toLocaleString()}</p>
+                  </div>
+                  <div className="flex justify-end gap-1 mt-3 border-t pt-2">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(r)}>
+                      <Edit className="h-4 w-4 mr-1" /> Edit
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                          <Trash2 className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4 mr-1" /> Delete
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -304,12 +301,59 @@ export default function AdditionalRevenuePage() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                  </TableCell>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {/* Desktop: Table */}
+          <Card className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Amount (PKR)</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{format(parseISO(r.date), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell>{r.description}</TableCell>
+                    <TableCell className="text-right font-medium">{r.amount.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(r)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete revenue entry?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete &ldquo;{r.description}&rdquo;. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(r.id)}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </>
+      
       ) : (
         <div className="text-center py-12 bg-card rounded-lg shadow">
           <TrendingUp className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
