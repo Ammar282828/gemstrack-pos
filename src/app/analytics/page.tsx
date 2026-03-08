@@ -462,25 +462,26 @@ export default function AnalyticsPage() {
           </DialogContent>
       </Dialog>
       
-      <header className="flex flex-col gap-4 mb-8">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+      <header className="flex flex-col gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-              <h1 className="text-3xl font-bold text-primary">Store Analytics</h1>
-              <p className="text-muted-foreground">Get insights into your sales, products, and customer performance.</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-primary">Store Analytics</h1>
+              <p className="text-muted-foreground text-sm">Sales, products &amp; customer insights.</p>
           </div>
           <DateRangePicker date={dateRange} onDateChange={(r) => { setDateRange(r); setActiveQuickSelect('custom'); }} />
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap gap-1.5 items-center">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mr-1">Quick:</span>
           {([
-            { key: 'last-30', label: 'Last 30 Days' },
-            { key: 'last-90', label: 'Last 90 Days' },
-            { key: 'this-year', label: 'This Year' },
-            { key: 'last-year', label: 'Last Year' },
-            { key: 'all-time', label: 'All Time' },
+            { key: 'last-30', label: 'Last 30 Days', short: '30d' },
+            { key: 'last-90', label: 'Last 90 Days', short: '90d' },
+            { key: 'this-year', label: 'This Year', short: 'This Yr' },
+            { key: 'last-year', label: 'Last Year', short: 'Last Yr' },
+            { key: 'all-time', label: 'All Time', short: 'All' },
           ] as const).map(btn => (
-            <Button key={btn.key} variant={activeQuickSelect === btn.key ? 'default' : 'outline'} size="sm" onClick={() => handleQuickSelect(btn.key)}>
-              {btn.label}
+            <Button key={btn.key} variant={activeQuickSelect === btn.key ? 'default' : 'outline'} size="sm" className="text-xs px-2.5 h-7" onClick={() => handleQuickSelect(btn.key)}>
+              <span className="hidden sm:inline">{btn.label}</span>
+              <span className="sm:hidden">{btn.short}</span>
             </Button>
           ))}
         </div>
@@ -507,15 +508,15 @@ export default function AnalyticsPage() {
       ) : (
         <>
           {/* Key Metrics Section */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+            <Card className="col-span-2 lg:col-span-1">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">PKR {analyticsData.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <div className="text-xl sm:text-2xl font-bold">PKR {analyticsData.totalSales.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
                   Invoices: PKR {analyticsData.invoiceSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   {analyticsData.orderSales > 0 && ` · Orders: PKR ${analyticsData.orderSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                   {analyticsData.extraRevenue > 0 && ` · Extra: PKR ${analyticsData.extraRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
@@ -528,7 +529,7 @@ export default function AnalyticsPage() {
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-destructive">PKR {analyticsData.totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-xl sm:text-2xl font-bold text-destructive">PKR {analyticsData.totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
               </CardContent>
             </Card>
             {(() => {
@@ -539,14 +540,14 @@ export default function AnalyticsPage() {
                 <>
                   <Card className="border-blue-500/40">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Est. Profit (40% margin)</CardTitle>
+                      <CardTitle className="text-sm font-medium">Est. Profit (40%)</CardTitle>
                       <TrendingUp className="h-4 w-4 text-blue-500" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-blue-600">
-                        PKR {estProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <div className="text-xl sm:text-2xl font-bold text-blue-600">
+                        PKR {estProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">Revenue × 40% — before expenses</p>
+                      <p className="text-xs text-muted-foreground mt-1 hidden sm:block">Revenue × 40% — before expenses</p>
                     </CardContent>
                   </Card>
                   <Card className={netProfit >= 0 ? 'border-green-500/40' : 'border-red-500/40'}>
@@ -558,11 +559,11 @@ export default function AnalyticsPage() {
                       }
                     </CardHeader>
                     <CardContent>
-                      <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                        PKR {netProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <div className={`text-xl sm:text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        PKR {netProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% actual margin` : 'No revenue in period'}
+                        {analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% margin` : 'No revenue in period'}
                       </p>
                     </CardContent>
                   </Card>
@@ -572,14 +573,14 @@ export default function AnalyticsPage() {
             {analyticsData.totalUnpaid > 0 && (
               <Card className="border-amber-500/40">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Outstanding Balance</CardTitle>
+                  <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
                   <Clock className="h-4 w-4 text-amber-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-amber-600">
-                    PKR {analyticsData.totalUnpaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className="text-xl sm:text-2xl font-bold text-amber-600">
+                    PKR {analyticsData.totalUnpaid.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">Unpaid balance on invoices in this period</p>
+                  <p className="text-xs text-muted-foreground mt-1 hidden sm:block">Unpaid balance on invoices in this period</p>
                 </CardContent>
               </Card>
             )}
@@ -598,25 +599,25 @@ export default function AnalyticsPage() {
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">PKR {analyticsData.averageOrderValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-xl sm:text-2xl font-bold">PKR {analyticsData.averageOrderValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
               </CardContent>
             </Card>
              <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Items Sold</CardTitle>
+                <CardTitle className="text-sm font-medium">Items Sold</CardTitle>
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{analyticsData.totalItemsSold}</div>
+                <div className="text-xl sm:text-2xl font-bold">{analyticsData.totalItemsSold}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Discounts</CardTitle>
+                <CardTitle className="text-sm font-medium">Discounts</CardTitle>
                 <Percent className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">PKR {analyticsData.totalDiscounts.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-xl sm:text-2xl font-bold">PKR {analyticsData.totalDiscounts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
               </CardContent>
             </Card>
             <Card>
@@ -625,7 +626,7 @@ export default function AnalyticsPage() {
                 <ListOrdered className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{analyticsData.averageItemsPerOrder.toFixed(2)}</div>
+                <div className="text-xl sm:text-2xl font-bold">{analyticsData.averageItemsPerOrder.toFixed(2)}</div>
               </CardContent>
             </Card>
           </div>
@@ -640,16 +641,17 @@ export default function AnalyticsPage() {
                 <CardDescription>All-time revenue, expenses &amp; profit by year. Click a row to filter analytics to that year.</CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Year</TableHead>
-                      <TableHead className="text-right">Revenue (PKR)</TableHead>
-                      <TableHead className="text-right text-amber-600">Unpaid (PKR)</TableHead>
-                      <TableHead className="text-right">Expenses (PKR)</TableHead>
-                      <TableHead className="text-right text-blue-600">Est. Profit (40%)</TableHead>
-                      <TableHead className="text-right">Net Profit (PKR)</TableHead>
-                      <TableHead className="text-right">Margin</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right text-amber-600 hidden sm:table-cell">Unpaid</TableHead>
+                      <TableHead className="text-right hidden sm:table-cell">Expenses</TableHead>
+                      <TableHead className="text-right text-blue-600 hidden md:table-cell">Est. Profit (40%)</TableHead>
+                      <TableHead className="text-right">Net Profit</TableHead>
+                      <TableHead className="text-right hidden sm:table-cell">Margin</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -661,23 +663,24 @@ export default function AnalyticsPage() {
                       >
                         <TableCell className="font-semibold">{row.year}</TableCell>
                         <TableCell className="text-right">{row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                        <TableCell className="text-right font-medium text-amber-600">
+                        <TableCell className="text-right font-medium text-amber-600 hidden sm:table-cell">
                           {row.unpaid > 0 ? row.unpaid.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}
                         </TableCell>
-                        <TableCell className="text-right text-destructive">{row.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                        <TableCell className="text-right font-medium text-blue-600">
+                        <TableCell className="text-right text-destructive hidden sm:table-cell">{row.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                        <TableCell className="text-right font-medium text-blue-600 hidden md:table-cell">
                           {(row.revenue * 0.40).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </TableCell>
                         <TableCell className={`text-right font-semibold ${row.netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
                           {row.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </TableCell>
-                        <TableCell className="text-right text-muted-foreground text-sm">
+                        <TableCell className="text-right text-muted-foreground text-sm hidden sm:table-cell">
                           {row.revenue > 0 ? `${((row.netProfit / row.revenue) * 100).toFixed(1)}%` : '—'}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -729,18 +732,21 @@ export default function AnalyticsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
-                        <TableHead className="text-right">Total Sales (PKR)</TableHead>
+                        <TableHead className="text-right">Sales (PKR)</TableHead>
                         <TableHead className="text-right">Orders</TableHead>
-                        <TableHead className="text-right">Items Sold</TableHead>
+                        <TableHead className="text-right hidden sm:table-cell">Items</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {analyticsData.salesOverTime.map((day) => (
                         <TableRow key={day.date} onClick={() => handleDayClick(day)} className="cursor-pointer hover:bg-muted/50">
-                          <TableCell className="font-medium">{format(parseISO(day.date), 'EEE, MMM d, yyyy')}</TableCell>
-                          <TableCell className="text-right font-semibold">{day.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="font-medium">
+                            <span className="hidden sm:inline">{format(parseISO(day.date), 'EEE, MMM d, yyyy')}</span>
+                            <span className="sm:hidden">{format(parseISO(day.date), 'MMM d')}</span>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">{day.sales.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                           <TableCell className="text-right">{day.orders}</TableCell>
-                          <TableCell className="text-right">{day.itemsSold}</TableCell>
+                          <TableCell className="text-right hidden sm:table-cell">{day.itemsSold}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -838,10 +844,10 @@ export default function AnalyticsPage() {
               <CardContent className="pl-2">
                 {analyticsData.salesByCategory.filter(c => c.sales > 0).length > 0 ? (
                     <ResponsiveContainer width="100%" height={350}>
-                    <BarChart data={analyticsData.salesByCategory.filter(c => c.sales > 0)} layout="vertical" margin={{ right: 30, left: 30 }}>
+                    <BarChart data={analyticsData.salesByCategory.filter(c => c.sales > 0)} layout="vertical" margin={{ right: 10, left: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `PKR ${Number(value/1000).toFixed(0)}k`} />
-                        <YAxis dataKey="categoryName" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} width={120} interval={0} />
+                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value/1000).toFixed(0)}k`} />
+                        <YAxis dataKey="categoryName" type="category" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={85} interval={0} />
                         <Tooltip
                             contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
                             labelStyle={{ color: 'hsl(var(--foreground))' }}
@@ -866,10 +872,10 @@ export default function AnalyticsPage() {
               <CardContent className="pl-2">
                 {analyticsData.expensesByCategory.length > 0 ? (
                     <ResponsiveContainer width="100%" height={350}>
-                    <BarChart data={analyticsData.expensesByCategory} layout="vertical" margin={{ right: 30, left: 30 }}>
+                    <BarChart data={analyticsData.expensesByCategory} layout="vertical" margin={{ right: 10, left: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `PKR ${Number(value/1000).toFixed(0)}k`} />
-                        <YAxis dataKey="category" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} width={120} interval={0} />
+                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value/1000).toFixed(0)}k`} />
+                        <YAxis dataKey="category" type="category" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={85} interval={0} />
                         <Tooltip
                             contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
                             labelStyle={{ color: 'hsl(var(--foreground))' }}
