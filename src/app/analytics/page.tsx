@@ -527,25 +527,40 @@ export default function AnalyticsPage() {
             </Card>
             {(() => {
               const netProfit = analyticsData.totalSales - analyticsData.totalExpenses;
+              const estProfit = analyticsData.totalSales * 0.40;
               const margin = analyticsData.totalSales > 0 ? (netProfit / analyticsData.totalSales) * 100 : 0;
               return (
-                <Card className={netProfit >= 0 ? 'border-green-500/40' : 'border-red-500/40'}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
-                    {netProfit >= 0
-                      ? <TrendingUp className="h-4 w-4 text-green-600" />
-                      : <TrendingDown className="h-4 w-4 text-destructive" />
-                    }
-                  </CardHeader>
-                  <CardContent>
-                    <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                      PKR {netProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% margin` : 'No revenue in period'}
-                    </p>
-                  </CardContent>
-                </Card>
+                <>
+                  <Card className="border-blue-500/40">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Est. Profit (40% margin)</CardTitle>
+                      <TrendingUp className="h-4 w-4 text-blue-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-blue-600">
+                        PKR {estProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Revenue × 40% — before expenses</p>
+                    </CardContent>
+                  </Card>
+                  <Card className={netProfit >= 0 ? 'border-green-500/40' : 'border-red-500/40'}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+                      {netProfit >= 0
+                        ? <TrendingUp className="h-4 w-4 text-green-600" />
+                        : <TrendingDown className="h-4 w-4 text-destructive" />
+                      }
+                    </CardHeader>
+                    <CardContent>
+                      <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        PKR {netProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% actual margin` : 'No revenue in period'}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </>
               );
             })()}
             <Card>
@@ -611,6 +626,7 @@ export default function AnalyticsPage() {
                       <TableHead>Year</TableHead>
                       <TableHead className="text-right">Revenue (PKR)</TableHead>
                       <TableHead className="text-right">Expenses (PKR)</TableHead>
+                      <TableHead className="text-right text-blue-600">Est. Profit (40%)</TableHead>
                       <TableHead className="text-right">Net Profit (PKR)</TableHead>
                       <TableHead className="text-right">Margin</TableHead>
                     </TableRow>
@@ -625,6 +641,9 @@ export default function AnalyticsPage() {
                         <TableCell className="font-semibold">{row.year}</TableCell>
                         <TableCell className="text-right">{row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                         <TableCell className="text-right text-destructive">{row.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                        <TableCell className="text-right font-medium text-blue-600">
+                          {(row.revenue * 0.40).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </TableCell>
                         <TableCell className={`text-right font-semibold ${row.netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
                           {row.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </TableCell>
