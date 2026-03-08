@@ -160,8 +160,13 @@ export default function AdditionalRevenuePage() {
   }, [appReady, loadAdditionalRevenues]);
 
   const handleDelete = async (id: string) => {
-    await deleteAdditionalRevenue(id);
-    toast({ title: 'Deleted', description: 'Revenue entry deleted.' });
+    try {
+      await deleteAdditionalRevenue(id);
+      toast({ title: 'Deleted', description: 'Revenue entry deleted.' });
+    } catch (err) {
+      console.error('Failed to delete revenue entry:', err);
+      toast({ title: 'Delete Failed', description: 'Could not delete the entry. Please try again.', variant: 'destructive' });
+    }
   };
 
   const handleEdit = (revenue: AdditionalRevenue) => {

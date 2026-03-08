@@ -553,7 +553,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         append({
             itemCategory: product.categoryId || '',
             description: product.name,
-            karat: product.karat || '21k',
+            karat: product.metalType !== 'silver' ? (product.karat || '21k') : undefined,
             estimatedWeightG: product.metalWeightG,
             wastagePercentage: product.wastagePercentage,
             makingCharges: product.makingCharges,

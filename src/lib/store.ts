@@ -1505,7 +1505,9 @@ export const useAppStore = create<AppState>()(
                 let finalCustomerName = customerInfo.name;
 
                 if (!finalCustomerId && customerInfo.name) {
-                    const newCustId = `cust-${Date.now()}`;
+                    // Use a stable ID (not Date.now()) so Firestore transaction retries
+                    // don't create duplicate customer documents.
+                    const newCustId = `cust-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
                     const newCustomerData: Omit<Customer, 'id'> = { name: customerInfo.name, phone: customerInfo.phone || "", address: '', email: '' };
                     transaction.set(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustId), newCustomerData);
                     finalCustomerId = newCustId;
@@ -1656,6 +1658,11 @@ export const useAppStore = create<AppState>()(
                 const newPaymentHistory = [...(invoiceData.paymentHistory || []), newPayment];
                 
                 const newAmountPaid = newPaymentHistory.reduce((acc, p) => acc + p.amount, 0);
+                // Server-side overpayment guard — prevents concurrent payments from
+                // pushing balanceDue negative.
+                if (newAmountPaid > invoiceData.grandTotal) {
+                    throw new Error(`Overpayment: total paid (${newAmountPaid}) exceeds grand total (${invoiceData.grandTotal}).`);
+                }
                 const newBalanceDue = invoiceData.grandTotal - newAmountPaid;
 
                 const updatedFields = {
@@ -1672,18 +1679,22 @@ export const useAppStore = create<AppState>()(
                 return { ...invoiceData, ...updatedFields, id: invoiceId };
             });
             if (updatedInvoice) {
-                // Update or remove the outstanding balance hisaab entry
+                // Update or remove ALL outstanding balance hisaab entries (not just docs[0])
                 const hisaabSnap = await getDocs(query(
                     collection(db, FIRESTORE_COLLECTIONS.HISAAB),
                     where('linkedInvoiceId', '==', invoiceId)
                 ));
                 if (!hisaabSnap.empty) {
-                    const entryRef = hisaabSnap.docs[0].ref;
+                    const hisaabBatch = writeBatch(db);
                     if (updatedInvoice.balanceDue <= 0) {
-                        await deleteDoc(entryRef);
+                        // Fully paid — delete all linked entries
+                        hisaabSnap.docs.forEach(d => hisaabBatch.delete(d.ref));
                     } else {
-                        await updateDoc(entryRef, { cashDebit: updatedInvoice.balanceDue });
+                        // Partial payment — update first entry, delete duplicates
+                        hisaabBatch.update(hisaabSnap.docs[0].ref, { cashDebit: updatedInvoice.balanceDue });
+                        hisaabSnap.docs.slice(1).forEach(d => hisaabBatch.delete(d.ref));
                     }
+                    await hisaabBatch.commit();
                 }
 
                 // Sync the source order's grandTotal if this invoice came from an order
@@ -1725,10 +1736,13 @@ export const useAppStore = create<AppState>()(
                       const productData = {
                           sku: item.sku, name: item.name, categoryId: item.categoryId,
                           metalType: item.metalType, karat: item.karat, metalWeightG: item.metalWeightG,
+                          hasStones: item.stoneChargesIfAny > 0,
                           stoneWeightG: item.stoneWeightG, wastagePercentage: item.wastagePercentage,
                           makingCharges: item.makingCharges, hasDiamonds: item.diamondChargesIfAny > 0,
                           diamondCharges: item.diamondChargesIfAny, stoneCharges: item.stoneChargesIfAny,
-                          miscCharges: item.miscChargesIfAny, stoneDetails: item.stoneDetails, diamondDetails: item.diamondDetails
+                          miscCharges: item.miscChargesIfAny, stoneDetails: item.stoneDetails, diamondDetails: item.diamondDetails,
+                          // Restore custom price override so refunded inventory keeps its price
+                          ...(item.isCustomPrice && { isCustomPrice: true, customPrice: item.unitPrice }),
                       };
                       batch.set(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, item.sku), cleanObject(productData));
                       batch.delete(soldProductRef);
@@ -2079,8 +2093,12 @@ export const useAppStore = create<AppState>()(
         if (get().settings.databaseLocked) return;
         try {
             await get().deleteInvoice(invoiceId, true);
+            // Preserve the order's original status instead of hardcoding 'In Progress',
+            // which would upgrade a 'Pending' order incorrectly.
+            const existingOrder = get().orders.find(o => o.id === orderId);
+            const revertedStatus = existingOrder?.status === 'Completed' ? 'In Progress' : (existingOrder?.status || 'In Progress');
             await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId),
-                { status: 'In Progress', invoiceId: deleteField() },
+                { status: revertedStatus, invoiceId: deleteField() },
                 { merge: true }
             );
             await addActivityLog('order.revert', `Reverted order ${orderId}`, `Cancelled invoice ${invoiceId}`, orderId);

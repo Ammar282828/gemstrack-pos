@@ -51,6 +51,10 @@ const hisaabEntrySchema = z.object({
   description: z.string().min(1, "Description is required"),
   amount: z.coerce.number().min(0, "Amount must be non-negative").default(0),
   goldGrams: z.coerce.number().min(0, "Gold must be non-negative").default(0),
+}).superRefine((data, ctx) => {
+  if (data.amount === 0 && data.goldGrams === 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Enter a cash amount or gold grams — both cannot be zero.", path: ['amount'] });
+  }
 });
 
 type HisaabEntryFormData = z.infer<typeof hisaabEntrySchema>;

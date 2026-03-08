@@ -14,6 +14,7 @@ import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQ
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 
@@ -22,8 +23,11 @@ type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
 const getPaymentStatus = (order: Order): PaymentStatus => {
   const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
+  const advanceInExchangeValue = typeof order.advanceInExchangeValue === 'number' ? order.advanceInExchangeValue : 0;
+  const totalAdvance = advancePayment + advanceInExchangeValue;
   if (grandTotal <= 0) return 'Paid';
-  if (advancePayment > 0) return 'Partial';
+  if (totalAdvance >= grandTotal) return 'Paid';
+  if (totalAdvance > 0) return 'Partial';
   return 'Unpaid';
 };
 
@@ -122,8 +126,11 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
     const { toast } = useToast();
     const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [pendingStatus, setPendingStatus] = useState<OrderStatus | null>(null);
 
-    const handleStatusChange = async (newStatus: OrderStatus) => {
+    const DESTRUCTIVE_STATUSES: OrderStatus[] = ['Cancelled', 'Refunded'];
+
+    const applyStatusChange = async (newStatus: OrderStatus) => {
         setIsUpdatingStatus(true);
         try {
             await updateOrderStatus(order.id, newStatus);
@@ -132,6 +139,14 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
             toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
         } finally {
             setIsUpdatingStatus(false);
+        }
+    };
+
+    const handleStatusChange = (newStatus: OrderStatus) => {
+        if (DESTRUCTIVE_STATUSES.includes(newStatus)) {
+            setPendingStatus(newStatus);
+        } else {
+            applyStatusChange(newStatus);
         }
     };
 
@@ -144,6 +159,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
     const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
   
     return (
+      <>
       <TableRow>
         <TableCell className="font-medium">
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
@@ -212,6 +228,21 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
             </Button>
         </TableCell>
       </TableRow>
+      <AlertDialog open={!!pendingStatus} onOpenChange={(open) => !open && setPendingStatus(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark order <strong>{order.id}</strong> as <strong>{pendingStatus}</strong>? This action is difficult to reverse.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingStatus(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (pendingStatus) applyStatusChange(pendingStatus); setPendingStatus(null); }}>Confirm</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      </>
     );
   };
 

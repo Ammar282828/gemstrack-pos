@@ -101,7 +101,7 @@ export default function CartPage() {
       loadGeneratedInvoices();
       loadProducts();
     }
-  }, [appReady, loadCustomers, loadGeneratedInvoices]);
+  }, [appReady, loadCustomers, loadGeneratedInvoices, loadProducts]);
 
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>(undefined);
@@ -122,6 +122,7 @@ export default function CartPage() {
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [isEditingEstimate, setIsEditingEstimate] = useState(false);
   const isEditingEstimateRef = React.useRef(false);
+  const [isGeneratingEstimate, setIsGeneratingEstimate] = useState(false);
   const editingInvoiceOriginalRef = React.useRef<InvoiceType | null>(null);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | undefined>(undefined);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
@@ -206,6 +207,8 @@ export default function CartPage() {
 
 
   useEffect(() => {
+    // Only sync rates from settings when NOT editing an existing estimate.
+    // When editing, rates are loaded from the invoice by handleEditEstimate.
     if (appReady && settings && !isEditingEstimate) {
       setRateInputs({
         gold18k: (settings.goldRatePerGram18k || 0).toFixed(2),
@@ -216,8 +219,6 @@ export default function CartPage() {
         platinum: (settings.platinumRatePerGram || 0).toFixed(2),
         silver: (settings.silverRatePerGram || 0).toFixed(2),
       });
-    } else if (appReady) {
-      setRateInputs({ gold18k: '0', gold21k: '0', gold22k: '0', gold24k: '0', palladium: '0', platinum: '0', silver: '0' });
     }
   }, [appReady, settings, isEditingEstimate]);
   
@@ -306,6 +307,7 @@ export default function CartPage() {
 
 
   const handleGenerateInvoice = async () => {
+    if (isGeneratingEstimate) return; // Prevent double-submit
     if (cartItemsFromStore.length === 0) {
       toast({ title: "Cart Empty", description: "Cannot generate estimate for an empty cart.", variant: "destructive" });
       return;
@@ -378,7 +380,13 @@ export default function CartPage() {
         ? { description: exchangeDescription.trim(), amount1: parseFloat(exchangeAmount1Input) || 0, amount2: parseFloat(exchangeAmount2Input) || 0 }
         : undefined;
 
-    const invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined);
+    setIsGeneratingEstimate(true);
+    let invoice;
+    try {
+      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined);
+    } finally {
+      setIsGeneratingEstimate(false);
+    }
 
     if (invoice) {
       setGeneratedInvoice(invoice);
@@ -859,7 +867,7 @@ export default function CartPage() {
                         <TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {generatedInvoice.items.map((item, index) => (
-                                <TableRow key={index}>
+                                <TableRow key={item.sku ?? index}>
                                     <TableCell>
                                         <div className="font-medium">{item.name}</div>
                                         <div className="text-xs text-muted-foreground">{item.sku}</div>
@@ -1167,8 +1175,9 @@ export default function CartPage() {
                         <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-2">
-                         <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice}>
-                            <FileText className="mr-2 h-5 w-5"/> {isEditingEstimate ? 'Update Estimate' : 'Generate Estimate'}
+                         <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate}>
+                            {isGeneratingEstimate ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <FileText className="mr-2 h-5 w-5"/>}
+                            {isEditingEstimate ? 'Update Estimate' : 'Generate Estimate'}
                         </Button>
                         {isEditingEstimate && (
                             <Button size="lg" variant="outline" className="w-full" onClick={handleCancelEdit}>

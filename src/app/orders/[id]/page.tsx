@@ -67,8 +67,11 @@ type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
 const getPaymentStatus = (order: Order): PaymentStatus => {
   const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
+  const advanceInExchangeValue = typeof order.advanceInExchangeValue === 'number' ? order.advanceInExchangeValue : 0;
+  const totalAdvance = advancePayment + advanceInExchangeValue;
   if (grandTotal <= 0) return 'Paid';
-  if (advancePayment > 0) return 'Partial';
+  if (totalAdvance >= grandTotal) return 'Paid';
+  if (totalAdvance > 0) return 'Partial';
   return 'Unpaid';
 };
 const getPaymentBadgeClass = (status: PaymentStatus) => {

@@ -93,10 +93,15 @@ export default function CustomerDetailPage() {
 
 
 
-  const handleDeleteCustomer = () => {
-    deleteCustomerAction(customerId);
-    toast({ title: "Customer Deleted", description: `Customer ${customer?.name} has been deleted.` });
-    router.push('/customers');
+  const handleDeleteCustomer = async () => {
+    try {
+      await deleteCustomerAction(customerId);
+      toast({ title: "Customer Deleted", description: `Customer ${customer?.name} has been deleted.` });
+      router.push('/customers');
+    } catch (err) {
+      console.error('Failed to delete customer:', err);
+      toast({ title: "Delete Failed", description: "Could not delete the customer. Please try again.", variant: "destructive" });
+    }
   };
 
   if (!isHydrated) {

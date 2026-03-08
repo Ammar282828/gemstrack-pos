@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, FileText, ClipboardList, AlertTriangle, User, Calendar, DollarSign, Eye, Upload, CheckCircle2, ShoppingBag } from 'lucide-react';
-import { format, parseISO, isWithinInterval, startOfDay } from 'date-fns';
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DateRangePicker } from '@/components/ui/date-range-picker';
@@ -366,7 +366,7 @@ export default function DocumentsPage() {
     if (dateRange?.from) {
       docs = docs.filter(doc => {
         const docDate = parseISO(doc.createdAt);
-        const toDate = dateRange.to ? startOfDay(dateRange.to) : startOfDay(new Date()); 
+        const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
         return isWithinInterval(docDate, { start: startOfDay(dateRange.from!), end: toDate });
       });
     }

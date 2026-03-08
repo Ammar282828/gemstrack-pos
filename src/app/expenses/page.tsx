@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ExpenseForm } from '@/components/expense/expense-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { format, parseISO, isWithinInterval } from 'date-fns';
+import { format, parseISO, isWithinInterval, endOfDay } from 'date-fns';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
 import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
@@ -59,8 +59,13 @@ export default function ExpensesPage() {
   }, [appReady, loadExpenses, loadKarigars]);
 
   const handleDeleteExpense = async (id: string) => {
-    await deleteExpense(id);
-    toast({ title: "Expense Deleted", description: "The expense record has been deleted." });
+    try {
+      await deleteExpense(id);
+      toast({ title: "Expense Deleted", description: "The expense record has been deleted." });
+    } catch (err) {
+      console.error('Failed to delete expense:', err);
+      toast({ title: "Delete Failed", description: "Could not delete the expense. Please try again.", variant: "destructive" });
+    }
   };
 
   const handleEditExpense = (expense: Expense) => {
@@ -86,7 +91,7 @@ export default function ExpensesPage() {
         
         if (dateRange?.from) {
             const expenseDate = parseISO(expense.date);
-            const toDate = dateRange.to || new Date(); // Use today if 'to' is not set
+            const toDate = endOfDay(dateRange.to || new Date());
             return isWithinInterval(expenseDate, { start: dateRange.from, end: toDate });
         }
         
