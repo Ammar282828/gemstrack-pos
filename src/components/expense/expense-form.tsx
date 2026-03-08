@@ -127,7 +127,6 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
                 </FormControl>
                 <SelectContent>
                   {EXPENSE_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                  <SelectItem value="Other">Other...</SelectItem>
                 </SelectContent>
               </Select>
                {isOtherCategory && (
