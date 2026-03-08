@@ -149,9 +149,9 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
           </Link>
-          <p className="text-xs text-muted-foreground truncate w-40 mt-1 flex items-start gap-1.5" title={order.summary}>
+          <p className="text-xs text-muted-foreground w-40 mt-1 flex items-start gap-1.5" title={order.summary}>
             <MessageSquareQuote className="w-3 h-3 mt-0.5 flex-shrink-0" />
-            <span>{order.summary || 'No summary'}</span>
+            <span className="min-w-0 truncate">{order.summary || 'No summary'}</span>
           </p>
         </TableCell>
         <TableCell className="hidden lg:table-cell">

@@ -663,7 +663,7 @@ export default function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="container mx-auto p-4 text-center">
+      <div className="container mx-auto py-8 px-4 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center">
         <h2 className="text-2xl font-semibold">Order not found</h2>
         <Link href="/orders" passHref>
           <Button variant="link" className="mt-4">Go back to orders dashboard</Button>
@@ -691,7 +691,7 @@ export default function OrderDetailPage() {
 
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="container mx-auto py-8 px-4 space-y-6">
       <div style={{ display: 'none' }}>
         <img id="shop-logo" src={settings?.shopLogoUrlBlack || settings?.shopLogoUrl || ''} crossOrigin="anonymous" alt="" />
         <QRCode id="wa-qr-code" value="https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H" size={128} />
