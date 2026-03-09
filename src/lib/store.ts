@@ -1036,6 +1036,25 @@ export const useAppStore = create<AppState>()(
                     set({ settingsError: "Database access is locked by an administrator." });
                 }
 
+                // Self-healing: if the invoice counter is 0 or missing, scan actual
+                // invoices to recalibrate so the first new invoice never overwrites
+                // a real historical record.
+                if (!loadedSettings.lastInvoiceNumber) {
+                    getDocs(collection(db, FIRESTORE_COLLECTIONS.INVOICES))
+                        .then(snap => {
+                            let maxNum = 0;
+                            snap.forEach(d => {
+                                const match = d.id.match(/^INV-(\d+)$/);
+                                if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10));
+                            });
+                            if (maxNum > 0) {
+                                console.warn(`[loadSettings] lastInvoiceNumber was 0/missing — recalibrating to ${maxNum}`);
+                                updateDoc(settingsDocRef, { lastInvoiceNumber: maxNum }).catch(console.error);
+                            }
+                        })
+                        .catch(console.error);
+                }
+
                 set((state) => {
                     state.settings = loadedSettings;
                     state.isSettingsLoading = false;
@@ -1566,6 +1585,11 @@ export const useAppStore = create<AppState>()(
                 } else {
                     const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
                     invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
+                    // Guard: never silently overwrite an existing invoice if the counter is stale
+                    const targetInvoiceCheck = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId));
+                    if (targetInvoiceCheck.exists()) {
+                        throw new Error(`Invoice ${invoiceId} already exists — the invoice counter (lastInvoiceNumber=${currentSettings.lastInvoiceNumber}) is stale. Please contact your administrator to recalibrate it.`);
+                    }
                     transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
                 }
 
@@ -2034,6 +2058,12 @@ export const useAppStore = create<AppState>()(
 
                 const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
                 const invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
+
+                // Guard: never silently overwrite an existing invoice if the counter is stale
+                const targetInvoiceCheck = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId));
+                if (targetInvoiceCheck.exists()) {
+                    throw new Error(`Invoice ${invoiceId} already exists — the invoice counter (lastInvoiceNumber=${currentSettings.lastInvoiceNumber}) is stale. Please contact your administrator to recalibrate it.`);
+                }
 
                 const newInvoice: Invoice = { id: invoiceId, ...baseInvoiceData };
                 const payload = cleanObject({ ...baseInvoiceData });
