@@ -402,6 +402,8 @@ export interface Invoice {
   sourceOrderId?: string; // Set when invoice is created from an order
   source?: string; // 'shopify_import' | 'shopify' for imported/synced orders
   shopifyOrderName?: string;
+  status?: 'Refunded'; // Set when invoice has been refunded
+  refundedAt?: string; // ISO string of refund time
 }
 
 export interface Karigar {

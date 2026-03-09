@@ -42,7 +42,9 @@ const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' =>
   if (doc.docType === 'order') {
     return (doc as Order).status;
   }
-  return (doc as Invoice).balanceDue <= 0 ? 'Paid' : 'Unpaid';
+  const inv = doc as Invoice;
+  if (inv.status === 'Refunded') return 'Refunded';
+  return inv.balanceDue <= 0 ? 'Paid' : 'Unpaid';
 };
 
 const isShopifyDoc = (doc: DocumentType): boolean =>
