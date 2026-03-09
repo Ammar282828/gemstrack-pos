@@ -1055,6 +1055,24 @@ export const useAppStore = create<AppState>()(
                         .catch(console.error);
                 }
 
+                // Self-healing: if the order counter is 0 or missing (or stale/lower
+                // than actual max), scan orders and recalibrate to prevent collisions.
+                if (!loadedSettings.lastOrderNumber) {
+                    getDocs(collection(db, FIRESTORE_COLLECTIONS.ORDERS))
+                        .then(snap => {
+                            let maxNum = 0;
+                            snap.forEach(d => {
+                                const match = d.id.match(/^ORD-(\d+)$/);
+                                if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10));
+                            });
+                            if (maxNum > 0) {
+                                console.warn(`[loadSettings] lastOrderNumber was 0/missing — recalibrating to ${maxNum}`);
+                                updateDoc(settingsDocRef, { lastOrderNumber: maxNum }).catch(console.error);
+                            }
+                        })
+                        .catch(console.error);
+                }
+
                 set((state) => {
                     state.settings = loadedSettings;
                     state.isSettingsLoading = false;
