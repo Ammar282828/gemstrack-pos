@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
-import { cn, normalizePhoneNumber } from '@/lib/utils';
+import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -457,6 +457,7 @@ export default function OrderDetailPage() {
   
   const handlePrintOrderSlip = async () => {
     if (!order || typeof window === 'undefined' || !settings) return;
+    const iOSWin = openPDFWindowForIOS();
 
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -648,16 +649,7 @@ export default function OrderDetailPage() {
     }
 
 
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIOS) {
-      const link = document.createElement('a');
-      link.href = doc.output('datauristring');
-      link.download = 'order-slip.pdf';
-      link.click();
-    } else {
-      doc.autoPrint();
-      window.open(doc.output('bloburl'), '_blank');
-    }
+    savePDF(doc, `OrderSlip-${order.id}.pdf`, iOSWin);
   };
 
 

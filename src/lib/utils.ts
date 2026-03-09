@@ -28,12 +28,24 @@ export function openPDFWindowForIOS(): Window | null {
 }
 
 export function savePDF(
-  doc: { save: (name: string) => void; output: (type: 'bloburl') => string },
+  doc: { save: (name: string) => void; output: (type: string) => string },
   filename: string,
   iOSWin: Window | null
 ) {
   if (iOSWin) {
-    iOSWin.location.href = doc.output('bloburl');
+    // iOS Safari blocks blob URL navigation (shows blank page).
+    // Writing an iframe into the pre-opened window works reliably across all
+    // iOS versions and both browser + PWA contexts.
+    const blobUrl = doc.output('bloburl');
+    iOSWin.document.open();
+    iOSWin.document.write(
+      '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'
+      + '<title>' + filename + '</title>'
+      + '<style>*{margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden}'
+      + 'iframe{width:100%;height:100%;border:none;display:block;position:fixed;top:0;left:0}</style>'
+      + '</head><body><iframe src="' + blobUrl + '"></iframe></body></html>'
+    );
+    iOSWin.document.close();
   } else {
     doc.save(filename);
   }
