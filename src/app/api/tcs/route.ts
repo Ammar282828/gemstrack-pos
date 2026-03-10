@@ -6,39 +6,50 @@ const getBaseUrl = () =>
     : 'https://ociconnect.tcscourier.com';
 
 /**
- * Two-step TCS auth:
- *  1. Authorization API  → bearer token (used in Authorization header)
- *  2. E-COM Auth API     → access token (used in request bodies)
+ * TCS auth — two paths:
+ *  Full (clientid + clientsecret configured):
+ *    1. Authorization API  → bearerToken
+ *    2. E-COM Auth API     → accessToken
+ *  Fallback (username + password only):
+ *    1. E-COM Auth API directly (no bearer header) → accessToken used as both
  */
 async function getTcsTokens(): Promise<{ bearerToken: string; accessToken: string }> {
   const base = getBaseUrl();
+  const hasClientCreds = !!(process.env.TCS_CLIENT_ID && process.env.TCS_CLIENT_SECRET);
 
-  // Step 1 — Authorization
-  const authRes = await fetch(`${base}/auth/api/auth`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      clientid: process.env.TCS_CLIENT_ID,
-      clientsecret: process.env.TCS_CLIENT_SECRET,
-    }),
-  });
+  let bearerToken: string;
 
-  if (!authRes.ok) {
-    throw new Error(`TCS Authorization failed: HTTP ${authRes.status}`);
+  if (hasClientCreds) {
+    // Step 1 — Authorization (clientid + clientsecret)
+    const authRes = await fetch(`${base}/auth/api/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientid: process.env.TCS_CLIENT_ID,
+        clientsecret: process.env.TCS_CLIENT_SECRET,
+      }),
+    });
+    if (!authRes.ok) {
+      throw new Error(`TCS Authorization failed: HTTP ${authRes.status}`);
+    }
+    const authData = await authRes.json();
+    if (!authData.result?.accessToken) {
+      throw new Error(`TCS Authorization error: ${JSON.stringify(authData)}`);
+    }
+    bearerToken = authData.result.accessToken as string;
+  } else {
+    // No client creds — attempt E-COM auth without a bearer first to get the token,
+    // then use it as bearer for subsequent calls.
+    bearerToken = '';
   }
-  const authData = await authRes.json();
-  if (!authData.result?.accessToken) {
-    throw new Error(`TCS Authorization error: ${JSON.stringify(authData)}`);
-  }
-  const bearerToken: string = authData.result.accessToken;
 
-  // Step 2 — E-COM Authentication
+  // Step 2 — E-COM Authentication (username + password)
+  const ecomHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (bearerToken) ecomHeaders['Authorization'] = `Bearer ${bearerToken}`;
+
   const ecomRes = await fetch(`${base}/ecom/api/authentication/token`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${bearerToken}`,
-    },
+    headers: ecomHeaders,
     body: JSON.stringify({
       username: process.env.TCS_USERNAME,
       password: process.env.TCS_PASSWORD,
@@ -53,16 +64,18 @@ async function getTcsTokens(): Promise<{ bearerToken: string; accessToken: strin
     throw new Error(`TCS E-COM Authentication error: ${JSON.stringify(ecomData)}`);
   }
 
-  return { bearerToken, accessToken: ecomData.accesstoken as string };
+  const accessToken = ecomData.accesstoken as string;
+  // If we skipped step 1, use accessToken as bearer too
+  return { bearerToken: bearerToken || accessToken, accessToken };
 }
 
 export async function POST(req: NextRequest) {
   try {
     // Validate server credentials are configured
-    const { TCS_CLIENT_ID, TCS_CLIENT_SECRET, TCS_USERNAME, TCS_PASSWORD } = process.env;
-    if (!TCS_CLIENT_ID || !TCS_CLIENT_SECRET || !TCS_USERNAME || !TCS_PASSWORD) {
+    const { TCS_USERNAME, TCS_PASSWORD } = process.env;
+    if (!TCS_USERNAME || !TCS_PASSWORD) {
       return NextResponse.json(
-        { error: 'TCS credentials are not configured. Add TCS_* variables to .env.local.' },
+        { error: 'TCS credentials are not configured. Add TCS_USERNAME and TCS_PASSWORD to .env.local.' },
         { status: 500 }
       );
     }
