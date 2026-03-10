@@ -134,7 +134,9 @@ export default function HomePage() {
       o.status !== 'Refunded' &&
       !o.invoiceId
     );
-    const orderRevenue = recentOrders.reduce((sum, o) => sum + (o.grandTotal || 0), 0);
+    // Use subtotal (full order value) — grandTotal is subtotal minus advance,
+    // so using it would understate revenue. Matches analytics calculation.
+    const orderRevenue = recentOrders.reduce((sum, o) => sum + (o.subtotal || 0), 0);
 
     const recentExtraRevenues = additionalRevenues.filter(r => parseISO(r.date) >= last30);
     const extraRevenue = recentExtraRevenues.reduce((sum, r) => sum + (r.amount || 0), 0);

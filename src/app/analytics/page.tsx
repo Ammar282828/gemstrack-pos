@@ -71,7 +71,8 @@ export default function AnalyticsPage() {
       if (!order?.createdAt || order.status === 'Cancelled' || order.status === 'Refunded' || order.invoiceId) return;
       const yr = getYear(parseISO(order.createdAt));
       if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
-      yearMap[yr].revenue += order.grandTotal || 0;
+      // Use subtotal: the full order value regardless of advance paid
+      yearMap[yr].revenue += order.subtotal || 0;
     });
     additionalRevenues.forEach(r => {
       if (!r?.date) return;
