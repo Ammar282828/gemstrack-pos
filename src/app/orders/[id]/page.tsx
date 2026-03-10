@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
@@ -98,6 +98,225 @@ type PhoneForm = {
 };
 
 type NotificationType = 'inProgress' | 'completed' | 'summary';
+
+// ─── TCS Courier ─────────────────────────────────────────────────────────────
+const TCS_CITIES = [
+  { code: 'KHI', name: 'Karachi' },
+  { code: 'LHE', name: 'Lahore' },
+  { code: 'ISB', name: 'Islamabad' },
+  { code: 'RWP', name: 'Rawalpindi' },
+  { code: 'MUL', name: 'Multan' },
+  { code: 'FSD', name: 'Faisalabad' },
+  { code: 'HYD', name: 'Hyderabad' },
+  { code: 'PEW', name: 'Peshawar' },
+  { code: 'QTA', name: 'Quetta' },
+  { code: 'SKT', name: 'Sialkot' },
+  { code: 'GUJ', name: 'Gujranwala' },
+  { code: 'SWL', name: 'Sahiwal' },
+  { code: 'BTN', name: 'Bahawalpur' },
+  { code: 'SRG', name: 'Sargodha' },
+  { code: 'ABT', name: 'Abbottabad' },
+] as const;
+
+const tcsBookingSchema = z.object({
+  consigneeName: z.string().min(2, 'Name is required (min 2 chars)'),
+  consigneeMobile: z.string().regex(/^03\d{9}$/, 'Enter a valid Pakistani mobile (03XXXXXXXXX)'),
+  consigneeAddress: z.string().min(5, 'Full address is required'),
+  cityCode: z.string().min(2, 'City code is required (e.g. KHI)').max(5),
+  cityName: z.string().min(2, 'City name is required'),
+  weightKg: z.coerce.number().min(0.5, 'Minimum weight is 0.5 kg'),
+  codAmount: z.coerce.number().min(0, 'COD cannot be negative').max(250000),
+  description: z.string().optional(),
+});
+type TcsBookingFormData = z.infer<typeof tcsBookingSchema>;
+
+const BookCourierDialog: React.FC<{
+    order: Order;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onBooked: (consignmentNo: string) => void;
+}> = ({ order, open, onOpenChange, onBooked }) => {
+    const { toast } = useToast();
+
+    const defaultName = order.customerName || '';
+    const rawPhone = order.customerContact?.replace(/\D/g, '') || '';
+    const defaultPhone = rawPhone.startsWith('0') ? rawPhone : rawPhone ? `0${rawPhone}` : '';
+
+    const form = useForm<TcsBookingFormData>({
+        resolver: zodResolver(tcsBookingSchema),
+        defaultValues: {
+            consigneeName: defaultName,
+            consigneeMobile: defaultPhone.slice(0, 11),
+            consigneeAddress: '',
+            cityCode: '',
+            cityName: '',
+            weightKg: 0.5,
+            codAmount: Math.max(0, order.grandTotal || 0),
+            description: order.items.map(i => i.description).join(', ').slice(0, 200),
+        },
+    });
+
+    const watchCityCode = form.watch('cityCode');
+    React.useEffect(() => {
+        const city = TCS_CITIES.find(c => c.code === watchCityCode);
+        if (city) form.setValue('cityName', city.name);
+    }, [watchCityCode, form]);
+
+    const handleSubmit = async (data: TcsBookingFormData) => {
+        try {
+            const res = await fetch('/api/tcs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'book',
+                    consignee: {
+                        name: data.consigneeName,
+                        mobile: data.consigneeMobile,
+                        address: data.consigneeAddress,
+                        cityCode: data.cityCode,
+                        cityName: data.cityName,
+                    },
+                    shipment: {
+                        referenceNo: order.id,
+                        description: data.description || 'Jewellery',
+                        weightKg: data.weightKg,
+                        codAmount: data.codAmount,
+                    },
+                }),
+            });
+
+            const result = await res.json();
+
+            if (result.status === true && result.consignmentNo) {
+                toast({
+                    title: 'Shipment Booked!',
+                    description: `TCS Consignment No: ${result.consignmentNo}`,
+                });
+                onBooked(result.consignmentNo);
+                onOpenChange(false);
+            } else {
+                const errMsg = result.message || result.error || JSON.stringify(result);
+                toast({
+                    title: 'Booking Failed',
+                    description: errMsg,
+                    variant: 'destructive',
+                });
+            }
+        } catch {
+            toast({ title: 'Network Error', description: 'Could not reach TCS API.', variant: 'destructive' });
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-lg">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center">
+                        <Truck className="mr-2 h-5 w-5" /> Book TCS Courier
+                    </DialogTitle>
+                    <DialogDescription>
+                        Create a TCS Envio shipment for order {order.id}. The consignment number will be saved to this order.
+                    </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 pt-2">
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="consigneeName" render={({ field }) => (
+                                <FormItem className="col-span-2">
+                                    <FormLabel>Recipient Name</FormLabel>
+                                    <FormControl><Input placeholder="Customer full name" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="consigneeMobile" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Mobile (03XXXXXXXXX)</FormLabel>
+                                    <FormControl><Input placeholder="03001234567" maxLength={11} {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="cityCode" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>City</FormLabel>
+                                    <Select onValueChange={val => { field.onChange(val); }} value={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select city" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {TCS_CITIES.map(c => (
+                                                <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>
+                                            ))}
+                                            <SelectItem value="OTHER">Other (type below)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        </div>
+                        {watchCityCode === 'OTHER' && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField control={form.control} name="cityCode" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>TCS City Code</FormLabel>
+                                        <FormControl><Input placeholder="e.g. SWB" maxLength={5} {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="cityName" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>City Name</FormLabel>
+                                        <FormControl><Input placeholder="e.g. Swabi" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            </div>
+                        )}
+                        <FormField control={form.control} name="consigneeAddress" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Delivery Address</FormLabel>
+                                <FormControl><Input placeholder="House/Shop #, Street, Area" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="weightKg" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Parcel Weight (kg)</FormLabel>
+                                    <FormControl><Input type="number" step="0.1" min="0.5" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="codAmount" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>COD Amount (PKR)</FormLabel>
+                                    <FormControl><Input type="number" min="0" placeholder="0 if prepaid" {...field} /></FormControl>
+                                    <FormDescription className="text-xs">Cash on delivery. 0 if already paid.</FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        </div>
+                        <FormField control={form.control} name="description" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Parcel Contents</FormLabel>
+                                <FormControl><Input placeholder="Brief description of contents" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <DialogFooter>
+                            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                            <Button type="submit" disabled={form.formState.isSubmitting}>
+                                {form.formState.isSubmitting ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Truck className="mr-2 h-4 w-4" />}
+                                Book Shipment
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 // --- Finalize Order Dialog Components ---
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
@@ -325,6 +544,9 @@ export default function OrderDetailPage() {
   const [isRevertAndEditDialogOpen, setIsRevertAndEditDialogOpen] = useState(false);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
+  const [isBookCourierOpen, setIsBookCourierOpen] = useState(false);
+  const [trackingInfo, setTrackingInfo] = useState<{ summary: string; checkpoints: { datetime: string; status: string }[] } | null>(null);
+  const [isTracking, setIsTracking] = useState(false);
 
   useEffect(() => {
     loadKarigars();
@@ -365,6 +587,36 @@ export default function OrderDetailPage() {
     } finally {
         setIsReverting(false);
     }
+  };
+
+  const handleTcsTrack = async () => {
+    if (!order?.tcsConsignmentNo) return;
+    setIsTracking(true);
+    try {
+      const res = await fetch('/api/tcs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'track', consignmentNo: order.tcsConsignmentNo }),
+      });
+      const data = await res.json();
+      if (data.message === 'SUCCESS' || data.checkpoints) {
+        setTrackingInfo({
+          summary: data.shipmentsummary || 'No summary available.',
+          checkpoints: (data.checkpoints || []).slice(0, 5),
+        });
+      } else {
+        toast({ title: 'Tracking Failed', description: data.shipmentsummary || data.error || 'No data found.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Network Error', description: 'Could not reach TCS API.', variant: 'destructive' });
+    } finally {
+      setIsTracking(false);
+    }
+  };
+
+  const handleTcsBooked = async (consignmentNo: string) => {
+    if (!order) return;
+    await updateOrder(order.id, { tcsConsignmentNo: consignmentNo });
   };
 
   const handleRefund = async () => {
@@ -731,6 +983,7 @@ export default function OrderDetailPage() {
       
       {order && <FinalizeOrderDialog order={order} open={isFinalizeDialogOpen} onOpenChange={setIsFinalizeDialogOpen} />}
       {order && <RecordAdvanceDialog order={order} open={isAdvanceDialogOpen} onOpenChange={setIsAdvanceDialogOpen} />}
+      {order && <BookCourierDialog order={order} open={isBookCourierOpen} onOpenChange={setIsBookCourierOpen} onBooked={handleTcsBooked} />}
 
       <AlertDialog open={isRevertDialogOpen} onOpenChange={setIsRevertDialogOpen}>
         <AlertDialogContent>
@@ -807,6 +1060,16 @@ export default function OrderDetailPage() {
                       <div className="flex flex-wrap items-center gap-2">
                            <Button variant="outline" onClick={handlePrintOrderSlip}><Printer className="mr-2 h-4 w-4"/>Print Slip</Button>
                            <Button variant="outline" onClick={() => { setNotificationType('summary'); setIsNotificationDialogOpen(true); }}><MessageSquare className="mr-2 h-4 w-4"/>Send to Customer</Button>
+                           {order.tcsConsignmentNo ? (
+                             <Button variant="outline" onClick={handleTcsTrack} disabled={isTracking}>
+                               {isTracking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackageSearch className="mr-2 h-4 w-4" />}
+                               TCS: {order.tcsConsignmentNo}
+                             </Button>
+                           ) : (
+                             <Button variant="outline" onClick={() => setIsBookCourierOpen(true)}>
+                               <Truck className="mr-2 h-4 w-4" /> Book Courier
+                             </Button>
+                           )}
                            {!order.invoiceId && (
                              <Button asChild variant="outline">
                                <Link href={`/orders/${order.id}/edit`}>
@@ -942,6 +1205,32 @@ export default function OrderDetailPage() {
                   </div>
 
                   <Separator className="my-6" />
+
+                  {/* TCS Tracking Info (shown after Track button is clicked) */}
+                  {trackingInfo && (
+                    <div className="mb-6 p-4 border rounded-lg bg-muted/30 space-y-2">
+                      <p className="font-semibold flex items-center"><PackageSearch className="w-4 h-4 mr-2" />TCS Tracking — {order.tcsConsignmentNo}</p>
+                      <p className="text-sm whitespace-pre-line text-muted-foreground">{trackingInfo.summary}</p>
+                      {trackingInfo.checkpoints.length > 0 && (
+                        <ul className="text-xs space-y-1 mt-2">
+                          {trackingInfo.checkpoints.map((cp, i) => (
+                            <li key={i} className="flex gap-2">
+                              <span className="text-muted-foreground shrink-0">{cp.datetime}</span>
+                              <span>{cp.status}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <a
+                        href={`https://www.tcscourier.com/domestic/tracking/?ref=${order.tcsConsignmentNo}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary flex items-center gap-1 hover:underline mt-1"
+                      >
+                        <ExternalLink className="w-3 h-3" /> Full tracking on TCS website
+                      </a>
+                    </div>
+                  )}
 
                   <div className="flex flex-col md:flex-row justify-end items-start gap-4">
                      <Button variant="outline" onClick={() => setIsAdvanceDialogOpen(true)}>Record Additional Advance</Button>

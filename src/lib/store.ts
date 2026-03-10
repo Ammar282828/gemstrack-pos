@@ -460,6 +460,7 @@ export interface Order {
   advanceInExchangeDescription?: string; // For gold/diamonds given by customer
   advanceInExchangeValue?: number; // Estimated value of the exchange
   invoiceId?: string; // Set when order is finalized into an invoice
+  tcsConsignmentNo?: string; // TCS Envio courier consignment number
 }
 
 export type HisaabEntityType = 'customer' | 'karigar';
