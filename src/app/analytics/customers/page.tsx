@@ -5,7 +5,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useAppStore, Invoice, Customer } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, parseISO, subDays, isWithinInterval, startOfDay } from 'date-fns';
+import { format, parseISO, subDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, AlertTriangle, ArrowLeft, Users, Search } from 'lucide-react';
@@ -46,7 +46,7 @@ export default function CustomersAnalyticsPage() {
 
   const filteredInvoices = useMemo(() => {
     if (!dateRange || !dateRange.from) return generatedInvoices;
-    const toDate = dateRange.to ? startOfDay(dateRange.to) : startOfDay(new Date());
+    const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
     return generatedInvoices.filter(invoice => {
       if (!invoice?.createdAt) return false;
       const invoiceDate = parseISO(invoice.createdAt);
@@ -55,14 +55,16 @@ export default function CustomersAnalyticsPage() {
   }, [generatedInvoices, dateRange]);
 
   const customerPerformance = useMemo(() => {
-    const performanceMap: Record<string, { totalSpent: number; orderCount: number; itemsPurchased: number }> = {};
+    const performanceMap: Record<string, { totalSpent: number; orderCount: number; itemsPurchased: number; resolvedName?: string }> = {};
 
     filteredInvoices.forEach(invoice => {
       if (!invoice) return;
-      const customerKey = invoice.customerId || 'walk-in';
+      // Use customerId when present; fall back to stored name so named customers
+      // without a linked account aren't all collapsed into "Walk-in".
+      const customerKey = invoice.customerId || (invoice.customerName ? `name:${invoice.customerName}` : 'walk-in');
 
       if (!performanceMap[customerKey]) {
-        performanceMap[customerKey] = { totalSpent: 0, orderCount: 0, itemsPurchased: 0 };
+        performanceMap[customerKey] = { totalSpent: 0, orderCount: 0, itemsPurchased: 0, resolvedName: invoice.customerName || undefined };
       }
       
       performanceMap[customerKey].totalSpent += invoice.grandTotal || 0;
@@ -70,11 +72,17 @@ export default function CustomersAnalyticsPage() {
       performanceMap[customerKey].itemsPurchased += invoice.items.reduce((acc, item) => acc + (item.quantity || 0), 0);
     });
 
-    return Object.entries(performanceMap).map(([id, data]) => {
-      const customerDetails = customers.find(c => c.id === id);
+    return Object.entries(performanceMap).map(([key, data]) => {
+      if (key === 'walk-in') {
+        return { customerId: undefined, customerName: 'Walk-in Customer', totalSpent: data.totalSpent, orderCount: data.orderCount, itemsPurchased: data.itemsPurchased, averageSpent: data.orderCount > 0 ? data.totalSpent / data.orderCount : 0 };
+      }
+      if (key.startsWith('name:')) {
+        return { customerId: undefined, customerName: key.slice(5), totalSpent: data.totalSpent, orderCount: data.orderCount, itemsPurchased: data.itemsPurchased, averageSpent: data.orderCount > 0 ? data.totalSpent / data.orderCount : 0 };
+      }
+      const customerDetails = customers.find(c => c.id === key);
       return {
-        customerId: id === 'walk-in' ? undefined : id,
-        customerName: customerDetails?.name || 'Walk-in Customer',
+        customerId: key,
+        customerName: customerDetails?.name || data.resolvedName || 'Walk-in Customer',
         totalSpent: data.totalSpent,
         orderCount: data.orderCount,
         itemsPurchased: data.itemsPurchased,

@@ -5,7 +5,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useAppStore, Invoice, Product } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, parseISO, subDays, isWithinInterval, startOfDay } from 'date-fns';
+import { format, parseISO, subDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, AlertTriangle, ArrowLeft, Package, Search } from 'lucide-react';
@@ -47,7 +47,7 @@ export default function ProductsAnalyticsPage() {
 
   const filteredInvoices = useMemo(() => {
     if (!dateRange || !dateRange.from) return generatedInvoices;
-    const toDate = dateRange.to ? startOfDay(dateRange.to) : startOfDay(new Date());
+    const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
     return generatedInvoices.filter(invoice => {
       if (!invoice?.createdAt) return false;
       const invoiceDate = parseISO(invoice.createdAt);

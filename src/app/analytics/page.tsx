@@ -170,6 +170,7 @@ export default function AnalyticsPage() {
     }
 
     let totalSales = 0;
+    let invoiceSalesAcc = 0;
     let totalItemsSold = 0;
     let totalDiscounts = 0;
     let totalUnpaid = 0;
@@ -181,7 +182,9 @@ export default function AnalyticsPage() {
     // Process Invoices
     filteredInvoices.forEach(invoice => {
       if (!invoice) return;
-      totalSales += invoice.grandTotal || 0;
+      const invAmount = invoice.grandTotal || 0;
+      totalSales += invAmount;
+      invoiceSalesAcc += invAmount;
       totalDiscounts += invoice.discountAmount || 0;
       totalUnpaid += invoice.balanceDue || 0;
 
@@ -335,7 +338,7 @@ export default function AnalyticsPage() {
       .slice(0, 10);
       
     calcData.totalSales = totalSales;
-    calcData.invoiceSales = totalSales - orderSales - extraRevenue;
+    calcData.invoiceSales = invoiceSalesAcc;
     calcData.orderSales = orderSales;
     calcData.extraRevenue = extraRevenue;
     calcData.totalUnpaid = totalUnpaid;
