@@ -226,10 +226,12 @@ export default function AnalyticsPage() {
     });
 
     // Process uninvoiced Orders into revenue
+    // Use subtotal (the full order value) — grandTotal is subtotal minus advance,
+    // which would understate revenue since the advance is still earned income.
     let orderSales = 0;
     filteredOrders.forEach(order => {
       if (!order) return;
-      const amount = order.grandTotal || 0;
+      const amount = order.subtotal || 0;
       totalSales += amount;
       orderSales += amount;
 
@@ -237,14 +239,14 @@ export default function AnalyticsPage() {
       if (!salesByDate[dateKey]) {
         salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
       }
-      salesByDate[dateKey].sales += order.grandTotal || 0;
+      salesByDate[dateKey].sales += order.subtotal || 0;
       salesByDate[dateKey].orders += 1;
 
       const customerKey = order.customerId || (order.customerName ? `name:${order.customerName}` : 'walk-in');
       if (!customerPerformance[customerKey]) {
         customerPerformance[customerKey] = { totalSpent: 0, orderCount: 0, resolvedName: order.customerName || undefined };
       }
-      customerPerformance[customerKey].totalSpent += order.grandTotal || 0;
+      customerPerformance[customerKey].totalSpent += order.subtotal || 0;
       customerPerformance[customerKey].orderCount += 1;
     });
 
@@ -268,6 +270,21 @@ export default function AnalyticsPage() {
     calcData.expensesByCategory = Object.entries(expenseByCategoryMap)
         .map(([category, amount]) => ({ category, amount }))
         .sort((a,b) => b.amount - a.amount);
+
+    // Process Additional Revenue — must happen BEFORE salesOverTime is built
+    // so extra revenue entries appear in the chart.
+    let extraRevenue = 0;
+    filteredAdditionalRevenues.forEach(r => {
+      if (!r) return;
+      const amount = r.amount || 0;
+      totalSales += amount;
+      extraRevenue += amount;
+      const dateKey = format(startOfDay(parseISO(r.date)), 'yyyy-MM-dd');
+      if (!salesByDate[dateKey]) {
+        salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
+      }
+      salesByDate[dateKey].sales += amount;
+    });
 
     calcData.salesOverTime = Object.entries(salesByDate)
       .map(([date, data]) => ({ date, sales: data.sales, orders: data.orders, itemsSold: data.itemsSold }))
@@ -316,20 +333,6 @@ export default function AnalyticsPage() {
       .sort((a, b) => b.totalSpent - a.totalSpent)
       .slice(0, 10);
       
-    // Process Additional Revenue into salesOverTime
-    let extraRevenue = 0;
-    filteredAdditionalRevenues.forEach(r => {
-      if (!r) return;
-      const amount = r.amount || 0;
-      totalSales += amount;
-      extraRevenue += amount;
-      const dateKey = format(startOfDay(parseISO(r.date)), 'yyyy-MM-dd');
-      if (!salesByDate[dateKey]) {
-        salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
-      }
-      salesByDate[dateKey].sales += amount;
-    });
-
     calcData.totalSales = totalSales;
     calcData.invoiceSales = totalSales - orderSales - extraRevenue;
     calcData.orderSales = orderSales;
