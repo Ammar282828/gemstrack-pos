@@ -175,7 +175,7 @@ export default function AnalyticsPage() {
     const salesByDate: Record<string, { sales: number; orders: number; itemsSold: number }> = {};
     const productPerformance: Record<string, { quantity: number; revenue: number }> = {};
     const categoryPerformance: Record<string, number> = {};
-    const customerPerformance: Record<string, { totalSpent: number; orderCount: number }> = {};
+    const customerPerformance: Record<string, { totalSpent: number; orderCount: number; resolvedName?: string }> = {};
     
     // Process Invoices
     filteredInvoices.forEach(invoice => {
@@ -191,9 +191,11 @@ export default function AnalyticsPage() {
       salesByDate[dateKey].sales += invoice.grandTotal || 0;
       salesByDate[dateKey].orders += 1;
 
-      const customerKey = invoice.customerId || 'walk-in';
+      // Use customerId if present; otherwise fall back to the stored name so named
+      // customers without a linked account aren't all collapsed into "Walk-in".
+      const customerKey = invoice.customerId || (invoice.customerName ? `name:${invoice.customerName}` : 'walk-in');
       if (!customerPerformance[customerKey]) {
-        customerPerformance[customerKey] = { totalSpent: 0, orderCount: 0 };
+        customerPerformance[customerKey] = { totalSpent: 0, orderCount: 0, resolvedName: invoice.customerName || undefined };
       }
       customerPerformance[customerKey].totalSpent += invoice.grandTotal || 0;
       customerPerformance[customerKey].orderCount += 1;
@@ -238,9 +240,9 @@ export default function AnalyticsPage() {
       salesByDate[dateKey].sales += order.grandTotal || 0;
       salesByDate[dateKey].orders += 1;
 
-      const customerKey = order.customerId || 'walk-in';
+      const customerKey = order.customerId || (order.customerName ? `name:${order.customerName}` : 'walk-in');
       if (!customerPerformance[customerKey]) {
-        customerPerformance[customerKey] = { totalSpent: 0, orderCount: 0 };
+        customerPerformance[customerKey] = { totalSpent: 0, orderCount: 0, resolvedName: order.customerName || undefined };
       }
       customerPerformance[customerKey].totalSpent += order.grandTotal || 0;
       customerPerformance[customerKey].orderCount += 1;
@@ -295,11 +297,19 @@ export default function AnalyticsPage() {
       .sort((a, b) => b.sales - a.sales);
 
     calcData.topCustomers = Object.entries(customerPerformance)
-      .map(([customerId, data]) => {
-        const customerDetails = customers.find(c => c.id === customerId);
+      .map(([key, data]) => {
+        if (key === 'walk-in') {
+          return { customerId: undefined, customerName: 'Walk-in Customer', totalSpent: data.totalSpent, orderCount: data.orderCount };
+        }
+        if (key.startsWith('name:')) {
+          // Named customer without a linked account — use the stored name directly
+          return { customerId: undefined, customerName: key.slice(5), totalSpent: data.totalSpent, orderCount: data.orderCount };
+        }
+        // Linked customer — look up current name from store
+        const customerDetails = customers.find(c => c.id === key);
         return {
-          customerId: customerId === 'walk-in' ? undefined : customerId,
-          customerName: customerDetails?.name || 'Walk-in Customer',
+          customerId: key,
+          customerName: customerDetails?.name || data.resolvedName || 'Walk-in Customer',
           totalSpent: data.totalSpent, orderCount: data.orderCount,
         };
       })
