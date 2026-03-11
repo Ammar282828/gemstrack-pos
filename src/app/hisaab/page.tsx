@@ -149,6 +149,7 @@ export default function HisaabPage() {
     const summaryMap: { [entityId: string]: AccountSummary } = {};
 
     hisaabEntries.forEach(entry => {
+      if (!entry.entityId || entry.entityId === 'walk-in') return;
       if (!summaryMap[entry.entityId]) {
         summaryMap[entry.entityId] = {
           entityId: entry.entityId,

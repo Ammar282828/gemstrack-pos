@@ -1857,10 +1857,18 @@ export const useAppStore = create<AppState>()(
 
       syncHisaabOutstandingBalances: async () => {
         try {
-          const [invoicesSnap, hisaabSnap] = await Promise.all([
+          const [invoicesSnap, hisaabSnap, customersSnap] = await Promise.all([
             getDocs(collection(db, FIRESTORE_COLLECTIONS.INVOICES)),
             getDocs(collection(db, FIRESTORE_COLLECTIONS.HISAAB)),
+            getDocs(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS)),
           ]);
+
+          // Build a name→{id, name} map for fuzzy customer matching on Shopify invoices with missing customerId
+          const customerByName: Record<string, { id: string; name: string }> = {};
+          for (const d of customersSnap.docs) {
+            const cust = d.data() as any;
+            if (cust.name) customerByName[cust.name.toLowerCase().trim()] = { id: d.id, name: cust.name };
+          }
 
           // Build a map of invoiceId → invoice data for fast lookup
           const invoiceMap: Record<string, any> = {};
@@ -1915,11 +1923,13 @@ export const useAppStore = create<AppState>()(
               // Outstanding — ensure exactly one debit entry with the correct amount
               if (debitEntries.length === 0) {
                 // No entry — create one (only if we have a real customer)
-                if (inv.customerId && inv.customerId !== 'walk-in') {
+                // For invoices with missing customerId (e.g. Shopify imports with unmatched names), try name-based lookup
+                const resolvedCustomerId = inv.customerId || customerByName[inv.customerName?.toLowerCase().trim()]?.id || '';
+                if (resolvedCustomerId && resolvedCustomerId !== 'walk-in') {
                   console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) outstanding ${inv.balanceDue} — creating missing entry.`);
                   const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
                   batch.set(newRef, {
-                    entityId: inv.customerId,
+                    entityId: resolvedCustomerId,
                     entityType: 'customer',
                     entityName: inv.customerName || 'Customer',
                     date: inv.createdAt,
@@ -1942,6 +1952,33 @@ export const useAppStore = create<AppState>()(
                 debitEntries.slice(1).forEach(h => { batch.delete(h._ref); ops++; });
               }
             }
+          }
+
+          // Second pass: catch invoices that have NO hisaab entry at all.
+          // These are typically Shopify-imported invoices that were never run through
+          // generateInvoice(), so no entry was ever created for them.
+          for (const inv of Object.values(invoiceMap)) {
+            if (linkedByInvoice[inv.id]) continue; // already handled above
+            if ((inv.balanceDue ?? 0) <= 0 || inv.status === 'Refunded') continue;
+            // For invoices with missing customerId (e.g. Shopify imports with unmatched names), try name-based lookup
+            const resolvedId = inv.customerId || customerByName[inv.customerName?.toLowerCase().trim()]?.id || '';
+            if (!resolvedId || resolvedId === 'walk-in') continue;
+
+            console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) has no hisaab entry — creating (balanceDue: ${inv.balanceDue}).`);
+            const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
+            batch.set(newRef, {
+              entityId: resolvedId,
+              entityType: 'customer',
+              entityName: inv.customerName || 'Customer',
+              date: inv.createdAt,
+              description: `Outstanding balance for Invoice ${inv.id}`,
+              cashDebit: inv.balanceDue,
+              cashCredit: 0,
+              goldDebitGrams: 0,
+              goldCreditGrams: 0,
+              linkedInvoiceId: inv.id,
+            });
+            ops++;
           }
 
           if (ops > 0) {

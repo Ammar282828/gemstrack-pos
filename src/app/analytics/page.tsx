@@ -61,11 +61,11 @@ export default function AnalyticsPage() {
   const yearlySummary = useMemo(() => {
     const yearMap: Record<number, { revenue: number; expenses: number; unpaid: number }> = {};
     generatedInvoices.forEach(inv => {
-      if (!inv?.createdAt) return;
+      if (!inv?.createdAt || inv.status === 'Refunded') return;
       const yr = getYear(parseISO(inv.createdAt));
       if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
       yearMap[yr].revenue += inv.grandTotal || 0;
-      yearMap[yr].unpaid += inv.balanceDue || 0;
+      yearMap[yr].unpaid += Math.max(0, inv.balanceDue || 0);
     });
     orders.forEach(order => {
       if (!order?.createdAt || order.status === 'Cancelled' || order.status === 'Refunded' || order.invoiceId) return;
@@ -98,9 +98,10 @@ export default function AnalyticsPage() {
   }, [generatedInvoices, orders, expenses, additionalRevenues]);
 
   const filteredInvoices = useMemo(() => {
-    if (!dateRange || !dateRange.from) return generatedInvoices; 
+    const base = generatedInvoices.filter(invoice => invoice?.status !== 'Refunded');
+    if (!dateRange || !dateRange.from) return base;
 
-    return generatedInvoices.filter(invoice => {
+    return base.filter(invoice => {
       if (!invoice || !invoice.createdAt) return false;
       const invoiceDate = parseISO(invoice.createdAt);
       const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
@@ -186,7 +187,7 @@ export default function AnalyticsPage() {
       totalSales += invAmount;
       invoiceSalesAcc += invAmount;
       totalDiscounts += invoice.discountAmount || 0;
-      totalUnpaid += invoice.balanceDue || 0;
+      totalUnpaid += Math.max(0, invoice.balanceDue || 0);
 
       const dateKey = format(startOfDay(parseISO(invoice.createdAt)), 'yyyy-MM-dd');
       if (!salesByDate[dateKey]) {

@@ -6,8 +6,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
   }
 
-  // Only proxy Firebase Storage URLs
-  if (!url.startsWith('https://firebasestorage.googleapis.com/')) {
+  // Only proxy trusted image hosts
+  const ALLOWED_HOSTS = [
+    'https://firebasestorage.googleapis.com/',
+    'https://houseofmina.store/cdn/',
+  ];
+  if (!ALLOWED_HOSTS.some(h => url.startsWith(h))) {
     return NextResponse.json({ error: 'URL not allowed' }, { status: 403 });
   }
 

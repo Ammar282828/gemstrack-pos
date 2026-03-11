@@ -562,6 +562,8 @@ export default function CartPage() {
 
     let logoDataUrl: string | null = null;
     let logoFormat: string = 'PNG';
+    let logoNaturalW = 0;
+    let logoNaturalH = 0;
     const logoUrl = settings?.shopLogoUrlBlack || settings?.shopLogoUrl;
     if (logoUrl) {
       try {
@@ -575,6 +577,13 @@ export default function CartPage() {
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
+        // Get natural dimensions to preserve aspect ratio
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => { logoNaturalW = img.naturalWidth; logoNaturalH = img.naturalHeight; resolve(); };
+          img.onerror = () => resolve();
+          img.src = logoDataUrl!;
+        });
       } catch (e) {
         console.error("Error loading logo:", e);
       }
@@ -583,7 +592,10 @@ export default function CartPage() {
     function drawHeader(pageNum: number) {
       if (logoDataUrl) {
         try {
-          doc.addImage(logoDataUrl, logoFormat, margin, 8, 35, 11, undefined, 'FAST');
+          const maxLogoH = 14;
+          const logoH = maxLogoH;
+          const logoW = logoNaturalH > 0 ? maxLogoH * (logoNaturalW / logoNaturalH) : 45;
+          doc.addImage(logoDataUrl, logoFormat, margin, 8, logoW, logoH, undefined, 'FAST');
         } catch (e) {
           console.error("Error adding logo image to PDF:", e);
         }

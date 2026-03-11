@@ -1,5 +1,11 @@
+/**
+ * Restore settings to Firestore.
+ * Fill in the values below before running.
+ * Requires open Firestore rules.
+ */
+
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBJsDVAI_b7RvnSf-cpnSNLXQ-R0OH0qU4",
@@ -13,12 +19,56 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const ref = doc(db, 'app_settings', 'global');
-const snap = await getDoc(ref);
-const d = snap.data();
+const SETTINGS = {
+  shopName: "MINA",
+  shopAddress: "",
+  shopContact: "",
 
-console.log('--- Current Firestore Settings ---');
-const keys = ['shopName','goldRatePerGram24k','goldRatePerGram22k','goldRatePerGram21k','goldRatePerGram18k','silverRatePerGram','palladiumRatePerGram','platinumRatePerGram','lastInvoiceNumber','lastOrderNumber','theme'];
-keys.forEach(k => console.log(`  ${k}: ${d[k]}`));
+  goldRatePerGram24k: 44882,
+  goldRatePerGram22k: 41142,
+  goldRatePerGram21k: 39272,
+  goldRatePerGram18k: 33662,
+  palladiumRatePerGram: 22000,
+  platinumRatePerGram: 25000,
+  silverRatePerGram: 3500,
 
+  lastInvoiceNumber: 156,
+  lastOrderNumber: 12,
+  theme: 'slate',
+  databaseLocked: false,
+
+  paymentMethods: [
+    {
+      id: 'pm-restored',
+      bankName: 'Bank Al-Habib',
+      accountName: 'House of Mina',
+      accountNumber: '1227098100227801',
+      iban: 'PK42 BAHL 1227 0981 0022 7801',
+    }
+  ],
+
+  shopLogoUrl: "",
+  shopLogoUrlBlack: "",
+
+  allowedDeviceIds: [],
+  weprintApiSkus: [],
+};
+
+const settingsRef = doc(db, 'app_settings', 'global');
+const existing = await getDoc(settingsRef);
+
+if (existing.exists()) {
+  const current = existing.data();
+  console.log('--- Current Firestore Settings ---');
+  const keys = ['shopName', 'goldRatePerGram24k', 'goldRatePerGram22k', 'goldRatePerGram21k', 'goldRatePerGram18k', 'silverRatePerGram', 'palladiumRatePerGram', 'platinumRatePerGram', 'lastInvoiceNumber', 'lastOrderNumber', 'theme'];
+  keys.forEach(key => console.log(`  ${key}: ${current[key]}`));
+
+  if (current.shopLogoUrl) SETTINGS.shopLogoUrl = current.shopLogoUrl;
+  if (current.shopLogoUrlBlack) SETTINGS.shopLogoUrlBlack = current.shopLogoUrlBlack;
+  if (current.firebaseConfig) SETTINGS.firebaseConfig = current.firebaseConfig;
+}
+
+await setDoc(settingsRef, SETTINGS, { merge: true });
+console.log('Settings restored:');
+console.log(JSON.stringify(SETTINGS, null, 2));
 process.exit(0);

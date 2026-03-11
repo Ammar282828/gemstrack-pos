@@ -202,7 +202,10 @@ export default function SettingsPage() {
   });
 
   React.useEffect(() => {
-    if (appReady && currentSettings) {
+    // Only reset the form on the initial load (when it's pristine).
+    // Subsequent real-time Firestore updates (e.g. lastInvoiceNumber ticking up)
+    // must NOT wipe out in-progress edits.
+    if (appReady && currentSettings && !form.formState.isDirty) {
       form.reset({
         goldRatePerGram18k: currentSettings.goldRatePerGram18k || 0,
         goldRatePerGram21k: currentSettings.goldRatePerGram21k || 0,
@@ -267,6 +270,9 @@ export default function SettingsPage() {
   const onSubmit = async (data: SettingsFormData) => {
     try {
         const settingsToSave: Partial<Settings> = { ...data };
+        // Don't overwrite existing logo URLs with empty strings (happens when no new logo was uploaded)
+        if (!settingsToSave.shopLogoUrl) delete settingsToSave.shopLogoUrl;
+        if (!settingsToSave.shopLogoUrlBlack) delete settingsToSave.shopLogoUrlBlack;
         await updateSettingsAction(settingsToSave);
         toast({ title: "Settings Updated", description: "Your shop settings have been saved." });
     } catch (error) {
@@ -650,7 +656,7 @@ export default function SettingsPage() {
             <div className="space-y-3">
               {signInLogs.map(log => (
                 <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
-                  {log.photoURL ? (
+                  {log.photoURL && log.photoURL.length > 0 ? (
                     <img src={log.photoURL} alt={log.displayName || ''} className="h-9 w-9 rounded-full flex-shrink-0 object-cover" />
                   ) : (
                     <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">

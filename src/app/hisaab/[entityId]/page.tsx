@@ -10,7 +10,7 @@ import { useForm, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, BookUser, ArrowLeft, User, Briefcase, PlusCircle, Save, ArrowDown, ArrowUp, Trash2, AlertTriangle, FileText, MessageSquare } from 'lucide-react';
+import { Loader2, BookUser, ArrowLeft, User, Briefcase, PlusCircle, Save, ArrowDown, ArrowUp, Trash2, AlertTriangle, FileText, MessageSquare, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -430,7 +430,14 @@ export default function EntityHisaabPage() {
                                 <CardContent className="p-4">
                                   <div className="flex justify-between items-start gap-2">
                                     <div className="flex-1 min-w-0">
-                                      <p className="font-semibold truncate">{entry.description}</p>
+                                      <div className="flex items-center gap-1.5">
+                                        <p className="font-semibold truncate">{entry.description}</p>
+                                        {entry.linkedInvoiceId && (
+                                          <a href={`/cart?invoice_id=${entry.linkedInvoiceId}`} className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors" title={`Open ${entry.linkedInvoiceId} to record payment`}>
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                          </a>
+                                        )}
+                                      </div>
                                       <p className="text-xs text-muted-foreground mt-1">{format(parseISO(entry.date), 'MMM dd, yyyy')}</p>
                                     </div>
                                     <div className="text-right flex-shrink-0">
@@ -469,7 +476,16 @@ export default function EntityHisaabPage() {
                                 {entityHisaab.map(entry => (
                                     <TableRow key={entry.id}>
                                         <TableCell className="whitespace-nowrap text-muted-foreground text-sm">{format(parseISO(entry.date), 'dd-MMM-yy')}</TableCell>
-                                        <TableCell className="max-w-xs truncate">{entry.description}</TableCell>
+                                        <TableCell className="max-w-xs">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="truncate">{entry.description}</span>
+                                              {entry.linkedInvoiceId && (
+                                                <a href={`/cart?invoice_id=${entry.linkedInvoiceId}`} className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors" title={`Open ${entry.linkedInvoiceId} to record payment`}>
+                                                  <ExternalLink className="h-3.5 w-3.5" />
+                                                </a>
+                                              )}
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="text-right font-medium text-destructive">
                                             {entry.cashDebit > 0 && <div>PKR {entry.cashDebit.toLocaleString()}</div>}
                                             {entry.goldDebitGrams > 0 && <div className="text-xs">{entry.goldDebitGrams.toFixed(3)} g</div>}

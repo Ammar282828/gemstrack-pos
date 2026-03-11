@@ -150,8 +150,10 @@ export default function HomePage() {
 
   const stats = useMemo(() => {
     const now = new Date();
-    const last30 = subDays(now, 30);
     const todayStart = startOfDay(now);
+    // Use startOfDay(subDays(29)) so "last 30 days" = today + 29 prior full days,
+    // matching exactly what the Analytics page shows with its default date range.
+    const last30Start = startOfDay(subDays(now, 29));
 
     // Ongoing
     const ongoingOrders = orders
@@ -159,7 +161,7 @@ export default function HomePage() {
       .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
 
     // Today invoices
-    const todayInvoices = generatedInvoices.filter(inv => parseISO(inv.createdAt) >= todayStart);
+    const todayInvoices = generatedInvoices.filter(inv => inv.status !== 'Refunded' && parseISO(inv.createdAt) >= todayStart);
     const todayInvoiceRevenue = todayInvoices.reduce((s, inv) => s + (inv.grandTotal || 0), 0);
 
     // Today extra revenue
@@ -170,18 +172,18 @@ export default function HomePage() {
     const todayRevenue = todayInvoiceRevenue + todayExtraRevenue;
 
     // 30-day
-    const recentInvoices = generatedInvoices.filter(inv => parseISO(inv.createdAt) >= last30);
+    const recentInvoices = generatedInvoices.filter(inv => inv.status !== 'Refunded' && parseISO(inv.createdAt) >= last30Start);
     const invoiceRevenue30 = recentInvoices.reduce((s, inv) => s + (inv.grandTotal || 0), 0);
     const freeOrders30 = orders.filter(o =>
-      parseISO(o.createdAt) >= last30 &&
+      parseISO(o.createdAt) >= last30Start &&
       o.status !== 'Cancelled' && o.status !== 'Refunded' && !o.invoiceId
     );
     const orderRevenue30 = freeOrders30.reduce((s, o) => s + (o.subtotal || 0), 0);
-    const extraRevenue30 = additionalRevenues.filter(r => parseISO(r.date) >= last30).reduce((s, r) => s + (r.amount || 0), 0);
+    const extraRevenue30 = additionalRevenues.filter(r => parseISO(r.date) >= last30Start).reduce((s, r) => s + (r.amount || 0), 0);
     const revenue30 = invoiceRevenue30 + orderRevenue30 + extraRevenue30;
 
     // 30-day expenses
-    const expenses30 = expenses.filter(e => parseISO(e.date) >= last30).reduce((s, e) => s + (e.amount || 0), 0);
+    const expenses30 = expenses.filter(e => parseISO(e.date) >= last30Start).reduce((s, e) => s + (e.amount || 0), 0);
 
     // Total outstanding balance due
     const totalOutstanding = generatedInvoices.reduce((s, inv) => s + Math.max(0, inv.balanceDue || 0), 0);
