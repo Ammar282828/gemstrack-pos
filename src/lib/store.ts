@@ -304,6 +304,7 @@ export interface Settings extends GoldRates {
   shopifyStoreDomain?: string;
   shopifyAccessToken?: string;
   shopifyLastSyncedAt?: string;
+  goldRatesLastFetchedAt?: string; // ISO string – when rates were last auto-fetched from gold.pk
 }
 
 export interface Category {
@@ -770,6 +771,8 @@ export interface AppState {
   addCustomer: (customerData: Omit<Customer, 'id'>) => Promise<Customer | null>;
   updateCustomer: (id: string, updatedCustomerData: Partial<Omit<Customer, 'id'>>) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
+  mergeCustomers: (keepId: string, deleteId: string) => Promise<{ updatedDocs: number }>;
+
 
   loadKarigars: () => void;
   addKarigar: (karigarData: Omit<Karigar, 'id'>) => Promise<Karigar | null>;
@@ -797,6 +800,7 @@ export interface AppState {
     existingInvoiceId?: string
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string) => Promise<Invoice | null>;
+  syncHisaabOutstandingBalances: () => Promise<void>;
   deleteInvoice: (invoiceId: string, isEditing?: boolean) => Promise<void>;
   
   loadOrders: () => void;
@@ -1369,6 +1373,71 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      mergeCustomers: async (keepId, deleteId) => {
+        if(get().settings.databaseLocked) return { updatedDocs: 0 };
+        const keepCustomer = get().customers.find(c => c.id === keepId);
+        const deleteCustomer = get().customers.find(c => c.id === deleteId);
+        if (!keepCustomer || !deleteCustomer) throw new Error('One or both customers not found');
+
+        let updatedDocs = 0;
+        const BATCH_LIMIT = 490;
+
+        const flushBatch = async (batch: ReturnType<typeof writeBatch>) => {
+          await batch.commit();
+        };
+
+        let batch = writeBatch(db);
+        let opCount = 0;
+
+        const addOp = async (op: () => void) => {
+          op();
+          opCount++;
+          if (opCount >= BATCH_LIMIT) {
+            await flushBatch(batch);
+            batch = writeBatch(db);
+            opCount = 0;
+          }
+        };
+
+        // Update invoices
+        const invoicesSnap = await getDocs(query(collection(db, FIRESTORE_COLLECTIONS.INVOICES), where('customerId', '==', deleteId)));
+        for (const d of invoicesSnap.docs) {
+          await addOp(() => batch.update(d.ref, { customerId: keepId, customerName: keepCustomer.name }));
+          updatedDocs++;
+        }
+
+        // Update orders
+        const ordersSnap = await getDocs(query(collection(db, FIRESTORE_COLLECTIONS.ORDERS), where('customerId', '==', deleteId)));
+        for (const d of ordersSnap.docs) {
+          await addOp(() => batch.update(d.ref, { customerId: keepId, customerName: keepCustomer.name }));
+          updatedDocs++;
+        }
+
+        // Update hisaab entries
+        const hisaabSnap = await getDocs(query(collection(db, FIRESTORE_COLLECTIONS.HISAAB), where('entityId', '==', deleteId), where('entityType', '==', 'customer')));
+        for (const d of hisaabSnap.docs) {
+          await addOp(() => batch.update(d.ref, { entityId: keepId, entityName: keepCustomer.name }));
+          updatedDocs++;
+        }
+
+        // Update given items
+        const givenSnap = await getDocs(query(collection(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS), where('recipientId', '==', deleteId)));
+        for (const d of givenSnap.docs) {
+          await addOp(() => batch.update(d.ref, { recipientId: keepId, recipientName: keepCustomer.name }));
+          updatedDocs++;
+        }
+
+        // Delete the duplicate customer
+        await addOp(() => batch.delete(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, deleteId)));
+
+        if (opCount > 0) await flushBatch(batch);
+
+        await addActivityLog('customer.delete', `Merged customer "${deleteCustomer.name}" into "${keepCustomer.name}"`, `Deleted ID: ${deleteId}, Kept ID: ${keepId}, Updated ${updatedDocs} records`, keepId);
+
+        return { updatedDocs };
+      },
+
+
       addKarigar: async (karigarData) => {
         if(get().settings.databaseLocked) return null;
         const newKarigarId = `karigar-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
@@ -1724,23 +1793,43 @@ export const useAppStore = create<AppState>()(
                 return { ...invoiceData, ...updatedFields, id: invoiceId };
             });
             if (updatedInvoice) {
-                // Update or remove ALL outstanding balance hisaab entries (not just docs[0])
+                // Find all hisaab entries linked to this invoice and update to reflect new balanceDue.
+                // Single-field query to avoid composite index requirement; filter cashDebit in JS.
                 const hisaabSnap = await getDocs(query(
                     collection(db, FIRESTORE_COLLECTIONS.HISAAB),
                     where('linkedInvoiceId', '==', invoiceId)
                 ));
-                if (!hisaabSnap.empty) {
-                    const hisaabBatch = writeBatch(db);
-                    if (updatedInvoice.balanceDue <= 0) {
-                        // Fully paid — delete all linked entries
-                        hisaabSnap.docs.forEach(d => hisaabBatch.delete(d.ref));
+                const debitDocs = hisaabSnap.docs.filter(d => (d.data().cashDebit ?? 0) > 0);
+
+                const hisaabBatch = writeBatch(db);
+                if (updatedInvoice.balanceDue <= 0) {
+                    // Fully paid — remove all linked debit entries
+                    debitDocs.forEach(d => hisaabBatch.delete(d.ref));
+                } else {
+                    // Partially paid — update first entry to remaining balance, delete any duplicates
+                    if (debitDocs.length > 0) {
+                        hisaabBatch.update(debitDocs[0].ref, { cashDebit: updatedInvoice.balanceDue });
+                        debitDocs.slice(1).forEach(d => hisaabBatch.delete(d.ref));
                     } else {
-                        // Partial payment — update first entry, delete duplicates
-                        hisaabBatch.update(hisaabSnap.docs[0].ref, { cashDebit: updatedInvoice.balanceDue });
-                        hisaabSnap.docs.slice(1).forEach(d => hisaabBatch.delete(d.ref));
+                        // No linked entry found (edge case) — create one for the outstanding amount
+                        if (updatedInvoice.customerId && updatedInvoice.customerId !== 'walk-in') {
+                            const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
+                            hisaabBatch.set(newRef, {
+                                entityId: updatedInvoice.customerId,
+                                entityType: 'customer',
+                                entityName: updatedInvoice.customerName || 'Customer',
+                                date: updatedInvoice.createdAt,
+                                description: `Outstanding balance for Invoice ${invoiceId}`,
+                                cashDebit: updatedInvoice.balanceDue,
+                                cashCredit: 0,
+                                goldDebitGrams: 0,
+                                goldCreditGrams: 0,
+                                linkedInvoiceId: invoiceId,
+                            });
+                        }
                     }
-                    await hisaabBatch.commit();
                 }
+                await hisaabBatch.commit();
 
                 // Sync the source order's grandTotal if this invoice came from an order
                 if (updatedInvoice.sourceOrderId) {
@@ -1755,6 +1844,106 @@ export const useAppStore = create<AppState>()(
         } catch (error) {
             console.error(`Error updating invoice payment for ${invoiceId}:`, error);
             return null;
+        }
+      },
+
+      syncHisaabOutstandingBalances: async () => {
+        try {
+          const [invoicesSnap, hisaabSnap] = await Promise.all([
+            getDocs(collection(db, FIRESTORE_COLLECTIONS.INVOICES)),
+            getDocs(collection(db, FIRESTORE_COLLECTIONS.HISAAB)),
+          ]);
+
+          // Build a map of invoiceId → invoice data for fast lookup
+          const invoiceMap: Record<string, any> = {};
+          for (const d of invoicesSnap.docs) {
+            invoiceMap[d.id] = { ...d.data(), id: d.id };
+          }
+
+          const allHisaabDocs = hisaabSnap.docs.map(d => ({ _ref: d.ref, ...(d.data() as any) }));
+
+          console.log(`[syncHisaab] Checking ${invoicesSnap.docs.length} invoices against ${hisaabSnap.docs.length} hisaab entries.`);
+
+          // Log all current hisaab entries so we can see what's actually in there
+          for (const h of allHisaabDocs) {
+            const invData = h.linkedInvoiceId ? invoiceMap[h.linkedInvoiceId] : null;
+            console.log(`[syncHisaab] Entry: ${h.entityName} | debit:${h.cashDebit} credit:${h.cashCredit} | linkedInvoice:${h.linkedInvoiceId || 'none'} | invoice.balanceDue:${invData ? invData.balanceDue : 'N/A'} | invoice.amountPaid:${invData ? invData.amountPaid : 'N/A'} | invoice.grandTotal:${invData ? invData.grandTotal : 'N/A'}`);
+          }
+
+          const batch = writeBatch(db);
+          let ops = 0;
+
+          // Iterate over hisaab entries — for each entry linked to an invoice, validate it
+          // Group by invoiceId so we can handle duplicates
+          const linkedByInvoice: Record<string, typeof allHisaabDocs> = {};
+          for (const h of allHisaabDocs) {
+            if (!h.linkedInvoiceId) continue; // manual entries — leave untouched
+            if (!linkedByInvoice[h.linkedInvoiceId]) linkedByInvoice[h.linkedInvoiceId] = [];
+            linkedByInvoice[h.linkedInvoiceId].push(h);
+          }
+
+          for (const [invoiceId, linked] of Object.entries(linkedByInvoice)) {
+            const inv = invoiceMap[invoiceId];
+
+            // Invoice was deleted but hisaab entry remains — clean up
+            if (!inv) {
+              linked.forEach(h => { batch.delete(h._ref); ops++; });
+              console.log(`[syncHisaab] Deleted ${linked.length} orphaned entries for missing invoice ${invoiceId}.`);
+              continue;
+            }
+
+            const debitEntries = linked.filter(h => (h.cashDebit ?? 0) > 0);
+            // cashCredit-only entries with a linkedInvoiceId are artifacts — remove them
+            const badCreditEntries = linked.filter(h => (h.cashDebit ?? 0) === 0 && (h.cashCredit ?? 0) > 0);
+            badCreditEntries.forEach(h => { batch.delete(h._ref); ops++; });
+
+            if ((inv.balanceDue ?? 0) <= 0 || inv.status === 'Refunded') {
+              // Fully paid or refunded — delete all linked debit entries
+              if (debitEntries.length > 0) {
+                console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) fully paid, removing ${debitEntries.length} stale debit entries.`);
+                debitEntries.forEach(h => { batch.delete(h._ref); ops++; });
+              }
+            } else {
+              // Outstanding — ensure exactly one debit entry with the correct amount
+              if (debitEntries.length === 0) {
+                // No entry — create one (only if we have a real customer)
+                if (inv.customerId && inv.customerId !== 'walk-in') {
+                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) outstanding ${inv.balanceDue} — creating missing entry.`);
+                  const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
+                  batch.set(newRef, {
+                    entityId: inv.customerId,
+                    entityType: 'customer',
+                    entityName: inv.customerName || 'Customer',
+                    date: inv.createdAt,
+                    description: `Outstanding balance for Invoice ${inv.id}`,
+                    cashDebit: inv.balanceDue,
+                    cashCredit: 0,
+                    goldDebitGrams: 0,
+                    goldCreditGrams: 0,
+                    linkedInvoiceId: inv.id,
+                  });
+                  ops++;
+                }
+              } else {
+                // Update stale amount and remove duplicates
+                if (debitEntries[0].cashDebit !== inv.balanceDue) {
+                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) updating stale cashDebit ${debitEntries[0].cashDebit} → ${inv.balanceDue}.`);
+                  batch.update(debitEntries[0]._ref, { cashDebit: inv.balanceDue });
+                  ops++;
+                }
+                debitEntries.slice(1).forEach(h => { batch.delete(h._ref); ops++; });
+              }
+            }
+          }
+
+          if (ops > 0) {
+            await batch.commit();
+            console.log(`[syncHisaab] Done — applied ${ops} corrections.`);
+          } else {
+            console.log('[syncHisaab] Already in sync, nothing to do.');
+          }
+        } catch (error) {
+          console.error('[syncHisaab] Error:', error);
         }
       },
 

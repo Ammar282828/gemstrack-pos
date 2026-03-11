@@ -170,13 +170,13 @@ export default function ViewInvoicePage() {
     
     const rates = (invoice.ratesApplied || {}) as Record<string, number>;
     const itemsList = invoice.items as InvoiceItem[];
-    const hasGoldItems = itemsList.some(i => i.metalType === 'gold');
+    const usedKarats = new Set(itemsList.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
     let ratesApplied: string[] = [];
-    if (hasGoldItems) {
-      if (rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
-      if (rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
-      if (rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
-      if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+    if (usedKarats.size > 0) {
+      if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
+      if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
+      if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
+      if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
     }
 
     if (ratesApplied.length > 0) {

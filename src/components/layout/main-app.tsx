@@ -4,6 +4,7 @@
 import React, { useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
+import { useGoldRatesSync } from '@/hooks/use-gold-rates-sync';
 import { Loader2 } from 'lucide-react';
 
 export function MainApp({ children }: { children: React.ReactNode }) {
@@ -12,6 +13,9 @@ export function MainApp({ children }: { children: React.ReactNode }) {
     loadSettings, isSettingsLoading, hasSettingsLoaded,
     loadProducts,
   } = useAppStore();
+
+  // Auto-fetch gold rates from gold.pk once per day
+  useGoldRatesSync();
 
   useEffect(() => {
     // This effect runs once when the store is rehydrated.

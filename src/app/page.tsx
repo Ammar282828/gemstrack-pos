@@ -3,7 +3,7 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal, Order } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal, Order, Invoice } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,9 +13,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   PlusCircle, ShoppingCart, Trash2, ExternalLink, QrCode, Loader2, Gem, Users,
   Briefcase, ClipboardList, TrendingUp, BookUser, Settings as SettingsIcon,
-  FileText, ArrowRight, TrendingDown, DollarSign, Clock, PackageSearch,
+  FileText, ArrowRight, DollarSign, Clock, PackageSearch, Receipt,
+  TrendingDown, AlertCircle, CreditCard, Zap,
 } from 'lucide-react';
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO, subDays, isToday, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 // --- Cart item ---
@@ -38,16 +39,16 @@ const CartSummaryItem: React.FC<{
 );
 
 // --- Stat card ---
-const StatCard: React.FC<{ title: string; value: string; sub?: string; icon: React.ReactNode; color?: string }> = ({ title, value, sub, icon, color = 'text-primary' }) => (
+const StatCard: React.FC<{ title: string; value: string; sub?: string; icon: React.ReactNode; colorClass?: string }> = ({ title, value, sub, icon, colorClass = 'bg-primary/10 text-primary' }) => (
   <Card>
-    <CardContent className="p-5 flex items-center gap-4">
-      <div className={cn("p-3 rounded-lg bg-primary/10", color === 'text-primary' ? 'bg-primary/10' : color === 'text-green-600' ? 'bg-green-500/10' : color === 'text-orange-500' ? 'bg-orange-500/10' : 'bg-primary/10')}>
-        <div className={color}>{icon}</div>
+    <CardContent className="p-4 flex items-center gap-3">
+      <div className={cn("p-2.5 rounded-lg flex-shrink-0", colorClass)}>
+        {icon}
       </div>
-      <div>
-        <p className="text-sm text-muted-foreground">{title}</p>
-        <p className="text-2xl font-bold">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground truncate">{title}</p>
+        <p className="text-xl font-bold leading-tight truncate">{value}</p>
+        {sub && <p className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</p>}
       </div>
     </CardContent>
   </Card>
@@ -61,15 +62,15 @@ const OngoingOrderRow: React.FC<{ order: Order }> = ({ order }) => {
     : 'bg-blue-500/80 text-blue-50';
 
   return (
-    <Link href={`/orders/${order.id}`} className="flex items-center justify-between py-3 px-1 hover:bg-muted/40 rounded-md transition-colors group">
-      <div className="flex items-center gap-3 min-w-0">
-        <Badge className={cn("border-transparent flex-shrink-0", statusColor)}>{order.status}</Badge>
+    <Link href={`/orders/${order.id}`} className="flex items-center justify-between py-2.5 px-1 hover:bg-muted/40 rounded-md transition-colors group">
+      <div className="flex items-center gap-2 min-w-0">
+        <Badge className={cn("border-transparent flex-shrink-0 text-xs", statusColor)}>{order.status}</Badge>
         <div className="min-w-0">
           <p className="font-semibold text-sm">{order.id}</p>
           <p className="text-xs text-muted-foreground truncate">{order.customerName || 'Walk-in'}</p>
         </div>
       </div>
-      <div className="flex items-center gap-3 flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <div className="text-right">
           <p className="text-sm font-semibold text-primary">PKR {grandTotal.toLocaleString()}</p>
           <p className="text-xs text-muted-foreground">{format(parseISO(order.createdAt), 'MMM d')}</p>
@@ -80,6 +81,25 @@ const OngoingOrderRow: React.FC<{ order: Order }> = ({ order }) => {
   );
 };
 
+// --- Recent invoice row ---
+const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => (
+  <Link href={`/view-invoice?invoiceId=${invoice.id}`} className="flex items-center justify-between py-2.5 px-1 hover:bg-muted/40 rounded-md transition-colors group">
+    <div className="min-w-0">
+      <p className="font-semibold text-sm">{invoice.customerName || 'Walk-in'}</p>
+      <p className="text-xs text-muted-foreground">{format(parseISO(invoice.createdAt), 'MMM d, h:mm a')}</p>
+    </div>
+    <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="text-right">
+        <p className="text-sm font-semibold text-primary">PKR {(invoice.grandTotal || 0).toLocaleString()}</p>
+        {(invoice.balanceDue || 0) > 0 && (
+          <p className="text-xs text-orange-500">Due: PKR {invoice.balanceDue.toLocaleString()}</p>
+        )}
+      </div>
+      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+    </div>
+  </Link>
+);
+
 const QUICK_LINKS = [
   { href: '/scan', icon: <QrCode className="h-5 w-5" />, label: 'New Sale' },
   { href: '/orders/add', icon: <PlusCircle className="h-5 w-5" />, label: 'New Order' },
@@ -87,15 +107,22 @@ const QUICK_LINKS = [
   { href: '/orders', icon: <ClipboardList className="h-5 w-5" />, label: 'Orders' },
   { href: '/customers', icon: <Users className="h-5 w-5" />, label: 'Customers' },
   { href: '/karigars', icon: <Briefcase className="h-5 w-5" />, label: 'Karigars' },
+  { href: '/expenses', icon: <CreditCard className="h-5 w-5" />, label: 'Expenses' },
   { href: '/analytics', icon: <TrendingUp className="h-5 w-5" />, label: 'Analytics' },
   { href: '/hisaab', icon: <BookUser className="h-5 w-5" />, label: 'Hisaab' },
-  { href: '/documents', icon: <FileText className="h-5 w-5" />, label: 'Documents' },
   { href: '/settings', icon: <SettingsIcon className="h-5 w-5" />, label: 'Settings' },
 ];
 
 export default function HomePage() {
   const appReady = useAppReady();
-  const { cartItems, cartSubtotal, removeFromCartAction, loadProducts, orders, loadOrders, generatedInvoices, loadGeneratedInvoices, additionalRevenues, loadAdditionalRevenues } = useAppStore(state => ({
+  const {
+    cartItems, cartSubtotal, removeFromCartAction,
+    loadProducts, orders, loadOrders,
+    generatedInvoices, loadGeneratedInvoices,
+    additionalRevenues, loadAdditionalRevenues,
+    expenses, loadExpenses,
+    settings,
+  } = useAppStore(state => ({
     cartItems: selectCartDetails(state),
     cartSubtotal: selectCartSubtotal(state),
     removeFromCartAction: state.removeFromCart,
@@ -106,6 +133,9 @@ export default function HomePage() {
     loadGeneratedInvoices: state.loadGeneratedInvoices,
     additionalRevenues: state.additionalRevenues,
     loadAdditionalRevenues: state.loadAdditionalRevenues,
+    expenses: state.expenses,
+    loadExpenses: state.loadExpenses,
+    settings: state.settings,
   }));
 
   React.useEffect(() => {
@@ -114,38 +144,64 @@ export default function HomePage() {
       loadOrders();
       loadGeneratedInvoices();
       loadAdditionalRevenues();
+      loadExpenses();
     }
-  }, [appReady, loadProducts, loadOrders, loadGeneratedInvoices, loadAdditionalRevenues]);
+  }, [appReady, loadProducts, loadOrders, loadGeneratedInvoices, loadAdditionalRevenues, loadExpenses]);
 
-  const { ongoingOrders, monthlyRevenue, monthlyInvoiceCount, monthlyOrderCount } = useMemo(() => {
+  const stats = useMemo(() => {
     const now = new Date();
     const last30 = subDays(now, 30);
+    const todayStart = startOfDay(now);
 
-    const ongoing = orders
+    // Ongoing
+    const ongoingOrders = orders
       .filter(o => o.status === 'Pending' || o.status === 'In Progress')
       .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
 
+    // Today invoices
+    const todayInvoices = generatedInvoices.filter(inv => parseISO(inv.createdAt) >= todayStart);
+    const todayInvoiceRevenue = todayInvoices.reduce((s, inv) => s + (inv.grandTotal || 0), 0);
+
+    // Today extra revenue
+    const todayExtraRevenue = additionalRevenues
+      .filter(r => parseISO(r.date) >= todayStart)
+      .reduce((s, r) => s + (r.amount || 0), 0);
+
+    const todayRevenue = todayInvoiceRevenue + todayExtraRevenue;
+
+    // 30-day
     const recentInvoices = generatedInvoices.filter(inv => parseISO(inv.createdAt) >= last30);
-    const invoiceRevenue = recentInvoices.reduce((sum, inv) => sum + (inv.grandTotal || 0), 0);
-
-    const recentOrders = orders.filter(o =>
+    const invoiceRevenue30 = recentInvoices.reduce((s, inv) => s + (inv.grandTotal || 0), 0);
+    const freeOrders30 = orders.filter(o =>
       parseISO(o.createdAt) >= last30 &&
-      o.status !== 'Cancelled' &&
-      o.status !== 'Refunded' &&
-      !o.invoiceId
+      o.status !== 'Cancelled' && o.status !== 'Refunded' && !o.invoiceId
     );
-    // Use subtotal (full order value) — grandTotal is subtotal minus advance,
-    // so using it would understate revenue. Matches analytics calculation.
-    const orderRevenue = recentOrders.reduce((sum, o) => sum + (o.subtotal || 0), 0);
+    const orderRevenue30 = freeOrders30.reduce((s, o) => s + (o.subtotal || 0), 0);
+    const extraRevenue30 = additionalRevenues.filter(r => parseISO(r.date) >= last30).reduce((s, r) => s + (r.amount || 0), 0);
+    const revenue30 = invoiceRevenue30 + orderRevenue30 + extraRevenue30;
 
-    const recentExtraRevenues = additionalRevenues.filter(r => parseISO(r.date) >= last30);
-    const extraRevenue = recentExtraRevenues.reduce((sum, r) => sum + (r.amount || 0), 0);
+    // 30-day expenses
+    const expenses30 = expenses.filter(e => parseISO(e.date) >= last30).reduce((s, e) => s + (e.amount || 0), 0);
 
-    const revenue = invoiceRevenue + orderRevenue + extraRevenue;
-    const invoiceCount = recentInvoices.length;
+    // Total outstanding balance due
+    const totalOutstanding = generatedInvoices.reduce((s, inv) => s + Math.max(0, inv.balanceDue || 0), 0);
 
-    return { ongoingOrders: ongoing, monthlyRevenue: revenue, monthlyInvoiceCount: invoiceCount, monthlyOrderCount: recentOrders.length };
-  }, [orders, generatedInvoices, additionalRevenues]);
+    // Recent invoices (last 8)
+    const recentInvoicesSorted = [...generatedInvoices]
+      .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime())
+      .slice(0, 8);
+
+    return {
+      ongoingOrders,
+      todayRevenue,
+      todayInvoiceCount: todayInvoices.length,
+      revenue30,
+      expenses30,
+      net30: revenue30 - expenses30,
+      totalOutstanding,
+      recentInvoices: recentInvoicesSorted,
+    };
+  }, [orders, generatedInvoices, additionalRevenues, expenses]);
 
   if (!appReady) {
     return (
@@ -156,63 +212,123 @@ export default function HomePage() {
     );
   }
 
+  const goldRate21k = settings?.goldRatePerGram21k || 0;
+  const goldRate22k = settings?.goldRatePerGram22k || 0;
+  const goldRate24k = settings?.goldRatePerGram24k || 0;
+  const goldRate18k = settings?.goldRatePerGram18k || 0;
+
   return (
-    <div className="container mx-auto py-8 px-4 space-y-6">
-      <header className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-primary">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back! Here's your store overview.</p>
+    <div className="container mx-auto py-4 px-3 md:py-8 md:px-4 space-y-4 md:space-y-6">
+
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+        <div>
+          <h1 className="text-xl md:text-3xl font-bold text-primary">{settings?.shopName || 'Dashboard'}</h1>
+          <p className="text-sm text-muted-foreground">{format(new Date(), "EEEE, MMMM d, yyyy")}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button asChild size="sm">
+            <Link href="/scan"><QrCode className="w-4 h-4 mr-2" />New Sale</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/orders/add"><PlusCircle className="w-4 h-4 mr-2" />New Order</Link>
+          </Button>
+        </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Left / main column */}
-        <div className="lg:col-span-2 space-y-6">
+      <Separator />
 
-          {/* Stat cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard
-              title="Revenue (Last 30 Days)"
-              value={`PKR ${monthlyRevenue.toLocaleString()}`}
-              sub={`${monthlyInvoiceCount} invoice${monthlyInvoiceCount !== 1 ? 's' : ''}${monthlyOrderCount > 0 ? ` · ${monthlyOrderCount} order${monthlyOrderCount !== 1 ? 's' : ''}` : ''}`}
-              icon={<DollarSign className="h-5 w-5" />}
-              color="text-green-600"
-            />
-            <StatCard
-              title="Ongoing Orders"
-              value={String(ongoingOrders.length)}
-              sub={`${ongoingOrders.filter(o => o.status === 'Pending').length} pending · ${ongoingOrders.filter(o => o.status === 'In Progress').length} in progress`}
-              icon={<Clock className="h-5 w-5" />}
-              color="text-orange-500"
-            />
-            <StatCard
-              title="Cart Items"
-              value={String(cartItems.length)}
-              sub={cartItems.length > 0 ? `PKR ${cartSubtotal.toLocaleString()} subtotal` : 'No active sale'}
-              icon={<ShoppingCart className="h-5 w-5" />}
-              color="text-primary"
-            />
-          </div>
+      {/* Today snapshot */}
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 mb-3">Today</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard
+          title="Today's Revenue"
+          value={`PKR ${stats.todayRevenue.toLocaleString()}`}
+          sub={`${stats.todayInvoiceCount} invoice${stats.todayInvoiceCount !== 1 ? 's' : ''} today`}
+          icon={<Zap className="h-4 w-4" />}
+          colorClass="bg-green-500/10 text-green-600"
+        />
+        <StatCard
+          title="Ongoing Orders"
+          value={String(stats.ongoingOrders.length)}
+          sub={`${stats.ongoingOrders.filter(o => o.status === 'Pending').length} pending · ${stats.ongoingOrders.filter(o => o.status === 'In Progress').length} in progress`}
+          icon={<Clock className="h-4 w-4" />}
+          colorClass="bg-orange-500/10 text-orange-500"
+        />
+        <StatCard
+          title="Outstanding Balance"
+          value={stats.totalOutstanding > 0 ? `PKR ${stats.totalOutstanding.toLocaleString()}` : 'Nil'}
+          sub="Total unpaid across invoices"
+          icon={<AlertCircle className="h-4 w-4" />}
+          colorClass={stats.totalOutstanding > 0 ? "bg-red-500/10 text-red-500" : "bg-primary/10 text-primary"}
+        />
+        <StatCard
+          title="Cart Items"
+          value={String(cartItems.length)}
+          sub={cartItems.length > 0 ? `PKR ${cartSubtotal.toLocaleString()} subtotal` : 'No active sale'}
+          icon={<ShoppingCart className="h-4 w-4" />}
+          colorClass="bg-primary/10 text-primary"
+        />
+      </div>
+      </div>
+
+      <Separator />
+
+      {/* 30-day P&L strip */}
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 mb-3">Last 30 Days</p>
+        <div className="grid grid-cols-3 gap-3">
+        <Card>
+          <CardContent className="p-3 text-center">
+            <p className="text-xs text-muted-foreground mb-1">Revenue (30d)</p>
+            <p className="text-lg font-bold text-green-600">PKR {stats.revenue30.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 text-center">
+            <p className="text-xs text-muted-foreground mb-1">Expenses (30d)</p>
+            <p className="text-lg font-bold text-red-500">PKR {stats.expenses30.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3 text-center">
+            <p className="text-xs text-muted-foreground mb-1">Net (30d)</p>
+            <p className={cn("text-lg font-bold", stats.net30 >= 0 ? "text-primary" : "text-red-500")}>
+              PKR {stats.net30.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      </div>
+
+      <Separator />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 items-start">
+        {/* Left / main column */}
+        <div className="lg:col-span-2 space-y-4 md:space-y-6">
 
           {/* Ongoing orders */}
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2"><Clock className="h-4 w-4" /> Ongoing Orders</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-base"><Clock className="h-4 w-4" />Ongoing Orders</CardTitle>
                 <CardDescription>Pending and in-progress custom orders</CardDescription>
               </div>
               <Button asChild variant="ghost" size="sm">
-                <Link href="/orders">View all <ArrowRight className="ml-1 h-4 w-4" /></Link>
+                <Link href="/orders">All <ArrowRight className="ml-1 h-4 w-4" /></Link>
               </Button>
             </CardHeader>
             <CardContent>
-              {ongoingOrders.length === 0 ? (
+              {stats.ongoingOrders.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <PackageSearch className="h-10 w-10 mx-auto mb-2 opacity-40" />
                   <p className="text-sm">No ongoing orders</p>
                 </div>
               ) : (
-                <ScrollArea className="h-[260px] pr-2">
+                <ScrollArea className="h-[220px] pr-2">
                   <div className="divide-y">
-                    {ongoingOrders.map(order => (
+                    {stats.ongoingOrders.map(order => (
                       <OngoingOrderRow key={order.id} order={order} />
                     ))}
                   </div>
@@ -221,13 +337,40 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          {/* Quick buttons */}
+          {/* Recent invoices */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Quick Access</CardTitle>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base"><Receipt className="h-4 w-4" />Recent Invoices</CardTitle>
+                <CardDescription>Latest sales</CardDescription>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/documents">All <ArrowRight className="ml-1 h-4 w-4" /></Link>
+              </Button>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {stats.recentInvoices.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No invoices yet</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {stats.recentInvoices.map(inv => (
+                    <RecentInvoiceRow key={inv.id} invoice={inv} />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick links */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2"><Zap className="h-4 w-4" />Quick Access</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-5 sm:grid-cols-5 gap-2">
                 {QUICK_LINKS.map(({ href, icon, label }) => (
                   <Button key={href} asChild variant="outline" className="flex flex-col h-16 gap-1.5">
                     <Link href={href}>
@@ -285,3 +428,4 @@ export default function HomePage() {
     </div>
   );
 }
+

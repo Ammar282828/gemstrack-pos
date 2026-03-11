@@ -125,17 +125,19 @@ export default function HisaabPage() {
   const appReady = useAppReady();
   const router = useRouter();
   const { toast } = useToast();
-  const { hisaabEntries, settings, customers, karigars, isHisaabLoading, isCustomersLoading, isKarigarsLoading, loadHisaab, loadCustomers, loadKarigars } = useAppStore();
+  const { hisaabEntries, settings, customers, karigars, isHisaabLoading, isCustomersLoading, isKarigarsLoading, loadHisaab, loadCustomers, loadKarigars, loadGeneratedInvoices, syncHisaabOutstandingBalances } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
   useEffect(() => {
-    if (appReady) {
-      loadHisaab();
-      loadCustomers();
-      loadKarigars();
-    }
-  }, [appReady, loadHisaab, loadCustomers, loadKarigars]);
+    if (!appReady) return;
+    loadHisaab();
+    loadCustomers();
+    loadKarigars();
+    loadGeneratedInvoices();
+    // Sync every page visit — uses getDocs directly so doesn't need store data to be ready
+    syncHisaabOutstandingBalances();
+  }, [appReady, loadHisaab, loadCustomers, loadKarigars, loadGeneratedInvoices, syncHisaabOutstandingBalances]);
   
   const isLoading = isHisaabLoading || isCustomersLoading || isKarigarsLoading;
 
@@ -238,7 +240,7 @@ export default function HisaabPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 relative pb-24">
+    <div className="container mx-auto py-4 px-3 md:py-8 md:px-4">
        <AddNewHisaabDialog 
             open={isAddDialogOpen} 
             onOpenChange={setIsAddDialogOpen} 
@@ -246,40 +248,45 @@ export default function HisaabPage() {
             karigars={karigars} 
         />
        
-       <header className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><BookUser className="mr-3 h-8 w-8"/>Hisaab / Ledger</h1>
-        <p className="text-muted-foreground">Summary of all outstanding accounts for customers and karigars.</p>
+       <header className="mb-4 md:mb-6 flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl md:text-3xl font-bold text-primary flex items-center"><BookUser className="mr-2 md:mr-3 h-6 w-6 md:h-8 md:w-8"/>Hisaab</h1>
+          <p className="text-sm text-muted-foreground">Outstanding accounts for customers and karigars.</p>
+        </div>
+        <Button size="sm" onClick={() => setIsAddDialogOpen(true)}>
+          <PlusCircle className="mr-2 h-4 w-4"/> Add Entry
+        </Button>
       </header>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <Card className="bg-red-500/10 border-red-500/20">
-          <CardHeader>
-            <CardTitle className="flex items-center text-destructive">
-              <ArrowDown className="mr-2 h-5 w-5"/>
+        <Card className="bg-green-600/10 border-green-600/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center text-green-700 dark:text-green-500 text-base">
+              <ArrowDown className="mr-2 h-4 w-4"/>
               You will Get (Receivable)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-destructive">PKR {totalReceivable.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-            {totalReceivableGold > 0 && <p className="text-lg font-semibold text-destructive/90">{totalReceivableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g Gold</p>}
+            <p className="text-2xl font-bold text-green-700 dark:text-green-500">PKR {totalReceivable.toLocaleString()}</p>
+            {totalReceivableGold > 0 && <p className="text-sm font-semibold text-green-600/90">{totalReceivableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g Gold</p>}
           </CardContent>
         </Card>
-        <Card className="bg-green-600/10 border-green-600/20">
-          <CardHeader>
-            <CardTitle className="flex items-center text-green-700 dark:text-green-500">
-                <ArrowUp className="mr-2 h-5 w-5"/>
+        <Card className="bg-red-500/10 border-red-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center text-destructive text-base">
+                <ArrowUp className="mr-2 h-4 w-4"/>
                 You will Give (Payable)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-700 dark:text-green-500">PKR {totalPayable.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
-            {totalPayableGold > 0 && <p className="text-lg font-semibold text-green-600/90 dark:text-green-400/90">{totalPayableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g Gold</p>}
+            <p className="text-2xl font-bold text-destructive">PKR {totalPayable.toLocaleString()}</p>
+            {totalPayableGold > 0 && <p className="text-sm font-semibold text-destructive/80">{totalPayableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g Gold</p>}
           </CardContent>
         </Card>
       </div>
 
       <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4 p-4 border rounded-lg bg-card sticky top-0 z-10">
+          <div className="flex flex-col sm:flex-row gap-3 p-3 md:p-4 bg-background/95 backdrop-blur-sm border rounded-lg sticky top-0 z-10 shadow-sm">
             <div className="relative flex-grow w-full">
                 <Input
                 type="search"
@@ -290,32 +297,39 @@ export default function HisaabPage() {
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             </div>
-             <Button variant="outline" onClick={handlePrintReport} className="flex-shrink-0">
+             <Button variant="outline" onClick={handlePrintReport} className="flex-shrink-0" size="sm">
                 <FileText className="mr-2 h-4 w-4"/>
                 Export PDF
             </Button>
           </div>
 
           {filteredSummaries.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                   {filteredSummaries.map(summary => (
                       <Link href={`/hisaab/${summary.entityId}?type=${summary.entityType}`} key={summary.entityId}>
-                        <Card className="shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                            <CardContent className="p-4 flex justify-between items-center">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center font-bold text-primary flex-shrink-0">
-                                        {summary.entityName.substring(0, 2).toUpperCase()}
+                        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                        {summary.entityType === 'customer'
+                                            ? <User className="h-5 w-5 text-primary"/>
+                                            : <Briefcase className="h-5 w-5 text-primary"/>}
                                     </div>
-                                    <div>
-                                        <h3 className="font-bold text-base text-primary">{summary.entityName}</h3>
-                                        <p className="text-xs text-muted-foreground capitalize">{summary.entityType}</p>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="font-semibold truncate">{summary.entityName}</p>
+                                            <div className="text-right flex-shrink-0">
+                                                {summary.cashBalance > 0 && <p className="font-bold text-green-700 dark:text-green-500 text-sm">PKR {summary.cashBalance.toLocaleString()}</p>}
+                                                {summary.cashBalance < 0 && <p className="font-bold text-destructive text-sm">PKR {Math.abs(summary.cashBalance).toLocaleString()}</p>}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between mt-0.5">
+                                            <p className="text-xs text-muted-foreground capitalize">{summary.entityType}</p>
+                                            {summary.cashBalance > 0 && <p className="text-xs text-muted-foreground">to receive</p>}
+                                            {summary.cashBalance < 0 && <p className="text-xs text-muted-foreground">to pay</p>}
+                                        </div>
+                                        {summary.goldBalance !== 0 && <p className="text-xs text-muted-foreground mt-0.5">{Math.abs(summary.goldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})} g gold</p>}
                                     </div>
-                                </div>
-                                <div className="text-right">
-                                    {summary.cashBalance > 0 && <p className="font-semibold text-destructive">PKR {summary.cashBalance.toLocaleString()}</p>}
-                                    {summary.cashBalance < 0 && <p className="font-semibold text-green-600">PKR {Math.abs(summary.cashBalance).toLocaleString()}</p>}
-                                    {summary.goldBalance > 0 && <p className="text-xs text-destructive/80">{summary.goldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
-                                    {summary.goldBalance < 0 && <p className="text-xs text-green-600/80">{Math.abs(summary.goldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
                                 </div>
                             </CardContent>
                         </Card>
@@ -331,15 +345,7 @@ export default function HisaabPage() {
           )}
       </div>
 
-       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-20">
-         <Button 
-            size="lg" 
-            className="rounded-full shadow-lg h-14 text-lg"
-            onClick={() => setIsAddDialogOpen(true)}
-        >
-            <PlusCircle className="mr-3 h-6 w-6"/> Add New
-         </Button>
-       </div>
+
     </div>
   );
 }

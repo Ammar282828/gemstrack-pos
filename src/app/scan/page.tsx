@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { QrCode, ShoppingCart, Trash2, ExternalLink, ListPlus, Loader2, X, VideoOff, ScanLine } from 'lucide-react';
+import { ShoppingCart, Trash2, ExternalLink, ListPlus, Loader2, X, VideoOff, ScanLine } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import dynamic from 'next/dynamic';
 
@@ -97,8 +97,8 @@ export default function ScanPOSPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+    <div className="container mx-auto py-4 px-3 md:py-8 md:px-4">
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 items-start">
 
         {/* --- Right Column (Cart Summary) - MOVED TO TOP ON MOBILE --- */}
         <div className="lg:col-span-1 lg:sticky lg:top-8 order-1 lg:order-2">
@@ -144,10 +144,9 @@ export default function ScanPOSPage() {
         {/* --- Left Column (Scanner & Manual Input) --- */}
         <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
           <Card>
-            <CardHeader className="text-center">
-              <QrCode className="w-12 h-12 mx-auto text-primary mb-3" />
-              <CardTitle className="text-2xl">Point of Sale - Scan Items</CardTitle>
-              <CardDescription>Scan product QR codes to add to the sale. Or, enter SKU manually.</CardDescription>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base"><ScanLine className="w-5 h-5 text-primary" />Scan Items</CardTitle>
+              <CardDescription>Scan product QR codes or enter SKU manually to add to sale.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               

@@ -203,11 +203,11 @@ export default function ExpensesPage() {
       <Card className="mb-4">
         <CardContent className="pt-4 space-y-3">
             <div className="grid grid-cols-2 gap-3">
-                <div className="bg-primary/5 rounded-lg p-3">
+                <div className="bg-primary/5 rounded-lg p-3 min-w-0">
                     <p className="text-xs font-medium text-muted-foreground">Total Expenses</p>
-                    <p className="text-lg md:text-2xl font-bold text-primary">PKR {summaryData.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                    <p className="text-sm md:text-2xl font-bold text-primary leading-tight break-all">PKR {summaryData.totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                 </div>
-                <div className="bg-muted/50 rounded-lg p-3">
+                <div className="bg-muted/50 rounded-lg p-3 min-w-0">
                     <p className="text-xs font-medium text-muted-foreground">Transactions</p>
                     <p className="text-lg md:text-2xl font-bold">{summaryData.transactionCount}</p>
                 </div>
@@ -266,7 +266,7 @@ export default function ExpensesPage() {
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">{format(parseISO(expense.date), 'MMM dd, yyyy')}</p>
                       </div>
-                      <p className="font-bold text-primary flex-shrink-0">PKR {expense.amount.toLocaleString()}</p>
+                      <p className="font-bold text-primary text-sm text-right break-all">PKR {expense.amount.toLocaleString()}</p>
                     </div>
                     <div className="flex justify-end gap-1 mt-3 border-t pt-2">
                       <Button variant="ghost" size="sm" onClick={() => handleEditExpense(expense)}>

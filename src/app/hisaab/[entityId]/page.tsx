@@ -171,12 +171,7 @@ export default function EntityHisaabPage() {
     };
   }, [hisaabEntries, entityId]);
 
-  const { givenEntries, gotEntries } = useMemo(() => {
-    const given = entityHisaab.filter(e => e.cashDebit > 0 || e.goldDebitGrams > 0);
-    const got = entityHisaab.filter(e => e.cashCredit > 0 || e.goldCreditGrams > 0);
-    return { givenEntries: given, gotEntries: got };
-  }, [entityHisaab]);
-  
+
   const phoneForm = useForm<PhoneForm>({ defaultValues: { phone: '' } });
 
   React.useEffect(() => {
@@ -293,10 +288,11 @@ export default function EntityHisaabPage() {
         : `Payable: ${Math.abs(balances.finalGoldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})}g`;
     doc.text(`Gold: ${goldBalanceText}`, margin, summaryY);
     
-    // Table
+    // Table — sorted oldest-first for the printed statement
     const tableStartY = summaryY + 15;
-    const tableColumns = ["Date", "Description", "Cash Given (-)", "Cash Got (+)", "Gold Given (g)", "Gold Got (g)"];
-    const tableRows = entityHisaab.map(entry => [
+    const tableColumns = ["Date", "Description", "Debit (Dr)", "Credit (Cr)", "Gold Out (g)", "Gold In (g)"];
+    const pdfEntries = [...entityHisaab].reverse(); // ascending date order for statement
+    const tableRows = pdfEntries.map(entry => [
         format(parseISO(entry.date), 'dd-MMM-yy'),
         entry.description,
         entry.cashDebit > 0 ? entry.cashDebit.toLocaleString() : '-',
@@ -348,195 +344,173 @@ export default function EntityHisaabPage() {
   const isKarigar = entityType === 'karigar';
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-6">
+    <div className="container mx-auto py-4 px-3 md:py-8 md:px-4 space-y-4">
        <AddTransactionDialog mode={dialogMode} open={isDialogOpen} onOpenChange={setIsDialogOpen} onSubmit={onAddEntry} entityType={entityType} />
-       <header className="mb-6">
-         <Button variant="outline" onClick={() => router.back()} className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Summary
-        </Button>
-        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center">
-            {entityType === 'customer' ? <User className="mr-3 h-8 w-8"/> : <Briefcase className="mr-3 h-8 w-8"/>}
-            Ledger for {entity.name}
-        </h1>
-        <p className="text-muted-foreground">Detailed transaction history and running balance.</p>
+       <header className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="flex-shrink-0">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="min-w-0">
+            <h1 className="text-lg md:text-2xl font-bold text-primary flex items-center gap-2 truncate">
+              {entityType === 'customer' ? <User className="h-5 w-5 flex-shrink-0"/> : <Briefcase className="h-5 w-5 flex-shrink-0"/>}
+              {entity.name}
+            </h1>
+            <p className="text-xs text-muted-foreground capitalize">{entityType} ledger</p>
+          </div>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          <Button size="sm" variant="outline" onClick={handlePrintLedger} disabled={!settings}>
+            <FileText className="h-4 w-4 md:mr-2"/><span className="hidden md:inline">PDF</span>
+          </Button>
+          {entityType === 'customer' && balances.finalCashBalance > 0 && (
+            <Dialog open={isReminderOpen} onOpenChange={setIsReminderOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" disabled={!settings}>
+                  <MessageSquare className="h-4 w-4 md:mr-2"/><span className="hidden md:inline">Remind</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Send Payment Reminder</DialogTitle>
+                  <DialogDescription>Opens WhatsApp with a pre-filled reminder for the outstanding balance.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-2">
+                  <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
+                  <PhoneInput name="phone" control={phoneForm.control as unknown as Control} defaultCountry="PK" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm" />
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                  <Button onClick={handleSendReminder}>Send</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </header>
 
-      <Card>
-        <CardHeader>
-            <CardTitle>Final Balances</CardTitle>
-            <CardDescription>
-                A positive balance means they owe you (receivable). A negative balance means you owe them (payable).
-            </CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div className="p-4 rounded-lg bg-red-500/10 text-destructive">
-                <p className="text-sm font-semibold">You will Get (Receivable)</p>
-                <p className={cn("text-2xl font-bold", isKarigar && 'text-base font-normal')}>
-                    PKR {Math.max(0, balances.finalCashBalance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </p>
-                 <p className={cn("text-lg font-bold", !isKarigar && 'text-base font-normal')}>
-                    {Math.max(0, balances.finalGoldBalance).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
-                </p>
-            </div>
-             <div className="p-4 rounded-lg bg-green-500/10 text-green-700 dark:text-green-400">
-                <p className="text-sm font-semibold">You will Give (Payable)</p>
-                <p className={cn("text-2xl font-bold", isKarigar && 'text-base font-normal')}>
-                    PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </p>
-                 <p className={cn("text-lg font-bold", !isKarigar && 'text-base font-normal')}>
-                    {Math.abs(Math.min(0, balances.finalGoldBalance)).toLocaleString(undefined, { minimumFractionDigits: 3 })} g
-                </p>
-            </div>
-        </CardContent>
-         <CardFooter className="flex flex-wrap gap-2">
-            <Button onClick={handlePrintLedger} variant="outline" disabled={!settings}>
-                <FileText className="mr-2 h-4 w-4" /> Download PDF Report
-            </Button>
-            {entityType === 'customer' && balances.finalCashBalance > 0 && (
-                <Dialog open={isReminderOpen} onOpenChange={setIsReminderOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="default" disabled={!settings}>
-                            <MessageSquare className="mr-2 h-4 w-4" /> Send Reminder
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Send Payment Reminder</DialogTitle>
-                            <DialogDescription>
-                                This will open WhatsApp with a pre-filled reminder message for the outstanding balance.
-                            </DialogDescription>
-                        </DialogHeader>
-                         <div className="py-4 space-y-2">
-                             <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
-                             <PhoneInput
-                                name="phone"
-                                control={phoneForm.control as unknown as Control}
-                                defaultCountry="PK"
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                            />
-                        </div>
-                        <DialogFooter>
-                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                            <Button onClick={handleSendReminder}>Send</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            )}
-        </CardFooter>
-      </Card>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="p-3 rounded-lg bg-green-600/10 border border-green-600/20">
+          <p className="text-xs font-medium text-green-700 dark:text-green-500 mb-1">You will Get</p>
+          <p className="text-xl font-bold text-green-700 dark:text-green-500">PKR {Math.max(0, balances.finalCashBalance).toLocaleString()}</p>
+          {balances.finalGoldBalance > 0 && <p className="text-xs text-green-600/80 mt-0.5">{balances.finalGoldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
+        </div>
+        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+          <p className="text-xs font-medium text-destructive mb-1">You will Give</p>
+          <p className="text-xl font-bold text-destructive">PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString()}</p>
+          {balances.finalGoldBalance < 0 && <p className="text-xs text-destructive/80 mt-0.5">{Math.abs(balances.finalGoldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
+        </div>
+      </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Card>
-            <CardHeader>
-                <CardTitle>Transaction History</CardTitle>
-                <CardDescription>A chronological log of all transactions with {entity.name}.</CardDescription>
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base">Transactions</CardTitle>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => { setDialogMode('gave'); setIsDialogOpen(true); }}>
+                        <ArrowUp className="mr-1.5 h-3.5 w-3.5"/> You Gave
+                    </Button>
+                    <Button size="sm" variant="outline" className="text-green-700 border-green-700/40 hover:bg-green-700/10 dark:text-green-500" onClick={() => { setDialogMode('got'); setIsDialogOpen(true); }}>
+                        <ArrowDown className="mr-1.5 h-3.5 w-3.5"/> You Got
+                    </Button>
+                  </div>
+                </div>
             </CardHeader>
             <CardContent>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                    <Button variant="default" className="bg-destructive hover:bg-destructive/90" size="lg" onClick={() => { setDialogMode('gave'); setIsDialogOpen(true); }}>
-                        <ArrowUp className="mr-2 h-5 w-5"/> You Gave
-                    </Button>
-                     <Button variant="default" className="bg-green-600 hover:bg-green-700" size="lg" onClick={() => { setDialogMode('got'); setIsDialogOpen(true); }}>
-                        <ArrowDown className="mr-2 h-5 w-5"/> You Got
-                    </Button>
-                </div>
                 
                 {entityHisaab.length > 0 ? (
                     <>
-                    {/* Mobile View */}
-                    <div className="md:hidden grid grid-cols-1 gap-4">
-                        <div className="space-y-3">
-                            <h3 className="font-semibold text-lg text-destructive flex items-center"><ArrowUp className="mr-2 h-5 w-5"/>You Gave (Debit)</h3>
-                            {givenEntries.length > 0 ? givenEntries.map(entry => (
-                                <SwipeToDelete key={entry.id} onDelete={() => onDeleteEntry(entry.id)} className="rounded-md border overflow-hidden">
-                                <div className="p-3 bg-muted/30">
-                                    <p className="text-sm font-semibold">{entry.description}</p>
-                                    <p className="text-xs text-muted-foreground">{format(parseISO(entry.date), 'PP')}</p>
-                                    <div className="text-right mt-1">
-                                        {entry.cashDebit > 0 && <p className="font-bold text-sm text-destructive">PKR {entry.cashDebit.toLocaleString()}</p>}
-                                        {entry.goldDebitGrams > 0 && <p className="font-bold text-sm text-destructive">{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
+                    {/* Mobile View — chronological, single list */}
+                    <div className="md:hidden space-y-3">
+                        {entityHisaab.map(entry => {
+                          return (
+                            <SwipeToDelete key={entry.id} onDelete={() => onDeleteEntry(entry.id)} className="rounded-lg border overflow-hidden">
+                              <Card className="border-0 shadow-none rounded-none">
+                                <CardContent className="p-4">
+                                  <div className="flex justify-between items-start gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-semibold truncate">{entry.description}</p>
+                                      <p className="text-xs text-muted-foreground mt-1">{format(parseISO(entry.date), 'MMM dd, yyyy')}</p>
                                     </div>
-                                </div>
-                                </SwipeToDelete>
-                            )) : <p className="text-sm text-muted-foreground text-center py-4">No debit transactions.</p>}
-                        </div>
-                        <Separator/>
-                        <div className="space-y-3">
-                             <h3 className="font-semibold text-lg text-green-600 flex items-center"><ArrowDown className="mr-2 h-5 w-5"/>You Got (Credit)</h3>
-                              {gotEntries.length > 0 ? gotEntries.map(entry => (
-                                <SwipeToDelete key={entry.id} onDelete={() => onDeleteEntry(entry.id)} className="rounded-md border overflow-hidden">
-                                <div className="p-3 bg-muted/30">
-                                    <p className="text-sm font-semibold">{entry.description}</p>
-                                    <p className="text-xs text-muted-foreground">{format(parseISO(entry.date), 'PP')}</p>
-                                    <div className="text-right mt-1">
-                                        {entry.cashCredit > 0 && <p className="font-bold text-sm text-green-600">PKR {entry.cashCredit.toLocaleString()}</p>}
-                                        {entry.goldCreditGrams > 0 && <p className="font-bold text-sm text-green-600">{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
+                                    <div className="text-right flex-shrink-0">
+                                      {entry.cashDebit > 0 && <p className="font-bold text-destructive text-sm">-PKR {entry.cashDebit.toLocaleString()}</p>}
+                                      {entry.cashCredit > 0 && <p className="font-bold text-green-700 dark:text-green-500 text-sm">+PKR {entry.cashCredit.toLocaleString()}</p>}
+                                      {entry.goldDebitGrams > 0 && <p className="text-xs text-destructive">-{entry.goldDebitGrams.toFixed(3)}g</p>}
+                                      {entry.goldCreditGrams > 0 && <p className="text-xs text-green-700 dark:text-green-500">+{entry.goldCreditGrams.toFixed(3)}g</p>}
+                                      <p className={cn('text-xs mt-0.5', entry.runningCashBalance === 0 ? 'text-muted-foreground' : entry.runningCashBalance > 0 ? 'text-green-700/70 dark:text-green-500/70' : 'text-destructive/70')}>
+                                        Bal: PKR {entry.runningCashBalance.toLocaleString()}
+                                      </p>
                                     </div>
-                                </div>
-                                </SwipeToDelete>
-                            )) : <p className="text-sm text-muted-foreground text-center py-4">No credit transactions.</p>}
-                        </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </SwipeToDelete>
+                          );
+                        })}
                     </div>
                     {/* Desktop View */}
                     <div className="hidden md:block">
-                        <ScrollArea className="h-[60vh] w-full">
-                            <Table>
-                                <TableHeader className="sticky top-0 bg-muted z-10">
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Description</TableHead>
-                                        <TableHead className="text-right">Given</TableHead>
-                                        <TableHead className="text-right">Received</TableHead>
-                                        <TableHead className="text-right">Gold Balance</TableHead>
-                                        <TableHead className="text-right">Cash Balance</TableHead>
-                                        <TableHead className="w-10"></TableHead>
+                        <Table>
+                            <TableHeader className="bg-muted">
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Description</TableHead>
+                                    <TableHead className="text-right">Given</TableHead>
+                                    <TableHead className="text-right">Received</TableHead>
+                                    {entityHisaab.some(e => e.goldDebitGrams > 0 || e.goldCreditGrams > 0) && (
+                                      <TableHead className="text-right">Gold Balance</TableHead>
+                                    )}
+                                    <TableHead className="text-right">Cash Balance</TableHead>
+                                    <TableHead className="w-10"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {entityHisaab.map(entry => (
+                                    <TableRow key={entry.id}>
+                                        <TableCell className="whitespace-nowrap text-muted-foreground text-sm">{format(parseISO(entry.date), 'dd-MMM-yy')}</TableCell>
+                                        <TableCell className="max-w-xs truncate">{entry.description}</TableCell>
+                                        <TableCell className="text-right font-medium text-destructive">
+                                            {entry.cashDebit > 0 && <div>PKR {entry.cashDebit.toLocaleString()}</div>}
+                                            {entry.goldDebitGrams > 0 && <div className="text-xs">{entry.goldDebitGrams.toFixed(3)} g</div>}
+                                            {(entry.goldDebitGrams === 0 && entry.cashDebit === 0) && <span className="text-muted-foreground">—</span>}
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium text-green-600">
+                                            {entry.cashCredit > 0 && <div>PKR {entry.cashCredit.toLocaleString()}</div>}
+                                            {entry.goldCreditGrams > 0 && <div className="text-xs">{entry.goldCreditGrams.toFixed(3)} g</div>}
+                                            {(entry.goldCreditGrams === 0 && entry.cashCredit === 0) && <span className="text-muted-foreground">—</span>}
+                                        </TableCell>
+                                        {entityHisaab.some(e => e.goldDebitGrams > 0 || e.goldCreditGrams > 0) && (
+                                          <TableCell className={cn("text-right font-semibold", entry.runningGoldBalance === 0 ? 'text-muted-foreground' : entry.runningGoldBalance < 0 ? 'text-green-600' : 'text-destructive')}>
+                                              {entry.runningGoldBalance.toFixed(3)} g
+                                          </TableCell>
+                                        )}
+                                        <TableCell className={cn("text-right font-semibold", entry.runningCashBalance === 0 ? 'text-muted-foreground' : entry.runningCashBalance > 0 ? 'text-destructive' : 'text-green-600')}>
+                                            PKR {entry.runningCashBalance.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" disabled={isDeleting === entry.id} className="h-8 w-8">
+                                                        {isDeleting === entry.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive"/>}
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2"/>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This will permanently delete the transaction: "{entry.description}".</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => onDeleteEntry(entry.id)}>Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
                                     </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {entityHisaab.map(entry => (
-                                        <TableRow key={entry.id}>
-                                            <TableCell className="whitespace-nowrap">{format(parseISO(entry.date), 'dd-MMM-yy')}</TableCell>
-                                            <TableCell className="max-w-xs truncate">{entry.description}</TableCell>
-                                            <TableCell className="text-right font-medium text-destructive">
-                                                {entry.cashDebit > 0 && <div className="text-xs">PKR {entry.cashDebit.toLocaleString()}</div>}
-                                                {entry.goldDebitGrams > 0 && <div className="text-sm">{entry.goldDebitGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</div>}
-                                                {(entry.goldDebitGrams === 0 && entry.cashDebit === 0) && '-'}
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium text-green-600">
-                                                {entry.cashCredit > 0 && <div className="text-xs">PKR {entry.cashCredit.toLocaleString()}</div>}
-                                                {entry.goldCreditGrams > 0 && <div className="text-sm">{entry.goldCreditGrams.toLocaleString(undefined, {minimumFractionDigits: 3})} g</div>}
-                                                {(entry.goldCreditGrams === 0 && entry.cashCredit === 0) && '-'}
-                                            </TableCell>
-                                            <TableCell className={cn("text-right font-semibold", entry.runningGoldBalance < 0 ? 'text-green-600' : 'text-destructive')}>
-                                                {entry.runningGoldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} g
-                                            </TableCell>
-                                            <TableCell className={cn("text-right font-semibold", entry.runningCashBalance < 0 ? 'text-green-600' : 'text-destructive')}>
-                                                PKR {entry.runningCashBalance.toLocaleString()}
-                                            </TableCell>
-                                            <TableCell>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" disabled={isDeleting === entry.id} className="h-8 w-8">
-                                                            {isDeleting === entry.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive"/>}
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2"/>Are you sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>This action cannot be undone. This will permanently delete the transaction: "{entry.description}".</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => onDeleteEntry(entry.id)}>Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </div>
                     </>
                 ) : (

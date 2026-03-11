@@ -109,15 +109,15 @@ export default function KarigarsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+    <div className="container mx-auto py-4 px-3 md:py-8 md:px-4">
+      <header className="mb-4 md:mb-6 flex flex-row justify-between items-start gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Briefcase className="w-8 h-8 mr-3 text-primary" />Karigars</h1>
+          <h1 className="text-xl md:text-3xl font-bold text-primary flex items-center"><Briefcase className="w-6 h-6 md:w-8 md:h-8 mr-2 md:mr-3 text-primary" />Karigars</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{karigars.length} artisan{karigars.length !== 1 ? 's' : ''}</p>
         </div>
-        <Link href="/karigars/add">
-          <Button><PlusCircle className="w-4 h-4 mr-2" />Add Karigar</Button>
-        </Link>
+        <Button asChild size="sm">
+          <Link href="/karigars/add"><PlusCircle className="w-4 h-4 mr-2" />Add Karigar</Link>
+        </Button>
       </header>
 
       <Card className="mb-5">

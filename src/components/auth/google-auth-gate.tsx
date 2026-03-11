@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -9,6 +9,7 @@ import {
   signOut as firebaseSignOut,
   type User,
 } from 'firebase/auth';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, LogIn } from 'lucide-react';
@@ -20,6 +21,45 @@ const ALLOWED_EMAILS = STORE_CONFIG.allowedEmails;
 
 const isAllowed = (user: User | null) =>
   !!user?.email && ALLOWED_EMAILS.includes(user.email.toLowerCase());
+
+function parseUserAgent(ua: string): { browser: string; os: string } {
+  let browser = 'Unknown Browser';
+  let os = 'Unknown OS';
+
+  if (/Edg\//.test(ua)) browser = 'Edge';
+  else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) browser = 'Chrome';
+  else if (/Firefox\//.test(ua)) browser = 'Firefox';
+  else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+  else if (/OPR\/|Opera\//.test(ua)) browser = 'Opera';
+
+  if (/Windows NT/.test(ua)) os = 'Windows';
+  else if (/Mac OS X/.test(ua) && !/iPhone|iPad/.test(ua)) os = 'macOS';
+  else if (/iPhone/.test(ua)) os = 'iPhone';
+  else if (/iPad/.test(ua)) os = 'iPad';
+  else if (/Android/.test(ua)) os = 'Android';
+  else if (/Linux/.test(ua)) os = 'Linux';
+
+  return { browser, os };
+}
+
+async function logSignIn(user: User) {
+  try {
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const { browser, os } = parseUserAgent(ua);
+    await addDoc(collection(db, 'signInLogs'), {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      browser,
+      os,
+      userAgent: ua,
+      timestamp: serverTimestamp(),
+    });
+  } catch {
+    // Non-critical — don't block auth
+  }
+}
 
 interface AuthContextValue {
   user: User | null;
@@ -44,6 +84,7 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastLoggedUidRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -58,6 +99,11 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
         }
         // Force-resolve the auth token so Firestore has it before children mount
         await firebaseUser.getIdToken();
+        // Log sign-in only once per session (not on every token refresh)
+        if (lastLoggedUidRef.current !== firebaseUser.uid) {
+          lastLoggedUidRef.current = firebaseUser.uid;
+          logSignIn(firebaseUser);
+        }
       }
       setUser(firebaseUser);
       setIsLoading(false);

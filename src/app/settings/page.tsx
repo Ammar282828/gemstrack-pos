@@ -1,11 +1,13 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, ThemeKey, AVAILABLE_THEMES, Product } from '@/lib/store';
+import { useAppStore, Settings, ThemeKey, AVAILABLE_THEMES } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,8 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Briefcase, Upload, Trash2, PlusCircle, TabletSmartphone, Palette, ClipboardList, Trash, Info, BookUser, Import, Copy, ArchiveRestore, Search, ExternalLink, ShieldCheck, ShieldAlert, Landmark, RefreshCw, CheckCircle2, Link2Off, ShoppingBag } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -25,20 +26,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Progress } from '@/components/ui/progress';
-
-const DEVICE_ID_KEY = 'gemstrack-device-id';
-
-function getDeviceId() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  let deviceId = localStorage.getItem(DEVICE_ID_KEY);
-  if (!deviceId) {
-    deviceId = `device-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    localStorage.setItem(DEVICE_ID_KEY, deviceId);
-  }
-  return deviceId;
-}
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
@@ -57,7 +44,6 @@ const settingsSchema = z.object({
   shopLogoUrlBlack: z.string().optional(),
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
   lastOrderNumber: z.coerce.number().int().min(0, "Last order number must be a non-negative integer"),
-  allowedDeviceIds: z.array(z.object({ id: z.string().min(1, "Device ID cannot be empty.") })).optional(),
   theme: z.enum(themeKeys).default('default'),
   databaseLocked: z.boolean().optional(),
 });
@@ -161,80 +147,18 @@ export default function SettingsPage() {
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number | null }>({});
   const [isUploading, setIsUploading] = useState<{ [key: string]: boolean }>({});
 
-  // Shopify
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isRegisteringWebhooks, setIsRegisteringWebhooks] = useState(false);
-  const [syncOptions, setSyncOptions] = useState({ syncOrders: true, syncCustomers: true, syncProducts: false });
+  type SignInLog = { id: string; email: string; displayName: string | null; browser: string; os: string; timestamp: { toDate: () => Date } | null; photoURL?: string | null; };
+  const [signInLogs, setSignInLogs] = useState<SignInLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const shopifyStatus = params.get('shopify');
-    if (shopifyStatus === 'connected') {
-      toast({ title: 'Shopify Connected', description: 'Your Shopify store has been linked successfully.' });
-      window.history.replaceState({}, '', '/settings');
-    } else if (shopifyStatus === 'error') {
-      const reason = params.get('reason') || 'unknown';
-      toast({ title: 'Shopify Connection Failed', description: `Error: ${reason}. Please try again.`, variant: 'destructive' });
-      window.history.replaceState({}, '', '/settings');
-    }
-  }, [toast]);
-
-  const handleConnectShopify = () => {
-    const shop = currentSettings?.shopifyStoreDomain || 'houseofmina.myshopify.com';
-    window.location.href = `/api/shopify/auth?shop=${shop}`;
-  };
-
-  const handleDisconnectShopify = async () => {
-    await updateSettingsAction({ shopifyAccessToken: '', shopifyStoreDomain: '', shopifyLastSyncedAt: '' } as any);
-    toast({ title: 'Shopify Disconnected' });
-  };
-
-  const handleRegisterWebhooks = async () => {
-    setIsRegisteringWebhooks(true);
-    try {
-      const res = await fetch('/api/shopify/register-webhooks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
-      toast({ title: 'Webhooks Registered', description: `Registered: ${data.registered?.join(', ') || 'none new'}. Already active: ${data.skipped?.length || 0}.` });
-    } catch (e: any) {
-      toast({ title: 'Webhook Registration Failed', description: e.message, variant: 'destructive' });
-    } finally {
-      setIsRegisteringWebhooks(false);
-    }
-  };
-
-  const handleSyncNow = async () => {
-    setIsSyncing(true);
-    try {
-      const res = await fetch('/api/shopify/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(syncOptions),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Sync failed');
-      const { results } = data;
-      toast({
-        title: 'Sync Complete',
-        description: `Imported: ${results.orders} orders, ${results.customers} customers, ${results.products} products. Skipped (already exist): ${results.skipped}.`,
-      });
-      if (results.errors?.length) {
-        toast({ title: 'Sync Warnings', description: results.errors.join(', '), variant: 'destructive' });
-      }
-    } catch (e: any) {
-      toast({ title: 'Sync Failed', description: e.message, variant: 'destructive' });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-
-  const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setCurrentDeviceId(getDeviceId());
-  }, []);
+    if (!appReady) return;
+    setLogsLoading(true);
+    getDocs(query(collection(db, 'signInLogs'), orderBy('timestamp', 'desc'), limit(30)))
+      .then(snap => setSignInLogs(snap.docs.map(d => ({ id: d.id, ...d.data() } as SignInLog))))
+      .catch(() => {})
+      .finally(() => setLogsLoading(false));
+  }, [appReady]);
 
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
@@ -253,23 +177,13 @@ export default function SettingsPage() {
       shopLogoUrlBlack: "",
       lastInvoiceNumber: 0,
       lastOrderNumber: 0,
-      allowedDeviceIds: [],
       theme: 'default',
       databaseLocked: false,
     },
   });
 
-  const { fields: deviceIdFields, append: appendDeviceId, remove: removeDeviceId } = useFieldArray({
-    control: form.control,
-    name: "allowedDeviceIds",
-  });
-  
   React.useEffect(() => {
     if (appReady && currentSettings) {
-      const deviceIdsForForm = Array.isArray(currentSettings.allowedDeviceIds) 
-        ? currentSettings.allowedDeviceIds.map(id => ({ id })) 
-        : [];
-      
       form.reset({
         goldRatePerGram18k: currentSettings.goldRatePerGram18k || 0,
         goldRatePerGram21k: currentSettings.goldRatePerGram21k || 0,
@@ -285,7 +199,6 @@ export default function SettingsPage() {
         shopLogoUrlBlack: currentSettings.shopLogoUrlBlack || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
         lastOrderNumber: currentSettings.lastOrderNumber || 0,
-        allowedDeviceIds: deviceIdsForForm,
         theme: currentSettings.theme || 'default',
         databaseLocked: currentSettings.databaseLocked || false,
       });
@@ -334,24 +247,11 @@ export default function SettingsPage() {
 
   const onSubmit = async (data: SettingsFormData) => {
     try {
-        const settingsToSave: Partial<Settings> = {
-            ...data,
-            allowedDeviceIds: data.allowedDeviceIds?.map(item => item.id).filter(Boolean) || [],
-        };
+        const settingsToSave: Partial<Settings> = { ...data };
         await updateSettingsAction(settingsToSave);
         toast({ title: "Settings Updated", description: "Your shop settings have been saved." });
     } catch (error) {
         toast({ title: "Error", description: "Failed to update settings.", variant: "destructive" });
-    }
-  };
-
-  const handleCopyToClipboard = () => {
-    if (currentDeviceId) {
-      navigator.clipboard.writeText(currentDeviceId);
-      toast({
-        title: "Copied to Clipboard",
-        description: "Your current device ID has been copied.",
-      });
     }
   };
 
@@ -610,59 +510,7 @@ export default function SettingsPage() {
                   </FormItem>
                 )}
               />
-              <Separator />
-               <div>
-                  <FormLabel className="text-base flex items-center"><TabletSmartphone className="h-5 w-5 mr-2 text-muted-foreground" /> Authorized Device IDs</FormLabel>
-                  <FormDescription className="mb-4">
-                    Only devices with an ID on this whitelist will be able to access the app.
-                  </FormDescription>
-                  
-                  {currentDeviceId && (
-                    <div className="p-4 rounded-md bg-muted border mb-4">
-                        <Label>Your Current Device ID</Label>
-                        <div className="flex items-center space-x-2 mt-1">
-                            <Input value={currentDeviceId} readOnly className="font-mono bg-background" />
-                            <Button type="button" variant="outline" size="icon" onClick={handleCopyToClipboard}>
-                                <Copy className="h-4 w-4" />
-                                <span className="sr-only">Copy Device ID</span>
-                            </Button>
-                        </div>
-                    </div>
-                  )}
 
-                  <div className="space-y-3">
-                    {deviceIdFields.map((field, index) => (
-                      <FormField
-                        key={field.id}
-                        control={form.control}
-                        name={`allowedDeviceIds.${index}.id`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <div className="flex items-center gap-2">
-                              <FormControl>
-                                <Input {...field} placeholder="Enter a unique device ID" />
-                              </FormControl>
-                              <Button type="button" variant="destructive" size="icon" onClick={() => removeDeviceId(index)}>
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Remove Device ID</span>
-                              </Button>
-                            </div>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => appendDeviceId({ id: '' })}
-                    >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Add Device ID
-                    </Button>
-                  </div>
-               </div>
             </CardContent>
             <CardFooter>
               <Button type="submit" size="lg" disabled={form.formState.isSubmitting || isSettingsLoading}>
@@ -705,67 +553,47 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Shopify Integration */}
+      {/* Sign-in Activity */}
       <Card>
         <CardHeader>
           <CardTitle className="text-xl flex items-center">
-            <ShoppingBag className="mr-2 h-5 w-5" />
-            Shopify Integration
+            <Clock className="mr-2 h-5 w-5" />
+            Sign-in Activity
           </CardTitle>
-          <CardDescription>Import your Shopify orders, customers, and products into GemsTrack.</CardDescription>
+          <CardDescription>Recent sign-ins to this app, including browser and OS details.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {currentSettings?.shopifyAccessToken ? (
-            <>
-              <div className="flex items-center gap-2 text-green-600">
-                <CheckCircle2 className="h-5 w-5" />
-                <span className="font-medium">Connected to {currentSettings.shopifyStoreDomain}</span>
-              </div>
-              {currentSettings.shopifyLastSyncedAt && (
-                <p className="text-sm text-muted-foreground">
-                  Last synced: {new Date(currentSettings.shopifyLastSyncedAt).toLocaleString()}
-                </p>
-              )}
-              <div className="space-y-2">
-                <p className="text-sm font-medium">What to import:</p>
-                <div className="flex flex-col gap-2 pl-1">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox checked={syncOptions.syncOrders} onCheckedChange={v => setSyncOptions(p => ({ ...p, syncOrders: !!v }))} />
-                    Orders (as invoices)
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox checked={syncOptions.syncCustomers} onCheckedChange={v => setSyncOptions(p => ({ ...p, syncCustomers: !!v }))} />
-                    Customers
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox checked={syncOptions.syncProducts} onCheckedChange={v => setSyncOptions(p => ({ ...p, syncProducts: !!v }))} />
-                    Products (imports with default jewelry values — review after sync)
-                  </label>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={handleSyncNow} disabled={isSyncing}>
-                  {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  {isSyncing ? 'Syncing...' : 'Sync Now'}
-                </Button>
-                <Button variant="outline" onClick={handleRegisterWebhooks} disabled={isRegisteringWebhooks}>
-                  {isRegisteringWebhooks ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                  Re-register Webhooks
-                </Button>
-                <Button variant="outline" onClick={handleDisconnectShopify}>
-                  <Link2Off className="mr-2 h-4 w-4" />
-                  Disconnect
-                </Button>
-              </div>
-            </>
+        <CardContent>
+          {logsLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground py-4">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading logs...
+            </div>
+          ) : signInLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">No sign-in activity recorded yet. Activity will appear after the next sign-in.</p>
           ) : (
-            <>
-              <p className="text-sm text-muted-foreground">No Shopify store connected. Click below to link your store via OAuth.</p>
-              <Button onClick={handleConnectShopify}>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Connect to Shopify
-              </Button>
-            </>
+            <div className="space-y-3">
+              {signInLogs.map(log => (
+                <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                  {log.photoURL ? (
+                    <img src={log.photoURL} alt={log.displayName || ''} className="h-9 w-9 rounded-full flex-shrink-0 object-cover" />
+                  ) : (
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-semibold text-primary">{(log.displayName || log.email || '?')[0].toUpperCase()}</span>
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">{log.displayName || log.email}</p>
+                    <p className="text-xs text-muted-foreground truncate">{log.email}</p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1"><Monitor className="h-3 w-3" />{log.os}</span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1"><Globe className="h-3 w-3" />{log.browser}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground flex-shrink-0">
+                    {log.timestamp ? log.timestamp.toDate().toLocaleString() : '—'}
+                  </p>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
