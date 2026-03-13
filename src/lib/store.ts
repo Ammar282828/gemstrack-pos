@@ -1608,6 +1608,19 @@ export const useAppStore = create<AppState>()(
                         existingCreatedAt = existingData.createdAt;
                     }
                 }
+
+                // Guard: for new invoices, pre-read the target doc to confirm the counter is not stale.
+                // This MUST be done here (before any writes) — Firestore Web SDK forbids reads after writes.
+                let nextInvoiceNumber: number | undefined;
+                let newInvoiceId: string | undefined;
+                if (!existingInvoiceId) {
+                    nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
+                    newInvoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
+                    const targetInvoiceCheck = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, newInvoiceId));
+                    if (targetInvoiceCheck.exists()) {
+                        throw new Error(`Invoice ${newInvoiceId} already exists — the invoice counter (lastInvoiceNumber=${currentSettings.lastInvoiceNumber}) is stale. Please contact your administrator to recalibrate it.`);
+                    }
+                }
                 
                 // --- WRITES SECOND ---
                 let finalCustomerId = customerInfo.id;
@@ -1671,13 +1684,8 @@ export const useAppStore = create<AppState>()(
                 if (existingInvoiceId) {
                     invoiceId = existingInvoiceId;
                 } else {
-                    const nextInvoiceNumber = (currentSettings.lastInvoiceNumber || 0) + 1;
-                    invoiceId = `INV-${nextInvoiceNumber.toString().padStart(6, '0')}`;
-                    // Guard: never silently overwrite an existing invoice if the counter is stale
-                    const targetInvoiceCheck = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId));
-                    if (targetInvoiceCheck.exists()) {
-                        throw new Error(`Invoice ${invoiceId} already exists — the invoice counter (lastInvoiceNumber=${currentSettings.lastInvoiceNumber}) is stale. Please contact your administrator to recalibrate it.`);
-                    }
+                    // nextInvoiceNumber and newInvoiceId were computed + guard-read above, before writes
+                    invoiceId = newInvoiceId!;
                     transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
                 }
 
