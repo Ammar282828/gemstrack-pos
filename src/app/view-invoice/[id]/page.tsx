@@ -337,7 +337,7 @@ export default function ViewInvoicePage() {
         pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize);
     }
     
-    savePDF(pdfDoc, `Estimate-${invoice.id}.pdf`, iOSWin);
+    await savePDF(pdfDoc, `Estimate-${invoice.id}.pdf`, iOSWin);
   }
 
   if (isLoading) {

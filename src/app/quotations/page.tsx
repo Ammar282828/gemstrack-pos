@@ -251,7 +251,7 @@ export default function QuotationGenerator() {
         doc.setFont("helvetica", "normal");
         doc.text(contactText, margin, contactY + 5);
 
-        savePDF(doc, `Quotation-${isAiMode ? 'AI' : 'Manual'}.pdf`, iOSWin);
+        await savePDF(doc, `Quotation-${isAiMode ? 'AI' : 'Manual'}.pdf`, iOSWin);
         toast({ title: "PDF Downloaded", description: "Quotation generated successfully." });
     };
 

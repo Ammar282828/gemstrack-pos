@@ -901,7 +901,7 @@ export default function OrderDetailPage() {
     }
 
 
-    savePDF(doc, `OrderSlip-${order.id}.pdf`, iOSWin);
+    await savePDF(doc, `OrderSlip-${order.id}.pdf`, iOSWin);
   };
 
 

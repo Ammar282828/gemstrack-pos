@@ -248,7 +248,7 @@ export default function EntityHisaabPage() {
     setIsReminderOpen(false);
   };
   
-  const handlePrintLedger = () => {
+  const handlePrintLedger = async () => {
     if (!entity || !settings) {
         toast({ title: "Error", description: "Entity or settings data is not available for printing.", variant: "destructive" });
         return;
@@ -318,7 +318,7 @@ export default function EntityHisaabPage() {
         }
     });
 
-    savePDF(doc, `Ledger-${entity.name}-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
+    await savePDF(doc, `Ledger-${entity.name}-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
   };
 
   const isLoading = !appReady || isHisaabLoading || isCustomersLoading || isKarigarsLoading;

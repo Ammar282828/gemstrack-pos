@@ -27,16 +27,35 @@ export function openPDFWindowForIOS(): Window | null {
   return isIOS ? window.open('', '_blank') : null;
 }
 
-export function savePDF(
-  doc: { save: (name: string) => void; output: (type: string) => string },
+export async function savePDF(
+  doc: { save: (name: string) => void; output: (type: string) => string | Blob },
   filename: string,
-  iOSWin: Window | null
+  iOSWin: Window | null,
+  shareData?: { title?: string; text?: string }
 ) {
   if (iOSWin) {
-    // iOS Safari blocks blob URL navigation (shows blank page).
-    // Writing an iframe into the pre-opened window works reliably across all
-    // iOS versions and both browser + PWA contexts.
-    const blobUrl = doc.output('bloburl');
+    // Try Web Share API with file support first (iOS 15+, Android Chrome 86+).
+    // This gives the native share sheet — user can pick WhatsApp, Print, Files, etc.
+    // The PDF page size is preserved properly (fixes A4 whitespace issue when printing).
+    try {
+      const blob = doc.output('blob') as Blob;
+      const file = new File([blob], filename, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        iOSWin.close();
+        await navigator.share({
+          files: [file],
+          title: shareData?.title ?? filename,
+          ...(shareData?.text ? { text: shareData.text } : {}),
+        });
+        return;
+      }
+    } catch (e) {
+      // AbortError = user dismissed share sheet — close window and stop
+      if ((e as Error)?.name === 'AbortError') { iOSWin.close(); return; }
+      console.warn('Web Share API failed, falling back to iframe:', e);
+    }
+    // Fallback: embed PDF in an iframe in the pre-opened window
+    const blobUrl = doc.output('bloburl') as string;
     iOSWin.document.open();
     iOSWin.document.write(
       '<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'

@@ -112,7 +112,7 @@ export default function ExpensesPage() {
     }
   }, [filteredExpenses]);
 
-  const handlePrintReport = () => {
+  const handlePrintReport = async () => {
     if (!settings) {
         toast({ title: "Error", description: "Settings not loaded, cannot generate report.", variant: "destructive" });
         return;
@@ -161,7 +161,7 @@ export default function ExpensesPage() {
         { align: 'right' }
     );
 
-    savePDF(doc, `Expense-Report-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
+    await savePDF(doc, `Expense-Report-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
     toast({ title: "Report Downloaded", description: "Expense report PDF has been generated." });
   };
 

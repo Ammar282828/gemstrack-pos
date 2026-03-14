@@ -500,18 +500,15 @@ export default function CartPage() {
   };
 
 
-  const handleSendWhatsApp = (invoiceToSend: InvoiceType) => {
+  const handleSendWhatsApp = async (invoiceToSend: InvoiceType) => {
     const whatsAppNumber = phoneForm.getValues('phone');
     if (!whatsAppNumber) {
       toast({ title: "No Phone Number", description: "Please enter a customer's phone number.", variant: "destructive" });
       return;
     }
-    
-    const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://gemstrack-pos.web.app';
-    const invoiceUrl = `${appUrl}/view-invoice/${invoiceToSend.id}`;
 
     let message = `Dear ${invoiceToSend.customerName || 'Customer'},\n\n`;
-    message += `Here is your updated estimate from ${settings.shopName}.\n\n`;
+    message += `Here is your estimate from ${settings.shopName}.\n\n`;
     message += `*Estimate ID:* ${invoiceToSend.id}\n`;
     message += `*Total Amount:* PKR ${invoiceToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n`;
     if (invoiceToSend.amountPaid > 0) {
@@ -520,24 +517,40 @@ export default function CartPage() {
     } else {
       message += `*Amount Due:* PKR ${invoiceToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
     }
-    message += `You can view the detailed estimate PDF here:\n${invoiceUrl}\n\n`;
     message += `Thank you for your business!`;
 
+    // Try Web Share API with PDF file (iOS 15+ / Android Chrome 86+)
+    if (typeof navigator !== 'undefined' && navigator.canShare) {
+      try {
+        const doc = await buildInvoicePDF(invoiceToSend);
+        if (doc) {
+          const blob = doc.output('blob') as Blob;
+          const file = new File([blob], `Estimate-${invoiceToSend.id}.pdf`, { type: 'application/pdf' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: `Estimate ${invoiceToSend.id}`, text: message });
+            toast({ title: "Shared", description: "Estimate PDF shared successfully." });
+            return;
+          }
+        }
+      } catch (e) {
+        if ((e as Error)?.name === 'AbortError') return; // user dismissed share sheet
+        console.error('Share failed, falling back to WhatsApp link:', e);
+      }
+    }
+
+    // Fallback for desktop: open wa.me with a pre-composed text + link
+    const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://gemstrack-pos.web.app';
+    message += `\n\nView estimate: ${appUrl}/view-invoice/${invoiceToSend.id}`;
     const numberOnly = whatsAppNumber.replace(/\D/g, '');
     const whatsappUrl = `https://wa.me/${numberOnly}?text=${encodeURIComponent(message)}`;
-
     window.open(whatsappUrl, '_blank');
     toast({ title: "Redirecting to WhatsApp", description: "Your message is ready to be sent." });
   };
 
 
-  const printInvoice = async (invoiceToPrint: InvoiceType) => {
-    if (typeof window === 'undefined') {
-      toast({ title: "Error", description: "PDF generation is only available in the browser.", variant: "destructive" });
-      return;
-    }
+  const buildInvoicePDF = async (invoiceToPrint: InvoiceType): Promise<jsPDF | null> => {
+    if (typeof window === 'undefined') return null;
 
-    const iOSWin = openPDFWindowForIOS();
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -826,9 +839,20 @@ export default function CartPage() {
         doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize);
     }
 
-    savePDF(doc, `Invoice-${invoiceToPrint.id}.pdf`, iOSWin);
+    return doc;
   };
-  
+
+  const printInvoice = async (invoiceToPrint: InvoiceType) => {
+    const iOSWin = openPDFWindowForIOS();
+    const doc = await buildInvoicePDF(invoiceToPrint);
+    if (!doc) {
+      toast({ title: "Error", description: "PDF generation is only available in the browser.", variant: "destructive" });
+      if (iOSWin) iOSWin.close();
+      return;
+    }
+    await savePDF(doc, `Invoice-${invoiceToPrint.id}.pdf`, iOSWin);
+  };
+
   if (!appReady) {
     return (
       <div className="flex h-screen w-full items-center justify-center">

@@ -229,7 +229,7 @@ async function generateInvoicePDF(
   const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
   if (waQrCanvas) { pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Join us on Whatsapp', qrStartX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 4, qrCodeSize, qrCodeSize); }
   if (instaQrCanvas) { const secondQrX = qrStartX + qrCodeSize + qrGap; pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Follow us on Instagram', secondQrX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize); }
-  savePDF(pdfDoc, `Invoice-${invoice.id}.pdf`, iOSWin);
+  await savePDF(pdfDoc, `Invoice-${invoice.id}.pdf`, iOSWin);
 }
 
 async function generateOrderSlipPDF(order: Order, settings: Settings) {
@@ -344,7 +344,7 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
   if (waQrCanvas) { pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Join us on Whatsapp', qrStartX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 4, qrCodeSize, qrCodeSize); }
   if (instaQrCanvas) { const secondQrX = qrStartX + qrCodeSize + qrGap; pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Follow us on Instagram', secondQrX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize); }
-  savePDF(pdfDoc, `OrderSlip-${order.id}.pdf`, iOSWin);
+  await savePDF(pdfDoc, `OrderSlip-${order.id}.pdf`, iOSWin);
 }
 
 const getStatusBadgeVariant = (status: Order['status'] | 'Paid' | 'Unpaid') => {

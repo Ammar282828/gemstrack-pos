@@ -185,7 +185,7 @@ export default function HisaabPage() {
     );
   }, [accountSummaries, searchTerm]);
 
-  const handlePrintReport = () => {
+  const handlePrintReport = async () => {
     if (!settings) {
         toast({ title: "Error", description: "Settings not loaded, cannot generate report.", variant: "destructive" });
         return;
@@ -225,7 +225,7 @@ export default function HisaabPage() {
         headStyles: { fillColor: [41, 128, 185], textColor: 255 },
     });
 
-    savePDF(doc, `Hisaab-Summary-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
+    await savePDF(doc, `Hisaab-Summary-${format(new Date(), 'yyyy-MM-dd')}.pdf`, iOSWin);
     toast({ title: "Report Downloaded", description: "Hisaab summary PDF has been generated." });
   };
 
