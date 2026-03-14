@@ -2143,12 +2143,9 @@ export const useAppStore = create<AppState>()(
           console.error(`Order with ID ${orderId} not found.`);
           throw new Error("Order not found");
         }
-        const updatedItems = [...order.items];
-        if (updatedItems[itemIndex]) {
-          updatedItems[itemIndex].isCompleted = isCompleted;
-        } else {
-            throw new Error("Item index out of bounds");
-        }
+        const updatedItems = order.items.map((item, i) =>
+          i === itemIndex ? { ...item, isCompleted } : item
+        );
     
         try {
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
