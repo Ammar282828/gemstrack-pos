@@ -141,15 +141,19 @@ export default function CartPage() {
 
   const handleSkuInputChange = (value: string) => {
     setSkuInput(value);
-    const q = value.trim().toUpperCase();
-    if (q.length < 1) {
+    const tokens = value.trim().toUpperCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) {
       setSkuSuggestions([]);
       setSkuDropdownOpen(false);
       return;
     }
     const matches = products
       .filter(p => !cartItemsFromStore.find(i => i.sku === p.sku))
-      .filter(p => p.sku.toUpperCase().includes(q) || p.name.toUpperCase().includes(q))
+      .filter(p => {
+        const sku = p.sku.toUpperCase();
+        const name = p.name.toUpperCase();
+        return tokens.every(t => sku.includes(t) || name.includes(t));
+      })
       .slice(0, 8);
     setSkuSuggestions(matches);
     setSkuDropdownOpen(matches.length > 0);
