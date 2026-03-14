@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -274,6 +274,40 @@ export default function SettingsPage() {
     }
   };
 
+  const [isRestoring, setIsRestoring] = useState(false);
+  const handleRestoreSettings = async () => {
+    setIsRestoring(true);
+    try {
+      const res = await fetch('/api/gold-rates');
+      const rates = res.ok ? await res.json() : null;
+      const restoredRates = {
+        goldRatePerGram24k: rates?.goldRatePerGram24k ?? currentSettings.goldRatePerGram24k,
+        goldRatePerGram22k: rates?.goldRatePerGram22k ?? currentSettings.goldRatePerGram22k,
+        goldRatePerGram21k: rates?.goldRatePerGram21k ?? currentSettings.goldRatePerGram21k,
+        goldRatePerGram18k: rates?.goldRatePerGram18k ?? currentSettings.goldRatePerGram18k,
+      };
+      const shopDefaults = {
+        shopName: 'HOUSE OF MINA',
+        shopAddress: '272-B, SHABBIRABAD, BLOCK B, SYEDNA FAKHRUDDIN ROAD, KARACHI',
+        shopContact: '03161930960',
+      };
+      await updateSettingsAction({ ...restoredRates, ...shopDefaults });
+      form.reset({
+        ...form.getValues(),
+        ...restoredRates,
+        ...shopDefaults,
+      });
+      toast({
+        title: 'Settings Restored',
+        description: `Gold rates fetched from gold.pk. Shop details reset to House of Mina defaults.`,
+      });
+    } catch {
+      toast({ title: 'Restore failed', description: 'Could not restore settings.', variant: 'destructive' });
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   if (!appReady || (isSettingsLoading && !form.formState.isDirty) ) { 
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -289,6 +323,24 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-8">
+      <Card className="border-orange-400 bg-orange-50 dark:bg-orange-900/10">
+        <CardHeader className="py-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <CardTitle className="text-base flex items-center text-orange-700 dark:text-orange-400">
+                <RotateCcw className="mr-2 h-4 w-4" /> Restore Settings
+              </CardTitle>
+              <CardDescription className="text-orange-600/80 dark:text-orange-300/70 text-xs mt-0.5">
+                Resets gold rates (live from gold.pk) and shop details to House of Mina defaults.
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleRestoreSettings} disabled={isRestoring} className="border-orange-400 text-orange-700 hover:bg-orange-100 dark:text-orange-300">
+              {isRestoring ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+              Restore Now
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
       <EmergencyLock />
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
