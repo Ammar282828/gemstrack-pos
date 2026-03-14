@@ -3,16 +3,16 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useAppStore, Order, Invoice } from '@/lib/store';
+import { useAppStore, Order, Invoice, Settings, Customer, InvoiceItem, staticCategories } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Loader2, FileText, ClipboardList, AlertTriangle, User, Calendar, DollarSign, Eye, Upload, CheckCircle2, ShoppingBag } from 'lucide-react';
+import { Search, Loader2, FileText, ClipboardList, AlertTriangle, User, Calendar, DollarSign, Eye, Upload, CheckCircle2, ShoppingBag, Printer } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
@@ -21,9 +21,331 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { STORE_CONFIG } from '@/lib/store-config';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import QRCode from 'qrcode.react';
+
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    lastAutoTable: { finalY?: number };
+  }
+}
 
 
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
+
+async function generateInvoicePDF(
+  invoice: Invoice,
+  settings: Settings,
+  customers: Customer[],
+) {
+  if (typeof window === 'undefined') return;
+  const iOSWin = openPDFWindowForIOS();
+  const pdfDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+  const pageHeight = pdfDoc.internal.pageSize.getHeight();
+  const pageWidth = pdfDoc.internal.pageSize.getWidth();
+  const margin = 10;
+
+  let logoDataUrl: string | null = null;
+  let logoFormat = 'PNG';
+  const logoUrl = settings.shopLogoUrlBlack || settings.shopLogoUrl;
+  if (logoUrl) {
+    try {
+      const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(logoUrl)}`);
+      const blob = await res.blob();
+      logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
+      logoDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) { console.error('Logo load error:', e); }
+  }
+
+  function drawHeader(pageNum: number) {
+    if (logoDataUrl) {
+      try { pdfDoc.addImage(logoDataUrl, logoFormat, margin, 8, 35, 11, undefined, 'FAST'); } catch (e) {}
+    }
+    pdfDoc.setFont('helvetica', 'bold').setFontSize(14);
+    pdfDoc.text('ESTIMATE', pageWidth - margin, 14, { align: 'right' });
+    pdfDoc.setLineWidth(0.4).line(margin, 22, pageWidth - margin, 22);
+    if (pageNum > 1) {
+      pdfDoc.setFontSize(8).setTextColor(150);
+      pdfDoc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+      pdfDoc.setTextColor(0);
+    }
+  }
+  drawHeader(1);
+
+  let infoY = 28;
+  pdfDoc.setFontSize(7).setTextColor(100).setFont('helvetica', 'bold');
+  pdfDoc.text('BILL TO:', margin, infoY);
+  pdfDoc.text('INVOICE DETAILS:', pageWidth / 2, infoY);
+  pdfDoc.setLineWidth(0.2).line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
+  infoY += 6;
+  pdfDoc.setFont('helvetica', 'normal').setTextColor(0).setFontSize(8);
+
+  let customerInfo = 'Walk-in Customer';
+  if (invoice.customerId) {
+    const customer = customers.find(c => c.id === invoice.customerId);
+    if (customer) {
+      customerInfo = customer.name;
+      if (customer.phone) customerInfo += `\nPhone: ${customer.phone}`;
+      if (customer.email) customerInfo += `\nEmail: ${customer.email}`;
+    } else if (invoice.customerName) {
+      customerInfo = invoice.customerName;
+    }
+  } else if (invoice.customerName) {
+    customerInfo = invoice.customerName;
+  }
+  pdfDoc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.4 });
+  pdfDoc.text(`Estimate #: ${invoice.id}\nDate: ${new Date(invoice.createdAt).toLocaleDateString()}`, pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
+
+  const rates = (invoice.ratesApplied || {}) as Record<string, number>;
+  const itemsToPrint = Array.isArray(invoice.items) ? invoice.items : Object.values(invoice.items as Record<string, InvoiceItem>);
+  const usedKarats = new Set(itemsToPrint.filter((i: InvoiceItem) => i.metalType === 'gold').map((i: InvoiceItem) => i.karat).filter(Boolean));
+  const ratesApplied: string[] = [];
+  if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
+  if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
+  if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
+  if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+  if (ratesApplied.length > 0) {
+    pdfDoc.setFontSize(6.5).setTextColor(150);
+    pdfDoc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, infoY + 10, { lineHeightFactor: 1.4 });
+  }
+
+  const tableStartY = infoY + (ratesApplied.length > 0 ? 18 : 13);
+  const tableRows: any[][] = [];
+  itemsToPrint.forEach((item: InvoiceItem, index: number) => {
+    const breakdownLines: string[] = [];
+    if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+    if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+    if (item.makingCharges > 0) breakdownLines.push(`  + Making: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+    if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: PKR ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+    if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: PKR ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+    if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+    const metalTypeName = item.metalType === 'silver' ? '925 Sterling Silver' : item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1);
+    const karat = item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : '';
+    const weightPart = item.metalWeightG > 0 ? `, Wt: ${(item.metalWeightG || 0).toFixed(2)}g` : '';
+    const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
+    const fullDescription = `${categoryTitle ? categoryTitle.toUpperCase() + '\n' : ''}${item.name}\nSKU: ${item.sku} | ${metalTypeName}${karat}${weightPart}${breakdownLines.length > 0 ? '\n' + breakdownLines.join('\n') : ''}`;
+    tableRows.push([index + 1, fullDescription, item.quantity, item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }), item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })]);
+  });
+
+  pdfDoc.autoTable({
+    head: [['#', 'Product & Breakdown', 'Qty', 'Unit', 'Total']],
+    body: tableRows,
+    startY: tableStartY,
+    theme: 'grid',
+    headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
+    styles: { fontSize: 7.5, cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
+    columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 9, halign: 'right' }, 3: { cellWidth: 22, halign: 'right' }, 4: { cellWidth: 22, halign: 'right' } },
+    didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
+      if (data.pageNumber > 1) { pdfDoc.setPage(data.pageNumber); data.settings.startY = 28; }
+      drawHeader(data.pageNumber);
+    },
+  });
+
+  let finalY = pdfDoc.lastAutoTable.finalY || 0;
+
+  if (invoice.paymentHistory && invoice.paymentHistory.length > 0) {
+    finalY += 8;
+    pdfDoc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(0);
+    pdfDoc.text('Payment History', margin, finalY);
+    finalY += 4;
+    pdfDoc.autoTable({
+      head: [['Date', 'Amount', 'Notes']],
+      body: invoice.paymentHistory.map(p => [format(new Date(p.date), 'PP'), `PKR ${p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, p.notes || 'Payment received']),
+      startY: finalY, theme: 'striped',
+      headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 8 },
+      styles: { fontSize: 7 },
+    });
+    finalY = pdfDoc.lastAutoTable.finalY || finalY;
+  }
+
+  if (finalY + 70 > pageHeight - margin) {
+    pdfDoc.addPage(); drawHeader(pdfDoc.getNumberOfPages()); finalY = 28;
+  }
+
+  let currentY = finalY + 8;
+  const totalsX = pageWidth - margin;
+  pdfDoc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(0);
+  pdfDoc.text('Subtotal:', totalsX - 50, currentY, { align: 'right' });
+  pdfDoc.text(`PKR ${invoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+  currentY += 6;
+  if (invoice.discountAmount > 0) {
+    pdfDoc.setFont('helvetica', 'bold').setTextColor(220, 53, 69);
+    pdfDoc.text('Discount:', totalsX - 50, currentY, { align: 'right' });
+    pdfDoc.text(`- PKR ${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    currentY += 6;
+  }
+  if (invoice.exchangeAmount1 || invoice.exchangeAmount2) {
+    pdfDoc.setFont('helvetica', 'bold').setTextColor(30, 100, 180);
+    pdfDoc.text(invoice.exchangeDescription ? `Exchange (${invoice.exchangeDescription}):` : 'Exchange:', totalsX - 50, currentY, { align: 'right' });
+    currentY += 5;
+    if (invoice.exchangeAmount1) { pdfDoc.setFont('helvetica', 'normal'); pdfDoc.text(`- PKR ${invoice.exchangeAmount1.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' }); currentY += 5; }
+    if (invoice.exchangeAmount2) { pdfDoc.setFont('helvetica', 'normal'); pdfDoc.text(`- PKR ${invoice.exchangeAmount2.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' }); currentY += 5; }
+  }
+  pdfDoc.setFont('helvetica', 'normal').setTextColor(0).setLineWidth(0.2).line(totalsX - 50, currentY, totalsX, currentY);
+  currentY += 6;
+  pdfDoc.setFontSize(10).setFont('helvetica', 'bold');
+  pdfDoc.text('Grand Total:', totalsX - 50, currentY, { align: 'right' });
+  pdfDoc.text(`PKR ${invoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+  currentY += 7;
+  if (invoice.amountPaid > 0) {
+    pdfDoc.setFontSize(9).setFont('helvetica', 'normal');
+    pdfDoc.text('Amount Paid:', totalsX - 50, currentY, { align: 'right' });
+    pdfDoc.text(`- PKR ${invoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    currentY += 7;
+    pdfDoc.setFontSize(12).setFont('helvetica', 'bold');
+    pdfDoc.text('Balance Due:', totalsX - 50, currentY, { align: 'right' });
+    pdfDoc.text(`PKR ${invoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+  }
+
+  const footerStartY = pageHeight - 36;
+  const contacts = [
+    { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
+    { name: STORE_CONFIG.contact2Name, number: STORE_CONFIG.contact2Number },
+    { name: STORE_CONFIG.contact3Name, number: STORE_CONFIG.contact3Number },
+    { name: STORE_CONFIG.contact4Name, number: STORE_CONFIG.contact4Number },
+  ].filter(c => c.name && c.number);
+  const qrCodeSize = 16, qrGap = 3;
+  const qrSectionWidth = qrCodeSize * 2 + qrGap;
+  const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
+  const qrStartX = pageWidth - margin - qrSectionWidth;
+  pdfDoc.setLineWidth(0.2).line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
+  pdfDoc.setFontSize(6).setFont('helvetica', 'bold').setTextColor(70);
+  pdfDoc.text('For Orders & Inquiries:', margin, footerStartY + 2, { maxWidth: textBlockWidth });
+  pdfDoc.setFontSize(7.5).setFont('helvetica', 'normal').setTextColor(30);
+  contacts.forEach((c, i) => pdfDoc.text(`${c.name}: ${c.number}`, margin, footerStartY + 6 + i * 4, { maxWidth: textBlockWidth }));
+  const afterContacts = footerStartY + 6 + contacts.length * 4;
+  pdfDoc.setFontSize(6).setFont('helvetica', 'bold').setTextColor(80);
+  pdfDoc.text(STORE_CONFIG.bankLine, margin, afterContacts + 2, { maxWidth: textBlockWidth });
+  if (STORE_CONFIG.iban) { pdfDoc.setFontSize(6).setFont('helvetica', 'normal').setTextColor(100); pdfDoc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, afterContacts + 6, { maxWidth: textBlockWidth }); }
+  const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
+  const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
+  if (waQrCanvas) { pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Join us on Whatsapp', qrStartX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 4, qrCodeSize, qrCodeSize); }
+  if (instaQrCanvas) { const secondQrX = qrStartX + qrCodeSize + qrGap; pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Follow us on Instagram', secondQrX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize); }
+  savePDF(pdfDoc, `Invoice-${invoice.id}.pdf`, iOSWin);
+}
+
+async function generateOrderSlipPDF(order: Order, settings: Settings) {
+  if (typeof window === 'undefined') return;
+  const iOSWin = openPDFWindowForIOS();
+  const pdfDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+  const pageHeight = pdfDoc.internal.pageSize.getHeight();
+  const pageWidth = pdfDoc.internal.pageSize.getWidth();
+  const margin = 10;
+
+  let logoDataUrl: string | null = null;
+  let logoFormat = 'PNG';
+  const logoUrl = settings.shopLogoUrlBlack || settings.shopLogoUrl;
+  if (logoUrl) {
+    try {
+      const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(logoUrl)}`);
+      const blob = await res.blob();
+      logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
+      logoDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) { console.error('Logo load error:', e); }
+  }
+
+  function drawHeader(pageNum: number) {
+    if (logoDataUrl) { try { pdfDoc.addImage(logoDataUrl, logoFormat, margin, 7, 32, 10, undefined, 'FAST'); } catch (e) {} }
+    pdfDoc.setFont('helvetica', 'bold').setFontSize(14);
+    pdfDoc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 14, { align: 'right' });
+    pdfDoc.setLineWidth(0.4).line(margin, 22, pageWidth - margin, 22);
+    if (pageNum > 1) { pdfDoc.setFontSize(7).setTextColor(150); pdfDoc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, { align: 'right' }); pdfDoc.setTextColor(0); }
+  }
+  drawHeader(1);
+
+  let infoY = 28;
+  pdfDoc.setFontSize(7).setTextColor(100).setFont('helvetica', 'bold');
+  pdfDoc.text('ORDER DETAILS:', margin, infoY);
+  pdfDoc.setLineWidth(0.2).line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
+  infoY += 6;
+  pdfDoc.setFont('helvetica', 'normal').setTextColor(0).setFontSize(8.5);
+  pdfDoc.text(`Order ID: ${order.id}`, margin, infoY);
+  pdfDoc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, infoY + 5);
+  pdfDoc.text(`Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10);
+
+  const rates = order.ratesApplied as Record<string, number>;
+  const usedKarats = new Set(order.items.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
+  const ratesApplied: string[] = [];
+  if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
+  if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
+  if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
+  if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+  if (ratesApplied.length > 0) { pdfDoc.setFontSize(6.5).setTextColor(150); pdfDoc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, infoY + 15); }
+
+  pdfDoc.setTextColor(0).setFontSize(8.5).setFont('helvetica', 'bold');
+  pdfDoc.text(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`, pageWidth - margin, infoY + 5, { align: 'right' });
+  pdfDoc.text('Advance Paid:', pageWidth - margin, infoY + 10, { align: 'right' });
+  const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
+  pdfDoc.text(`- PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, infoY + 15, { align: 'right' });
+  pdfDoc.setLineWidth(0.3).line(margin, infoY + 20, pageWidth - margin, infoY + 20);
+
+  const tableRows: any[][] = order.items.map((item, i) => {
+    const metalName = item.metalType === 'silver' ? '925 Sterling Silver' : `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.karat ? ` (${item.karat.toUpperCase()})` : ''}`;
+    const metalLine = item.isManualPrice ? metalName : `${metalName}  |  Est. Wt: ${item.estimatedWeightG}g${item.metalType !== 'silver' && item.wastagePercentage > 0 ? `  |  Wastage: ${item.wastagePercentage}%` : ''}`;
+    const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
+    const detailLines: string[] = [];
+    if (categoryTitle) detailLines.push(categoryTitle.toUpperCase());
+    detailLines.push(item.description);
+    detailLines.push(metalLine);
+    if (item.referenceSku) detailLines.push(`Ref SKU: ${item.referenceSku}`);
+    if (item.stoneDetails) detailLines.push(`Instructions: ${item.stoneDetails}`);
+    if (item.diamondDetails) detailLines.push(`Instructions: ${item.diamondDetails}`);
+    return [i + 1, detailLines.join('\n'), `PKR ${(item.totalEstimate || 0).toLocaleString()}`];
+  });
+
+  pdfDoc.autoTable({
+    head: [['#', 'Item Details', 'Est. Price']],
+    body: tableRows,
+    startY: infoY + 27,
+    theme: 'grid',
+    headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
+    styles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
+    columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 28, halign: 'right' } },
+    didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
+      if (data.pageNumber > 1) { pdfDoc.setPage(data.pageNumber); data.settings.startY = 30; }
+      drawHeader(data.pageNumber);
+    },
+  });
+
+  const footerStartY = pageHeight - 36;
+  const contacts = [
+    { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
+    { name: STORE_CONFIG.contact2Name, number: STORE_CONFIG.contact2Number },
+    { name: STORE_CONFIG.contact3Name, number: STORE_CONFIG.contact3Number },
+    { name: STORE_CONFIG.contact4Name, number: STORE_CONFIG.contact4Number },
+  ].filter(c => c.name && c.number);
+  const qrCodeSize = 16, qrGap = 3;
+  const qrSectionWidth = qrCodeSize * 2 + qrGap;
+  const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
+  const qrStartX = pageWidth - margin - qrSectionWidth;
+  pdfDoc.setLineWidth(0.2).line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
+  pdfDoc.setFontSize(6).setFont('helvetica', 'bold').setTextColor(70);
+  pdfDoc.text('For Orders & Inquiries:', margin, footerStartY + 2, { maxWidth: textBlockWidth });
+  pdfDoc.setFontSize(7.5).setFont('helvetica', 'normal').setTextColor(30);
+  contacts.forEach((c, i) => pdfDoc.text(`${c.name}: ${c.number}`, margin, footerStartY + 6 + i * 4, { maxWidth: textBlockWidth }));
+  const afterContacts = footerStartY + 6 + contacts.length * 4;
+  pdfDoc.setFontSize(6).setFont('helvetica', 'bold').setTextColor(80);
+  pdfDoc.text(STORE_CONFIG.bankLine, margin, afterContacts + 2, { maxWidth: textBlockWidth });
+  if (STORE_CONFIG.iban) { pdfDoc.setFontSize(6).setFont('helvetica', 'normal').setTextColor(100); pdfDoc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, afterContacts + 6, { maxWidth: textBlockWidth }); }
+  const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
+  const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
+  if (waQrCanvas) { pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Join us on Whatsapp', qrStartX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 4, qrCodeSize, qrCodeSize); }
+  if (instaQrCanvas) { const secondQrX = qrStartX + qrCodeSize + qrGap; pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Follow us on Instagram', secondQrX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize); }
+  savePDF(pdfDoc, `OrderSlip-${order.id}.pdf`, iOSWin);
+}
 
 const getStatusBadgeVariant = (status: Order['status'] | 'Paid' | 'Unpaid') => {
     switch (status) {
@@ -51,7 +373,7 @@ const isShopifyDoc = (doc: DocumentType): boolean =>
   doc.docType === 'invoice' && !!((doc as Invoice).source?.startsWith('shopify'));
 
 
-const DocumentCard: React.FC<{ doc: DocumentType }> = ({ doc }) => {
+const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void }> = ({ doc, onPrint }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
     
@@ -64,8 +386,8 @@ const DocumentCard: React.FC<{ doc: DocumentType }> = ({ doc }) => {
     };
 
     return (
-        <Card className="mb-4" onClick={handleCardClick}>
-            <CardContent className="p-4 space-y-3">
+        <Card className="mb-4">
+            <CardContent className="p-4 space-y-3" onClick={handleCardClick}>
                 <div className="flex justify-between items-start">
                     <div>
                         <div className="font-bold text-primary hover:underline text-lg">{doc.id}</div>
@@ -98,9 +420,12 @@ const DocumentCard: React.FC<{ doc: DocumentType }> = ({ doc }) => {
                     </div>
                 </div>
             </CardContent>
-             <CardFooter className="p-2 border-t bg-muted/30">
-                <Button variant="ghost" className="w-full justify-center">
+             <CardFooter className="p-2 border-t bg-muted/30 flex gap-2">
+                <Button variant="ghost" className="flex-1 justify-center" onClick={handleCardClick}>
                     <Eye className="w-4 h-4 mr-2" /> View Details
+                </Button>
+                <Button variant="ghost" className="flex-1 justify-center" onClick={(e) => { e.stopPropagation(); onPrint(); }}>
+                    <Printer className="w-4 h-4 mr-2" /> Print
                 </Button>
             </CardFooter>
         </Card>
@@ -108,7 +433,7 @@ const DocumentCard: React.FC<{ doc: DocumentType }> = ({ doc }) => {
 };
 
 
-const DocumentRow: React.FC<{ doc: DocumentType }> = ({ doc }) => {
+const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void }> = ({ doc, onPrint }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -145,6 +470,11 @@ const DocumentRow: React.FC<{ doc: DocumentType }> = ({ doc }) => {
                 <Badge className={cn("border-transparent capitalize", getStatusBadgeVariant(status))}>
                      {status}
                 </Badge>
+            </TableCell>
+            <TableCell>
+                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onPrint(); }}>
+                    <Printer className="w-4 h-4 mr-1" /> Print
+                </Button>
             </TableCell>
         </TableRow>
     );
@@ -297,14 +627,24 @@ export default function DocumentsPage() {
   const { toast } = useToast();
 
   const appReady = useAppReady();
-  const { orders, generatedInvoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices } = useAppStore(state => ({
+  const { orders, generatedInvoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices, settings, customers } = useAppStore(state => ({
     orders: state.orders,
     generatedInvoices: state.generatedInvoices,
     isOrdersLoading: state.isOrdersLoading,
     isInvoicesLoading: state.isInvoicesLoading,
     loadOrders: state.loadOrders,
-    loadGeneratedInvoices: state.loadGeneratedInvoices
+    loadGeneratedInvoices: state.loadGeneratedInvoices,
+    settings: state.settings,
+    customers: state.customers,
   }));
+
+  const handlePrint = (document: DocumentType) => {
+    if (document.docType === 'invoice') {
+      generateInvoicePDF(document as Invoice, settings, customers);
+    } else {
+      generateOrderSlipPDF(document as Order, settings);
+    }
+  };
   
   useEffect(() => {
     if (appReady) {
@@ -408,7 +748,7 @@ export default function DocumentsPage() {
         <>
             {/* Mobile View: Cards */}
             <div className="md:hidden">
-                {docs.map((doc) => <DocumentCard key={`${doc.docType}-${doc.id}`} doc={doc} />)}
+                {docs.map((d) => <DocumentCard key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} />)}
             </div>
 
             {/* Desktop View: Table */}
@@ -422,10 +762,11 @@ export default function DocumentsPage() {
                         <TableHead>Type</TableHead>
                         <TableHead className="text-right">Total (PKR)</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {docs.map((doc) => <DocumentRow key={`${doc.docType}-${doc.id}`} doc={doc} />)}
+                    {docs.map((d) => <DocumentRow key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} />)}
                 </TableBody>
                 </Table>
             </Card>
@@ -533,6 +874,12 @@ export default function DocumentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden QR code elements needed for PDF generation */}
+      <div style={{ display: 'none' }}>
+        <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
+        <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
+      </div>
 
       <Tabs defaultValue="all">
         <TabsList className="grid w-full grid-cols-4 md:w-fit md:grid-cols-4 mb-4">
