@@ -146,6 +146,25 @@ export default function SettingsPage() {
   
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number | null }>({});
   const [isUploading, setIsUploading] = useState<{ [key: string]: boolean }>({});
+  const [isFetchingRates, setIsFetchingRates] = useState(false);
+
+  const fetchGoldRates = async () => {
+    setIsFetchingRates(true);
+    try {
+      const res = await fetch('/api/gold-rates');
+      if (!res.ok) throw new Error('Failed to fetch rates');
+      const data = await res.json();
+      form.setValue('goldRatePerGram24k', data.goldRatePerGram24k, { shouldDirty: true });
+      form.setValue('goldRatePerGram22k', data.goldRatePerGram22k, { shouldDirty: true });
+      form.setValue('goldRatePerGram21k', data.goldRatePerGram21k, { shouldDirty: true });
+      form.setValue('goldRatePerGram18k', data.goldRatePerGram18k, { shouldDirty: true });
+      toast({ title: 'Rates fetched from gold.pk', description: `24k: PKR ${data.goldRatePerGram24k.toLocaleString()}/g` });
+    } catch (e) {
+      toast({ title: 'Failed to fetch rates', description: 'Could not load rates from gold.pk. Try again.', variant: 'destructive' });
+    } finally {
+      setIsFetchingRates(false);
+    }
+  };
 
   type SignInLog = { id: string; email: string; displayName: string | null; browser: string; os: string; timestamp: { toDate: () => Date } | null; photoURL?: string | null; };
   const [signInLogs, setSignInLogs] = useState<SignInLog[]>([]);
@@ -317,7 +336,13 @@ export default function SettingsPage() {
                   )}
               />
               <div className="space-y-2">
-                <Label className="text-base flex items-center"><DollarSign className="h-5 w-5 mr-2 text-muted-foreground" /> Current Gold Rates (PKR per gram)</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-base flex items-center"><DollarSign className="h-5 w-5 mr-2 text-muted-foreground" /> Current Gold Rates (PKR per gram)</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={fetchGoldRates} disabled={isFetchingRates}>
+                    {isFetchingRates ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Globe className="h-4 w-4 mr-2" />}
+                    Fetch from gold.pk
+                  </Button>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border rounded-lg">
                      <FormField control={form.control} name="goldRatePerGram24k" render={({ field }) => (<FormItem><FormLabel className="text-sm">24k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
                      <FormField control={form.control} name="goldRatePerGram22k" render={({ field }) => (<FormItem><FormLabel className="text-sm">22k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>

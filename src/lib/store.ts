@@ -1105,21 +1105,21 @@ export const useAppStore = create<AppState>()(
         }
 
         const currentSettings = get().settings;
-        const updatedSettings = { ...currentSettings, ...newSettings };
-        console.log("[GemsTrack Store updateSettings] Attempting to update settings:", updatedSettings);
+        console.log("[GemsTrack Store updateSettings] Attempting to update settings:", newSettings);
         
-        // Optimistic update for UI responsiveness
-        set((state) => { state.settings = updatedSettings; });
+        // Optimistic update: merge in-memory
+        set((state) => { state.settings = { ...state.settings, ...newSettings }; });
 
         try {
           const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
-          // Use the 'cleanObject' helper to prevent 'undefined' values from being sent to Firestore
-          await setDoc(settingsDocRef, cleanObject(updatedSettings), { merge: true });
+          // Write only the delta (newSettings) — merge:true ensures other fields are preserved.
+          // Never spread currentSettings into the write: stale in-memory defaults could overwrite real Firestore values.
+          await setDoc(settingsDocRef, cleanObject(newSettings), { merge: true });
           console.log("[GemsTrack Store updateSettings] Settings updated successfully in Firestore.");
         } catch (error) {
           console.error("[GemsTrack Store updateSettings] Error updating settings in Firestore:", error);
           // Revert on error to keep UI consistent with the database
-          set((state) => { state.settings = currentSettings; }); 
+          set((state) => { state.settings = currentSettings; });
           throw error;
         }
       },
