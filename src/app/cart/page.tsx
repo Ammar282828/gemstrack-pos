@@ -135,9 +135,30 @@ export default function CartPage() {
   const [isNewProductDialogOpen, setIsNewProductDialogOpen] = useState(false);
 
   const [skuInput, setSkuInput] = useState('');
+  const [skuSuggestions, setSkuSuggestions] = useState<Product[]>([]);
+  const [skuDropdownOpen, setSkuDropdownOpen] = useState(false);
+  const skuInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleAddBySku = () => {
-    const sku = skuInput.trim().toUpperCase();
+  const handleSkuInputChange = (value: string) => {
+    setSkuInput(value);
+    const q = value.trim().toUpperCase();
+    if (q.length < 1) {
+      setSkuSuggestions([]);
+      setSkuDropdownOpen(false);
+      return;
+    }
+    const matches = products
+      .filter(p => !cartItemsFromStore.find(i => i.sku === p.sku))
+      .filter(p => p.sku.toUpperCase().includes(q) || p.name.toUpperCase().includes(q))
+      .slice(0, 8);
+    setSkuSuggestions(matches);
+    setSkuDropdownOpen(matches.length > 0);
+  };
+
+  const handleAddBySku = (skuOverride?: string) => {
+    const sku = (skuOverride ?? skuInput).trim().toUpperCase();
+    setSkuDropdownOpen(false);
+    setSkuSuggestions([]);
     if (!sku) return;
     const found = products.find(p => p.sku === sku);
     if (!found) {
@@ -1032,13 +1053,33 @@ export default function CartPage() {
                 <Button className="w-full" size="lg">Start Scanning</Button>
               </Link>
               <div className="flex gap-2">
-                <Input
-                  placeholder="Or enter SKU directly..."
-                  value={skuInput}
-                  onChange={e => setSkuInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAddBySku()}
-                />
-                <Button variant="secondary" onClick={handleAddBySku}>
+                <div className="relative flex-1">
+                  <Input
+                    ref={skuInputRef}
+                    placeholder="Search by SKU or product name..."
+                    value={skuInput}
+                    onChange={e => handleSkuInputChange(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleAddBySku(); if (e.key === 'Escape') setSkuDropdownOpen(false); }}
+                    onBlur={() => setTimeout(() => setSkuDropdownOpen(false), 150)}
+                    onFocus={() => skuSuggestions.length > 0 && setSkuDropdownOpen(true)}
+                  />
+                  {skuDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+                      {skuSuggestions.map(p => (
+                        <button
+                          key={p.sku}
+                          type="button"
+                          className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-accent text-sm"
+                          onMouseDown={() => handleAddBySku(p.sku)}
+                        >
+                          <span className="font-mono font-semibold text-xs text-muted-foreground shrink-0">{p.sku}</span>
+                          <span className="truncate">{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Button variant="secondary" onClick={() => handleAddBySku()}>
                   <PlusCircle className="h-4 w-4 mr-1"/> Add
                 </Button>
                 <Button variant="outline" onClick={() => setIsNewProductDialogOpen(true)}>
@@ -1100,13 +1141,33 @@ export default function CartPage() {
                     </CardContent>
                     <CardFooter className="flex flex-col gap-3 items-stretch">
                         <div className="flex gap-2">
-                            <Input
-                                placeholder="Enter SKU to add product..."
+                            <div className="relative flex-1">
+                              <Input
+                                ref={skuInputRef}
+                                placeholder="Search by SKU or product name..."
                                 value={skuInput}
-                                onChange={e => setSkuInput(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handleAddBySku()}
-                            />
-                            <Button variant="secondary" onClick={handleAddBySku}>
+                                onChange={e => handleSkuInputChange(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') handleAddBySku(); if (e.key === 'Escape') setSkuDropdownOpen(false); }}
+                                onBlur={() => setTimeout(() => setSkuDropdownOpen(false), 150)}
+                                onFocus={() => skuSuggestions.length > 0 && setSkuDropdownOpen(true)}
+                              />
+                              {skuDropdownOpen && (
+                                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+                                  {skuSuggestions.map(p => (
+                                    <button
+                                      key={p.sku}
+                                      type="button"
+                                      className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-accent text-sm"
+                                      onMouseDown={() => handleAddBySku(p.sku)}
+                                    >
+                                      <span className="font-mono font-semibold text-xs text-muted-foreground shrink-0">{p.sku}</span>
+                                      <span className="truncate">{p.name}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <Button variant="secondary" onClick={() => handleAddBySku()}>
                                 <PlusCircle className="h-4 w-4 mr-1"/> Add
                             </Button>
                             <Button variant="outline" onClick={() => setIsNewProductDialogOpen(true)}>
