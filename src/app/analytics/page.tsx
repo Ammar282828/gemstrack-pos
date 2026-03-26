@@ -255,10 +255,26 @@ export default function AnalyticsPage() {
       customerPerformance[customerKey].orderCount += 1;
     });
 
+    // Process Additional Revenue — must happen BEFORE salesOverTime is built
+    // so extra revenue entries appear in the chart.
+    let extraRevenue = 0;
+    filteredAdditionalRevenues.forEach(r => {
+      if (!r) return;
+      const amount = r.amount || 0;
+      totalSales += amount;
+      extraRevenue += amount;
+      const dateKey = format(startOfDay(parseISO(r.date)), 'yyyy-MM-dd');
+      if (!salesByDate[dateKey]) {
+        salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
+      }
+      salesByDate[dateKey].sales += amount;
+    });
+
     const totalOrders = filteredInvoices.length + filteredOrders.length;
-    calcData.averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+    const orderRevenueTotal = invoiceSalesAcc + orderSales;
+    calcData.averageOrderValue = totalOrders > 0 ? orderRevenueTotal / totalOrders : 0;
     calcData.averageItemsPerOrder = totalOrders > 0 ? totalItemsSold / totalOrders : 0;
-    
+
     // Process Expenses
     const expenseByCategoryMap: Record<string, number> = {};
     filteredExpenses.forEach(expense => {
@@ -275,21 +291,6 @@ export default function AnalyticsPage() {
     calcData.expensesByCategory = Object.entries(expenseByCategoryMap)
         .map(([category, amount]) => ({ category, amount }))
         .sort((a,b) => b.amount - a.amount);
-
-    // Process Additional Revenue — must happen BEFORE salesOverTime is built
-    // so extra revenue entries appear in the chart.
-    let extraRevenue = 0;
-    filteredAdditionalRevenues.forEach(r => {
-      if (!r) return;
-      const amount = r.amount || 0;
-      totalSales += amount;
-      extraRevenue += amount;
-      const dateKey = format(startOfDay(parseISO(r.date)), 'yyyy-MM-dd');
-      if (!salesByDate[dateKey]) {
-        salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
-      }
-      salesByDate[dateKey].sales += amount;
-    });
 
     calcData.salesOverTime = Object.entries(salesByDate)
       .map(([date, data]) => ({ date, sales: data.sales, orders: data.orders, itemsSold: data.itemsSold }))

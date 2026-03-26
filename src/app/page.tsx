@@ -176,7 +176,9 @@ export default function HomePage() {
     const invoiceRevenue30 = recentInvoices.reduce((s, inv) => s + (inv.grandTotal || 0), 0);
     const freeOrders30 = orders.filter(o =>
       parseISO(o.createdAt) >= last30Start &&
-      o.status !== 'Cancelled' && o.status !== 'Refunded' && !o.invoiceId
+      o.status !== 'Cancelled' &&
+      o.status !== 'Refunded' &&
+      !o.invoiceId
     );
     const orderRevenue30 = freeOrders30.reduce((s, o) => s + (o.subtotal || 0), 0);
     const extraRevenue30 = additionalRevenues.filter(r => parseISO(r.date) >= last30Start).reduce((s, r) => s + (r.amount || 0), 0);
@@ -186,7 +188,9 @@ export default function HomePage() {
     const expenses30 = expenses.filter(e => parseISO(e.date) >= last30Start).reduce((s, e) => s + (e.amount || 0), 0);
 
     // Total outstanding balance due
-    const totalOutstanding = generatedInvoices.reduce((s, inv) => s + Math.max(0, inv.balanceDue || 0), 0);
+    const totalOutstanding = generatedInvoices
+      .filter(inv => inv.status !== 'Refunded')
+      .reduce((s, inv) => s + Math.max(0, inv.balanceDue || 0), 0);
 
     // Recent invoices (last 8)
     const recentInvoicesSorted = [...generatedInvoices]
@@ -430,4 +434,3 @@ export default function HomePage() {
     </div>
   );
 }
-

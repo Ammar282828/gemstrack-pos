@@ -123,11 +123,13 @@ export function mapInvoiceItem(lineItem: any) {
 }
 
 export function mapInvoice(order: any) {
-  const subtotal = parseFloat(order.subtotal_price || '0');
   const discount = parseFloat(order.total_discounts || '0');
   const grandTotal = parseFloat(order.total_price || '0');
   const isPaid = order.financial_status === 'paid' || order.financial_status === 'partially_paid';
   const amountPaid = isPaid ? grandTotal : 0;
+  const items = (order.line_items || []).map(mapInvoiceItem);
+  const subtotal = items.reduce((sum: number, item: { itemTotal?: number }) => sum + (item.itemTotal || 0), 0);
+  const adjustmentsAmount = grandTotal - (subtotal - discount);
   const customerName = order.customer
     ? [order.customer.first_name, order.customer.last_name].filter(Boolean).join(' ') || order.email || 'Shopify Customer'
     : order.email || 'Shopify Customer';
@@ -139,9 +141,10 @@ export function mapInvoice(order: any) {
     customerName,
     customerId: order.customer ? `shopify-${order.customer.id}` : '',
     customerContact: order.customer?.phone || '',
-    items: (order.line_items || []).map(mapInvoiceItem),
+    items,
     subtotal,
     discountAmount: discount,
+    ...(adjustmentsAmount !== 0 && { adjustmentsAmount }),
     grandTotal,
     amountPaid,
     balanceDue: grandTotal - amountPaid,

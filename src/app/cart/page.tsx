@@ -27,6 +27,7 @@ import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import StandalonePhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
+import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { Control, useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
 import { ProductForm } from '@/components/product/product-form';
@@ -579,7 +580,7 @@ export default function CartPage() {
         });
         // Get natural dimensions to preserve aspect ratio
         await new Promise<void>((resolve) => {
-          const img = new Image();
+          const img = new window.Image();
           img.onload = () => { logoNaturalW = img.naturalWidth; logoNaturalH = img.naturalHeight; resolve(); };
           img.onerror = () => resolve();
           img.src = logoDataUrl!;
@@ -755,6 +756,7 @@ export default function CartPage() {
 
     let currentY = finalY + 8;
     const totalsX = pageWidth - margin;
+    const adjustmentsAmount = getInvoiceAdjustmentsAmount(invoiceToPrint);
 
     doc.setFontSize(9).setFont("helvetica", "normal").setTextColor(0);
     doc.text(`Subtotal:`, totalsX - 50, currentY, { align: 'right' });
@@ -765,6 +767,13 @@ export default function CartPage() {
         doc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
         doc.text(`Discount:`, totalsX - 50, currentY, { align: 'right' });
         doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+        currentY += 6;
+    }
+
+    if (adjustmentsAmount !== 0) {
+        doc.setFont("helvetica", "normal").setTextColor(0);
+        doc.text(`Adjustments:`, totalsX - 50, currentY, { align: 'right' });
+        doc.text(`PKR ${adjustmentsAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
         currentY += 6;
     }
 
@@ -948,6 +957,7 @@ export default function CartPage() {
                      <div className="pt-4 space-y-2 text-right">
                         <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Subtotal:</span> <span className="w-32 font-medium">PKR {generatedInvoice.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                         {generatedInvoice.discountAmount > 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Discount:</span> <span className="w-32 font-medium">- PKR {generatedInvoice.discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
+                        {getInvoiceAdjustmentsAmount(generatedInvoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Adjustments:</span> <span className="w-32 font-medium">PKR {getInvoiceAdjustmentsAmount(generatedInvoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
                         <div className="flex justify-end items-center gap-4 text-lg font-bold"><span className="text-muted-foreground">Grand Total:</span> <span className="w-32">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                      </div>
                 </div>

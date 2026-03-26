@@ -16,6 +16,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import { format } from 'date-fns';
+import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 
 // Re-declare module for jsPDF in this file as well
 declare module 'jspdf' {
@@ -270,6 +271,7 @@ export default function ViewInvoicePage() {
     
     let currentY = finalY + 8;
     const totalsX = pageWidth - margin;
+    const adjustmentsAmount = getInvoiceAdjustmentsAmount(invoice);
 
     pdfDoc.setFontSize(9).setFont("helvetica", "normal").setTextColor(0);
     pdfDoc.text(`Subtotal:`, totalsX - 50, currentY, { align: 'right' });
@@ -280,6 +282,12 @@ export default function ViewInvoicePage() {
         pdfDoc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
         pdfDoc.text(`Discount:`, totalsX - 50, currentY, { align: 'right' });
         pdfDoc.text(`- PKR ${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+        currentY += 6;
+    }
+    if (adjustmentsAmount !== 0) {
+        pdfDoc.setFont("helvetica", "normal").setTextColor(0);
+        pdfDoc.text(`Adjustments:`, totalsX - 50, currentY, { align: 'right' });
+        pdfDoc.text(`PKR ${adjustmentsAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
         currentY += 6;
     }
     
@@ -397,9 +405,14 @@ export default function ViewInvoicePage() {
                             <p className="text-sm text-muted-foreground">Billed to</p>
                             <p className="font-semibold">{invoice.customerName || 'Walk-in Customer'}</p>
                         </div>
-                         <div>
+                        <div>
                             <p className="text-sm text-muted-foreground text-right">Grand Total</p>
                             <p className="font-semibold text-xl text-primary text-right">PKR {invoice.grandTotal.toLocaleString()}</p>
+                            {getInvoiceAdjustmentsAmount(invoice) !== 0 && (
+                                <p className="text-xs text-muted-foreground text-right">
+                                    Includes adjustments of PKR {getInvoiceAdjustmentsAmount(invoice).toLocaleString()}
+                                </p>
+                            )}
                         </div>
                     </div>
                      {invoice.amountPaid > 0 && (

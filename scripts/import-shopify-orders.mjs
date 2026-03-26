@@ -76,7 +76,6 @@ async function main() {
     const createdAt = row['Created at'] ? new Date(row['Created at']).toISOString() : new Date().toISOString();
     const billingName = row['Billing Name'] || row['Shipping Name'] || 'Walk-in Customer';
     const total = parseFloat(row['Total']) || 0;
-    const subtotal = parseFloat(row['Subtotal']) || total;
     const discount = parseFloat(row['Discount Amount']) || 0;
     const financialStatus = row['Financial Status'] || 'paid';
     const amountPaid = financialStatus === 'paid' ? total : 0;
@@ -118,8 +117,9 @@ async function main() {
         stoneChargesIfAny: 0,
         miscChargesIfAny: 0,
       }],
-      subtotal,
+      subtotal: itemPrice * itemQty,
       discountAmount: discount,
+      ...(((total - ((itemPrice * itemQty) - discount)) !== 0) && { adjustmentsAmount: total - ((itemPrice * itemQty) - discount) }),
       grandTotal: total,
       amountPaid,
       balanceDue,

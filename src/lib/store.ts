@@ -5,6 +5,7 @@ import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc, deleteField } from 'firebase/firestore';
 import { db, auth, firebaseConfig } from '@/lib/firebase';
+import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 
 
 // --- Firestore Collection Names ---
@@ -394,6 +395,7 @@ export interface Invoice {
   exchangeDescription?: string;
   exchangeAmount1?: number;
   exchangeAmount2?: number;
+  adjustmentsAmount?: number; // Shipping, taxes, or other adjustments beyond line items
   grandTotal: number;
   amountPaid: number;
   balanceDue: number;
@@ -462,6 +464,7 @@ export interface Order {
   advanceInExchangeValue?: number; // Estimated value of the exchange
   invoiceId?: string; // Set when order is finalized into an invoice
   tcsConsignmentNo?: string; // TCS Envio courier consignment number
+  notes?: string;
 }
 
 export type HisaabEntityType = 'customer' | 'karigar';
@@ -1599,13 +1602,14 @@ export const useAppStore = create<AppState>()(
                 let existingAmountPaid = 0;
                 let existingPaymentHistory: Payment[] = [];
                 let existingCreatedAt: string | undefined;
+                let existingInvoiceData: Omit<Invoice, 'id'> | null = null;
                 if (existingInvoiceId) {
                     const existingInvoiceDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, existingInvoiceId));
                     if (existingInvoiceDoc.exists()) {
-                        const existingData = existingInvoiceDoc.data() as Omit<Invoice, 'id'>;
-                        existingAmountPaid = existingData.amountPaid || 0;
-                        existingPaymentHistory = existingData.paymentHistory || [];
-                        existingCreatedAt = existingData.createdAt;
+                        existingInvoiceData = existingInvoiceDoc.data() as Omit<Invoice, 'id'>;
+                        existingAmountPaid = existingInvoiceData.amountPaid || 0;
+                        existingPaymentHistory = existingInvoiceData.paymentHistory || [];
+                        existingCreatedAt = existingInvoiceData.createdAt;
                     }
                 }
 
@@ -1678,6 +1682,7 @@ export const useAppStore = create<AppState>()(
                 const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
                 const exchangeTotal = (exchangeInfo?.amount1 || 0) + (exchangeInfo?.amount2 || 0);
                 const grandTotal = subtotal - calculatedDiscountAmount - exchangeTotal;
+                const existingAdjustmentsAmount = getInvoiceAdjustmentsAmount(existingInvoiceData);
 
                 // Reuse existing ID when editing so the invoice number is never consumed twice
                 let invoiceId: string;
@@ -1699,6 +1704,7 @@ export const useAppStore = create<AppState>()(
                     customerName: finalCustomerName || 'Walk-in Customer',
                     customerId: finalCustomerId,
                     customerContact: customerInfo.phone,
+                    ...(existingAdjustmentsAmount !== 0 && { adjustmentsAmount: existingAdjustmentsAmount }),
                     ...(exchangeInfo?.description && { exchangeDescription: exchangeInfo.description }),
                     ...(exchangeInfo?.amount1 && { exchangeAmount1: exchangeInfo.amount1 }),
                     ...(exchangeInfo?.amount2 && { exchangeAmount2: exchangeInfo.amount2 }),
@@ -1888,6 +1894,8 @@ export const useAppStore = create<AppState>()(
 
           const batch = writeBatch(db);
           let ops = 0;
+          const getOutstandingDescription = (invoiceId: string) => `Outstanding balance for Invoice ${invoiceId}`;
+          const getExcessAdvanceDescription = (invoiceId: string) => `Excess advance returned for Invoice ${invoiceId}`;
 
           // Iterate over hisaab entries — for each entry linked to an invoice, validate it
           // Group by invoiceId so we can handle duplicates
@@ -1908,33 +1916,32 @@ export const useAppStore = create<AppState>()(
               continue;
             }
 
-            const debitEntries = linked.filter(h => (h.cashDebit ?? 0) > 0);
-            // cashCredit-only entries with a linkedInvoiceId are artifacts — remove them
-            const badCreditEntries = linked.filter(h => (h.cashDebit ?? 0) === 0 && (h.cashCredit ?? 0) > 0);
-            badCreditEntries.forEach(h => { batch.delete(h._ref); ops++; });
+            const outstandingDebitEntries = linked.filter(h =>
+              (h.cashDebit ?? 0) > 0 && h.description === getOutstandingDescription(inv.id)
+            );
+            const excessAdvanceCreditEntries = linked.filter(h =>
+              (h.cashCredit ?? 0) > 0 && h.description === getExcessAdvanceDescription(inv.id)
+            );
+            const resolvedCustomerId = inv.customerId || customerByName[inv.customerName?.toLowerCase().trim()]?.id || '';
+            const balanceDue = inv.status === 'Refunded' ? 0 : Number(inv.balanceDue ?? 0);
 
-            if ((inv.balanceDue ?? 0) <= 0 || inv.status === 'Refunded') {
-              // Fully paid or refunded — delete all linked debit entries
-              if (debitEntries.length > 0) {
-                console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) fully paid, removing ${debitEntries.length} stale debit entries.`);
-                debitEntries.forEach(h => { batch.delete(h._ref); ops++; });
+            if (balanceDue > 0) {
+              if (excessAdvanceCreditEntries.length > 0) {
+                console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) removing ${excessAdvanceCreditEntries.length} stale excess-advance credit entr${excessAdvanceCreditEntries.length === 1 ? 'y' : 'ies'}.`);
+                excessAdvanceCreditEntries.forEach(h => { batch.delete(h._ref); ops++; });
               }
-            } else {
-              // Outstanding — ensure exactly one debit entry with the correct amount
-              if (debitEntries.length === 0) {
-                // No entry — create one (only if we have a real customer)
-                // For invoices with missing customerId (e.g. Shopify imports with unmatched names), try name-based lookup
-                const resolvedCustomerId = inv.customerId || customerByName[inv.customerName?.toLowerCase().trim()]?.id || '';
+
+              if (outstandingDebitEntries.length === 0) {
                 if (resolvedCustomerId && resolvedCustomerId !== 'walk-in') {
-                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) outstanding ${inv.balanceDue} — creating missing entry.`);
+                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) outstanding ${balanceDue} — creating missing entry.`);
                   const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
                   batch.set(newRef, {
                     entityId: resolvedCustomerId,
                     entityType: 'customer',
                     entityName: inv.customerName || 'Customer',
                     date: inv.createdAt,
-                    description: `Outstanding balance for Invoice ${inv.id}`,
-                    cashDebit: inv.balanceDue,
+                    description: getOutstandingDescription(inv.id),
+                    cashDebit: balanceDue,
                     cashCredit: 0,
                     goldDebitGrams: 0,
                     goldCreditGrams: 0,
@@ -1943,14 +1950,56 @@ export const useAppStore = create<AppState>()(
                   ops++;
                 }
               } else {
-                // Update stale amount and remove duplicates
-                if (debitEntries[0].cashDebit !== inv.balanceDue) {
-                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) updating stale cashDebit ${debitEntries[0].cashDebit} → ${inv.balanceDue}.`);
-                  batch.update(debitEntries[0]._ref, { cashDebit: inv.balanceDue });
+                if (outstandingDebitEntries[0].cashDebit !== balanceDue) {
+                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) updating stale cashDebit ${outstandingDebitEntries[0].cashDebit} → ${balanceDue}.`);
+                  batch.update(outstandingDebitEntries[0]._ref, { cashDebit: balanceDue, cashCredit: 0 });
                   ops++;
                 }
-                debitEntries.slice(1).forEach(h => { batch.delete(h._ref); ops++; });
+                outstandingDebitEntries.slice(1).forEach(h => { batch.delete(h._ref); ops++; });
               }
+              continue;
+            }
+
+            if (balanceDue < 0) {
+              if (outstandingDebitEntries.length > 0) {
+                console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) removing ${outstandingDebitEntries.length} stale outstanding entr${outstandingDebitEntries.length === 1 ? 'y' : 'ies'} after overpayment.`);
+                outstandingDebitEntries.forEach(h => { batch.delete(h._ref); ops++; });
+              }
+
+              const creditAmount = Math.abs(balanceDue);
+              if (excessAdvanceCreditEntries.length === 0) {
+                if (resolvedCustomerId && resolvedCustomerId !== 'walk-in') {
+                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) excess advance ${creditAmount} — creating missing credit entry.`);
+                  const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
+                  batch.set(newRef, {
+                    entityId: resolvedCustomerId,
+                    entityType: 'customer',
+                    entityName: inv.customerName || 'Customer',
+                    date: inv.createdAt,
+                    description: getExcessAdvanceDescription(inv.id),
+                    cashDebit: 0,
+                    cashCredit: creditAmount,
+                    goldDebitGrams: 0,
+                    goldCreditGrams: 0,
+                    linkedInvoiceId: inv.id,
+                  });
+                  ops++;
+                }
+              } else {
+                if (excessAdvanceCreditEntries[0].cashCredit !== creditAmount) {
+                  console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) updating stale cashCredit ${excessAdvanceCreditEntries[0].cashCredit} → ${creditAmount}.`);
+                  batch.update(excessAdvanceCreditEntries[0]._ref, { cashDebit: 0, cashCredit: creditAmount });
+                  ops++;
+                }
+                excessAdvanceCreditEntries.slice(1).forEach(h => { batch.delete(h._ref); ops++; });
+              }
+              continue;
+            }
+
+            const staleAutoEntries = [...outstandingDebitEntries, ...excessAdvanceCreditEntries];
+            if (staleAutoEntries.length > 0) {
+              console.log(`[syncHisaab] Invoice ${inv.id} (${inv.customerName}) settled, removing ${staleAutoEntries.length} stale auto-managed entr${staleAutoEntries.length === 1 ? 'y' : 'ies'}.`);
+              staleAutoEntries.forEach(h => { batch.delete(h._ref); ops++; });
             }
           }
 
@@ -1971,7 +2020,7 @@ export const useAppStore = create<AppState>()(
               entityType: 'customer',
               entityName: inv.customerName || 'Customer',
               date: inv.createdAt,
-              description: `Outstanding balance for Invoice ${inv.id}`,
+              description: getOutstandingDescription(inv.id),
               cashDebit: inv.balanceDue,
               cashCredit: 0,
               goldDebitGrams: 0,

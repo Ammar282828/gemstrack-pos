@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { STORE_CONFIG } from '@/lib/store-config';
+import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
@@ -172,6 +173,7 @@ async function generateInvoicePDF(
 
   let currentY = finalY + 8;
   const totalsX = pageWidth - margin;
+  const adjustmentsAmount = getInvoiceAdjustmentsAmount(invoice);
   pdfDoc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(0);
   pdfDoc.text('Subtotal:', totalsX - 50, currentY, { align: 'right' });
   pdfDoc.text(`PKR ${invoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
@@ -180,6 +182,12 @@ async function generateInvoicePDF(
     pdfDoc.setFont('helvetica', 'bold').setTextColor(220, 53, 69);
     pdfDoc.text('Discount:', totalsX - 50, currentY, { align: 'right' });
     pdfDoc.text(`- PKR ${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
+    currentY += 6;
+  }
+  if (adjustmentsAmount !== 0) {
+    pdfDoc.setFont('helvetica', 'normal').setTextColor(0);
+    pdfDoc.text('Adjustments:', totalsX - 50, currentY, { align: 'right' });
+    pdfDoc.text(`PKR ${adjustmentsAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
     currentY += 6;
   }
   if (invoice.exchangeAmount1 || invoice.exchangeAmount2) {
@@ -575,6 +583,8 @@ async function importShopifyCSV(
         miscChargesIfAny: 0,
       };
     });
+    const itemSubtotal = items.reduce((sum, item) => sum + (item.itemTotal || 0), 0);
+    const adjustmentsAmount = total - (itemSubtotal - discount);
 
     lastInvoiceNumber++;
     const invoiceId = `INV-${String(lastInvoiceNumber).padStart(6, '0')}`;
@@ -586,8 +596,9 @@ async function importShopifyCSV(
       customerName: billingName,
       customerContact: h['Billing Phone'] || h['Phone'] || '',
       items,
-      subtotal,
+      subtotal: itemSubtotal,
       discountAmount: discount,
+      ...(adjustmentsAmount !== 0 && { adjustmentsAmount }),
       grandTotal: total,
       amountPaid,
       balanceDue,
