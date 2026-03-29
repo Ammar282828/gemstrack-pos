@@ -16,8 +16,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
@@ -136,6 +137,184 @@ const EmergencyLock: React.FC = () => {
     );
 };
 
+
+const NOTIF_TOGGLES: { key: keyof Settings; label: string; description: string }[] = [
+  { key: 'notifNewOrder',       label: 'New Order',           description: 'Alert when a new order is created' },
+  { key: 'notifOrderCompleted', label: 'Order Completed',     description: 'Alert when an order is marked completed' },
+  { key: 'notifOrderCancelled', label: 'Order Cancelled',     description: 'Alert when an order is cancelled or refunded' },
+  { key: 'notifDailyChecklist', label: 'Daily Checklist',     description: 'Morning summary: active orders, overdue, unreturned items' },
+  { key: 'notifEndOfDay',       label: 'End of Day Summary',  description: 'Evening recap of today\'s orders' },
+  { key: 'notifWeeklyReport',   label: 'Weekly Report',       description: 'Monday morning business summary' },
+  { key: 'notifOrderOverdue',   label: 'Overdue Order Alert', description: 'Orders in Pending/In Progress for 7+ days (daily check)' },
+  { key: 'notifGivenItems',     label: 'Given Items Overdue', description: 'Items given out and not returned for 7+ days' },
+  { key: 'notifKarigarPayment', label: 'Karigar Payments Due','description': 'Unpaid karigar batches (weekly check)' },
+];
+
+function NotificationsCard() {
+  const { settings, updateSettings } = useAppStore();
+  const { toast } = useToast();
+  const [saving, setSaving] = React.useState(false);
+  const [newPhone, setNewPhone] = React.useState('');
+  const phones = settings.notifPhones || [];
+
+  const handleToggle = async (key: keyof Settings, value: boolean) => {
+    await updateSettings({ [key]: value } as Partial<Settings>);
+  };
+
+  const handleAddPhone = async () => {
+    const cleaned = newPhone.replace(/\D/g, '');
+    if (!cleaned) return;
+    if (phones.includes(cleaned)) {
+      toast({ title: 'Already added', description: `${cleaned} is already in the list.`, variant: 'destructive' });
+      return;
+    }
+    await updateSettings({ notifPhones: [...phones, cleaned] });
+    setNewPhone('');
+    toast({ title: 'Added', description: `${cleaned} added to recipients.` });
+  };
+
+  const handleRemovePhone = async (phone: string) => {
+    await updateSettings({ notifPhones: phones.filter(p => p !== phone) });
+  };
+
+  const handleTestMessage = async (phone: string) => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/notifications/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: phone, message: '*GemsTrack Test* — notifications are working!' }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      toast({ title: 'Test sent!', description: `Message sent to ${phone}` });
+    } catch (e: unknown) {
+      toast({ title: 'Send failed', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-xl flex items-center gap-2">
+          {settings.notifEnabled ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5 text-muted-foreground" />}
+          WhatsApp Notifications
+        </CardTitle>
+        <CardDescription>
+          Send shop alerts to a WhatsApp number via the Meta Business API. Requires <code className="text-xs bg-muted px-1 rounded">WHATSAPP_TOKEN</code> and <code className="text-xs bg-muted px-1 rounded">WHATSAPP_PHONE_ID</code> in <code className="text-xs bg-muted px-1 rounded">.env.local</code>.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Master toggle */}
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div>
+            <p className="font-medium">Enable Notifications</p>
+            <p className="text-sm text-muted-foreground">Master switch for all WhatsApp alerts</p>
+          </div>
+          <Switch
+            checked={!!settings.notifEnabled}
+            onCheckedChange={v => handleToggle('notifEnabled', v)}
+          />
+        </div>
+
+        {settings.notifEnabled && (
+          <>
+            {/* Recipients */}
+            <div className="space-y-3">
+              <Label>Recipient WhatsApp Numbers</Label>
+              <p className="text-xs text-muted-foreground">International format, no + or spaces. E.g. <code className="bg-muted px-1 rounded">923262275554</code></p>
+
+              {/* Existing numbers */}
+              {phones.length > 0 && (
+                <div className="space-y-2">
+                  {phones.map(p => (
+                    <div key={p} className="flex items-center gap-2 rounded-md border px-3 py-2 bg-muted/30">
+                      <Phone className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm flex-1 font-mono">{p}</span>
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => handleTestMessage(p)} disabled={saving}>
+                        Test
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleRemovePhone(p)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add new number */}
+              <div className="flex gap-2">
+                <Input
+                  value={newPhone}
+                  onChange={e => setNewPhone(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddPhone()}
+                  placeholder="923262275554"
+                  className="max-w-xs font-mono"
+                />
+                <Button variant="outline" size="sm" onClick={handleAddPhone} disabled={!newPhone}>
+                  <Plus className="h-4 w-4 mr-1" /> Add
+                </Button>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Notification toggles */}
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Notification Types</p>
+              {NOTIF_TOGGLES.map(({ key, label, description }) => (
+                <div key={key} className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="text-sm font-medium">{label}</p>
+                    <p className="text-xs text-muted-foreground">{description}</p>
+                  </div>
+                  <Switch
+                    checked={!!settings[key]}
+                    onCheckedChange={v => handleToggle(key, v as boolean)}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <Separator />
+
+            {/* Schedule times */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="checklistTime">Daily Checklist Time</Label>
+                <Input
+                  id="checklistTime"
+                  type="time"
+                  defaultValue={settings.notifDailyChecklistTime || '09:00'}
+                  onBlur={e => updateSettings({ notifDailyChecklistTime: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="eodTime">End of Day Time</Label>
+                <Input
+                  id="eodTime"
+                  type="time"
+                  defaultValue={settings.notifEndOfDayTime || '19:00'}
+                  onBlur={e => updateSettings({ notifEndOfDayTime: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>Scheduler</AlertTitle>
+              <AlertDescription>
+                Scheduled notifications (daily checklist, weekly report, etc.) require the scheduler script to be running:
+                <code className="block mt-1 bg-muted px-2 py-1 rounded text-xs">node notifications-scheduler.js</code>
+              </AlertDescription>
+            </Alert>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -604,7 +783,10 @@ export default function SettingsPage() {
           </Card>
         </form>
       </Form>
-      
+
+      {/* WhatsApp Notifications */}
+      <NotificationsCard />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Data & API Management</CardTitle>

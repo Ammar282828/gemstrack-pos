@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "GemsTrack POS",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "Notifications Scheduler",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["notifications-scheduler.js"],
+      "port": 3001
+    }
+  ]
+}

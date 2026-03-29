@@ -306,6 +306,20 @@ export interface Settings extends GoldRates {
   shopifyAccessToken?: string;
   shopifyLastSyncedAt?: string;
   goldRatesLastFetchedAt?: string; // ISO string – when rates were last auto-fetched from gold.pk
+  // WhatsApp Notifications
+  notifEnabled?: boolean;
+  notifPhones?: string[]; // recipient numbers in international format, no +, e.g. ["923262275554"]
+  notifNewOrder?: boolean;
+  notifOrderCompleted?: boolean;
+  notifOrderCancelled?: boolean;
+  notifDailyChecklist?: boolean;
+  notifEndOfDay?: boolean;
+  notifWeeklyReport?: boolean;
+  notifOrderOverdue?: boolean; // daily check: orders Pending/In Progress for 7+ days
+  notifGivenItems?: boolean;   // daily check: given items unreturned for 7+ days
+  notifKarigarPayment?: boolean; // weekly check: unpaid karigar batches
+  notifDailyChecklistTime?: string; // "HH:MM", default "09:00"
+  notifEndOfDayTime?: string;       // "HH:MM", default "19:00"
 }
 
 export interface Category {
@@ -597,6 +611,19 @@ const initialSettingsData: Settings = {
   paymentMethods: [],
   theme: 'slate',
   databaseLocked: false,
+  notifEnabled: false,
+  notifPhones: [],
+  notifNewOrder: true,
+  notifOrderCompleted: true,
+  notifOrderCancelled: true,
+  notifDailyChecklist: true,
+  notifEndOfDay: false,
+  notifWeeklyReport: true,
+  notifOrderOverdue: true,
+  notifGivenItems: true,
+  notifKarigarPayment: true,
+  notifDailyChecklistTime: '09:00',
+  notifEndOfDayTime: '19:00',
   firebaseConfig: {
     projectId: "gemstrack-pos",
   }
@@ -2178,6 +2205,21 @@ export const useAppStore = create<AppState>()(
 
           await addActivityLog('order.create', `Created order: ${finalOrder.id}`, `Customer: ${finalCustomerName || 'Walk-in'} | Total: ${finalGrandTotal.toLocaleString()}`, finalOrder.id);
           console.log(`[GemsTrack Store addOrder] Order ${finalOrder.id} saved successfully.`);
+
+          // WhatsApp notification: new order
+          const s = get().settings;
+          if (s.notifEnabled && s.notifNewOrder && s.notifPhones?.length) {
+            const items = finalOrder.items.map(i => i.description || 'Item').join(', ');
+            const msg = `*New Order* ${finalOrder.id}\nCustomer: ${finalCustomerName || 'Walk-in'}\nItems: ${items}\nTotal: PKR ${finalGrandTotal.toLocaleString()}`;
+            s.notifPhones.forEach(phone => {
+              fetch('/api/notifications/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to: phone, message: msg }),
+              }).catch(e => console.warn('[notif] new order send failed:', e));
+            });
+          }
+
           return finalOrder;
         } catch (error) {
           console.error(`[GemsTrack Store addOrder] Error saving order to Firestore:`, error);
@@ -2216,6 +2258,27 @@ export const useAppStore = create<AppState>()(
           await setDoc(orderDocRef, { status }, { merge: true });
           await addActivityLog('order.update', `Order ${orderId} status changed`, `New status: ${status}`, orderId);
           console.log(`[GemsTrack Store updateOrderStatus] Successfully updated status for order ${orderId}.`);
+
+          // WhatsApp notifications: completed or cancelled
+          const s = get().settings;
+          const order = get().orders.find(o => o.id === orderId);
+          if (s.notifEnabled && s.notifPhones?.length && order) {
+            let msg: string | null = null;
+            if (status === 'Completed' && s.notifOrderCompleted) {
+              msg = `*Order Completed* ${orderId}\nCustomer: ${order.customerName || 'Walk-in'}\nTotal: PKR ${order.grandTotal.toLocaleString()}`;
+            } else if ((status === 'Cancelled' || status === 'Refunded') && s.notifOrderCancelled) {
+              msg = `*Order ${status}* ${orderId}\nCustomer: ${order.customerName || 'Walk-in'}\nTotal: PKR ${order.grandTotal.toLocaleString()}`;
+            }
+            if (msg) {
+              s.notifPhones.forEach(phone => {
+                fetch('/api/notifications/send', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ to: phone, message: msg }),
+                }).catch(e => console.warn('[notif] status update send failed:', e));
+              });
+            }
+          }
         } catch (error) {
           console.error(`[GemsTrack Store updateOrderStatus] Error updating status for order ${orderId}:`, error);
           throw error;
