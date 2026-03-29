@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   // Only proxy trusted image hosts
   const ALLOWED_HOSTS = [
     'https://firebasestorage.googleapis.com/',
+    'https://firebasestorage.app/',
     'https://houseofmina.store/cdn/',
   ];
   if (!ALLOWED_HOSTS.some(h => url.startsWith(h))) {

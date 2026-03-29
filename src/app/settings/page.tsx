@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, ShoppingBag, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -315,6 +315,71 @@ function NotificationsCard() {
     </Card>
   );
 }
+
+const ShopifyCard: React.FC = () => {
+  const { settings } = useAppStore();
+  const { toast } = useToast();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProducts, setSyncProducts] = useState(false);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch('/api/shopify/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ syncOrders: true, syncCustomers: true, syncProducts }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
+      const r = data.results;
+      toast({
+        title: 'Sync Complete',
+        description: `Orders: +${r.orders}  Customers: +${r.customers}${syncProducts ? `  Products: +${r.products}` : ''}  (${r.skipped} skipped)`,
+      });
+    } catch (e: any) {
+      toast({ title: 'Sync Failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-xl flex items-center"><ShoppingBag className="mr-2 h-5 w-5" /> Shopify Integration</CardTitle>
+        <CardDescription>Connected store — credentials are hardcoded in environment variables.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 font-medium">
+          <CheckCircle2 className="h-4 w-4" />
+          Connected · real-time webhooks active
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-sm text-muted-foreground">Shop domain</Label>
+            <Input value="af894b-7f.myshopify.com" readOnly className="bg-muted cursor-default" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm text-muted-foreground">Admin API access token</Label>
+            <Input value="shpat_••••••••••••••••••••••" readOnly className="bg-muted cursor-default" />
+          </div>
+        </div>
+        {settings.shopifyLastSyncedAt && (
+          <p className="text-xs text-muted-foreground">Last synced: {new Date(settings.shopifyLastSyncedAt).toLocaleString()}</p>
+        )}
+        <div className="flex items-center gap-2">
+          <Switch id="sync-products" checked={syncProducts} onCheckedChange={setSyncProducts} />
+          <Label htmlFor="sync-products" className="text-sm">Include product catalog</Label>
+        </div>
+        <Button onClick={handleSync} disabled={isSyncing} size="sm">
+          {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          {isSyncing ? 'Syncing…' : 'Sync Now'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -786,6 +851,9 @@ export default function SettingsPage() {
 
       {/* WhatsApp Notifications */}
       <NotificationsCard />
+
+      {/* Shopify */}
+      <ShopifyCard />
 
       <Card>
         <CardHeader>

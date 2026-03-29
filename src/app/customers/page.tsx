@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users, Loader2, Eye, BookUser, Merge } from 'lucide-react';
+import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users, Loader2, BookUser, Merge } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -28,24 +28,19 @@ import { useToast } from '@/hooks/use-toast';
 
 const CustomerActions: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void>; isCard?: boolean }> = ({ customer, onDelete, isCard }) => {
   return (
-      <div className={isCard ? 'flex gap-2' : 'flex justify-end space-x-2'}>
-           <Button asChild size="sm" variant="outline" className="flex-1">
-            <Link href={`/hisaab/${customer.id}?type=customer`}>
-                <BookUser className="w-4 h-4 mr-2" /> Ledger
-            </Link>
-            </Button>
-          <Button asChild size="sm" variant={isCard ? 'default' : 'outline'} className="flex-1">
-            <Link href={`/customers/${customer.id}/edit`}>
-              <Edit3 className="w-4 h-4 mr-2" /> Edit
-            </Link>
-          </Button>
-           <Button asChild size="sm" variant="outline" className="flex-1">
-            <Link href={`/customers/${customer.id}`}>
-                <Eye className="w-4 h-4 mr-2" /> View
-            </Link>
-            </Button>
-        </div>
-  )
+    <div className="flex gap-2 w-full">
+      <Button asChild size="sm" variant="outline" className="flex-1">
+        <Link href={`/hisaab/${customer.id}?type=customer`}>
+          <BookUser className="w-4 h-4 mr-1.5" /> Ledger
+        </Link>
+      </Button>
+      <Button asChild size="sm" variant={isCard ? 'default' : 'outline'} className="flex-1">
+        <Link href={`/customers/${customer.id}/edit`}>
+          <Edit3 className="w-4 h-4 mr-1.5" /> Edit
+        </Link>
+      </Button>
+    </div>
+  );
 }
 
 const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void> }> = ({ customer, onDelete }) => {
@@ -60,22 +55,17 @@ const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => Prom
       <TableCell>{customer.email || '-'}</TableCell>
       <TableCell>{customer.address || '-'}</TableCell>
       <TableCell className="text-right">
-        <div className="flex justify-end space-x-2">
-            <Button asChild size="sm" variant="ghost">
-                <Link href={`/hisaab/${customer.id}?type=customer`}>
-                    <BookUser className="w-4 h-4" />
-                </Link>
-            </Button>
-            <Button asChild size="sm" variant="ghost">
-                <Link href={`/customers/${customer.id}`}>
-                    <Eye className="w-4 h-4" />
-                </Link>
-            </Button>
-            <Button asChild size="sm" variant="ghost">
-                <Link href={`/customers/${customer.id}/edit`}>
-                    <Edit3 className="w-4 h-4" />
-                </Link>
-            </Button>
+        <div className="flex justify-end gap-1">
+          <Button asChild size="sm" variant="ghost">
+            <Link href={`/hisaab/${customer.id}?type=customer`}>
+              <BookUser className="w-4 h-4" />
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="ghost">
+            <Link href={`/customers/${customer.id}/edit`}>
+              <Edit3 className="w-4 h-4" />
+            </Link>
+          </Button>
         </div>
       </TableCell>
     </TableRow>

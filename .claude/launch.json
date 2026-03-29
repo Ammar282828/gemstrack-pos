@@ -2,17 +2,24 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "GemsTrack POS",
+      "name": "Mina Store (silver)",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "autoPort": true
     },
     {
+      "name": "Taheri Store (gold)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:taheri"],
+      "port": 3001,
+      "autoPort": true
+    },
+    {
       "name": "Notifications Scheduler",
       "runtimeExecutable": "node",
       "runtimeArgs": ["notifications-scheduler.js"],
-      "port": 3001
+      "port": 3002
     }
   ]
 }

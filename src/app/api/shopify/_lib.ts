@@ -37,6 +37,27 @@ export async function firestoreSet(collection: string, docId: string, fields: Re
   });
 }
 
+/** Run a Firestore structured query and return all matching document fields. */
+export async function firestoreQuery(collection: string, field: string, value: string): Promise<any[]> {
+  const base = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents:runQuery?key=${FIRESTORE_API_KEY}`;
+  const body = {
+    structuredQuery: {
+      from: [{ collectionId: collection }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: field },
+          op: 'EQUAL',
+          value: { stringValue: value },
+        },
+      },
+    },
+  };
+  const res = await fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) return [];
+  const rows: any[] = await res.json();
+  return rows.filter(r => r.document?.fields).map(r => r.document);
+}
+
 export function toFirestoreValue(val: any): any {
   if (val === null || val === undefined) return { nullValue: null };
   if (typeof val === 'string') return { stringValue: val };

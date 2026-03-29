@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { firestoreGet, APP_URL, SHOPIFY_API_VERSION } from '../_lib';
+import { APP_URL, SHOPIFY_API_VERSION } from '../_lib';
+import { adminDb } from '@/lib/firebase-admin';
 
 const WEBHOOK_TOPICS = [
   { topic: 'orders/create', address: `${APP_URL}/api/shopify/webhooks/orders` },
@@ -38,9 +39,14 @@ export async function POST(request: NextRequest) {
       shop = body.shop;
       token = body.token;
     } else {
-      const settingsDoc = await firestoreGet('app_settings', 'global');
-      shop = settingsDoc?.fields?.shopifyStoreDomain?.stringValue;
-      token = settingsDoc?.fields?.shopifyAccessToken?.stringValue;
+      shop = process.env.SHOPIFY_STORE_DOMAIN;
+      token = process.env.SHOPIFY_ACCESS_TOKEN;
+      if (!shop || !token) {
+        const settingsSnap = await adminDb.collection('app_settings').doc('global').get();
+        const d = settingsSnap.data() || {};
+        shop = d.shopifyStoreDomain;
+        token = d.shopifyAccessToken;
+      }
     }
 
     if (!shop || !token) {

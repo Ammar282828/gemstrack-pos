@@ -181,6 +181,15 @@ export default function KarigarDetailPage() {
     loadKarigars();
   }, [loadExpenses, loadKarigarBatches, loadKarigars]);
 
+  useEffect(() => {
+    if (!karigarId) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem('karigar_accessed') || '{}');
+      stored[karigarId] = Date.now();
+      localStorage.setItem('karigar_accessed', JSON.stringify(stored));
+    } catch {}
+  }, [karigarId]);
+
   const allKarigarExpenses = useMemo(() =>
     expenses.filter(e => e.karigarId === karigarId),
     [expenses, karigarId]

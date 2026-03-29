@@ -66,8 +66,15 @@ const KarigarRow: React.FC<{ karigar: Karigar; activeHisaab: string | null }> = 
 
 export default function KarigarsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [lastAccessed, setLastAccessed] = useState<Record<string, number>>({});
 
   const appReady = useAppReady();
+
+  useEffect(() => {
+    try {
+      setLastAccessed(JSON.parse(localStorage.getItem('karigar_accessed') || '{}'));
+    } catch {}
+  }, []);
   const karigars = useAppStore(state => state.karigars);
   const karigarBatches = useAppStore(state => state.karigarBatches);
   const isKarigarsLoading = useAppStore(state => state.isKarigarsLoading);
@@ -96,8 +103,13 @@ export default function KarigarsPage() {
         k.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (k.contact && k.contact.includes(searchTerm))
       )
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [karigars, searchTerm, appReady]);
+      .sort((a, b) => {
+        const ta = lastAccessed[a.id] || 0;
+        const tb = lastAccessed[b.id] || 0;
+        if (ta !== tb) return tb - ta;
+        return a.name.localeCompare(b.name);
+      });
+  }, [karigars, searchTerm, appReady, lastAccessed]);
 
   if (!appReady) {
     return (
