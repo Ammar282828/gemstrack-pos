@@ -22,3 +22,11 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: WHATSAPP_TOKEN
+    secret: WHATSAPP_TOKEN
+    availability:
+      - RUNTIME
+  - variable: WHATSAPP_PHONE_ID
+    secret: WHATSAPP_PHONE_ID
+    availability:
+      - RUNTIME
