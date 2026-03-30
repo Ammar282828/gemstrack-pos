@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
       shop = body.shop;
       token = body.token;
     } else {
-      shop = process.env.SHOPIFY_STORE_DOMAIN;
-      token = process.env.SHOPIFY_ACCESS_TOKEN;
+      shop = process.env.SHOPIFY_STORE_DOMAIN ?? '';
+      token = process.env.SHOPIFY_ACCESS_TOKEN ?? '';
       if (!shop || !token) {
         const settingsSnap = await adminDb.collection('app_settings').doc('global').get();
         const d = settingsSnap.data() || {};
