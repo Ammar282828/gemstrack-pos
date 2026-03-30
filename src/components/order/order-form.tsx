@@ -624,7 +624,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                            <CardTitle className="text-lg">Item #{index + 1}</CardTitle>
                         </CardHeader>
                         <CardContent className="p-0 space-y-4">
-                            {!isEditMode && (
+                            {fields.length > 1 && (
                                 <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => remove(index)}>
                                     <Trash2 className="h-4 w-4" />
                                     <span className="sr-only">Remove Item</span>

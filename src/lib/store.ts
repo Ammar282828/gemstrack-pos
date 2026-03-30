@@ -837,6 +837,7 @@ export interface AppState {
   addOrder: (orderData: OrderDataForAdd) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
+  removeItemFromOrder: (orderId: string, itemIndex: number) => Promise<void>;
   updateOrder: (orderId: string, updatedOrderData: Partial<Order>) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
   generateInvoiceFromOrder: (
@@ -2305,6 +2306,29 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
+      removeItemFromOrder: async (orderId, itemIndex) => {
+        if (get().settings.databaseLocked) return;
+        const order = get().orders.find(o => o.id === orderId);
+        if (!order) throw new Error("Order not found");
+        if (order.items.length <= 1) throw new Error("Cannot remove the last item from an order. Delete the order instead.");
+
+        const updatedItems = order.items.filter((_, i) => i !== itemIndex);
+        const newSubtotal = updatedItems.reduce((sum, item) => sum + (item.totalEstimate || item.manualPrice || 0), 0);
+        const newGrandTotal = newSubtotal;
+        const newSummary = updatedItems.length === 1
+          ? (updatedItems[0].description || 'Custom order')
+          : updatedItems.map(i => i.description).filter(Boolean).join(', ') || 'Custom order';
+
+        try {
+          const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
+          await setDoc(orderDocRef, { items: updatedItems, subtotal: newSubtotal, grandTotal: newGrandTotal, summary: newSummary }, { merge: true });
+          await addActivityLog('order.update', `Removed item from order: ${orderId}`, `Item: ${order.items[itemIndex]?.description}`, orderId);
+        } catch (error) {
+          console.error(`Error removing item from order ${orderId}:`, error);
+          throw error;
+        }
+      },
+
       generateInvoiceFromOrder: async (order, finalizedItems, additionalDiscount) => {
         if (get().settings.databaseLocked) return null;
         const { settings } = get();

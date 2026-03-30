@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
@@ -530,10 +530,12 @@ export default function OrderDetailPage() {
   const isHydrated = useIsStoreHydrated();
   const order = useAppStore(state => state.orders.find(o => o.id === orderId));
   const settings = useAppStore(state => state.settings);
-  const { updateOrderStatus, updateOrderItemStatus, updateOrder, karigars, loadKarigars, revertOrderFromInvoice, refundOrder } = useAppStore();
-  
+  const { updateOrderStatus, updateOrderItemStatus, removeItemFromOrder, updateOrder, karigars, loadKarigars, revertOrderFromInvoice, refundOrder } = useAppStore();
+
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isUpdatingItem, setIsUpdatingItem] = useState<number | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<number | null>(null);
+  const [isDeletingItem, setIsDeletingItem] = useState(false);
 
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [notificationType, setNotificationType] = useState<NotificationType | null>(null);
@@ -663,6 +665,20 @@ export default function OrderDetailPage() {
         toast({ title: "Error", description: "Failed to update item status.", variant: "destructive" });
     } finally {
         setIsUpdatingItem(null);
+    }
+  };
+
+  const handleDeleteItem = async () => {
+    if (!order || itemToDelete === null) return;
+    setIsDeletingItem(true);
+    try {
+      await removeItemFromOrder(order.id, itemToDelete);
+      toast({ title: "Item Removed", description: `Item #${itemToDelete + 1} removed from order.` });
+    } catch (error: any) {
+      toast({ title: "Error", description: error?.message || "Failed to remove item.", variant: "destructive" });
+    } finally {
+      setIsDeletingItem(false);
+      setItemToDelete(null);
     }
   };
 
@@ -944,6 +960,7 @@ export default function OrderDetailPage() {
 
 
   return (
+    <>
     <div className="container mx-auto py-8 px-4 space-y-6">
       <div style={{ display: 'none' }}>
         <img id="shop-logo" src={settings?.shopLogoUrlBlack || settings?.shopLogoUrl || ''} crossOrigin="anonymous" alt="" />
@@ -1188,17 +1205,30 @@ export default function OrderDetailPage() {
                                       </div>
                                   </div>
                               </div>
-                              <div className="flex items-center space-x-2 flex-shrink-0">
-                                  {isUpdatingItem === index ? <Loader2 className="h-4 w-4 animate-spin"/> : (
-                                  <Checkbox
-                                      id={`item-${index}`}
-                                      checked={item.isCompleted}
-                                      onCheckedChange={(checked) => handleItemStatusChange(index, !!checked)}
-                                  />
+                              <div className="flex items-center gap-3 flex-shrink-0">
+                                  <div className="flex items-center space-x-2">
+                                      {isUpdatingItem === index ? <Loader2 className="h-4 w-4 animate-spin"/> : (
+                                      <Checkbox
+                                          id={`item-${index}`}
+                                          checked={item.isCompleted}
+                                          onCheckedChange={(checked) => handleItemStatusChange(index, !!checked)}
+                                      />
+                                      )}
+                                      <Label htmlFor={`item-${index}`} className={cn("font-medium", item.isCompleted && "line-through text-muted-foreground")}>
+                                          Mark as Complete
+                                      </Label>
+                                  </div>
+                                  {!order.invoiceId && (
+                                      <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                          onClick={() => setItemToDelete(index)}
+                                          title="Remove item"
+                                      >
+                                          <Trash2 className="h-4 w-4" />
+                                      </Button>
                                   )}
-                                  <Label htmlFor={`item-${index}`} className={cn("font-medium", item.isCompleted && "line-through text-muted-foreground")}>
-                                      Mark as Complete
-                                  </Label>
                               </div>
                           </div>
                       )})}
@@ -1255,5 +1285,30 @@ export default function OrderDetailPage() {
         </div>
       </div>
     </div>
+
+    <AlertDialog open={itemToDelete !== null} onOpenChange={(open) => !open && setItemToDelete(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove Item?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {order && itemToDelete !== null && (
+              <>Remove <span className="font-semibold">"{order.items[itemToDelete]?.description}"</span> from this order? This cannot be undone.</>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeletingItem}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDeleteItem}
+            disabled={isDeletingItem}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isDeletingItem ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
