@@ -40,6 +40,7 @@ async function buildSchedule() {
   // Read times from env or use defaults
   const checklistTime = (process.env.NOTIF_CHECKLIST_TIME || '09:00').split(':');
   const endOfDayTime  = (process.env.NOTIF_EOD_TIME       || '19:00').split(':');
+  const goldUpdateTime = (process.env.GOLD_UPDATE_TIME    || '09:00').split(':');
 
   // Daily checklist + overdue checks
   cron.schedule(`0 ${checklistTime[1]} ${checklistTime[0]} * * *`, () => {
@@ -59,11 +60,23 @@ async function buildSchedule() {
     run('karigar-payments');
   });
 
+  // Gold daily update — every day at configured time (default 9am)
+  cron.schedule(`0 ${goldUpdateTime[1]} ${goldUpdateTime[0]} * * *`, () => {
+    run('gold-daily-update');
+  });
+
+  // Gold breaking news check — every hour on the hour
+  cron.schedule('0 0 * * * *', () => {
+    run('gold-breaking-news');
+  });
+
   console.log('[Scheduler] GemsTrack notification scheduler started.');
-  console.log(`  Daily checklist : ${checklistTime[0]}:${checklistTime[1]}`);
-  console.log(`  End of day      : ${endOfDayTime[0]}:${endOfDayTime[1]}`);
-  console.log(`  Weekly report   : Monday 09:00`);
-  console.log(`  Next.js base    : ${BASE_URL}`);
+  console.log(`  Daily checklist    : ${checklistTime[0]}:${checklistTime[1]}`);
+  console.log(`  End of day         : ${endOfDayTime[0]}:${endOfDayTime[1]}`);
+  console.log(`  Weekly report      : Monday 09:00`);
+  console.log(`  Gold daily update  : ${goldUpdateTime[0]}:${goldUpdateTime[1]}`);
+  console.log(`  Gold breaking news : Every hour`);
+  console.log(`  Next.js base       : ${BASE_URL}`);
 }
 
 // --run <task> flag: run once and exit

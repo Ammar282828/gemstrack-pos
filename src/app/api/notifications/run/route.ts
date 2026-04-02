@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
+import { generateGoldDailyUpdate, checkGoldBreakingNews } from '@/lib/gold-update';
 
 function daysSince(isoDate: string) {
   return Math.floor((Date.now() - new Date(isoDate).getTime()) / 86400000);
@@ -366,9 +367,38 @@ async function checkKarigarPayments(phone: string) {
   await sendWhatsAppMessage(phone, lines.join('\n'));
 }
 
+// ── Gold market update tasks ────────────────────────────────────────────────
+
+const GOLD_UPDATE_PHONE = process.env.GOLD_UPDATE_PHONE || '923262275554';
+
+async function sendGoldDailyUpdate() {
+  const message = await generateGoldDailyUpdate();
+  await sendWhatsAppMessage(GOLD_UPDATE_PHONE, message);
+  return message;
+}
+
+async function sendGoldBreakingNews() {
+  const message = await checkGoldBreakingNews();
+  if (!message) return null; // No alert needed
+  await sendWhatsAppMessage(GOLD_UPDATE_PHONE, message);
+  return message;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { task, force } = await req.json();
+
+    // Gold tasks bypass store notification settings — they use their own phone
+    if (task === 'gold-daily-update') {
+      const msg = await sendGoldDailyUpdate();
+      return NextResponse.json({ ok: true, task, preview: msg.substring(0, 200) + '...' });
+    }
+    if (task === 'gold-breaking-news') {
+      const msg = await sendGoldBreakingNews();
+      if (!msg) return NextResponse.json({ ok: true, task, alert: false, message: 'No breaking news' });
+      return NextResponse.json({ ok: true, task, alert: true, preview: msg.substring(0, 200) + '...' });
+    }
+
     const s = await getSettings();
 
     if (!s?.notifEnabled || !s?.notifPhones?.length) {
