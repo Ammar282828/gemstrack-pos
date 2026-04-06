@@ -1575,6 +1575,9 @@ export const useAppStore = create<AppState>()(
       clearCart: () => set((state) => { state.cart = []; }),
       loadCartFromInvoice: (invoice) => set(state => {
         state.cart = invoice.items.map(item => {
+            // Treat both isCustomPrice (product-based) and isManualPrice (order-based)
+            // as manual price overrides so the original price is preserved.
+            const hasManualPrice = !!(item.isCustomPrice || item.isManualPrice);
             return {
                 sku: item.sku,
                 name: item.name,
@@ -1596,9 +1599,9 @@ export const useAppStore = create<AppState>()(
                 stoneDetails: item.stoneDetails,
                 diamondDetails: item.diamondDetails,
                 // Restore manual price override — without this the price gets
-                // recalculated from metal weights giving a different total.
-                isCustomPrice: item.isCustomPrice || false,
-                customPrice: item.isCustomPrice ? item.unitPrice : undefined,
+                // recalculated from metal weights giving a different (or zero) total.
+                isCustomPrice: hasManualPrice,
+                customPrice: hasManualPrice ? item.unitPrice : undefined,
                 quantity: 1
             };
         });
