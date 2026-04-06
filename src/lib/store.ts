@@ -2111,6 +2111,16 @@ export const useAppStore = create<AppState>()(
               ));
               hisaabSnapshot.docs.forEach(doc => batch.delete(doc.ref));
 
+              // If this invoice was created from an order, clear the invoiceId on that order
+              // so it re-appears in revenue calculations.
+              if (invoiceData.sourceOrderId) {
+                  batch.set(
+                      doc(db, FIRESTORE_COLLECTIONS.ORDERS, invoiceData.sourceOrderId),
+                      { invoiceId: deleteField() },
+                      { merge: true }
+                  );
+              }
+
               batch.delete(invoiceDocRef);
               await batch.commit();
 
