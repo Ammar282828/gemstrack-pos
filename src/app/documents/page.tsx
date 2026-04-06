@@ -381,10 +381,10 @@ const isShopifyDoc = (doc: DocumentType): boolean =>
   doc.docType === 'invoice' && !!((doc as Invoice).source?.startsWith('shopify'));
 
 
-const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void }> = ({ doc, onPrint }) => {
+const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void }> = ({ doc, onPrint, onMarkPaid }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
-    
+
     const handleCardClick = () => {
         if (doc.docType === 'order') {
             router.push(`/orders/${doc.id}`);
@@ -415,15 +415,15 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void }> = ({ do
                 </div>
                  <div className="text-sm text-foreground space-y-2 pt-2 border-t mt-2">
                     <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-muted-foreground"/> 
+                        <User className="w-4 h-4 text-muted-foreground"/>
                         <span>{doc.customerName || 'Walk-in Customer'}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground"/> 
+                        <Calendar className="w-4 h-4 text-muted-foreground"/>
                         <span>{format(parseISO(doc.createdAt), 'MMM dd, yyyy')}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-muted-foreground"/> 
+                        <DollarSign className="w-4 h-4 text-muted-foreground"/>
                         <span>Total: <span className="font-bold text-primary">PKR {doc.grandTotal.toLocaleString()}</span></span>
                     </div>
                 </div>
@@ -435,13 +435,18 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void }> = ({ do
                 <Button variant="ghost" className="flex-1 justify-center" onClick={(e) => { e.stopPropagation(); onPrint(); }}>
                     <Printer className="w-4 h-4 mr-2" /> Print
                 </Button>
+                {status === 'Unpaid' && onMarkPaid && (
+                    <Button variant="ghost" className="flex-1 justify-center text-green-600 hover:text-green-700 hover:bg-green-50" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
+                        <CheckCircle2 className="w-4 h-4 mr-2" /> Mark Paid
+                    </Button>
+                )}
             </CardFooter>
         </Card>
     );
 };
 
 
-const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void }> = ({ doc, onPrint }) => {
+const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void }> = ({ doc, onPrint, onMarkPaid }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -480,9 +485,16 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void }> = ({ doc
                 </Badge>
             </TableCell>
             <TableCell>
-                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onPrint(); }}>
-                    <Printer className="w-4 h-4 mr-1" /> Print
-                </Button>
+                <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onPrint(); }}>
+                        <Printer className="w-4 h-4 mr-1" /> Print
+                    </Button>
+                    {status === 'Unpaid' && onMarkPaid && (
+                        <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
+                            <CheckCircle2 className="w-4 h-4 mr-1" /> Paid
+                        </Button>
+                    )}
+                </div>
             </TableCell>
         </TableRow>
     );
@@ -638,7 +650,7 @@ export default function DocumentsPage() {
   const { toast } = useToast();
 
   const appReady = useAppReady();
-  const { orders, generatedInvoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices, settings, customers } = useAppStore(state => ({
+  const { orders, generatedInvoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices, settings, customers, updateInvoicePayment } = useAppStore(state => ({
     orders: state.orders,
     generatedInvoices: state.generatedInvoices,
     isOrdersLoading: state.isOrdersLoading,
@@ -647,6 +659,7 @@ export default function DocumentsPage() {
     loadGeneratedInvoices: state.loadGeneratedInvoices,
     settings: state.settings,
     customers: state.customers,
+    updateInvoicePayment: state.updateInvoicePayment,
   }));
 
   const handlePrint = (document: DocumentType) => {
@@ -656,7 +669,19 @@ export default function DocumentsPage() {
       generateOrderSlipPDF(document as Order, settings);
     }
   };
-  
+
+  const handleMarkPaid = async (document: DocumentType) => {
+    if (document.docType !== 'invoice') return;
+    const inv = document as Invoice;
+    if (inv.balanceDue <= 0) return;
+    try {
+      await updateInvoicePayment(inv.id, inv.balanceDue, new Date().toISOString());
+      toast({ title: 'Marked as Paid', description: `Payment of PKR ${inv.balanceDue.toLocaleString()} recorded for ${inv.id}.` });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to record payment.', variant: 'destructive' });
+    }
+  };
+
   useEffect(() => {
     if (appReady) {
       loadOrders();
@@ -759,7 +784,7 @@ export default function DocumentsPage() {
         <>
             {/* Mobile View: Cards */}
             <div className="md:hidden">
-                {docs.map((d) => <DocumentCard key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} />)}
+                {docs.map((d) => <DocumentCard key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} />)}
             </div>
 
             {/* Desktop View: Table */}
@@ -777,7 +802,7 @@ export default function DocumentsPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {docs.map((d) => <DocumentRow key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} />)}
+                    {docs.map((d) => <DocumentRow key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} />)}
                 </TableBody>
                 </Table>
             </Card>
