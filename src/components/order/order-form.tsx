@@ -63,7 +63,7 @@ const orderItemSchema = z.object({
   metalType: z.enum(metalTypeValues).default('silver'),
   isCompleted: z.boolean().default(false),
   karigarId: z.string().optional(),
-  isManualPrice: z.boolean().default(false),
+  isManualPrice: z.boolean().default(true),
   manualPrice: z.coerce.number().min(0).default(0),
 }).superRefine((data, ctx) => {
   if (data.isManualPrice) {
@@ -574,7 +574,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             manualPrice: 0,
         });
     };
-  
+
   const handleAddNewItem = () => {
     append({
         itemCategory: '',
@@ -596,7 +596,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         hasStones: false,
         stoneWeightG: 0,
         karigarId: '',
-        isManualPrice: false,
+        isManualPrice: true,
         manualPrice: 0,
     });
   };
@@ -671,13 +671,27 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                 }
                             </div>
 
-                            {/* Manual price toggle */}
+                            {/* Manual price mode (Primary) */}
+                            {form.watch(`items.${index}.isManualPrice`) && (
+                                <div className="space-y-4 p-3 border rounded-md bg-muted/30">
+                                    <FormField control={form.control} name={`items.${index}.manualPrice`} render={({ field }) => (
+                                        <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Manual Price (PKR)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="Enter total price for this item" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <div>
+                                        <Label className="text-muted-foreground text-xs">Reference Rate per Gram (Optional)</Label>
+                                        <p className="text-xs text-muted-foreground mb-1">For your reference only — does not affect the price.</p>
+                                        <Input type="number" step="0.01" placeholder="e.g., 275" className="mt-1" disabled />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Rate & stone calculation toggle */}
                             <FormField control={form.control} name={`items.${index}.isManualPrice`} render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 bg-background">
-                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 bg-muted/30">
+                                    <FormControl><Checkbox checked={!field.value} onCheckedChange={(checked) => field.onChange(!checked)} /></FormControl>
                                     <div className="space-y-0.5 leading-none">
-                                        <FormLabel className="flex items-center cursor-pointer"><DollarSign className="mr-2 h-4 w-4"/>Set Manual Price</FormLabel>
-                                        <FormDescription className="text-xs">Enter a fixed price instead of calculating from weight & rates.</FormDescription>
+                                        <FormLabel className="flex items-center cursor-pointer text-sm text-muted-foreground">Use Rate &amp; Stone Calculation Instead</FormLabel>
+                                        <FormDescription className="text-xs">Calculate price from weight, rate, wastage, and charges.</FormDescription>
                                     </div>
                                 </FormItem>
                             )}/>
@@ -703,13 +717,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                 )}
                             />
 
-                            {form.watch(`items.${index}.isManualPrice`) ? (
-                                /* Manual price mode */
-                                <FormField control={form.control} name={`items.${index}.manualPrice`} render={({ field }) => (
-                                    <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Manual Price (PKR)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="Enter total price for this item" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                            ) : (
-                                /* Auto-calculated mode */
+                            {/* Auto-calculated mode (Secondary) */}
+                            {!form.watch(`items.${index}.isManualPrice`) && (
                                 <>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <FormField control={form.control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (

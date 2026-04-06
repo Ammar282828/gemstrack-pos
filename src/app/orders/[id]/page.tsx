@@ -324,7 +324,7 @@ const finalizeOrderItemSchema = z.object({
   description: z.string(), // Readonly
   karat: z.custom<KaratValue>(), // Readonly
   metalType: z.enum(metalTypeValues), // Readonly
-  isManualPrice: z.boolean().default(false),
+  isManualPrice: z.boolean().default(true),
   finalManualPrice: z.coerce.number().min(0).default(0),
   finalWeightG: z.coerce.number().min(0).default(0),
   finalMakingCharges: z.coerce.number().min(0, "Cannot be negative."),
@@ -407,13 +407,25 @@ const FinalizeOrderDialog: React.FC<{
                         <ScrollArea className="h-[50vh] p-1">
                             <div className="space-y-4 p-3">
                                 {fields.map((field, index) => (
-                                    <Card key={field.id} className="p-4 bg-muted/50">
-                                        <p className="font-bold text-sm mb-2">Item #{index + 1}: {form.getValues(`items.${index}.description`)}</p>
-                                        {form.watch(`items.${index}.isManualPrice`) ? (
+                                    <Card key={field.id} className="p-4 bg-muted/50 space-y-3">
+                                        <p className="font-bold text-sm">Item #{index + 1}: {form.getValues(`items.${index}.description`)}</p>
+                                        {/* Manual price (Primary) */}
+                                        {form.watch(`items.${index}.isManualPrice`) && (
                                             <FormField control={form.control} name={`items.${index}.finalManualPrice`} render={({ field }) => (
                                                 <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Final Price (PKR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                                             )}/>
-                                        ) : (
+                                        )}
+                                        {/* Toggle to rate calculation */}
+                                        <FormField control={form.control} name={`items.${index}.isManualPrice`} render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-2 bg-muted/30">
+                                                <FormControl><Checkbox checked={!field.value} onCheckedChange={(checked) => field.onChange(!checked)} /></FormControl>
+                                                <div className="space-y-0.5 leading-none">
+                                                    <FormLabel className="text-xs text-muted-foreground cursor-pointer">Use Rate &amp; Stone Calculation Instead</FormLabel>
+                                                </div>
+                                            </FormItem>
+                                        )}/>
+                                        {/* Rate calculation (Secondary) */}
+                                        {!form.watch(`items.${index}.isManualPrice`) && (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <FormField control={form.control} name={`items.${index}.finalWeightG`} render={({ field }) => (
                                                     <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4"/>Final Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>

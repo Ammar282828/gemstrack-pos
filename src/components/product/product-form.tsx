@@ -53,7 +53,7 @@ const productFormSchema = z.object({
   diamondDetails: z.string().optional(),
   submitAction: z.enum(['saveAndClose', 'saveAndAddAnother']).optional(),
   // Manual Price Override fields
-  isCustomPrice: z.boolean().default(false),
+  isCustomPrice: z.boolean().default(true),
   customPrice: z.coerce.number().min(0).optional(),
   description: z.string().optional(),
 }).superRefine((data, ctx) => {
@@ -119,7 +119,7 @@ const getSafeDefaultValues = (p?: Product): ProductFormData => {
       imageUrl: p?.imageUrl || "",
       stoneDetails: p?.stoneDetails || "",
       diamondDetails: p?.diamondDetails || "",
-      isCustomPrice: p?.isCustomPrice || false,
+      isCustomPrice: p ? (p.isCustomPrice ?? false) : true,
       customPrice: p?.customPrice || 0,
       description: p?.description || '',
     };
@@ -332,20 +332,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       />
                   </div>
                   
-                  <FormField
-                    control={form.control} name="isCustomPrice"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 bg-primary/5">
-                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} id="isCustomPrice" /></FormControl>
-                        <div className="space-y-1 leading-none">
-                          <Label htmlFor="isCustomPrice" className="flex items-center cursor-pointer text-base font-semibold text-primary"><Info className="mr-2 h-4 w-4" /> Set Manual Price</Label>
-                          <FormDescription>Check this to bypass detailed calculations and set a final price directly.</FormDescription>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-
-                  {isCustomPrice ? (
+                  {/* Manual Price Section (Primary) */}
+                  {isCustomPrice && (
                     <div className="space-y-6 p-4 border rounded-md bg-muted/30">
                         <FormField control={form.control} name="description"
                             render={({ field }) => (
@@ -365,8 +353,32 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                               </FormItem>
                             )}
                           />
+                          <FormField control={form.control} name="silverRatePerGram"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-muted-foreground">Reference Rate per Gram (Optional)</FormLabel>
+                                <FormDescription>For your reference only — does not affect the price.</FormDescription>
+                                <FormControl><Input type="number" step="0.01" placeholder="e.g., 275" {...field} /></FormControl>
+                              </FormItem>
+                            )}
+                          />
                     </div>
-                  ) : (
+                  )}
+
+                  <FormField
+                    control={form.control} name="isCustomPrice"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 bg-muted/30">
+                        <FormControl><Checkbox checked={!field.value} onCheckedChange={(checked) => field.onChange(!checked)} id="isCustomPrice" /></FormControl>
+                        <div className="space-y-1 leading-none">
+                          <Label htmlFor="isCustomPrice" className="flex items-center cursor-pointer text-sm font-medium text-muted-foreground"><Info className="mr-2 h-4 w-4" /> Use Rate &amp; Stone Calculation Instead</Label>
+                          <FormDescription>Calculate price from metal weight, rate, wastage, and charges.</FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  {!isCustomPrice && (
                   <>
                     <Separator />
                     <FormField

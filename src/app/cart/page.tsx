@@ -184,7 +184,7 @@ export default function CartPage() {
   const [silverEditItem, setSilverEditItem] = useState<Product | null>(null);
   const [editRate, setEditRate] = useState('');
   const [editWeight, setEditWeight] = useState('');
-  const [useManualPrice, setUseManualPrice] = useState(false);
+  const [useManualPrice, setUseManualPrice] = useState(true);
   const [editManualPrice, setEditManualPrice] = useState('');
 
   useEffect(() => {
@@ -1332,49 +1332,62 @@ export default function CartPage() {
             <DialogDescription>{silverEditItem?.name} · {silverEditItem?.sku}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Rate per gram (PKR)</Label>
-                <Input
-                  type="number"
-                  value={editRate}
-                  onChange={e => setEditRate(e.target.value)}
-                  disabled={useManualPrice}
-                  placeholder="e.g. 150"
-                />
+            {/* Manual price (Primary) */}
+            {useManualPrice && (
+              <div className="space-y-3 p-3 border rounded-md bg-muted/30">
+                <div className="space-y-1">
+                  <Label>Manual Price (PKR)</Label>
+                  <Input
+                    type="number"
+                    value={editManualPrice}
+                    onChange={e => setEditManualPrice(e.target.value)}
+                    placeholder="e.g. 5000"
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-muted-foreground text-xs">Reference Rate per Gram (Optional)</Label>
+                  <p className="text-xs text-muted-foreground">For your reference only — does not affect the price.</p>
+                  <Input
+                    type="number"
+                    value={editRate}
+                    onChange={e => setEditRate(e.target.value)}
+                    placeholder="e.g. 150"
+                  />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label>Weight (g)</Label>
-                <Input
-                  type="number"
-                  value={editWeight}
-                  onChange={e => setEditWeight(e.target.value)}
-                  disabled={useManualPrice}
-                  placeholder="e.g. 25.5"
-                />
-              </div>
-            </div>
-            <Separator />
+            )}
             <div className="flex items-center gap-2">
               <input
-                id="use-manual-price"
+                id="use-rate-calc"
                 type="checkbox"
-                checked={useManualPrice}
-                onChange={e => setUseManualPrice(e.target.checked)}
+                checked={!useManualPrice}
+                onChange={e => setUseManualPrice(!e.target.checked)}
                 className="h-4 w-4 accent-primary"
               />
-              <Label htmlFor="use-manual-price" className="cursor-pointer">Use manual price instead</Label>
+              <Label htmlFor="use-rate-calc" className="cursor-pointer text-sm text-muted-foreground">Use rate &amp; weight calculation instead</Label>
             </div>
-            {useManualPrice && (
-              <div className="space-y-1">
-                <Label>Manual Price (PKR)</Label>
-                <Input
-                  type="number"
-                  value={editManualPrice}
-                  onChange={e => setEditManualPrice(e.target.value)}
-                  placeholder="e.g. 5000"
-                  autoFocus
-                />
+            {/* Rate & weight calculation (Secondary) */}
+            {!useManualPrice && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Rate per gram (PKR)</Label>
+                  <Input
+                    type="number"
+                    value={editRate}
+                    onChange={e => setEditRate(e.target.value)}
+                    placeholder="e.g. 150"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Weight (g)</Label>
+                  <Input
+                    type="number"
+                    value={editWeight}
+                    onChange={e => setEditWeight(e.target.value)}
+                    placeholder="e.g. 25.5"
+                  />
+                </div>
               </div>
             )}
             <div className="flex justify-end gap-2 pt-2">
