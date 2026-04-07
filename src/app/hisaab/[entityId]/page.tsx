@@ -62,85 +62,6 @@ type HisaabEntryFormData = z.infer<typeof hisaabEntrySchema>;
 type PhoneForm = { phone: string; };
 type TransactionMode = 'gave' | 'got';
 
-const silverTransactionSchema = z.object({
-  silverGrams: z.coerce.number().positive("Silver grams must be greater than 0"),
-  surchargePerGram: z.coerce.number().min(0, "Surcharge must be non-negative").default(0),
-  description: z.string().optional(),
-});
-type SilverTransactionFormData = z.infer<typeof silverTransactionSchema>;
-
-const SilverTransactionDialog: React.FC<{
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSubmit: (data: SilverTransactionFormData) => Promise<void>;
-}> = ({ open, onOpenChange, onSubmit }) => {
-  const form = useForm<SilverTransactionFormData>({
-    resolver: zodResolver(silverTransactionSchema),
-    defaultValues: { silverGrams: 0, surchargePerGram: 0, description: '' },
-  });
-
-  const grams = form.watch('silverGrams') || 0;
-  const perGram = form.watch('surchargePerGram') || 0;
-  const totalSurcharge = grams * perGram;
-
-  const handleFormSubmit = async (data: SilverTransactionFormData) => {
-    await onSubmit(data);
-    form.reset();
-    onOpenChange(false);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-primary">
-            Silver Transaction
-          </DialogTitle>
-          <DialogDescription>
-            Record silver received from karigar with per-gram surcharge.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-4">
-            <FormField control={form.control} name="silverGrams" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Silver Received (grams)</FormLabel>
-                <FormControl><Input type="number" step="0.001" placeholder="e.g. 50.5" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="surchargePerGram" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Surcharge per gram (PKR)</FormLabel>
-                <FormControl><Input type="number" step="0.01" placeholder="e.g. 35" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            {totalSurcharge > 0 && (
-              <div className="text-sm font-medium text-muted-foreground px-1">
-                Total surcharge: PKR {totalSurcharge.toLocaleString()}
-              </div>
-            )}
-            <FormField control={form.control} name="description" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Notes (optional)</FormLabel>
-                <FormControl><Textarea placeholder="e.g. March batch ring set" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <DialogFooter>
-              <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-};
 
 const AddTransactionDialog: React.FC<{
     mode: TransactionMode;
@@ -265,7 +186,6 @@ export default function EntityHisaabPage() {
   const [dialogMode, setDialogMode] = useState<TransactionMode>('gave');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isReminderOpen, setIsReminderOpen] = useState(false);
-  const [isSilverDialogOpen, setIsSilverDialogOpen] = useState(false);
   
   const onDeleteEntry = async (entryId: string) => {
       setIsDeleting(entryId);
@@ -300,33 +220,6 @@ export default function EntityHisaabPage() {
         toast({ title: "Success", description: "New hisaab entry added." });
     } else {
         toast({ title: "Error", description: "Failed to add hisaab entry.", variant: "destructive" });
-    }
-  };
-
-  const onSilverTransaction = async (data: SilverTransactionFormData) => {
-    if (!entity) return;
-    const totalSurcharge = data.silverGrams * data.surchargePerGram;
-    const desc = data.description?.trim()
-      ? `${data.description} — ${data.silverGrams}g silver @ PKR ${data.surchargePerGram}/g = PKR ${totalSurcharge.toLocaleString()}`
-      : `${data.silverGrams}g silver @ PKR ${data.surchargePerGram}/g = PKR ${totalSurcharge.toLocaleString()}`;
-
-    const newEntryData: Omit<HisaabEntry, 'id'> = {
-      entityId: entity.id,
-      entityType: 'karigar',
-      entityName: entity.name,
-      date: new Date().toISOString(),
-      description: desc,
-      cashDebit: totalSurcharge,
-      cashCredit: 0,
-      goldDebitGrams: 0,
-      goldCreditGrams: data.silverGrams,
-    };
-
-    const result = await addHisaabEntry(newEntryData);
-    if (result) {
-      toast({ title: "Success", description: "Silver transaction recorded." });
-    } else {
-      toast({ title: "Error", description: "Failed to record silver transaction.", variant: "destructive" });
     }
   };
 
@@ -454,7 +347,6 @@ export default function EntityHisaabPage() {
   return (
     <div className="container mx-auto py-4 px-3 md:py-8 md:px-4 space-y-4">
        <AddTransactionDialog mode={dialogMode} open={isDialogOpen} onOpenChange={setIsDialogOpen} onSubmit={onAddEntry} entityType={entityType} />
-       {isKarigar && <SilverTransactionDialog open={isSilverDialogOpen} onOpenChange={setIsSilverDialogOpen} onSubmit={onSilverTransaction} />}
        <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <Button variant="ghost" size="icon" onClick={() => router.back()} className="flex-shrink-0">
@@ -517,11 +409,6 @@ export default function EntityHisaabPage() {
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-base">Transactions</CardTitle>
                   <div className="flex gap-2">
-                    {isKarigar && (
-                      <Button size="sm" variant="outline" className="text-primary border-primary/40 hover:bg-primary/10" onClick={() => setIsSilverDialogOpen(true)}>
-                        Silver
-                      </Button>
-                    )}
                     <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => { setDialogMode('gave'); setIsDialogOpen(true); }}>
                         <ArrowUp className="mr-1.5 h-3.5 w-3.5"/> You Gave
                     </Button>

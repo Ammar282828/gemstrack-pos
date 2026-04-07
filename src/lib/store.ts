@@ -24,6 +24,7 @@ const FIRESTORE_COLLECTIONS = {
   KARIGAR_BATCHES: "karigar_batches",
   ACTIVITY_LOG: "activity_log",
   GIVEN_ITEMS: "given_items",
+  SILVER_TRANSACTIONS: "silver_transactions",
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
 
@@ -526,6 +527,16 @@ export interface KarigarBatch {
   totalPaid?: number;  // Stored when closed for quick display
 }
 
+export interface SilverTransaction {
+  id: string;
+  karigarId: string;
+  karigarName: string;
+  date: string;        // ISO
+  silverGrams: number;
+  surchargePerGram: number;
+  totalSurcharge: number;
+  description?: string;
+}
 
 export interface AdditionalRevenue {
   id: string;
@@ -721,6 +732,7 @@ export interface AppState {
   generatedInvoices: Invoice[];
   karigars: Karigar[];
   karigarBatches: KarigarBatch[];
+  silverTransactions: SilverTransaction[];
   orders: Order[];
   hisaabEntries: HisaabEntry[];
   expenses: Expense[];
@@ -737,6 +749,7 @@ export interface AppState {
   isCustomersLoading: boolean;
   isKarigarsLoading: boolean;
   isKarigarBatchesLoading: boolean;
+  isSilverTransactionsLoading: boolean;
   isInvoicesLoading: boolean;
   isOrdersLoading: boolean;
   isHisaabLoading: boolean;
@@ -752,6 +765,7 @@ export interface AppState {
   hasCustomersLoaded: boolean;
   hasKarigarsLoaded: boolean;
   hasKarigarBatchesLoaded: boolean;
+  hasSilverTransactionsLoaded: boolean;
   hasInvoicesLoaded: boolean;
   hasOrdersLoaded: boolean;
   hasHisaabLoaded: boolean;
@@ -769,6 +783,7 @@ export interface AppState {
   ordersError: string | null;
   karigarsError: string | null;
   karigarBatchesError: string | null;
+  silverTransactionsError: string | null;
   hisaabError: string | null;
   expensesError: string | null;
   additionalRevenueError: string | null;
@@ -812,6 +827,10 @@ export interface AppState {
   createKarigarBatch: (data: Omit<KarigarBatch, 'id'>) => Promise<KarigarBatch | null>;
   closeKarigarBatch: (batchId: string, closedDate: string, totalPaid: number) => Promise<void>;
   deleteKarigarBatch: (batchId: string) => Promise<void>;
+
+  loadSilverTransactions: () => void;
+  addSilverTransaction: (data: Omit<SilverTransaction, 'id'>) => Promise<SilverTransaction | null>;
+  deleteSilverTransaction: (id: string) => Promise<void>;
 
   addToCart: (sku: string) => void;
   addProductToCart: (product: Product) => void;
@@ -909,9 +928,9 @@ function cleanObject<T extends object>(obj: T): T {
 const createDataLoader = <T, K extends keyof AppState>(
   collectionName: string,
   stateKey: K,
-  loadingKey: 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isKarigarBatchesLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isAdditionalRevenueLoading' | 'isGivenItemsLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading',
-  errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'karigarBatchesError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'additionalRevenueError' | 'givenItemsError' | 'soldProductsError' | 'activityLogError',
-  loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasKarigarBatchesLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasAdditionalRevenueLoaded' | 'hasGivenItemsLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
+  loadingKey: 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isKarigarBatchesLoading' | 'isSilverTransactionsLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isAdditionalRevenueLoading' | 'isGivenItemsLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading',
+  errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'karigarBatchesError' | 'silverTransactionsError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'additionalRevenueError' | 'givenItemsError' | 'soldProductsError' | 'activityLogError',
+  loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasKarigarBatchesLoaded' | 'hasSilverTransactionsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasAdditionalRevenueLoaded' | 'hasGivenItemsLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
   orderByField: string = "name",
   orderByDirection: "asc" | "desc" = "asc"
 ) => {
@@ -963,6 +982,7 @@ const loadProducts = createDataLoader<Product, 'products'>('products', 'products
 const loadCustomers = createDataLoader<Customer, 'customers'>('customers', 'customers', 'isCustomersLoading', 'customersError', 'hasCustomersLoaded', 'name', 'asc');
 const loadKarigars = createDataLoader<Karigar, 'karigars'>('karigars', 'karigars', 'isKarigarsLoading', 'karigarsError', 'hasKarigarsLoaded', 'name', 'asc');
 const loadKarigarBatches = createDataLoader<KarigarBatch, 'karigarBatches'>('karigar_batches', 'karigarBatches', 'isKarigarBatchesLoading', 'karigarBatchesError', 'hasKarigarBatchesLoaded', 'startDate', 'asc');
+const loadSilverTransactions = createDataLoader<SilverTransaction, 'silverTransactions'>('silver_transactions', 'silverTransactions', 'isSilverTransactionsLoading', 'silverTransactionsError', 'hasSilverTransactionsLoaded', 'date', 'desc');
 const loadInvoices = createDataLoader<Invoice, 'generatedInvoices'>('invoices', 'generatedInvoices', 'isInvoicesLoading', 'invoicesError', 'hasInvoicesLoaded', 'createdAt', 'desc');
 const loadOrders = createDataLoader<Order, 'orders'>('orders', 'orders', 'isOrdersLoading', 'ordersError', 'hasOrdersLoaded', 'createdAt', 'desc');
 const loadHisaab = createDataLoader<HisaabEntry, 'hisaabEntries'>('hisaab', 'hisaabEntries', 'isHisaabLoading', 'hisaabError', 'hasHisaabLoaded', 'date', 'desc');
@@ -991,6 +1011,7 @@ export const useAppStore = create<AppState>()(
       generatedInvoices: [],
       karigars: [],
       karigarBatches: [],
+      silverTransactions: [],
       orders: [],
       hisaabEntries: [],
       expenses: [],
@@ -1005,6 +1026,7 @@ export const useAppStore = create<AppState>()(
       isCustomersLoading: true,
       isKarigarsLoading: true,
       isKarigarBatchesLoading: true,
+      isSilverTransactionsLoading: true,
       isInvoicesLoading: true,
       isOrdersLoading: true,
       isHisaabLoading: true,
@@ -1019,6 +1041,7 @@ export const useAppStore = create<AppState>()(
       hasCustomersLoaded: false,
       hasKarigarsLoaded: false,
       hasKarigarBatchesLoaded: false,
+      hasSilverTransactionsLoaded: false,
       hasInvoicesLoaded: false,
       hasOrdersLoaded: false,
       hasHisaabLoaded: false,
@@ -1035,6 +1058,7 @@ export const useAppStore = create<AppState>()(
       ordersError: null,
       karigarsError: null,
       karigarBatchesError: null,
+      silverTransactionsError: null,
       hisaabError: null,
       expensesError: null,
       additionalRevenueError: null,
@@ -1176,6 +1200,26 @@ export const useAppStore = create<AppState>()(
       loadCustomers: () => loadCustomers(set, get),
       loadKarigars: () => loadKarigars(set, get),
       loadKarigarBatches: () => loadKarigarBatches(set, get),
+      loadSilverTransactions: () => loadSilverTransactions(set, get),
+      addSilverTransaction: async (data) => {
+        if (get().settings.databaseLocked) return null;
+        try {
+          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.SILVER_TRANSACTIONS), data);
+          return { id: docRef.id, ...data };
+        } catch (error) {
+          console.error("[addSilverTransaction] Error:", error);
+          return null;
+        }
+      },
+      deleteSilverTransaction: async (id) => {
+        if (get().settings.databaseLocked) return;
+        try {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.SILVER_TRANSACTIONS, id));
+        } catch (error) {
+          console.error("[deleteSilverTransaction] Error:", error);
+          throw error;
+        }
+      },
       loadGeneratedInvoices: () => loadInvoices(set, get),
       loadOrders: () => loadOrders(set, get),
       loadHisaab: () => loadHisaab(set, get),

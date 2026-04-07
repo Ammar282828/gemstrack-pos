@@ -5,7 +5,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAppStore, Expense, KarigarBatch, HisaabEntry } from '@/lib/store';
+import { useAppStore, Expense, KarigarBatch, SilverTransaction } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -180,8 +180,8 @@ export default function KarigarDetailPage() {
   const expenses = useAppStore(state => state.expenses);
   const karigarBatches = useAppStore(state => state.karigarBatches);
   const deleteKarigarAction = useAppStore(state => state.deleteKarigar);
-  const hisaabEntries = useAppStore(state => state.hisaabEntries);
-  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars, addHisaabEntry, loadHisaab, deleteHisaabEntry } = useAppStore();
+  const silverTransactions = useAppStore(state => state.silverTransactions);
+  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars, addSilverTransaction, loadSilverTransactions, deleteSilverTransaction } = useAppStore();
 
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
   const [isSilverDialogOpen, setIsSilverDialogOpen] = useState(false);
@@ -194,8 +194,8 @@ export default function KarigarDetailPage() {
     loadExpenses();
     loadKarigarBatches();
     loadKarigars();
-    loadHisaab();
-  }, [loadExpenses, loadKarigarBatches, loadKarigars, loadHisaab]);
+    loadSilverTransactions();
+  }, [loadExpenses, loadKarigarBatches, loadKarigars, loadSilverTransactions]);
 
   useEffect(() => {
     if (!karigarId) return;
@@ -238,15 +238,15 @@ export default function KarigarDetailPage() {
   const grandTotal = allKarigarExpenses.reduce((s, e) => s + e.amount, 0);
   const openBatchTotal = openBatchExpenses.reduce((s, e) => s + e.amount, 0);
 
-  const silverTransactions = useMemo(() =>
-    hisaabEntries
-      .filter(e => e.entityId === karigarId && e.goldCreditGrams > 0)
+  const karigarSilver = useMemo(() =>
+    silverTransactions
+      .filter(t => t.karigarId === karigarId)
       .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()),
-    [hisaabEntries, karigarId]
+    [silverTransactions, karigarId]
   );
 
-  const totalSilverGrams = silverTransactions.reduce((s, e) => s + e.goldCreditGrams, 0);
-  const totalSilverSurcharge = silverTransactions.reduce((s, e) => s + e.cashDebit, 0);
+  const totalSilverGrams = karigarSilver.reduce((s, t) => s + t.silverGrams, 0);
+  const totalSilverSurcharge = karigarSilver.reduce((s, t) => s + t.totalSurcharge, 0);
 
   const handleDeleteKarigar = () => {
     if (!karigar) return;
@@ -303,23 +303,18 @@ export default function KarigarDetailPage() {
   const handleSilverTransaction = async (data: SilverTransactionFormData) => {
     if (!karigar) return;
     const total = data.silverGrams * data.surchargePerGram;
-    const desc = data.description?.trim()
-      ? `${data.description} — ${data.silverGrams}g silver @ PKR ${data.surchargePerGram}/g = PKR ${total.toLocaleString()}`
-      : `${data.silverGrams}g silver @ PKR ${data.surchargePerGram}/g = PKR ${total.toLocaleString()}`;
 
-    const entry: Omit<HisaabEntry, 'id'> = {
-      entityId: karigarId,
-      entityType: 'karigar',
-      entityName: karigar.name,
+    const entry: Omit<SilverTransaction, 'id'> = {
+      karigarId,
+      karigarName: karigar.name,
       date: new Date().toISOString(),
-      description: desc,
-      cashDebit: total,
-      cashCredit: 0,
-      goldDebitGrams: 0,
-      goldCreditGrams: data.silverGrams,
+      silverGrams: data.silverGrams,
+      surchargePerGram: data.surchargePerGram,
+      totalSurcharge: total,
+      description: data.description?.trim() || undefined,
     };
 
-    const result = await addHisaabEntry(entry);
+    const result = await addSilverTransaction(entry);
     if (result) {
       toast({ title: "Success", description: "Silver transaction recorded." });
       silverForm.reset();
@@ -570,7 +565,7 @@ export default function KarigarDetailPage() {
       )}
 
       {/* Silver Transactions */}
-      {silverTransactions.length > 0 && (
+      {karigarSilver.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -593,17 +588,19 @@ export default function KarigarDetailPage() {
                     <TableHead>Date</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead className="text-right">Silver (g)</TableHead>
-                    <TableHead className="text-right">Surcharge</TableHead>
+                    <TableHead className="text-right">Rate/g</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
                     <TableHead className="w-8"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {silverTransactions.map(entry => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="text-sm whitespace-nowrap">{format(parseISO(entry.date), 'dd MMM yy')}</TableCell>
-                      <TableCell className="text-sm">{entry.description}</TableCell>
-                      <TableCell className="text-right font-medium text-sm">{entry.goldCreditGrams.toFixed(3)}</TableCell>
-                      <TableCell className="text-right font-medium text-sm">PKR {entry.cashDebit.toLocaleString()}</TableCell>
+                  {karigarSilver.map(t => (
+                    <TableRow key={t.id}>
+                      <TableCell className="text-sm whitespace-nowrap">{format(parseISO(t.date), 'dd MMM yy')}</TableCell>
+                      <TableCell className="text-sm">{t.description || '—'}</TableCell>
+                      <TableCell className="text-right font-medium text-sm">{t.silverGrams.toFixed(3)}</TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">{t.surchargePerGram}</TableCell>
+                      <TableCell className="text-right font-medium text-sm">PKR {t.totalSurcharge.toLocaleString()}</TableCell>
                       <TableCell>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -614,11 +611,11 @@ export default function KarigarDetailPage() {
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete this silver transaction?</AlertDialogTitle>
-                              <AlertDialogDescription>This will remove the entry from the hisaab ledger.</AlertDialogDescription>
+                              <AlertDialogDescription>This will remove the record permanently.</AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteHisaabEntry(entry.id)}>Delete</AlertDialogAction>
+                              <AlertDialogAction onClick={() => deleteSilverTransaction(t.id)}>Delete</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
