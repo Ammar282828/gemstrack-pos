@@ -369,6 +369,17 @@ const getStatusBadgeVariant = (status: Order['status'] | 'Paid' | 'Unpaid') => {
     }
 };
 
+const getStatusDotColor = (status: string) => {
+    switch (status) {
+      case 'Pending': return 'bg-yellow-500';
+      case 'In Progress': return 'bg-blue-500';
+      case 'Completed': return 'bg-green-500';
+      case 'Cancelled': return 'bg-red-500';
+      case 'Refunded': return 'bg-purple-500';
+      default: return 'bg-gray-400';
+    }
+};
+
 const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' => {
   if (doc.docType === 'order') {
     return (doc as Order).status;
@@ -415,10 +426,20 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
                     {doc.docType === 'order' && onStatusChange ? (
                         <Select value={(doc as Order).status} onValueChange={(val) => onStatusChange(val as OrderStatus)}>
                             <SelectTrigger className="w-[140px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
-                                <SelectValue />
+                                <span className="flex items-center gap-2">
+                                    <span className={cn("w-2 h-2 rounded-full shrink-0", getStatusDotColor((doc as Order).status))} />
+                                    {(doc as Order).status}
+                                </span>
                             </SelectTrigger>
                             <SelectContent>
-                                {ORDER_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                {ORDER_STATUSES.map(s => (
+                                    <SelectItem key={s} value={s}>
+                                        <span className="flex items-center gap-2">
+                                            <span className={cn("w-2 h-2 rounded-full shrink-0", getStatusDotColor(s))} />
+                                            {s}
+                                        </span>
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     ) : (
@@ -495,10 +516,20 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid
                 {doc.docType === 'order' && onStatusChange ? (
                     <Select value={(doc as Order).status} onValueChange={(val) => onStatusChange(val as OrderStatus)}>
                         <SelectTrigger className="w-[140px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
-                            <SelectValue />
+                            <span className="flex items-center gap-2">
+                                <span className={cn("w-2 h-2 rounded-full shrink-0", getStatusDotColor((doc as Order).status))} />
+                                {(doc as Order).status}
+                            </span>
                         </SelectTrigger>
                         <SelectContent>
-                            {ORDER_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            {ORDER_STATUSES.map(s => (
+                                <SelectItem key={s} value={s}>
+                                    <span className="flex items-center gap-2">
+                                        <span className={cn("w-2 h-2 rounded-full shrink-0", getStatusDotColor(s))} />
+                                        {s}
+                                    </span>
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 ) : (
