@@ -3,14 +3,15 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useAppStore, Order, Invoice, Settings, Customer, InvoiceItem, staticCategories } from '@/lib/store';
+import { useAppStore, Order, Invoice, Settings, Customer, InvoiceItem, staticCategories, ORDER_STATUSES, OrderStatus } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Loader2, FileText, ClipboardList, AlertTriangle, User, Calendar, DollarSign, Eye, Upload, CheckCircle2, ShoppingBag, Printer } from 'lucide-react';
+import { Search, Loader2, FileText, ClipboardList, AlertTriangle, User, Calendar, DollarSign, Eye, Upload, CheckCircle2, ShoppingBag, Printer, ChevronDown } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -381,7 +382,7 @@ const isShopifyDoc = (doc: DocumentType): boolean =>
   doc.docType === 'invoice' && !!((doc as Invoice).source?.startsWith('shopify'));
 
 
-const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void }> = ({ doc, onPrint, onMarkPaid }) => {
+const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void }> = ({ doc, onPrint, onMarkPaid, onStatusChange }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -411,7 +412,18 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
                             )}
                         </div>
                     </div>
-                    <Badge className={cn("border-transparent capitalize", getStatusBadgeVariant(status))}>{status}</Badge>
+                    {doc.docType === 'order' && onStatusChange ? (
+                        <Select value={(doc as Order).status} onValueChange={(val) => onStatusChange(val as OrderStatus)}>
+                            <SelectTrigger className="w-[140px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {ORDER_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    ) : (
+                        <Badge className={cn("border-transparent capitalize", getStatusBadgeVariant(status))}>{status}</Badge>
+                    )}
                 </div>
                  <div className="text-sm text-foreground space-y-2 pt-2 border-t mt-2">
                     <div className="flex items-center gap-2">
@@ -446,7 +458,7 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
 };
 
 
-const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void }> = ({ doc, onPrint, onMarkPaid }) => {
+const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void }> = ({ doc, onPrint, onMarkPaid, onStatusChange }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -480,9 +492,20 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid
             </TableCell>
             <TableCell className="text-right">PKR {doc.grandTotal.toLocaleString()}</TableCell>
              <TableCell>
-                <Badge className={cn("border-transparent capitalize", getStatusBadgeVariant(status))}>
-                     {status}
-                </Badge>
+                {doc.docType === 'order' && onStatusChange ? (
+                    <Select value={(doc as Order).status} onValueChange={(val) => onStatusChange(val as OrderStatus)}>
+                        <SelectTrigger className="w-[140px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {ORDER_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                ) : (
+                    <Badge className={cn("border-transparent capitalize", getStatusBadgeVariant(status))}>
+                         {status}
+                    </Badge>
+                )}
             </TableCell>
             <TableCell>
                 <div className="flex items-center gap-1">
@@ -650,7 +673,7 @@ export default function DocumentsPage() {
   const { toast } = useToast();
 
   const appReady = useAppReady();
-  const { orders, generatedInvoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices, settings, customers, updateInvoicePayment } = useAppStore(state => ({
+  const { orders, generatedInvoices, isOrdersLoading, isInvoicesLoading, loadOrders, loadGeneratedInvoices, settings, customers, updateInvoicePayment, updateOrderStatus } = useAppStore(state => ({
     orders: state.orders,
     generatedInvoices: state.generatedInvoices,
     isOrdersLoading: state.isOrdersLoading,
@@ -660,6 +683,7 @@ export default function DocumentsPage() {
     settings: state.settings,
     customers: state.customers,
     updateInvoicePayment: state.updateInvoicePayment,
+    updateOrderStatus: state.updateOrderStatus,
   }));
 
   const handlePrint = (document: DocumentType) => {
@@ -679,6 +703,15 @@ export default function DocumentsPage() {
       toast({ title: 'Marked as Paid', description: `Payment of PKR ${inv.balanceDue.toLocaleString()} recorded for ${inv.id}.` });
     } catch {
       toast({ title: 'Error', description: 'Failed to record payment.', variant: 'destructive' });
+    }
+  };
+
+  const handleOrderStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      toast({ title: 'Status Updated', description: `Order ${orderId} changed to "${newStatus}".` });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update status.', variant: 'destructive' });
     }
   };
 
@@ -784,7 +817,7 @@ export default function DocumentsPage() {
         <>
             {/* Mobile View: Cards */}
             <div className="md:hidden">
-                {docs.map((d) => <DocumentCard key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} />)}
+                {docs.map((d) => <DocumentCard key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} onStatusChange={d.docType === 'order' ? (s) => handleOrderStatusChange(d.id, s) : undefined} />)}
             </div>
 
             {/* Desktop View: Table */}
@@ -802,7 +835,7 @@ export default function DocumentsPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {docs.map((d) => <DocumentRow key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} />)}
+                    {docs.map((d) => <DocumentRow key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} onStatusChange={d.docType === 'order' ? (s) => handleOrderStatusChange(d.id, s) : undefined} />)}
                 </TableBody>
                 </Table>
             </Card>
