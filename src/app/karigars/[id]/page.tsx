@@ -36,8 +36,7 @@ import { Save, Loader2 as Spinner } from 'lucide-react';
 
 const silverTransactionSchema = z.object({
   silverGrams: z.coerce.number().positive("Silver grams must be greater than 0"),
-  surcharge: z.coerce.number().min(0, "Surcharge must be non-negative").default(0),
-  cashPaid: z.coerce.number().min(0, "Cash paid must be non-negative").default(0),
+  surchargePerGram: z.coerce.number().min(0, "Surcharge must be non-negative").default(0),
   description: z.string().optional(),
 });
 type SilverTransactionFormData = z.infer<typeof silverTransactionSchema>;
@@ -181,7 +180,8 @@ export default function KarigarDetailPage() {
   const expenses = useAppStore(state => state.expenses);
   const karigarBatches = useAppStore(state => state.karigarBatches);
   const deleteKarigarAction = useAppStore(state => state.deleteKarigar);
-  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars, addHisaabEntry, loadHisaab } = useAppStore();
+  const hisaabEntries = useAppStore(state => state.hisaabEntries);
+  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars, addHisaabEntry, loadHisaab, deleteHisaabEntry } = useAppStore();
 
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
   const [isSilverDialogOpen, setIsSilverDialogOpen] = useState(false);
@@ -238,6 +238,16 @@ export default function KarigarDetailPage() {
   const grandTotal = allKarigarExpenses.reduce((s, e) => s + e.amount, 0);
   const openBatchTotal = openBatchExpenses.reduce((s, e) => s + e.amount, 0);
 
+  const silverTransactions = useMemo(() =>
+    hisaabEntries
+      .filter(e => e.entityId === karigarId && e.goldCreditGrams > 0)
+      .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()),
+    [hisaabEntries, karigarId]
+  );
+
+  const totalSilverGrams = silverTransactions.reduce((s, e) => s + e.goldCreditGrams, 0);
+  const totalSilverSurcharge = silverTransactions.reduce((s, e) => s + e.cashDebit, 0);
+
   const handleDeleteKarigar = () => {
     if (!karigar) return;
     deleteKarigarAction(karigar.id);
@@ -283,14 +293,19 @@ export default function KarigarDetailPage() {
 
   const silverForm = useForm<SilverTransactionFormData>({
     resolver: zodResolver(silverTransactionSchema),
-    defaultValues: { silverGrams: 0, surcharge: 0, cashPaid: 0, description: '' },
+    defaultValues: { silverGrams: 0, surchargePerGram: 0, description: '' },
   });
+
+  const silverGrams = silverForm.watch('silverGrams') || 0;
+  const surchargePerGram = silverForm.watch('surchargePerGram') || 0;
+  const totalSurcharge = silverGrams * surchargePerGram;
 
   const handleSilverTransaction = async (data: SilverTransactionFormData) => {
     if (!karigar) return;
+    const total = data.silverGrams * data.surchargePerGram;
     const desc = data.description?.trim()
-      ? `${data.description} — ${data.silverGrams}g silver + PKR ${data.surcharge.toLocaleString()} surcharge`
-      : `${data.silverGrams}g silver + PKR ${data.surcharge.toLocaleString()} surcharge`;
+      ? `${data.description} — ${data.silverGrams}g silver @ PKR ${data.surchargePerGram}/g = PKR ${total.toLocaleString()}`
+      : `${data.silverGrams}g silver @ PKR ${data.surchargePerGram}/g = PKR ${total.toLocaleString()}`;
 
     const entry: Omit<HisaabEntry, 'id'> = {
       entityId: karigarId,
@@ -298,8 +313,8 @@ export default function KarigarDetailPage() {
       entityName: karigar.name,
       date: new Date().toISOString(),
       description: desc,
-      cashDebit: data.surcharge,
-      cashCredit: data.cashPaid,
+      cashDebit: total,
+      cashCredit: 0,
       goldDebitGrams: 0,
       goldCreditGrams: data.silverGrams,
     };
@@ -395,19 +410,21 @@ export default function KarigarDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-primary">Silver Transaction</DialogTitle>
-            <DialogDescription>Record silver received from {karigar.name} with surcharge, and cash you paid.</DialogDescription>
+            <DialogDescription>Record silver received from {karigar.name} with per-gram surcharge.</DialogDescription>
           </DialogHeader>
           <Form {...silverForm}>
             <form onSubmit={silverForm.handleSubmit(handleSilverTransaction)} className="space-y-4 py-4">
               <FormField control={silverForm.control} name="silverGrams" render={({ field }) => (
                 <FormItem><FormLabel>Silver Received (grams)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g. 50.5" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
-              <FormField control={silverForm.control} name="surcharge" render={({ field }) => (
-                <FormItem><FormLabel>Surcharge (PKR)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="Making charges / surcharge" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormField control={silverForm.control} name="surchargePerGram" render={({ field }) => (
+                <FormItem><FormLabel>Surcharge per gram (PKR)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="e.g. 35" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
-              <FormField control={silverForm.control} name="cashPaid" render={({ field }) => (
-                <FormItem><FormLabel>Cash Paid (PKR)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="Amount you paid" {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
+              {totalSurcharge > 0 && (
+                <div className="text-sm font-medium text-muted-foreground px-1">
+                  Total surcharge: PKR {totalSurcharge.toLocaleString()}
+                </div>
+              )}
               <FormField control={silverForm.control} name="description" render={({ field }) => (
                 <FormItem><FormLabel>Notes (optional)</FormLabel><FormControl><Textarea placeholder="e.g. March batch ring set" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
@@ -550,6 +567,69 @@ export default function KarigarDetailPage() {
             <PlusCircle className="mr-2 h-4 w-4" />Start New Hisaab
           </Button>
         </div>
+      )}
+
+      {/* Silver Transactions */}
+      {silverTransactions.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Silver Transactions</CardTitle>
+                <CardDescription className="mt-0.5">
+                  {totalSilverGrams.toFixed(3)}g received · PKR {totalSilverSurcharge.toLocaleString()} surcharge
+                </CardDescription>
+              </div>
+              <Button size="sm" variant="outline" className="border-primary/40 text-primary hover:bg-primary/10" onClick={() => setIsSilverDialogOpen(true)}>
+                + Silver
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ScrollArea className="max-h-56">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Silver (g)</TableHead>
+                    <TableHead className="text-right">Surcharge</TableHead>
+                    <TableHead className="w-8"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {silverTransactions.map(entry => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="text-sm whitespace-nowrap">{format(parseISO(entry.date), 'dd MMM yy')}</TableCell>
+                      <TableCell className="text-sm">{entry.description}</TableCell>
+                      <TableCell className="text-right font-medium text-sm">{entry.goldCreditGrams.toFixed(3)}</TableCell>
+                      <TableCell className="text-right font-medium text-sm">PKR {entry.cashDebit.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete this silver transaction?</AlertDialogTitle>
+                              <AlertDialogDescription>This will remove the entry from the hisaab ledger.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteHisaabEntry(entry.id)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          </CardContent>
+        </Card>
       )}
 
       {/* Settled Hisaabs */}

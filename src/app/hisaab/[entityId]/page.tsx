@@ -64,8 +64,7 @@ type TransactionMode = 'gave' | 'got';
 
 const silverTransactionSchema = z.object({
   silverGrams: z.coerce.number().positive("Silver grams must be greater than 0"),
-  surcharge: z.coerce.number().min(0, "Surcharge must be non-negative").default(0),
-  cashPaid: z.coerce.number().min(0, "Cash paid must be non-negative").default(0),
+  surchargePerGram: z.coerce.number().min(0, "Surcharge must be non-negative").default(0),
   description: z.string().optional(),
 });
 type SilverTransactionFormData = z.infer<typeof silverTransactionSchema>;
@@ -77,8 +76,12 @@ const SilverTransactionDialog: React.FC<{
 }> = ({ open, onOpenChange, onSubmit }) => {
   const form = useForm<SilverTransactionFormData>({
     resolver: zodResolver(silverTransactionSchema),
-    defaultValues: { silverGrams: 0, surcharge: 0, cashPaid: 0, description: '' },
+    defaultValues: { silverGrams: 0, surchargePerGram: 0, description: '' },
   });
+
+  const grams = form.watch('silverGrams') || 0;
+  const perGram = form.watch('surchargePerGram') || 0;
+  const totalSurcharge = grams * perGram;
 
   const handleFormSubmit = async (data: SilverTransactionFormData) => {
     await onSubmit(data);
@@ -94,7 +97,7 @@ const SilverTransactionDialog: React.FC<{
             Silver Transaction
           </DialogTitle>
           <DialogDescription>
-            Record silver received from karigar with surcharge, and cash you paid.
+            Record silver received from karigar with per-gram surcharge.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -106,20 +109,18 @@ const SilverTransactionDialog: React.FC<{
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="surcharge" render={({ field }) => (
+            <FormField control={form.control} name="surchargePerGram" render={({ field }) => (
               <FormItem>
-                <FormLabel>Surcharge (PKR)</FormLabel>
-                <FormControl><Input type="number" step="0.01" placeholder="Making charges / surcharge" {...field} /></FormControl>
+                <FormLabel>Surcharge per gram (PKR)</FormLabel>
+                <FormControl><Input type="number" step="0.01" placeholder="e.g. 35" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="cashPaid" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cash Paid (PKR)</FormLabel>
-                <FormControl><Input type="number" step="0.01" placeholder="Amount you paid" {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+            {totalSurcharge > 0 && (
+              <div className="text-sm font-medium text-muted-foreground px-1">
+                Total surcharge: PKR {totalSurcharge.toLocaleString()}
+              </div>
+            )}
             <FormField control={form.control} name="description" render={({ field }) => (
               <FormItem>
                 <FormLabel>Notes (optional)</FormLabel>
@@ -304,9 +305,10 @@ export default function EntityHisaabPage() {
 
   const onSilverTransaction = async (data: SilverTransactionFormData) => {
     if (!entity) return;
+    const totalSurcharge = data.silverGrams * data.surchargePerGram;
     const desc = data.description?.trim()
-      ? `${data.description} — ${data.silverGrams}g silver + PKR ${data.surcharge.toLocaleString()} surcharge`
-      : `${data.silverGrams}g silver + PKR ${data.surcharge.toLocaleString()} surcharge`;
+      ? `${data.description} — ${data.silverGrams}g silver @ PKR ${data.surchargePerGram}/g = PKR ${totalSurcharge.toLocaleString()}`
+      : `${data.silverGrams}g silver @ PKR ${data.surchargePerGram}/g = PKR ${totalSurcharge.toLocaleString()}`;
 
     const newEntryData: Omit<HisaabEntry, 'id'> = {
       entityId: entity.id,
@@ -314,8 +316,8 @@ export default function EntityHisaabPage() {
       entityName: entity.name,
       date: new Date().toISOString(),
       description: desc,
-      cashDebit: data.surcharge,
-      cashCredit: data.cashPaid,
+      cashDebit: totalSurcharge,
+      cashCredit: 0,
       goldDebitGrams: 0,
       goldCreditGrams: data.silverGrams,
     };
