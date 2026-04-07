@@ -6,54 +6,42 @@ const getBaseUrl = () =>
     : 'https://ociconnect.tcscourier.com';
 
 /**
- * TCS auth — two paths:
- *  Full (clientid + clientsecret configured):
- *    1. Authorization API  → bearerToken
- *    2. E-COM Auth API     → accessToken
- *  Fallback (username + password only):
- *    1. E-COM Auth API directly (no bearer header) → accessToken used as both
+ * TCS auth — requires TCS_CLIENT_ID + TCS_CLIENT_SECRET:
+ *  1. POST /auth/api/auth  → bearerToken
+ *  2. GET  /ecom/api/authentication/token?username=…&password=…  → accessToken
  */
 async function getTcsTokens(): Promise<{ bearerToken: string; accessToken: string }> {
   const base = getBaseUrl();
-  const hasClientCreds = !!(process.env.TCS_CLIENT_ID && process.env.TCS_CLIENT_SECRET);
 
-  let bearerToken: string;
-
-  if (hasClientCreds) {
-    // Step 1 — Authorization (clientid + clientsecret)
-    const authRes = await fetch(`${base}/auth/api/auth`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        clientid: process.env.TCS_CLIENT_ID,
-        clientsecret: process.env.TCS_CLIENT_SECRET,
-      }),
-    });
-    if (!authRes.ok) {
-      throw new Error(`TCS Authorization failed: HTTP ${authRes.status}`);
-    }
-    const authData = await authRes.json();
-    if (!authData.result?.accessToken) {
-      throw new Error(`TCS Authorization error: ${JSON.stringify(authData)}`);
-    }
-    bearerToken = authData.result.accessToken as string;
-  } else {
-    // No client creds — attempt E-COM auth without a bearer first to get the token,
-    // then use it as bearer for subsequent calls.
-    bearerToken = '';
+  const clientId = process.env.TCS_CLIENT_ID;
+  const clientSecret = process.env.TCS_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error('TCS_CLIENT_ID and TCS_CLIENT_SECRET are required. Add them to .env.local.');
   }
 
-  // Step 2 — E-COM Authentication (username + password)
-  const ecomHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (bearerToken) ecomHeaders['Authorization'] = `Bearer ${bearerToken}`;
-
-  const ecomRes = await fetch(`${base}/ecom/api/authentication/token`, {
+  // Step 1 — Authorization (clientid + clientsecret) → bearerToken
+  const authRes = await fetch(`${base}/auth/api/auth`, {
     method: 'POST',
-    headers: ecomHeaders,
-    body: JSON.stringify({
-      username: process.env.TCS_USERNAME,
-      password: process.env.TCS_PASSWORD,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientid: clientId, clientsecret: clientSecret }),
+  });
+  if (!authRes.ok) {
+    throw new Error(`TCS Authorization failed: HTTP ${authRes.status}`);
+  }
+  const authData = await authRes.json();
+  if (!authData.result?.accessToken) {
+    throw new Error(`TCS Authorization error: ${JSON.stringify(authData)}`);
+  }
+  const bearerToken = authData.result.accessToken as string;
+
+  // Step 2 — E-COM Authentication (GET with query params + bearer header) → accessToken
+  const ecomUrl = new URL(`${base}/ecom/api/authentication/token`);
+  ecomUrl.searchParams.set('username', process.env.TCS_USERNAME || '');
+  ecomUrl.searchParams.set('password', process.env.TCS_PASSWORD || '');
+
+  const ecomRes = await fetch(ecomUrl.toString(), {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${bearerToken}` },
   });
 
   if (!ecomRes.ok) {
@@ -64,9 +52,7 @@ async function getTcsTokens(): Promise<{ bearerToken: string; accessToken: strin
     throw new Error(`TCS E-COM Authentication error: ${JSON.stringify(ecomData)}`);
   }
 
-  const accessToken = ecomData.accesstoken as string;
-  // If we skipped step 1, use accessToken as bearer too
-  return { bearerToken: bearerToken || accessToken, accessToken };
+  return { bearerToken, accessToken: ecomData.accesstoken as string };
 }
 
 export async function POST(req: NextRequest) {
@@ -159,37 +145,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data, { status: res.ok ? 200 : 400 });
     }
 
-    // ── Track a shipment ─────────────────────────────────────────────────────
+    // ── Track a shipment (GET) ───────────────────────────────────────────────
     if (action === 'track') {
       const { consignmentNo } = body as { consignmentNo: string };
-      const res = await fetch(`${base}/tracking/api/Tracking/GetDynamicTrackDetail`, {
-        method: 'POST',
-        headers: authHeaders,
-        body: JSON.stringify({ consignee: [consignmentNo] }),
+      const trackUrl = new URL(`${base}/tracking/api/Tracking/GetDynamicTrackDetail`);
+      trackUrl.searchParams.set('consignee', consignmentNo);
+      trackUrl.searchParams.set('accesstoken', accessToken);
+
+      const res = await fetch(trackUrl.toString(), {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${bearerToken}` },
       });
       const data = await res.json();
       return NextResponse.json(data);
     }
 
-    // ── Cancel a booking ─────────────────────────────────────────────────────
+    // ── Cancel a booking (POST) ──────────────────────────────────────────────
     if (action === 'cancel') {
       const { consignmentNo } = body as { consignmentNo: string };
       const res = await fetch(`${base}/ecom/api/booking/cancel`, {
         method: 'POST',
         headers: authHeaders,
-        body: JSON.stringify({ consignmentNumber: consignmentNo, accesstoken: accessToken }),
+        body: JSON.stringify({ consignmentnumber: consignmentNo, accesstoken: accessToken }),
       });
       const data = await res.json();
       return NextResponse.json(data);
     }
 
-    // ── Print CN label ───────────────────────────────────────────────────────
+    // ── Print CN label (GET) ─────────────────────────────────────────────────
     if (action === 'print_label') {
       const { consignmentNo } = body as { consignmentNo: string };
-      const res = await fetch(`${base}/ecom/api/print/label`, {
-        method: 'POST',
-        headers: authHeaders,
-        body: JSON.stringify({ consignmentno: consignmentNo, shipperdetail: 'true', accesstoken: accessToken }),
+      const labelUrl = new URL(`${base}/ecom/api/print/label`);
+      labelUrl.searchParams.set('consignmentno', consignmentNo);
+      labelUrl.searchParams.set('shipperdetail', 'true');
+      labelUrl.searchParams.set('accesstoken', accessToken);
+
+      const res = await fetch(labelUrl.toString(), {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${bearerToken}` },
       });
       const data = await res.json();
       return NextResponse.json(data);

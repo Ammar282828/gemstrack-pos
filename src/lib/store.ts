@@ -649,7 +649,7 @@ export type LogEventType =
   | 'product.create' | 'product.update' | 'product.delete'
   | 'customer.create' | 'customer.update' | 'customer.delete'
   | 'karigar.create' | 'karigar.update' | 'karigar.delete'
-  | 'invoice.create' | 'invoice.payment' | 'invoice.delete'
+  | 'invoice.create' | 'invoice.update' | 'invoice.payment' | 'invoice.delete'
   | 'order.create' | 'order.update' | 'order.delete' | 'order.revert' | 'order.refund'
   | 'expense.create' | 'expense.update' | 'expense.delete'
   | 'revenue.create' | 'revenue.update' | 'revenue.delete'
@@ -830,6 +830,7 @@ export interface AppState {
     existingInvoiceId?: string
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string) => Promise<Invoice | null>;
+  updateInvoiceDiscount: (invoiceId: string, newDiscountAmount: number) => Promise<Invoice | null>;
   syncHisaabOutstandingBalances: () => Promise<void>;
   deleteInvoice: (invoiceId: string, isEditing?: boolean) => Promise<void>;
   
@@ -1889,6 +1890,83 @@ export const useAppStore = create<AppState>()(
         } catch (error) {
             console.error(`Error updating invoice payment for ${invoiceId}:`, error);
             return null;
+        }
+      },
+
+      updateInvoiceDiscount: async (invoiceId, newDiscountAmount) => {
+        if (get().settings.databaseLocked) return null;
+
+        const invoiceRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
+
+        try {
+          const updatedInvoice = await runTransaction(db, async (transaction) => {
+            const invoiceDoc = await transaction.get(invoiceRef);
+            if (!invoiceDoc.exists()) throw new Error("Invoice not found!");
+
+            const invoiceData = invoiceDoc.data() as Invoice;
+
+            const newGrandTotal = invoiceData.subtotal - newDiscountAmount;
+            const newBalanceDue = newGrandTotal - invoiceData.amountPaid;
+
+            const updatedFields = {
+              discountAmount: newDiscountAmount,
+              grandTotal: newGrandTotal,
+              balanceDue: newBalanceDue,
+            };
+
+            transaction.update(invoiceRef, updatedFields);
+
+            addActivityLog('invoice.update', `Discount updated on invoice ${invoiceId}`, `Discount: ${newDiscountAmount.toLocaleString()} | New total: ${newGrandTotal.toLocaleString()}`, invoiceId);
+
+            return { ...invoiceData, ...updatedFields, id: invoiceId };
+          });
+
+          if (updatedInvoice) {
+            // Update linked hisaab entries
+            const hisaabSnap = await getDocs(query(
+              collection(db, FIRESTORE_COLLECTIONS.HISAAB),
+              where('linkedInvoiceId', '==', invoiceId)
+            ));
+            const debitDocs = hisaabSnap.docs.filter(d => (d.data().cashDebit ?? 0) > 0);
+
+            const hisaabBatch = writeBatch(db);
+            if (updatedInvoice.balanceDue <= 0) {
+              debitDocs.forEach(d => hisaabBatch.delete(d.ref));
+            } else {
+              if (debitDocs.length > 0) {
+                hisaabBatch.update(debitDocs[0].ref, { cashDebit: updatedInvoice.balanceDue });
+                debitDocs.slice(1).forEach(d => hisaabBatch.delete(d.ref));
+              } else if (updatedInvoice.customerId && updatedInvoice.customerId !== 'walk-in') {
+                const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
+                hisaabBatch.set(newRef, {
+                  entityId: updatedInvoice.customerId,
+                  entityType: 'customer',
+                  entityName: updatedInvoice.customerName || 'Customer',
+                  date: updatedInvoice.createdAt,
+                  description: `Outstanding balance for Invoice ${invoiceId}`,
+                  cashDebit: updatedInvoice.balanceDue,
+                  cashCredit: 0,
+                  goldDebitGrams: 0,
+                  goldCreditGrams: 0,
+                  linkedInvoiceId: invoiceId,
+                });
+              }
+            }
+            await hisaabBatch.commit();
+
+            // Sync source order grandTotal
+            if (updatedInvoice.sourceOrderId) {
+              await updateDoc(
+                doc(db, FIRESTORE_COLLECTIONS.ORDERS, updatedInvoice.sourceOrderId),
+                { grandTotal: Math.max(0, updatedInvoice.balanceDue) }
+              );
+            }
+          }
+
+          return updatedInvoice;
+        } catch (error) {
+          console.error(`Error updating invoice discount for ${invoiceId}:`, error);
+          return null;
         }
       },
 

@@ -75,7 +75,7 @@ export default function CartPage() {
   const preloadedInvoiceId = searchParams.get('invoice_id');
 
   const appReady = useAppReady();
-  const { cartItemsFromStore, customers, settings, allInvoices, products, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings, addToCart, addProductToCart, loadCustomers, loadGeneratedInvoices, loadProducts } = useAppStore(state => ({
+  const { cartItemsFromStore, customers, settings, allInvoices, products, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, updateInvoiceDiscount, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings, addToCart, addProductToCart, loadCustomers, loadGeneratedInvoices, loadProducts } = useAppStore(state => ({
     cartItemsFromStore: state.cart,
     customers: state.customers,
     settings: state.settings,
@@ -86,6 +86,7 @@ export default function CartPage() {
     generateInvoice: state.generateInvoice,
     addHisaabEntry: state.addHisaabEntry,
     updateInvoicePayment: state.updateInvoicePayment,
+    updateInvoiceDiscount: state.updateInvoiceDiscount,
     loadCartFromInvoice: state.loadCartFromInvoice,
     deleteInvoice: state.deleteInvoice,
     updateCartItem: state.updateCartItem,
@@ -122,6 +123,9 @@ export default function CartPage() {
   
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [isEditingDiscount, setIsEditingDiscount] = useState(false);
+  const [editDiscountInput, setEditDiscountInput] = useState<string>('');
+  const [isSavingDiscount, setIsSavingDiscount] = useState(false);
   const [isEditingEstimate, setIsEditingEstimate] = useState(false);
   const isEditingEstimateRef = React.useRef(false);
   const [isGeneratingEstimate, setIsGeneratingEstimate] = useState(false);
@@ -500,6 +504,33 @@ export default function CartPage() {
     }
   };
 
+  const handleSaveDiscount = async () => {
+    if (!generatedInvoice) return;
+    const amount = parseFloat(editDiscountInput) || 0;
+    if (amount < 0) {
+      toast({ title: "Invalid", description: "Discount cannot be negative.", variant: "destructive" });
+      return;
+    }
+    if (amount > generatedInvoice.subtotal) {
+      toast({ title: "Invalid", description: "Discount cannot exceed subtotal.", variant: "destructive" });
+      return;
+    }
+    setIsSavingDiscount(true);
+    try {
+      const updated = await updateInvoiceDiscount(generatedInvoice.id, amount);
+      if (updated) {
+        setGeneratedInvoice(updated);
+        setIsEditingDiscount(false);
+        toast({ title: "Discount Updated", description: `Discount set to PKR ${amount.toLocaleString()}.` });
+      } else {
+        throw new Error("Failed to update discount.");
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to update discount.", variant: "destructive" });
+    } finally {
+      setIsSavingDiscount(false);
+    }
+  };
 
   const handleSendWhatsApp = async (invoiceToSend: InvoiceType) => {
     const whatsAppNumber = phoneForm.getValues('phone');
@@ -956,7 +987,34 @@ export default function CartPage() {
                      <Separator className="mt-4"/>
                      <div className="pt-4 space-y-2 text-right">
                         <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Subtotal:</span> <span className="w-32 font-medium">PKR {generatedInvoice.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
-                        {generatedInvoice.discountAmount > 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Discount:</span> <span className="w-32 font-medium">- PKR {generatedInvoice.discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
+                        <div className="flex justify-end items-center gap-2">
+                          <span className="text-muted-foreground">Discount:</span>
+                          {isEditingDiscount ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                value={editDiscountInput}
+                                onChange={(e) => setEditDiscountInput(e.target.value)}
+                                className="w-32 text-right h-8"
+                                autoFocus
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveDiscount(); if (e.key === 'Escape') setIsEditingDiscount(false); }}
+                              />
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleSaveDiscount} disabled={isSavingDiscount}>
+                                {isSavingDiscount ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setIsEditingDiscount(false)}>
+                                <XCircle className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              className="w-32 font-medium text-right hover:underline cursor-pointer"
+                              onClick={() => { setEditDiscountInput(String(generatedInvoice.discountAmount)); setIsEditingDiscount(true); }}
+                            >
+                              {generatedInvoice.discountAmount > 0 ? `- PKR ${generatedInvoice.discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}` : 'Add discount'}
+                            </button>
+                          )}
+                        </div>
                         {getInvoiceAdjustmentsAmount(generatedInvoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Adjustments:</span> <span className="w-32 font-medium">PKR {getInvoiceAdjustmentsAmount(generatedInvoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
                         <div className="flex justify-end items-center gap-4 text-lg font-bold"><span className="text-muted-foreground">Grand Total:</span> <span className="w-32">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                      </div>

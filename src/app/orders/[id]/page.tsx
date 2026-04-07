@@ -542,7 +542,10 @@ export default function OrderDetailPage() {
   const isHydrated = useIsStoreHydrated();
   const order = useAppStore(state => state.orders.find(o => o.id === orderId));
   const settings = useAppStore(state => state.settings);
-  const { updateOrderStatus, updateOrderItemStatus, removeItemFromOrder, updateOrder, karigars, loadKarigars, revertOrderFromInvoice, refundOrder } = useAppStore();
+  const invoices = useAppStore(state => state.generatedInvoices);
+  const { updateOrderStatus, updateOrderItemStatus, removeItemFromOrder, updateOrder, karigars, loadKarigars, revertOrderFromInvoice, refundOrder, loadGeneratedInvoices } = useAppStore();
+
+  const linkedInvoice = order?.invoiceId ? invoices.find(inv => inv.id === order.invoiceId) : null;
 
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isUpdatingItem, setIsUpdatingItem] = useState<number | null>(null);
@@ -564,7 +567,8 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     loadKarigars();
-  }, [loadKarigars]);
+    loadGeneratedInvoices();
+  }, [loadKarigars, loadGeneratedInvoices]);
 
   const phoneForm = useForm<PhoneForm>();
 
@@ -1035,16 +1039,16 @@ export default function OrderDetailPage() {
       <AlertDialog open={isRevertAndEditDialogOpen} onOpenChange={setIsRevertAndEditDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Invoice & Edit Order?</AlertDialogTitle>
+            <AlertDialogTitle>Unlock Order for Editing?</AlertDialogTitle>
             <AlertDialogDescription>
-              Invoice <strong>{order?.invoiceId}</strong> will be permanently cancelled and its hisaab entries removed before you can edit. You can re-finalize a new invoice after editing. This cannot be undone.
+              This will revert invoice <strong>{order?.invoiceId}</strong>, removing it and its ledger entries. Revenue calculations will be updated. You can re-finalize a new invoice after editing. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isReverting}>Keep Invoice</AlertDialogCancel>
+            <AlertDialogCancel disabled={isReverting}>Keep Locked</AlertDialogCancel>
             <AlertDialogAction onClick={handleRevertAndEdit} disabled={isReverting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {isReverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />}
-              Cancel Invoice & Edit
+              Revert Invoice & Unlock
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1099,31 +1103,25 @@ export default function OrderDetailPage() {
                                <Truck className="mr-2 h-4 w-4" /> Book Courier
                              </Button>
                            )}
-                           {!order.invoiceId && (
-                             <Button asChild variant="outline">
-                               <Link href={`/orders/${order.id}/edit`}>
-                                 <Edit className="mr-2 h-4 w-4" /> Edit Order
+                           {order.invoiceId ? (
+                             <Button variant="outline" asChild>
+                               <Link href={`/cart?invoice_id=${order.invoiceId}`}>
+                                 <FileText className="mr-2 h-4 w-4" /> View Invoice ({order.invoiceId})
                                </Link>
                              </Button>
-                           )}
-                           {order.invoiceId ? (
+                           ) : (
                              <>
-                               <Button variant="outline" onClick={() => setIsRevertAndEditDialogOpen(true)}>
-                                 <Edit className="mr-2 h-4 w-4" /> Edit Order
-                               </Button>
-                               <Button variant="outline" asChild>
-                                 <Link href={`/cart?invoice_id=${order.invoiceId}`}>
-                                   <FileText className="mr-2 h-4 w-4" /> View Invoice ({order.invoiceId})
+                               <Button asChild variant="outline">
+                                 <Link href={`/orders/${order.id}/edit`}>
+                                   <Edit className="mr-2 h-4 w-4" /> Edit Order
                                  </Link>
                                </Button>
-                               <Button variant="destructive" onClick={() => setIsRevertDialogOpen(true)}>
-                                 <RotateCcw className="mr-2 h-4 w-4" /> Revert & Cancel Invoice
-                               </Button>
+                               {order.status === 'Completed' && (
+                                 <Button onClick={() => setIsFinalizeDialogOpen(true)}>
+                                   <FileText className="mr-2 h-4 w-4" /> Finalize & Generate Invoice
+                                 </Button>
+                               )}
                              </>
-                           ) : order.status === 'Completed' && (
-                             <Button onClick={() => setIsFinalizeDialogOpen(true)}>
-                               <FileText className="mr-2 h-4 w-4" /> Finalize & Generate Invoice
-                             </Button>
                            )}
                            {order.status !== 'Cancelled' && order.status !== 'Refunded' && (
                              <Button variant="outline" onClick={() => setIsRefundDialogOpen(true)} className="border-destructive text-destructive hover:bg-destructive/10">
@@ -1158,6 +1156,78 @@ export default function OrderDetailPage() {
 
                   <Separator className="my-6" />
 
+                  {/* ── Finalized Invoice View (greyed-out locked state) ──── */}
+                  {linkedInvoice ? (
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-background/50 z-10 rounded-lg flex items-start justify-center pt-8 pointer-events-none">
+                        <div className="bg-background border shadow-lg rounded-lg px-6 py-3 text-center pointer-events-auto">
+                          <p className="font-semibold text-lg">Invoice {linkedInvoice.id} — Finalized</p>
+                          <p className="text-sm text-muted-foreground mt-1">This order is locked. To make changes, revert the invoice first.</p>
+                          <Button variant="outline" className="mt-3" onClick={() => setIsRevertAndEditDialogOpen(true)}>
+                            <Edit className="mr-2 h-4 w-4" /> Unlock & Edit Order
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="opacity-40 pointer-events-none select-none">
+                        <h3 className="text-lg font-semibold mb-4">Finalized Items</h3>
+                        <div className="space-y-4">
+                          {linkedInvoice.items.map((item, index) => (
+                            <div key={index} className="p-4 border rounded-lg bg-muted/30">
+                              <div className="flex-grow">
+                                {item.itemCategory && (
+                                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory}</span>
+                                )}
+                                <p className="font-bold">{item.name}</p>
+                                <div className="text-sm text-muted-foreground mt-1">
+                                  <p>{item.metalType === 'silver' ? '925 Sterling Silver' : `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.karat ? ` (${item.karat.toUpperCase()})` : ''}`} | Final Wt: {item.metalWeightG}g</p>
+                                </div>
+                                {item.stoneDetails && (
+                                  <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
+                                    <p className="font-semibold flex items-center"><Gem className="w-3 h-3 mr-1.5"/>Stone Details:</p>
+                                    <p className="text-muted-foreground whitespace-pre-wrap">{item.stoneDetails}</p>
+                                  </div>
+                                )}
+                                {item.diamondDetails && (
+                                  <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
+                                    <p className="font-semibold flex items-center"><Diamond className="w-3 h-3 mr-1.5"/>Diamond Details:</p>
+                                    <p className="text-muted-foreground whitespace-pre-wrap">{item.diamondDetails}</p>
+                                  </div>
+                                )}
+                                <div className="text-sm mt-2 p-2 bg-background rounded-md">
+                                  <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {(item.metalCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                  {(item.wastageCost ?? 0) > 0 && <div className="flex justify-between"><span>+ Wastage Cost:</span> <span className="font-semibold">PKR {(item.wastageCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                  {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                  {item.diamondChargesIfAny > 0 && <div className="flex justify-between"><span>+ Diamond Charges:</span> <span className="font-semibold">PKR {item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                  {item.stoneChargesIfAny > 0 && <div className="flex justify-between"><span>+ Other Stone Charges:</span> <span className="font-semibold">PKR {item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                  <Separator className="my-1"/>
+                                  <div className="flex justify-between font-bold"><span>Item Total:</span> <span>PKR {item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <Separator className="my-6" />
+
+                        <div className="flex flex-col md:flex-row justify-end items-start gap-4">
+                          <div className="w-full max-w-sm space-y-2 p-4 text-base bg-muted/30 rounded-lg">
+                            <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {linkedInvoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            {linkedInvoice.discountAmount > 0 && (
+                              <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {linkedInvoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            )}
+                            <div className="flex justify-between font-bold"><span>Grand Total:</span> <span>PKR {linkedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            {linkedInvoice.amountPaid > 0 && (
+                              <div className="flex justify-between text-green-600"><span>Amount Paid:</span> <span className="font-semibold">PKR {linkedInvoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            )}
+                            <Separator className="my-2 bg-muted-foreground/20"/>
+                            <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {linkedInvoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                  <>
                   <h3 className="text-lg font-semibold mb-4">Order Items Checklist</h3>
                   <div className="space-y-4">
                       {order.items.map((item, index) => {
@@ -1292,6 +1362,8 @@ export default function OrderDetailPage() {
                           <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                       </div>
                   </div>
+                  </>
+                  )}
               </CardContent>
           </Card>
         </div>

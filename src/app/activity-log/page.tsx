@@ -26,6 +26,7 @@ const eventIcons: Record<LogEventType, React.ReactNode> = {
     'karigar.update': <Briefcase className="h-4 w-4" />,
     'karigar.delete': <Briefcase className="h-4 w-4" />,
     'invoice.create': <FileText className="h-4 w-4" />,
+    'invoice.update': <FileText className="h-4 w-4" />,
     'invoice.payment': <FileText className="h-4 w-4" />,
     'invoice.delete': <FileText className="h-4 w-4" />,
     'order.create': <FileText className="h-4 w-4" />,
