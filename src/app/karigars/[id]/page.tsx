@@ -5,7 +5,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAppStore, Expense, KarigarBatch } from '@/lib/store';
+import { useAppStore, Expense, KarigarBatch, HisaabEntry } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -20,13 +20,27 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ExpenseForm } from '@/components/expense/expense-form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Textarea } from '@/components/ui/textarea';
+import { Save, Loader2 as Spinner } from 'lucide-react';
+
+const silverTransactionSchema = z.object({
+  silverGrams: z.coerce.number().positive("Silver grams must be greater than 0"),
+  surcharge: z.coerce.number().min(0, "Surcharge must be non-negative").default(0),
+  cashPaid: z.coerce.number().min(0, "Cash paid must be non-negative").default(0),
+  description: z.string().optional(),
+});
+type SilverTransactionFormData = z.infer<typeof silverTransactionSchema>;
 
 const ClosedBatchCard: React.FC<{
   batch: KarigarBatch;
@@ -167,9 +181,10 @@ export default function KarigarDetailPage() {
   const expenses = useAppStore(state => state.expenses);
   const karigarBatches = useAppStore(state => state.karigarBatches);
   const deleteKarigarAction = useAppStore(state => state.deleteKarigar);
-  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars } = useAppStore();
+  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars, addHisaabEntry, loadHisaab } = useAppStore();
 
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
+  const [isSilverDialogOpen, setIsSilverDialogOpen] = useState(false);
   const [isNewBatchOpen, setIsNewBatchOpen] = useState(false);
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [newBatchLabel, setNewBatchLabel] = useState('');
@@ -179,7 +194,8 @@ export default function KarigarDetailPage() {
     loadExpenses();
     loadKarigarBatches();
     loadKarigars();
-  }, [loadExpenses, loadKarigarBatches, loadKarigars]);
+    loadHisaab();
+  }, [loadExpenses, loadKarigarBatches, loadKarigars, loadHisaab]);
 
   useEffect(() => {
     if (!karigarId) return;
@@ -265,6 +281,39 @@ export default function KarigarDetailPage() {
     }
   };
 
+  const silverForm = useForm<SilverTransactionFormData>({
+    resolver: zodResolver(silverTransactionSchema),
+    defaultValues: { silverGrams: 0, surcharge: 0, cashPaid: 0, description: '' },
+  });
+
+  const handleSilverTransaction = async (data: SilverTransactionFormData) => {
+    if (!karigar) return;
+    const desc = data.description?.trim()
+      ? `${data.description} — ${data.silverGrams}g silver + PKR ${data.surcharge.toLocaleString()} surcharge`
+      : `${data.silverGrams}g silver + PKR ${data.surcharge.toLocaleString()} surcharge`;
+
+    const entry: Omit<HisaabEntry, 'id'> = {
+      entityId: karigarId,
+      entityType: 'karigar',
+      entityName: karigar.name,
+      date: new Date().toISOString(),
+      description: desc,
+      cashDebit: data.surcharge,
+      cashCredit: data.cashPaid,
+      goldDebitGrams: 0,
+      goldCreditGrams: data.silverGrams,
+    };
+
+    const result = await addHisaabEntry(entry);
+    if (result) {
+      toast({ title: "Success", description: "Silver transaction recorded." });
+      silverForm.reset();
+      setIsSilverDialogOpen(false);
+    } else {
+      toast({ title: "Error", description: "Failed to record silver transaction.", variant: "destructive" });
+    }
+  };
+
   if (!isHydrated) return <div className="container mx-auto p-4"><p>Loading...</p></div>;
 
   if (!karigar) {
@@ -342,6 +391,38 @@ export default function KarigarDetailPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={isSilverDialogOpen} onOpenChange={(v) => { setIsSilverDialogOpen(v); if (!v) silverForm.reset(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary">Silver Transaction</DialogTitle>
+            <DialogDescription>Record silver received from {karigar.name} with surcharge, and cash you paid.</DialogDescription>
+          </DialogHeader>
+          <Form {...silverForm}>
+            <form onSubmit={silverForm.handleSubmit(handleSilverTransaction)} className="space-y-4 py-4">
+              <FormField control={silverForm.control} name="silverGrams" render={({ field }) => (
+                <FormItem><FormLabel>Silver Received (grams)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g. 50.5" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={silverForm.control} name="surcharge" render={({ field }) => (
+                <FormItem><FormLabel>Surcharge (PKR)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="Making charges / surcharge" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={silverForm.control} name="cashPaid" render={({ field }) => (
+                <FormItem><FormLabel>Cash Paid (PKR)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="Amount you paid" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={silverForm.control} name="description" render={({ field }) => (
+                <FormItem><FormLabel>Notes (optional)</FormLabel><FormControl><Textarea placeholder="e.g. March batch ring set" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
+                <Button type="submit" disabled={silverForm.formState.isSubmitting}>
+                  {silverForm.formState.isSubmitting ? <Spinner className="animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isNewBatchOpen} onOpenChange={setIsNewBatchOpen}>
         <DialogContent>
           <DialogHeader>
@@ -404,6 +485,9 @@ export default function KarigarDetailPage() {
               </CardDescription>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+              <Button size="sm" variant="outline" className="border-primary/40 text-primary hover:bg-primary/10" onClick={() => setIsSilverDialogOpen(true)}>
+                Silver
+              </Button>
               <Button size="sm" onClick={() => setIsPaymentFormOpen(true)}>
                 <PlusCircle className="mr-1.5 h-4 w-4" />Add Payment
               </Button>
