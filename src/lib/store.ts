@@ -1818,11 +1818,6 @@ export const useAppStore = create<AppState>()(
                 const newPaymentHistory = [...(invoiceData.paymentHistory || []), newPayment];
                 
                 const newAmountPaid = newPaymentHistory.reduce((acc, p) => acc + p.amount, 0);
-                // Server-side overpayment guard — prevents concurrent payments from
-                // pushing balanceDue negative.
-                if (newAmountPaid > invoiceData.grandTotal) {
-                    throw new Error(`Overpayment: total paid (${newAmountPaid}) exceeds grand total (${invoiceData.grandTotal}).`);
-                }
                 const newBalanceDue = invoiceData.grandTotal - newAmountPaid;
 
                 const updatedFields = {
@@ -1881,7 +1876,7 @@ export const useAppStore = create<AppState>()(
                 if (updatedInvoice.sourceOrderId) {
                     await updateDoc(
                         doc(db, FIRESTORE_COLLECTIONS.ORDERS, updatedInvoice.sourceOrderId),
-                        { grandTotal: Math.max(0, updatedInvoice.balanceDue) }
+                        { grandTotal: updatedInvoice.balanceDue }
                     );
                 }
             }
@@ -1905,7 +1900,7 @@ export const useAppStore = create<AppState>()(
 
             const invoiceData = invoiceDoc.data() as Invoice;
 
-            const newGrandTotal = invoiceData.subtotal - newDiscountAmount;
+            const newGrandTotal = invoiceData.subtotal - newDiscountAmount - (invoiceData.exchangeAmount1 || 0) - (invoiceData.exchangeAmount2 || 0);
             const newBalanceDue = newGrandTotal - invoiceData.amountPaid;
 
             const updatedFields = {
@@ -1958,7 +1953,7 @@ export const useAppStore = create<AppState>()(
             if (updatedInvoice.sourceOrderId) {
               await updateDoc(
                 doc(db, FIRESTORE_COLLECTIONS.ORDERS, updatedInvoice.sourceOrderId),
-                { grandTotal: Math.max(0, updatedInvoice.balanceDue) }
+                { grandTotal: updatedInvoice.balanceDue }
               );
             }
           }
@@ -2549,7 +2544,7 @@ export const useAppStore = create<AppState>()(
                 transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
                 transaction.update(doc(db, FIRESTORE_COLLECTIONS.ORDERS, order.id), {
                     status: 'Completed',
-                    grandTotal: Math.max(0, balanceDue),
+                    grandTotal: balanceDue,
                     invoiceId: invoiceId,
                 });
 

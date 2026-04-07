@@ -164,12 +164,17 @@ export default function HomePage() {
     const todayInvoices = generatedInvoices.filter(inv => inv.status !== 'Refunded' && parseISO(inv.createdAt) >= todayStart);
     const todayInvoiceRevenue = todayInvoices.reduce((s, inv) => s + (inv.grandTotal || 0), 0);
 
+    // Today uninvoiced orders
+    const todayOrderRevenue = orders
+      .filter(o => parseISO(o.createdAt) >= todayStart && o.status !== 'Cancelled' && o.status !== 'Refunded' && !o.invoiceId)
+      .reduce((s, o) => s + (o.subtotal || 0), 0);
+
     // Today extra revenue
     const todayExtraRevenue = additionalRevenues
       .filter(r => parseISO(r.date) >= todayStart)
       .reduce((s, r) => s + (r.amount || 0), 0);
 
-    const todayRevenue = todayInvoiceRevenue + todayExtraRevenue;
+    const todayRevenue = todayInvoiceRevenue + todayOrderRevenue + todayExtraRevenue;
 
     // 30-day
     const recentInvoices = generatedInvoices.filter(inv => inv.status !== 'Refunded' && parseISO(inv.createdAt) >= last30Start);
