@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useAppStore, Customer, Karigar } from '@/lib/store';
+import { useAppStore, Customer, Karigar, Invoice } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, BookUser, ArrowRight, User, Briefcase, ArrowDown, ArrowUp, Search, PlusCircle, FileText } from 'lucide-react';
@@ -20,12 +20,20 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 
 
+type InvoiceBalance = {
+  id: string;
+  grandTotal: number;
+  amountPaid: number;
+  balanceDue: number;
+};
+
 type AccountSummary = {
   entityId: string;
   entityName: string;
   entityType: 'customer' | 'karigar';
-  cashBalance: number; 
-  goldBalance: number; 
+  cashBalance: number;
+  goldBalance: number;
+  unpaidInvoices: InvoiceBalance[];
 };
 
 type CombinedContact = (Customer | Karigar) & { type: 'customer' | 'karigar' };
@@ -125,7 +133,7 @@ export default function HisaabPage() {
   const appReady = useAppReady();
   const router = useRouter();
   const { toast } = useToast();
-  const { hisaabEntries, settings, customers, karigars, isHisaabLoading, isCustomersLoading, isKarigarsLoading, loadHisaab, loadCustomers, loadKarigars, loadGeneratedInvoices, syncHisaabOutstandingBalances } = useAppStore();
+  const { hisaabEntries, settings, customers, karigars, generatedInvoices, isHisaabLoading, isCustomersLoading, isKarigarsLoading, loadHisaab, loadCustomers, loadKarigars, loadGeneratedInvoices, syncHisaabOutstandingBalances } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
@@ -140,6 +148,19 @@ export default function HisaabPage() {
   }, [appReady, loadHisaab, loadCustomers, loadKarigars, loadGeneratedInvoices, syncHisaabOutstandingBalances]);
   
   const isLoading = isHisaabLoading || isCustomersLoading || isKarigarsLoading;
+
+  // Build a map of unpaid invoices per customer
+  const unpaidInvoicesByCustomer = useMemo(() => {
+    const map: Record<string, InvoiceBalance[]> = {};
+    if (!Array.isArray(generatedInvoices)) return map;
+    for (const inv of generatedInvoices) {
+      if (inv.balanceDue > 0 && inv.customerId && inv.customerId !== 'walk-in' && inv.status !== 'Refunded') {
+        if (!map[inv.customerId]) map[inv.customerId] = [];
+        map[inv.customerId].push({ id: inv.id, grandTotal: inv.grandTotal, amountPaid: inv.amountPaid, balanceDue: inv.balanceDue });
+      }
+    }
+    return map;
+  }, [generatedInvoices]);
 
   const { accountSummaries, totalReceivable, totalPayable, totalReceivableGold, totalPayableGold } = useMemo(() => {
     if (!Array.isArray(hisaabEntries)) {
@@ -157,11 +178,19 @@ export default function HisaabPage() {
           entityType: entry.entityType,
           cashBalance: 0,
           goldBalance: 0,
+          unpaidInvoices: [],
         };
       }
       summaryMap[entry.entityId].cashBalance += (entry.cashDebit - entry.cashCredit);
       summaryMap[entry.entityId].goldBalance += (entry.goldDebitGrams - entry.goldCreditGrams);
     });
+
+    // Attach unpaid invoices to each customer summary
+    for (const [entityId, invoices] of Object.entries(unpaidInvoicesByCustomer)) {
+      if (summaryMap[entityId]) {
+        summaryMap[entityId].unpaidInvoices = invoices;
+      }
+    }
 
     const summaries = Object.values(summaryMap)
         .filter(summary => Math.abs(summary.cashBalance) > 0.001 || Math.abs(summary.goldBalance) > 0.001)
@@ -175,7 +204,7 @@ export default function HisaabPage() {
 
     return { accountSummaries: summaries, totalReceivable, totalPayable, totalReceivableGold, totalPayableGold };
 
-  }, [hisaabEntries]);
+  }, [hisaabEntries, unpaidInvoicesByCustomer]);
   
   const filteredSummaries = useMemo(() => {
     if (!searchTerm) {
@@ -330,6 +359,22 @@ export default function HisaabPage() {
                                             {summary.cashBalance < 0 && <p className="text-xs text-muted-foreground">to pay</p>}
                                         </div>
                                         {summary.goldBalance !== 0 && <p className="text-xs text-muted-foreground mt-0.5">{Math.abs(summary.goldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})} g gold</p>}
+                                        {summary.unpaidInvoices.length > 0 && (
+                                          <div className="mt-2 pt-2 border-t space-y-1">
+                                            {summary.unpaidInvoices.map(inv => (
+                                              <div key={inv.id} className="flex items-center justify-between text-xs">
+                                                <span className="text-muted-foreground font-mono">{inv.id}</span>
+                                                <span className="text-muted-foreground">
+                                                  <span className="text-green-600 font-medium">PKR {inv.amountPaid.toLocaleString()}</span>
+                                                  {' / '}
+                                                  {inv.grandTotal.toLocaleString()}
+                                                  {' — '}
+                                                  <span className="font-semibold text-foreground">PKR {inv.balanceDue.toLocaleString()} due</span>
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
                                     </div>
                                 </div>
                             </CardContent>
