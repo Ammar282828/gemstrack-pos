@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY!;
-const SCOPES = 'read_orders,read_customers,read_products';
+const SCOPES = 'read_orders,write_orders,read_customers,write_customers,read_products,write_products,read_draft_orders,write_draft_orders';
 
 export async function GET(request: NextRequest) {
   const shop = request.nextUrl.searchParams.get('shop');

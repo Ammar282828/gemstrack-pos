@@ -177,6 +177,97 @@ export function mapInvoice(order: any) {
   };
 }
 
+// --- Shopify authenticated request helper ---
+export async function shopifyRequest(
+  shop: string,
+  token: string,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  endpoint: string,
+  body?: any
+): Promise<any> {
+  const res = await fetch(
+    `https://${shop}/admin/api/${SHOPIFY_API_VERSION}${endpoint}`,
+    {
+      method,
+      headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
+      ...(body && { body: JSON.stringify(body) }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Shopify ${method} ${endpoint}: ${res.status} - ${JSON.stringify(err)}`);
+  }
+  return res.json();
+}
+
+// --- Credential resolution ---
+export async function getShopifyCredentials(adminDb: any): Promise<{ shop: string; token: string }> {
+  let shop = process.env.SHOPIFY_STORE_DOMAIN ?? '';
+  let token = process.env.SHOPIFY_ACCESS_TOKEN ?? '';
+  if (!shop || !token) {
+    const snap = await adminDb.collection('app_settings').doc('global').get();
+    const d = snap.data() || {};
+    shop = d.shopifyStoreDomain || '';
+    token = d.shopifyAccessToken || '';
+  }
+  if (!shop || !token) throw new Error('Shopify not connected');
+  return { shop, token };
+}
+
+// --- Reverse mappers (POS → Shopify) ---
+export function mapCustomerToShopify(c: any) {
+  const nameParts = (c.name || '').split(' ');
+  return {
+    customer: {
+      first_name: nameParts[0] || '',
+      last_name: nameParts.slice(1).join(' ') || '',
+      email: c.email || undefined,
+      phone: c.phone || undefined,
+      ...(c.address && { addresses: [{ address1: c.address }] }),
+    },
+  };
+}
+
+export function mapInvoiceToDraftOrder(invoice: any, shopifyCustomerId?: string) {
+  return {
+    draft_order: {
+      line_items: (invoice.items || []).map((item: any) => ({
+        title: item.name,
+        price: (item.itemTotal / (item.quantity || 1)).toFixed(2),
+        quantity: item.quantity || 1,
+        ...(item.sku && { sku: item.sku }),
+      })),
+      ...(shopifyCustomerId && { customer: { id: Number(shopifyCustomerId) } }),
+      ...(invoice.discountAmount > 0 && {
+        applied_discount: {
+          value_type: 'fixed_amount',
+          value: invoice.discountAmount.toFixed(2),
+          description: 'POS Discount',
+        },
+      }),
+      note: `POS Invoice ${invoice.id}`,
+    },
+  };
+}
+
+export function mapProductToShopify(p: any) {
+  const price = p.isCustomPrice ? (p.customPrice || 0) : (p.makingCharges || 0);
+  return {
+    product: {
+      title: p.name,
+      body_html: p.description || '',
+      variants: [{
+        price: price.toFixed(2),
+        sku: p.sku,
+        weight: p.metalWeightG || 0,
+        weight_unit: 'g',
+        inventory_management: null,
+      }],
+      ...(p.imageUrl && { images: [{ src: p.imageUrl }] }),
+    },
+  };
+}
+
 export function mapProduct(sp: any, variant: any) {
   const price = parseFloat(variant.price || '0');
   return {

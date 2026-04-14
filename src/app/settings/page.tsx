@@ -316,11 +316,18 @@ function NotificationsCard() {
   );
 }
 
+const REQUIRED_SHOPIFY_SCOPES = 'read_orders,write_orders,read_customers,write_customers,read_products,write_products,read_draft_orders,write_draft_orders';
+
 const ShopifyCard: React.FC = () => {
   const { settings } = useAppStore();
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProducts, setSyncProducts] = useState(false);
+
+  const grantedScopes = (settings.shopifyGrantedScopes || '').split(',').filter(Boolean).sort();
+  const requiredScopes = REQUIRED_SHOPIFY_SCOPES.split(',').sort();
+  const missingScopes = requiredScopes.filter(s => !grantedScopes.includes(s));
+  const needsReauth = missingScopes.length > 0 && grantedScopes.length > 0;
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -344,6 +351,10 @@ const ShopifyCard: React.FC = () => {
     }
   };
 
+  const handleReauth = () => {
+    window.location.href = '/api/shopify/auth?shop=af894b-7f.myshopify.com';
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -355,6 +366,18 @@ const ShopifyCard: React.FC = () => {
           <CheckCircle2 className="h-4 w-4" />
           Connected · real-time webhooks active
         </div>
+        {needsReauth && (
+          <Alert variant="destructive" className="border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-600">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Scope upgrade required</AlertTitle>
+            <AlertDescription className="space-y-2">
+              <p className="text-sm">Two-way sync and payment links need additional permissions: <span className="font-mono text-xs">{missingScopes.join(', ')}</span></p>
+              <Button onClick={handleReauth} size="sm" variant="outline" className="border-amber-500 text-amber-700 hover:bg-amber-500/10">
+                <RefreshCw className="mr-2 h-3 w-3" /> Re-authorize Shopify
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-sm text-muted-foreground">Shop domain</Label>

@@ -9,6 +9,7 @@ const WEBHOOK_TOPICS = [
   { topic: 'customers/update', address: `${APP_URL}/api/shopify/webhooks/customers` },
   { topic: 'products/create', address: `${APP_URL}/api/shopify/webhooks/products` },
   { topic: 'products/update', address: `${APP_URL}/api/shopify/webhooks/products` },
+  { topic: 'draft_orders/update', address: `${APP_URL}/api/shopify/webhooks/draft-orders` },
 ];
 
 async function getExistingWebhooks(shop: string, token: string) {

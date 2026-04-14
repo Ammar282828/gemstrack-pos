@@ -306,6 +306,7 @@ export interface Settings extends GoldRates {
   shopifyStoreDomain?: string;
   shopifyAccessToken?: string;
   shopifyLastSyncedAt?: string;
+  shopifyGrantedScopes?: string;
   goldRatesLastFetchedAt?: string; // ISO string – when rates were last auto-fetched from gold.pk
   // WhatsApp Notifications
   notifEnabled?: boolean;
@@ -334,6 +335,7 @@ export interface Customer {
   phone?: string;
   email?: string;
   address?: string;
+  shopifyCustomerId?: string;
 }
 
 export interface Product {
@@ -366,6 +368,8 @@ export interface Product {
   customPrice?: number;
   description?: string;
   silverRatePerGram?: number;
+  shopifyProductId?: string;
+  shopifyVariantId?: string;
 }
 
 export interface InvoiceItem {
@@ -420,6 +424,10 @@ export interface Invoice {
   sourceOrderId?: string; // Set when invoice is created from an order
   source?: string; // 'shopify_import' | 'shopify' for imported/synced orders
   shopifyOrderName?: string;
+  shopifyOrderId?: string;
+  shopifyOrderNumber?: number;
+  shopifyDraftOrderId?: string;
+  shopifyCheckoutUrl?: string;
   status?: 'Refunded'; // Set when invoice has been refunded
   refundedAt?: string; // ISO string of refund time
 }
@@ -1295,6 +1303,10 @@ export const useAppStore = create<AppState>()(
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, newProduct.sku), cleanProduct);
           await addActivityLog('product.create', `Created product: ${newProduct.name}`, `SKU: ${newProduct.sku}`, newProduct.sku);
           console.log("[GemsTrack Store addProduct] Product added successfully to Firestore:", newProduct.sku);
+          // Fire-and-forget Shopify push (skip shopify-originated products)
+          if (!newProduct.sku.startsWith('SHOPIFY-PROD-')) {
+            fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: newProduct.sku }) }).catch(() => {});
+          }
           return newProduct;
         } catch (error) {
           console.error("[GemsTrack Store addProduct] Error adding product to Firestore:", error);
@@ -1346,6 +1358,10 @@ export const useAppStore = create<AppState>()(
             await setDoc(productRef, cleanPayload, { merge: true });
             await addActivityLog('product.update', `Updated product: ${finalUpdatedFields.name || currentProduct.name}`, `SKU: ${sku}`, sku);
             console.log(`[GemsTrack Store updateProduct] Product SKU ${sku} updated successfully.`);
+            // Fire-and-forget Shopify push (skip shopify-originated products)
+            if (!sku.startsWith('SHOPIFY-PROD-')) {
+              fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku }) }).catch(() => {});
+            }
         } catch (error) {
           console.error(`[GemsTrack Store updateProduct] Error updating product SKU ${sku} in Firestore:`, error);
         }
@@ -1418,6 +1434,8 @@ export const useAppStore = create<AppState>()(
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustomerId), newCustomer);
           await addActivityLog('customer.create', `Created customer: ${newCustomer.name}`, `ID: ${newCustomerId}`, newCustomerId);
+          // Push to Shopify (fire-and-forget)
+          fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: newCustomerId }) }).catch(() => {});
           console.log("[GemsTrack Store addCustomer] Customer added successfully:", newCustomerId);
           return newCustomer;
         } catch (error) {
@@ -1431,6 +1449,10 @@ export const useAppStore = create<AppState>()(
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), updatedCustomerData, { merge: true });
           await addActivityLog('customer.update', `Updated customer: ${updatedCustomerData.name}`, `ID: ${id}`, id);
+          // Push to Shopify (fire-and-forget, skip shopify-originated)
+          if (!id.startsWith('shopify-')) {
+            fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: id }) }).catch(() => {});
+          }
           console.log(`[GemsTrack Store updateCustomer] Customer ID ${id} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateCustomer] Error updating customer ID ${id} in Firestore:`, error);

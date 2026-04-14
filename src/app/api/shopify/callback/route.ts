@@ -54,7 +54,8 @@ export async function GET(request: NextRequest) {
     `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents/app_settings/global` +
     `?key=${FIRESTORE_API_KEY}` +
     `&updateMask.fieldPaths=shopifyAccessToken` +
-    `&updateMask.fieldPaths=shopifyStoreDomain`;
+    `&updateMask.fieldPaths=shopifyStoreDomain` +
+    `&updateMask.fieldPaths=shopifyGrantedScopes`;
 
   await fetch(firestoreUrl, {
     method: 'PATCH',
@@ -63,6 +64,7 @@ export async function GET(request: NextRequest) {
       fields: {
         shopifyAccessToken: { stringValue: accessToken },
         shopifyStoreDomain: { stringValue: shop },
+        shopifyGrantedScopes: { stringValue: tokenData.scope || '' },
       },
     }),
   });

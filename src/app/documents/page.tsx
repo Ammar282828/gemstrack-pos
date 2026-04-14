@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Loader2, FileText, ClipboardList, AlertTriangle, User, Calendar, DollarSign, Eye, Upload, CheckCircle2, ShoppingBag, Printer, ChevronDown } from 'lucide-react';
+import { Search, Loader2, FileText, ClipboardList, AlertTriangle, User, Calendar, DollarSign, Eye, Upload, CheckCircle2, ShoppingBag, Printer, ChevronDown, Link2, Copy, Send } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
@@ -400,7 +400,7 @@ const isShopifyDoc = (doc: DocumentType): boolean =>
   doc.docType === 'invoice' && !!((doc as Invoice).source?.startsWith('shopify'));
 
 
-const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void }> = ({ doc, onPrint, onMarkPaid, onStatusChange }) => {
+const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean }> = ({ doc, onPrint, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -462,7 +462,7 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
                     </div>
                 </div>
             </CardContent>
-             <CardFooter className="p-2 border-t bg-muted/30 flex gap-2">
+             <CardFooter className="p-2 border-t bg-muted/30 flex gap-2 flex-wrap">
                 <Button variant="ghost" className="flex-1 justify-center" onClick={handleCardClick}>
                     <Eye className="w-4 h-4 mr-2" /> View Details
                 </Button>
@@ -474,13 +474,19 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
                         <CheckCircle2 className="w-4 h-4 mr-2" /> Mark Paid
                     </Button>
                 )}
+                {doc.docType === 'invoice' && status === 'Unpaid' && onSendPaymentLink && (
+                    <Button variant="ghost" className="flex-1 justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-50" disabled={isSendingLink} onClick={(e) => { e.stopPropagation(); onSendPaymentLink(); }}>
+                        {isSendingLink ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Link2 className="w-4 h-4 mr-2" />}
+                        {(doc as Invoice).shopifyCheckoutUrl ? 'Copy Link' : 'Payment Link'}
+                    </Button>
+                )}
             </CardFooter>
         </Card>
     );
 };
 
 
-const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void }> = ({ doc, onPrint, onMarkPaid, onStatusChange }) => {
+const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean }> = ({ doc, onPrint, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -541,6 +547,12 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid
                     {status === 'Unpaid' && onMarkPaid && (
                         <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
                             <CheckCircle2 className="w-4 h-4 mr-1" /> Paid
+                        </Button>
+                    )}
+                    {doc.docType === 'invoice' && status === 'Unpaid' && onSendPaymentLink && (
+                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50" disabled={isSendingLink} onClick={(e) => { e.stopPropagation(); onSendPaymentLink(); }}>
+                            {isSendingLink ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Link2 className="w-4 h-4 mr-1" />}
+                            {(doc as Invoice).shopifyCheckoutUrl ? 'Link' : 'Pay Link'}
                         </Button>
                     )}
                 </div>
@@ -741,6 +753,35 @@ export default function DocumentsPage() {
     }
   };
 
+  const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
+
+  const handleSendPaymentLink = async (invoice: Invoice) => {
+    // If there's already a checkout URL, copy it to clipboard
+    if (invoice.shopifyCheckoutUrl) {
+      await navigator.clipboard.writeText(invoice.shopifyCheckoutUrl);
+      toast({ title: 'Link Copied', description: 'Payment link copied to clipboard.' });
+      return;
+    }
+    // Otherwise, create a draft order and get the checkout URL
+    setSendingLinkId(invoice.id);
+    try {
+      const res = await fetch('/api/shopify/push/draft-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId: invoice.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create payment link');
+      await navigator.clipboard.writeText(data.checkoutUrl);
+      toast({ title: 'Payment Link Created', description: 'Checkout link copied to clipboard. Share it with the customer via WhatsApp or SMS.' });
+      loadGeneratedInvoices(); // Refresh to pick up the new shopifyCheckoutUrl
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setSendingLinkId(null);
+    }
+  };
+
   useEffect(() => {
     if (appReady) {
       loadOrders();
@@ -843,7 +884,7 @@ export default function DocumentsPage() {
         <>
             {/* Mobile View: Cards */}
             <div className="md:hidden">
-                {docs.map((d) => <DocumentCard key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} onStatusChange={d.docType === 'order' ? (s) => handleOrderStatusChange(d.id, s) : undefined} />)}
+                {docs.map((d) => <DocumentCard key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} onStatusChange={d.docType === 'order' ? (s) => handleOrderStatusChange(d.id, s) : undefined} onSendPaymentLink={d.docType === 'invoice' ? () => handleSendPaymentLink(d as Invoice) : undefined} isSendingLink={sendingLinkId === d.id} />)}
             </div>
 
             {/* Desktop View: Table */}
@@ -861,7 +902,7 @@ export default function DocumentsPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {docs.map((d) => <DocumentRow key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} onStatusChange={d.docType === 'order' ? (s) => handleOrderStatusChange(d.id, s) : undefined} />)}
+                    {docs.map((d) => <DocumentRow key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} onStatusChange={d.docType === 'order' ? (s) => handleOrderStatusChange(d.id, s) : undefined} onSendPaymentLink={d.docType === 'invoice' ? () => handleSendPaymentLink(d as Invoice) : undefined} isSendingLink={sendingLinkId === d.id} />)}
                 </TableBody>
                 </Table>
             </Card>
