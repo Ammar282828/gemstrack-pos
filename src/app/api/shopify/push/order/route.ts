@@ -29,6 +29,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ skipped: true, reason: 'shopify-originated' });
     }
 
+    // Skip if this looks like a re-entry of a Shopify order (same customer + same total exists in SHOPIFY- docs)
+    const custKey = (inv.customerName || '').toLowerCase().trim();
+    const invTotal = Math.round((inv.grandTotal || 0) * 100);
+    const matchSnap = await adminDb.collection('invoices')
+      .where('customerName', '==', inv.customerName || '')
+      .get();
+    for (const m of matchSnap.docs) {
+      if (m.id.startsWith('SHOPIFY-') || (m.data().source && m.data().source.includes('shopify'))) {
+        if (Math.round((m.data().grandTotal || 0) * 100) === invTotal) {
+          return NextResponse.json({ skipped: true, reason: 'duplicate-of-shopify-order' });
+        }
+      }
+    }
+
     const { shop, token } = await getShopifyCredentials(adminDb);
 
     const lineItems = (inv.items || []).map((item: any) => ({

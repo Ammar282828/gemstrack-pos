@@ -324,9 +324,22 @@ const ShopifyCard: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProducts, setSyncProducts] = useState(false);
 
-  const grantedScopes = (settings.shopifyGrantedScopes || '').split(',').filter(Boolean).sort();
-  const requiredScopes = REQUIRED_SHOPIFY_SCOPES.split(',').sort();
-  const missingScopes = requiredScopes.filter(s => !grantedScopes.includes(s));
+  const grantedScopes = (settings.shopifyGrantedScopes || '').split(',').filter(Boolean);
+  const requiredScopes = REQUIRED_SHOPIFY_SCOPES.split(',');
+  // write_X implies read_X, and read_all_orders covers read_orders
+  const hasScope = (required: string) => {
+    if (grantedScopes.includes(required)) return true;
+    // write implies read (e.g. write_customers covers read_customers)
+    if (required.startsWith('read_')) {
+      const writeVersion = required.replace('read_', 'write_');
+      if (grantedScopes.includes(writeVersion)) return true;
+      // read_all_orders covers read_orders
+      const allVersion = required.replace('read_', 'read_all_');
+      if (grantedScopes.includes(allVersion)) return true;
+    }
+    return false;
+  };
+  const missingScopes = requiredScopes.filter(s => !hasScope(s));
   const needsReauth = missingScopes.length > 0 && grantedScopes.length > 0;
 
   const handleSync = async () => {

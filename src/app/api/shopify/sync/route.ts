@@ -87,6 +87,22 @@ export async function POST(request: NextRequest) {
 
     try {
       const allInvoices = await adminDb.collection('invoices').get();
+
+      // Build fingerprint set from SHOPIFY- docs to detect re-entered POS copies
+      // Fingerprint = "customerName|grandTotal" — catches manual re-entries
+      const shopifyFingerprints = new Set<string>();
+      const shopifyCustomerTotals = new Map<string, Set<number>>();
+      for (const d of allInvoices.docs) {
+        if (d.id.startsWith('SHOPIFY-') || (d.data().source && d.data().source.includes('shopify'))) {
+          const data = d.data();
+          const key = (data.customerName || '').toLowerCase().trim();
+          const total = Math.round((data.grandTotal || 0) * 100);
+          shopifyFingerprints.add(`${key}|${total}`);
+          if (!shopifyCustomerTotals.has(key)) shopifyCustomerTotals.set(key, new Set());
+          shopifyCustomerTotals.get(key)!.add(total);
+        }
+      }
+
       for (const invDoc of allInvoices.docs) {
         const inv = invDoc.data();
         const invoiceId = invDoc.id;
@@ -96,6 +112,14 @@ export async function POST(request: NextRequest) {
         if (inv.source && inv.source.includes('shopify')) { continue; }
         if (inv.shopifyOrderId) { continue; }
         if (inv.status === 'Refunded') { continue; }
+
+        // Skip if this looks like a re-entry of a Shopify order (same customer + same total)
+        const custKey = (inv.customerName || '').toLowerCase().trim();
+        const invTotal = Math.round((inv.grandTotal || 0) * 100);
+        if (shopifyFingerprints.has(`${custKey}|${invTotal}`)) {
+          results.skipped++;
+          continue;
+        }
         const lineItems = (inv.items || []).map((item: any) => ({
           title: item.name || 'POS Item',
           price: ((item.itemTotal || 0) / (item.quantity || 1)).toFixed(2),

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { FIRESTORE_PROJECT_ID, FIRESTORE_API_KEY } from '../_lib';
+import { adminDb } from '@/lib/firebase-admin';
 
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY!;
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET!;
@@ -50,24 +50,11 @@ export async function GET(request: NextRequest) {
   }
 
   // Save token + domain to Firestore
-  const firestoreUrl =
-    `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents/app_settings/global` +
-    `?key=${FIRESTORE_API_KEY}` +
-    `&updateMask.fieldPaths=shopifyAccessToken` +
-    `&updateMask.fieldPaths=shopifyStoreDomain` +
-    `&updateMask.fieldPaths=shopifyGrantedScopes`;
-
-  await fetch(firestoreUrl, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      fields: {
-        shopifyAccessToken: { stringValue: accessToken },
-        shopifyStoreDomain: { stringValue: shop },
-        shopifyGrantedScopes: { stringValue: tokenData.scope || '' },
-      },
-    }),
-  });
+  await adminDb.collection('app_settings').doc('global').set({
+    shopifyAccessToken: accessToken,
+    shopifyStoreDomain: shop,
+    shopifyGrantedScopes: tokenData.scope || '',
+  }, { merge: true });
 
   // Auto-register webhooks for real-time sync
   await fetch(`${appUrl}/api/shopify/register-webhooks`, {
