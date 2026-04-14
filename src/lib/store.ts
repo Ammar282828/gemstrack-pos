@@ -1860,6 +1860,11 @@ export const useAppStore = create<AppState>()(
                 });
             }
 
+            // Fire-and-forget: push invoice to Shopify as order
+            if (result && !result.id.startsWith('SHOPIFY-')) {
+              fetch('/api/shopify/push/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invoiceId: result.id }) }).catch(() => {});
+            }
+
             return result;
         } catch (error) {
             console.error("[GemsTrack Store generateInvoice] Transaction failed: ", error);
@@ -2651,6 +2656,11 @@ export const useAppStore = create<AppState>()(
                         linkedInvoiceId: finalInvoice.id,
                     });
                 }
+            }
+
+            // Fire-and-forget: push invoice to Shopify as order
+            if (finalInvoice && !finalInvoice.id.startsWith('SHOPIFY-')) {
+              fetch('/api/shopify/push/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invoiceId: finalInvoice.id }) }).catch(() => {});
             }
 
             return finalInvoice;

@@ -322,7 +322,6 @@ const ShopifyCard: React.FC = () => {
   const { settings } = useAppStore();
   const { toast } = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isPushing, setIsPushing] = useState(false);
   const [syncProducts, setSyncProducts] = useState(false);
 
   const grantedScopes = (settings.shopifyGrantedScopes || '').split(',').filter(Boolean).sort();
@@ -343,30 +342,12 @@ const ShopifyCard: React.FC = () => {
       const r = data.results;
       toast({
         title: 'Sync Complete',
-        description: `Orders: +${r.orders}  Customers: +${r.customers}${syncProducts ? `  Products: +${r.products}` : ''}  (${r.skipped} skipped)`,
+        description: `Pulled: ${r.orders} orders, ${r.customers} customers${syncProducts ? `, ${r.products} products` : ''} · Pushed: ${r.pushed || 0} invoices · ${r.skipped} skipped`,
       });
     } catch (e: any) {
       toast({ title: 'Sync Failed', description: e.message, variant: 'destructive' });
     } finally {
       setIsSyncing(false);
-    }
-  };
-
-  const handlePushToShopify = async () => {
-    setIsPushing(true);
-    try {
-      const res = await fetch('/api/shopify/push/invoices-bulk', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Push failed');
-      const r = data.results;
-      toast({
-        title: 'Push Complete',
-        description: `Pushed: ${r.pushed} invoices to Shopify (${r.skipped} skipped)${r.errors.length ? ` · ${r.errors.length} errors` : ''}`,
-      });
-    } catch (e: any) {
-      toast({ title: 'Push Failed', description: e.message, variant: 'destructive' });
-    } finally {
-      setIsPushing(false);
     }
   };
 
@@ -414,16 +395,11 @@ const ShopifyCard: React.FC = () => {
           <Switch id="sync-products" checked={syncProducts} onCheckedChange={setSyncProducts} />
           <Label htmlFor="sync-products" className="text-sm">Include product catalog</Label>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button onClick={handleSync} disabled={isSyncing || isPushing} size="sm">
-            {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            {isSyncing ? 'Syncing…' : 'Pull from Shopify'}
-          </Button>
-          <Button onClick={handlePushToShopify} disabled={isSyncing || isPushing} size="sm" variant="outline">
-            {isPushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-            {isPushing ? 'Pushing…' : 'Push POS → Shopify'}
-          </Button>
-        </div>
+        <Button onClick={handleSync} disabled={isSyncing} size="sm">
+          {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          {isSyncing ? 'Syncing…' : 'Sync Now'}
+        </Button>
+        <p className="text-xs text-muted-foreground">New invoices, customers, and products sync to Shopify automatically in real time.</p>
       </CardContent>
     </Card>
   );
