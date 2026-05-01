@@ -1303,10 +1303,10 @@ export const useAppStore = create<AppState>()(
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, newProduct.sku), cleanProduct);
           await addActivityLog('product.create', `Created product: ${newProduct.name}`, `SKU: ${newProduct.sku}`, newProduct.sku);
           console.log("[GemsTrack Store addProduct] Product added successfully to Firestore:", newProduct.sku);
-          // Fire-and-forget Shopify push (skip shopify-originated products)
-          if (!newProduct.sku.startsWith('SHOPIFY-PROD-')) {
-            fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: newProduct.sku }) }).catch(() => {});
-          }
+          // DISABLED: Shopify auto-push (temporarily disabled during restore)
+          // if (!newProduct.sku.startsWith('SHOPIFY-PROD-')) {
+          //   fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: newProduct.sku }) }).catch(() => {});
+          // }
           return newProduct;
         } catch (error) {
           console.error("[GemsTrack Store addProduct] Error adding product to Firestore:", error);
@@ -1358,10 +1358,10 @@ export const useAppStore = create<AppState>()(
             await setDoc(productRef, cleanPayload, { merge: true });
             await addActivityLog('product.update', `Updated product: ${finalUpdatedFields.name || currentProduct.name}`, `SKU: ${sku}`, sku);
             console.log(`[GemsTrack Store updateProduct] Product SKU ${sku} updated successfully.`);
-            // Fire-and-forget Shopify push (skip shopify-originated products)
-            if (!sku.startsWith('SHOPIFY-PROD-')) {
-              fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku }) }).catch(() => {});
-            }
+            // DISABLED: Shopify auto-push (temporarily disabled during restore)
+            // if (!sku.startsWith('SHOPIFY-PROD-')) {
+            //   fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku }) }).catch(() => {});
+            // }
         } catch (error) {
           console.error(`[GemsTrack Store updateProduct] Error updating product SKU ${sku} in Firestore:`, error);
         }
@@ -1434,8 +1434,8 @@ export const useAppStore = create<AppState>()(
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustomerId), newCustomer);
           await addActivityLog('customer.create', `Created customer: ${newCustomer.name}`, `ID: ${newCustomerId}`, newCustomerId);
-          // Push to Shopify (fire-and-forget)
-          fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: newCustomerId }) }).catch(() => {});
+          // DISABLED: Shopify auto-push (temporarily disabled during restore)
+          // fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: newCustomerId }) }).catch(() => {});
           console.log("[GemsTrack Store addCustomer] Customer added successfully:", newCustomerId);
           return newCustomer;
         } catch (error) {
@@ -1449,10 +1449,10 @@ export const useAppStore = create<AppState>()(
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), updatedCustomerData, { merge: true });
           await addActivityLog('customer.update', `Updated customer: ${updatedCustomerData.name}`, `ID: ${id}`, id);
-          // Push to Shopify (fire-and-forget, skip shopify-originated)
-          if (!id.startsWith('shopify-')) {
-            fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: id }) }).catch(() => {});
-          }
+          // DISABLED: Shopify auto-push (temporarily disabled during restore)
+          // if (!id.startsWith('shopify-')) {
+          //   fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: id }) }).catch(() => {});
+          // }
           console.log(`[GemsTrack Store updateCustomer] Customer ID ${id} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateCustomer] Error updating customer ID ${id} in Firestore:`, error);
@@ -1860,10 +1860,10 @@ export const useAppStore = create<AppState>()(
                 });
             }
 
-            // Fire-and-forget: push invoice to Shopify as order
-            if (result && !result.id.startsWith('SHOPIFY-')) {
-              fetch('/api/shopify/push/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invoiceId: result.id }) }).catch(() => {});
-            }
+            // DISABLED: Shopify auto-push (temporarily disabled during restore)
+            // if (result && !result.id.startsWith('SHOPIFY-')) {
+            //   fetch('/api/shopify/push/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invoiceId: result.id }) }).catch(() => {});
+            // }
 
             return result;
         } catch (error) {
@@ -2658,10 +2658,10 @@ export const useAppStore = create<AppState>()(
                 }
             }
 
-            // Fire-and-forget: push invoice to Shopify as order
-            if (finalInvoice && !finalInvoice.id.startsWith('SHOPIFY-')) {
-              fetch('/api/shopify/push/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invoiceId: finalInvoice.id }) }).catch(() => {});
-            }
+            // DISABLED: Shopify auto-push (temporarily disabled during restore)
+            // if (finalInvoice && !finalInvoice.id.startsWith('SHOPIFY-')) {
+            //   fetch('/api/shopify/push/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invoiceId: finalInvoice.id }) }).catch(() => {});
+            // }
 
             return finalInvoice;
         } catch (error) {
