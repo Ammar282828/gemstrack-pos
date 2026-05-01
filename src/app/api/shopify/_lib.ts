@@ -252,6 +252,72 @@ export async function findShopifyOrderIdByTag(
 }
 
 /**
+ * Find an existing Shopify DRAFT order by tag. Tag is the stable per-order
+ * handle: `pos-order-ORD-000123`.
+ */
+export async function findShopifyDraftOrderIdByTag(
+  shop: string,
+  token: string,
+  tag: string,
+  opts: { attempts?: number; delayMs?: number } = {}
+): Promise<string | null> {
+  const attempts = opts.attempts ?? 5;
+  const delay = opts.delayMs ?? 1200;
+  for (let i = 0; i < attempts; i++) {
+    const data = await shopifyGraphQL(shop, token, `
+      query findDraftByTag($q: String!) {
+        draftOrders(first: 5, query: $q) {
+          nodes { id legacyResourceId status }
+        }
+      }
+    `, { q: `tag:${tag}` });
+    const nodes: Array<{ legacyResourceId: string; status: string }> = data?.draftOrders?.nodes || [];
+    if (nodes.length > 0) {
+      // Prefer OPEN drafts; INVOICE_SENT is also live; COMPLETED is consumed.
+      const live = nodes.find(n => n.status === 'OPEN' || n.status === 'INVOICE_SENT');
+      return (live || nodes[0])?.legacyResourceId || null;
+    }
+    if (i < attempts - 1) await new Promise(r => setTimeout(r, delay));
+  }
+  return null;
+}
+
+/**
+ * Build a Shopify draft-order payload from a POS order. Used for in-progress
+ * orders that haven't been finalized into an invoice yet. Drafts are fully
+ * editable, so PUT updates are safe.
+ */
+export function buildShopifyDraftOrderPayload(
+  order: any,
+  opts: { shopifyCustomerId?: string } = {}
+) {
+  const lineItems = (order.items || []).map((item: any, i: number) => {
+    const price = (item.totalEstimate || item.manualPrice || 0);
+    return {
+      title: item.description || `Order Item ${i + 1}`,
+      price: Number(price).toFixed(2),
+      quantity: 1,
+      ...(item.referenceSku && { sku: item.referenceSku }),
+    };
+  });
+  const tags = ['pos-order', `pos-order-${order.id}`];
+  const advance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
+  const noteParts = [`POS Order ${order.id}`];
+  if (advance > 0) noteParts.push(`Advance: ${advance}`);
+  if (order.advanceInExchangeDescription) noteParts.push(`Exchange: ${order.advanceInExchangeDescription}`);
+  if (order.summary) noteParts.push(order.summary);
+  return {
+    draft_order: {
+      line_items: lineItems,
+      ...(opts.shopifyCustomerId && { customer: { id: Number(opts.shopifyCustomerId) } }),
+      tags: tags.join(','),
+      note: noteParts.join(' | '),
+      use_customer_default_address: false,
+    },
+  };
+}
+
+/**
  * Build a Shopify order create payload from a POS invoice. Tags include the
  * stable per-invoice handle so future searches can find this order.
  */
@@ -307,17 +373,55 @@ export async function getShopifyCredentials(adminDb: any): Promise<{ shop: strin
 }
 
 // --- Reverse mappers (POS → Shopify) ---
-export function mapCustomerToShopify(c: any) {
+export function mapCustomerToShopify(c: any, posCustomerId?: string) {
   const nameParts = (c.name || '').split(' ');
+  const tags = ['pos-pushed'];
+  if (posCustomerId) tags.push(`pos-customer-${posCustomerId}`);
   return {
     customer: {
       first_name: nameParts[0] || '',
       last_name: nameParts.slice(1).join(' ') || '',
       email: c.email || undefined,
       phone: c.phone || undefined,
+      tags: tags.join(','),
       ...(c.address && { addresses: [{ address1: c.address }] }),
     },
   };
+}
+
+/** Find a Shopify customer by per-POS-id tag, then by email, then by phone. */
+export async function findShopifyCustomerId(
+  shop: string,
+  token: string,
+  opts: { posCustomerId?: string; email?: string; phone?: string }
+): Promise<string | null> {
+  // Try tag first (most reliable for already-pushed records)
+  if (opts.posCustomerId) {
+    try {
+      const data = await shopifyGraphQL(shop, token, `
+        query findCust($q: String!) { customers(first: 1, query: $q) { nodes { id legacyResourceId } } }
+      `, { q: `tag:pos-customer-${opts.posCustomerId}` });
+      const node = data?.customers?.nodes?.[0];
+      if (node?.legacyResourceId) return String(node.legacyResourceId);
+    } catch { /* fall through */ }
+  }
+  // Try email
+  if (opts.email) {
+    try {
+      const r = await shopifyRequest(shop, token, 'GET', `/customers/search.json?query=email:${encodeURIComponent(opts.email)}`);
+      const c = r?.customers?.[0];
+      if (c?.id) return String(c.id);
+    } catch { /* */ }
+  }
+  // Try phone
+  if (opts.phone) {
+    try {
+      const r = await shopifyRequest(shop, token, 'GET', `/customers/search.json?query=phone:${encodeURIComponent(opts.phone)}`);
+      const c = r?.customers?.[0];
+      if (c?.id) return String(c.id);
+    } catch { /* */ }
+  }
+  return null;
 }
 
 export function mapInvoiceToDraftOrder(invoice: any, shopifyCustomerId?: string) {
@@ -344,10 +448,12 @@ export function mapInvoiceToDraftOrder(invoice: any, shopifyCustomerId?: string)
 
 export function mapProductToShopify(p: any) {
   const price = p.isCustomPrice ? (p.customPrice || 0) : (p.makingCharges || 0);
+  const tags = ['pos-pushed', `pos-product-${p.sku}`];
   return {
     product: {
       title: p.name,
       body_html: p.description || '',
+      tags: tags.join(','),
       variants: [{
         price: price.toFixed(2),
         sku: p.sku,
@@ -358,6 +464,28 @@ export function mapProductToShopify(p: any) {
       ...(p.imageUrl && { images: [{ src: p.imageUrl }] }),
     },
   };
+}
+
+/** Find an existing Shopify product by SKU or per-POS tag. */
+export async function findShopifyProductIdsBySku(
+  shop: string,
+  token: string,
+  sku: string
+): Promise<{ productId: string; variantId: string } | null> {
+  try {
+    const data = await shopifyGraphQL(shop, token, `
+      query findProd($q: String!) {
+        productVariants(first: 1, query: $q) {
+          nodes { id legacyResourceId product { id legacyResourceId } }
+        }
+      }
+    `, { q: `sku:${sku}` });
+    const node = data?.productVariants?.nodes?.[0];
+    if (node?.legacyResourceId && node?.product?.legacyResourceId) {
+      return { productId: String(node.product.legacyResourceId), variantId: String(node.legacyResourceId) };
+    }
+  } catch { /* */ }
+  return null;
 }
 
 export function mapProduct(sp: any, variant: any) {

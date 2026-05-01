@@ -15,6 +15,23 @@ export async function POST(request: NextRequest) {
   }
 
   const product = JSON.parse(rawBody);
+
+  const tags = (product.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+  const isPosPushed = tags.includes('pos-pushed') || tags.some((t: string) => t.startsWith('pos-product-'));
+
+  if (isPosPushed) {
+    // Don't mirror — the POS doc is canonical. Just refresh the back-link.
+    for (const variant of (product.variants || [])) {
+      const sku = variant.sku;
+      if (!sku || sku.startsWith('SHOPIFY-PROD-')) continue;
+      await adminDb.collection('products').doc(sku).set(
+        { shopifyProductId: String(product.id), shopifyVariantId: String(variant.id) },
+        { merge: true },
+      );
+    }
+    return NextResponse.json({ ok: true, skipped: 'pos-echo' });
+  }
+
   for (const variant of (product.variants || [])) {
     const sku = variant.sku || `SHOPIFY-PROD-${variant.id}`;
     await adminDb.collection('products').doc(sku).set(mapProduct(product, variant), { merge: true });

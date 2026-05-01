@@ -15,8 +15,29 @@ export async function POST(request: NextRequest) {
   }
 
   const customer = JSON.parse(rawBody);
-  const customerId = `shopify-${customer.id}`;
-  await adminDb.collection('customers').doc(customerId).set(mapCustomer(customer), { merge: true });
+
+  // Echo prevention: customers we just pushed carry tag `pos-pushed` plus a
+  // `pos-customer-{id}` handle. Don't write a phantom shopify-* mirror —
+  // update the actual POS customer doc instead.
+  const tags = (customer.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+  const posTag = tags.find((t: string) => t.startsWith('pos-customer-'));
+  const isPosPushed = tags.includes('pos-pushed') || !!posTag;
+
+  if (isPosPushed && posTag) {
+    const posCustomerId = posTag.replace(/^pos-customer-/, '');
+    if (posCustomerId) {
+      await adminDb.collection('customers').doc(posCustomerId).set(
+        { shopifyCustomerId: String(customer.id) },
+        { merge: true },
+      );
+    }
+    return NextResponse.json({ ok: true, skipped: 'pos-echo' });
+  }
+
+  if (!isPosPushed) {
+    const customerId = `shopify-${customer.id}`;
+    await adminDb.collection('customers').doc(customerId).set(mapCustomer(customer), { merge: true });
+  }
 
   return NextResponse.json({ ok: true });
 }

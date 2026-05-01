@@ -1,36 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { shopifyRequest, getShopifyCredentials, mapCustomerToShopify } from '../../_lib';
+import { shopifyRequest, getShopifyCredentials, mapCustomerToShopify, findShopifyCustomerId } from '../../_lib';
 
+/**
+ * Idempotent customer push. Resolves the Shopify customer in this order:
+ *   1. The `shopifyCustomerId` already stored on the POS customer doc.
+ *   2. A Shopify customer carrying tag `pos-customer-{customerId}`.
+ *   3. A Shopify customer with a matching email or phone.
+ *   4. None — create new.
+ *
+ * Always tags the customer with `pos-pushed` and `pos-customer-{id}` so the
+ * `customers/update` webhook can skip the echo.
+ */
 export async function POST(request: NextRequest) {
   try {
     const { customerId } = await request.json();
     if (!customerId) return NextResponse.json({ error: 'customerId required' }, { status: 400 });
-
-    const { shop, token } = await getShopifyCredentials(adminDb);
-
-    const customerDoc = await adminDb.collection('customers').doc(customerId).get();
-    if (!customerDoc.exists) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
-
-    const customer = customerDoc.data()!;
 
     // Skip if this customer came from Shopify (avoid echo loop)
     if (customerId.startsWith('shopify-')) {
       return NextResponse.json({ skipped: true, reason: 'shopify-originated' });
     }
 
-    const payload = mapCustomerToShopify(customer);
-    let shopifyCustomerId = customer.shopifyCustomerId;
+    const { shop, token } = await getShopifyCredentials(adminDb);
+
+    const customerDoc = await adminDb.collection('customers').doc(customerId).get();
+    if (!customerDoc.exists) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+    const customer = customerDoc.data()!;
+
+    const payload = mapCustomerToShopify(customer, customerId);
+    let shopifyCustomerId: string | undefined = customer.shopifyCustomerId;
+
+    // Verify any stored id still exists; otherwise fall back to search.
+    if (shopifyCustomerId) {
+      try { await shopifyRequest(shop, token, 'GET', `/customers/${shopifyCustomerId}.json`); }
+      catch { shopifyCustomerId = undefined; }
+    }
+    if (!shopifyCustomerId) {
+      const found = await findShopifyCustomerId(shop, token, {
+        posCustomerId: customerId,
+        email: customer.email || undefined,
+        phone: customer.phone || undefined,
+      });
+      if (found) shopifyCustomerId = found;
+    }
 
     if (shopifyCustomerId) {
-      // Update existing Shopify customer
-      await shopifyRequest(shop, token, 'PUT', `/customers/${shopifyCustomerId}.json`, payload);
+      await shopifyRequest(shop, token, 'PUT', `/customers/${shopifyCustomerId}.json`, {
+        customer: { id: Number(shopifyCustomerId), ...payload.customer },
+      });
+      // Make sure the POS doc points at the right id (may have been wrong/missing)
+      if (String(customer.shopifyCustomerId || '') !== String(shopifyCustomerId)) {
+        await adminDb.collection('customers').doc(customerId).update({ shopifyCustomerId });
+      }
     } else {
-      // Create new Shopify customer
-      const result = await shopifyRequest(shop, token, 'POST', '/customers.json', payload);
-      shopifyCustomerId = String(result.customer.id);
-      // Store the Shopify ID back on the POS customer
-      await adminDb.collection('customers').doc(customerId).update({ shopifyCustomerId });
+      try {
+        const result = await shopifyRequest(shop, token, 'POST', '/customers.json', payload);
+        shopifyCustomerId = String(result.customer.id);
+        await adminDb.collection('customers').doc(customerId).update({ shopifyCustomerId });
+      } catch (e: any) {
+        // 422 typically means "email/phone already taken" — race or stale index.
+        // Re-search aggressively, then PUT instead of giving up.
+        if (!String(e?.message || '').includes('422')) throw e;
+        const retry = await findShopifyCustomerId(shop, token, {
+          posCustomerId: customerId,
+          email: customer.email || undefined,
+          phone: customer.phone || undefined,
+        });
+        if (!retry) throw e;
+        shopifyCustomerId = retry;
+        await shopifyRequest(shop, token, 'PUT', `/customers/${shopifyCustomerId}.json`, {
+          customer: { id: Number(shopifyCustomerId), ...payload.customer },
+        });
+        await adminDb.collection('customers').doc(customerId).update({ shopifyCustomerId });
+      }
     }
 
     return NextResponse.json({ success: true, shopifyCustomerId });

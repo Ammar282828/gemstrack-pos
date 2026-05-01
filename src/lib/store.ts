@@ -61,6 +61,20 @@ function syncShopifyOrderById(shopifyOrderId: string | undefined | null, action:
   }).catch(() => { /* fire-and-forget */ });
 }
 
+/**
+ * Fire-and-forget draft-order sync for an in-progress POS order. Idempotent
+ * server-side. Skipped during SSR.
+ */
+function syncOrderShopify(orderId: string | undefined | null, action: 'upsert' | 'cancel' = 'upsert') {
+  if (!orderId) return;
+  if (typeof window === 'undefined') return;
+  fetch('/api/shopify/sync/order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderId, action }),
+  }).catch(() => { /* fire-and-forget */ });
+}
+
 
 async function deleteCollection(collectionName: string) {
   if (!db || typeof db.app === 'undefined') {
@@ -517,6 +531,8 @@ export interface Order {
   notes?: string;
   shopifyOrderId?: string; // Carried forward from invoice during edit/revert so the next finalize re-links the same Shopify order
   shopifyOrderNumber?: number;
+  shopifyDraftOrderId?: string; // Set while the order is in-progress (pre-invoice) and mirrored to Shopify as a draft order
+  shopifyDraftOrderName?: string; // Shopify-assigned draft name (e.g. #D1)
 }
 
 export type HisaabEntityType = 'customer' | 'karigar';
@@ -1332,10 +1348,9 @@ export const useAppStore = create<AppState>()(
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, newProduct.sku), cleanProduct);
           await addActivityLog('product.create', `Created product: ${newProduct.name}`, `SKU: ${newProduct.sku}`, newProduct.sku);
           console.log("[GemsTrack Store addProduct] Product added successfully to Firestore:", newProduct.sku);
-          // DISABLED: Shopify auto-push (temporarily disabled during restore)
-          // if (!newProduct.sku.startsWith('SHOPIFY-PROD-')) {
-          //   fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: newProduct.sku }) }).catch(() => {});
-          // }
+          if (typeof window !== 'undefined' && !newProduct.sku.startsWith('SHOPIFY-PROD-')) {
+            fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: newProduct.sku }) }).catch(() => {});
+          }
           return newProduct;
         } catch (error) {
           console.error("[GemsTrack Store addProduct] Error adding product to Firestore:", error);
@@ -1387,10 +1402,9 @@ export const useAppStore = create<AppState>()(
             await setDoc(productRef, cleanPayload, { merge: true });
             await addActivityLog('product.update', `Updated product: ${finalUpdatedFields.name || currentProduct.name}`, `SKU: ${sku}`, sku);
             console.log(`[GemsTrack Store updateProduct] Product SKU ${sku} updated successfully.`);
-            // DISABLED: Shopify auto-push (temporarily disabled during restore)
-            // if (!sku.startsWith('SHOPIFY-PROD-')) {
-            //   fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku }) }).catch(() => {});
-            // }
+            if (typeof window !== 'undefined' && !sku.startsWith('SHOPIFY-PROD-')) {
+              fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku }) }).catch(() => {});
+            }
         } catch (error) {
           console.error(`[GemsTrack Store updateProduct] Error updating product SKU ${sku} in Firestore:`, error);
         }
@@ -1463,8 +1477,9 @@ export const useAppStore = create<AppState>()(
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustomerId), newCustomer);
           await addActivityLog('customer.create', `Created customer: ${newCustomer.name}`, `ID: ${newCustomerId}`, newCustomerId);
-          // DISABLED: Shopify auto-push (temporarily disabled during restore)
-          // fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: newCustomerId }) }).catch(() => {});
+          if (typeof window !== 'undefined' && !newCustomerId.startsWith('shopify-')) {
+            fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: newCustomerId }) }).catch(() => {});
+          }
           console.log("[GemsTrack Store addCustomer] Customer added successfully:", newCustomerId);
           return newCustomer;
         } catch (error) {
@@ -1478,10 +1493,9 @@ export const useAppStore = create<AppState>()(
         try {
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), updatedCustomerData, { merge: true });
           await addActivityLog('customer.update', `Updated customer: ${updatedCustomerData.name}`, `ID: ${id}`, id);
-          // DISABLED: Shopify auto-push (temporarily disabled during restore)
-          // if (!id.startsWith('shopify-')) {
-          //   fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: id }) }).catch(() => {});
-          // }
+          if (typeof window !== 'undefined' && !id.startsWith('shopify-')) {
+            fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: id }) }).catch(() => {});
+          }
           console.log(`[GemsTrack Store updateCustomer] Customer ID ${id} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateCustomer] Error updating customer ID ${id} in Firestore:`, error);
@@ -2398,6 +2412,7 @@ export const useAppStore = create<AppState>()(
 
           await addActivityLog('order.create', `Created order: ${finalOrder.id}`, `Customer: ${finalCustomerName || 'Walk-in'} | Total: ${finalGrandTotal.toLocaleString()}`, finalOrder.id);
           console.log(`[GemsTrack Store addOrder] Order ${finalOrder.id} saved successfully.`);
+          syncOrderShopify(finalOrder.id, 'upsert');
 
           // WhatsApp notification: new order
           const s = get().settings;
@@ -2425,6 +2440,7 @@ export const useAppStore = create<AppState>()(
         const cleanData = cleanObject(updatedOrderData);
         await setDoc(orderRef, cleanData, { merge: true });
         await addActivityLog('order.update', `Updated order: ${orderId}`, `Details updated`, orderId);
+        syncOrderShopify(orderId, 'upsert');
       },
       deleteOrder: async (orderId: string) => {
         if(get().settings.databaseLocked) return;
@@ -2435,6 +2451,8 @@ export const useAppStore = create<AppState>()(
         }
         console.log(`[GemsTrack Store deleteOrder] Attempting to delete order ID ${orderId}.`);
         try {
+          // Cancel the Shopify draft FIRST while we still have orderId mapping in Firestore.
+          if (order.shopifyDraftOrderId) syncOrderShopify(orderId, 'cancel');
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId));
           await addActivityLog('order.delete', `Deleted order: ${orderId}`, `Customer: ${order.customerName}`, orderId);
           console.log(`[GemsTrack Store deleteOrder] Order ID ${orderId} deleted successfully.`);
@@ -2450,6 +2468,12 @@ export const useAppStore = create<AppState>()(
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
           await setDoc(orderDocRef, { status }, { merge: true });
           await addActivityLog('order.update', `Order ${orderId} status changed`, `New status: ${status}`, orderId);
+          // Cancelled / Refunded → drop the Shopify draft. Other statuses just update.
+          if (status === 'Cancelled' || status === 'Refunded') {
+            syncOrderShopify(orderId, 'cancel');
+          } else {
+            syncOrderShopify(orderId, 'upsert');
+          }
           console.log(`[GemsTrack Store updateOrderStatus] Successfully updated status for order ${orderId}.`);
 
           // WhatsApp notifications: completed or cancelled
@@ -2488,11 +2512,12 @@ export const useAppStore = create<AppState>()(
         const updatedItems = order.items.map((item, i) =>
           i === itemIndex ? { ...item, isCompleted } : item
         );
-    
+
         try {
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
           await setDoc(orderDocRef, { items: updatedItems }, { merge: true });
           console.log(`Successfully updated item #${itemIndex} status for order ${orderId}.`);
+          syncOrderShopify(orderId, 'upsert');
         } catch (error) {
           console.error(`Error updating item status for order ${orderId}:`, error);
           throw error;
@@ -2515,6 +2540,7 @@ export const useAppStore = create<AppState>()(
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
           await setDoc(orderDocRef, { items: updatedItems, subtotal: newSubtotal, grandTotal: newGrandTotal, summary: newSummary }, { merge: true });
           await addActivityLog('order.update', `Removed item from order: ${orderId}`, `Item: ${order.items[itemIndex]?.description}`, orderId);
+          syncOrderShopify(orderId, 'upsert');
         } catch (error) {
           console.error(`Error removing item from order ${orderId}:`, error);
           throw error;
@@ -2659,6 +2685,8 @@ export const useAppStore = create<AppState>()(
                     invoiceId: invoiceId,
                     // The Shopify link now lives on the invoice; clear it from the order.
                     ...(order.shopifyOrderId && { shopifyOrderId: deleteField(), shopifyOrderNumber: deleteField() }),
+                    // Draft is being cancelled in parallel — clear its references too.
+                    ...(order.shopifyDraftOrderId && { shopifyDraftOrderId: deleteField(), shopifyDraftOrderName: deleteField() }),
                 });
 
                 return newInvoice;
@@ -2700,7 +2728,12 @@ export const useAppStore = create<AppState>()(
                 }
             }
 
-            if (finalInvoice) syncInvoiceShopify(finalInvoice.id, 'upsert');
+            if (finalInvoice) {
+                // Cancel the in-progress draft (if any) — the real Shopify order
+                // for the invoice is the canonical record now.
+                if (order.shopifyDraftOrderId) syncOrderShopify(order.id, 'cancel');
+                syncInvoiceShopify(finalInvoice.id, 'upsert');
+            }
 
             return finalInvoice;
         } catch (error) {
@@ -2732,6 +2765,8 @@ export const useAppStore = create<AppState>()(
                 { merge: true }
             );
             await addActivityLog('order.revert', `Reverted order ${orderId}`, `Cancelled invoice ${invoiceId}`, orderId);
+            // Order is back to in-progress — recreate (or refresh) its Shopify draft.
+            syncOrderShopify(orderId, 'upsert');
         } catch (error) {
             console.error("Error reverting order from invoice:", error);
             throw error;
@@ -2754,6 +2789,8 @@ export const useAppStore = create<AppState>()(
                 // (post-revert / pre-finalize). Refund the Shopify order directly.
                 syncShopifyOrderById(order.shopifyOrderId, 'refund');
             }
+            // Always cancel a draft if one exists (pre-invoice state).
+            if (order.shopifyDraftOrderId) syncOrderShopify(orderId, 'cancel');
             await setDoc(
                 doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId),
                 {
@@ -2796,6 +2833,7 @@ export const useAppStore = create<AppState>()(
 
                 return { ...orderData, advancePayment: newAdvancePayment, grandTotal: newGrandTotal } as Order;
             });
+            syncOrderShopify(orderId, 'upsert');
             return updatedOrder;
         } catch (error) {
             console.error(`Error recording advance for order ${orderId}:`, error);
