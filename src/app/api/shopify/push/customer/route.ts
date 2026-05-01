@@ -17,8 +17,10 @@ export async function POST(request: NextRequest) {
     const { customerId } = await request.json();
     if (!customerId) return NextResponse.json({ error: 'customerId required' }, { status: 400 });
 
-    // Skip if this customer came from Shopify (avoid echo loop)
-    if (customerId.startsWith('shopify-')) {
+    // Skip if this customer is a Shopify-webhook mirror doc (id = `shopify-{numericId}`).
+    // CSV-imported docs (e.g. `shopify-cust-1772...`) are real POS customers and must
+    // still be pushable.
+    if (/^shopify-\d+$/.test(customerId)) {
       return NextResponse.json({ skipped: true, reason: 'shopify-originated' });
     }
 
