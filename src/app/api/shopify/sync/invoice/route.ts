@@ -22,7 +22,7 @@ import {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { invoiceId, shopifyOrderId, action = 'upsert' } = await request.json();
+    const { invoiceId, shopifyOrderId, action = 'upsert', amount, reason } = await request.json();
     if (!invoiceId && !shopifyOrderId) {
       return NextResponse.json({ error: 'invoiceId or shopifyOrderId required' }, { status: 400 });
     }
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       return await handleUpsert(invoiceId, shop, token);
     }
     if (action === 'cancel') return await handleCancel(invoiceId, shopifyOrderId, shop, token);
-    if (action === 'refund') return await handleRefund(invoiceId, shop, token, shopifyOrderId);
+    if (action === 'refund') return await handleRefund(invoiceId, shop, token, shopifyOrderId, amount, reason);
     return NextResponse.json({ error: `unknown action: ${action}` }, { status: 400 });
   } catch (e: any) {
     console.error('[shopify/sync/invoice]', e?.message || e);
@@ -253,25 +253,50 @@ async function safeRemoveShopifyOrder(shop: string, token: string, orderId: stri
 
 // ─── refund ───────────────────────────────────────────────────────────────
 
-async function handleRefund(invoiceId: string, shop: string, token: string, explicitShopifyOrderId?: string) {
+async function handleRefund(
+  invoiceId: string | undefined,
+  shop: string,
+  token: string,
+  explicitShopifyOrderId?: string,
+  partialAmount?: number,
+  reason?: string,
+) {
   let targetId: string | null = explicitShopifyOrderId || null;
-  if (!targetId) {
+  if (!targetId && invoiceId) {
     const invDoc = await adminDb.collection('invoices').doc(invoiceId).get();
     targetId = invDoc.exists
       ? (invDoc.data() as any)?.shopifyOrderId ? String((invDoc.data() as any).shopifyOrderId) : null
       : null;
   }
-  if (!targetId) targetId = await findShopifyOrderIdByTag(shop, token, `pos-inv-${invoiceId}`);
+  if (!targetId && invoiceId) targetId = await findShopifyOrderIdByTag(shop, token, `pos-inv-${invoiceId}`);
   if (!targetId) return NextResponse.json({ skipped: true, reason: 'no-shopify-order-found' });
 
+  // Determine refund amount: explicit partial, else full order total, capped
+  // by the remaining (non-refunded) amount on the Shopify order.
   const r = await shopifyRequest(shop, token, 'GET', `/orders/${targetId}.json`);
   const order = r?.order;
-  const refundAmount = parseFloat(order?.total_price || '0');
-  await issueRefund(shop, token, targetId, refundAmount);
-  return NextResponse.json({ success: true, action: 'refunded', shopifyOrderId: targetId });
+  const orderTotal = parseFloat(order?.total_price || '0');
+  const alreadyRefunded = (order?.refunds || [])
+    .flatMap((rf: any) => rf.transactions || [])
+    .filter((t: any) => t.kind === 'refund' && t.status === 'success')
+    .reduce((s: number, t: any) => s + parseFloat(t.amount || '0'), 0);
+  const remaining = Math.max(0, orderTotal - alreadyRefunded);
+  const requested = partialAmount && partialAmount > 0 ? partialAmount : orderTotal;
+  const refundAmount = Math.min(requested, remaining);
+
+  if (refundAmount <= 0) {
+    return NextResponse.json({ success: true, action: 'noop', reason: 'already-fully-refunded', shopifyOrderId: targetId });
+  }
+  await issueRefund(shop, token, targetId, refundAmount, reason);
+  return NextResponse.json({
+    success: true,
+    action: refundAmount < orderTotal ? 'partially-refunded' : 'refunded',
+    shopifyOrderId: targetId,
+    amount: refundAmount,
+  });
 }
 
-async function issueRefund(shop: string, token: string, orderId: string, amount: number) {
+async function issueRefund(shop: string, token: string, orderId: string, amount: number, note?: string) {
   if (amount <= 0) return;
   // Use Shopify's calculate-then-create flow so the refund references real
   // transactions rather than failing on a missing parent_id.
@@ -295,7 +320,7 @@ async function issueRefund(shop: string, token: string, orderId: string, amount:
   await shopifyRequest(shop, token, 'POST', `/orders/${orderId}/refunds.json`, {
     refund: {
       notify: false,
-      note: 'POS refund',
+      note: note || 'POS refund',
       shipping: { full_refund: false },
       refund_line_items: [],
       transactions: txTemplate,

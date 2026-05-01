@@ -75,7 +75,7 @@ export default function CartPage() {
   const preloadedInvoiceId = searchParams.get('invoice_id');
 
   const appReady = useAppReady();
-  const { cartItemsFromStore, customers, settings, allInvoices, products, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, updateInvoiceDiscount, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings, addToCart, addProductToCart, loadCustomers, loadGeneratedInvoices, loadProducts } = useAppStore(state => ({
+  const { cartItemsFromStore, customers, settings, allInvoices, products, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, refundInvoicePartial, updateInvoiceDiscount, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings, addToCart, addProductToCart, loadCustomers, loadGeneratedInvoices, loadProducts } = useAppStore(state => ({
     cartItemsFromStore: state.cart,
     customers: state.customers,
     settings: state.settings,
@@ -86,6 +86,7 @@ export default function CartPage() {
     generateInvoice: state.generateInvoice,
     addHisaabEntry: state.addHisaabEntry,
     updateInvoicePayment: state.updateInvoicePayment,
+    refundInvoicePartial: state.refundInvoicePartial,
     updateInvoiceDiscount: state.updateInvoiceDiscount,
     loadCartFromInvoice: state.loadCartFromInvoice,
     deleteInvoice: state.deleteInvoice,
@@ -133,6 +134,9 @@ export default function CartPage() {
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | undefined>(undefined);
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
+  const [refundMode, setRefundMode] = useState<'full' | 'partial'>('full');
+  const [partialRefundAmount, setPartialRefundAmount] = useState<string>('');
+  const [partialRefundReason, setPartialRefundReason] = useState<string>('');
   const [pendingPreloadedInvoice, setPendingPreloadedInvoice] = useState<InvoiceType | null>(null);
   const [isCartClearWarningOpen, setIsCartClearWarningOpen] = useState(false);
   
@@ -917,10 +921,28 @@ export default function CartPage() {
     if (!generatedInvoice) return;
     setIsRefunding(true);
     try {
-      await deleteInvoice(generatedInvoice.id, false); // false = restore stock
-      toast({ title: 'Invoice Refunded', description: `Invoice ${generatedInvoice.id} has been deleted and items returned to stock.` });
+      if (refundMode === 'full') {
+        await deleteInvoice(generatedInvoice.id, false); // false = restore stock
+        toast({ title: 'Invoice Refunded', description: `Invoice ${generatedInvoice.id} has been deleted and items returned to stock.` });
+        setGeneratedInvoice(null);
+      } else {
+        const amt = parseFloat(partialRefundAmount);
+        if (!(amt > 0)) {
+          toast({ title: 'Invalid amount', description: 'Enter a refund amount greater than 0.', variant: 'destructive' });
+          return;
+        }
+        const updated = await refundInvoicePartial(generatedInvoice.id, amt, partialRefundReason || undefined);
+        if (updated) {
+          setGeneratedInvoice(updated);
+          toast({ title: 'Partial refund recorded', description: `PKR ${amt.toLocaleString()} refunded on Invoice ${generatedInvoice.id}.` });
+          setPartialRefundAmount('');
+          setPartialRefundReason('');
+        } else {
+          toast({ title: 'Error', description: 'Failed to record partial refund.', variant: 'destructive' });
+          return;
+        }
+      }
       setIsRefundDialogOpen(false);
-      setGeneratedInvoice(null);
     } catch {
       toast({ title: 'Error', description: 'Failed to process refund.', variant: 'destructive' });
     } finally {
@@ -1133,16 +1155,65 @@ export default function CartPage() {
       <AlertDialog open={isRefundDialogOpen} onOpenChange={setIsRefundDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Refund this Invoice?</AlertDialogTitle>
+            <AlertDialogTitle>Refund Invoice {(generatedInvoice as InvoiceType | null)?.id}</AlertDialogTitle>
             <AlertDialogDescription>
-              Invoice <strong>{(generatedInvoice as InvoiceType | null)?.id}</strong> will be permanently deleted, all hisaab entries removed, and all items returned to stock. This action cannot be undone.
+              {refundMode === 'full'
+                ? 'A full refund deletes the invoice, removes all hisaab entries, and returns all items to stock. This cannot be undone.'
+                : 'A partial refund records a negative payment on this invoice and issues a matching refund on Shopify. The invoice stays in your records.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={refundMode === 'full' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setRefundMode('full')}
+                disabled={isRefunding}
+              >Full refund</Button>
+              <Button
+                type="button"
+                variant={refundMode === 'partial' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setRefundMode('partial')}
+                disabled={isRefunding}
+              >Partial refund</Button>
+            </div>
+
+            {refundMode === 'partial' && (
+              <div className="space-y-2 pt-2">
+                <Label htmlFor="refund-amount">Refund amount (PKR)</Label>
+                <Input
+                  id="refund-amount"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="e.g. 1500"
+                  value={partialRefundAmount}
+                  onChange={e => setPartialRefundAmount(e.target.value)}
+                  disabled={isRefunding}
+                />
+                <Label htmlFor="refund-reason">Reason (optional)</Label>
+                <Input
+                  id="refund-reason"
+                  placeholder="e.g. damaged item"
+                  value={partialRefundReason}
+                  onChange={e => setPartialRefundReason(e.target.value)}
+                  disabled={isRefunding}
+                />
+              </div>
+            )}
+          </div>
+
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isRefunding}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRefundInvoice} disabled={isRefunding} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleRefundInvoice}
+              disabled={isRefunding || (refundMode === 'partial' && !(parseFloat(partialRefundAmount) > 0))}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               {isRefunding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
-              Yes, Refund Invoice
+              {refundMode === 'full' ? 'Yes, Refund Invoice' : 'Record Partial Refund'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

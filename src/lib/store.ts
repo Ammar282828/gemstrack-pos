@@ -713,7 +713,7 @@ export type LogEventType =
   | 'product.create' | 'product.update' | 'product.delete'
   | 'customer.create' | 'customer.update' | 'customer.delete'
   | 'karigar.create' | 'karigar.update' | 'karigar.delete'
-  | 'invoice.create' | 'invoice.update' | 'invoice.payment' | 'invoice.delete'
+  | 'invoice.create' | 'invoice.update' | 'invoice.payment' | 'invoice.refund' | 'invoice.delete'
   | 'order.create' | 'order.update' | 'order.delete' | 'order.revert' | 'order.refund'
   | 'expense.create' | 'expense.update' | 'expense.delete'
   | 'revenue.create' | 'revenue.update' | 'revenue.delete'
@@ -902,6 +902,7 @@ export interface AppState {
     existingInvoiceId?: string
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string) => Promise<Invoice | null>;
+  refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
   updateInvoiceDiscount: (invoiceId: string, newDiscountAmount: number) => Promise<Invoice | null>;
   syncHisaabOutstandingBalances: () => Promise<void>;
   deleteInvoice: (invoiceId: string, isEditing?: boolean, syncShopify?: boolean) => Promise<void>;
@@ -1348,9 +1349,9 @@ export const useAppStore = create<AppState>()(
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, newProduct.sku), cleanProduct);
           await addActivityLog('product.create', `Created product: ${newProduct.name}`, `SKU: ${newProduct.sku}`, newProduct.sku);
           console.log("[GemsTrack Store addProduct] Product added successfully to Firestore:", newProduct.sku);
-          if (typeof window !== 'undefined' && !newProduct.sku.startsWith('SHOPIFY-PROD-')) {
-            fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: newProduct.sku }) }).catch(() => {});
-          }
+          // Intentionally NOT pushing products to Shopify — the Shopify product
+          // catalog is managed manually. POS products / cart-added items must
+          // never auto-create entries in Shopify inventory.
           return newProduct;
         } catch (error) {
           console.error("[GemsTrack Store addProduct] Error adding product to Firestore:", error);
@@ -1402,9 +1403,7 @@ export const useAppStore = create<AppState>()(
             await setDoc(productRef, cleanPayload, { merge: true });
             await addActivityLog('product.update', `Updated product: ${finalUpdatedFields.name || currentProduct.name}`, `SKU: ${sku}`, sku);
             console.log(`[GemsTrack Store updateProduct] Product SKU ${sku} updated successfully.`);
-            if (typeof window !== 'undefined' && !sku.startsWith('SHOPIFY-PROD-')) {
-              fetch('/api/shopify/push/product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku }) }).catch(() => {});
-            }
+            // Product catalog is managed manually on Shopify — no auto-push.
         } catch (error) {
           console.error(`[GemsTrack Store updateProduct] Error updating product SKU ${sku} in Firestore:`, error);
         }
@@ -1997,6 +1996,87 @@ export const useAppStore = create<AppState>()(
         } catch (error) {
             console.error(`Error updating invoice payment for ${invoiceId}:`, error);
             return null;
+        }
+      },
+
+      /**
+       * Record a partial refund on an invoice. Adds a negative entry to
+       * paymentHistory and recalculates amountPaid + balanceDue. Mirrors the
+       * refund onto Shopify (issuing a refund transaction for `refundAmount`).
+       */
+      refundInvoicePartial: async (invoiceId, refundAmount, reason) => {
+        if (get().settings.databaseLocked) return null;
+        if (!(refundAmount > 0)) return null;
+
+        const invoiceRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
+        try {
+          const updatedInvoice = await runTransaction(db, async (transaction) => {
+            const invoiceDoc = await transaction.get(invoiceRef);
+            if (!invoiceDoc.exists()) throw new Error('Invoice not found');
+            const invoiceData = invoiceDoc.data() as Invoice;
+
+            const refundEntry: Payment = {
+              amount: -Math.abs(refundAmount),
+              date: new Date().toISOString(),
+              notes: reason ? `Refund: ${reason}` : 'Refund',
+            };
+            const newPaymentHistory = [...(invoiceData.paymentHistory || []), refundEntry];
+            const newAmountPaid = newPaymentHistory.reduce((s, p) => s + Number(p.amount || 0), 0);
+            const newBalanceDue = (invoiceData.grandTotal || 0) - newAmountPaid;
+
+            transaction.update(invoiceRef, {
+              paymentHistory: newPaymentHistory,
+              amountPaid: newAmountPaid,
+              balanceDue: newBalanceDue,
+            });
+
+            addActivityLog('invoice.refund', `Partial refund on invoice ${invoiceId}`, `Amount: ${refundAmount.toLocaleString()}${reason ? ` | ${reason}` : ''}`, invoiceId);
+            return { ...invoiceData, id: invoiceId, paymentHistory: newPaymentHistory, amountPaid: newAmountPaid, balanceDue: newBalanceDue } as Invoice;
+          });
+
+          if (updatedInvoice) {
+            // Reconcile linked hisaab debit entries (the customer owes again).
+            const hisaabSnap = await getDocs(query(
+              collection(db, FIRESTORE_COLLECTIONS.HISAAB),
+              where('linkedInvoiceId', '==', invoiceId),
+            ));
+            const debitDocs = hisaabSnap.docs.filter(d => Number(d.data().cashDebit ?? 0) > 0);
+            const hisaabBatch = writeBatch(db);
+            if (updatedInvoice.balanceDue > 0) {
+              if (debitDocs.length > 0) {
+                hisaabBatch.update(debitDocs[0].ref, { cashDebit: updatedInvoice.balanceDue });
+                debitDocs.slice(1).forEach(d => hisaabBatch.delete(d.ref));
+              } else if (updatedInvoice.customerId && updatedInvoice.customerId !== 'walk-in') {
+                const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
+                hisaabBatch.set(newRef, {
+                  entityId: updatedInvoice.customerId,
+                  entityType: 'customer',
+                  entityName: updatedInvoice.customerName || 'Customer',
+                  date: updatedInvoice.createdAt,
+                  description: `Outstanding balance for Invoice ${invoiceId}`,
+                  cashDebit: updatedInvoice.balanceDue,
+                  cashCredit: 0,
+                  goldDebitGrams: 0,
+                  goldCreditGrams: 0,
+                  linkedInvoiceId: invoiceId,
+                });
+              }
+            }
+            await hisaabBatch.commit();
+
+            // Mirror to Shopify: issue a refund for this exact amount.
+            if (typeof window !== 'undefined' && !invoiceId.startsWith('SHOPIFY-')) {
+              fetch('/api/shopify/sync/invoice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ invoiceId, action: 'refund', amount: refundAmount, reason }),
+              }).catch(() => { /* fire-and-forget */ });
+            }
+          }
+          return updatedInvoice;
+        } catch (error) {
+          console.error(`[refundInvoicePartial] ${invoiceId}:`, error);
+          return null;
         }
       },
 
