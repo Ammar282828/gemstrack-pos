@@ -53,8 +53,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Standard Shopify order → invoice sync (for non-POS orders)
-  await adminDb.collection('invoices').doc(invoiceId).set(mapInvoice(order), { merge: true });
+  // Echo prevention: orders that originated from a POS push carry the
+  // `pos-import` tag (and a per-invoice tag). Don't mirror them — the source
+  // POS invoice is already the canonical record. The earlier branch above
+  // handles the payment-link flow where Shopify is the payment gateway.
+  const tags = (order.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+  const isPosPushed = tags.includes('pos-import') || tags.some((t: string) => t.startsWith('pos-inv-'));
+
+  if (!isPosPushed) {
+    // Standard Shopify order → invoice sync (for non-POS orders)
+    await adminDb.collection('invoices').doc(invoiceId).set(mapInvoice(order), { merge: true });
+  }
 
   if (order.customer) {
     const customerId = `shopify-${order.customer.id}`;

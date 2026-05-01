@@ -34,6 +34,33 @@ const DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL: KaratValue = '21k';
 const GOLD_COIN_CATEGORY_ID_INTERNAL = 'cat017';
 const MENS_RING_CATEGORY_ID_INTERNAL = 'cat018';
 
+/**
+ * Fire-and-forget Shopify sync. Idempotent on the server; safe to call from
+ * any invoice mutation. Skipped for SHOPIFY-originated docs and during SSR.
+ */
+function syncInvoiceShopify(invoiceId: string | undefined | null, action: 'upsert' | 'cancel' | 'refund' = 'upsert') {
+  if (!invoiceId) return;
+  if (typeof window === 'undefined') return;
+  if (invoiceId.startsWith('SHOPIFY-')) return;
+  fetch('/api/shopify/sync/invoice', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ invoiceId, action }),
+  }).catch(() => { /* fire-and-forget */ });
+}
+
+/** Fire-and-forget Shopify sync targeting a Shopify order id directly. Used
+ * when there is no live invoice doc (e.g. order was reverted before refund). */
+function syncShopifyOrderById(shopifyOrderId: string | undefined | null, action: 'cancel' | 'refund') {
+  if (!shopifyOrderId) return;
+  if (typeof window === 'undefined') return;
+  fetch('/api/shopify/sync/invoice', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shopifyOrderId, action }),
+  }).catch(() => { /* fire-and-forget */ });
+}
+
 
 async function deleteCollection(collectionName: string) {
   if (!db || typeof db.app === 'undefined') {
@@ -488,6 +515,8 @@ export interface Order {
   invoiceId?: string; // Set when order is finalized into an invoice
   tcsConsignmentNo?: string; // TCS Envio courier consignment number
   notes?: string;
+  shopifyOrderId?: string; // Carried forward from invoice during edit/revert so the next finalize re-links the same Shopify order
+  shopifyOrderNumber?: number;
 }
 
 export type HisaabEntityType = 'customer' | 'karigar';
@@ -859,7 +888,7 @@ export interface AppState {
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string) => Promise<Invoice | null>;
   updateInvoiceDiscount: (invoiceId: string, newDiscountAmount: number) => Promise<Invoice | null>;
   syncHisaabOutstandingBalances: () => Promise<void>;
-  deleteInvoice: (invoiceId: string, isEditing?: boolean) => Promise<void>;
+  deleteInvoice: (invoiceId: string, isEditing?: boolean, syncShopify?: boolean) => Promise<void>;
   
   loadOrders: () => void;
   addOrder: (orderData: OrderDataForAdd) => Promise<Order | null>;
@@ -1860,10 +1889,7 @@ export const useAppStore = create<AppState>()(
                 });
             }
 
-            // DISABLED: Shopify auto-push (temporarily disabled during restore)
-            // if (result && !result.id.startsWith('SHOPIFY-')) {
-            //   fetch('/api/shopify/push/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invoiceId: result.id }) }).catch(() => {});
-            // }
+            if (result) syncInvoiceShopify(result.id, 'upsert');
 
             return result;
         } catch (error) {
@@ -1950,6 +1976,7 @@ export const useAppStore = create<AppState>()(
                         { grandTotal: updatedInvoice.balanceDue }
                     );
                 }
+                syncInvoiceShopify(invoiceId, 'upsert');
             }
 
             return updatedInvoice;
@@ -2027,6 +2054,7 @@ export const useAppStore = create<AppState>()(
                 { grandTotal: updatedInvoice.balanceDue }
               );
             }
+            syncInvoiceShopify(invoiceId, 'upsert');
           }
 
           return updatedInvoice;
@@ -2216,9 +2244,9 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      deleteInvoice: async (invoiceId, isEditing = false) => {
+      deleteInvoice: async (invoiceId, isEditing = false, syncShopify = true) => {
           if(get().settings.databaseLocked) return;
-          console.log(`[deleteInvoice] Attempting to delete invoice ${invoiceId}. Is editing flow: ${isEditing}`);
+          console.log(`[deleteInvoice] Attempting to delete invoice ${invoiceId}. Is editing flow: ${isEditing}. Sync Shopify: ${syncShopify}`);
           try {
               const invoiceDocRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
               const invoiceDoc = await getDoc(invoiceDocRef);
@@ -2227,6 +2255,7 @@ export const useAppStore = create<AppState>()(
                   return;
               }
               const invoiceData = invoiceDoc.data() as Invoice;
+              const hadShopifyLink = !!invoiceData.shopifyOrderId;
 
               const batch = writeBatch(db);
               
@@ -2274,6 +2303,12 @@ export const useAppStore = create<AppState>()(
               await addActivityLog('invoice.delete', `Deleted invoice ${invoiceId}`, `Customer: ${invoiceData.customerName}`, invoiceId);
               console.log(`Successfully deleted invoice ${invoiceId} and related data.`);
 
+              // Cancel the matching Shopify order, but only when this is a true
+              // delete — not the edit/revert flow (which carries the link forward)
+              // and not when the caller (e.g. refundOrder) handles Shopify itself.
+              if (!isEditing && syncShopify && hadShopifyLink && !invoiceId.startsWith('SHOPIFY-')) {
+                  syncInvoiceShopify(invoiceId, 'cancel');
+              }
           } catch (e) {
               console.error(`Failed to delete invoice ${invoiceId}:`, e);
               throw e;
@@ -2589,6 +2624,11 @@ export const useAppStore = create<AppState>()(
             customerName: order.customerName || 'Walk-in Customer',
             customerContact: order.customerContact,
             sourceOrderId: order.id,
+            // Carry forward: if this order had previously been linked to a Shopify
+            // order (and was reverted to be re-finalized), preserve the link so the
+            // upsert handler reuses the same Shopify order instead of creating a new one.
+            ...(order.shopifyOrderId && { shopifyOrderId: order.shopifyOrderId }),
+            ...(order.shopifyOrderNumber && { shopifyOrderNumber: order.shopifyOrderNumber }),
         };
 
         try {
@@ -2617,6 +2657,8 @@ export const useAppStore = create<AppState>()(
                     status: 'Completed',
                     grandTotal: balanceDue,
                     invoiceId: invoiceId,
+                    // The Shopify link now lives on the invoice; clear it from the order.
+                    ...(order.shopifyOrderId && { shopifyOrderId: deleteField(), shopifyOrderNumber: deleteField() }),
                 });
 
                 return newInvoice;
@@ -2658,10 +2700,7 @@ export const useAppStore = create<AppState>()(
                 }
             }
 
-            // DISABLED: Shopify auto-push (temporarily disabled during restore)
-            // if (finalInvoice && !finalInvoice.id.startsWith('SHOPIFY-')) {
-            //   fetch('/api/shopify/push/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invoiceId: finalInvoice.id }) }).catch(() => {});
-            // }
+            if (finalInvoice) syncInvoiceShopify(finalInvoice.id, 'upsert');
 
             return finalInvoice;
         } catch (error) {
@@ -2672,13 +2711,24 @@ export const useAppStore = create<AppState>()(
       revertOrderFromInvoice: async (orderId, invoiceId) => {
         if (get().settings.databaseLocked) return;
         try {
+            // Carry forward the invoice's Shopify link to the order doc so the
+            // next finalize re-uses the same Shopify order instead of creating a new one.
+            const invSnap = await getDoc(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId));
+            const invShopId = invSnap.exists() ? (invSnap.data() as any)?.shopifyOrderId : undefined;
+            const invShopNum = invSnap.exists() ? (invSnap.data() as any)?.shopifyOrderNumber : undefined;
+
             await get().deleteInvoice(invoiceId, true);
             // Preserve the order's original status instead of hardcoding 'In Progress',
             // which would upgrade a 'Pending' order incorrectly.
             const existingOrder = get().orders.find(o => o.id === orderId);
             const revertedStatus = existingOrder?.status === 'Completed' ? 'In Progress' : (existingOrder?.status || 'In Progress');
             await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId),
-                { status: revertedStatus, invoiceId: deleteField() },
+                {
+                    status: revertedStatus,
+                    invoiceId: deleteField(),
+                    ...(invShopId && { shopifyOrderId: invShopId }),
+                    ...(invShopNum && { shopifyOrderNumber: invShopNum }),
+                },
                 { merge: true }
             );
             await addActivityLog('order.revert', `Reverted order ${orderId}`, `Cancelled invoice ${invoiceId}`, orderId);
@@ -2693,12 +2743,24 @@ export const useAppStore = create<AppState>()(
         if (!order) return;
         try {
             if (order.invoiceId) {
+                // Trigger Shopify refund first (using the still-live invoice's link),
+                // then delete the invoice locally and tell deleteInvoice not to also
+                // cancel on Shopify (refund already covers it).
+                syncInvoiceShopify(order.invoiceId, 'refund');
                 // Delete invoice AND restore stock (isEditing=false)
-                await get().deleteInvoice(order.invoiceId, false);
+                await get().deleteInvoice(order.invoiceId, false, false);
+            } else if (order.shopifyOrderId) {
+                // Carried-forward state: order has a Shopify link but no invoice
+                // (post-revert / pre-finalize). Refund the Shopify order directly.
+                syncShopifyOrderById(order.shopifyOrderId, 'refund');
             }
             await setDoc(
                 doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId),
-                { status: 'Refunded', invoiceId: deleteField() },
+                {
+                    status: 'Refunded',
+                    invoiceId: deleteField(),
+                    ...(order.shopifyOrderId && { shopifyOrderId: deleteField(), shopifyOrderNumber: deleteField() }),
+                },
                 { merge: true }
             );
             await addActivityLog('order.refund', `Refunded order ${orderId}`, `Customer: ${order.customerName || 'Unknown'}`, orderId);

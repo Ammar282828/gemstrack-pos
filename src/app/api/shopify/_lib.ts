@@ -197,7 +197,99 @@ export async function shopifyRequest(
     const err = await res.json().catch(() => ({}));
     throw new Error(`Shopify ${method} ${endpoint}: ${res.status} - ${JSON.stringify(err)}`);
   }
+  if (method === 'DELETE') return null;
   return res.json();
+}
+
+// --- GraphQL admin API (for tag-based search) ---
+export async function shopifyGraphQL(shop: string, token: string, query: string, variables?: Record<string, unknown>): Promise<any> {
+  const res = await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`, {
+    method: 'POST',
+    headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Shopify GraphQL: ${res.status} ${t.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  if (data.errors) throw new Error(`Shopify GraphQL errors: ${JSON.stringify(data.errors)}`);
+  return data.data;
+}
+
+/**
+ * Find an existing Shopify order by tag. Tag is the stable per-invoice handle:
+ * `pos-inv-INV-000123`. Returns numeric order id (legacyResourceId) or null.
+ *
+ * Shopify's search index updates asynchronously after order create/update, so
+ * we retry a few times with a short backoff. Tagged orders typically appear
+ * within ~3s; we give it up to ~6s before giving up.
+ */
+export async function findShopifyOrderIdByTag(
+  shop: string,
+  token: string,
+  tag: string,
+  opts: { attempts?: number; delayMs?: number } = {}
+): Promise<string | null> {
+  const attempts = opts.attempts ?? 5;
+  const delay = opts.delayMs ?? 1200;
+  for (let i = 0; i < attempts; i++) {
+    const data = await shopifyGraphQL(shop, token, `
+      query findByTag($q: String!) {
+        orders(first: 5, query: $q) {
+          nodes { id legacyResourceId cancelledAt }
+        }
+      }
+    `, { q: `tag:${tag}` });
+    const nodes: Array<{ legacyResourceId: string; cancelledAt: string | null }> = data?.orders?.nodes || [];
+    if (nodes.length > 0) {
+      const live = nodes.find(n => !n.cancelledAt);
+      return (live || nodes[0])?.legacyResourceId || null;
+    }
+    if (i < attempts - 1) await new Promise(r => setTimeout(r, delay));
+  }
+  return null;
+}
+
+/**
+ * Build a Shopify order create payload from a POS invoice. Tags include the
+ * stable per-invoice handle so future searches can find this order.
+ */
+export function buildShopifyOrderPayload(
+  invoice: any,
+  opts: { shopifyCustomerId?: string; tags?: string[] } = {}
+) {
+  const lineItems = (invoice.items || []).map((item: any) => ({
+    title: item.name || 'POS Item',
+    price: ((item.itemTotal || 0) / (item.quantity || 1)).toFixed(2),
+    quantity: item.quantity || 1,
+    ...(item.sku && { sku: item.sku }),
+  }));
+  const tags = ['pos-import', `pos-inv-${invoice.id}`];
+  if (invoice.sourceOrderId) tags.push(`pos-order-${invoice.sourceOrderId}`);
+  if (opts.tags) tags.push(...opts.tags);
+  const isPaid = (invoice.balanceDue || 0) <= 0 && (invoice.amountPaid || 0) > 0;
+  const isPartiallyPaid = !isPaid && (invoice.amountPaid || 0) > 0;
+  const financialStatus = isPaid ? 'paid' : (isPartiallyPaid ? 'partially_paid' : 'pending');
+  return {
+    order: {
+      line_items: lineItems,
+      financial_status: financialStatus,
+      note: `POS Invoice ${invoice.id}`,
+      ...(opts.shopifyCustomerId && { customer: { id: Number(opts.shopifyCustomerId) } }),
+      ...(invoice.discountAmount > 0 && {
+        discount_codes: [{
+          code: 'POS-DISCOUNT',
+          amount: invoice.discountAmount.toFixed(2),
+          type: 'fixed_amount',
+        }],
+      }),
+      created_at: invoice.createdAt,
+      tags: tags.join(','),
+      send_receipt: false,
+      send_fulfillment_receipt: false,
+    },
+  };
 }
 
 // --- Credential resolution ---
