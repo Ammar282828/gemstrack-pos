@@ -1,0 +1,269 @@
+{
+  "ranAt": "2026-05-01T20:42:47.043Z",
+  "results": {
+    "renamed": [
+      {
+        "invoiceId": "INV-000177",
+        "customerId": "cust-1775126653218",
+        "oldName": "Sakina Paliwala",
+        "newName": "Sakina Hakim",
+        "customerExists": true,
+        "linkedInvoices": [
+          "INV-000177"
+        ]
+      },
+      {
+        "invoiceId": "INV-000189",
+        "customerId": "cust-1772526852223",
+        "oldName": "Aamnah Allahwala",
+        "newName": "Amna Allahwala",
+        "customerExists": true,
+        "linkedInvoices": [
+          "INV-000189"
+        ]
+      },
+      {
+        "invoiceId": "INV-000202",
+        "customerId": "cust-1776869611520",
+        "oldName": "Saira Noman",
+        "newName": "Sarah Noman",
+        "customerExists": true,
+        "linkedInvoices": [
+          "INV-000202"
+        ]
+      }
+    ],
+    "renameErrors": [],
+    "nameFixed": [
+      {
+        "customerId": "cust-1774609145900",
+        "oldName": "Alifya ",
+        "newName": "Alifya",
+        "linkedInvoices": [
+          "INV-000181",
+          "INV-000191"
+        ]
+      },
+      {
+        "customerId": "cust-1775471587526",
+        "oldName": "Sophia Shamoil ",
+        "newName": "Sophia Shamoil",
+        "linkedInvoices": [
+          "INV-000168",
+          "INV-000185"
+        ]
+      },
+      {
+        "customerId": "cust-1777293601870",
+        "oldName": "Sima Zaheer ",
+        "newName": "Sima Zaheer",
+        "linkedInvoices": []
+      },
+      {
+        "customerId": "cust-1776512151960",
+        "oldName": "Zara TAUFIQ",
+        "newName": "Zara Taufiq",
+        "linkedInvoices": [
+          "INV-000196"
+        ]
+      },
+      {
+        "customerId": "cust-1776512318534-3c5bv",
+        "oldName": "Zahra TAUFIQ",
+        "newName": "Zahra Taufiq",
+        "linkedInvoices": [
+          "INV-000188"
+        ]
+      }
+    ],
+    "nameFixErrors": [],
+    "attached": [
+      {
+        "invoiceId": "INV-000150",
+        "customerId": "shopify-cust-1772597672024-48",
+        "customerName": "Arifa Mohammad",
+        "customerPhone": "",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075542335768",
+        "shopifyOrderNumber": 1274,
+        "shopifyCustomerId": "9831576764696"
+      },
+      {
+        "invoiceId": "INV-000157",
+        "customerId": "shopify-cust-1772597672024-47",
+        "customerName": "Bareeka Reza",
+        "customerEmail": "",
+        "customerPhone": "+923363491587",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075544334616",
+        "shopifyOrderNumber": 1280,
+        "shopifyCustomerId": "8746078044440"
+      },
+      {
+        "invoiceId": "INV-000161",
+        "customerId": "shopify-cust-1772597672024-47",
+        "customerName": "Bareeka Reza",
+        "customerEmail": "",
+        "customerPhone": "+923363491587",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075545448728",
+        "shopifyOrderNumber": 1283,
+        "shopifyCustomerId": "8746078044440"
+      },
+      {
+        "invoiceId": "INV-000166",
+        "customerId": "shopify-cust-1772597672024-63",
+        "customerName": "Sherbano Khandwala",
+        "customerEmail": "",
+        "customerPhone": "+923073335252",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075546923288",
+        "shopifyOrderNumber": 1288,
+        "shopifyCustomerId": "9831577288984"
+      },
+      {
+        "invoiceId": "INV-000182",
+        "customerId": "cust-1776257021542-5muc0",
+        "customerName": "Batool Ali Akbar",
+        "customerEmail": "",
+        "customerPhone": "+923342166377",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075552002328",
+        "shopifyOrderNumber": 1302,
+        "shopifyCustomerId": "9831577714968"
+      },
+      {
+        "invoiceId": "INV-000184",
+        "customerId": "cust-1776342687349-4o21w",
+        "customerName": "Zara Ali",
+        "customerEmail": "",
+        "customerPhone": "+923343803152",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075552657688",
+        "shopifyOrderNumber": 1304,
+        "shopifyCustomerId": "9831577878808"
+      },
+      {
+        "invoiceId": "INV-000187",
+        "customerId": "cust-1776345787864-q7f36",
+        "customerName": "Hamza Mandarso",
+        "customerEmail": "",
+        "customerPhone": "+923222223872",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075553313048",
+        "shopifyOrderNumber": 1306,
+        "shopifyCustomerId": "9831578140952"
+      },
+      {
+        "invoiceId": "INV-000188",
+        "customerId": "cust-1776512318534-3c5bv",
+        "customerName": "Zahra TAUFIQ",
+        "customerEmail": "",
+        "customerPhone": "+923316067648",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075553673496",
+        "shopifyOrderNumber": 1307,
+        "shopifyCustomerId": "9792931496216"
+      },
+      {
+        "invoiceId": "INV-000190",
+        "customerId": "cust-1776520671220-263od",
+        "customerName": "Mariam Marvi",
+        "customerEmail": "",
+        "customerPhone": "+923422257352",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075554525464",
+        "shopifyOrderNumber": 1309,
+        "shopifyCustomerId": "9831578665240"
+      },
+      {
+        "invoiceId": "INV-000194",
+        "customerId": "cust-1775217480423",
+        "customerName": "Zainab Hakeemuddin",
+        "customerEmail": "",
+        "customerPhone": "+923332187067",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075555082520",
+        "shopifyOrderNumber": 1311,
+        "shopifyCustomerId": "9784435343640"
+      },
+      {
+        "invoiceId": "INV-000198",
+        "customerId": "cust-1777377361455-ffepa",
+        "customerName": "Ruqaiyah Modi",
+        "customerEmail": "",
+        "customerPhone": "+923314029985",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075556393240",
+        "shopifyOrderNumber": 1315,
+        "shopifyCustomerId": "9821284827416"
+      },
+      {
+        "invoiceId": "INV-000199",
+        "customerId": "cust-1777378100178-a4xwg",
+        "customerName": "Fatima Gardezi",
+        "customerEmail": "",
+        "customerPhone": "+923144273394",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075556786456",
+        "shopifyOrderNumber": 1316,
+        "shopifyCustomerId": "9831579025688"
+      },
+      {
+        "invoiceId": "INV-000200",
+        "customerId": "cust-1777461746938-lml5m",
+        "customerName": "Alifya Haider",
+        "customerEmail": "",
+        "customerPhone": "+923122216611",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075557310744",
+        "shopifyOrderNumber": 1317,
+        "shopifyCustomerId": "9831579123992"
+      }
+    ],
+    "attachErrors": [
+      {
+        "invoiceId": "INV-000168",
+        "customerId": "cust-1775471587526",
+        "customerName": "Sophia Shamoil ",
+        "customerEmail": "",
+        "customerPhone": "+92254720729192",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075547578648",
+        "shopifyOrderNumber": 1290,
+        "stage": "push",
+        "error": {
+          "error": "Shopify POST /customers.json: 422 - {\"errors\":{\"phone\":[\"is invalid\"]}}"
+        }
+      },
+      {
+        "invoiceId": "INV-000180",
+        "customerId": "cust-1775743481940",
+        "customerName": "Fatima Zohaib",
+        "customerEmail": "",
+        "customerPhone": "+9294777214111",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075551215896",
+        "shopifyOrderNumber": 1300,
+        "stage": "push",
+        "error": {
+          "error": "Shopify POST /customers.json: 422 - {\"errors\":{\"phone\":[\"is invalid\"]}}"
+        }
+      },
+      {
+        "invoiceId": "INV-000185",
+        "customerId": "cust-1775471587526",
+        "customerName": "Sophia Shamoil ",
+        "customerEmail": "",
+        "customerPhone": "+92254720729192",
+        "customerHasShopifyId": false,
+        "shopifyOrderId": "7075552952600",
+        "shopifyOrderNumber": 1305,
+        "stage": "push",
+        "error": {
+          "error": "Shopify POST /customers.json: 422 - {\"errors\":{\"phone\":[\"is invalid\"]}}"
+        }
+      }
+    ]
+  }
+}

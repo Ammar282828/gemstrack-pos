@@ -44,3 +44,10 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+# graphify (regenerable / path-specific)
+graphify-out/cache/
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+
+# Claude Code internal worktree state
+.claude/worktrees/

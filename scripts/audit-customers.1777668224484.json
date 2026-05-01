@@ -1,0 +1,1757 @@
+{
+  "ranAt": "2026-05-01T20:43:44.484Z",
+  "parityIssues": {
+    "noCustomerOnShopify": [
+      {
+        "invoiceId": "INV-000150",
+        "posName": "Arifa Mohammad",
+        "posPhone": "",
+        "shopifyOrderNumber": 1274,
+        "shopifyOrderId": "7075542335768"
+      },
+      {
+        "invoiceId": "INV-000157",
+        "posName": "Bareeka Raza",
+        "posPhone": "+923363491587",
+        "shopifyOrderNumber": 1280,
+        "shopifyOrderId": "7075544334616"
+      },
+      {
+        "invoiceId": "INV-000161",
+        "posName": "Bareeka Reza",
+        "posPhone": "+923363491587",
+        "shopifyOrderNumber": 1283,
+        "shopifyOrderId": "7075545448728"
+      },
+      {
+        "invoiceId": "INV-000166",
+        "posName": "Sherbano Khandwala",
+        "posPhone": "+923073335252",
+        "shopifyOrderNumber": 1288,
+        "shopifyOrderId": "7075546923288"
+      },
+      {
+        "invoiceId": "INV-000168",
+        "posName": "Sophia Shamoil",
+        "posPhone": "+92254720729192",
+        "shopifyOrderNumber": 1290,
+        "shopifyOrderId": "7075547578648"
+      },
+      {
+        "invoiceId": "INV-000180",
+        "posName": "Fatima Zohaib",
+        "posPhone": "+9294777214111",
+        "shopifyOrderNumber": 1300,
+        "shopifyOrderId": "7075551215896"
+      },
+      {
+        "invoiceId": "INV-000182",
+        "posName": "Batool Ali Akbar",
+        "posPhone": "+923342166377",
+        "shopifyOrderNumber": 1302,
+        "shopifyOrderId": "7075552002328"
+      },
+      {
+        "invoiceId": "INV-000184",
+        "posName": "Zara Ali",
+        "posPhone": "+923343803152",
+        "shopifyOrderNumber": 1304,
+        "shopifyOrderId": "7075552657688"
+      },
+      {
+        "invoiceId": "INV-000185",
+        "posName": "Sophia Shamoil",
+        "posPhone": "+92254720729192",
+        "shopifyOrderNumber": 1305,
+        "shopifyOrderId": "7075552952600"
+      },
+      {
+        "invoiceId": "INV-000187",
+        "posName": "Hamza Mandarso",
+        "posPhone": "+923222223872",
+        "shopifyOrderNumber": 1306,
+        "shopifyOrderId": "7075553313048"
+      },
+      {
+        "invoiceId": "INV-000188",
+        "posName": "Zahra Taufiq",
+        "posPhone": "+923316067648",
+        "shopifyOrderNumber": 1307,
+        "shopifyOrderId": "7075553673496"
+      },
+      {
+        "invoiceId": "INV-000190",
+        "posName": "Mariam Marvi",
+        "posPhone": "+923422257352",
+        "shopifyOrderNumber": 1309,
+        "shopifyOrderId": "7075554525464"
+      },
+      {
+        "invoiceId": "INV-000194",
+        "posName": "Zainab Hakeemuddin",
+        "posPhone": "+923332187067",
+        "shopifyOrderNumber": 1311,
+        "shopifyOrderId": "7075555082520"
+      },
+      {
+        "invoiceId": "INV-000198",
+        "posName": "Ruqaiyah Modi",
+        "posPhone": "+923314029985",
+        "shopifyOrderNumber": 1315,
+        "shopifyOrderId": "7075556393240"
+      },
+      {
+        "invoiceId": "INV-000199",
+        "posName": "Fatima Gardezi",
+        "posPhone": "+923144273394",
+        "shopifyOrderNumber": 1316,
+        "shopifyOrderId": "7075556786456"
+      },
+      {
+        "invoiceId": "INV-000200",
+        "posName": "Alifya Haider",
+        "posPhone": "+923122216611",
+        "shopifyOrderNumber": 1317,
+        "shopifyOrderId": "7075557310744"
+      }
+    ],
+    "nameMismatch": [
+      {
+        "invoiceId": "INV-000196",
+        "posName": "Zara Taufiq",
+        "shopName": "Zahra Taufiq",
+        "shopifyOrderNumber": 1313
+      }
+    ],
+    "phoneMismatch": []
+  },
+  "weird": {
+    "trailingWhitespace": [],
+    "multipleSpaces": [],
+    "allCapsParts": [
+      {
+        "id": "cust-1772882419190",
+        "name": "Arwa Yousuf MEK",
+        "phone": "+923002214879"
+      }
+    ],
+    "looksLikePhoneNumber": [],
+    "veryShort": [
+      {
+        "id": "shopify-8433322000664",
+        "name": "M",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8443531591960",
+        "name": "J",
+        "phone": ""
+      },
+      {
+        "id": "shopify-cust-1772597672024-73",
+        "name": "-",
+        "phone": ""
+      }
+    ],
+    "containsNumbers": [
+      {
+        "id": "shopify-8388149412120",
+        "name": "milbergahaleyu880@gmail.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8398823588120",
+        "name": "ziyad2107@yahoo.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8400271376664",
+        "name": "malihas615@gmail.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8402094489880",
+        "name": "ruqaiya61@gmail.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8402474565912",
+        "name": "nehan99@hotmail.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8402501501208",
+        "name": "khurramabiha1@gmail.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8402615927064",
+        "name": "fabeha.shahab98@gmail.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8404244037912",
+        "name": "khiljis_fo2@yahoo.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8405854257432",
+        "name": "sarah.aslam21@yahoo.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8419572744472",
+        "name": "i3km_generic_92893cab_shop-luna.com@serviseantilogin.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8422547947800",
+        "name": "mazc0300@gmail.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8473379733784",
+        "name": "muerandik720@gmail.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8479284691224",
+        "name": "sbanksqe41@gmail.com",
+        "phone": ""
+      },
+      {
+        "id": "shopify-8479346917656",
+        "name": "boyerdel40@gmail.com",
+        "phone": ""
+      }
+    ],
+    "startsWithCustomerDash": [],
+    "blank": [],
+    "duplicateSuspects": [
+      {
+        "normalized": "walk-in customer",
+        "ids": [
+          {
+            "id": "cust-1772282584130",
+            "name": "Walk-in Customer",
+            "phone": ""
+          },
+          {
+            "id": "cust-1772282814302",
+            "name": "Walk-in Customer",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "hayat junejo",
+        "ids": [
+          {
+            "id": "cust-1772525866091",
+            "name": "Hayat Junejo",
+            "phone": ""
+          },
+          {
+            "id": "shopify-8404226113816",
+            "name": "Hayat Junejo",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "manahil hussain",
+        "ids": [
+          {
+            "id": "cust-1772526109935",
+            "name": "Manahil Hussain",
+            "phone": ""
+          },
+          {
+            "id": "shopify-8404238500120",
+            "name": "Manahil Hussain",
+            "phone": ""
+          },
+          {
+            "id": "shopify-8482324939032",
+            "name": "Manahil Hussain",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "zain riaz",
+        "ids": [
+          {
+            "id": "cust-1772526342244",
+            "name": "Zain Riaz",
+            "phone": ""
+          },
+          {
+            "id": "shopify-8486606602520",
+            "name": "Zain Riaz",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "ali",
+        "ids": [
+          {
+            "id": "cust-1772992308338-s8xxs",
+            "name": "Ali"
+          },
+          {
+            "id": "shopify-9702719652120",
+            "name": "Ali",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "sakina hakim",
+        "ids": [
+          {
+            "id": "cust-1775126653218",
+            "name": "Sakina Hakim",
+            "phone": ""
+          },
+          {
+            "id": "shopify-9784229429528",
+            "name": "Sakina Hakim",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "zainab hakeemuddin",
+        "ids": [
+          {
+            "id": "cust-1775217464357",
+            "name": "Zainab Hakeemuddin",
+            "phone": "+923332187067"
+          },
+          {
+            "id": "cust-1775217480423",
+            "name": "Zainab Hakeemuddin",
+            "phone": "+923332187067"
+          }
+        ]
+      },
+      {
+        "normalized": "ruqaiyah modi",
+        "ids": [
+          {
+            "id": "cust-1777377361455-ffepa",
+            "name": "Ruqaiyah Modi",
+            "phone": "+923314029985"
+          },
+          {
+            "id": "cust-1777378997120",
+            "name": "Ruqaiyah Modi",
+            "phone": "+923314029985"
+          }
+        ]
+      },
+      {
+        "normalized": "rameesha rehan",
+        "ids": [
+          {
+            "id": "cust-1777387403246",
+            "name": "Rameesha Rehan",
+            "phone": "+923212190319"
+          },
+          {
+            "id": "shopify-8435642597656",
+            "name": "Rameesha Rehan",
+            "phone": ""
+          },
+          {
+            "id": "shopify-8673785676056",
+            "name": "Rameesha Rehan",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-18",
+            "name": "Rameesha Rehan",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "zarak",
+        "ids": [
+          {
+            "id": "shopify-8404220150040",
+            "name": "Zarak",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-0",
+            "name": "Zarak",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "usaid hamdani",
+        "ids": [
+          {
+            "id": "shopify-8404223754520",
+            "name": "Usaid Hamdani",
+            "phone": ""
+          },
+          {
+            "id": "shopify-8450007892248",
+            "name": "Usaid Hamdani",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-1",
+            "name": "Usaid Hamdani",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "aamnah",
+        "ids": [
+          {
+            "id": "shopify-8404244234520",
+            "name": "Aamnah",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-2",
+            "name": "Aamnah",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "rehma",
+        "ids": [
+          {
+            "id": "shopify-8404246855960",
+            "name": "Rehma",
+            "phone": ""
+          },
+          {
+            "id": "shopify-8451486646552",
+            "name": "Rehma",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-3",
+            "name": "Rehma",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "nano",
+        "ids": [
+          {
+            "id": "shopify-8404262715672",
+            "name": "Nano",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-5",
+            "name": "Nano",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "seema aunty",
+        "ids": [
+          {
+            "id": "shopify-8404270350616",
+            "name": "Seema Aunty",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-6",
+            "name": "Seema Aunty",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "munira pardawala",
+        "ids": [
+          {
+            "id": "shopify-8404275626264",
+            "name": "Munira Pardawala",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-7",
+            "name": "Munira Pardawala",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "mahnoor",
+        "ids": [
+          {
+            "id": "shopify-8404286243096",
+            "name": "Mahnoor",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-8",
+            "name": "Mahnoor",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "miqdad quettawala",
+        "ids": [
+          {
+            "id": "shopify-8404288405784",
+            "name": "Miqdad Quettawala",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-9",
+            "name": "Miqdad Quettawala",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "zarak yusufzai",
+        "ids": [
+          {
+            "id": "shopify-8415092310296",
+            "name": "Zarak Yusufzai",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-10",
+            "name": "Zarak Yusufzai",
+            "phone": "03018244925"
+          }
+        ]
+      },
+      {
+        "normalized": "ali anwar",
+        "ids": [
+          {
+            "id": "shopify-8421282283800",
+            "name": "Ali Anwar",
+            "phone": ""
+          },
+          {
+            "id": "shopify-8422215352600",
+            "name": "Ali Anwar",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-11",
+            "name": "Ali Anwar",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "dania moosa",
+        "ids": [
+          {
+            "id": "shopify-8422663389464",
+            "name": "Dania Moosa",
+            "phone": "+923213879601"
+          },
+          {
+            "id": "shopify-8434426708248",
+            "name": "Dania Moosa",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-14",
+            "name": "Dania Moosa",
+            "phone": "03213879601"
+          }
+        ]
+      },
+      {
+        "normalized": "zahra nanji",
+        "ids": [
+          {
+            "id": "shopify-8429540081944",
+            "name": "Zahra Nanji",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-12",
+            "name": "Zahra Nanji",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "zohaib khalid",
+        "ids": [
+          {
+            "id": "shopify-8433013555480",
+            "name": "Zohaib Khalid",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-13",
+            "name": "Zohaib Khalid",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "pranav perwani",
+        "ids": [
+          {
+            "id": "shopify-8435639025944",
+            "name": "Pranav Perwani",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-15",
+            "name": "Pranav Perwani",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "zoya afzal",
+        "ids": [
+          {
+            "id": "shopify-8435641319704",
+            "name": "Zoya Afzal",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-16",
+            "name": "Zoya Afzal",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "rohan black honey",
+        "ids": [
+          {
+            "id": "shopify-8435641712920",
+            "name": "Rohan Black Honey",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672023-17",
+            "name": "Rohan Black Honey",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "ziyad farhan",
+        "ids": [
+          {
+            "id": "shopify-8435646693656",
+            "name": "Ziyad Farhan",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-19",
+            "name": "Ziyad Farhan",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "haniyah pop-up bh",
+        "ids": [
+          {
+            "id": "shopify-8435648135448",
+            "name": "Haniyah Pop-Up BH",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-20",
+            "name": "Haniyah Pop-Up BH",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "abdullah shahid",
+        "ids": [
+          {
+            "id": "shopify-8435651313944",
+            "name": "Abdullah Shahid",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-21",
+            "name": "Abdullah Shahid",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "ariba saleem",
+        "ids": [
+          {
+            "id": "shopify-8438237724952",
+            "name": "Ariba Saleem",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-22",
+            "name": "Ariba Saleem",
+            "phone": "03323822956"
+          }
+        ]
+      },
+      {
+        "normalized": "safwan shaikh",
+        "ids": [
+          {
+            "id": "shopify-8472394301720",
+            "name": "Safwan Shaikh",
+            "phone": "+923352219064"
+          },
+          {
+            "id": "shopify-cust-1772597672024-23",
+            "name": "Safwan Shaikh",
+            "phone": "03352219064"
+          }
+        ]
+      },
+      {
+        "normalized": "alyssa bernice",
+        "ids": [
+          {
+            "id": "shopify-8473557238040",
+            "name": "Alyssa Bernice",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-24",
+            "name": "Alyssa Bernice",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "linta khan",
+        "ids": [
+          {
+            "id": "shopify-8473558188312",
+            "name": "Linta Khan",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-25",
+            "name": "Linta Khan",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "amal humayun",
+        "ids": [
+          {
+            "id": "shopify-8473562251544",
+            "name": "Amal Humayun",
+            "phone": ""
+          },
+          {
+            "id": "shopify-8473576931608",
+            "name": "Amal Humayun",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-26",
+            "name": "Amal Humayun",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "sarwat ahson",
+        "ids": [
+          {
+            "id": "shopify-8482585051416",
+            "name": "Sarwat Ahson",
+            "phone": "+923332129050"
+          },
+          {
+            "id": "shopify-cust-1772597672024-28",
+            "name": "Sarwat Ahson",
+            "phone": "'+92 +92 333 2129050"
+          }
+        ]
+      },
+      {
+        "normalized": "haya rafi",
+        "ids": [
+          {
+            "id": "shopify-8482637906200",
+            "name": "Haya Rafi",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-27",
+            "name": "Haya Rafi",
+            "phone": "+14244404514"
+          }
+        ]
+      },
+      {
+        "normalized": "zain haider",
+        "ids": [
+          {
+            "id": "shopify-8528196600088",
+            "name": "Zain Haider",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-29",
+            "name": "Zain Haider",
+            "phone": "+923162443682"
+          }
+        ]
+      },
+      {
+        "normalized": "tazeen hussain",
+        "ids": [
+          {
+            "id": "shopify-8528203448600",
+            "name": "Tazeen Hussain",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-30",
+            "name": "Tazeen Hussain",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "mohammad jivanji",
+        "ids": [
+          {
+            "id": "shopify-8548979605784",
+            "name": "Mohammad Jivanji",
+            "phone": ""
+          },
+          {
+            "id": "shopify-8548982063384",
+            "name": "Mohammad Jivanji",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-31",
+            "name": "Mohammad Jivanji",
+            "phone": "+923343303903"
+          }
+        ]
+      },
+      {
+        "normalized": "omer shafi",
+        "ids": [
+          {
+            "id": "shopify-8575084167448",
+            "name": "Omer Shafi",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-32",
+            "name": "Omer Shafi",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "marium habib",
+        "ids": [
+          {
+            "id": "shopify-8575084953880",
+            "name": "Marium Habib",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-33",
+            "name": "Marium Habib",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "sameer alam",
+        "ids": [
+          {
+            "id": "shopify-8622382645528",
+            "name": "sameer alam",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-34",
+            "name": "sameer alam",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "yahya anjum",
+        "ids": [
+          {
+            "id": "shopify-8622385037592",
+            "name": "Yahya Anjum",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-35",
+            "name": "Yahya Anjum",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "musab zohaib",
+        "ids": [
+          {
+            "id": "shopify-8622392639768",
+            "name": "Musab Zohaib",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-36",
+            "name": "Musab Zohaib",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "usman siddiqui",
+        "ids": [
+          {
+            "id": "shopify-8622394474776",
+            "name": "Usman Siddiqui",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-37",
+            "name": "Usman Siddiqui",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "khang nythi",
+        "ids": [
+          {
+            "id": "shopify-8650868850968",
+            "name": "khang Nythi",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-38",
+            "name": "khang Nythi",
+            "phone": "4028445452"
+          }
+        ]
+      },
+      {
+        "normalized": "muhammad arbab naseem",
+        "ids": [
+          {
+            "id": "shopify-8666460160280",
+            "name": "Muhammad Arbab Naseem",
+            "phone": "+923368488815"
+          },
+          {
+            "id": "shopify-cust-1772597672024-39",
+            "name": "Muhammad Arbab Naseem",
+            "phone": "+923368488815"
+          }
+        ]
+      },
+      {
+        "normalized": "umaima furqan",
+        "ids": [
+          {
+            "id": "shopify-8672401785112",
+            "name": "Umaima Furqan",
+            "phone": "+923238227519"
+          },
+          {
+            "id": "shopify-cust-1772597672024-40",
+            "name": "Umaima Furqan",
+            "phone": "+923238227519"
+          }
+        ]
+      },
+      {
+        "normalized": "mehreen",
+        "ids": [
+          {
+            "id": "shopify-8691169001752",
+            "name": "Mehreen",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-41",
+            "name": "Mehreen",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "najeeb murtaza",
+        "ids": [
+          {
+            "id": "shopify-8691172081944",
+            "name": "Najeeb Murtaza",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-42",
+            "name": "Najeeb Murtaza",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "danyal ghauri",
+        "ids": [
+          {
+            "id": "shopify-8691172999448",
+            "name": "Danyal Ghauri",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-43",
+            "name": "Danyal Ghauri",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "areeba yunus",
+        "ids": [
+          {
+            "id": "shopify-8708383408408",
+            "name": "Areeba Yunus",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-46",
+            "name": "Areeba Yunus",
+            "phone": "03212505400"
+          }
+        ]
+      },
+      {
+        "normalized": "rahila antaria",
+        "ids": [
+          {
+            "id": "shopify-8740237279512",
+            "name": "Rahila Antaria",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-44",
+            "name": "Rahila Antaria",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "neeshay",
+        "ids": [
+          {
+            "id": "shopify-8740240097560",
+            "name": "Neeshay",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-45",
+            "name": "Neeshay",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "arifa mohammad",
+        "ids": [
+          {
+            "id": "shopify-8781322387736",
+            "name": "Arifa Mohammad",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-48",
+            "name": "Arifa Mohammad",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "manahil sohail",
+        "ids": [
+          {
+            "id": "shopify-8791586898200",
+            "name": "Manahil Sohail",
+            "phone": ""
+          },
+          {
+            "id": "shopify-9752282857752",
+            "name": "Manahil Sohail",
+            "phone": "+923318399436"
+          },
+          {
+            "id": "shopify-cust-1772597672024-49",
+            "name": "Manahil Sohail",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "atika",
+        "ids": [
+          {
+            "id": "shopify-8799089295640",
+            "name": "Atika",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-50",
+            "name": "Atika",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "abbas paliwala",
+        "ids": [
+          {
+            "id": "shopify-8839268598040",
+            "name": "Abbas Paliwala",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-51",
+            "name": "Abbas Paliwala",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "hamza toor",
+        "ids": [
+          {
+            "id": "shopify-8839271285016",
+            "name": "Hamza Toor",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-52",
+            "name": "Hamza Toor",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "rafae hassan",
+        "ids": [
+          {
+            "id": "shopify-8839272628504",
+            "name": "Rafae Hassan",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-53",
+            "name": "Rafae Hassan",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "tasneem teyyebjee",
+        "ids": [
+          {
+            "id": "shopify-8839329546520",
+            "name": "Tasneem Teyyebjee",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-54",
+            "name": "Tasneem Teyyebjee",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "reyyan ahmed",
+        "ids": [
+          {
+            "id": "shopify-8839334265112",
+            "name": "Reyyan Ahmed",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-55",
+            "name": "Reyyan Ahmed",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "daniyal soni",
+        "ids": [
+          {
+            "id": "shopify-8839336329496",
+            "name": "Daniyal Soni",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-56",
+            "name": "Daniyal Soni",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "bareerah abdullah",
+        "ids": [
+          {
+            "id": "shopify-8850212487448",
+            "name": "Bareerah Abdullah",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-57",
+            "name": "Bareerah Abdullah",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "hiba rehan",
+        "ids": [
+          {
+            "id": "shopify-8850219106584",
+            "name": "Hiba Rehan",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-58",
+            "name": "Hiba Rehan",
+            "phone": "+923126658461"
+          }
+        ]
+      },
+      {
+        "normalized": "bareeka reza",
+        "ids": [
+          {
+            "id": "shopify-8850220581144",
+            "name": "Bareeka Reza",
+            "phone": ""
+          },
+          {
+            "id": "shopify-8850222907672",
+            "name": "Bareeka Reza",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-47",
+            "name": "Bareeka Reza",
+            "phone": "+923363491587"
+          }
+        ]
+      },
+      {
+        "normalized": "zahabiya lakda",
+        "ids": [
+          {
+            "id": "shopify-8859236696344",
+            "name": "Zahabiya Lakda",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-60",
+            "name": "Zahabiya Lakda",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "anila haroon",
+        "ids": [
+          {
+            "id": "shopify-8864839860504",
+            "name": "Anila Haroon",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-61",
+            "name": "Anila Haroon",
+            "phone": "03332826798"
+          }
+        ]
+      },
+      {
+        "normalized": "naqiya",
+        "ids": [
+          {
+            "id": "shopify-8877260898584",
+            "name": "Naqiya",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-62",
+            "name": "Naqiya",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "abdullah arshad",
+        "ids": [
+          {
+            "id": "shopify-8929363591448",
+            "name": "Abdullah Arshad",
+            "phone": "+923353131675"
+          },
+          {
+            "id": "shopify-cust-1772597672024-64",
+            "name": "Abdullah Arshad",
+            "phone": "'+92 3353131675"
+          }
+        ]
+      },
+      {
+        "normalized": "hafsa khalid",
+        "ids": [
+          {
+            "id": "shopify-8942633386264",
+            "name": "Hafsa Khalid",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-65",
+            "name": "Hafsa Khalid",
+            "phone": "03332326177"
+          }
+        ]
+      },
+      {
+        "normalized": "amal amir",
+        "ids": [
+          {
+            "id": "shopify-8944336240920",
+            "name": "Amal Amir",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-66",
+            "name": "Amal Amir",
+            "phone": "03322311994"
+          }
+        ]
+      },
+      {
+        "normalized": "mina khalid",
+        "ids": [
+          {
+            "id": "shopify-8961333952792",
+            "name": "Mina Khalid",
+            "phone": "+923318460960"
+          },
+          {
+            "id": "shopify-cust-1772597672024-67",
+            "name": "Mina Khalid",
+            "phone": "03318460960"
+          }
+        ]
+      },
+      {
+        "normalized": "ayesha rashid",
+        "ids": [
+          {
+            "id": "shopify-8982499754264",
+            "name": "Ayesha Rashid",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-68",
+            "name": "Ayesha Rashid",
+            "phone": "+923401803318"
+          }
+        ]
+      },
+      {
+        "normalized": "fatima lakdawala",
+        "ids": [
+          {
+            "id": "shopify-8986204832024",
+            "name": "Fatima Lakdawala",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-69",
+            "name": "Fatima Lakdawala",
+            "phone": "03312658852"
+          }
+        ]
+      },
+      {
+        "normalized": "tasneem taha",
+        "ids": [
+          {
+            "id": "shopify-9004399132952",
+            "name": "Tasneem Taha",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-70",
+            "name": "Tasneem Taha",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "shahrukh wamiq",
+        "ids": [
+          {
+            "id": "shopify-9007094104344",
+            "name": "Shahrukh Wamiq",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-71",
+            "name": "Shahrukh Wamiq",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "ismail khan",
+        "ids": [
+          {
+            "id": "shopify-9009412997400",
+            "name": "Ismail Khan",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-72",
+            "name": "Ismail Khan",
+            "phone": "+923320344458"
+          }
+        ]
+      },
+      {
+        "normalized": "mohammad abdullah",
+        "ids": [
+          {
+            "id": "shopify-9014359327000",
+            "name": "Mohammad Abdullah",
+            "phone": "+923212621924"
+          },
+          {
+            "id": "shopify-cust-1772597672024-74",
+            "name": "Mohammad Abdullah",
+            "phone": "03308232121"
+          }
+        ]
+      },
+      {
+        "normalized": "shahbaz taimoor",
+        "ids": [
+          {
+            "id": "shopify-9015783489816",
+            "name": "Shahbaz Taimoor",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-75",
+            "name": "Shahbaz Taimoor",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "kgg",
+        "ids": [
+          {
+            "id": "shopify-9019821490456",
+            "name": "kgg",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-76",
+            "name": "kgg",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "aiman tambe",
+        "ids": [
+          {
+            "id": "shopify-9026295464216",
+            "name": "Aiman Tambe",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-77",
+            "name": "Aiman Tambe",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "rashida soni",
+        "ids": [
+          {
+            "id": "shopify-9027896738072",
+            "name": "Rashida Soni",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-80",
+            "name": "Rashida Soni",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "ummehani modi",
+        "ids": [
+          {
+            "id": "shopify-9027917283608",
+            "name": "Ummehani modi",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-79",
+            "name": "Ummehani modi",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "fatema modi",
+        "ids": [
+          {
+            "id": "shopify-9027923902744",
+            "name": "Fatema Modi",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-78",
+            "name": "Fatema Modi",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "asad ali",
+        "ids": [
+          {
+            "id": "shopify-9027956965656",
+            "name": "Asad ali",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-81",
+            "name": "Asad ali",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "mansa",
+        "ids": [
+          {
+            "id": "shopify-9065072754968",
+            "name": "Mansa",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-86",
+            "name": "Mansa",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "t kamran",
+        "ids": [
+          {
+            "id": "shopify-9082955399448",
+            "name": "T Kamran",
+            "phone": "+923218792500"
+          },
+          {
+            "id": "shopify-cust-1772597672024-82",
+            "name": "T Kamran",
+            "phone": "+923218792500"
+          }
+        ]
+      },
+      {
+        "normalized": "atiqa irfan",
+        "ids": [
+          {
+            "id": "shopify-9114866352408",
+            "name": "Atiqa Irfan",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-83",
+            "name": "Atiqa Irfan",
+            "phone": "03215566899"
+          }
+        ]
+      },
+      {
+        "normalized": "abdul qadir friend",
+        "ids": [
+          {
+            "id": "shopify-9116447867160",
+            "name": "Abdul qadir friend",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-88",
+            "name": "Abdul qadir friend",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "arqam nakhuda",
+        "ids": [
+          {
+            "id": "shopify-9127989248280",
+            "name": "Arqam Nakhuda",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-84",
+            "name": "Arqam Nakhuda",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "maryam alina",
+        "ids": [
+          {
+            "id": "shopify-9244112584984",
+            "name": "Maryam Alina",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-87",
+            "name": "Maryam Alina",
+            "phone": "+923133656655"
+          }
+        ]
+      },
+      {
+        "normalized": "munira mudder",
+        "ids": [
+          {
+            "id": "shopify-9418830872856",
+            "name": "Munira Mudder",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-89",
+            "name": "Munira Mudder",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "safa saad",
+        "ids": [
+          {
+            "id": "shopify-9499603468568",
+            "name": "Safa Saad",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-90",
+            "name": "Safa Saad",
+            "phone": "03028294339"
+          }
+        ]
+      },
+      {
+        "normalized": "arooba gill",
+        "ids": [
+          {
+            "id": "shopify-9500005794072",
+            "name": "Arooba Gill",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-91",
+            "name": "Arooba Gill",
+            "phone": "+923350231362"
+          }
+        ]
+      },
+      {
+        "normalized": "sajeel nadeem",
+        "ids": [
+          {
+            "id": "shopify-9503738102040",
+            "name": "Sajeel Nadeem",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-92",
+            "name": "Sajeel Nadeem",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "rabab burhan",
+        "ids": [
+          {
+            "id": "shopify-9559584440600",
+            "name": "rabab burhan",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-93",
+            "name": "rabab burhan",
+            "phone": ""
+          }
+        ]
+      },
+      {
+        "normalized": "zainab durrani",
+        "ids": [
+          {
+            "id": "shopify-9559586668824",
+            "name": "Zainab Durrani",
+            "phone": ""
+          },
+          {
+            "id": "shopify-cust-1772597672024-94",
+            "name": "Zainab Durrani",
+            "phone": ""
+          }
+        ]
+      }
+    ]
+  }
+}

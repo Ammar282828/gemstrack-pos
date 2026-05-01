@@ -1,0 +1,56 @@
+{
+  "generatedAt": "2026-05-01T20:21:21.821Z",
+  "summary": {
+    "pos_invoices_in_firestore": 194,
+    "pos_invoices_with_shopifyOrderId": 51,
+    "shopify_total_orders": 194,
+    "shopify_pos_import_tagged": 51,
+    "shopify_with_pos_invoice_note": 51,
+    "shopify_cancelled": 9,
+    "duplicate_sets_by_note": 0,
+    "total_duplicate_orders": 0,
+    "pos_invoices_with_orphan_shopifyOrderId": 0,
+    "shopify_orders_with_dead_pos_note": 0,
+    "possible_pos_reentries_of_shopify_orders": 0,
+    "pos_import_customer_total_duplicate_groups": 1
+  },
+  "duplicate_sets_by_note": [],
+  "customer_total_dupes": [
+    {
+      "fingerprint": "|900000",
+      "count": 3,
+      "orders": [
+        {
+          "id": "7075547578648",
+          "orderNumber": 1290,
+          "total": 9000,
+          "createdAt": "2026-05-02T01:11:44+05:00",
+          "cancelledAt": null,
+          "tags": "pos-import, pos-inv-INV-000168",
+          "note": "POS Invoice INV-000168"
+        },
+        {
+          "id": "7075545448728",
+          "orderNumber": 1283,
+          "total": 9000,
+          "createdAt": "2026-05-02T01:10:16+05:00",
+          "cancelledAt": null,
+          "tags": "pos-import, pos-inv-INV-000161",
+          "note": "POS Invoice INV-000161"
+        },
+        {
+          "id": "7075544334616",
+          "orderNumber": 1280,
+          "total": 9000,
+          "createdAt": "2026-05-02T01:09:37+05:00",
+          "cancelledAt": null,
+          "tags": "pos-import, pos-inv-INV-000157",
+          "note": "POS Invoice INV-000157"
+        }
+      ]
+    }
+  ],
+  "orphan_pos_invoices": [],
+  "reverse_orphan_shopify_orders": [],
+  "possible_pos_reentries": []
+}

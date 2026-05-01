@@ -1,0 +1,43 @@
+{
+  "ranAt": "2026-05-01T20:00:03.164Z",
+  "fixes": [
+    {
+      "invoiceId": "INV-000187",
+      "customer": "Hamza Mandarso",
+      "grandTotal": 8000,
+      "oldPaid": 24000,
+      "newPaid": 8000,
+      "paidDelta": 16000,
+      "oldBalance": -16000,
+      "newBalance": 0,
+      "removedCount": 2,
+      "keptCount": 1,
+      "dedupedHistory": [
+        {
+          "amount": 8000,
+          "notes": "Payment received",
+          "date": "2026-04-16T14:00:56.370Z"
+        }
+      ],
+      "removedSamples": [
+        {
+          "amount": 8000,
+          "date": "2026-04-16T14:00:58.106Z",
+          "notes": "Payment received"
+        },
+        {
+          "amount": 8000,
+          "date": "2026-04-16T14:00:59.100Z",
+          "notes": "Payment received"
+        }
+      ]
+    }
+  ],
+  "results": {
+    "patched": [
+      "INV-000187"
+    ],
+    "hisaabAdjusted": [],
+    "errors": []
+  }
+}

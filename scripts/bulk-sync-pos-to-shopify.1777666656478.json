@@ -1,0 +1,324 @@
+{
+  "ranAt": "2026-05-01T20:17:36.479Z",
+  "apply": true,
+  "includeOrders": false,
+  "results": {
+    "invoices": {
+      "synced": [
+        {
+          "id": "INV-000141",
+          "shopifyOrderId": "7075540566296",
+          "shopifyOrderNumber": 1269,
+          "action": "created"
+        },
+        {
+          "id": "INV-000142",
+          "shopifyOrderId": "7075540992280",
+          "shopifyOrderNumber": 1270,
+          "action": "created"
+        },
+        {
+          "id": "INV-000143",
+          "shopifyOrderId": "7075541451032",
+          "shopifyOrderNumber": 1271,
+          "action": "created"
+        },
+        {
+          "id": "INV-000144",
+          "shopifyOrderId": "7075541680408",
+          "shopifyOrderNumber": 1272,
+          "action": "created"
+        },
+        {
+          "id": "INV-000149",
+          "shopifyOrderId": "7075542008088",
+          "shopifyOrderNumber": 1273,
+          "action": "created"
+        },
+        {
+          "id": "INV-000150",
+          "shopifyOrderId": "7075542335768",
+          "shopifyOrderNumber": 1274,
+          "action": "created"
+        },
+        {
+          "id": "INV-000151",
+          "shopifyOrderId": "7075542761752",
+          "shopifyOrderNumber": 1275,
+          "action": "created"
+        },
+        {
+          "id": "INV-000152",
+          "shopifyOrderId": "7075543023896",
+          "shopifyOrderNumber": 1276,
+          "action": "created"
+        },
+        {
+          "id": "INV-000154",
+          "shopifyOrderId": "7075543351576",
+          "shopifyOrderNumber": 1277,
+          "action": "created"
+        },
+        {
+          "id": "INV-000155",
+          "shopifyOrderId": "7075543548184",
+          "shopifyOrderNumber": 1278,
+          "action": "created"
+        },
+        {
+          "id": "INV-000156",
+          "shopifyOrderId": "7075544006936",
+          "shopifyOrderNumber": 1279,
+          "action": "created"
+        },
+        {
+          "id": "INV-000157",
+          "shopifyOrderId": "7075544334616",
+          "shopifyOrderNumber": 1280,
+          "action": "created"
+        },
+        {
+          "id": "INV-000158",
+          "shopifyOrderId": "7075544727832",
+          "shopifyOrderNumber": 1281,
+          "action": "created"
+        },
+        {
+          "id": "INV-000159",
+          "shopifyOrderId": "7075545121048",
+          "shopifyOrderNumber": 1282,
+          "action": "created"
+        },
+        {
+          "id": "INV-000161",
+          "shopifyOrderId": "7075545448728",
+          "shopifyOrderNumber": 1283,
+          "action": "created"
+        },
+        {
+          "id": "INV-000162",
+          "shopifyOrderId": "7075545645336",
+          "shopifyOrderNumber": 1284,
+          "action": "created"
+        },
+        {
+          "id": "INV-000163",
+          "shopifyOrderId": "7075546104088",
+          "shopifyOrderNumber": 1285,
+          "action": "created"
+        },
+        {
+          "id": "INV-000164",
+          "shopifyOrderId": "7075546366232",
+          "shopifyOrderNumber": 1286,
+          "action": "created"
+        },
+        {
+          "id": "INV-000165",
+          "shopifyOrderId": "7075546693912",
+          "shopifyOrderNumber": 1287,
+          "action": "created"
+        },
+        {
+          "id": "INV-000166",
+          "shopifyOrderId": "7075546923288",
+          "shopifyOrderNumber": 1288,
+          "action": "created"
+        },
+        {
+          "id": "INV-000167",
+          "shopifyOrderId": "7075547250968",
+          "shopifyOrderNumber": 1289,
+          "action": "created"
+        },
+        {
+          "id": "INV-000168",
+          "shopifyOrderId": "7075547578648",
+          "shopifyOrderNumber": 1290,
+          "action": "created"
+        },
+        {
+          "id": "INV-000170",
+          "shopifyOrderId": "7075547939096",
+          "shopifyOrderNumber": 1291,
+          "action": "created"
+        },
+        {
+          "id": "INV-000171",
+          "shopifyOrderId": "7075548234008",
+          "shopifyOrderNumber": 1292,
+          "action": "created"
+        },
+        {
+          "id": "INV-000172",
+          "shopifyOrderId": "7075548594456",
+          "shopifyOrderNumber": 1293,
+          "action": "created"
+        },
+        {
+          "id": "INV-000173",
+          "shopifyOrderId": "7075548922136",
+          "shopifyOrderNumber": 1294,
+          "action": "created"
+        },
+        {
+          "id": "INV-000174",
+          "shopifyOrderId": "7075549380888",
+          "shopifyOrderNumber": 1295,
+          "action": "created"
+        },
+        {
+          "id": "INV-000175",
+          "shopifyOrderId": "7075549577496",
+          "shopifyOrderNumber": 1296,
+          "action": "created"
+        },
+        {
+          "id": "INV-000176",
+          "shopifyOrderId": "7075549905176",
+          "shopifyOrderNumber": 1297,
+          "action": "created"
+        },
+        {
+          "id": "INV-000177",
+          "shopifyOrderId": "7075550429464",
+          "shopifyOrderNumber": 1298,
+          "action": "created"
+        },
+        {
+          "id": "INV-000179",
+          "shopifyOrderId": "7075550888216",
+          "shopifyOrderNumber": 1299,
+          "action": "created"
+        },
+        {
+          "id": "INV-000180",
+          "shopifyOrderId": "7075551215896",
+          "shopifyOrderNumber": 1300,
+          "action": "created"
+        },
+        {
+          "id": "INV-000181",
+          "shopifyOrderId": "7075551805720",
+          "shopifyOrderNumber": 1301,
+          "action": "created"
+        },
+        {
+          "id": "INV-000182",
+          "shopifyOrderId": "7075552002328",
+          "shopifyOrderNumber": 1302,
+          "action": "created"
+        },
+        {
+          "id": "INV-000183",
+          "shopifyOrderId": "7075552362776",
+          "shopifyOrderNumber": 1303,
+          "action": "created"
+        },
+        {
+          "id": "INV-000184",
+          "shopifyOrderId": "7075552657688",
+          "shopifyOrderNumber": 1304,
+          "action": "created"
+        },
+        {
+          "id": "INV-000185",
+          "shopifyOrderId": "7075552952600",
+          "shopifyOrderNumber": 1305,
+          "action": "created"
+        },
+        {
+          "id": "INV-000187",
+          "shopifyOrderId": "7075553313048",
+          "shopifyOrderNumber": 1306,
+          "action": "created"
+        },
+        {
+          "id": "INV-000188",
+          "shopifyOrderId": "7075553673496",
+          "shopifyOrderNumber": 1307,
+          "action": "created"
+        },
+        {
+          "id": "INV-000189",
+          "shopifyOrderId": "7075554197784",
+          "shopifyOrderNumber": 1308,
+          "action": "created"
+        },
+        {
+          "id": "INV-000190",
+          "shopifyOrderId": "7075554525464",
+          "shopifyOrderNumber": 1309,
+          "action": "created"
+        },
+        {
+          "id": "INV-000191",
+          "shopifyOrderId": "7075554722072",
+          "shopifyOrderNumber": 1310,
+          "action": "created"
+        },
+        {
+          "id": "INV-000194",
+          "shopifyOrderId": "7075555082520",
+          "shopifyOrderNumber": 1311,
+          "action": "created"
+        },
+        {
+          "id": "INV-000195",
+          "shopifyOrderId": "7075555311896",
+          "shopifyOrderNumber": 1312,
+          "action": "created"
+        },
+        {
+          "id": "INV-000196",
+          "shopifyOrderId": "7075555770648",
+          "shopifyOrderNumber": 1313,
+          "action": "created"
+        },
+        {
+          "id": "INV-000197",
+          "shopifyOrderId": "7075556098328",
+          "shopifyOrderNumber": 1314,
+          "action": "created"
+        },
+        {
+          "id": "INV-000198",
+          "shopifyOrderId": "7075556393240",
+          "shopifyOrderNumber": 1315,
+          "action": "created"
+        },
+        {
+          "id": "INV-000199",
+          "shopifyOrderId": "7075556786456",
+          "shopifyOrderNumber": 1316,
+          "action": "created"
+        },
+        {
+          "id": "INV-000200",
+          "shopifyOrderId": "7075557310744",
+          "shopifyOrderNumber": 1317,
+          "action": "created"
+        },
+        {
+          "id": "INV-000201",
+          "shopifyOrderId": "7075557507352",
+          "shopifyOrderNumber": 1318,
+          "action": "created"
+        },
+        {
+          "id": "INV-000202",
+          "shopifyOrderId": "7075557769496",
+          "shopifyOrderNumber": 1319,
+          "action": "created"
+        }
+      ],
+      "skipped": [],
+      "failed": []
+    },
+    "orders": {
+      "synced": [],
+      "skipped": [],
+      "failed": []
+    }
+  }
+}
