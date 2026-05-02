@@ -129,28 +129,31 @@ export default function MinaAccountPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(true);
 
+  const [withdrawals, setWithdrawals] = useState<Payment[]>([]);
+
   const loadPayments = useCallback(async () => {
     setPaymentsLoading(true);
     try {
       const snap = await getDocs(
         query(collection(db, 'mina_ledger'), orderBy('date', 'desc'))
       );
-      setPayments(
-        snap.docs
-          .map(d => {
-            const data = d.data();
-            if (data.type !== 'payment') return null;
-            return {
-              id: d.id,
-              description: data.description,
-              amount: data.amount,
-              date: toDate(data.date),
-            };
-          })
-          .filter(Boolean) as Payment[]
-      );
+      const paymentRows: Payment[] = [];
+      const withdrawalRows: Payment[] = [];
+      for (const d of snap.docs) {
+        const data = d.data();
+        const row: Payment = {
+          id: d.id,
+          description: data.description,
+          amount: data.amount,
+          date: toDate(data.date),
+        };
+        if (data.type === 'payment') paymentRows.push(row);
+        else if (data.type === 'withdrawal') withdrawalRows.push(row);
+      }
+      setPayments(paymentRows);
+      setWithdrawals(withdrawalRows);
     } catch {
-      toast({ title: 'Failed to load payments', variant: 'destructive' });
+      toast({ title: 'Failed to load ledger', variant: 'destructive' });
     } finally {
       setPaymentsLoading(false);
     }
@@ -198,6 +201,51 @@ export default function MinaAccountPage() {
       await deleteDoc(doc(db, 'mina_ledger', id));
       toast({ title: 'Payment deleted' });
       setPayments(prev => prev.filter(p => p.id !== id));
+    } catch {
+      toast({ title: 'Delete failed', variant: 'destructive' });
+    }
+  };
+
+  // ── Withdrawal form state (money Mina takes from the business) ────────────
+
+  const [wdDesc, setWdDesc] = useState('');
+  const [wdAmount, setWdAmount] = useState('');
+  const [wdDate, setWdDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [wdSaving, setWdSaving] = useState(false);
+
+  const handleAddWithdrawal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(wdAmount);
+    if (!wdDesc.trim() || isNaN(amt) || amt <= 0) {
+      toast({ title: 'Fill in all fields', variant: 'destructive' });
+      return;
+    }
+    setWdSaving(true);
+    try {
+      await addDoc(collection(db, 'mina_ledger'), {
+        type: 'withdrawal',
+        description: wdDesc.trim(),
+        amount: amt,
+        date: Timestamp.fromDate(new Date(wdDate)),
+        createdAt: serverTimestamp(),
+      });
+      toast({ title: 'Withdrawal added' });
+      setWdDesc('');
+      setWdAmount('');
+      setWdDate(new Date().toISOString().split('T')[0]);
+      loadPayments();
+    } catch {
+      toast({ title: 'Failed to save', variant: 'destructive' });
+    } finally {
+      setWdSaving(false);
+    }
+  };
+
+  const handleDeleteWithdrawal = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'mina_ledger', id));
+      toast({ title: 'Withdrawal deleted' });
+      setWithdrawals(prev => prev.filter(p => p.id !== id));
     } catch {
       toast({ title: 'Delete failed', variant: 'destructive' });
     }
@@ -255,9 +303,12 @@ export default function MinaAccountPage() {
   const totalRevenue = invoiceRevenue + orderRevenue + additionalRev;
   const minaRevShare = totalRevenue * 0.5;
   const totalPayments = payments.reduce((s, p) => s + p.amount, 0);
+  const totalWithdrawals = withdrawals.reduce((s, w) => s + w.amount, 0);
 
   // Positive = Mina owes business, Negative = business owes Mina
-  const balance = minaExpShare - minaRevShare - totalPayments;
+  // Payments (cash IN to business from Mina) reduce her debt.
+  // Withdrawals (cash OUT to Mina from business) increase her debt.
+  const balance = minaExpShare - minaRevShare - totalPayments + totalWithdrawals;
 
   const isLoading = isExpensesLoading || isInvoicesLoading || isOrdersLoading || isAdditionalRevenueLoading || paymentsLoading;
 
@@ -313,7 +364,7 @@ export default function MinaAccountPage() {
 
                 <Separator className="sm:hidden" />
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center sm:text-right">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center sm:text-right">
                   <div>
                     <p className="text-[11px] text-muted-foreground uppercase tracking-wide">50% Expenses</p>
                     <p className="text-sm font-semibold text-red-600 dark:text-red-400 tabular-nums">{fmt(minaExpShare)}</p>
@@ -327,8 +378,12 @@ export default function MinaAccountPage() {
                     <p className="text-sm font-semibold text-muted-foreground tabular-nums">{fmt(minaRevShare - minaExpShare)}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Payments</p>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Paid In</p>
                     <p className="text-sm font-semibold text-green-600 dark:text-green-400 tabular-nums">{fmt(totalPayments)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Withdrawn</p>
+                    <p className="text-sm font-semibold text-orange-600 dark:text-orange-400 tabular-nums">{fmt(totalWithdrawals)}</p>
                   </div>
                 </div>
               </div>
@@ -336,7 +391,7 @@ export default function MinaAccountPage() {
           </Card>
 
           <p className="text-xs text-muted-foreground -mt-2 px-1">
-            Balance = 50% Expenses &minus; 50% Revenue &minus; Payments
+            Balance = 50% Expenses &minus; 50% Revenue &minus; Payments + Withdrawals
           </p>
 
           {/* ── Expenses (auto, read-only) ── */}
@@ -533,6 +588,101 @@ export default function MinaAccountPage() {
 
               {payments.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">No payments recorded yet.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ── Withdrawals (manual) ── */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ArrowUpRight className="w-4 h-4 text-orange-500" /> Withdrawals by Mina
+                {withdrawals.length > 0 && (
+                  <span className="text-xs font-normal bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{withdrawals.length}</span>
+                )}
+              </CardTitle>
+              <CardDescription>Money Mina has taken from the business (cash, transfer, personal use, etc.).</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <form onSubmit={handleAddWithdrawal} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5 sm:col-span-3">
+                    <Label className="text-sm">Description</Label>
+                    <Input
+                      placeholder="e.g. Personal cash, Bank transfer out"
+                      value={wdDesc}
+                      onChange={e => setWdDesc(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Amount (PKR)</Label>
+                    <Input
+                      type="number"
+                      placeholder="Amount"
+                      value={wdAmount}
+                      onChange={e => setWdAmount(e.target.value)}
+                      min={0}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Date</Label>
+                    <Input
+                      type="date"
+                      value={wdDate}
+                      onChange={e => setWdDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button type="submit" size="sm" disabled={wdSaving} className="w-full">
+                      {wdSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                      Add Withdrawal
+                    </Button>
+                  </div>
+                </div>
+              </form>
+
+              {withdrawals.length > 0 && <Separator />}
+
+              {withdrawals.map(w => (
+                <div key={w.id} className="flex items-center gap-3 py-2.5 border-b last:border-0">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                    <ArrowUpRight className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{w.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {w.date.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <p className="text-sm font-semibold tabular-nums text-orange-600 dark:text-orange-400 flex-shrink-0">
+                    {fmt(w.amount)}
+                  </p>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-destructive">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete withdrawal?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          &ldquo;{w.description}&rdquo; &mdash; {fmt(w.amount)}. This cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteWithdrawal(w.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              ))}
+
+              {withdrawals.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No withdrawals recorded yet.</p>
               )}
             </CardContent>
           </Card>

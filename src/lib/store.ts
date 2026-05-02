@@ -1258,7 +1258,9 @@ export const useAppStore = create<AppState>()(
       addSilverTransaction: async (data) => {
         if (get().settings.databaseLocked) return null;
         try {
-          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.SILVER_TRANSACTIONS), data);
+          // Strip undefined fields — Firestore addDoc rejects them
+          const payload = cleanObject({ ...data });
+          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.SILVER_TRANSACTIONS), payload);
           return { id: docRef.id, ...data };
         } catch (error) {
           console.error("[addSilverTransaction] Error:", error);
