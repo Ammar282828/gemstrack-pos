@@ -66,6 +66,7 @@ const navGroups: NavGroup[] = [
       { href: '/hisaab', label: 'Hisaab / Ledger', icon: <BookUser /> },
       { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
       { href: '/mina', label: "Mina's Account", icon: <HandCoins /> },
+      { href: '/ammar', label: "Ammar's Account", icon: <HandCoins /> },
     ],
   },
   {
