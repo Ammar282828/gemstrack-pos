@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc, deleteField } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc, deleteField, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { db, auth, firebaseConfig } from '@/lib/firebase';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 
@@ -564,6 +564,8 @@ export const EXPENSE_CATEGORIES = [
 ] as const;
 export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
 
+export type PaidBy = 'business' | 'ammar' | 'mina';
+
 export interface Expense {
   id: string;
   date: string; // ISO String
@@ -572,6 +574,8 @@ export interface Expense {
   amount: number;
   karigarId?: string; // Links this expense to a karigar payment
   batchId?: string;   // Links this expense to a karigar hisaab batch
+  paidBy?: PaidBy;    // Who fronted the cash; defaults to 'business'
+  ledgerEntryId?: string; // Auto-created entry on {paidBy}_ledger when paidBy !== 'business'
 }
 
 export interface KarigarBatch {
@@ -3047,10 +3051,35 @@ export const useAppStore = create<AppState>()(
       addExpense: async (expenseData) => {
         if(get().settings.databaseLocked) return null;
         try {
-          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.EXPENSES), expenseData);
-          await addActivityLog('expense.create', `Added expense: ${expenseData.description}`, `Category: ${expenseData.category} | Amount: ${expenseData.amount.toLocaleString()}`, docRef.id);
-          console.log("[GemsTrack Store addExpense] Expense added with ID:", docRef.id);
-          return { id: docRef.id, ...expenseData };
+          // If a partner fronted the cash, create a matching loan entry on
+          // their ledger first so we can store its id alongside the expense.
+          let ledgerEntryId: string | undefined;
+          const paidBy = expenseData.paidBy;
+          if (paidBy === 'ammar' || paidBy === 'mina') {
+            const ledger = paidBy === 'ammar' ? 'ammar_ledger' : 'mina_ledger';
+            const ledgerDoc = await addDoc(collection(db, ledger), {
+              type: 'payment',
+              category: 'loan',
+              description: `Expense paid: ${expenseData.description}`,
+              amount: expenseData.amount,
+              date: Timestamp.fromDate(new Date(expenseData.date)),
+              createdAt: serverTimestamp(),
+              linkedExpenseId: 'pending', // patched after expense create
+            });
+            ledgerEntryId = ledgerDoc.id;
+          }
+
+          const persisted: Omit<Expense, 'id'> = { ...expenseData, ...(ledgerEntryId && { ledgerEntryId }) };
+          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.EXPENSES), persisted);
+
+          // Backfill the linkedExpenseId on the ledger entry now that we know it
+          if (ledgerEntryId && (paidBy === 'ammar' || paidBy === 'mina')) {
+            const ledger = paidBy === 'ammar' ? 'ammar_ledger' : 'mina_ledger';
+            await setDoc(doc(db, ledger, ledgerEntryId), { linkedExpenseId: docRef.id }, { merge: true });
+          }
+
+          await addActivityLog('expense.create', `Added expense: ${expenseData.description}`, `Category: ${expenseData.category} | Amount: ${expenseData.amount.toLocaleString()}${paidBy && paidBy !== 'business' ? ` | Paid by: ${paidBy}` : ''}`, docRef.id);
+          return { id: docRef.id, ...persisted } as Expense;
         } catch (error) {
           console.error("[GemsTrack Store addExpense] Error adding expense:", error);
           return null;
@@ -3058,23 +3087,62 @@ export const useAppStore = create<AppState>()(
       },
       updateExpense: async (id, updatedExpenseData) => {
         if(get().settings.databaseLocked) return;
-        console.log(`[GemsTrack Store updateExpense] Attempting to update expense ID ${id}`);
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.EXPENSES, id), updatedExpenseData, { merge: true });
+          const existing = get().expenses.find(e => e.id === id);
+          const prevPaidBy: PaidBy = (existing?.paidBy as PaidBy) || 'business';
+          const nextPaidBy: PaidBy = (updatedExpenseData.paidBy as PaidBy) || 'business';
+          const prevLedgerId = existing?.ledgerEntryId;
+
+          // If the payer changed, clean up the old ledger entry.
+          if (prevLedgerId && (prevPaidBy !== nextPaidBy || updatedExpenseData.amount !== existing?.amount || updatedExpenseData.date !== existing?.date)) {
+            const prevLedger = prevPaidBy === 'ammar' ? 'ammar_ledger' : prevPaidBy === 'mina' ? 'mina_ledger' : null;
+            if (prevLedger) await deleteDoc(doc(db, prevLedger, prevLedgerId)).catch(() => {});
+          }
+
+          let newLedgerId: string | undefined;
+          if (nextPaidBy === 'ammar' || nextPaidBy === 'mina') {
+            const ledger = nextPaidBy === 'ammar' ? 'ammar_ledger' : 'mina_ledger';
+            // If the payer + amount + date are unchanged AND we already have a ledger id, keep it
+            const samePayer = prevPaidBy === nextPaidBy;
+            const sameAmount = updatedExpenseData.amount === existing?.amount;
+            const sameDate = updatedExpenseData.date === existing?.date;
+            if (samePayer && sameAmount && sameDate && prevLedgerId) {
+              newLedgerId = prevLedgerId;
+              // Just update description on the existing ledger entry
+              await setDoc(doc(db, ledger, prevLedgerId), { description: `Expense paid: ${updatedExpenseData.description || ''}` }, { merge: true });
+            } else {
+              const ledgerDoc = await addDoc(collection(db, ledger), {
+                type: 'payment',
+                category: 'loan',
+                description: `Expense paid: ${updatedExpenseData.description || ''}`,
+                amount: updatedExpenseData.amount,
+                date: Timestamp.fromDate(new Date(updatedExpenseData.date as string)),
+                createdAt: serverTimestamp(),
+                linkedExpenseId: id,
+              });
+              newLedgerId = ledgerDoc.id;
+            }
+          }
+
+          const finalData = { ...updatedExpenseData, ...(newLedgerId ? { ledgerEntryId: newLedgerId } : { ledgerEntryId: null }) } as Partial<Expense>;
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.EXPENSES, id), finalData, { merge: true });
           await addActivityLog('expense.update', `Updated expense: ${updatedExpenseData.description}`, `ID: ${id}`, id);
-          console.log(`[GemsTrack Store updateExpense] Expense ID ${id} updated successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store updateExpense] Error updating expense ID ${id}:`, error);
         }
       },
       deleteExpense: async (id: string) => {
         if(get().settings.databaseLocked) return;
-        const expenseDesc = get().expenses.find(e => e.id === id)?.description || id;
-        console.log(`[GemsTrack Store deleteExpense] Attempting to delete expense ID ${id}.`);
+        const existing = get().expenses.find(e => e.id === id);
+        const expenseDesc = existing?.description || id;
         try {
+          // Clean up paired ledger entry if there is one
+          if (existing?.ledgerEntryId && existing.paidBy && existing.paidBy !== 'business') {
+            const ledger = existing.paidBy === 'ammar' ? 'ammar_ledger' : 'mina_ledger';
+            await deleteDoc(doc(db, ledger, existing.ledgerEntryId)).catch(() => {});
+          }
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.EXPENSES, id));
           await addActivityLog('expense.delete', `Deleted expense: ${expenseDesc}`, `ID: ${id}`, id);
-          console.log(`[GemsTrack Store deleteExpense] Expense ID ${id} deleted successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store deleteExpense] Error deleting expense ID ${id}:`, error);
           throw error;

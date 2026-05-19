@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAppStore, Expense, EXPENSE_CATEGORIES, Karigar } from '@/lib/store';
+import { useAppStore, Expense, EXPENSE_CATEGORIES, Karigar, type PaidBy } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, Calendar, DollarSign, Type, Briefcase } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -24,6 +24,7 @@ const expenseSchema = z.object({
   category: z.string().min(1, "Category is required"),
   description: z.string().min(1, "Description is required"),
   amount: z.coerce.number().min(0.01, "Amount must be a positive number"),
+  paidBy: z.enum(['business', 'ammar', 'mina']).default('business'),
 });
 
 type ExpenseFormData = z.infer<typeof expenseSchema>;
@@ -58,6 +59,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
       category: '',
       description: '',
       amount: 0,
+      paidBy: 'business',
     },
   });
 
@@ -160,6 +162,28 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
               <FormControl>
                 <Input type="number" step="0.01" placeholder="Enter the total amount" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="paidBy"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Paid by</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value || 'business'}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="business">Business cash</SelectItem>
+                  <SelectItem value="ammar">Ammar (personal — auto-logs to his ledger as a loan)</SelectItem>
+                  <SelectItem value="mina">Mina (personal — auto-logs to her ledger as a loan)</SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
