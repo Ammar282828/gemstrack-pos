@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, categoryNeedsSize } from '@/lib/store';
+import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, categoryNeedsSize, sizeScaleFor } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem, Info, Upload, Loader2, CaseSensitive } from 'lucide-react';
@@ -333,21 +333,49 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           </FormItem>
                         )}
                       />
-                      {categoryNeedsSize(selectedCategoryId) && (
-                        <FormField
-                          control={form.control} name="size"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Size <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
-                              <FormControl>
-                                <Input placeholder='e.g. "10 Indian / 5 US"' {...field} value={field.value || ''} />
-                              </FormControl>
-                              <FormDescription>Leave blank if not applicable.</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      )}
+                      {categoryNeedsSize(selectedCategoryId) && (() => {
+                        const scale = sizeScaleFor(selectedCategoryId);
+                        return (
+                          <FormField
+                            control={form.control} name="size"
+                            render={({ field }) => {
+                              const current = field.value || '';
+                              const isCustom = !!current && !scale?.options.includes(current);
+                              return (
+                                <FormItem>
+                                  <FormLabel>{scale?.label || 'Size'} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
+                                  {scale ? (
+                                    <>
+                                      <Select
+                                        value={isCustom ? '__custom__' : current}
+                                        onValueChange={(v) => field.onChange(v === '__custom__' ? current : v === '__none__' ? '' : v)}
+                                      >
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a size" /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                          <SelectItem value="__none__">— None —</SelectItem>
+                                          {scale.options.map(opt => (
+                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                          ))}
+                                          <SelectItem value="__custom__">Other…</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      {isCustom && (
+                                        <FormControl>
+                                          <Input className="mt-2" placeholder="Custom size" value={current} onChange={e => field.onChange(e.target.value)} />
+                                        </FormControl>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <FormControl><Input placeholder='e.g. "Medium"' {...field} value={current} /></FormControl>
+                                  )}
+                                  <FormDescription>Leave blank if not applicable.</FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              );
+                            }}
+                          />
+                        );
+                      })()}
                   </div>
 
                   {/* Manual Price Section (Primary) */}

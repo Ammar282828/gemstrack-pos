@@ -662,7 +662,7 @@ const CATEGORY_SKU_PREFIXES: Record<string, string> = {
   'cat005': 'BRC', 'cat006': 'BRS', 'cat007': 'BNG', 'cat008': 'CHN',
   'cat009': 'BND', 'cat010': 'LSW', 'cat011': 'LSB', 'cat012': 'STR',
   'cat013': 'SNX', 'cat014': 'SNB', 'cat015': 'GNX', 'cat016': 'GNW',
-  'cat017': 'GCN', 'cat018': 'MRN',
+  'cat017': 'GCN', 'cat018': 'MRN', 'cat019': 'LBR',
 };
 
 // --- Initial Data Definitions (For reference or one-time seeding, not for store initial state) ---
@@ -709,26 +709,61 @@ export const staticCategories: Category[] = [
   { id: 'cat016', title: 'Gold Necklace Sets without Bracelets' },
   { id: 'cat017', title: 'Gold Coins' },
   { id: 'cat018', title: "Men's Rings" },
+  { id: 'cat019', title: 'Loose Bracelet' },
 ];
 
+// ─── Size scales ─────────────────────────────────────────────────────────────
+// Pre-canned size options per category so users pick from a standard list
+// instead of free-typing. Each scale also drives the field label shown.
+
+const RING_SIZES_INDIAN: string[] = Array.from({ length: 26 }, (_, i) => String(i)); // 0..25
+const BRACELET_BANGLE_SIZES: string[] = (() => {
+  const out: string[] = [];
+  for (let i = 11; i <= 30; i++) out.push((i / 10).toFixed(1)); // 1.1 .. 3.0
+  return out;
+})();
+const LOOSE_BRACELET_SIZES: string[] = (() => {
+  const out: string[] = [];
+  // 5.75" to 9.0" in 0.25" steps → 14 values
+  for (let q = 23; q <= 36; q++) out.push(`${(q / 4).toFixed(2)}"`);
+  return out;
+})();
+const NECKLACE_SIZES: string[] = ['14"', '16"', '18"', '20"', '22"', '24"', '26"', '28"', '30"'];
+
+export interface SizeScale {
+  label: string;
+  options: string[];
+}
+
+/** Per-category size scale. If a category isn't in this map, the size input
+ * falls back to a free-text field (when SIZE_ELIGIBLE_CATEGORY_IDS includes it). */
+export const SIZE_SCALES: Record<string, SizeScale> = {
+  'cat001': { label: 'Indian ring size (0–25)',      options: RING_SIZES_INDIAN },
+  'cat018': { label: 'Indian ring size (0–25)',      options: RING_SIZES_INDIAN },
+  'cat009': { label: 'Band size (Indian 0–25)',      options: RING_SIZES_INDIAN },
+  'cat005': { label: 'Bracelet size (1.1–3.0)',      options: BRACELET_BANGLE_SIZES },
+  'cat006': { label: 'Bracelet size (1.1–3.0)',      options: BRACELET_BANGLE_SIZES },
+  'cat007': { label: 'Bangle size (1.1–3.0)',        options: BRACELET_BANGLE_SIZES },
+  'cat011': { label: 'Bangle size (1.1–3.0)',        options: BRACELET_BANGLE_SIZES },
+  'cat014': { label: 'Bracelet size (1.1–3.0)',      options: BRACELET_BANGLE_SIZES },
+  'cat015': { label: 'Bracelet size (1.1–3.0)',      options: BRACELET_BANGLE_SIZES },
+  'cat019': { label: 'Loose bracelet (inches)',      options: LOOSE_BRACELET_SIZES },
+  'cat010': { label: 'Necklace length (inches)',     options: NECKLACE_SIZES },
+  'cat012': { label: 'String length (inches)',       options: NECKLACE_SIZES },
+};
+
 /**
- * Categories whose products have a wearable size (rings, bracelets, bangles,
- * and set categories that include either). UI prompts for an optional `size`
- * field when a product or order item falls into one of these.
+ * Categories whose products have a wearable size. Auto-derived from
+ * SIZE_SCALES so adding a new scale entry automatically enables the field.
  */
-export const SIZE_ELIGIBLE_CATEGORY_IDS: ReadonlySet<string> = new Set([
-  'cat001', // Rings
-  'cat005', // Bracelets
-  'cat006', // Bracelet and Ring Set
-  'cat007', // Bangles
-  'cat011', // Locket Set with Bangle
-  'cat014', // Stone Necklace Sets with Bracelets
-  'cat015', // Gold Necklace Sets with Bracelets
-  'cat018', // Men's Rings
-]);
+export const SIZE_ELIGIBLE_CATEGORY_IDS: ReadonlySet<string> = new Set(Object.keys(SIZE_SCALES));
 
 export function categoryNeedsSize(categoryId?: string): boolean {
   return !!categoryId && SIZE_ELIGIBLE_CATEGORY_IDS.has(categoryId);
+}
+
+export function sizeScaleFor(categoryId?: string): SizeScale | undefined {
+  return categoryId ? SIZE_SCALES[categoryId] : undefined;
 }
 
 export const LOG_EVENT_TYPES = ['product', 'customer', 'karigar', 'invoice', 'order', 'expense'] as const;

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -654,16 +654,48 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                 </div>
                             </div>
 
-                            {categoryNeedsSize(form.watch(`items.${index}.itemCategory`)) && (
-                                <FormField control={form.control} name={`items.${index}.size`} render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Size <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
-                                        <FormControl><Input placeholder='e.g. "10 Indian / 5 US"' {...field} value={field.value || ''} /></FormControl>
-                                        <FormDescription>Leave blank if not applicable.</FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
-                            )}
+                            {(() => {
+                                const itemCat = form.watch(`items.${index}.itemCategory`);
+                                if (!categoryNeedsSize(itemCat)) return null;
+                                const scale = sizeScaleFor(itemCat);
+                                return (
+                                    <FormField control={form.control} name={`items.${index}.size`} render={({ field }) => {
+                                        const current = field.value || '';
+                                        const isCustom = !!current && !scale?.options.includes(current);
+                                        return (
+                                            <FormItem>
+                                                <FormLabel>{scale?.label || 'Size'} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
+                                                {scale ? (
+                                                    <>
+                                                        <Select
+                                                            value={isCustom ? '__custom__' : current}
+                                                            onValueChange={(v) => field.onChange(v === '__custom__' ? current : v === '__none__' ? '' : v)}
+                                                        >
+                                                            <FormControl><SelectTrigger><SelectValue placeholder="Select a size" /></SelectTrigger></FormControl>
+                                                            <SelectContent>
+                                                                <SelectItem value="__none__">— None —</SelectItem>
+                                                                {scale.options.map(opt => (
+                                                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                                                ))}
+                                                                <SelectItem value="__custom__">Other…</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {isCustom && (
+                                                            <FormControl>
+                                                                <Input className="mt-2" placeholder="Custom size" value={current} onChange={e => field.onChange(e.target.value)} />
+                                                            </FormControl>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <FormControl><Input placeholder='e.g. "Medium"' {...field} value={current} /></FormControl>
+                                                )}
+                                                <FormDescription>Leave blank if not applicable.</FormDescription>
+                                                <FormMessage />
+                                            </FormItem>
+                                        );
+                                    }}/>
+                                );
+                            })()}
 
                             {/* Metal + Karat — always visible so they are recorded even in manual price mode */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
