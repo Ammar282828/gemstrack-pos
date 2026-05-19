@@ -716,7 +716,11 @@ export const staticCategories: Category[] = [
 // Pre-canned size options per category so users pick from a standard list
 // instead of free-typing. Each scale also drives the field label shown.
 
-const RING_SIZES_INDIAN: string[] = Array.from({ length: 26 }, (_, i) => String(i)); // 0..25
+const RING_SIZES_INDIAN: string[] = Array.from({ length: 51 }, (_, i) => {
+  // 0, 0.5, 1, 1.5, ... 25  (51 values total)
+  const v = i / 2;
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+});
 const BRACELET_BANGLE_SIZES: string[] = (() => {
   const out: string[] = [];
   for (let i = 11; i <= 30; i++) out.push((i / 10).toFixed(1)); // 1.1 .. 3.0
@@ -738,9 +742,9 @@ export interface SizeScale {
 /** Per-category size scale. If a category isn't in this map, the size input
  * falls back to a free-text field (when SIZE_ELIGIBLE_CATEGORY_IDS includes it). */
 export const SIZE_SCALES: Record<string, SizeScale> = {
-  'cat001': { label: 'Indian ring size (0–25)',      options: RING_SIZES_INDIAN },
-  'cat018': { label: 'Indian ring size (0–25)',      options: RING_SIZES_INDIAN },
-  'cat009': { label: 'Band size (Indian 0–25)',      options: RING_SIZES_INDIAN },
+  'cat001': { label: 'Indian ring size (0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
+  'cat018': { label: 'Indian ring size (0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
+  'cat009': { label: 'Band size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
   'cat005': { label: 'Bracelet size (1.1–3.0)',      options: BRACELET_BANGLE_SIZES },
   'cat006': { label: 'Bracelet size (1.1–3.0)',      options: BRACELET_BANGLE_SIZES },
   'cat007': { label: 'Bangle size (1.1–3.0)',        options: BRACELET_BANGLE_SIZES },
