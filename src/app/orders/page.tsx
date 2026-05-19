@@ -246,37 +246,57 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
     );
   };
 
+function monthKeyOf(iso: string | undefined): string {
+  return (iso || '').slice(0, 7); // "YYYY-MM"
+}
+function monthLabel(key: string): string {
+  if (!key) return '—';
+  const d = new Date(key + '-01T00:00:00');
+  return isNaN(d.getTime()) ? key : d.toLocaleString('default', { month: 'long', year: 'numeric' });
+}
+
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'All'>('All');
-  
+  const [monthFilter, setMonthFilter] = useState<string>('All');
+
   const appReady = useAppReady();
   const { orders, isOrdersLoading, loadOrders } = useAppStore(state => ({
     orders: state.orders,
     isOrdersLoading: state.isOrdersLoading,
     loadOrders: state.loadOrders,
   }));
-  
+
   useEffect(() => {
     if (appReady) {
       loadOrders();
     }
   }, [appReady, loadOrders]);
 
+  // Build the list of months present in the data, most recent first.
+  const monthOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of orders) {
+      const k = monthKeyOf(o.createdAt);
+      if (k) set.add(k);
+    }
+    return Array.from(set).sort().reverse();
+  }, [orders]);
 
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
     return orders.filter(order =>
         (statusFilter === 'All' || order.status === statusFilter) &&
         (paymentFilter === 'All' || getPaymentStatus(order) === paymentFilter) &&
+        (monthFilter === 'All' || monthKeyOf(order.createdAt) === monthFilter) &&
         (
             order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (order.customerContact && order.customerContact.includes(searchTerm))
         )
     ).sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
-  }, [orders, searchTerm, appReady, statusFilter, paymentFilter]);
+  }, [orders, searchTerm, appReady, statusFilter, paymentFilter, monthFilter]);
 
   if (!appReady) {
     return (
@@ -303,15 +323,29 @@ export default function OrdersPage() {
 
       <Card className="mb-6">
         <CardContent className="p-4 space-y-4">
-          <div className="relative flex-grow w-full">
-            <Input
-              type="search"
-              placeholder="Search by Order ID, Customer Name, or Contact..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-grow">
+              <Input
+                type="search"
+                placeholder="Search by Order ID, Customer Name, or Contact..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            </div>
+            <Select value={monthFilter} onValueChange={setMonthFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All time</SelectItem>
+                {monthOptions.map(m => (
+                  <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
            <div className="flex flex-wrap gap-2 items-center">
              <span className="text-sm font-medium text-muted-foreground mr-2 flex items-center"><Filter className="w-4 h-4 mr-1"/>Status:</span>

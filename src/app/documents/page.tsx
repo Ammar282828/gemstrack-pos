@@ -698,9 +698,19 @@ async function importShopifyCSV(
   return imported;
 }
 
+function monthKeyOf(iso: string | undefined): string {
+  return (iso || '').slice(0, 7); // "YYYY-MM"
+}
+function monthLabel(key: string): string {
+  if (!key) return '—';
+  const d = new Date(key + '-01T00:00:00');
+  return isNaN(d.getTime()) ? key : d.toLocaleString('default', { month: 'long', year: 'numeric' });
+}
+
 export default function DocumentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [monthFilter, setMonthFilter] = useState<string>('All');
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<{ rows: number; firstNames: string[] } | null>(null);
@@ -837,10 +847,23 @@ export default function DocumentsPage() {
     return [...orderDocs, ...invoiceDocs].sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
   }, [appReady, orders, generatedInvoices]);
 
+  // Months present in the data — most recent first
+  const monthOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of combinedDocuments) {
+      const k = monthKeyOf(d.createdAt);
+      if (k) set.add(k);
+    }
+    return Array.from(set).sort().reverse();
+  }, [combinedDocuments]);
 
   const filteredDocuments = useMemo(() => {
     let docs = combinedDocuments;
-    
+
+    if (monthFilter !== 'All') {
+      docs = docs.filter(doc => monthKeyOf(doc.createdAt) === monthFilter);
+    }
+
     if (dateRange?.from) {
       docs = docs.filter(doc => {
         const docDate = parseISO(doc.createdAt);
@@ -851,14 +874,14 @@ export default function DocumentsPage() {
 
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
-      docs = docs.filter(doc => 
+      docs = docs.filter(doc =>
         doc.id.toLowerCase().includes(lowerSearchTerm) ||
         (doc.customerName && doc.customerName.toLowerCase().includes(lowerSearchTerm))
       );
     }
-    
+
     return docs;
-  }, [combinedDocuments, dateRange, searchTerm]);
+  }, [combinedDocuments, dateRange, searchTerm, monthFilter]);
 
   const renderContent = (docs: DocumentType[]) => {
       if (isLoading) {
@@ -933,8 +956,8 @@ export default function DocumentsPage() {
 
       <Card className="mb-6">
         <CardContent className="p-4 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative flex-grow w-full">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-4 items-center">
+                <div className="relative">
                     <Input
                     type="search"
                     placeholder="Search by ID or Customer Name..."
@@ -944,7 +967,19 @@ export default function DocumentsPage() {
                     />
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 </div>
-                <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full md:w-auto md:justify-self-end" />
+                <Select value={monthFilter} onValueChange={setMonthFilter}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                        <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder="Month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="All">All time</SelectItem>
+                        {monthOptions.map(m => (
+                            <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full md:w-auto" />
             </div>
         </CardContent>
       </Card>
