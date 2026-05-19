@@ -220,10 +220,11 @@ export default function ViewInvoicePage() {
         const metalDisplay = `${metalTypeName}${karat}${weightPart}`;
         
         const mainTitle = `${item.name}`;
+        const sizeLine = item.size ? `Size: ${item.size}\n` : '';
         const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;
-        
+
         const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
-        const fullDescription = `${categoryTitle ? categoryTitle.toUpperCase() + '\n' : ''}${mainTitle}\n${subTitle}${breakdownText ? `${breakdownText}` : ''}`;
+        const fullDescription = `${categoryTitle ? categoryTitle.toUpperCase() + '\n' : ''}${mainTitle}\n${sizeLine}${subTitle}${breakdownText ? `${breakdownText}` : ''}`;
 
         const itemData = [
             index + 1,

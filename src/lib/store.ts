@@ -408,6 +408,7 @@ export interface Product {
   isCustomPrice?: boolean;
   customPrice?: number;
   description?: string;
+  size?: string; // Optional ring/bracelet size (e.g. "10 Indian / 5 US"); free text
   silverRatePerGram?: number;
   shopifyProductId?: string;
   shopifyVariantId?: string;
@@ -436,6 +437,7 @@ export interface InvoiceItem {
   isCustomPrice?: boolean;
   isManualPrice?: boolean;
   itemCategory?: string;
+  size?: string; // Optional ring/bracelet size carried from product or order
 }
 
 export interface Payment {
@@ -508,6 +510,7 @@ export interface OrderItem {
   karigarId?: string;
   isManualPrice?: boolean;
   manualPrice?: number;
+  size?: string; // Optional ring/bracelet size (e.g. "10 Indian / 5 US"); free text
 }
 
 export interface Order {
@@ -707,6 +710,26 @@ export const staticCategories: Category[] = [
   { id: 'cat017', title: 'Gold Coins' },
   { id: 'cat018', title: "Men's Rings" },
 ];
+
+/**
+ * Categories whose products have a wearable size (rings, bracelets, bangles,
+ * and set categories that include either). UI prompts for an optional `size`
+ * field when a product or order item falls into one of these.
+ */
+export const SIZE_ELIGIBLE_CATEGORY_IDS: ReadonlySet<string> = new Set([
+  'cat001', // Rings
+  'cat005', // Bracelets
+  'cat006', // Bracelet and Ring Set
+  'cat007', // Bangles
+  'cat011', // Locket Set with Bangle
+  'cat014', // Stone Necklace Sets with Bracelets
+  'cat015', // Gold Necklace Sets with Bracelets
+  'cat018', // Men's Rings
+]);
+
+export function categoryNeedsSize(categoryId?: string): boolean {
+  return !!categoryId && SIZE_ELIGIBLE_CATEGORY_IDS.has(categoryId);
+}
 
 export const LOG_EVENT_TYPES = ['product', 'customer', 'karigar', 'invoice', 'order', 'expense'] as const;
 export type LogEventType = 
@@ -1709,6 +1732,7 @@ export const useAppStore = create<AppState>()(
                 miscCharges: item.miscChargesIfAny,
                 stoneDetails: item.stoneDetails,
                 diamondDetails: item.diamondDetails,
+                size: item.size,
                 // Restore manual price override — without this the price gets
                 // recalculated from metal weights giving a different (or zero) total.
                 isCustomPrice: hasManualPrice,
@@ -1813,6 +1837,7 @@ export const useAppStore = create<AppState>()(
                     if (cartItem.karat) itemToAdd.karat = cartItem.karat;
                     if (cartItem.stoneDetails) itemToAdd.stoneDetails = cartItem.stoneDetails;
                     if (cartItem.diamondDetails) itemToAdd.diamondDetails = cartItem.diamondDetails;
+                    if (cartItem.size) itemToAdd.size = cartItem.size;
                     if (cartItem.isCustomPrice) itemToAdd.isCustomPrice = true;
 
                     invoiceItems.push(cleanObject(itemToAdd as InvoiceItem));
@@ -2699,6 +2724,7 @@ export const useAppStore = create<AppState>()(
                 miscChargesIfAny: 0,
                 stoneDetails: originalItem.stoneDetails,
                 diamondDetails: originalItem.diamondDetails,
+                ...(originalItem.size && { size: originalItem.size }),
                 ...(finalizedData.isManualPrice && { isManualPrice: true }),
                 ...(originalItem.itemCategory && { itemCategory: originalItem.itemCategory }),
             };

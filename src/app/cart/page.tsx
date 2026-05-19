@@ -718,9 +718,10 @@ export default function CartPage() {
         const metalDisplay = `${metalTypeName}${karat}${weightPart}`;
         
         const mainTitle = `${item.name}`;
+        const sizeLine = item.size ? `Size: ${item.size}\n` : '';
         const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;
         const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
-        const fullDescription = `${categoryTitle ? categoryTitle.toUpperCase() + '\n' : ''}${mainTitle}\n${subTitle}${breakdownText ? `${breakdownText}` : ''}`;
+        const fullDescription = `${categoryTitle ? categoryTitle.toUpperCase() + '\n' : ''}${mainTitle}\n${sizeLine}${subTitle}${breakdownText ? `${breakdownText}` : ''}`;
 
         const itemData = [
             index + 1,
@@ -999,6 +1000,7 @@ export default function CartPage() {
                                 <TableRow key={item.sku ?? index}>
                                     <TableCell>
                                         <div className="font-medium">{item.name}</div>
+                                        {item.size && <div className="text-xs text-muted-foreground">Size: {item.size}</div>}
                                         <div className="text-xs text-muted-foreground">{item.sku}</div>
                                     </TableCell>
                                     <TableCell className="text-right font-medium">PKR {item.itemTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
@@ -1291,6 +1293,7 @@ export default function CartPage() {
                                         <TableRow key={item.sku}>
                                             <TableCell>
                                                 <p className="font-medium">{item.name}</p>
+                                                {item.size && <p className="text-xs text-muted-foreground">Size: {item.size}</p>}
                                                 <p className="text-xs text-muted-foreground">{item.sku}</p>
                                                 {item.metalType === 'silver' && item.isCustomPrice && (
                                                     <p className="text-xs text-amber-600 font-medium">Manual: PKR {item.customPrice?.toLocaleString()}</p>

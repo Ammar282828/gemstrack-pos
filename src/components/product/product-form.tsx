@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID } from '@/lib/store';
+import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, categoryNeedsSize } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem, Info, Upload, Loader2, CaseSensitive } from 'lucide-react';
@@ -56,6 +56,8 @@ const productFormSchema = z.object({
   isCustomPrice: z.boolean().default(true),
   customPrice: z.coerce.number().min(0).optional(),
   description: z.string().optional(),
+  // Optional size for rings / bracelets / similar (e.g. "10 Indian / 5 US")
+  size: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.isCustomPrice) {
     if (!data.description || data.description.length < 3) {
@@ -122,6 +124,7 @@ const getSafeDefaultValues = (p?: Product): ProductFormData => {
       isCustomPrice: p ? (p.isCustomPrice ?? false) : true,
       customPrice: p?.customPrice || 0,
       description: p?.description || '',
+      size: p?.size || '',
     };
 };
 
@@ -330,8 +333,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           </FormItem>
                         )}
                       />
+                      {categoryNeedsSize(selectedCategoryId) && (
+                        <FormField
+                          control={form.control} name="size"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Size <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
+                              <FormControl>
+                                <Input placeholder='e.g. "10 Indian / 5 US"' {...field} value={field.value || ''} />
+                              </FormControl>
+                              <FormDescription>Leave blank if not applicable.</FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
                   </div>
-                  
+
                   {/* Manual Price Section (Primary) */}
                   {isCustomPrice && (
                     <div className="space-y-6 p-4 border rounded-md bg-muted/30">

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -65,6 +65,8 @@ const orderItemSchema = z.object({
   karigarId: z.string().optional(),
   isManualPrice: z.boolean().default(true),
   manualPrice: z.coerce.number().min(0).default(0),
+  // Optional size (e.g. "10 Indian / 5 US") for rings, bracelets and similar items
+  size: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.isManualPrice) {
     if (data.manualPrice <= 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Manual price must be greater than 0", path: ['manualPrice'] });
@@ -651,6 +653,17 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                     )}/>
                                 </div>
                             </div>
+
+                            {categoryNeedsSize(form.watch(`items.${index}.itemCategory`)) && (
+                                <FormField control={form.control} name={`items.${index}.size`} render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Size <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
+                                        <FormControl><Input placeholder='e.g. "10 Indian / 5 US"' {...field} value={field.value || ''} /></FormControl>
+                                        <FormDescription>Leave blank if not applicable.</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                            )}
 
                             {/* Metal + Karat — always visible so they are recorded even in manual price mode */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
