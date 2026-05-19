@@ -23,11 +23,11 @@ import {
 import { Separator } from '@/components/ui/separator';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-// Ammar has been with the business since the very beginning, so HIS account
-// uses no cutoff — all expenses and all revenue from day one count toward
-// his hisaab. Mina's page applies her own cutoffs because she joined later.
-const EXPENSE_CUTOFF = '0000-01-01';
-const REVENUE_CUTOFF = '0000-01-01';
+// Aligned with Mina's account — the partnership formally began on these dates
+// (Jul 2, 2025 for expenses, Jul 16, 2025 for revenue with Shopify #1103).
+// Pre-partnership activity is excluded from both partners' accounts.
+const EXPENSE_CUTOFF = '2025-07-02';
+const REVENUE_CUTOFF = '2025-07-16';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -302,7 +302,7 @@ export default function AmmarAccountPage() {
           <HandCoins className="w-6 h-6" /> Ammar&apos;s Account
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          All expenses and revenue from the start &middot; 50% partner share
+          Expenses from Jul 2, 2025 &middot; Revenue (50%) from Shopify #1103
         </p>
       </div>
 
