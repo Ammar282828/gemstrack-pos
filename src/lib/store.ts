@@ -734,27 +734,60 @@ const LOOSE_BRACELET_SIZES: string[] = (() => {
 })();
 const NECKLACE_SIZES: string[] = ['14"', '16"', '18"', '20"', '22"', '24"', '26"', '28"', '30"'];
 
-export interface SizeScale {
+export type SizeScalePart = {
+  key: string;       // 'ring' | 'bangle' | etc — used as the prefix in the combined string
   label: string;
   options: string[];
-}
+};
+
+export type SizeScale =
+  | { label: string; options: string[] }                  // single-dropdown
+  | { label: string; parts: SizeScalePart[] };            // multi-part (e.g. ring + bangle)
 
 /** Per-category size scale. If a category isn't in this map, the size input
  * falls back to a free-text field (when SIZE_ELIGIBLE_CATEGORY_IDS includes it). */
 export const SIZE_SCALES: Record<string, SizeScale> = {
   'cat001': { label: 'Indian ring size (0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
   'cat018': { label: 'Indian ring size (0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
-  'cat009': { label: 'Band size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
-  'cat005': { label: 'Bracelet size (1.1–3.0)',      options: BRACELET_BANGLE_SIZES },
-  'cat006': { label: 'Bracelet size (1.1–3.0)',      options: BRACELET_BANGLE_SIZES },
-  'cat007': { label: 'Bangle size (1.1–3.0)',        options: BRACELET_BANGLE_SIZES },
-  'cat011': { label: 'Bangle size (1.1–3.0)',        options: BRACELET_BANGLE_SIZES },
-  'cat014': { label: 'Bracelet size (1.1–3.0)',      options: BRACELET_BANGLE_SIZES },
-  'cat015': { label: 'Bracelet size (1.1–3.0)',      options: BRACELET_BANGLE_SIZES },
-  'cat019': { label: 'Loose bracelet (inches)',      options: LOOSE_BRACELET_SIZES },
-  'cat010': { label: 'Necklace length (inches)',     options: NECKLACE_SIZES },
-  'cat012': { label: 'String length (inches)',       options: NECKLACE_SIZES },
+  'cat009': { label: 'Band size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
+  'cat010': { label: 'Ring size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
+  'cat005': { label: 'Bracelet size (1.1–3.0)',                 options: BRACELET_BANGLE_SIZES },
+  'cat006': { label: 'Bracelet size (1.1–3.0)',                 options: BRACELET_BANGLE_SIZES },
+  'cat007': { label: 'Bangle size (1.1–3.0)',                   options: BRACELET_BANGLE_SIZES },
+  'cat014': { label: 'Bracelet size (1.1–3.0)',                 options: BRACELET_BANGLE_SIZES },
+  'cat015': { label: 'Bracelet size (1.1–3.0)',                 options: BRACELET_BANGLE_SIZES },
+  'cat019': { label: 'Loose bracelet (inches)',                 options: LOOSE_BRACELET_SIZES },
+  'cat012': { label: 'String length (inches)',                  options: NECKLACE_SIZES },
+  'cat011': {
+    label: 'Ring + Bangle size',
+    parts: [
+      { key: 'Ring',   label: 'Ring size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
+      { key: 'Bangle', label: 'Bangle size (1.1–3.0)',              options: BRACELET_BANGLE_SIZES },
+    ],
+  },
 };
+
+export function isMultiPartScale(s: SizeScale | undefined): s is { label: string; parts: SizeScalePart[] } {
+  return !!s && 'parts' in s;
+}
+
+/** Compose a combined size string from a multi-part scale's values.
+ *  e.g. { Ring: "10", Bangle: "2.4" } → "Ring: 10 · Bangle: 2.4" */
+export function composeMultiSize(values: Record<string, string>): string {
+  const filled = Object.entries(values).filter(([_, v]) => v && v.trim());
+  return filled.map(([k, v]) => `${k}: ${v}`).join(' · ');
+}
+
+/** Parse "Ring: 10 · Bangle: 2.4" → { Ring: "10", Bangle: "2.4" } */
+export function parseMultiSize(value: string | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!value) return out;
+  for (const chunk of value.split('·')) {
+    const m = chunk.match(/^\s*([^:]+?)\s*:\s*(.+?)\s*$/);
+    if (m) out[m[1]] = m[2];
+  }
+  return out;
+}
 
 /**
  * Categories whose products have a wearable size. Auto-derived from

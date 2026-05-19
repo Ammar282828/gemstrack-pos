@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -661,11 +661,52 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                 return (
                                     <FormField control={form.control} name={`items.${index}.size`} render={({ field }) => {
                                         const current = field.value || '';
-                                        const isCustom = !!current && !scale?.options.includes(current);
+
+                                        if (isMultiPartScale(scale)) {
+                                            const parsed = parseMultiSize(current);
+                                            const setPart = (key: string, val: string) => {
+                                                const next = { ...parsed, [key]: val };
+                                                field.onChange(composeMultiSize(next));
+                                            };
+                                            return (
+                                                <FormItem>
+                                                    <FormLabel>{scale.label} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        {scale.parts.map(part => {
+                                                            const value = parsed[part.key] || '';
+                                                            const isCustom = !!value && !part.options.includes(value);
+                                                            return (
+                                                                <div key={part.key}>
+                                                                    <Label className="text-xs text-muted-foreground">{part.label}</Label>
+                                                                    <Select
+                                                                        value={isCustom ? '__custom__' : value}
+                                                                        onValueChange={(v) => setPart(part.key, v === '__custom__' ? value : v === '__none__' ? '' : v)}
+                                                                    >
+                                                                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="__none__">— None —</SelectItem>
+                                                                            {part.options.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                                                            <SelectItem value="__custom__">Other…</SelectItem>
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                    {isCustom && (
+                                                                        <Input className="mt-2" placeholder={`Custom ${part.label.toLowerCase()}`} value={value} onChange={e => setPart(part.key, e.target.value)} />
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <FormDescription>Leave either blank if not applicable.</FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            );
+                                        }
+
+                                        const isCustom = scale && 'options' in scale && !!current && !scale.options.includes(current);
                                         return (
                                             <FormItem>
-                                                <FormLabel>{scale?.label || 'Size'} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
-                                                {scale ? (
+                                                <FormLabel>{(scale && 'label' in scale ? scale.label : 'Size')} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
+                                                {scale && 'options' in scale ? (
                                                     <>
                                                         <Select
                                                             value={isCustom ? '__custom__' : current}

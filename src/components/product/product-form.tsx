@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, categoryNeedsSize, sizeScaleFor } from '@/lib/store';
+import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem, Info, Upload, Loader2, CaseSensitive } from 'lucide-react';
@@ -340,11 +340,54 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                             control={form.control} name="size"
                             render={({ field }) => {
                               const current = field.value || '';
-                              const isCustom = !!current && !scale?.options.includes(current);
+
+                              // Multi-part scale (e.g. cat011: Ring + Bangle)
+                              if (isMultiPartScale(scale)) {
+                                const parsed = parseMultiSize(current);
+                                const setPart = (key: string, val: string) => {
+                                  const next = { ...parsed, [key]: val };
+                                  field.onChange(composeMultiSize(next));
+                                };
+                                return (
+                                  <FormItem className="md:col-span-2">
+                                    <FormLabel>{scale.label} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                      {scale.parts.map(part => {
+                                        const value = parsed[part.key] || '';
+                                        const isCustom = !!value && !part.options.includes(value);
+                                        return (
+                                          <div key={part.key}>
+                                            <Label className="text-xs text-muted-foreground">{part.label}</Label>
+                                            <Select
+                                              value={isCustom ? '__custom__' : value}
+                                              onValueChange={(v) => setPart(part.key, v === '__custom__' ? value : v === '__none__' ? '' : v)}
+                                            >
+                                              <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="__none__">— None —</SelectItem>
+                                                {part.options.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                                <SelectItem value="__custom__">Other…</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                            {isCustom && (
+                                              <Input className="mt-2" placeholder={`Custom ${part.label.toLowerCase()}`} value={value} onChange={e => setPart(part.key, e.target.value)} />
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    <FormDescription>Leave either blank if not applicable.</FormDescription>
+                                    <FormMessage />
+                                  </FormItem>
+                                );
+                              }
+
+                              // Single-dropdown scale
+                              const isCustom = scale && 'options' in scale && !!current && !scale.options.includes(current);
                               return (
                                 <FormItem>
-                                  <FormLabel>{scale?.label || 'Size'} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
-                                  {scale ? (
+                                  <FormLabel>{(scale && 'label' in scale ? scale.label : 'Size')} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
+                                  {scale && 'options' in scale ? (
                                     <>
                                       <Select
                                         value={isCustom ? '__custom__' : current}
