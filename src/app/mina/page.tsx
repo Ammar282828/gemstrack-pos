@@ -23,6 +23,8 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { calculateDistribution, partnerBalance, categorise, type LedgerCategory, type LedgerEntry } from '@/lib/partnership';
+import { WorkingCapitalFloor } from '@/components/partnership/working-capital-floor';
+import { DEFAULT_WORKING_CAPITAL_FLOOR } from '@/lib/partnership-settings';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -225,7 +227,7 @@ export default function MinaAccountPage() {
 
   // ── Distribution calculator state ──────────────────────────────────────────
   const [calcCash, setCalcCash] = useState('');
-  const [calcFloor, setCalcFloor] = useState('500000');
+  const [calcFloor, setCalcFloor] = useState<number>(DEFAULT_WORKING_CAPITAL_FLOOR);
 
   // ── Cross-partner ledger (Ammar) — needed for distribution waterfall ───────
   const [ammarBuckets, setAmmarBuckets] = useState({ equityIn: 0, loanIn: 0, equityOut: 0, loanOut: 0 });
@@ -356,7 +358,7 @@ export default function MinaAccountPage() {
   // Distribution waterfall against a hypothetical cash amount.
   const distribution = calculateDistribution(
     Math.max(0, Number(calcCash) || 0),
-    Math.max(0, Number(calcFloor) || 0),
+    Math.max(0, calcFloor || 0),
     [
       { name: 'Mina',  loanBalance: balances.loanBalance,      equityBalance: balances.equityBalance,      netPnL: balances.netPnL },
       { name: 'Ammar', loanBalance: ammarBalances.loanBalance, equityBalance: ammarBalances.equityBalance, netPnL: ammarBalances.netPnL },
@@ -491,15 +493,12 @@ export default function MinaAccountPage() {
               <CardDescription>If the business had cash to distribute, here&apos;s how it would flow through the waterfall (loans repaid first, then split equally).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
                 <div className="space-y-1.5">
                   <Label className="text-sm">Business cash available (PKR)</Label>
                   <Input type="number" placeholder="e.g. 2,000,000" value={calcCash} onChange={e => setCalcCash(e.target.value)} min={0} />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm">Working capital floor (PKR)</Label>
-                  <Input type="number" value={calcFloor} onChange={e => setCalcFloor(e.target.value)} min={0} />
-                </div>
+                <WorkingCapitalFloor onFloorChange={setCalcFloor} setBy="Mina" />
               </div>
 
               <div className="rounded-md border bg-muted/30 p-3 space-y-2 text-sm">
