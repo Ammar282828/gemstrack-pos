@@ -21,6 +21,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { calculateDistribution, partnerBalance, categorise, type LedgerCategory, type LedgerEntry } from '@/lib/partnership';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -48,6 +50,7 @@ interface Payment {
   description: string;
   amount: number;
   date: Date;
+  category: LedgerCategory; // 'equity' (capital contribution) or 'loan' (lent to business)
 }
 
 // ─── Collapsible Section ─────────────────────────────────────────────────────
@@ -146,6 +149,9 @@ export default function MinaAccountPage() {
           description: data.description,
           amount: data.amount,
           date: toDate(data.date),
+          // Historical entries without a category default to 'equity' — they were
+          // logged before the loan vs equity distinction existed.
+          category: (data.category === 'loan' ? 'loan' : 'equity'),
         };
         if (data.type === 'payment') paymentRows.push(row);
         else if (data.type === 'withdrawal') withdrawalRows.push(row);
@@ -166,6 +172,7 @@ export default function MinaAccountPage() {
   const [payDesc, setPayDesc] = useState('');
   const [payAmount, setPayAmount] = useState('');
   const [payDate, setPayDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [payCategory, setPayCategory] = useState<LedgerCategory>('equity');
   const [paySaving, setPaySaving] = useState(false);
 
   const handleAddPayment = async (e: React.FormEvent) => {
@@ -179,6 +186,7 @@ export default function MinaAccountPage() {
     try {
       await addDoc(collection(db, 'mina_ledger'), {
         type: 'payment',
+        category: payCategory,
         description: payDesc.trim(),
         amount: amt,
         date: Timestamp.fromDate(new Date(payDate)),
@@ -188,6 +196,7 @@ export default function MinaAccountPage() {
       setPayDesc('');
       setPayAmount('');
       setPayDate(new Date().toISOString().split('T')[0]);
+      setPayCategory('equity');
       loadPayments();
     } catch {
       toast({ title: 'Failed to save', variant: 'destructive' });
@@ -211,7 +220,34 @@ export default function MinaAccountPage() {
   const [wdDesc, setWdDesc] = useState('');
   const [wdAmount, setWdAmount] = useState('');
   const [wdDate, setWdDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [wdCategory, setWdCategory] = useState<LedgerCategory>('equity');
   const [wdSaving, setWdSaving] = useState(false);
+
+  // ── Distribution calculator state ──────────────────────────────────────────
+  const [calcCash, setCalcCash] = useState('');
+  const [calcFloor, setCalcFloor] = useState('500000');
+
+  // ── Cross-partner ledger (Ammar) — needed for distribution waterfall ───────
+  const [ammarBuckets, setAmmarBuckets] = useState({ equityIn: 0, loanIn: 0, equityOut: 0, loanOut: 0 });
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'ammar_ledger'), orderBy('date', 'desc')));
+        let equityIn = 0, loanIn = 0, equityOut = 0, loanOut = 0;
+        for (const d of snap.docs) {
+          const data = d.data();
+          const amt = Number(data.amount) || 0;
+          const cat: LedgerCategory = data.category === 'loan' ? 'loan' : 'equity';
+          if (data.type === 'payment') {
+            if (cat === 'loan') loanIn += amt; else equityIn += amt;
+          } else if (data.type === 'withdrawal') {
+            if (cat === 'loan') loanOut += amt; else equityOut += amt;
+          }
+        }
+        setAmmarBuckets({ equityIn, loanIn, equityOut, loanOut });
+      } catch { /* silent — calculator just shows Mina-only if Ammar's ledger is unavailable */ }
+    })();
+  }, [payments, withdrawals]);
 
   const handleAddWithdrawal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,6 +260,7 @@ export default function MinaAccountPage() {
     try {
       await addDoc(collection(db, 'mina_ledger'), {
         type: 'withdrawal',
+        category: wdCategory,
         description: wdDesc.trim(),
         amount: amt,
         date: Timestamp.fromDate(new Date(wdDate)),
@@ -233,6 +270,7 @@ export default function MinaAccountPage() {
       setWdDesc('');
       setWdAmount('');
       setWdDate(new Date().toISOString().split('T')[0]);
+      setWdCategory('equity');
       loadPayments();
     } catch {
       toast({ title: 'Failed to save', variant: 'destructive' });
@@ -305,9 +343,29 @@ export default function MinaAccountPage() {
   const totalPayments = payments.reduce((s, p) => s + p.amount, 0);
   const totalWithdrawals = withdrawals.reduce((s, w) => s + w.amount, 0);
 
-  // Positive = Mina owes business, Negative = business owes Mina
-  // Payments (cash IN to business from Mina) reduce her debt.
-  // Withdrawals (cash OUT to Mina from business) increase her debt.
+  // Bucketed view — equity vs loan
+  const buckets = categorise(
+    payments as unknown as LedgerEntry[],
+    withdrawals as unknown as LedgerEntry[],
+  );
+  const balances = partnerBalance(buckets, minaExpShare, minaRevShare);
+
+  // Other partner (Ammar) — both partners share equally in P&L (50/50).
+  const ammarBalances = partnerBalance(ammarBuckets, minaExpShare, minaRevShare);
+
+  // Distribution waterfall against a hypothetical cash amount.
+  const distribution = calculateDistribution(
+    Math.max(0, Number(calcCash) || 0),
+    Math.max(0, Number(calcFloor) || 0),
+    [
+      { name: 'Mina',  loanBalance: balances.loanBalance,      equityBalance: balances.equityBalance,      netPnL: balances.netPnL },
+      { name: 'Ammar', loanBalance: ammarBalances.loanBalance, equityBalance: ammarBalances.equityBalance, netPnL: ammarBalances.netPnL },
+    ],
+  );
+
+  // Positive = Mina owes business, Negative = business owes Mina (legacy formula
+  // retained for the historic top-line indicator). totalClaim from balances is
+  // the new authoritative "net owed to Mina" number (same magnitude, opposite sign).
   const balance = minaExpShare - minaRevShare - totalPayments + totalWithdrawals;
 
   const isLoading = isExpensesLoading || isInvoicesLoading || isOrdersLoading || isAdditionalRevenueLoading || paymentsLoading;
@@ -393,6 +451,116 @@ export default function MinaAccountPage() {
           <p className="text-xs text-muted-foreground -mt-2 px-1">
             Balance = 50% Expenses &minus; 50% Revenue &minus; Payments + Withdrawals
           </p>
+
+          {/* ── Three-bucket breakdown (loan vs equity vs P&L) ── */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Three-bucket view</CardTitle>
+              <CardDescription>Mina&apos;s claim against the business, split into its components.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center sm:text-left">
+                <div className="p-3 rounded-md bg-blue-50 dark:bg-blue-950/30">
+                  <p className="text-[11px] text-blue-700 dark:text-blue-300 uppercase tracking-wide font-semibold">Loan account</p>
+                  <p className="text-lg font-bold tabular-nums text-blue-700 dark:text-blue-300">{fmt(balances.loanBalance)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Paid first from business cash</p>
+                </div>
+                <div className="p-3 rounded-md bg-green-50 dark:bg-green-950/30">
+                  <p className="text-[11px] text-green-700 dark:text-green-300 uppercase tracking-wide font-semibold">Equity (capital)</p>
+                  <p className="text-lg font-bold tabular-nums text-green-700 dark:text-green-300">{fmt(balances.equityBalance)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Her stake in the partnership</p>
+                </div>
+                <div className="p-3 rounded-md bg-muted/40">
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">P&amp;L share</p>
+                  <p className={cn('text-lg font-bold tabular-nums', balances.netPnL >= 0 ? 'text-green-600' : 'text-red-600')}>{fmt(balances.netPnL)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{balances.netPnL >= 0 ? 'Her share of profit' : 'Her share of loss'}</p>
+                </div>
+              </div>
+              <Separator className="my-3" />
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Total business owes Mina:</span>
+                <span className={cn('text-lg font-bold tabular-nums', balances.totalClaim > 0 ? 'text-green-600' : balances.totalClaim < 0 ? 'text-orange-600' : 'text-foreground')}>{fmt(balances.totalClaim)}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ── Distribution Calculator ── */}
+          <Card className="border-dashed">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Distribution calculator</CardTitle>
+              <CardDescription>If the business had cash to distribute, here&apos;s how it would flow through the waterfall (loans repaid first, then split equally).</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Business cash available (PKR)</Label>
+                  <Input type="number" placeholder="e.g. 2,000,000" value={calcCash} onChange={e => setCalcCash(e.target.value)} min={0} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Working capital floor (PKR)</Label>
+                  <Input type="number" value={calcFloor} onChange={e => setCalcFloor(e.target.value)} min={0} />
+                </div>
+              </div>
+
+              <div className="rounded-md border bg-muted/30 p-3 space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Cash on hand</span><span className="tabular-nums">{fmt(distribution.cashOnHand)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">− Working capital floor</span><span className="tabular-nums">{fmt(distribution.workingCapitalFloor)}</span></div>
+                <Separator />
+                <div className="flex justify-between font-medium"><span>Distributable</span><span className="tabular-nums">{fmt(distribution.distributableCash)}</span></div>
+              </div>
+
+              {distribution.feasible ? (
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1">Step 1 — Repay loans</p>
+                    {distribution.perPartner.filter(p => p.loanRepayment > 0).length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic px-2">No outstanding loans</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {distribution.perPartner.filter(p => p.loanRepayment > 0).map(p => (
+                          <div key={p.name} className="flex justify-between text-sm px-2">
+                            <span>{p.name}</span>
+                            <span className="tabular-nums font-medium text-blue-700 dark:text-blue-300">{fmt(p.loanRepayment)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-1">Step 2 — Split remaining 50 / 50</p>
+                    {distribution.profitPoolTotal === 0 ? (
+                      <p className="text-sm text-muted-foreground italic px-2">Nothing left after loan repayments</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {distribution.perPartner.map(p => (
+                          <div key={p.name} className="flex justify-between text-sm px-2">
+                            <span>{p.name}</span>
+                            <span className="tabular-nums font-medium text-green-700 dark:text-green-300">{fmt(p.profitShare)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Total per partner</p>
+                    {distribution.perPartner.map(p => (
+                      <div key={p.name} className="flex justify-between text-base font-bold px-2">
+                        <span>{p.name}</span>
+                        <span className="tabular-nums">{fmt(p.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  {distribution.cashOnHand === 0
+                    ? 'Enter the current business cash to see how it would distribute.'
+                    : `Cash on hand (${fmt(distribution.cashOnHand)}) is below the working-capital floor — nothing to distribute right now.`}
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* ── Expenses (auto, read-only) ── */}
           <CollapsibleSection
@@ -536,7 +704,17 @@ export default function MinaAccountPage() {
                       onChange={e => setPayDate(e.target.value)}
                     />
                   </div>
-                  <div className="flex items-end">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Type</Label>
+                    <Select value={payCategory} onValueChange={(v) => setPayCategory(v as LedgerCategory)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="equity">Equity (capital contribution)</SelectItem>
+                        <SelectItem value="loan">Loan (to be repaid first)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="sm:col-span-2 flex items-end">
                     <Button type="submit" size="sm" disabled={paySaving} className="w-full">
                       {paySaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
                       Add Payment
@@ -632,7 +810,17 @@ export default function MinaAccountPage() {
                       onChange={e => setWdDate(e.target.value)}
                     />
                   </div>
-                  <div className="flex items-end">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Type</Label>
+                    <Select value={wdCategory} onValueChange={(v) => setWdCategory(v as LedgerCategory)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="equity">Equity draw (against capital)</SelectItem>
+                        <SelectItem value="loan">Loan repayment (received back)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="sm:col-span-2 flex items-end">
                     <Button type="submit" size="sm" disabled={wdSaving} className="w-full">
                       {wdSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
                       Add Withdrawal
