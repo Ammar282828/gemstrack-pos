@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertTitle } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 // Helper types for chart data
@@ -164,6 +165,13 @@ export default function AnalyticsPage() {
         topCustomers: [] as TopCustomerData[],
         totalExpenses: 0,
         expensesByCategory: [] as ExpenseByCategoryData[],
+        // ── Cash flow ───────────────────────────────────────────────────────
+        cashIn: 0,
+        cashInFromInvoicePayments: 0,
+        cashInFromOrderAdvances: 0,
+        cashInFromExtraRevenue: 0,
+        cashOut: 0,
+        netCashFlow: 0,
       };
 
     if (filteredInvoices.length === 0 && filteredOrders.length === 0 && filteredExpenses.length === 0 && filteredAdditionalRevenues.length === 0) {
@@ -348,9 +356,40 @@ export default function AnalyticsPage() {
     calcData.totalItemsSold = totalItemsSold;
     calcData.totalDiscounts = totalDiscounts;
 
+    // ── Cash flow ─────────────────────────────────────────────────────────
+    // Cash IN = invoice payments collected in this period + order advances
+    // received in this period + extra revenue logged in this period.
+    // Cash OUT = expenses paid in this period.
+    // We iterate ALL invoices (not just filteredInvoices) because a payment
+    // recorded in the date range may belong to an invoice created earlier.
+    let cashInFromInvoicePayments = 0;
+    const rangeFrom = dateRange?.from ? startOfDay(dateRange.from) : null;
+    const rangeTo = dateRange?.to ? endOfDay(dateRange.to) : (dateRange?.from ? endOfDay(new Date()) : null);
+    generatedInvoices.forEach(inv => {
+      if (!inv || inv.status === 'Refunded' || !Array.isArray(inv.paymentHistory)) return;
+      inv.paymentHistory.forEach(p => {
+        if (!p?.date) return;
+        const d = parseISO(p.date);
+        if (rangeFrom && rangeTo && !isWithinInterval(d, { start: rangeFrom, end: rangeTo })) return;
+        cashInFromInvoicePayments += Number(p.amount || 0);
+      });
+    });
+
+    const cashInFromOrderAdvances = filteredOrders.reduce((s, o) =>
+      s + (Number(o?.advancePayment) || 0) + (Number(o?.advanceInExchangeValue) || 0), 0);
+    const cashInFromExtraRevenue = filteredAdditionalRevenues.reduce((s, r) => s + (Number(r?.amount) || 0), 0);
+    const cashIn = cashInFromInvoicePayments + cashInFromOrderAdvances + cashInFromExtraRevenue;
+    const cashOut = calcData.totalExpenses; // every logged expense is cash out
+    calcData.cashIn = cashIn;
+    calcData.cashInFromInvoicePayments = cashInFromInvoicePayments;
+    calcData.cashInFromOrderAdvances = cashInFromOrderAdvances;
+    calcData.cashInFromExtraRevenue = cashInFromExtraRevenue;
+    calcData.cashOut = cashOut;
+    calcData.netCashFlow = cashIn - cashOut;
+
     return calcData;
 
-  }, [filteredInvoices, filteredOrders, filteredExpenses, filteredAdditionalRevenues, products, categories, customers]);
+  }, [filteredInvoices, filteredOrders, filteredExpenses, filteredAdditionalRevenues, products, categories, customers, generatedInvoices, dateRange]);
   
   const dailyBreakdown = useMemo(() => {
     if (!selectedDayData) return { invoices: [], products: [] };
@@ -649,6 +688,77 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* ── Cash Flow ── */}
+          {(() => {
+            const { cashIn, cashOut, netCashFlow, cashInFromInvoicePayments, cashInFromOrderAdvances, cashInFromExtraRevenue } = analyticsData;
+            const accrualVsCashGap = analyticsData.totalSales - cashIn;
+            return (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <DollarSign className="h-5 w-5" /> Cash Flow
+                  </CardTitle>
+                  <CardDescription>
+                    Actual money in vs out during this period. Different from revenue above — revenue counts what you&apos;ve <em>earned</em> (including future cash from open orders &amp; unpaid invoices). Cash flow counts only what physically moved.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                    <Card className="border-green-500/40">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Cash In</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-green-600" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-xl sm:text-2xl font-bold text-green-600">
+                          PKR {cashIn.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Invoice payments: PKR {cashInFromInvoicePayments.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          {cashInFromOrderAdvances > 0 && <> · Advances: PKR {cashInFromOrderAdvances.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>}
+                          {cashInFromExtraRevenue > 0 && <> · Extra: PKR {cashInFromExtraRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-red-500/40">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Cash Out</CardTitle>
+                        <TrendingDown className="h-4 w-4 text-destructive" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-xl sm:text-2xl font-bold text-destructive">
+                          PKR {cashOut.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Every expense paid in this period</p>
+                      </CardContent>
+                    </Card>
+                    <Card className={cn('col-span-2 lg:col-span-1', netCashFlow >= 0 ? 'border-green-600/40 bg-green-50/30 dark:bg-green-950/10' : 'border-red-600/40 bg-red-50/30 dark:bg-red-950/10')}>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Net Cash Flow</CardTitle>
+                        {netCashFlow >= 0
+                          ? <TrendingUp className="h-4 w-4 text-green-600" />
+                          : <TrendingDown className="h-4 w-4 text-destructive" />}
+                      </CardHeader>
+                      <CardContent>
+                        <div className={cn('text-xl sm:text-2xl font-bold', netCashFlow >= 0 ? 'text-green-700 dark:text-green-300' : 'text-destructive')}>
+                          {netCashFlow >= 0 ? '+' : '−'}PKR {Math.abs(netCashFlow).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {netCashFlow >= 0 ? 'Business gained cash in this period' : 'Business spent more cash than it took in'}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  {accrualVsCashGap > 0 && (
+                    <div className="mt-3 rounded-md border bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-200">
+                      <span className="font-semibold">PKR {accrualVsCashGap.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span> of recognised revenue is <em>not yet collected</em> — sitting as customer receivables and uninvoiced open orders. That gap is the difference between &ldquo;Total Revenue&rdquo; (accrual) and &ldquo;Cash In&rdquo;.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Yearly Performance Summary — not affected by date filter */}
           {yearlySummary.length > 0 && (
