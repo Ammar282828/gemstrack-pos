@@ -366,101 +366,58 @@ export default function AmmarAccountPage() {
         </div>
       ) : (
         <>
-          <Card className={cn(
-            'border-2',
-            balance > 0 ? 'border-orange-400 bg-orange-50 dark:bg-orange-950/20' :
-            balance < 0 ? 'border-green-500 bg-green-50 dark:bg-green-950/20' :
-                          'border-border'
-          )}>
-            <CardContent className="pt-6 pb-5">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Net Balance</p>
-                  <p className={cn(
-                    'text-4xl font-bold tabular-nums',
-                    balance > 0 ? 'text-orange-600 dark:text-orange-400' :
-                    balance < 0 ? 'text-green-600 dark:text-green-400' :
-                                  'text-foreground'
-                  )}>
-                    {fmt(balance)}
-                  </p>
-                  <p className={cn(
-                    'text-sm font-medium mt-1',
-                    balance > 0 ? 'text-orange-600 dark:text-orange-400' :
-                    balance < 0 ? 'text-green-600 dark:text-green-400' :
-                                  'text-muted-foreground'
-                  )}>
-                    {balance > 0 ? 'Ammar owes the business' :
-                     balance < 0 ? 'Business owes Ammar' :
-                                   'All settled'}
-                  </p>
-                </div>
-
-                <Separator className="sm:hidden" />
-
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center sm:text-right">
+          {/* ── Headline: one card, plain English ── */}
+          {(() => {
+            const claim = balances.totalClaim;
+            const positive = claim > 0;
+            const headline = positive ? 'Business owes you' : claim < 0 ? 'You owe the business' : 'All settled';
+            const color = positive ? 'border-green-500 bg-green-50 dark:bg-green-950/20'
+                       : claim < 0 ? 'border-orange-400 bg-orange-50 dark:bg-orange-950/20'
+                       : 'border-border';
+            const numColor = positive ? 'text-green-700 dark:text-green-300'
+                          : claim < 0 ? 'text-orange-600 dark:text-orange-400'
+                          : 'text-foreground';
+            return (
+              <Card className={cn('border-2', color)}>
+                <CardContent className="pt-6 pb-5 space-y-4">
                   <div>
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">50% Expenses</p>
-                    <p className="text-sm font-semibold text-red-600 dark:text-red-400 tabular-nums">{fmt(ammarExpShare)}</p>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{headline}</p>
+                    <p className={cn('text-4xl font-bold tabular-nums mt-1', numColor)}>{fmt(Math.abs(claim))}</p>
                   </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">50% Revenue</p>
-                    <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 tabular-nums">{fmt(ammarRevShare)}</p>
+                  <div className="border-t pt-3 space-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Loan you gave the business</span>
+                      <span className="tabular-nums text-green-700 dark:text-green-300">+ {fmt(balances.loanBalance)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Your equity stake (capital in)</span>
+                      <span className="tabular-nums text-green-700 dark:text-green-300">+ {fmt(balances.equityBalance)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Your share of the {balances.netPnL >= 0 ? 'profit' : 'loss'}</span>
+                      <span className={cn('tabular-nums', balances.netPnL >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400')}>
+                        {balances.netPnL >= 0 ? '+ ' : '− '}{fmt(balances.netPnL)}
+                      </span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between font-semibold">
+                      <span>{positive ? 'Net owed to you' : claim < 0 ? 'Net you owe' : 'Net'}</span>
+                      <span className={cn('tabular-nums', numColor)}>{fmt(Math.abs(claim))}</span>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Net Profit</p>
-                    <p className="text-sm font-semibold text-muted-foreground tabular-nums">{fmt(ammarRevShare - ammarExpShare)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Paid In</p>
-                    <p className="text-sm font-semibold text-green-600 dark:text-green-400 tabular-nums">{fmt(totalPayments)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Withdrawn</p>
-                    <p className="text-sm font-semibold text-orange-600 dark:text-orange-400 tabular-nums">{fmt(totalWithdrawals)}</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
-          <p className="text-xs text-muted-foreground -mt-2 px-1">
-            Balance = 50% Expenses &minus; 50% Revenue &minus; Payments + Withdrawals
-          </p>
+          {/* ── Show working — expenses, revenue, distribution calculator ── */}
+          <details className="group">
+            <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 select-none">
+              <ChevronRight className="w-4 h-4 group-open:rotate-90 transition-transform" />
+              Show working — expenses, revenue, distribution calculator
+            </summary>
+            <div className="space-y-3 mt-3">
 
-          {/* ── Three-bucket breakdown (loan vs equity vs P&L) ── */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Three-bucket view</CardTitle>
-              <CardDescription>Your claim against the business, split into its components.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center sm:text-left">
-                <div className="p-3 rounded-md bg-blue-50 dark:bg-blue-950/30">
-                  <p className="text-[11px] text-blue-700 dark:text-blue-300 uppercase tracking-wide font-semibold">Loan account</p>
-                  <p className="text-lg font-bold tabular-nums text-blue-700 dark:text-blue-300">{fmt(balances.loanBalance)}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Paid first from business cash</p>
-                </div>
-                <div className="p-3 rounded-md bg-green-50 dark:bg-green-950/30">
-                  <p className="text-[11px] text-green-700 dark:text-green-300 uppercase tracking-wide font-semibold">Equity (capital)</p>
-                  <p className="text-lg font-bold tabular-nums text-green-700 dark:text-green-300">{fmt(balances.equityBalance)}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Your stake in the partnership</p>
-                </div>
-                <div className="p-3 rounded-md bg-muted/40">
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">P&amp;L share</p>
-                  <p className={cn('text-lg font-bold tabular-nums', balances.netPnL >= 0 ? 'text-green-600' : 'text-red-600')}>{fmt(balances.netPnL)}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{balances.netPnL >= 0 ? 'Your share of profit' : 'Your share of loss'}</p>
-                </div>
-              </div>
-              <Separator className="my-3" />
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Total business owes Ammar:</span>
-                <span className={cn('text-lg font-bold tabular-nums', balances.totalClaim > 0 ? 'text-green-600' : balances.totalClaim < 0 ? 'text-orange-600' : 'text-foreground')}>{fmt(balances.totalClaim)}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ── Distribution Calculator ── */}
           <Card className="border-dashed">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Distribution calculator</CardTitle>
@@ -632,6 +589,9 @@ export default function AmmarAccountPage() {
               ))}
             </div>
           </CollapsibleSection>
+
+            </div>
+          </details>
 
           {/* ── Payments (manual: money Ammar puts INTO the business) ── */}
           <Card>
