@@ -121,8 +121,8 @@ export default function QuotationGenerator() {
                 });
                 
                 // Calculate aspect ratio to fit within 30x30 box while maintaining proportions
-                const maxWidth = 40;
-                const maxHeight = 30;
+                const maxWidth = 30;
+                const maxHeight = 20;
                 let width = img.width;
                 let height = img.height;
                 

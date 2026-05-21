@@ -69,7 +69,7 @@ async function generateInvoicePDF(
 
   function drawHeader(pageNum: number) {
     if (logoDataUrl) {
-      try { const h = 11; const w = h * STORE_LOGO_ASPECT; pdfDoc.addImage(logoDataUrl, logoFormat, margin, 8, w, h, undefined, 'FAST'); } catch (e) {}
+      try { const h = 8; const w = h * STORE_LOGO_ASPECT; pdfDoc.addImage(logoDataUrl, logoFormat, margin, 9, w, h, undefined, 'FAST'); } catch (e) {}
     }
     pdfDoc.setFont('helvetica', 'bold').setFontSize(14);
     pdfDoc.text('ESTIMATE', pageWidth - margin, 14, { align: 'right' });
@@ -267,7 +267,7 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   }
 
   function drawHeader(pageNum: number) {
-    if (logoDataUrl) { try { const h = 10; const w = h * STORE_LOGO_ASPECT; pdfDoc.addImage(logoDataUrl, logoFormat, margin, 7, w, h, undefined, 'FAST'); } catch (e) {} }
+    if (logoDataUrl) { try { const h = 8; const w = h * STORE_LOGO_ASPECT; pdfDoc.addImage(logoDataUrl, logoFormat, margin, 8, w, h, undefined, 'FAST'); } catch (e) {} }
     pdfDoc.setFont('helvetica', 'bold').setFontSize(14);
     pdfDoc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 14, { align: 'right' });
     pdfDoc.setLineWidth(0.4).line(margin, 22, pageWidth - margin, 22);

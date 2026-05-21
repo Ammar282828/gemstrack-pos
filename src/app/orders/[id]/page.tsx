@@ -775,8 +775,8 @@ export default function OrderDetailPage() {
     function drawHeader(pageNum: number) {
         if (logoDataUrl) {
             try {
-                const h = 10; const w = h * STORE_LOGO_ASPECT;
-                doc.addImage(logoDataUrl, logoFormat, margin, 7, w, h, undefined, 'FAST');
+                const h = 8; const w = h * STORE_LOGO_ASPECT;
+                doc.addImage(logoDataUrl, logoFormat, margin, 8, w, h, undefined, 'FAST');
             } catch (e) {
                 console.error("Error adding logo to Order Slip PDF:", e);
             }

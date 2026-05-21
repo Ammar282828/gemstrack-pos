@@ -628,9 +628,9 @@ export default function CartPage() {
     function drawHeader(pageNum: number) {
       if (logoDataUrl) {
         try {
-          const maxLogoH = 11;
+          const maxLogoH = 8;
           const logoH = maxLogoH;
-          const logoW = logoNaturalH > 0 ? maxLogoH * (logoNaturalW / logoNaturalH) : 54;
+          const logoW = logoNaturalH > 0 ? maxLogoH * (logoNaturalW / logoNaturalH) : 40;
           doc.addImage(logoDataUrl, logoFormat, margin, 8, logoW, logoH, undefined, 'FAST');
         } catch (e) {
           console.error("Error adding logo image to PDF:", e);
