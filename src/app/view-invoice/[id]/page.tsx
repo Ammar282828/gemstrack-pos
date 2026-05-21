@@ -101,7 +101,7 @@ export default function ViewInvoicePage() {
     const logoUrl = STORE_LOGO_URL;
     if (logoUrl) {
       try {
-        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`;
+        const proxyUrl = logoUrl.startsWith('/') ? logoUrl : `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`;
         const res = await fetch(proxyUrl);
         const blob = await res.blob();
         logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
@@ -126,9 +126,9 @@ export default function ViewInvoicePage() {
     function drawHeader(pageNum: number) {
         if (logoDataUrl) {
             try {
-                const maxLogoH = 14;
+                const maxLogoH = 11;
                 const logoH = maxLogoH;
-                const logoW = logoNaturalH > 0 ? maxLogoH * (logoNaturalW / logoNaturalH) : 45;
+                const logoW = logoNaturalH > 0 ? maxLogoH * (logoNaturalW / logoNaturalH) : 54;
                 pdfDoc.addImage(logoDataUrl, logoFormat, margin, 7, logoW, logoH, undefined, 'FAST');
             } catch (e) {
                 console.error("Error adding logo to PDF:", e);

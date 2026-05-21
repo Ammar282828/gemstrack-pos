@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -52,10 +52,10 @@ async function generateInvoicePDF(
 
   let logoDataUrl: string | null = null;
   let logoFormat = 'PNG';
-  const logoUrl = settings.shopLogoUrlBlack || settings.shopLogoUrl;
+  const logoUrl = STORE_LOGO_URL;
   if (logoUrl) {
     try {
-      const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(logoUrl)}`);
+      const res = await fetch(logoUrl.startsWith('/') ? logoUrl : `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`);
       const blob = await res.blob();
       logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
       logoDataUrl = await new Promise<string>((resolve, reject) => {
@@ -69,7 +69,7 @@ async function generateInvoicePDF(
 
   function drawHeader(pageNum: number) {
     if (logoDataUrl) {
-      try { pdfDoc.addImage(logoDataUrl, logoFormat, margin, 8, 35, 11, undefined, 'FAST'); } catch (e) {}
+      try { const h = 11; const w = h * STORE_LOGO_ASPECT; pdfDoc.addImage(logoDataUrl, logoFormat, margin, 8, w, h, undefined, 'FAST'); } catch (e) {}
     }
     pdfDoc.setFont('helvetica', 'bold').setFontSize(14);
     pdfDoc.text('ESTIMATE', pageWidth - margin, 14, { align: 'right' });
@@ -251,10 +251,10 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
 
   let logoDataUrl: string | null = null;
   let logoFormat = 'PNG';
-  const logoUrl = settings.shopLogoUrlBlack || settings.shopLogoUrl;
+  const logoUrl = STORE_LOGO_URL;
   if (logoUrl) {
     try {
-      const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(logoUrl)}`);
+      const res = await fetch(logoUrl.startsWith('/') ? logoUrl : `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`);
       const blob = await res.blob();
       logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
       logoDataUrl = await new Promise<string>((resolve, reject) => {
@@ -267,7 +267,7 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   }
 
   function drawHeader(pageNum: number) {
-    if (logoDataUrl) { try { pdfDoc.addImage(logoDataUrl, logoFormat, margin, 7, 32, 10, undefined, 'FAST'); } catch (e) {} }
+    if (logoDataUrl) { try { const h = 10; const w = h * STORE_LOGO_ASPECT; pdfDoc.addImage(logoDataUrl, logoFormat, margin, 7, w, h, undefined, 'FAST'); } catch (e) {} }
     pdfDoc.setFont('helvetica', 'bold').setFontSize(14);
     pdfDoc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 14, { align: 'right' });
     pdfDoc.setLineWidth(0.4).line(margin, 22, pageWidth - margin, 22);

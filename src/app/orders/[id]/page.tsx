@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -754,10 +754,10 @@ export default function OrderDetailPage() {
     
     let logoDataUrl: string | null = null;
     let logoFormat: string = 'PNG';
-    const logoUrl = settings.shopLogoUrlBlack || settings.shopLogoUrl;
+    const logoUrl = STORE_LOGO_URL;
     if (logoUrl) {
         try {
-            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`;
+            const proxyUrl = logoUrl.startsWith('/') ? logoUrl : `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`;
             const res = await fetch(proxyUrl);
             const blob = await res.blob();
             logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
@@ -775,7 +775,8 @@ export default function OrderDetailPage() {
     function drawHeader(pageNum: number) {
         if (logoDataUrl) {
             try {
-                doc.addImage(logoDataUrl, logoFormat, margin, 7, 32, 10, undefined, 'FAST');
+                const h = 10; const w = h * STORE_LOGO_ASPECT;
+                doc.addImage(logoDataUrl, logoFormat, margin, 7, w, h, undefined, 'FAST');
             } catch (e) {
                 console.error("Error adding logo to Order Slip PDF:", e);
             }
@@ -979,7 +980,7 @@ export default function OrderDetailPage() {
     <>
     <div className="container mx-auto py-8 px-4 space-y-6">
       <div style={{ display: 'none' }}>
-        <img id="shop-logo" src={settings?.shopLogoUrlBlack || settings?.shopLogoUrl || ''} crossOrigin="anonymous" alt="" />
+        <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" />
         <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
         <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
       </div>

@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useAppStore, MetalType, KaratValue } from '@/lib/store';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -108,7 +108,7 @@ export default function QuotationGenerator() {
         const margin = 14;
         
         // 1. Header Section (Logo & Shop Info)
-        const logoUrl = settings.shopLogoUrl || settings.shopLogoUrlBlack;
+        const logoUrl = STORE_LOGO_URL;
         
         if (logoUrl) {
             try {

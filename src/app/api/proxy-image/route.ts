@@ -12,11 +12,14 @@ export async function GET(request: NextRequest) {
     'https://firebasestorage.app/',
     'https://houseofmina.store/cdn/',
   ];
-  if (!ALLOWED_HOSTS.some(h => url.startsWith(h))) {
+  // Allow same-origin relative paths (e.g. /house-of-mina-logo.png in public/)
+  const isRelative = url.startsWith('/') && !url.startsWith('//');
+  if (!isRelative && !ALLOWED_HOSTS.some(h => url.startsWith(h))) {
     return NextResponse.json({ error: 'URL not allowed' }, { status: 403 });
   }
 
-  const response = await fetch(url);
+  const fetchUrl = isRelative ? new URL(url, request.nextUrl.origin).toString() : url;
+  const response = await fetch(fetchUrl);
   if (!response.ok) {
     return NextResponse.json({ error: 'Failed to fetch image' }, { status: response.status });
   }

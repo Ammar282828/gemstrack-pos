@@ -44,3 +44,10 @@ export const STORE_CONFIG = {
  * brand mark, sourced from houseofmina.store. Used on all generated PDFs.
  */
 export const STORE_LOGO_URL = '/house-of-mina-logo.png';
+
+/**
+ * Aspect ratio (width / height) of the locked brand logo.
+ * Source PNG is 3195×646. Use this to compute a draw width from a chosen
+ * max height in PDF generators so the logo never gets squashed.
+ */
+export const STORE_LOGO_ASPECT = 3195 / 646;

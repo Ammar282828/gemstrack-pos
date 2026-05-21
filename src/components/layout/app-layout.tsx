@@ -15,6 +15,7 @@ import { Home, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, T
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
+import { STORE_LOGO_URL } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -102,9 +103,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (!isStoreHydrated) return null;
 
-  const logoToUse = settings.theme === 'default'
-    ? settings.shopLogoUrlBlack || settings.shopLogoUrl
-    : settings.shopLogoUrl;
+  const logoToUse = STORE_LOGO_URL;
 
   const bottomNavItems = [
     { href: '/',       label: 'Home',   icon: <Home className="w-5 h-5" /> },
