@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
 import { useParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -98,7 +98,7 @@ export default function ViewInvoicePage() {
     let logoFormat: string = 'PNG';
     let logoNaturalW = 0;
     let logoNaturalH = 0;
-    const logoUrl = settings.shopLogoUrlBlack || settings.shopLogoUrl;
+    const logoUrl = STORE_LOGO_URL;
     if (logoUrl) {
       try {
         const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`;
@@ -387,7 +387,7 @@ export default function ViewInvoicePage() {
   return (
     <div className="bg-muted min-h-screen p-4 sm:p-8">
       <div style={{ display: 'none' }}>
-        <img id="shop-logo" src={settings?.shopLogoUrlBlack || settings?.shopLogoUrl || ''} crossOrigin="anonymous" alt="" />
+        <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" />
         <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
         <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
       </div>

@@ -16,7 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, ShoppingBag, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, ShoppingBag, RefreshCw, CheckCircle2, Lock } from 'lucide-react';
+import { STORE_LOGO_URL } from '@/lib/store-config';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -782,62 +783,27 @@ export default function SettingsPage() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormItem>
-                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Main Shop Logo (PNG/JPG)</FormLabel>
-                  <div className="space-y-2">
-                    <Button asChild variant="outline" className="relative">
-                      <div>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Image
-                        <Input
-                          type="file"
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                          accept="image/png, image/jpeg"
-                          onChange={(e) => handleImageUpload(e, 'shopLogoUrl')}
-                          disabled={isUploading['shopLogoUrl']}
-                        />
-                      </div>
-                    </Button>
-                    {isUploading['shopLogoUrl'] && uploadProgress['shopLogoUrl'] !== null && (
-                        <Progress value={uploadProgress['shopLogoUrl']} className="w-full h-2" />
-                    )}
-                    {mainLogoUrl && (
-                      <div className="p-2 border rounded-md w-fit bg-muted">
-                        <Image src={mainLogoUrl} alt="Main Logo Preview" width={150} height={40} className="object-contain max-h-12" unoptimized />
-                      </div>
-                    )}
-                  </div>
-                  <FormDescription>Upload your main logo. Recommended wide aspect ratio.</FormDescription>
-                </FormItem>
-                 <FormItem>
-                  <FormLabel className="text-base flex items-center"><ImageIcon className="mr-2 h-5 w-5" /> Invoice Logo (Black, PNG/JPG)</FormLabel>
-                  <div className="space-y-2">
-                    <Button asChild variant="outline" className="relative">
-                      <div>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Image
-                        <Input
-                          type="file"
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                          accept="image/png, image/jpeg"
-                          onChange={(e) => handleImageUpload(e, 'shopLogoUrlBlack')}
-                          disabled={isUploading['shopLogoUrlBlack']}
-                        />
-                      </div>
-                    </Button>
-                    {isUploading['shopLogoUrlBlack'] && uploadProgress['shopLogoUrlBlack'] !== null && (
-                        <Progress value={uploadProgress['shopLogoUrlBlack']} className="w-full h-2" />
-                    )}
-                    {blackLogoUrl && (
-                      <div className="p-2 border rounded-md w-fit bg-slate-800">
-                        <Image src={blackLogoUrl} alt="Invoice Logo Preview" width={150} height={40} className="object-contain max-h-12" unoptimized/>
-                      </div>
-                    )}
-                  </div>
-                  <FormDescription>Upload a monochrome black version for PDF invoices.</FormDescription>
-                </FormItem>
-              </div>
+              <FormItem>
+                <FormLabel className="text-base flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5" /> Brand Logo
+                  <span className="text-xs font-normal text-muted-foreground inline-flex items-center gap-1 ml-1">
+                    <Lock className="h-3 w-3" /> locked
+                  </span>
+                </FormLabel>
+                <div className="p-3 border rounded-md w-fit bg-muted">
+                  <Image
+                    src={STORE_LOGO_URL}
+                    alt="House of Mina brand logo"
+                    width={240}
+                    height={60}
+                    className="object-contain max-h-16"
+                    unoptimized
+                  />
+                </div>
+                <FormDescription>
+                  The official House of Mina wordmark (sourced from houseofmina.store). Ships with the app and is used on every generated invoice / estimate PDF. To change this, edit <code className="text-xs px-1 py-0.5 rounded bg-muted">STORE_LOGO_URL</code> in <code className="text-xs px-1 py-0.5 rounded bg-muted">src/lib/store-config.ts</code> and redeploy.
+                </FormDescription>
+              </FormItem>
               <FormField
                 control={form.control}
                 name="lastInvoiceNumber"

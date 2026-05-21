@@ -37,3 +37,10 @@ export const STORE_CONFIG = {
   // POS defaults
   defaultMetal:    (process.env.NEXT_PUBLIC_STORE_DEFAULT_METAL ?? 'silver') as 'silver' | 'gold',
 } as const;
+
+/**
+ * Official House of Mina logo. Lives in public/ so it ships with the build
+ * and cannot be changed at runtime via settings — this is the canonical
+ * brand mark, sourced from houseofmina.store. Used on all generated PDFs.
+ */
+export const STORE_LOGO_URL = '/house-of-mina-logo.png';
