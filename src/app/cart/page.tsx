@@ -669,12 +669,14 @@ export default function CartPage() {
     doc.setFontSize(8);
 
     let customerInfo = "Walk-in Customer";
-    if (invoiceToPrint.customerId && invoiceToPrint.customerName) {
-        const customer = customers.find(c => c.id === invoiceToPrint.customerId);
+    const customer = invoiceToPrint.customerId ? customers.find(c => c.id === invoiceToPrint.customerId) : null;
+    const phone = customer?.phone || invoiceToPrint.customerContact || '';
+    const email = customer?.email || '';
+    if (invoiceToPrint.customerName) {
         customerInfo = `${invoiceToPrint.customerName}\n`;
-        if (customer?.phone) customerInfo += `Phone: ${customer.phone}\n`;
-        if (customer?.email) customerInfo += `Email: ${customer.email}`;
     }
+    if (phone) customerInfo += `Phone: ${phone}\n`;
+    if (email) customerInfo += `Email: ${email}`;
     doc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.4 });
 
     let invoiceDetails = `Estimate #: ${invoiceToPrint.id}\n`;

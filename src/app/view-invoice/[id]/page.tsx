@@ -167,14 +167,16 @@ export default function ViewInvoicePage() {
     pdfDoc.setFontSize(8);
 
     let customerInfo = "Walk-in Customer";
+    const phone = customer?.phone || invoice.customerContact || '';
+    const email = customer?.email || '';
     if (customer) {
         customerInfo = `${customer.name}\n`;
         if (customer.address) customerInfo += `${customer.address}\n`;
-        if (customer.phone) customerInfo += `Phone: ${customer.phone}\n`;
-        if (customer.email) customerInfo += `Email: ${customer.email}`;
     } else if (invoice.customerName) {
-        customerInfo = invoice.customerName;
+        customerInfo = `${invoice.customerName}\n`;
     }
+    if (phone) customerInfo += `Phone: ${phone}\n`;
+    if (email) customerInfo += `Email: ${email}`;
     pdfDoc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.4 });
 
     let invoiceDetails = `Estimate #: ${invoice.id}\n`;

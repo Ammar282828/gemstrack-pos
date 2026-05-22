@@ -91,18 +91,16 @@ async function generateInvoicePDF(
   pdfDoc.setFont('helvetica', 'normal').setTextColor(0).setFontSize(8);
 
   let customerInfo = 'Walk-in Customer';
-  if (invoice.customerId) {
-    const customer = customers.find(c => c.id === invoice.customerId);
-    if (customer) {
-      customerInfo = customer.name;
-      if (customer.phone) customerInfo += `\nPhone: ${customer.phone}`;
-      if (customer.email) customerInfo += `\nEmail: ${customer.email}`;
-    } else if (invoice.customerName) {
-      customerInfo = invoice.customerName;
-    }
+  const customer = invoice.customerId ? customers.find(c => c.id === invoice.customerId) : null;
+  const phone = (customer?.phone) || invoice.customerContact || '';
+  const email = customer?.email || '';
+  if (customer) {
+    customerInfo = customer.name;
   } else if (invoice.customerName) {
     customerInfo = invoice.customerName;
   }
+  if (phone)  customerInfo += `\nPhone: ${phone}`;
+  if (email)  customerInfo += `\nEmail: ${email}`;
   pdfDoc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.4 });
   pdfDoc.text(`Estimate #: ${invoice.id}\nDate: ${new Date(invoice.createdAt).toLocaleDateString()}`, pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
 
