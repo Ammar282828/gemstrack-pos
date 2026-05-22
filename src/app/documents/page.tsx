@@ -764,13 +764,9 @@ export default function DocumentsPage() {
   const [sendingLinkId, setSendingLinkId] = useState<string | null>(null);
 
   const handleSendPaymentLink = async (invoice: Invoice) => {
-    // If there's already a checkout URL, copy it to clipboard
-    if (invoice.shopifyCheckoutUrl) {
-      await navigator.clipboard.writeText(invoice.shopifyCheckoutUrl);
-      toast({ title: 'Link Copied', description: 'Payment link copied to clipboard.' });
-      return;
-    }
-    // Otherwise, create a draft order and get the checkout URL
+    // Always re-POST so the draft order reflects the current invoice state
+    // (line items, totals, tax-exempt flag). The endpoint PUT-updates if the
+    // invoice already has a shopifyDraftOrderId, otherwise it creates one.
     setSendingLinkId(invoice.id);
     try {
       const res = await fetch('/api/shopify/push/draft-order', {
@@ -781,8 +777,11 @@ export default function DocumentsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create payment link');
       await navigator.clipboard.writeText(data.checkoutUrl);
-      toast({ title: 'Payment Link Created', description: 'Checkout link copied to clipboard. Share it with the customer via WhatsApp or SMS.' });
-      loadGeneratedInvoices(); // Refresh to pick up the new shopifyCheckoutUrl
+      toast({
+        title: invoice.shopifyCheckoutUrl ? 'Link Refreshed & Copied' : 'Payment Link Created',
+        description: 'Checkout link copied to clipboard. Share it with the customer via WhatsApp or SMS.',
+      });
+      loadGeneratedInvoices();
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {

@@ -329,6 +329,8 @@ export function buildShopifyOrderPayload(
     title: item.name || 'POS Item',
     price: ((item.itemTotal || 0) / (item.quantity || 1)).toFixed(2),
     quantity: item.quantity || 1,
+    // POS prices are the final all-in amount — never charge tax on top.
+    taxable: false,
     ...(item.sku && { sku: item.sku }),
   }));
   const tags = ['pos-import', `pos-inv-${invoice.id}`];
@@ -341,6 +343,8 @@ export function buildShopifyOrderPayload(
     order: {
       line_items: lineItems,
       financial_status: financialStatus,
+      tax_exempt: true,
+      taxes_included: true,
       note: `POS Invoice ${invoice.id}`,
       ...(opts.shopifyCustomerId && { customer: { id: Number(opts.shopifyCustomerId) } }),
       ...(invoice.discountAmount > 0 && {
@@ -431,9 +435,16 @@ export function mapInvoiceToDraftOrder(invoice: any, shopifyCustomerId?: string)
         title: item.name,
         price: (item.itemTotal / (item.quantity || 1)).toFixed(2),
         quantity: item.quantity || 1,
+        // Prices on POS invoices are already the all-in final amount —
+        // never let Shopify add tax on top at checkout.
+        taxable: false,
         ...(item.sku && { sku: item.sku }),
       })),
       ...(shopifyCustomerId && { customer: { id: Number(shopifyCustomerId) } }),
+      // Belt + suspenders: also flag the whole draft order tax-exempt
+      // so the checkout total matches the POS invoice exactly.
+      tax_exempt: true,
+      taxes_included: true,
       ...(invoice.discountAmount > 0 && {
         applied_discount: {
           value_type: 'fixed_amount',

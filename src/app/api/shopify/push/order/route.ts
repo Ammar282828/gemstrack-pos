@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
       title: item.name || 'POS Item',
       price: ((item.itemTotal || 0) / (item.quantity || 1)).toFixed(2),
       quantity: item.quantity || 1,
+      // POS prices are the final all-in amount — never charge tax on top.
+      taxable: false,
       ...(item.sku && { sku: item.sku }),
     }));
 
@@ -72,6 +74,8 @@ export async function POST(request: NextRequest) {
       order: {
         line_items: lineItems,
         financial_status: isPaid ? 'paid' : 'pending',
+        tax_exempt: true,
+        taxes_included: true,
         note: `POS Invoice ${invoiceId}`,
         ...(shopifyCustomer && { customer: shopifyCustomer }),
         ...(inv.discountAmount > 0 && {
