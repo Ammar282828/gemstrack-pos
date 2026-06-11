@@ -45,9 +45,12 @@ export default function CustomersAnalyticsPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredInvoices = useMemo(() => {
-    if (!dateRange || !dateRange.from) return generatedInvoices;
+    // Exclude refunded invoices so they don't inflate customer spend — matches
+    // the Analytics overview, which also drops Refunded invoices.
+    const base = generatedInvoices.filter(invoice => invoice?.status !== 'Refunded');
+    if (!dateRange || !dateRange.from) return base;
     const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
-    return generatedInvoices.filter(invoice => {
+    return base.filter(invoice => {
       if (!invoice?.createdAt) return false;
       const invoiceDate = parseISO(invoice.createdAt);
       return isWithinInterval(invoiceDate, { start: startOfDay(dateRange.from!), end: toDate });

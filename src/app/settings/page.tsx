@@ -28,6 +28,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Progress } from '@/components/ui/progress';
+import StandalonePhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
@@ -224,7 +226,7 @@ function NotificationsCard() {
             {/* Recipients */}
             <div className="space-y-3">
               <Label>Recipient WhatsApp Numbers</Label>
-              <p className="text-xs text-muted-foreground">International format, no + or spaces. E.g. <code className="bg-muted px-1 rounded">923262275554</code></p>
+              <p className="text-xs text-muted-foreground">Pick the country (defaults to Pakistan 🇵🇰) and enter the number — the country code is added automatically.</p>
 
               {/* Existing numbers */}
               {phones.length > 0 && (
@@ -245,13 +247,16 @@ function NotificationsCard() {
               )}
 
               {/* Add new number */}
-              <div className="flex gap-2">
-                <Input
-                  value={newPhone}
-                  onChange={e => setNewPhone(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAddPhone()}
-                  placeholder="923262275554"
-                  className="max-w-xs font-mono"
+              <div className="flex gap-2 items-center">
+                <StandalonePhoneInput
+                  value={newPhone || undefined}
+                  onChange={(val) => setNewPhone(val || '')}
+                  defaultCountry="PK"
+                  international
+                  countryCallingCodeEditable={false}
+                  placeholder="Enter WhatsApp number"
+                  className="flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none"
+                  onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPhone(); } }}
                 />
                 <Button variant="outline" size="sm" onClick={handleAddPhone} disabled={!newPhone}>
                   <Plus className="h-4 w-4 mr-1" /> Add

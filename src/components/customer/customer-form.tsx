@@ -11,20 +11,24 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAppStore, Customer } from '@/lib/store';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAppStore, Customer, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban } from 'lucide-react';
-import PhoneInput from 'react-phone-number-input/react-hook-form-input';
+import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { normalizePhoneNumber } from '@/lib/utils';
+
+const NO_SOURCE_VALUE = '__none__';
 
 const customerSchema = z.object({
   name: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
   address: z.string().optional(),
+  source: z.enum(CUSTOMER_SOURCES).optional(),
 });
 
 type CustomerFormData = z.infer<typeof customerSchema>;
@@ -49,11 +53,13 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
       phone: normalizePhoneNumber(customer.phone) || "",
       email: customer.email || "",
       address: customer.address || "",
+      source: customer.source,
     } : {
       name: '',
       phone: '',
       email: '',
       address: '',
+      source: undefined,
     },
   });
 
@@ -120,13 +126,13 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
                     <FormLabel>Phone Number (Optional)</FormLabel>
                     <FormControl>
                         <PhoneInput
-                            name={field.name}
-                            value={field.value}
-                            onChange={field.onChange}
+                            value={field.value || undefined}
+                            onChange={(val) => field.onChange(val || '')}
                             onBlur={field.onBlur}
-                            ref={field.ref}
                             defaultCountry="PK"
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                            international
+                            countryCallingCodeEditable={false}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none"
                         />
                     </FormControl>
                     <FormMessage />
@@ -155,6 +161,31 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
                   <FormControl>
                     <Textarea placeholder="Enter customer's address" {...field} rows={3} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="source"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>How did they find us? (Optional)</FormLabel>
+                  <Select
+                    value={field.value ?? NO_SOURCE_VALUE}
+                    onValueChange={(v) => field.onChange(v === NO_SOURCE_VALUE ? undefined : v)}
+                  >
+                    <FormControl>
+                      <SelectTrigger><SelectValue placeholder="Select a source" /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={NO_SOURCE_VALUE}>— Not specified —</SelectItem>
+                      {CUSTOMER_SOURCES.map((s) => (
+                        <SelectItem key={s} value={s}>{CUSTOMER_SOURCE_LABELS[s]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>Acquisition channel — used for walk-in &amp; referral analytics.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
