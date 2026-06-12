@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import QRCode from 'qrcode.react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import PhoneInput from 'react-phone-number-input/react-hook-form-input';
+import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
 
@@ -265,10 +265,13 @@ export default function PaymentMethodsPage() {
                                 <FormLabel>Customer WhatsApp Number</FormLabel>
                                 <FormControl>
                                     <PhoneInput
-                                        name={field.name} value={field.value} onChange={field.onChange}
-                                        onBlur={field.onBlur} ref={field.ref}
+                                        value={field.value || undefined}
+                                        onChange={(val) => field.onChange(val || '')}
+                                        onBlur={field.onBlur}
                                         defaultCountry="PK"
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                                        international
+                                        countryCallingCodeEditable={false}
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none"
                                     />
                                 </FormControl>
                                 <FormMessage />

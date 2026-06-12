@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem, AdditionalRevenue } from '@/lib/store';
+import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem, AdditionalRevenue, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS, CustomerSource } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -26,6 +26,22 @@ type SalesByCategoryData = { categoryId: string; categoryName: string; sales: nu
 type TopCustomerData = { customerId?: string; customerName: string; totalSpent: number; orderCount: number };
 type DailySummaryItem = InvoiceItem & { invoiceId: string; customerName: string; };
 type ExpenseByCategoryData = { category: string; amount: number };
+type SourceBreakdownData = { key: string; label: string; revenue: number; orderCount: number; avgOrderValue: number };
+type SourceTrendData = { date: string } & Record<string, number | string>;
+
+// Acquisition-source buckets for analytics: the four configured sources plus an
+// "unclassified" catch-all for sales with no source on the record or customer.
+const UNCLASSIFIED_KEY = 'unclassified';
+const SOURCE_KEYS: string[] = [...CUSTOMER_SOURCES, UNCLASSIFIED_KEY];
+const SOURCE_LABELS: Record<string, string> = { ...CUSTOMER_SOURCE_LABELS, [UNCLASSIFIED_KEY]: 'Unclassified' };
+// Stable colors for the trend chart, one per source key.
+const SOURCE_COLORS: Record<string, string> = {
+  taheri_spillover: 'hsl(var(--chart-1))',
+  referral: 'hsl(var(--chart-2))',
+  walkin: 'hsl(var(--chart-3))',
+  other: 'hsl(var(--chart-4))',
+  [UNCLASSIFIED_KEY]: 'hsl(var(--chart-5))',
+};
 
 export default function AnalyticsPage() {
   const { 
@@ -172,11 +188,38 @@ export default function AnalyticsPage() {
         cashInFromExtraRevenue: 0,
         cashOut: 0,
         netCashFlow: 0,
+        // ── Acquisition source ──────────────────────────────────────────────
+        sourceBreakdown: [] as SourceBreakdownData[],
+        sourceTrend: [] as SourceTrendData[],
+        sourceActiveKeys: [] as string[],
       };
 
     if (filteredInvoices.length === 0 && filteredOrders.length === 0 && filteredExpenses.length === 0 && filteredAdditionalRevenues.length === 0) {
       return calcData;
     }
+
+    // Resolve a sale's acquisition source: explicit override on the record wins,
+    // else the linked customer's saved source, else "unclassified".
+    const customersById = new Map(customers.map(c => [c.id, c]));
+    // Invoices carry the channel on `acquisitionSource` (the bare `source` field
+    // is reserved for Shopify import tagging); orders carry it on `source`.
+    const resolveSource = (recSource: CustomerSource | undefined, customerId?: string): string => {
+      if (recSource) return recSource;
+      if (customerId) {
+        const c = customersById.get(customerId);
+        if (c?.source) return c.source;
+      }
+      return UNCLASSIFIED_KEY;
+    };
+    const sourceAgg: Record<string, { revenue: number; orderCount: number }> = {};
+    const sourceByDate: Record<string, Record<string, number>> = {};
+    const accrueSource = (key: string, dateKey: string, amount: number) => {
+      if (!sourceAgg[key]) sourceAgg[key] = { revenue: 0, orderCount: 0 };
+      sourceAgg[key].revenue += amount;
+      sourceAgg[key].orderCount += 1;
+      if (!sourceByDate[dateKey]) sourceByDate[dateKey] = {};
+      sourceByDate[dateKey][key] = (sourceByDate[dateKey][key] || 0) + amount;
+    };
 
     let totalSales = 0;
     let invoiceSalesAcc = 0;
@@ -203,6 +246,8 @@ export default function AnalyticsPage() {
       }
       salesByDate[dateKey].sales += invoice.grandTotal || 0;
       salesByDate[dateKey].orders += 1;
+
+      accrueSource(resolveSource(invoice.acquisitionSource, invoice.customerId), dateKey, invAmount);
 
       // Use customerId if present; otherwise fall back to the stored name so named
       // customers without a linked account aren't all collapsed into "Walk-in".
@@ -254,6 +299,8 @@ export default function AnalyticsPage() {
       }
       salesByDate[dateKey].sales += order.subtotal || 0;
       salesByDate[dateKey].orders += 1;
+
+      accrueSource(resolveSource(order.source, order.customerId), dateKey, amount);
 
       const customerKey = order.customerId || (order.customerName ? `name:${order.customerName}` : 'walk-in');
       if (!customerPerformance[customerKey]) {
@@ -355,6 +402,41 @@ export default function AnalyticsPage() {
     calcData.totalOrders = totalOrders;
     calcData.totalItemsSold = totalItemsSold;
     calcData.totalDiscounts = totalDiscounts;
+
+    // ── Acquisition source ────────────────────────────────────────────────
+    // Build a breakdown row per source that has at least one sale, ordered by
+    // the canonical SOURCE_KEYS so the four real sources lead and Unclassified
+    // trails. avgOrderValue divides revenue by the number of sales for that key.
+    calcData.sourceBreakdown = SOURCE_KEYS
+      .filter(key => sourceAgg[key] && sourceAgg[key].orderCount > 0)
+      .map(key => {
+        const agg = sourceAgg[key];
+        return {
+          key,
+          label: SOURCE_LABELS[key],
+          revenue: agg.revenue,
+          orderCount: agg.orderCount,
+          avgOrderValue: agg.orderCount > 0 ? agg.revenue / agg.orderCount : 0,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+
+    // Only chart sources that actually have data, preserving canonical order.
+    calcData.sourceActiveKeys = SOURCE_KEYS.filter(
+      key => sourceAgg[key] && sourceAgg[key].orderCount > 0,
+    );
+
+    // One row per date (chronological) with a revenue value for every active
+    // source key, defaulting missing keys to 0 so the lines stay continuous.
+    calcData.sourceTrend = Object.keys(sourceByDate)
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+      .map(date => {
+        const row: SourceTrendData = { date };
+        calcData.sourceActiveKeys.forEach(key => {
+          row[key] = sourceByDate[date][key] || 0;
+        });
+        return row;
+      });
 
     // ── Cash flow ─────────────────────────────────────────────────────────
     // Cash IN = invoice payments collected in this period + order advances
@@ -567,7 +649,7 @@ export default function AnalyticsPage() {
         <>
           {/* Key Metrics Section */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-            <Card className="col-span-2 lg:col-span-1">
+            <Card className="col-span-2 lg:col-span-1 animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '0ms', animationFillMode: 'both' }}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -581,7 +663,7 @@ export default function AnalyticsPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '60ms', animationFillMode: 'both' }}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -596,7 +678,7 @@ export default function AnalyticsPage() {
               const margin = analyticsData.totalSales > 0 ? (netProfit / analyticsData.totalSales) * 100 : 0;
               return (
                 <>
-                  <Card className="border-blue-500/40">
+                  <Card className="border-blue-500/40 animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '120ms', animationFillMode: 'both' }}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Est. Profit (40%)</CardTitle>
                       <TrendingUp className="h-4 w-4 text-blue-500" />
@@ -608,7 +690,7 @@ export default function AnalyticsPage() {
                       <p className="text-xs text-muted-foreground mt-1 hidden sm:block">Revenue × 40% — before expenses</p>
                     </CardContent>
                   </Card>
-                  <Card className={netProfit >= 0 ? 'border-green-500/40' : 'border-red-500/40'}>
+                  <Card className={`${netProfit >= 0 ? 'border-green-500/40' : 'border-red-500/40'} animate-in fade-in-0 slide-in-from-bottom-4 duration-500`} style={{ animationDelay: '180ms', animationFillMode: 'both' }}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
                       {netProfit >= 0
@@ -629,7 +711,7 @@ export default function AnalyticsPage() {
               );
             })()}
             {analyticsData.totalUnpaid > 0 && (
-              <Card className="border-amber-500/40">
+              <Card className="border-amber-500/40 animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '240ms', animationFillMode: 'both' }}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
                   <Clock className="h-4 w-4 text-amber-500" />
@@ -642,7 +724,7 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
             )}
-            <Card>
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
                 <ShoppingBag className="h-4 w-4 text-muted-foreground" />
@@ -651,7 +733,7 @@ export default function AnalyticsPage() {
                 <div className="text-2xl font-bold">{analyticsData.totalOrders}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '360ms', animationFillMode: 'both' }}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Avg. Order Value</CardTitle>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
@@ -660,7 +742,7 @@ export default function AnalyticsPage() {
                 <div className="text-xl sm:text-2xl font-bold">PKR {analyticsData.averageOrderValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
               </CardContent>
             </Card>
-             <Card>
+             <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '420ms', animationFillMode: 'both' }}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Items Sold</CardTitle>
                 <Package className="h-4 w-4 text-muted-foreground" />
@@ -669,7 +751,7 @@ export default function AnalyticsPage() {
                 <div className="text-xl sm:text-2xl font-bold">{analyticsData.totalItemsSold}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '480ms', animationFillMode: 'both' }}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Discounts</CardTitle>
                 <Percent className="h-4 w-4 text-muted-foreground" />
@@ -678,7 +760,7 @@ export default function AnalyticsPage() {
                 <div className="text-xl sm:text-2xl font-bold">PKR {analyticsData.totalDiscounts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '540ms', animationFillMode: 'both' }}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Avg. Items / Order</CardTitle>
                 <ListOrdered className="h-4 w-4 text-muted-foreground" />
@@ -716,7 +798,7 @@ export default function AnalyticsPage() {
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           Invoice payments: PKR {cashInFromInvoicePayments.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                          {cashInFromOrderAdvances > 0 && <> · Advances: PKR {cashInFromOrderAdvances.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>}
+                          {cashInFromOrderAdvances > 0 && <> · Advances incl. trade-ins: PKR {cashInFromOrderAdvances.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>}
                           {cashInFromExtraRevenue > 0 && <> · Extra: PKR {cashInFromExtraRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>}
                         </p>
                       </CardContent>
@@ -762,7 +844,7 @@ export default function AnalyticsPage() {
 
           {/* Yearly Performance Summary — not affected by date filter */}
           {yearlySummary.length > 0 && (
-            <Card>
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" /> Yearly Performance Overview
@@ -815,7 +897,7 @@ export default function AnalyticsPage() {
           )}
 
           {/* Charts Section */}
-          <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2 animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
               <CardHeader>
                 <CardTitle>Sales Over Time</CardTitle>
                 <CardDescription>Revenue and order count trend for the selected period.</CardDescription>
@@ -849,7 +931,7 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
             
-          <Card>
+          <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '400ms', animationFillMode: 'both' }}>
             <CardHeader>
               <CardTitle className="flex items-center"><CalendarDays className="mr-2 h-5 w-5"/> Daily Summary</CardTitle>
               <CardDescription>A day-by-day breakdown of sales activity for the selected period. Click a row for details.</CardDescription>
@@ -888,7 +970,7 @@ export default function AnalyticsPage() {
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
               <CardHeader>
                  <CardTitleLink title="Top Selling Products (by Revenue)" href="/analytics/products">
                     <CardDescription>Top 10 for the selected period.</CardDescription>
@@ -925,7 +1007,7 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
               <CardHeader>
                 <CardTitleLink title="Top Selling Products (by Quantity)" href="/analytics/products">
                     <CardDescription>Top 10 for the selected period.</CardDescription>
@@ -964,7 +1046,7 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
               <CardHeader>
                 <CardTitleLink title="Sales by Category" href="/analytics/categories">
                     <CardDescription>Revenue distribution for the selected period.</CardDescription>
@@ -993,7 +1075,7 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
               <CardHeader>
                 <CardTitle>Expenses by Category</CardTitle>
                 <CardDescription>Spending distribution for the selected period.</CardDescription>
@@ -1023,7 +1105,7 @@ export default function AnalyticsPage() {
           </div>
           
            <div className="grid grid-cols-1">
-             <Card>
+             <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '150ms', animationFillMode: 'both' }}>
               <CardHeader>
                 <CardTitleLink title="Top Customers (by Sales)" href="/analytics/customers">
                     <CardDescription>Top 10 for the selected period.</CardDescription>
@@ -1060,6 +1142,100 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
            </div>
+
+          {/* ── Acquisition Source / Walk-in Insights ── */}
+          <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '150ms', animationFillMode: 'both' }}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" /> Acquisition Source Insights
+              </CardTitle>
+              <CardDescription>
+                Where revenue comes from by how the customer found the store — walk-in, referral, Taheri spillover &amp; other. Source resolves from the order/invoice override first, then the linked customer&apos;s saved source. Sales with neither are &ldquo;Unclassified&rdquo;.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {analyticsData.sourceBreakdown.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Breakdown table */}
+                  <div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Source</TableHead>
+                          <TableHead className="text-right">Sales</TableHead>
+                          <TableHead className="text-right">Revenue</TableHead>
+                          <TableHead className="text-right hidden sm:table-cell">Share</TableHead>
+                          <TableHead className="text-right hidden sm:table-cell">Avg</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          // Share is relative to total source-attributed revenue (not
+                          // overall Total Revenue, which also includes additional
+                          // revenue that has no acquisition source) so the column sums
+                          // to 100%.
+                          const sourceRevenueTotal = analyticsData.sourceBreakdown.reduce((s, r) => s + r.revenue, 0);
+                          return analyticsData.sourceBreakdown.map((row) => {
+                          const share = sourceRevenueTotal > 0 ? (row.revenue / sourceRevenueTotal) * 100 : 0;
+                          return (
+                            <TableRow key={row.key}>
+                              <TableCell>
+                                <div className="flex items-center gap-2 font-medium">
+                                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: SOURCE_COLORS[row.key] }} />
+                                  {row.label}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">{row.orderCount}</TableCell>
+                              <TableCell className="text-right font-semibold">{row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                              <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{share.toFixed(1)}%</TableCell>
+                              <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{row.avgOrderValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                            </TableRow>
+                          );
+                          });
+                        })()}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {/* Trend chart */}
+                  <div className="pl-2">
+                    {analyticsData.sourceTrend.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={320}>
+                        <LineChart data={analyticsData.sourceTrend}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => format(parseISO(value), 'MMM d')} />
+                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value / 1000).toFixed(0)}k`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                            labelStyle={{ color: 'hsl(var(--foreground))' }}
+                            itemStyle={{ color: 'hsl(var(--foreground))' }}
+                            labelFormatter={(label) => format(parseISO(label as string), 'EEE, MMM d, yyyy')}
+                            formatter={(value: number, name: string) => [`PKR ${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, name]}
+                          />
+                          <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
+                          {analyticsData.sourceActiveKeys.map((key) => (
+                            <Line
+                              key={key}
+                              type="monotone"
+                              dataKey={key}
+                              name={SOURCE_LABELS[key]}
+                              stroke={SOURCE_COLORS[key]}
+                              strokeWidth={2}
+                              dot={false}
+                              activeDot={{ r: 5, fill: SOURCE_COLORS[key], strokeWidth: 0 }}
+                            />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="text-muted-foreground text-center py-10">No source trend data for the selected period.</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-10">No acquisition-source data available for the selected period.</p>
+              )}
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

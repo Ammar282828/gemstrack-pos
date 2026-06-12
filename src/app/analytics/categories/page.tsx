@@ -43,9 +43,12 @@ export default function CategoriesAnalyticsPage() {
   });
 
   const filteredInvoices = useMemo(() => {
-    if (!dateRange || !dateRange.from) return generatedInvoices;
+    // Exclude refunded invoices so they don't inflate category revenue — matches
+    // the Analytics overview, which also drops Refunded invoices.
+    const base = generatedInvoices.filter(invoice => invoice?.status !== 'Refunded');
+    if (!dateRange || !dateRange.from) return base;
     const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
-    return generatedInvoices.filter(invoice => {
+    return base.filter(invoice => {
       if (!invoice?.createdAt) return false;
       const invoiceDate = parseISO(invoice.createdAt);
       return isWithinInterval(invoiceDate, { start: startOfDay(dateRange.from!), end: toDate });
@@ -115,6 +118,7 @@ export default function CategoriesAnalyticsPage() {
                 </Button>
                 <h1 className="text-3xl font-bold text-primary flex items-center"><Shapes className="mr-3 h-8 w-8"/> Category Analytics</h1>
                 <p className="text-muted-foreground">In-depth analysis of sales by product category.</p>
+                <p className="text-xs text-muted-foreground/80 mt-1">Revenue here is gross line-item revenue (sum of item totals), before invoice-level discounts &amp; trade-ins — so it runs higher than the net Total Revenue on the overview.</p>
             </div>
             <DateRangePicker date={dateRange} onDateChange={setDateRange} />
         </header>

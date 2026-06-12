@@ -23,12 +23,11 @@ import QRCode from 'qrcode.react';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import StandalonePhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
-import { Control, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
 import { ProductForm } from '@/components/product/product-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -1053,11 +1052,13 @@ export default function CartPage() {
                          <h3 className="font-semibold text-lg">Send to Customer</h3>
                          <div className="space-y-2">
                             <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
-                             <PhoneInput
-                                name="phone"
-                                control={phoneForm.control as unknown as Control}
+                             <StandalonePhoneInput
+                                value={phoneForm.watch('phone') || undefined}
+                                onChange={(val) => phoneForm.setValue('phone', val || '')}
                                 defaultCountry="PK"
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                                international
+                                countryCallingCodeEditable={false}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none"
                             />
                         </div>
                         <Button onClick={() => handleSendWhatsApp(generatedInvoice)} className="w-full">
@@ -1387,8 +1388,11 @@ export default function CartPage() {
                             <Label>Contact <span className="text-muted-foreground text-xs">(Optional)</span></Label>
                             <StandalonePhoneInput
                                 defaultCountry="PK"
+                                international
+                                countryCallingCodeEditable={false}
                                 value={walkInCustomerPhone || undefined}
                                 onChange={(val) => setWalkInCustomerPhone(val || '')}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none"
                             />
                         </div>
                         <Separator />

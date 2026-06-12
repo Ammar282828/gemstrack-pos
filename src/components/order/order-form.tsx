@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,14 +17,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase } from 'lucide-react';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock } from 'lucide-react';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import Image from 'next/image';
-import PhoneInput from 'react-phone-number-input/react-hook-form-input';
+import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
 import { cn, normalizePhoneNumber } from '@/lib/utils';
@@ -67,6 +67,8 @@ const orderItemSchema = z.object({
   manualPrice: z.coerce.number().min(0).default(0),
   // Optional size (e.g. "10 Indian / 5 US") for rings, bracelets and similar items
   size: z.string().optional(),
+  // Internal-only note; never printed on estimates/invoices
+  adminNote: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.isManualPrice) {
     if (data.manualPrice <= 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Manual price must be greater than 0", path: ['manualPrice'] });
@@ -88,6 +90,7 @@ const orderFormSchema = z.object({
     customerId: z.string().optional(),
     customerName: z.string().optional(),
     customerContact: z.string().optional(),
+    source: z.enum(CUSTOMER_SOURCES).optional(),
 }).refine(data => {
     const goldItems = data.items.filter(item => item.metalType === 'gold');
     if (goldItems.length === 0) return true; // No gold items, so no gold rate needed
@@ -348,6 +351,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
       customerId: WALK_IN_CUSTOMER_VALUE,
       customerName: '',
       customerContact: '',
+      source: undefined,
     },
   });
   
@@ -369,6 +373,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             stoneDetails: item.stoneDetails || '',
             diamondDetails: item.diamondDetails || '',
             karigarId: item.karigarId || '',
+            adminNote: item.adminNote || '',
         })),
         goldRate18k: rates.goldRatePerGram18k || 0,
         goldRate21k: rates.goldRatePerGram21k || 0,
@@ -380,6 +385,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         customerId: order.customerId || WALK_IN_CUSTOMER_VALUE,
         customerName: order.customerName || '',
         customerContact: normalizePhoneNumber(order.customerContact) || '',
+        source: order.source,
       });
     } else if (!isEditMode && settings.goldRatePerGram21k > 0) {
       form.reset({
@@ -402,6 +408,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         if (customer) {
             form.setValue('customerName', customer.name);
             form.setValue('customerContact', normalizePhoneNumber(customer.phone) || '');
+            // Default the order source to the customer's saved source if not already set
+            if (customer.source && !form.getValues('source')) {
+                form.setValue('source', customer.source);
+            }
         }
     }
   }, [selectedCustomerId, customers, form]);
@@ -525,6 +535,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             customerId: finalCustomerId,
             customerName: finalCustomerName,
             customerContact: data.customerContact,
+            source: data.source,
         };
 
         try {
@@ -574,6 +585,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             karigarId: '',
             isManualPrice: false,
             manualPrice: 0,
+            adminNote: '',
         });
     };
 
@@ -600,6 +612,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         karigarId: '',
         isManualPrice: true,
         manualPrice: 0,
+        adminNote: '',
     });
   };
 
@@ -653,6 +666,15 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                     )}/>
                                 </div>
                             </div>
+
+                            <FormField control={form.control} name={`items.${index}.adminNote`} render={({ field }) => (
+                               <FormItem className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20 p-3">
+                                  <FormLabel className="flex items-center text-amber-800 dark:text-amber-200"><Lock className="mr-2 h-4 w-4"/>Admin-Only Note</FormLabel>
+                                  <FormControl><Textarea placeholder="Internal note — visible only to staff" {...field} rows={2} /></FormControl>
+                                  <FormDescription className="text-amber-700/80 dark:text-amber-300/80">Never shown on printed estimates or invoices.</FormDescription>
+                                  <FormMessage />
+                               </FormItem>
+                            )}/>
 
                             {(() => {
                                 const itemCat = form.watch(`items.${index}.itemCategory`);
@@ -928,15 +950,41 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                             <FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4"/>Contact</FormLabel>
                             <FormControl>
                             <PhoneInput
-                                name={field.name}
-                                value={field.value}
-                                onChange={field.onChange}
+                                value={field.value || undefined}
+                                onChange={(val) => field.onChange(val || '')}
                                 onBlur={field.onBlur}
-                                ref={field.ref}
                                 defaultCountry="PK"
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                                international
+                                countryCallingCodeEditable={false}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none"
                             />
                             </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="source"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="flex items-center"><Search className="mr-2 h-4 w-4"/>Source</FormLabel>
+                            <Select
+                                value={field.value ?? '__none__'}
+                                onValueChange={(v) => field.onChange(v === '__none__' ? undefined : v)}
+                            >
+                                <FormControl>
+                                    <SelectTrigger><SelectValue placeholder="How did they find us?" /></SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="__none__">— Not specified —</SelectItem>
+                                    {CUSTOMER_SOURCES.map((s) => (
+                                        <SelectItem key={s} value={s}>{CUSTOMER_SOURCE_LABELS[s]}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormDescription>Taheri spillover, referral, walk-in, etc.</FormDescription>
                             <FormMessage />
                         </FormItem>
                         )}

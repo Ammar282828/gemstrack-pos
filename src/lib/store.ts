@@ -6,6 +6,7 @@ import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc, deleteField, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { db, auth, firebaseConfig } from '@/lib/firebase';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
+import { normalizePhoneNumber } from '@/lib/utils';
 
 
 // --- Firestore Collection Names ---
@@ -370,12 +371,23 @@ export interface Category {
   title: string;
 }
 
+// Where a customer/sale came from — used for acquisition analytics.
+export const CUSTOMER_SOURCES = ['taheri_spillover', 'referral', 'walkin', 'other'] as const;
+export type CustomerSource = typeof CUSTOMER_SOURCES[number];
+export const CUSTOMER_SOURCE_LABELS: Record<CustomerSource, string> = {
+  taheri_spillover: 'Taheri Spillover',
+  referral: 'Referral',
+  walkin: 'Walk-in',
+  other: 'Other',
+};
+
 export interface Customer {
   id: string; // Firestore document ID
   name: string;
   phone?: string;
   email?: string;
   address?: string;
+  source?: CustomerSource; // Acquisition channel (Taheri spillover, referral, walk-in, other)
   shopifyCustomerId?: string;
 }
 
@@ -438,6 +450,7 @@ export interface InvoiceItem {
   isManualPrice?: boolean;
   itemCategory?: string;
   size?: string; // Optional ring/bracelet size carried from product or order
+  adminNote?: string; // Internal-only note; never printed on estimates/invoices
 }
 
 export interface Payment {
@@ -473,6 +486,7 @@ export interface Invoice {
   shopifyCheckoutUrl?: string;
   status?: 'Refunded'; // Set when invoice has been refunded
   refundedAt?: string; // ISO string of refund time
+  acquisitionSource?: CustomerSource; // Acquisition channel for this sale (carried from order/customer). Named distinctly from the Shopify `source` above.
 }
 
 export interface Karigar {
@@ -511,6 +525,7 @@ export interface OrderItem {
   isManualPrice?: boolean;
   manualPrice?: number;
   size?: string; // Optional ring/bracelet size (e.g. "10 Indian / 5 US"); free text
+  adminNote?: string; // Internal-only note; never printed on estimates/invoices
 }
 
 export interface Order {
@@ -527,6 +542,7 @@ export interface Order {
   customerId?: string;
   customerName?: string;
   customerContact?: string;
+  source?: CustomerSource; // Per-order acquisition channel override (defaults to the customer's source)
   advanceInExchangeDescription?: string; // For gold/diamonds given by customer
   advanceInExchangeValue?: number; // Estimated value of the exchange
   invoiceId?: string; // Set when order is finalized into an invoice
@@ -714,6 +730,7 @@ export const staticCategories: Category[] = [
   { id: 'cat017', title: 'Gold Coins' },
   { id: 'cat018', title: "Men's Rings" },
   { id: 'cat019', title: 'Loose Bracelet' },
+  { id: 'cat020', title: "Men's Buttons" },
 ];
 
 // ─── Size scales ─────────────────────────────────────────────────────────────
@@ -969,6 +986,7 @@ export interface AppState {
   updateCustomer: (id: string, updatedCustomerData: Partial<Omit<Customer, 'id'>>) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
   mergeCustomers: (keepId: string, deleteId: string) => Promise<{ updatedDocs: number }>;
+  normalizeCustomerPhones: () => Promise<number>;
 
 
   loadKarigars: () => void;
@@ -1085,7 +1103,8 @@ const createDataLoader = <T, K extends keyof AppState>(
   errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'karigarBatchesError' | 'silverTransactionsError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'additionalRevenueError' | 'givenItemsError' | 'soldProductsError' | 'activityLogError',
   loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasKarigarBatchesLoaded' | 'hasSilverTransactionsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasAdditionalRevenueLoaded' | 'hasGivenItemsLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
   orderByField: string = "name",
-  orderByDirection: "asc" | "desc" = "asc"
+  orderByDirection: "asc" | "desc" = "asc",
+  onData?: (list: T[], get: () => AppState) => void
 ) => {
   return (set: (fn: Partial<AppState> | ((state: AppState) => void)) => void, get: () => AppState) => {
     if (get()[loadedKey]) return;
@@ -1108,6 +1127,8 @@ const createDataLoader = <T, K extends keyof AppState>(
 
           const source = serverSnapshot.metadata.fromCache ? "cache" : "server";
           console.log(`[GemsTrack Store] Data for ${collectionName} loaded from ${source}. Count: ${list.length}`);
+
+          if (onData) onData(list, get);
         },
         (error) => {
           // Retry on permission-denied if the user is authenticated — this is a transient
@@ -1132,7 +1153,27 @@ const createDataLoader = <T, K extends keyof AppState>(
 };
 
 const loadProducts = createDataLoader<Product, 'products'>('products', 'products', 'isProductsLoading', 'productsError', 'hasProductsLoaded', 'sku', 'asc');
-const loadCustomers = createDataLoader<Customer, 'customers'>('customers', 'customers', 'isCustomersLoading', 'customersError', 'hasCustomersLoaded', 'name', 'asc');
+// Runs once per session, the first time customers are loaded: silently rewrites any
+// legacy phone numbers that lack a country code to E.164 (+92 default). Idempotent —
+// after the first pass every stored number already matches, so it never writes again.
+let hasNormalizedCustomerPhones = false;
+const loadCustomers = createDataLoader<Customer, 'customers'>(
+  'customers', 'customers', 'isCustomersLoading', 'customersError', 'hasCustomersLoaded', 'name', 'asc',
+  (list, get) => {
+    if (hasNormalizedCustomerPhones) return;
+    if (get().settings?.databaseLocked) return;
+    const needsFix = list.some((c) => {
+      const n = normalizePhoneNumber(c.phone);
+      return n && n !== (c.phone || '');
+    });
+    hasNormalizedCustomerPhones = true;
+    if (!needsFix) return;
+    get().normalizeCustomerPhones().catch((err) => {
+      console.error('[GemsTrack Store] Auto phone normalization failed:', err);
+      hasNormalizedCustomerPhones = false; // allow a retry on the next load
+    });
+  }
+);
 const loadKarigars = createDataLoader<Karigar, 'karigars'>('karigars', 'karigars', 'isKarigarsLoading', 'karigarsError', 'hasKarigarsLoaded', 'name', 'asc');
 const loadKarigarBatches = createDataLoader<KarigarBatch, 'karigarBatches'>('karigar_batches', 'karigarBatches', 'isKarigarBatchesLoading', 'karigarBatchesError', 'hasKarigarBatchesLoaded', 'startDate', 'asc');
 const loadSilverTransactions = createDataLoader<SilverTransaction, 'silverTransactions'>('silver_transactions', 'silverTransactions', 'isSilverTransactionsLoading', 'silverTransactionsError', 'hasSilverTransactionsLoaded', 'date', 'desc');
@@ -1566,10 +1607,10 @@ export const useAppStore = create<AppState>()(
       addCustomer: async (customerData) => {
         if(get().settings.databaseLocked) return null;
         const newCustomerId = `cust-${Date.now()}`;
-        const newCustomer: Customer = { 
+        const newCustomer: Customer = {
           id: newCustomerId,
           name: customerData.name || 'Unnamed Customer',
-          phone: customerData.phone || '',
+          phone: normalizePhoneNumber(customerData.phone) || '',
           email: customerData.email || '',
           address: customerData.address || '',
         };
@@ -1589,9 +1630,14 @@ export const useAppStore = create<AppState>()(
       },
       updateCustomer: async (id, updatedCustomerData) => {
         if(get().settings.databaseLocked) return;
-        console.log(`[GemsTrack Store updateCustomer] Attempting to update customer ID ${id} with:`, updatedCustomerData);
+        // Normalize phone to E.164 (with country code, default +92) on every save so
+        // numbers stay consistent regardless of which form did the edit.
+        const dataToWrite = updatedCustomerData.phone !== undefined
+          ? { ...updatedCustomerData, phone: normalizePhoneNumber(updatedCustomerData.phone) }
+          : updatedCustomerData;
+        console.log(`[GemsTrack Store updateCustomer] Attempting to update customer ID ${id} with:`, dataToWrite);
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), updatedCustomerData, { merge: true });
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), dataToWrite, { merge: true });
           await addActivityLog('customer.update', `Updated customer: ${updatedCustomerData.name}`, `ID: ${id}`, id);
           if (typeof window !== 'undefined' && !id.startsWith('shopify-')) {
             fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: id }) }).catch(() => {});
@@ -1600,6 +1646,33 @@ export const useAppStore = create<AppState>()(
         } catch (error) {
           console.error(`[GemsTrack Store updateCustomer] Error updating customer ID ${id} in Firestore:`, error);
         }
+      },
+      normalizeCustomerPhones: async () => {
+        // One-shot data fix: rewrite every customer's stored phone to E.164 (default +92)
+        // so legacy numbers entered without a country code get corrected in place.
+        // Writes directly via a batch (no per-row Shopify push) to avoid spamming the
+        // sync endpoint, and only touches rows whose number actually changes.
+        if (get().settings.databaseLocked) return 0;
+        const { customers } = get();
+        const batch = writeBatch(db);
+        let fixed = 0;
+        customers.forEach((c) => {
+          const normalized = normalizePhoneNumber(c.phone);
+          if (normalized && normalized !== (c.phone || '')) {
+            batch.update(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, c.id), { phone: normalized });
+            fixed++;
+          }
+        });
+        if (fixed > 0) {
+          try {
+            await batch.commit();
+            await addActivityLog('customer.update', `Normalized ${fixed} customer phone number(s) to international format`, '', '');
+          } catch (error) {
+            console.error('[GemsTrack Store normalizeCustomerPhones] Error committing phone normalization batch:', error);
+            throw error;
+          }
+        }
+        return fixed;
       },
       deleteCustomer: async (id) => {
         if(get().settings.databaseLocked) return;
@@ -1946,7 +2019,7 @@ export const useAppStore = create<AppState>()(
                     paymentHistory: existingPaymentHistory,
                     customerName: finalCustomerName || 'Walk-in Customer',
                     customerId: finalCustomerId,
-                    customerContact: customerInfo.phone,
+                    customerContact: customerInfo.phone ? normalizePhoneNumber(customerInfo.phone) : customerInfo.phone,
                     ...(existingAdjustmentsAmount !== 0 && { adjustmentsAmount: existingAdjustmentsAmount }),
                     ...(exchangeInfo?.description && { exchangeDescription: exchangeInfo.description }),
                     ...(exchangeInfo?.amount1 && { exchangeAmount1: exchangeInfo.amount1 }),
@@ -2538,6 +2611,14 @@ export const useAppStore = create<AppState>()(
             finalCustomerName = `Customer - ${orderData.customerContact}`;
         }
 
+        // Resolve acquisition source: per-order override wins, otherwise inherit
+        // from the linked customer's saved source.
+        let finalSource = orderData.source;
+        if (!finalSource && finalCustomerId) {
+            const linkedCustomer = customers.find(c => c.id === finalCustomerId);
+            if (linkedCustomer?.source) finalSource = linkedCustomer.source;
+        }
+
         const finalSubtotal = Number(orderData.subtotal) || 0;
         const finalGrandTotal = Number(orderData.grandTotal) || 0;
 
@@ -2580,6 +2661,8 @@ export const useAppStore = create<AppState>()(
               id: newOrderId,
               customerId: finalCustomerId,
               customerName: finalCustomerName,
+              customerContact: orderData.customerContact ? normalizePhoneNumber(orderData.customerContact) : orderData.customerContact,
+              source: finalSource,
               subtotal: finalSubtotal,
               grandTotal: finalGrandTotal,
               createdAt,
@@ -2588,7 +2671,10 @@ export const useAppStore = create<AppState>()(
               ratesApplied: ratesApplied,
             };
 
-            transaction.set(orderDocRef, order);
+            // Strip undefined fields — Firestore rejects them and would abort the
+            // transaction, which previously caused orders to silently fail to save
+            // (e.g. walk-in orders with no customerId/contact).
+            transaction.set(orderDocRef, cleanObject(order));
             transaction.update(settingsDocRef, { lastOrderNumber: nextOrderNumber });
             return order;
           });
@@ -2803,6 +2889,7 @@ export const useAppStore = create<AppState>()(
                 ...(originalItem.size && { size: originalItem.size }),
                 ...(finalizedData.isManualPrice && { isManualPrice: true }),
                 ...(originalItem.itemCategory && { itemCategory: originalItem.itemCategory }),
+                ...(originalItem.adminNote && { adminNote: originalItem.adminNote }),
             };
             finalInvoiceItems.push(cleanObject(itemToAdd));
         });
@@ -2833,6 +2920,7 @@ export const useAppStore = create<AppState>()(
             customerId: order.customerId,
             customerName: order.customerName || 'Walk-in Customer',
             customerContact: order.customerContact,
+            ...(order.source && { acquisitionSource: order.source }),
             sourceOrderId: order.id,
             // Carry forward: if this order had previously been linked to a Shopify
             // order (and was reverted to be re-finalized), preserve the link so the

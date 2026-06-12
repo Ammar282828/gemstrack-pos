@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
@@ -657,13 +657,9 @@ export default function OrderDetailPage() {
     try {
         await updateOrderStatus(order.id, newStatus);
         toast({ title: "Status Updated", description: `Order ${order.id} status changed to "${newStatus}".` });
-        
-        // Trigger notification dialog if status is 'In Progress' or 'Completed'
-        if (newStatus === 'In Progress' || newStatus === 'Completed') {
-            setNotificationType(newStatus === 'In Progress' ? 'inProgress' : 'completed');
-            setIsNotificationDialogOpen(true);
-        }
-
+        // Note: the "Notify Customer via WhatsApp" dialog no longer auto-opens on
+        // In Progress/Completed. Staff can still send a message manually via the
+        // "Send to Customer" button.
     } catch (error) {
         toast({ title: "Error", description: "Failed to update order status.", variant: "destructive" });
     } finally {
@@ -1275,6 +1271,12 @@ export default function OrderDetailPage() {
                                           <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
                                               <p className="font-semibold flex items-center"><Diamond className="w-3 h-3 mr-1.5"/>Diamond Details:</p>
                                               <p className="text-muted-foreground whitespace-pre-wrap">{item.diamondDetails}</p>
+                                          </div>
+                                      )}
+                                      {item.adminNote && (
+                                          <div className="mt-2 text-xs p-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+                                              <p className="font-semibold flex items-center text-amber-800 dark:text-amber-200"><Lock className="w-3 h-3 mr-1.5"/>Admin-Only Note <span className="ml-1.5 font-normal text-amber-700/70 dark:text-amber-300/70">(not printed)</span></p>
+                                              <p className="text-amber-800/90 dark:text-amber-200/90 whitespace-pre-wrap">{item.adminNote}</p>
                                           </div>
                                       )}
                                       <div className="text-sm mt-2 p-2 bg-background rounded-md">

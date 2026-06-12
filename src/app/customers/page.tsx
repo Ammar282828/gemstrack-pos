@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Search, PlusCircle, Edit3, Trash2, User, Phone, Mail, MapPin, Users, Loader2, BookUser, Merge } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -144,6 +145,176 @@ function detectDuplicates(customers: Customer[]): DuplicatePair[] {
   }
   return pairs.sort((a, b) => b.score - a.score);
 }
+
+// --- Spam / bot-account detection helpers ---
+// Bot signup spam (e.g. from a public Shopify storefront) shows up as customers
+// with gibberish two-token names, a random free-email address, and NO phone,
+// NO address, and NO transaction history. We only ever flag rows that satisfy
+// ALL of those negatives, so a real customer who merely lacks a phone is safe.
+function tokenGibberishScore(tok: string): number {
+  if (tok.length < 2) return 0;
+  let score = 0;
+  // Internal capitals (an uppercase letter immediately after a lowercase one) —
+  // real names are Title Case; "ABajEyYE" style camel-noise is a strong signal.
+  let internalCaps = 0;
+  for (let i = 1; i < tok.length; i++) {
+    const prev = tok[i - 1], cur = tok[i];
+    if (cur >= 'A' && cur <= 'Z' && prev >= 'a' && prev <= 'z') internalCaps++;
+  }
+  score += internalCaps;
+  // Frequent case flips (UPPER<->lower) across the token.
+  let transitions = 0;
+  for (let i = 1; i < tok.length; i++) {
+    const aU = tok[i - 1] >= 'A' && tok[i - 1] <= 'Z';
+    const bU = tok[i] >= 'A' && tok[i] <= 'Z';
+    if (aU !== bU) transitions++;
+  }
+  if (transitions >= 4) score += 2;
+  // Long consonant runs.
+  if (/[bcdfghjklmnpqrstvwxyz]{4,}/i.test(tok)) score += 2;
+  // Very low vowel ratio on a reasonably long token.
+  const vowels = (tok.match(/[aeiou]/gi) || []).length;
+  const letters = (tok.match(/[a-z]/gi) || []).length;
+  if (letters >= 5 && vowels / letters < 0.2) score += 2;
+  return score;
+}
+function isGibberishName(name: string): boolean {
+  const tokens = name.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return false;
+  const total = tokens.reduce((s, t) => s + tokenGibberishScore(t), 0);
+  return total >= 3;
+}
+function isRandomEmailLocal(email?: string): boolean {
+  if (!email) return false;
+  const local = (email.split('@')[0] || '').replace(/[._-]/g, '');
+  if (local.length < 12) return false;
+  if (/[bcdfghjklmnpqrstvwxyz]{5,}/i.test(local)) return true;
+  const vowels = (local.match(/[aeiou]/gi) || []).length;
+  const letters = (local.match(/[a-z]/gi) || []).length || 1;
+  return vowels / letters < 0.28;
+}
+interface SpamCandidate {
+  customer: Customer;
+  reasons: string[];
+}
+function detectSpamCustomers(customers: Customer[], transactedIds: Set<string>): SpamCandidate[] {
+  const out: SpamCandidate[] = [];
+  for (const c of customers) {
+    const hasPhone = !!(c.phone && c.phone.trim());
+    const hasAddress = !!(c.address && c.address.trim());
+    const hasHistory = transactedIds.has(c.id);
+    if (hasPhone || hasAddress || hasHistory) continue;
+    const reasons: string[] = [];
+    if (isGibberishName(c.name)) reasons.push('Gibberish name');
+    if (isRandomEmailLocal(c.email)) reasons.push('Random email');
+    if (reasons.length === 0) continue;
+    reasons.push('No phone / address / orders');
+    out.push({ customer: c, reasons });
+  }
+  return out;
+}
+
+// --- Spam Review Dialog ---
+const SpamReviewDialog: React.FC<{
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  candidates: SpamCandidate[];
+  onDelete: (id: string) => Promise<void>;
+}> = ({ open, onOpenChange, candidates, onDelete }) => {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Pre-select every candidate whenever the list changes / dialog opens.
+  useEffect(() => {
+    if (open) setSelected(new Set(candidates.map(c => c.customer.id)));
+  }, [open, candidates]);
+
+  const toggle = (id: string) => setSelected(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const allSelected = candidates.length > 0 && selected.size === candidates.length;
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(candidates.map(c => c.customer.id)));
+
+  const handleDeleteSelected = async () => {
+    setIsDeleting(true);
+    try {
+      for (const id of selected) {
+        await onDelete(id);
+      }
+      onOpenChange(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Trash2 className="w-5 h-5"/>Review Spam Accounts</DialogTitle>
+        </DialogHeader>
+
+        {candidates.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">No spam accounts detected. 🎉</p>
+        ) : (
+          <>
+            <div className="flex items-center justify-between text-sm">
+              <p className="text-muted-foreground">
+                {candidates.length} suspected bot account{candidates.length > 1 ? 's' : ''} — all have no phone, no address, and no orders. Review and uncheck any you want to keep.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 border-b pb-2">
+              <Checkbox checked={allSelected} onCheckedChange={toggleAll} id="spam-all" />
+              <label htmlFor="spam-all" className="text-sm font-medium cursor-pointer">
+                Select all ({selected.size}/{candidates.length})
+              </label>
+            </div>
+            <div className="overflow-y-auto flex-1 divide-y pr-1">
+              {candidates.map(({ customer, reasons }) => (
+                <div key={customer.id} className="flex items-start gap-3 py-2.5">
+                  <Checkbox
+                    className="mt-1"
+                    checked={selected.has(customer.id)}
+                    onCheckedChange={() => toggle(customer.id)}
+                    id={`spam-${customer.id}`}
+                  />
+                  <label htmlFor={`spam-${customer.id}`} className="flex-1 min-w-0 cursor-pointer">
+                    <p className="font-medium truncate">{customer.name || '(no name)'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{customer.email || 'no email'}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {reasons.map(r => <Badge key={r} variant="outline" className="text-[10px]">{r}</Badge>)}
+                      {customer.shopifyCustomerId && <Badge variant="secondary" className="text-[10px]">Shopify</Badge>}
+                    </div>
+                  </label>
+                </div>
+              ))}
+            </div>
+            {candidates.some(c => c.customer.shopifyCustomerId) && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-500">
+                Note: rows tagged “Shopify” originated from your Shopify store. Deleting them here removes them from this app; if storefront spam continues they may re-sync. Add a signup CAPTCHA in Shopify to stop the source.
+              </p>
+            )}
+          </>
+        )}
+
+        <DialogFooter className="pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            variant="destructive"
+            disabled={selected.size === 0 || isDeleting}
+            onClick={handleDeleteSelected}
+          >
+            {isDeleting
+              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Deleting...</>
+              : <><Trash2 className="w-4 h-4 mr-2"/>Delete selected ({selected.size})</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 // --- Merge Duplicates Dialog ---
 const MergeCustomersDialog: React.FC<{
@@ -318,13 +489,18 @@ const MergeCustomersDialog: React.FC<{
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [mergeOpen, setMergeOpen] = useState(false);
-  
+  const [spamOpen, setSpamOpen] = useState(false);
+
   const appReady = useAppReady();
-  const { customers, deleteCustomerAction, isCustomersLoading, loadCustomers, mergeCustomers } = useAppStore(state => ({
+  const { customers, orders, generatedInvoices, deleteCustomerAction, isCustomersLoading, loadCustomers, loadOrders, loadGeneratedInvoices, mergeCustomers } = useAppStore(state => ({
     customers: state.customers,
+    orders: state.orders,
+    generatedInvoices: state.generatedInvoices,
     deleteCustomerAction: state.deleteCustomer,
     isCustomersLoading: state.isCustomersLoading,
     loadCustomers: state.loadCustomers,
+    loadOrders: state.loadOrders,
+    loadGeneratedInvoices: state.loadGeneratedInvoices,
     mergeCustomers: state.mergeCustomers,
   }));
   const { toast } = useToast();
@@ -332,8 +508,23 @@ export default function CustomersPage() {
   useEffect(() => {
     if (appReady) {
       loadCustomers();
+      loadOrders();
+      loadGeneratedInvoices();
     }
-  }, [appReady, loadCustomers]);
+  }, [appReady, loadCustomers, loadOrders, loadGeneratedInvoices]);
+
+  // Customer IDs that have any order or invoice — these are never flagged as spam.
+  const transactedIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const o of orders) if (o.customerId) ids.add(o.customerId);
+    for (const inv of generatedInvoices) if (inv.customerId) ids.add(inv.customerId);
+    return ids;
+  }, [orders, generatedInvoices]);
+
+  const spamCandidates = useMemo(
+    () => (appReady ? detectSpamCustomers(customers, transactedIds) : []),
+    [customers, transactedIds, appReady]
+  );
 
 
   const handleDeleteCustomer = async (id: string) => {
@@ -367,6 +558,7 @@ export default function CustomersPage() {
   return (
     <div className="container mx-auto py-4 px-3 md:py-8 md:px-4">
       <MergeCustomersDialog open={mergeOpen} onOpenChange={setMergeOpen} customers={customers} onMerge={handleMerge} />
+      <SpamReviewDialog open={spamOpen} onOpenChange={setSpamOpen} candidates={spamCandidates} onDelete={handleDeleteCustomer} />
 
       <header className="mb-4 md:mb-6 flex flex-row justify-between items-start gap-3">
         <div>
@@ -374,6 +566,11 @@ export default function CustomersPage() {
           <p className="text-sm text-muted-foreground">{customers.length} customer{customers.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2">
+          {spamCandidates.length > 0 && (
+            <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => setSpamOpen(true)}>
+              <Trash2 className="w-4 h-4 mr-2" />Clean spam ({spamCandidates.length})
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={() => setMergeOpen(true)}>
             <Merge className="w-4 h-4 mr-2" />Merge Duplicates
           </Button>
