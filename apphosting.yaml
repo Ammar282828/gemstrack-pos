@@ -30,3 +30,7 @@ env:
     secret: WHATSAPP_PHONE_ID
     availability:
       - RUNTIME
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
+    availability:
+      - RUNTIME

@@ -77,6 +77,29 @@ function syncOrderShopify(orderId: string | undefined | null, action: 'upsert' |
 }
 
 
+/**
+ * Fire-and-forget WhatsApp notification to all configured recipients.
+ * No-op during SSR, when notifications are disabled, or when no phones set.
+ * `enabled` lets callers gate on a per-event toggle (e.g. settings.notifNewInvoice).
+ */
+function notifyWhatsApp(
+  settings: { notifEnabled?: boolean; notifPhones?: string[] } | undefined,
+  message: string,
+  enabled: boolean = true,
+) {
+  if (typeof window === 'undefined') return;
+  if (!settings?.notifEnabled || !enabled) return;
+  const phones = settings.notifPhones || [];
+  if (!phones.length) return;
+  phones.forEach(phone => {
+    fetch('/api/notifications/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: phone, message }),
+    }).catch(e => console.warn('[notif] send failed:', e));
+  });
+}
+
 async function deleteCollection(collectionName: string) {
   if (!db || typeof db.app === 'undefined') {
     console.error(`Firestore instance is not available. Cannot delete collection ${collectionName}.`);
@@ -356,6 +379,9 @@ export interface Settings extends GoldRates {
   notifNewOrder?: boolean;
   notifOrderCompleted?: boolean;
   notifOrderCancelled?: boolean;
+  notifNewInvoice?: boolean;       // real-time: a new invoice/sale was created
+  notifPaymentReceived?: boolean;  // real-time: a payment was recorded on an invoice
+  notifDailyReport?: boolean;      // 9 PM daily orders + invoices summary
   notifDailyChecklist?: boolean;
   notifEndOfDay?: boolean;
   notifWeeklyReport?: boolean;
@@ -703,6 +729,9 @@ const initialSettingsData: Settings = {
   notifNewOrder: true,
   notifOrderCompleted: true,
   notifOrderCancelled: true,
+  notifNewInvoice: true,
+  notifPaymentReceived: true,
+  notifDailyReport: true,
   notifDailyChecklist: true,
   notifEndOfDay: false,
   notifWeeklyReport: true,
@@ -2080,6 +2109,17 @@ export const useAppStore = create<AppState>()(
 
             if (result) syncInvoiceShopify(result.id, 'upsert');
 
+            // WhatsApp notification: new invoice/sale (only for brand-new invoices, not edits)
+            if (result && !existingInvoiceId) {
+                const itemList = (Array.isArray(result.items) ? result.items : Object.values(result.items || {})) as InvoiceItem[];
+                const itemNames = itemList.map(i => i.name || 'Item').join(', ');
+                const paidLine = result.balanceDue > 0
+                    ? `Paid: PKR ${result.amountPaid.toLocaleString()} | Balance: PKR ${result.balanceDue.toLocaleString()}`
+                    : `Paid in full`;
+                const msg = `🧾 *New Sale* ${result.id}\nCustomer: ${result.customerName || 'Walk-in'}\nItems: ${itemNames}\nTotal: PKR ${result.grandTotal.toLocaleString()}\n${paidLine}`;
+                notifyWhatsApp(get().settings, msg, get().settings.notifNewInvoice);
+            }
+
             return result;
         } catch (error) {
             console.error("[GemsTrack Store generateInvoice] Transaction failed: ", error);
@@ -2166,6 +2206,13 @@ export const useAppStore = create<AppState>()(
                     );
                 }
                 syncInvoiceShopify(invoiceId, 'upsert');
+
+                // WhatsApp notification: payment received
+                const balLine = updatedInvoice.balanceDue > 0
+                    ? `Balance remaining: PKR ${updatedInvoice.balanceDue.toLocaleString()}`
+                    : `✅ Fully paid`;
+                const msg = `💰 *Payment Received* ${invoiceId}\nCustomer: ${updatedInvoice.customerName || 'Walk-in'}\nAmount: PKR ${paymentAmount.toLocaleString()}\n${balLine}`;
+                notifyWhatsApp(get().settings, msg, get().settings.notifPaymentReceived);
             }
 
             return updatedInvoice;

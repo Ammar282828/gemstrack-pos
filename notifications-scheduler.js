@@ -54,6 +54,12 @@ async function buildSchedule() {
     run('end-of-day');
   });
 
+  // Daily orders + invoices report — every day at configured time (default 21:00)
+  const dailyReportTime = (process.env.NOTIF_DAILY_REPORT_TIME || '21:00').split(':');
+  cron.schedule(`0 ${dailyReportTime[1]} ${dailyReportTime[0]} * * *`, () => {
+    run('daily-report');
+  });
+
   // Weekly report — every Monday at 9am
   cron.schedule('0 0 9 * * 1', () => {
     run('weekly-report');
@@ -73,6 +79,7 @@ async function buildSchedule() {
   console.log('[Scheduler] GemsTrack notification scheduler started.');
   console.log(`  Daily checklist    : ${checklistTime[0]}:${checklistTime[1]}`);
   console.log(`  End of day         : ${endOfDayTime[0]}:${endOfDayTime[1]}`);
+  console.log(`  Daily report       : ${dailyReportTime[0]}:${dailyReportTime[1]}`);
   console.log(`  Weekly report      : Monday 09:00`);
   console.log(`  Gold daily update  : ${goldUpdateTime[0]}:${goldUpdateTime[1]}`);
   console.log(`  Gold breaking news : Every hour`);

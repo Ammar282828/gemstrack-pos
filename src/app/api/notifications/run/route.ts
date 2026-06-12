@@ -155,6 +155,103 @@ async function sendEndOfDaySummary(phone: string) {
   await sendWhatsAppMessage(phone, lines.join('\n'));
 }
 
+async function sendDailyReport(phone: string) {
+  const [ordersSnap, invoicesSnap, expensesSnap] = await Promise.all([
+    adminDb.collection('orders').get(),
+    adminDb.collection('invoices').get(),
+    adminDb.collection('expenses').get(),
+  ]);
+
+  const orders   = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Array<Record<string, any>>;
+  const invoices = invoicesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Array<Record<string, any>>;
+  const expenses = expensesSnap.docs.map(d => d.data()) as Array<Record<string, any>>;
+  const today    = new Date().toDateString();
+
+  // ── Invoices / sales ──
+  const invoicesToday = invoices.filter(i => new Date(i.createdAt).toDateString() === today);
+  const salesTotalToday = invoicesToday.reduce((s, i) => s + Number(i.grandTotal || 0), 0);
+
+  // Cash collected today = payment-history entries dated today across ALL invoices
+  let cashInToday = 0;
+  const paymentsToday: Array<{ id: string; customer: string; amount: number }> = [];
+  for (const inv of invoices) {
+    const history = Array.isArray(inv.paymentHistory) ? inv.paymentHistory : [];
+    for (const p of history) {
+      if (p?.date && new Date(p.date).toDateString() === today) {
+        const amt = Number(p.amount || 0);
+        cashInToday += amt;
+        if (amt > 0) paymentsToday.push({ id: inv.id, customer: inv.customerName || 'Walk-in', amount: amt });
+      }
+    }
+  }
+
+  const outstanding = invoices.filter(i => Number(i.balanceDue || 0) > 0);
+  const outstandingTotal = outstanding.reduce((s, i) => s + Number(i.balanceDue || 0), 0);
+
+  // ── Orders ──
+  const createdToday   = orders.filter(o => new Date(o.createdAt).toDateString() === today);
+  const completedToday = orders.filter(o => o.status === 'Completed' && new Date(o.updatedAt || o.createdAt).toDateString() === today);
+  const active         = orders.filter(o => o.status === 'Pending' || o.status === 'In Progress');
+  const overdue7       = active.filter(o => daysSince(o.createdAt) >= 7);
+
+  // ── Expenses ──
+  const expToday      = expenses.filter(e => new Date(e.date || e.createdAt).toDateString() === today);
+  const expTotalToday = expToday.reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  const netCashToday = cashInToday - expTotalToday;
+  const date = new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const lines = [
+    `━━━━━━━━━━━━━━━━━━`,
+    `💎 *MINA — Daily Report*`,
+    `📅 ${date}`,
+    `━━━━━━━━━━━━━━━━━━`,
+    ``,
+    `🧾 *SALES TODAY*`,
+    `  Invoices: ${invoicesToday.length}`,
+    `  Sales value: PKR ${fmt(salesTotalToday)}`,
+    `  💵 Cash collected: PKR ${fmt(cashInToday)}`,
+    `  💸 Expenses: PKR ${fmt(expTotalToday)}`,
+    `  📈 Net cash: PKR ${fmt(netCashToday)} ${netCashToday >= 0 ? '✅' : '🔴'}`,
+  ];
+
+  if (invoicesToday.length > 0) {
+    lines.push(``, `🧾 *INVOICES CREATED*`);
+    invoicesToday.forEach(i => {
+      const bal = Number(i.balanceDue || 0);
+      const tag = bal > 0 ? `⚠️ bal PKR ${fmt(bal)}` : `✅ paid`;
+      lines.push(`• ${i.id} | ${i.customerName || 'Walk-in'} | PKR ${fmt(Number(i.grandTotal))} | ${tag}`);
+    });
+  }
+
+  if (paymentsToday.length > 0) {
+    lines.push(``, `💰 *PAYMENTS RECEIVED*`);
+    paymentsToday.forEach(p => lines.push(`• ${p.id} | ${p.customer} | PKR ${fmt(p.amount)}`));
+  }
+
+  lines.push(
+    ``,
+    `📦 *ORDERS TODAY*`,
+    `  📝 New: ${createdToday.length}`,
+    `  ✅ Completed: ${completedToday.length}`,
+  );
+  if (createdToday.length > 0) {
+    createdToday.forEach(o => lines.push(`• ${o.id} | ${o.customerName || 'Walk-in'} | PKR ${fmt(Number(o.grandTotal))}`));
+  }
+
+  lines.push(
+    ``,
+    `📊 *OUTSTANDING & PIPELINE*`,
+    `  Unpaid invoices: ${outstanding.length} | PKR ${fmt(outstandingTotal)}`,
+    `  Active orders: ${active.length} | Overdue 7d+: ${overdue7.length}`,
+    ``,
+    `━━━━━━━━━━━━━━━━━━`,
+    `Good night! 🌙`,
+  );
+
+  await sendWhatsAppMessage(phone, lines.join('\n'));
+}
+
 async function sendWeeklyReport(phone: string) {
   const [ordersSnap, expensesSnap, batchesSnap, givenSnap] = await Promise.all([
     adminDb.collection('orders').get(),
@@ -384,8 +481,30 @@ async function sendGoldBreakingNews() {
   return message;
 }
 
+/**
+ * If CRON_SECRET is configured, require it on every call (Authorization: Bearer
+ * <secret>, or ?key=<secret>). This lets Google Cloud Scheduler hit the public
+ * endpoint without exposing it to the world. Localhost calls are always allowed
+ * so the local dev scheduler keeps working without a secret.
+ */
+function isAuthorized(req: NextRequest): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return true; // not configured → open (dev convenience)
+
+  const host = req.headers.get('host') || '';
+  if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) return true;
+
+  const auth = req.headers.get('authorization') || '';
+  if (auth === `Bearer ${secret}`) return true;
+  if (req.nextUrl.searchParams.get('key') === secret) return true;
+  return false;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    if (!isAuthorized(req)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const { task, force } = await req.json();
 
     // Gold tasks bypass store notification settings — they use their own phone
@@ -410,6 +529,7 @@ export async function POST(req: NextRequest) {
     for (const phone of phones) {
       switch (task) {
         case 'daily-checklist':  if (force || s.notifDailyChecklist)  await sendDailyChecklist(phone);  break;
+        case 'daily-report':     if (force || s.notifDailyReport)      await sendDailyReport(phone);     break;
         case 'end-of-day':       if (force || s.notifEndOfDay)         await sendEndOfDaySummary(phone); break;
         case 'weekly-report':    if (force || s.notifWeeklyReport)     await sendWeeklyReport(phone);    break;
         case 'overdue-orders':   if (force || s.notifOrderOverdue)     await checkOverdueOrders(phone);  break;
