@@ -34,3 +34,7 @@ env:
     secret: CRON_SECRET
     availability:
       - RUNTIME
+  - variable: CALLMEBOT_KEYS
+    secret: CALLMEBOT_KEYS
+    availability:
+      - RUNTIME
