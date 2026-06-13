@@ -30,6 +30,29 @@ function getCallMeBotKey(to: string): string | null {
   return null;
 }
 
+/**
+ * Green API — unofficial WhatsApp gateway. One account is linked as the sender
+ * (QR scan), then it can message anyone with no per-recipient setup, templates,
+ * or 24h window. Configure via:
+ *   GREENAPI_ID_INSTANCE   — instance id (e.g. "7103xxxxxx")
+ *   GREENAPI_API_TOKEN     — API token for that instance
+ *   GREENAPI_BASE_URL      — optional, defaults to https://api.green-api.com
+ */
+async function sendViaGreenApi(to: string, body: string, idInstance: string, apiToken: string): Promise<void> {
+  const base = (process.env.GREENAPI_BASE_URL || 'https://api.green-api.com').replace(/\/$/, '');
+  const chatId = `${digitsOnly(to)}@c.us`;
+  const url = `${base}/waInstance${idInstance}/sendMessage/${apiToken}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chatId, message: body }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Green API error ${res.status}: ${text.slice(0, 200)}`);
+  }
+}
+
 async function sendViaCallMeBot(to: string, body: string, apikey: string): Promise<void> {
   const phone = to.startsWith('+') ? to : `+${digitsOnly(to)}`;
   const url = `${CALLMEBOT_API}?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(body)}&apikey=${encodeURIComponent(apikey)}`;
@@ -53,12 +76,20 @@ async function sendViaMeta(to: string, body: string, token: string, phoneId: str
 }
 
 /**
- * Sends a WhatsApp text message. Prefers CallMeBot (simple, no Meta business
- * verification / templates / 24h window) when a per-recipient key is configured
- * via CALLMEBOT_KEYS; otherwise falls back to the Meta Business Cloud API
- * (WHATSAPP_TOKEN + WHATSAPP_PHONE_ID). Call only from server-side code.
+ * Sends a WhatsApp text message. Transport priority:
+ *   1. Green API   — if GREENAPI_ID_INSTANCE + GREENAPI_API_TOKEN are set
+ *   2. CallMeBot   — if a per-recipient key is configured via CALLMEBOT_KEYS
+ *   3. Meta Cloud  — if WHATSAPP_TOKEN + WHATSAPP_PHONE_ID are set
+ * Call only from server-side code.
  */
 export async function sendWhatsAppMessage(to: string, body: string): Promise<void> {
+  const greenId = process.env.GREENAPI_ID_INSTANCE;
+  const greenToken = process.env.GREENAPI_API_TOKEN;
+  if (greenId && greenToken) {
+    await sendViaGreenApi(to, body, greenId, greenToken);
+    return;
+  }
+
   const callMeBotKey = getCallMeBotKey(to);
   if (callMeBotKey) {
     await sendViaCallMeBot(to, body, callMeBotKey);
@@ -72,5 +103,5 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
     return;
   }
 
-  console.warn(`[WhatsApp] No CallMeBot key for ${to} and Meta creds not set — skipping notification.`);
+  console.warn(`[WhatsApp] No transport configured for ${to} — skipping notification.`);
 }

@@ -38,3 +38,11 @@ env:
     secret: CALLMEBOT_KEYS
     availability:
       - RUNTIME
+  - variable: GREENAPI_ID_INSTANCE
+    secret: GREENAPI_ID_INSTANCE
+    availability:
+      - RUNTIME
+  - variable: GREENAPI_API_TOKEN
+    secret: GREENAPI_API_TOKEN
+    availability:
+      - RUNTIME
