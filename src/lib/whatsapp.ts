@@ -31,6 +31,24 @@ function getCallMeBotKey(to: string): string | null {
 }
 
 /**
+ * Local bridge — a self-hosted whatsapp-web.js service running on this machine
+ * (see whatsapp-local-service.js). Sends through a linked WhatsApp account with
+ * no third-party gateway. Configure via WHATSAPP_LOCAL_URL, e.g.
+ *   WHATSAPP_LOCAL_URL=http://localhost:4001/send
+ */
+async function sendViaLocalBridge(to: string, body: string, url: string): Promise<void> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: digitsOnly(to), message: body }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Local WhatsApp bridge error ${res.status}: ${text.slice(0, 200)}`);
+  }
+}
+
+/**
  * Green API — unofficial WhatsApp gateway. One account is linked as the sender
  * (QR scan), then it can message anyone with no per-recipient setup, templates,
  * or 24h window. Configure via:
@@ -77,12 +95,19 @@ async function sendViaMeta(to: string, body: string, token: string, phoneId: str
 
 /**
  * Sends a WhatsApp text message. Transport priority:
- *   1. Green API   — if GREENAPI_ID_INSTANCE + GREENAPI_API_TOKEN are set
- *   2. CallMeBot   — if a per-recipient key is configured via CALLMEBOT_KEYS
- *   3. Meta Cloud  — if WHATSAPP_TOKEN + WHATSAPP_PHONE_ID are set
+ *   1. Local bridge — if WHATSAPP_LOCAL_URL is set (self-hosted whatsapp-web.js)
+ *   2. Green API    — if GREENAPI_ID_INSTANCE + GREENAPI_API_TOKEN are set
+ *   3. CallMeBot    — if a per-recipient key is configured via CALLMEBOT_KEYS
+ *   4. Meta Cloud   — if WHATSAPP_TOKEN + WHATSAPP_PHONE_ID are set
  * Call only from server-side code.
  */
 export async function sendWhatsAppMessage(to: string, body: string): Promise<void> {
+  const localUrl = process.env.WHATSAPP_LOCAL_URL;
+  if (localUrl) {
+    await sendViaLocalBridge(to, body, localUrl);
+    return;
+  }
+
   const greenId = process.env.GREENAPI_ID_INSTANCE;
   const greenToken = process.env.GREENAPI_API_TOKEN;
   if (greenId && greenToken) {

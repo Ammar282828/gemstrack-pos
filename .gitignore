@@ -51,3 +51,5 @@ graphify-out/.graphify_root
 
 # Claude Code internal worktree state
 .claude/worktrees/
+.wwebjs_auth/
+.wwebjs_cache/

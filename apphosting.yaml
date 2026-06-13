@@ -8,6 +8,12 @@ runConfig:
   # memoryMiB: 512
 
 env:
+  # whatsapp-web.js (local-only dev tool) pulls puppeteer. Skip the Chromium
+  # download during the cloud build — it's never used in production.
+  - variable: PUPPETEER_SKIP_DOWNLOAD
+    value: "true"
+    availability:
+      - BUILD
   - variable: SHOPIFY_API_KEY
     value: 1c2467806ff47ad68ffc2cd4b9720b26
     availability:
