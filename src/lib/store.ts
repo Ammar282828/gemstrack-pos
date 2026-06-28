@@ -601,8 +601,12 @@ export interface HisaabEntry {
 }
 
 export const EXPENSE_CATEGORIES = [
-  'Rent', 'Salaries', 'Utilities', 'Marketing', 'Supplies', 
-  'Repairs & Maintenance', 'Taxes', 'Travel', 'Making Charges', 'Other'
+  // Jewelry materials & stock
+  'Jewelry', 'Gold', 'Silver', 'Stones', 'Making Charges', 'Polishing & Plating',
+  'Boxes & Packaging', 'Tools & Equipment',
+  // Operating costs
+  'Rent', 'Salaries', 'Utilities', 'Marketing', 'Repairs & Maintenance',
+  'Taxes', 'Travel', 'Other'
 ] as const;
 export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
 
@@ -2059,8 +2063,6 @@ export const useAppStore = create<AppState>()(
 
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), cleanInvoiceData);
 
-                addActivityLog('invoice.create', `Created invoice ${invoiceId}`, `Customer: ${finalCustomerName || 'Walk-in'} | Total: ${grandTotal.toLocaleString()}`, invoiceId);
-                
                 const finalInvoice = { ...cleanInvoiceData, id: invoiceId } as Invoice;
                 if(finalInvoice.items && typeof finalInvoice.items === 'object' && !Array.isArray(finalInvoice.items)){
                   finalInvoice.items = Object.values(finalInvoice.items);
@@ -2109,6 +2111,9 @@ export const useAppStore = create<AppState>()(
 
             if (result) syncInvoiceShopify(result.id, 'upsert');
 
+            // Logged AFTER the transaction commits to avoid duplicate logs on retry.
+            if (result) await addActivityLog('invoice.create', `Created invoice ${result.id}`, `Customer: ${result.customerName || 'Walk-in'} | Total: ${result.grandTotal.toLocaleString()}`, result.id);
+
             // WhatsApp notification: new invoice/sale (only for brand-new invoices, not edits)
             if (result && !existingInvoiceId) {
                 const itemList = (Array.isArray(result.items) ? result.items : Object.values(result.items || {})) as InvoiceItem[];
@@ -2153,9 +2158,6 @@ export const useAppStore = create<AppState>()(
                 };
                 
                 transaction.update(invoiceRef, updatedFields);
-                
-                addActivityLog('invoice.payment', `Payment received for invoice ${invoiceId}`, `Amount: ${paymentAmount.toLocaleString()} | Customer: ${invoiceData.customerName}`, invoiceId);
-
 
                 return { ...invoiceData, ...updatedFields, id: invoiceId };
             });
@@ -2213,6 +2215,11 @@ export const useAppStore = create<AppState>()(
                     : `✅ Fully paid`;
                 const msg = `💰 *Payment Received* ${invoiceId}\nCustomer: ${updatedInvoice.customerName || 'Walk-in'}\nAmount: PKR ${paymentAmount.toLocaleString()}\n${balLine}`;
                 notifyWhatsApp(get().settings, msg, get().settings.notifPaymentReceived);
+
+                // Logged AFTER the transaction commits — addActivityLog writes to a
+                // separate collection, so logging inside runTransaction would repeat
+                // it on every transaction retry (duplicate payment logs).
+                await addActivityLog('invoice.payment', `Payment received for invoice ${invoiceId}`, `Amount: ${paymentAmount.toLocaleString()} | Customer: ${updatedInvoice.customerName}`, invoiceId);
             }
 
             return updatedInvoice;
@@ -2253,7 +2260,6 @@ export const useAppStore = create<AppState>()(
               balanceDue: newBalanceDue,
             });
 
-            addActivityLog('invoice.refund', `Partial refund on invoice ${invoiceId}`, `Amount: ${refundAmount.toLocaleString()}${reason ? ` | ${reason}` : ''}`, invoiceId);
             return { ...invoiceData, id: invoiceId, paymentHistory: newPaymentHistory, amountPaid: newAmountPaid, balanceDue: newBalanceDue } as Invoice;
           });
 
@@ -2295,6 +2301,9 @@ export const useAppStore = create<AppState>()(
                 body: JSON.stringify({ invoiceId, action: 'refund', amount: refundAmount, reason }),
               }).catch(() => { /* fire-and-forget */ });
             }
+
+            // Logged AFTER the transaction commits to avoid duplicate logs on retry.
+            await addActivityLog('invoice.refund', `Partial refund on invoice ${invoiceId}`, `Amount: ${refundAmount.toLocaleString()}${reason ? ` | ${reason}` : ''}`, invoiceId);
           }
           return updatedInvoice;
         } catch (error) {
@@ -2325,8 +2334,6 @@ export const useAppStore = create<AppState>()(
             };
 
             transaction.update(invoiceRef, updatedFields);
-
-            addActivityLog('invoice.update', `Discount updated on invoice ${invoiceId}`, `Discount: ${newDiscountAmount.toLocaleString()} | New total: ${newGrandTotal.toLocaleString()}`, invoiceId);
 
             return { ...invoiceData, ...updatedFields, id: invoiceId };
           });
@@ -2372,6 +2379,9 @@ export const useAppStore = create<AppState>()(
               );
             }
             syncInvoiceShopify(invoiceId, 'upsert');
+
+            // Logged AFTER the transaction commits to avoid duplicate logs on retry.
+            await addActivityLog('invoice.update', `Discount updated on invoice ${invoiceId}`, `Discount: ${newDiscountAmount.toLocaleString()} | New total: ${updatedInvoice.grandTotal.toLocaleString()}`, invoiceId);
           }
 
           return updatedInvoice;
@@ -3148,11 +3158,14 @@ export const useAppStore = create<AppState>()(
                 
                 // No hisaab entry here — the advance is captured as cashCredit when
                 // the order is finalized to an invoice, avoiding double-counting.
-                await addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${amount.toLocaleString()}`, orderId);
-
                 return { ...orderData, advancePayment: newAdvancePayment, grandTotal: newGrandTotal } as Order;
             });
             syncOrderShopify(orderId, 'upsert');
+            // Logged AFTER the transaction commits — logging inside runTransaction
+            // would repeat on every retry (duplicate advance logs).
+            if (updatedOrder) {
+                await addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${amount.toLocaleString()}`, orderId);
+            }
             return updatedOrder;
         } catch (error) {
             console.error(`Error recording advance for order ${orderId}:`, error);
