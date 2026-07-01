@@ -466,7 +466,7 @@ async function checkKarigarPayments(phone: string) {
 
 // ── Gold market update tasks ────────────────────────────────────────────────
 
-const GOLD_UPDATE_PHONE = process.env.GOLD_UPDATE_PHONE || '923262275554';
+const GOLD_UPDATE_PHONE = process.env.GOLD_UPDATE_PHONE || '923352275554';
 
 async function sendGoldDailyUpdate() {
   const message = await generateGoldDailyUpdate();
