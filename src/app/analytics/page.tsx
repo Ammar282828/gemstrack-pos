@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem, AdditionalRevenue, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS, CustomerSource } from '@/lib/store';
+import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem, AdditionalRevenue, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS, CustomerSource, getInvoiceRevenueDate } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -75,11 +75,15 @@ export default function AnalyticsPage() {
   const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
 
 
+  // Map order id -> order so invoices can be recognized on their source order's
+  // date (getInvoiceRevenueDate), keeping every revenue view on an order-date basis.
+  const ordersById = useMemo(() => new Map(orders.map(o => [o.id, o])), [orders]);
+
   const yearlySummary = useMemo(() => {
     const yearMap: Record<number, { revenue: number; expenses: number; unpaid: number }> = {};
     generatedInvoices.forEach(inv => {
       if (!inv?.createdAt || inv.status === 'Refunded') return;
-      const yr = getYear(parseISO(inv.createdAt));
+      const yr = getYear(parseISO(getInvoiceRevenueDate(inv, ordersById)));
       if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
       yearMap[yr].revenue += inv.grandTotal || 0;
       yearMap[yr].unpaid += Math.max(0, inv.balanceDue || 0);
@@ -112,7 +116,7 @@ export default function AnalyticsPage() {
         netProfit: data.revenue - data.expenses,
       }))
       .sort((a, b) => b.year - a.year);
-  }, [generatedInvoices, orders, expenses, additionalRevenues]);
+  }, [generatedInvoices, orders, ordersById, expenses, additionalRevenues]);
 
   const filteredInvoices = useMemo(() => {
     const base = generatedInvoices.filter(invoice => invoice?.status !== 'Refunded');
@@ -120,11 +124,11 @@ export default function AnalyticsPage() {
 
     return base.filter(invoice => {
       if (!invoice || !invoice.createdAt) return false;
-      const invoiceDate = parseISO(invoice.createdAt);
+      const invoiceDate = parseISO(getInvoiceRevenueDate(invoice, ordersById));
       const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
       return isWithinInterval(invoiceDate, { start: startOfDay(dateRange.from!), end: toDate });
     });
-  }, [generatedInvoices, dateRange]);
+  }, [generatedInvoices, dateRange, ordersById]);
 
   // Uninvoiced orders only (not Cancelled, no invoiceId — those are already counted in invoice revenue)
   const filteredOrders = useMemo(() => {
@@ -240,7 +244,7 @@ export default function AnalyticsPage() {
       totalDiscounts += invoice.discountAmount || 0;
       totalUnpaid += Math.max(0, invoice.balanceDue || 0);
 
-      const dateKey = format(startOfDay(parseISO(invoice.createdAt)), 'yyyy-MM-dd');
+      const dateKey = format(startOfDay(parseISO(getInvoiceRevenueDate(invoice, ordersById))), 'yyyy-MM-dd');
       if (!salesByDate[dateKey]) {
         salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
       }
@@ -471,11 +475,11 @@ export default function AnalyticsPage() {
 
     return calcData;
 
-  }, [filteredInvoices, filteredOrders, filteredExpenses, filteredAdditionalRevenues, products, categories, customers, generatedInvoices, dateRange]);
+  }, [filteredInvoices, filteredOrders, filteredExpenses, filteredAdditionalRevenues, products, categories, customers, generatedInvoices, dateRange, ordersById]);
   
   const dailyBreakdown = useMemo(() => {
     if (!selectedDayData) return { invoices: [], products: [] };
-    const dayInvoices = filteredInvoices.filter(invoice => format(startOfDay(parseISO(invoice.createdAt)), 'yyyy-MM-dd') === selectedDayData.date);
+    const dayInvoices = filteredInvoices.filter(invoice => format(startOfDay(parseISO(getInvoiceRevenueDate(invoice, ordersById))), 'yyyy-MM-dd') === selectedDayData.date);
     const dayProducts: DailySummaryItem[] = dayInvoices.flatMap(invoice => 
         (invoice.items || []).map(item => ({
             ...item,
@@ -484,7 +488,7 @@ export default function AnalyticsPage() {
         }))
     );
     return { invoices: dayInvoices, products: dayProducts };
-  }, [selectedDayData, filteredInvoices]);
+  }, [selectedDayData, filteredInvoices, ordersById]);
 
 
   if (isLoading) {

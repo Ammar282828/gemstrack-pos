@@ -6,7 +6,7 @@ import {
   orderBy, query, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, getInvoiceRevenueDate } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -284,14 +284,18 @@ export default function AmmarAccountPage() {
     [expenses]
   );
 
+  // Recognize invoices on their source ORDER's date so the partnership cutoff and
+  // revenue reflect when the sale was taken, not when it was invoiced.
+  const ordersById = useMemo(() => new Map(orders.map(o => [o.id, o])), [orders]);
+
   const filteredInvoices = useMemo(() =>
     generatedInvoices
       .filter(inv => {
         if (!inv.createdAt || inv.status === 'Refunded') return false;
-        return inv.createdAt >= REVENUE_CUTOFF;
+        return getInvoiceRevenueDate(inv, ordersById) >= REVENUE_CUTOFF;
       })
       .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '')),
-    [generatedInvoices]
+    [generatedInvoices, ordersById]
   );
 
   const filteredOrders = useMemo(() => {

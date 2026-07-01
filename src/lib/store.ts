@@ -580,6 +580,24 @@ export interface Order {
   shopifyDraftOrderName?: string; // Shopify-assigned draft name (e.g. #D1)
 }
 
+/**
+ * Revenue-recognition date for an invoice. Sales are recognized on the date the
+ * underlying ORDER was created — NOT the date it happened to be invoiced — so an
+ * old order that is invoiced later doesn't inflate the later period's revenue.
+ * Falls back to the invoice's own createdAt for direct invoices (walk-in sales
+ * with no source order). Pass a Map of order id -> order for O(1) lookup.
+ */
+export function getInvoiceRevenueDate(
+  invoice: Pick<Invoice, 'createdAt' | 'sourceOrderId'>,
+  ordersById: Map<string, Pick<Order, 'createdAt'>>
+): string {
+  if (invoice.sourceOrderId) {
+    const order = ordersById.get(invoice.sourceOrderId);
+    if (order?.createdAt) return order.createdAt;
+  }
+  return invoice.createdAt;
+}
+
 export type HisaabEntityType = 'customer' | 'karigar';
 
 export interface HisaabEntry {

@@ -3,7 +3,7 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { useAppStore, selectCartDetails, selectCartSubtotal, Order, Invoice } from '@/lib/store';
+import { useAppStore, selectCartDetails, selectCartSubtotal, Order, Invoice, getInvoiceRevenueDate } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -155,13 +155,17 @@ export default function HomePage() {
     // matching exactly what the Analytics page shows with its default date range.
     const last30Start = startOfDay(subDays(now, 29));
 
+    // Recognize each invoice on its source ORDER's date (see getInvoiceRevenueDate),
+    // so an old order invoiced recently doesn't inflate this window's revenue.
+    const ordersById = new Map(orders.map(o => [o.id, o]));
+
     // Ongoing
     const ongoingOrders = orders
       .filter(o => o.status === 'Pending' || o.status === 'In Progress')
       .sort((a, b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
 
     // Today invoices
-    const todayInvoices = generatedInvoices.filter(inv => inv.status !== 'Refunded' && parseISO(inv.createdAt) >= todayStart);
+    const todayInvoices = generatedInvoices.filter(inv => inv.status !== 'Refunded' && parseISO(getInvoiceRevenueDate(inv, ordersById)) >= todayStart);
     const todayInvoiceRevenue = todayInvoices.reduce((s, inv) => s + (inv.grandTotal || 0), 0);
 
     // Today uninvoiced orders
@@ -177,7 +181,7 @@ export default function HomePage() {
     const todayRevenue = todayInvoiceRevenue + todayOrderRevenue + todayExtraRevenue;
 
     // 30-day
-    const recentInvoices = generatedInvoices.filter(inv => inv.status !== 'Refunded' && parseISO(inv.createdAt) >= last30Start);
+    const recentInvoices = generatedInvoices.filter(inv => inv.status !== 'Refunded' && parseISO(getInvoiceRevenueDate(inv, ordersById)) >= last30Start);
     const invoiceRevenue30 = recentInvoices.reduce((s, inv) => s + (inv.grandTotal || 0), 0);
     const freeOrders30 = orders.filter(o =>
       parseISO(o.createdAt) >= last30Start &&
