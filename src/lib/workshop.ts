@@ -48,6 +48,7 @@ export interface WorkshopJob {
   sampleGiven?: boolean;
   value?: number;             // order item estimate, or agreed cost on a manual job
   notes?: string;
+  specialNote?: string;       // OrderItem.adminNote — making instructions
 }
 
 export function daysSince(iso: string | undefined): number {
@@ -125,6 +126,7 @@ export function buildWorkshopJobs(
         sampleGiven: !!item.sampleGiven,
         value: item.totalEstimate ?? 0,
         notes: item.stoneDetails || item.diamondDetails || undefined,
+        specialNote: item.adminNote || undefined,
       });
     });
   }

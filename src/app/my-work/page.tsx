@@ -28,7 +28,7 @@ interface Job {
   size?: string; referenceSku?: string; sampleGiven?: boolean;
   status: 'pending' | 'in-progress' | 'completed';
   assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
-  notes?: string;
+  notes?: string; specialNote?: string;
 }
 interface Payload {
   role: string;
@@ -207,6 +207,13 @@ export default function MyWorkPage() {
                 <div className="mt-3 rounded-md border-l-2 border-primary/50 bg-muted/40 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Instructions</p>
                   <p className="text-sm whitespace-pre-wrap mt-0.5">{job.notes}</p>
+                </div>
+              )}
+
+              {job.specialNote && (
+                <div className="mt-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/25 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-amber-800 dark:text-amber-300 font-semibold">Special note</p>
+                  <p className="text-sm whitespace-pre-wrap mt-0.5 text-amber-900 dark:text-amber-100">{job.specialNote}</p>
                 </div>
               )}
 

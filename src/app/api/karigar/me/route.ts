@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
       size?: string; referenceSku?: string; sampleGiven?: boolean;
       status: 'pending' | 'in-progress' | 'completed';
       assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
-      notes?: string;
+      notes?: string; specialNote?: string;
     };
     const jobs: SafeJob[] = [];
 
@@ -103,6 +103,11 @@ export async function GET(req: NextRequest) {
           ageDays: age,
           urgency: urgency(age, done),
           notes: item.stoneDetails || item.diamondDetails || undefined,
+          // The order form calls this the "Admin-Only Note", meaning it never
+          // prints on a customer estimate/invoice — in practice it holds the
+          // making instructions (sizes, stone choices, platings), so karigars
+          // need it.
+          specialNote: item.adminNote || undefined,
           // deliberately omitted: customerName, customerContact, prices, order id
         });
       });

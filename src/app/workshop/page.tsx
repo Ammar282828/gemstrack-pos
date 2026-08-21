@@ -138,6 +138,12 @@ const JobRow: React.FC<{
           {meta && <span>{meta}</span>}
         </div>
 
+        {job.specialNote && (
+          <p className="text-xs mt-1 rounded border border-amber-300/70 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/25 px-2 py-1 text-amber-900 dark:text-amber-100 whitespace-pre-wrap">
+            <span className="font-semibold">Note: </span>{job.specialNote}
+          </p>
+        )}
+
         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-x-2 gap-y-0.5 flex-wrap">
           {job.orderId && (
             <Link href={`/orders/${job.orderId}`} className="text-primary hover:underline inline-flex items-center gap-1 min-w-0">
