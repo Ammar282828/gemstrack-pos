@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { staticCategories, categoryTitle, type Category } from './categories';
+import type { MetalType, KaratValue } from './materials';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc, deleteField, Timestamp, serverTimestamp } from 'firebase/firestore';
@@ -312,8 +313,8 @@ export function calculateProductPrice(product: {
 }
 
 // --- Type Definitions ---
-export type MetalType = 'gold' | 'palladium' | 'platinum' | 'silver';
-export type KaratValue = '18k' | '21k' | '22k' | '24k';
+export type { MetalType, KaratValue } from './materials';
+export { METAL_TYPES, KARAT_VALUES, metalLabel, karatLabel, describeMetal } from './materials';
 export type ThemeKey = 'default' | 'forest' | 'ocean' | 'sunset' | 'amethyst' | 'quartz' | 'slate' | 'latte' | 'mint' | 'gold';
 
 export interface Theme {

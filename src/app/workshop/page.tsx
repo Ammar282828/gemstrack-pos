@@ -842,6 +842,44 @@ export default function WorkshopPage() {
         </Select>
       </div>
 
+      {/* Quick-select karigars — click to focus one, click again to clear */}
+      {(() => {
+        const active = allJobs.filter(j => j.status !== 'completed');
+        const counts = new Map<string, { name: string; n: number; crit: number }>();
+        for (const j of active) {
+          const e = counts.get(j.karigarId) || { name: j.karigarName, n: 0, crit: 0 };
+          e.n++; if (j.urgency === 'critical') e.crit++;
+          counts.set(j.karigarId, e);
+        }
+        const chips = [...counts.entries()].sort((a, b) => {
+          if (a[0] === UNASSIGNED_ID) return -1;
+          if (b[0] === UNASSIGNED_ID) return 1;
+          return b[1].n - a[1].n;
+        });
+        if (chips.length === 0) return null;
+        return (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Button size="sm" variant={karigarFilter === 'all' ? 'secondary' : 'outline'}
+              className="h-7 text-xs" onClick={() => setKarigarFilter('all')}>
+              Everyone <Badge variant="secondary" className="ml-1.5 text-[10px]">{active.length}</Badge>
+            </Button>
+            {chips.map(([id, c]) => {
+              const on = karigarFilter === id;
+              const unassigned = id === UNASSIGNED_ID;
+              return (
+                <Button key={id} size="sm" variant={on ? 'secondary' : 'outline'}
+                  className={cn('h-7 text-xs', unassigned && !on && 'text-destructive border-destructive/40')}
+                  onClick={() => setKarigarFilter(on ? 'all' : id)}>
+                  {unassigned ? 'Unassigned' : c.name}
+                  <Badge variant="secondary" className="ml-1.5 text-[10px]">{c.n}</Badge>
+                  {c.crit > 0 && <Flame className="h-3 w-3 ml-1 text-destructive" />}
+                </Button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {/* Views */}
       <Tabs defaultValue="karigar">
         <TabsList className="grid w-full grid-cols-4 max-w-2xl">

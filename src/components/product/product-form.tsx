@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel } from '@/lib/materials';
 import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -23,8 +24,6 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
-const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
-const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
 
 // Schema for the form data
 const productFormSchema = z.object({
@@ -492,7 +491,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                               <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select Metal Type" /></SelectTrigger></FormControl>
                                 <SelectContent>
-                                  {metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>))}
+                                  {metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{metalLabel(mVal)}</SelectItem>))}
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -554,7 +553,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                         <FormControl><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger></FormControl>
                                         <SelectContent>
                                           <SelectItem value="none">None</SelectItem>
-                                          {metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{mVal.charAt(0).toUpperCase() + mVal.slice(1)}</SelectItem>))}
+                                          {metalTypeValues.map((mVal) => (<SelectItem key={mVal} value={mVal}>{metalLabel(mVal)}</SelectItem>))}
                                           </SelectContent>
                                     </Select>
                                     <FormMessage />

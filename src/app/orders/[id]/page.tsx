@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
+import { METAL_TYPES as metalTypeValues, describeMetal } from '@/lib/materials';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -320,7 +321,6 @@ const BookCourierDialog: React.FC<{
 };
 
 // --- Finalize Order Dialog Components ---
-const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
 const finalizeOrderItemSchema = z.object({
   description: z.string(), // Readonly
   karat: z.custom<KaratValue>(), // Readonly
@@ -834,9 +834,7 @@ export default function OrderDetailPage() {
     for (let i = 0; i < order.items.length; i++) {
         const item = order.items[i];
         const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
-        const metalName = item.metalType === 'silver'
-            ? '925 Sterling Silver'
-            : `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.karat ? ` (${item.karat.toUpperCase()})` : ''}`;
+        const metalName = describeMetal(item.metalType, item.karat);
         const metalLine = item.isManualPrice
             ? metalName
             : `${metalName}  |  Est. Wt: ${item.estimatedWeightG}g${item.metalType !== 'silver' && item.wastagePercentage > 0 ? `  |  Wastage: ${item.wastagePercentage}%` : ''}`;
@@ -1178,7 +1176,7 @@ export default function OrderDetailPage() {
                                 )}
                                 <p className="font-bold">{item.name}</p>
                                 <div className="text-sm text-muted-foreground mt-1">
-                                  <p>{item.metalType === 'silver' ? '925 Sterling Silver' : `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.karat ? ` (${item.karat.toUpperCase()})` : ''}`} | Final Wt: {item.metalWeightG}g</p>
+                                  <p>{describeMetal(item.metalType, item.karat)} | Final Wt: {item.metalWeightG}g</p>
                                 </div>
                                 {item.stoneDetails && (
                                   <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
@@ -1250,7 +1248,7 @@ export default function OrderDetailPage() {
                                       <p className="font-bold">{item.description}</p>
                                       <div className="text-sm text-muted-foreground space-y-1 mt-1">
                                           {(() => {
-                                            const mName = item.metalType === 'silver' ? '925 Sterling Silver' : `${item.metalType.charAt(0).toUpperCase() + item.metalType.slice(1)}${item.karat ? ` (${item.karat.toUpperCase()})` : ''}`;
+                                            const mName = describeMetal(item.metalType, item.karat);
                                             return item.isManualPrice ? (
                                               <>
                                                 <p className="font-medium">{mName}</p>

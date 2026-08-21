@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel } from '@/lib/materials';
 import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +40,6 @@ declare module 'jspdf' {
   }
 }
 
-const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
 
 /**
  * Karat only means something for gold. The blank-item template seeds '21k' so
@@ -52,7 +52,6 @@ function stripMeaninglessKarat<T extends { metalType?: string; karat?: unknown }
   const { karat, ...rest } = item as Record<string, unknown>;
   return rest as T;
 }
-const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
 
 // Schema for a single custom order item
 const orderItemSchema = z.object({
@@ -778,7 +777,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                     <FormItem><FormLabel>Metal</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                         <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                        <SelectContent>{metalTypeValues.map(m => <SelectItem key={m} value={m}>{m === 'silver' ? '925 Sterling Silver' : m.charAt(0).toUpperCase() + m.slice(1)}</SelectItem>)}</SelectContent>
+                                        <SelectContent>{metalTypeValues.map(m => <SelectItem key={m} value={m}>{metalLabel(m)}</SelectItem>)}</SelectContent>
                                     </Select><FormMessage /></FormItem>
                                 )}/>
                                 {form.watch(`items.${index}.metalType`) === 'gold' &&
