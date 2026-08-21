@@ -31,7 +31,7 @@ import {
 import {
   Hammer, Users, AlertTriangle, Clock, PlusCircle, Share2, Copy, ExternalLink,
   Loader2, Search, CheckCircle2, CircleDot, Circle, Trash2, PackageOpen, LayoutGrid,
-  Table as TableIcon, Flame, Pencil, Save, ImagePlus,
+  Table as TableIcon, Flame, Pencil, Save, ImagePlus, Calendar, MessageSquareQuote,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -907,11 +907,11 @@ export default function WorkshopPage() {
       })()}
 
       {/* Views */}
-      <Tabs defaultValue="karigar">
+      <Tabs defaultValue="list">
         <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsTrigger value="list" className="text-xs sm:text-sm"><TableIcon className="h-4 w-4 mr-1.5 hidden sm:inline" />All Jobs</TabsTrigger>
           <TabsTrigger value="karigar" className="text-xs sm:text-sm"><Users className="h-4 w-4 mr-1.5 hidden sm:inline" />By Karigar</TabsTrigger>
           <TabsTrigger value="board" className="text-xs sm:text-sm"><LayoutGrid className="h-4 w-4 mr-1.5 hidden sm:inline" />Board</TabsTrigger>
-          <TabsTrigger value="list" className="text-xs sm:text-sm"><TableIcon className="h-4 w-4 mr-1.5 hidden sm:inline" />All Jobs</TabsTrigger>
           <TabsTrigger value="attention" className="text-xs sm:text-sm">
             <AlertTriangle className="h-4 w-4 mr-1.5 hidden sm:inline" />Attention
             {attention.length > 0 && <Badge variant="destructive" className="ml-1.5 h-4 px-1 text-[10px]">{attention.length}</Badge>}
@@ -1070,56 +1070,84 @@ export default function WorkshopPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-8"></TableHead>
-                    <TableHead>Item</TableHead>
-                    <TableHead>Karigar</TableHead>
-                    <TableHead className="hidden md:table-cell">Order / Customer</TableHead>
+                    <TableHead className="w-10"></TableHead>
+                    <TableHead>Job Details</TableHead>
                     <TableHead className="hidden lg:table-cell">Given</TableHead>
+                    <TableHead className="hidden md:table-cell">Order / Customer</TableHead>
+                    <TableHead>Karigar</TableHead>
                     <TableHead className="text-right">Age</TableHead>
-                    <TableHead className="text-right hidden sm:table-cell">Value</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 && (
                     <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No jobs match.</TableCell></TableRow>
                   )}
-                  {filtered.map(j => (
-                    <TableRow key={j.id} className={cn(j.status === 'completed' && 'opacity-60')}>
-                      <TableCell><StatusDot status={j.status} /></TableCell>
-                      <TableCell>
-                        <div className={cn('font-medium text-sm', j.status === 'completed' && 'line-through')}>{j.description}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {[j.category, j.weightG ? `${j.weightG}g` : null].filter(Boolean).join(' · ')}
-                          {j.source === 'manual' && <Badge variant="secondary" className="ml-1.5 text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {j.source === 'order' && j.orderId && j.itemIndex !== undefined && j.status !== 'completed' ? (
-                          <KarigarAssign
-                            orderId={j.orderId}
-                            itemIndex={j.itemIndex}
-                            currentKarigarId={j.karigarId === UNASSIGNED_ID ? undefined : j.karigarId}
-                            size="compact"
-                          />
-                        ) : j.karigarId === UNASSIGNED_ID
-                          ? <Badge variant="outline" className="text-destructive border-destructive/40 text-xs">Unassigned</Badge>
-                          : <Link href={`/karigars/${j.karigarId}`} className="text-sm text-primary hover:underline">{j.karigarName}</Link>}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">
-                        {j.orderId
-                          ? <Link href={`/orders/${j.orderId}`} className="font-mono text-xs text-primary hover:underline">{j.orderId}</Link>
-                          : <span className="text-muted-foreground">—</span>}
-                        {j.customerName && <div className="text-xs text-muted-foreground">{j.customerName}</div>}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
-                        {format(parseISO(j.assignedDate), 'dd MMM yy')}
-                      </TableCell>
-                      <TableCell className="text-right"><AgeBadge job={j} /></TableCell>
-                      <TableCell className="text-right hidden sm:table-cell text-sm tabular-nums">
-                        {j.value ? j.value.toLocaleString() : '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filtered.map(j => {
+                    const spec = [
+                      j.size ? `Size ${j.size}` : null,
+                      j.weightG ? `${j.weightG}g` : null,
+                      j.plating,
+                      j.category,
+                    ].filter(Boolean).join(' · ');
+                    return (
+                      <TableRow key={j.id} className={cn(j.status === 'completed' && 'opacity-60')}>
+                        <TableCell className="align-middle">
+                          <Checkbox checked={j.status === 'completed'}
+                            onCheckedChange={() => handleToggleDone(j)} aria-label="Mark done" />
+                        </TableCell>
+
+                        {/* Name, spec, and the instruction line — mirrors the
+                            Orders table's "detail under the title" pattern. */}
+                        <TableCell className="align-middle py-3">
+                          <div className={cn('font-medium', j.status === 'completed' && 'line-through')}>
+                            {j.description}
+                          </div>
+                          {spec && <div className="text-xs text-muted-foreground mt-0.5">{spec}</div>}
+                          {j.notes && (
+                            <div className="text-xs text-muted-foreground mt-0.5 flex items-start gap-1.5 max-w-sm" title={j.notes}>
+                              <MessageSquareQuote className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                              <span className="min-w-0 truncate">{j.notes.replace(/\n/g, ' · ')}</span>
+                            </div>
+                          )}
+                          {j.source === 'manual' && (
+                            <Badge variant="secondary" className="mt-1 text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
+                          )}
+                        </TableCell>
+
+                        <TableCell className="hidden lg:table-cell align-middle">
+                          <div className="flex items-center gap-2 text-sm whitespace-nowrap">
+                            <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                            {format(parseISO(j.assignedDate), 'dd MMM yyyy')}
+                          </div>
+                        </TableCell>
+
+                        <TableCell className="hidden md:table-cell align-middle">
+                          {j.orderId
+                            ? <Link href={`/orders/${j.orderId}`} className="font-mono text-sm text-primary hover:underline">{j.orderId}</Link>
+                            : <span className="text-sm text-muted-foreground">—</span>}
+                          {j.customerName && <div className="text-xs text-muted-foreground truncate max-w-[11rem]">{j.customerName}</div>}
+                        </TableCell>
+
+                        <TableCell className="align-middle">
+                          {j.source === 'order' && j.orderId && j.itemIndex !== undefined && j.status !== 'completed' ? (
+                            <KarigarAssign orderId={j.orderId} itemIndex={j.itemIndex}
+                              currentKarigarId={j.karigarId === UNASSIGNED_ID ? undefined : j.karigarId} size="compact" />
+                          ) : j.karigarId === UNASSIGNED_ID
+                            ? <Badge variant="outline" className="text-destructive border-destructive/40 text-xs">Unassigned</Badge>
+                            : <Link href={`/karigars/${j.karigarId}`} className="text-sm text-primary hover:underline">{j.karigarName}</Link>}
+                        </TableCell>
+
+                        <TableCell className="text-right align-middle"><AgeBadge job={j} /></TableCell>
+
+                        <TableCell className="text-right align-middle">
+                          <Button variant="outline" size="sm" className="h-8" onClick={() => openEdit(j)}>
+                            <Pencil className="h-3.5 w-3.5 mr-1.5" />Details
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
