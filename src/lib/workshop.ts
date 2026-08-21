@@ -13,7 +13,7 @@
  */
 
 import type { Order, KarigarJob, KarigarJobStatus, Karigar } from './store';
-import { staticCategories } from './store';
+import { categoryTitle as resolveCategoryTitle, displayKarat } from './categories';
 
 export const WARN_DAYS = 7;
 export const CRITICAL_DAYS = 14;
@@ -43,6 +43,9 @@ export interface WorkshopJob {
   karat?: string;
   weightG?: number;
   quantity?: number;
+  size?: string;
+  referenceSku?: string;
+  sampleGiven?: boolean;
   value?: number;             // order item estimate, or agreed cost on a manual job
   notes?: string;
 }
@@ -62,8 +65,7 @@ export function urgencyOf(status: KarigarJobStatus, ageDays: number): WorkshopUr
 }
 
 function categoryTitle(id?: string): string | undefined {
-  if (!id) return undefined;
-  return staticCategories.find(c => c.id === id)?.title || undefined;
+  return resolveCategoryTitle(id);
 }
 
 /**
@@ -115,9 +117,12 @@ export function buildWorkshopJobs(
         customerName: order.customerName || 'Walk-in',
         category: categoryTitle(item.itemCategory),
         metalType: item.metalType,
-        karat: item.karat,
+        karat: displayKarat(item.metalType, item.karat),
         weightG: item.estimatedWeightG,
         quantity: 1,
+        size: item.size || undefined,
+        referenceSku: item.referenceSku || undefined,
+        sampleGiven: !!item.sampleGiven,
         value: item.totalEstimate ?? 0,
         notes: item.stoneDetails || item.diamondDetails || undefined,
       });
@@ -141,9 +146,10 @@ export function buildWorkshopJobs(
       urgency: urgencyOf(job.status, ageDays),
       category: categoryTitle(job.itemCategory) || job.itemCategory,
       metalType: job.metalType,
-      karat: job.karat,
+      karat: displayKarat(job.metalType, job.karat),
       weightG: job.weightG,
       quantity: job.quantity ?? 1,
+      size: job.size || undefined,
       value: job.agreedCost ?? 0,
       notes: job.notes,
     });

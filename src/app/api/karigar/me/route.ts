@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { resolveKarigar, verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
+import { categoryTitle, displayKarat } from '@/lib/categories';
 
 /**
  * Returns the signed-in karigar's own work list and account balance.
@@ -66,6 +67,7 @@ export async function GET(req: NextRequest) {
       id: string; source: 'order' | 'manual';
       description: string; category?: string; metalType?: string; karat?: string;
       weightG?: number; quantity?: number;
+      size?: string; referenceSku?: string; sampleGiven?: boolean;
       status: 'pending' | 'in-progress' | 'completed';
       assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
       notes?: string;
@@ -86,11 +88,16 @@ export async function GET(req: NextRequest) {
           id: `order:${doc.id}:${idx}`,
           source: 'order',
           description: item.description || 'Item',
-          category: item.itemCategory || undefined,
+          category: categoryTitle(item.itemCategory) || undefined,
           metalType: item.metalType || undefined,
-          karat: item.karat || undefined,
+          // karat is meaningless on silver/platinum — the order form leaves a
+          // default '21k' behind on every non-gold item
+          karat: displayKarat(item.metalType, item.karat),
           weightG: typeof item.estimatedWeightG === 'number' ? item.estimatedWeightG : undefined,
           quantity: 1,
+          size: item.size || undefined,
+          referenceSku: item.referenceSku || undefined,
+          sampleGiven: !!item.sampleGiven,
           status: done ? 'completed' : (o.status === 'In Progress' ? 'in-progress' : 'pending'),
           assignedDate: o.createdAt,
           ageDays: age,
@@ -110,11 +117,12 @@ export async function GET(req: NextRequest) {
         id: `job:${doc.id}`,
         source: 'manual',
         description: j.description || 'Work',
-        category: j.itemCategory || undefined,
+        category: categoryTitle(j.itemCategory) || j.itemCategory || undefined,
         metalType: j.metalType || undefined,
-        karat: j.karat || undefined,
+        karat: displayKarat(j.metalType, j.karat),
         weightG: typeof j.weightG === 'number' ? j.weightG : undefined,
         quantity: j.quantity ?? 1,
+        size: j.size || undefined,
         status: j.status || 'pending',
         assignedDate: j.assignedDate,
         ageDays: age,

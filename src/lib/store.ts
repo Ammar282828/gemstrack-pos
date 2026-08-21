@@ -1,6 +1,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { staticCategories, categoryTitle, type Category } from './categories';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc, deleteField, Timestamp, serverTimestamp } from 'firebase/firestore';
@@ -10,6 +11,9 @@ import { normalizePhoneNumber } from '@/lib/utils';
 
 
 // --- Firestore Collection Names ---
+export { staticCategories, categoryTitle };
+export type { Category };
+
 const FIRESTORE_COLLECTIONS = {
   SETTINGS: "app_settings",
   PRODUCTS: "products",
@@ -393,10 +397,6 @@ export interface Settings extends GoldRates {
   notifEndOfDayTime?: string;       // "HH:MM", default "19:00"
 }
 
-export interface Category {
-  id: string;
-  title: string;
-}
 
 // Where a customer/sale came from — used for acquisition analytics.
 export const CUSTOMER_SOURCES = ['taheri_spillover', 'referral', 'walkin', 'other'] as const;
@@ -671,6 +671,7 @@ export interface KarigarJob {
   karat?: KaratValue;
   weightG?: number;
   quantity?: number;
+  size?: string;
   status: KarigarJobStatus;
   assignedDate: string;    // ISO — when the work was handed over
   completedDate?: string;  // ISO — set when marked completed
@@ -794,22 +795,6 @@ const initialSettingsData: Settings = {
   }
 };
 
-export const staticCategories: Category[] = [
-  { id: 'cat001', title: 'Rings' }, { id: 'cat002', title: 'Tops' },
-  { id: 'cat003', title: 'Balis' }, { id: 'cat004', title: 'Lockets' },
-  { id: 'cat005', title: 'Bracelets' }, { id: 'cat006', title: 'Bracelet and Ring Set' },
-  { id: 'cat007', title: 'Bangles' }, { id: 'cat008', title: 'Chains' },
-  { id: 'cat009', title: 'Bands' }, { id: 'cat010', title: 'Locket Sets without Bangle' },
-  { id: 'cat011', title: 'Locket Set with Bangle' }, { id: 'cat012', title: 'String Sets' },
-  { id: 'cat013', title: 'Stone Necklace Sets without Bracelets' },
-  { id: 'cat014', title: 'Stone Necklace Sets with Bracelets' },
-  { id: 'cat015', title: 'Gold Necklace Sets with Bracelets' },
-  { id: 'cat016', title: 'Gold Necklace Sets without Bracelets' },
-  { id: 'cat017', title: 'Gold Coins' },
-  { id: 'cat018', title: "Men's Rings" },
-  { id: 'cat019', title: 'Loose Bracelet' },
-  { id: 'cat020', title: "Men's Buttons" },
-];
 
 // ─── Size scales ─────────────────────────────────────────────────────────────
 // Pre-canned size options per category so users pick from a standard list

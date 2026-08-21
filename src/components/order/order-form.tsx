@@ -40,6 +40,18 @@ declare module 'jspdf' {
 }
 
 const karatValues: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
+
+/**
+ * Karat only means something for gold. The blank-item template seeds '21k' so
+ * the select has a value if the user switches metal to gold — but if the item
+ * is saved as silver/platinum/palladium that leftover must not be persisted,
+ * or it shows up as a meaningless "21K" everywhere the item is displayed.
+ */
+function stripMeaninglessKarat<T extends { metalType?: string; karat?: unknown }>(item: T): T {
+  if (item.metalType === 'gold') return item;
+  const { karat, ...rest } = item as Record<string, unknown>;
+  return rest as T;
+}
 const metalTypeValues: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
 
 // Schema for a single custom order item
@@ -472,7 +484,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
 
     const enrichedItems: OrderItem[] = data.items.map((item) => {
         if (item.isManualPrice) {
-            return { ...item, metalCost: 0, wastageCost: 0, totalEstimate: item.manualPrice || 0 };
+            return stripMeaninglessKarat({ ...item, metalCost: 0, wastageCost: 0, totalEstimate: item.manualPrice || 0 });
         }
         const { estimatedWeightG, karat, makingCharges, diamondCharges, stoneCharges, hasDiamonds, wastagePercentage, isCompleted, metalType, hasStones, stoneWeightG, karigarId } = item;
         const productForCalc = {
@@ -484,7 +496,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
           hasStones, stoneWeightG
         };
         const costs = calculateProductCosts(productForCalc, ratesForOrder);
-        return { ...item, isCompleted: isCompleted, metalType: item.metalType, karigarId: karigarId, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice };
+        return stripMeaninglessKarat({ ...item, isCompleted: isCompleted, metalType: item.metalType, karigarId: karigarId, metalCost: costs.metalCost, wastageCost: costs.wastageCost, totalEstimate: costs.totalPrice });
     });
 
     if (isEditMode && order) {

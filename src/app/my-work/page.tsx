@@ -25,6 +25,7 @@ interface Job {
   id: string; source: 'order' | 'manual';
   description: string; category?: string; metalType?: string; karat?: string;
   weightG?: number; quantity?: number;
+  size?: string; referenceSku?: string; sampleGiven?: boolean;
   status: 'pending' | 'in-progress' | 'completed';
   assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
   notes?: string;
@@ -130,6 +131,11 @@ export default function MyWorkPage() {
         <div className="min-w-0 flex-1">
           <p className={cn('font-medium', job.status === 'completed' && 'line-through')}>{job.description}</p>
           {meta && <p className="text-sm text-muted-foreground mt-0.5">{meta}</p>}
+          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+            {job.size && <Badge variant="secondary" className="text-xs font-semibold">Size {job.size}</Badge>}
+            {job.referenceSku && <Badge variant="outline" className="text-xs">Ref {job.referenceSku}</Badge>}
+            {job.sampleGiven && <Badge variant="outline" className="text-xs">Sample given</Badge>}
+          </div>
           {job.notes && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{job.notes}</p>}
           <p className="text-xs text-muted-foreground mt-1">
             Given {format(parseISO(job.assignedDate), 'dd MMM yyyy')} · {job.ageDays} day{job.ageDays === 1 ? '' : 's'} ago

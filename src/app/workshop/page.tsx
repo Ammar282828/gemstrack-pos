@@ -98,8 +98,13 @@ const JobRow: React.FC<{
   onDelete: (job: WorkshopJob) => void;
   showKarigar?: boolean;
 }> = ({ job, onToggleDone, onSetStatus, onDelete, showKarigar }) => {
-  const meta = [job.category, job.weightG ? `${job.weightG}g` : null, job.karat ? String(job.karat).toUpperCase() : null]
-    .filter(Boolean).join(' · ');
+  const meta = [
+    job.category,
+    job.size ? `Size ${job.size}` : null,
+    job.weightG ? `${job.weightG}g` : null,
+    job.karat ? String(job.karat).toUpperCase() : null,
+    job.referenceSku ? `Ref ${job.referenceSku}` : null,
+  ].filter(Boolean).join(' · ');
 
   return (
     <div className={cn(
@@ -205,6 +210,7 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
   const [karat, setKarat] = useState<string>('');
   const [weightG, setWeightG] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [size, setSize] = useState('');
   const [agreedCost, setAgreedCost] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -213,7 +219,7 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
 
   const reset = () => {
     setKarigarId(presetKarigarId || ''); setDescription(''); setItemCategory('');
-    setMetalType('gold'); setKarat(''); setWeightG(''); setQuantity('1');
+    setMetalType('gold'); setKarat(''); setWeightG(''); setQuantity('1'); setSize('');
     setAgreedCost(''); setNotes('');
   };
 
@@ -235,6 +241,7 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
       ...(karat && { karat: karat as KaratValue }),
       ...(weightG && { weightG: Number(weightG) }),
       ...(quantity && { quantity: Number(quantity) }),
+      ...(size.trim() && { size: size.trim() }),
       ...(agreedCost && { agreedCost: Number(agreedCost) }),
       ...(notes.trim() && { notes: notes.trim() }),
     });
@@ -308,6 +315,11 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
               <Label className="text-xs">Making (PKR)</Label>
               <Input type="number" value={agreedCost} onChange={e => setAgreedCost(e.target.value)} placeholder="0" />
             </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Size</Label>
+            <Input value={size} onChange={e => setSize(e.target.value)} placeholder="e.g. 12, 2.4, 7.5&quot;" />
           </div>
 
           <div>
