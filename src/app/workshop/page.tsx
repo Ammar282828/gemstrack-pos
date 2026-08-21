@@ -84,7 +84,7 @@ const JobRow: React.FC<{
 
   return (
     <div className={cn(
-      'flex items-start gap-3 py-2.5 border-b border-border/60 last:border-0',
+      'flex items-start gap-3 py-3 border-b border-border/40 last:border-0',
       job.status === 'completed' && 'opacity-60',
     )}>
       <Checkbox
@@ -115,9 +115,10 @@ const JobRow: React.FC<{
         </div>
 
         {job.notes && (
-          <p className="text-xs mt-1 rounded border border-amber-300/70 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/25 px-2 py-1 text-amber-900 dark:text-amber-100 whitespace-pre-wrap">
-            <span className="font-semibold">Instructions: </span>{job.notes}
-          </p>
+          <div className="mt-1.5 border-l-2 border-amber-400/70 pl-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">Instructions</p>
+            <p className="text-xs text-foreground/80 whitespace-pre-wrap mt-1">{job.notes}</p>
+          </div>
         )}
 
         <div className="text-xs text-muted-foreground mt-0.5">
@@ -333,8 +334,8 @@ const OrderGroupedJobs: React.FC<{
 }> = ({ jobs, onToggleDone, onSetStatus, onDelete, onEdit, showKarigar }) => (
   <>
     {groupJobsByOrder(jobs).map(g => (
-      <div key={g.key} className="py-2 border-b border-border/60 last:border-0">
-        <div className="flex items-center gap-2 flex-wrap mb-1">
+      <div key={g.key} className="rounded-lg border bg-muted/20 px-3 py-2.5 mb-3 last:mb-0">
+        <div className="flex items-center gap-2 flex-wrap mb-1.5">
           {g.isStock
             ? <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock piece</Badge>
             : (
@@ -351,7 +352,7 @@ const OrderGroupedJobs: React.FC<{
             </Badge>
           )}
         </div>
-        <div className="pl-1">
+        <div className="rounded-md bg-background border px-3">
           {g.jobs.map(j => (
             <JobRow key={j.id} job={j} onEdit={onEdit}
               onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} />
@@ -626,7 +627,7 @@ const FocusedKarigarView: React.FC<{
     if (!jobs.length) return null;
     return (
       <div>
-        <div className="flex items-baseline gap-2 mb-1 mt-4 first:mt-0">
+        <div className="flex items-baseline gap-2 mb-2 mt-6 first:mt-0">
           <h3 className={cn(
             'text-sm font-semibold',
             tone === 'danger' && 'text-destructive',
@@ -637,7 +638,7 @@ const FocusedKarigarView: React.FC<{
           <Badge variant="secondary" className="text-[10px]">{jobs.length}</Badge>
           {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
         </div>
-        <Card><CardContent className="py-1 px-4">
+        <Card><CardContent className="p-3">
           <OrderGroupedJobs jobs={jobs} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
         </CardContent></Card>
       </div>

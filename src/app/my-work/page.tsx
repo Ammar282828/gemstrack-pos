@@ -196,9 +196,9 @@ export default function MyWorkPage() {
           )}
 
           {job.notes && (
-            <div className="mt-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/25 px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-amber-800 dark:text-amber-300 font-semibold">Instructions</p>
-              <p className="text-sm whitespace-pre-wrap mt-0.5 text-amber-900 dark:text-amber-100">{job.notes}</p>
+            <div className="mt-2 border-l-2 border-amber-400/70 pl-3">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">Instructions</p>
+              <p className="text-sm whitespace-pre-wrap mt-1">{job.notes}</p>
             </div>
           )}
         </div>
@@ -249,14 +249,14 @@ export default function MyWorkPage() {
     if (!jobs.length) return null;
     const groups = groupJobsByOrder(jobs);
     return (
-      <section className="mt-6 first:mt-0">
+      <section className="mt-8 first:mt-0">
         <div className="flex items-center gap-2 mb-2 px-0.5">
           {icon}
           <h2 className={cn('text-xs font-bold uppercase tracking-widest', tone)}>{title}</h2>
           <Badge variant="secondary" className="text-[10px]">{jobs.length}</Badge>
           {hint && <span className="text-[11px] text-muted-foreground ml-auto">{hint}</span>}
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {groups.map(g => <OrderCard key={g.key} group={g} />)}
         </div>
       </section>
