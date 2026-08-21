@@ -113,10 +113,15 @@ const JobRow: React.FC<{
         aria-label="Mark done"
       />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={cn('font-medium text-sm', job.status === 'completed' && 'line-through')}>
+        {/* Title line — age badge stays inline so it never gets orphaned */}
+        <div className="flex items-start justify-between gap-2">
+          <span className={cn('font-medium text-sm break-words', job.status === 'completed' && 'line-through')}>
             {job.description}
           </span>
+          <span className="flex-shrink-0"><AgeBadge job={job} /></span>
+        </div>
+
+        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-x-2 gap-y-0.5 flex-wrap">
           {job.source === 'manual'
             ? <Badge variant="secondary" className="text-[10px]">Manual</Badge>
             : <Badge variant="outline" className="text-[10px]">Order</Badge>}
@@ -125,55 +130,60 @@ const JobRow: React.FC<{
               {job.karigarName}
             </Badge>
           )}
-        </div>
-        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
           {meta && <span>{meta}</span>}
+        </div>
+
+        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-x-2 gap-y-0.5 flex-wrap">
           {job.orderId && (
-            <Link href={`/orders/${job.orderId}`} className="text-primary hover:underline inline-flex items-center gap-1">
-              {job.orderId}{job.customerName ? ` · ${job.customerName}` : ''}<ExternalLink className="h-3 w-3" />
+            <Link href={`/orders/${job.orderId}`} className="text-primary hover:underline inline-flex items-center gap-1 min-w-0">
+              <span className="truncate">{job.orderId}{job.customerName ? ` · ${job.customerName}` : ''}</span>
+              <ExternalLink className="h-3 w-3 flex-shrink-0" />
             </Link>
           )}
-          <span>· given {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
+          <span>given {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
         </div>
-      </div>
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <AgeBadge job={job} />
-        {job.source === 'order' && job.orderId && job.itemIndex !== undefined && job.status !== 'completed' && (
-          <KarigarAssign
-            orderId={job.orderId}
-            itemIndex={job.itemIndex}
-            currentKarigarId={job.karigarId === UNASSIGNED_ID ? undefined : job.karigarId}
-            size="compact"
-          />
-        )}
-        {job.source === 'manual' && (
-          <>
-            <Select value={job.status} onValueChange={v => onSetStatus(job, v as KarigarJobStatus)}>
-              <SelectTrigger className="h-7 w-[120px] text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this job?</AlertDialogTitle>
-                  <AlertDialogDescription>&ldquo;{job.description}&rdquo; will be removed. This cannot be undone.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => onDelete(job)}>Delete</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </>
+
+        {/* Controls sit under the content and wrap — keeps narrow cards readable */}
+        {(job.source === 'manual' || (job.source === 'order' && job.status !== 'completed')) && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-2">
+            {job.source === 'order' && job.orderId && job.itemIndex !== undefined && job.status !== 'completed' && (
+              <KarigarAssign
+                orderId={job.orderId}
+                itemIndex={job.itemIndex}
+                currentKarigarId={job.karigarId === UNASSIGNED_ID ? undefined : job.karigarId}
+                size="compact"
+              />
+            )}
+            {job.source === 'manual' && (
+              <>
+                <Select value={job.status} onValueChange={v => onSetStatus(job, v as KarigarJobStatus)}>
+                  <SelectTrigger className="h-7 w-[130px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this job?</AlertDialogTitle>
+                      <AlertDialogDescription>&ldquo;{job.description}&rdquo; will be removed. This cannot be undone.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onDelete(job)}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -401,7 +411,10 @@ const KarigarCard: React.FC<{
         {visible.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-3">Nothing pending ✅</p>
         ) : (
-          <ScrollArea className={visible.length > 6 ? 'h-72' : ''}>
+          // Fixed height only once the list is long enough to need scrolling:
+          // Radix ScrollArea needs a definite height, and a short list should
+          // not reserve empty space.
+          <ScrollArea className={visible.length > 5 ? 'h-[30rem]' : ''}>
             <div className="pr-2">
               {visible.map(j => (
                 <JobRow key={j.id} job={j} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} />
@@ -610,7 +623,7 @@ export default function WorkshopPage() {
                     {items.length === 0
                       ? <p className="text-sm text-muted-foreground text-center py-6">Empty</p>
                       : (
-                        <ScrollArea className="h-[28rem]">
+                        <ScrollArea className={items.length > 5 ? 'h-[34rem]' : ''}>
                           <div className="pr-2">
                             {items.map(j => (
                               <JobRow key={j.id} job={j} showKarigar
