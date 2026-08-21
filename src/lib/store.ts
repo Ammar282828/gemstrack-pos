@@ -1099,7 +1099,8 @@ export interface AppState {
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
   updateOrderItemKarigar: (orderId: string, itemIndex: number, karigarId: string) => Promise<void>;
   updateOrderItemDetails: (orderId: string, itemIndex: number, patch: {
-    size?: string; stoneDetails?: string; adminNote?: string; referenceSku?: string; estimatedWeightG?: number;
+    size?: string; stoneDetails?: string; adminNote?: string; referenceSku?: string;
+    estimatedWeightG?: number; sampleImageDataUri?: string;
   }) => Promise<void>;
   assignOrderItemsToKarigar: (orderId: string, karigarId: string, onlyUnassigned?: boolean) => Promise<void>;
   removeItemFromOrder: (orderId: string, itemIndex: number) => Promise<void>;
@@ -2959,6 +2960,10 @@ export const useAppStore = create<AppState>()(
           if ('adminNote' in patch) setOrClear('adminNote', patch.adminNote);
           if ('referenceSku' in patch) setOrClear('referenceSku', patch.referenceSku);
           if (patch.estimatedWeightG !== undefined) next.estimatedWeightG = Number(patch.estimatedWeightG) || 0;
+          if (patch.sampleImageDataUri !== undefined) {
+            if (patch.sampleImageDataUri) next.sampleImageDataUri = patch.sampleImageDataUri;
+            else delete next.sampleImageDataUri;
+          }
           return next;
         });
 

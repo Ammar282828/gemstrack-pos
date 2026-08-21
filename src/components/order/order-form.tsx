@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { SampleImageInput } from '@/components/shared/sample-image-input';
 import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel } from '@/lib/materials';
 import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
 import { Button } from '@/components/ui/button';
@@ -141,123 +142,6 @@ type EnrichedOrderFormData = OrderFormData & {
 };
 
 const WALK_IN_CUSTOMER_VALUE = "__WALK_IN__";
-
-const ImageCapture: React.FC<{
-  itemIndex: number;
-  onImageSelect: (dataUri: string) => void;
-  onImageRemove: () => void;
-  currentImage?: string;
-}> = ({ itemIndex, onImageSelect, onImageRemove, currentImage }) => {
-  const { toast } = useToast();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast({ title: "Image too large", description: "Please select an image smaller than 5MB.", variant: "destructive" });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        onImageSelect(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const startCamera = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
-    } catch (error) {
-      console.error("Error accessing camera:", error);
-      toast({ title: "Camera Error", description: "Could not access the camera. Please check permissions.", variant: "destructive" });
-      setIsCameraOpen(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-  };
-  
-  const handleCapture = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
-      if (context) {
-        context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-        const dataUri = canvas.toDataURL('image/jpeg');
-        onImageSelect(dataUri);
-        setIsCameraOpen(false);
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (isCameraOpen) {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-    return () => stopCamera();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCameraOpen]);
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-          <Upload className="mr-2 h-4 w-4" /> Upload Image
-        </Button>
-        <Input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
-        
-        <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
-            <DialogTrigger asChild>
-                <Button type="button" variant="outline" size="sm"><Camera className="mr-2 h-4 w-4"/> Take Photo</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Take a Photo</DialogTitle>
-                     <DialogDescription>
-                        Position the item in the frame and click capture.
-                    </DialogDescription>
-                </DialogHeader>
-                <video ref={videoRef} autoPlay playsInline className="w-full rounded-md border bg-muted"></video>
-                <canvas ref={canvasRef} style={{ display: 'none' }} />
-                <DialogFooter>
-                    <Button onClick={handleCapture} disabled={!stream}>Capture</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-      </div>
-
-      {currentImage && (
-        <div className="relative w-32 h-32 mt-2 p-1 border rounded-md">
-          <Image src={currentImage} alt={`Sample for item ${itemIndex + 1}`} fill className="object-contain" />
-          <Button type="button" size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={onImageRemove}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-};
-
 
 const ProductSearchDialog: React.FC<{ onAddProduct: (product: Product) => void }> = ({ onAddProduct }) => {
     const products = useAppStore(state => state.products);
@@ -896,11 +780,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                              <div>
                                 <FormLabel className="flex items-center"><Camera className="mr-2 h-4 w-4"/>Sample Picture</FormLabel>
                                 <FormField control={form.control} name={`items.${index}.sampleImageDataUri`} render={({ field }) => (
-                                    <ImageCapture
-                                        itemIndex={index}
-                                        currentImage={field.value}
-                                        onImageSelect={(dataUri) => form.setValue(`items.${index}.sampleImageDataUri`, dataUri, { shouldValidate: true, shouldDirty: true })}
-                                        onImageRemove={() => form.setValue(`items.${index}.sampleImageDataUri`, '', { shouldValidate: true, shouldDirty: true })}
+                                    <SampleImageInput
+                                        value={field.value}
+                                        onChange={(dataUri) => form.setValue(`items.${index}.sampleImageDataUri`, dataUri, { shouldValidate: true, shouldDirty: true })}
+                                        onRemove={() => form.setValue(`items.${index}.sampleImageDataUri`, '', { shouldValidate: true, shouldDirty: true })}
                                     />
                                 )}/>
                              </div>

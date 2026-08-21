@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
       id: string; source: 'order' | 'manual';
       description: string; category?: string; metalType?: string; karat?: string;
       weightG?: number; quantity?: number;
-      size?: string; referenceSku?: string; sampleGiven?: boolean;
+      size?: string; referenceSku?: string; sampleGiven?: boolean; sampleImage?: string;
       status: 'pending' | 'in-progress' | 'completed';
       assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
       notes?: string; specialNote?: string;
@@ -99,6 +99,7 @@ export async function GET(req: NextRequest) {
           size: item.size || undefined,
           referenceSku: item.referenceSku || undefined,
           sampleGiven: !!item.sampleGiven,
+          sampleImage: item.sampleImageDataUri || undefined,
           status: done ? 'completed' : (o.status === 'In Progress' ? 'in-progress' : 'pending'),
           assignedDate: o.createdAt,
           ageDays: age,

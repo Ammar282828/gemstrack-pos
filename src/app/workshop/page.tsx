@@ -10,6 +10,7 @@ import {
 } from '@/lib/workshop';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { KarigarAssign } from '@/components/karigar/karigar-assign';
+import { SampleImageInput } from '@/components/shared/sample-image-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,40 +31,13 @@ import {
 import {
   Hammer, Users, AlertTriangle, Clock, PlusCircle, Share2, Copy, ExternalLink,
   Loader2, Search, CheckCircle2, CircleDot, Circle, Trash2, PackageOpen, LayoutGrid,
-  ListChecks, Table as TableIcon, Flame, Pencil, Save,
+  Table as TableIcon, Flame, Pencil, Save, ImagePlus,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
 // ── small presentational helpers ────────────────────────────────────────────
-
-const StatCard: React.FC<{ label: string; value: React.ReactNode; icon: React.ReactNode; tone?: 'default' | 'warn' | 'danger' | 'good' }> =
-({ label, value, icon, tone = 'default' }) => (
-  <Card className={cn(
-    tone === 'danger' && 'border-destructive/40 bg-destructive/5',
-    tone === 'warn' && 'border-yellow-500/40 bg-yellow-500/5',
-    tone === 'good' && 'border-green-600/40 bg-green-600/5',
-  )}>
-    <CardContent className="p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-        <span className={cn(
-          'opacity-70',
-          tone === 'danger' && 'text-destructive',
-          tone === 'warn' && 'text-yellow-600',
-          tone === 'good' && 'text-green-600',
-        )}>{icon}</span>
-      </div>
-      <p className={cn(
-        'text-2xl font-bold mt-1',
-        tone === 'danger' && 'text-destructive',
-        tone === 'warn' && 'text-yellow-600',
-        tone === 'good' && 'text-green-600',
-      )}>{value}</p>
-    </CardContent>
-  </Card>
-);
 
 const AgeBadge: React.FC<{ job: WorkshopJob }> = ({ job }) => {
   if (job.status === 'completed') {
@@ -365,6 +339,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
   const [ref, setRef] = useState('');
   const [instructions, setInstructions] = useState('');
   const [special, setSpecial] = useState('');
+  const [sample, setSample] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -374,6 +349,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
     setRef(job.referenceSku || '');
     setInstructions(job.notes || '');
     setSpecial(job.specialNote || '');
+    setSample(job.sampleImage || '');
   }, [job]);
 
   if (!job) return null;
@@ -384,6 +360,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
       if (job.source === 'order' && job.orderId && job.itemIndex !== undefined) {
         await updateOrderItemDetails(job.orderId, job.itemIndex, {
           size, referenceSku: ref, stoneDetails: instructions, adminNote: special,
+          sampleImageDataUri: sample,
           ...(weight !== '' && { estimatedWeightG: Number(weight) }),
         });
       } else {
@@ -433,6 +410,14 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
             <Label className="text-xs">Instructions</Label>
             <Textarea rows={2} value={instructions} onChange={e => setInstructions(e.target.value)}
               placeholder="Stone / diamond details" disabled={job.source !== 'order'} />
+          </div>
+
+          <div>
+            <Label className="text-xs flex items-center gap-1.5"><ImagePlus className="h-3.5 w-3.5" />Sample picture</Label>
+            <p className="text-[11px] text-muted-foreground mb-1.5">Shown to the karigar on their work list.</p>
+            {job.source === 'order'
+              ? <SampleImageInput key={job.id} value={sample} onChange={setSample} onRemove={() => setSample('')} compact />
+              : <p className="text-xs text-muted-foreground">Available on order items.</p>}
           </div>
 
           <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20 p-3">
@@ -790,22 +775,28 @@ export default function WorkshopPage() {
     <div className="container mx-auto p-4 md:p-6 space-y-5 max-w-7xl">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold flex items-center gap-2"><Hammer className="h-6 w-6 text-primary" />Workshop</h1>
-          <p className="text-sm text-muted-foreground">Who&apos;s making what — across orders and assigned work.</p>
+          {/* Counts read as a sentence rather than five cards repeating each
+              other. In progress only appears when it differs from active, and
+              zero-value warnings are simply omitted. */}
+          <p className="text-sm text-muted-foreground flex items-center gap-x-2 gap-y-0.5 flex-wrap mt-0.5">
+            <span><span className="font-semibold text-foreground">{stats.active}</span> active</span>
+            {stats.inProgress !== stats.active && <span>· {stats.inProgress} in progress</span>}
+            {stats.overdue > 0 && (
+              <span className="text-yellow-700 dark:text-yellow-500">· <span className="font-semibold">{stats.overdue}</span> late</span>
+            )}
+            {stats.critical > 0 && (
+              <span className="text-destructive">· <span className="font-semibold">{stats.critical}</span> critical</span>
+            )}
+            {stats.unassigned > 0 && (
+              <span className="text-destructive">· <span className="font-semibold">{stats.unassigned}</span> unassigned</span>
+            )}
+          </p>
         </div>
         <Button onClick={() => { setPresetKarigar(undefined); setAddOpen(true); }}>
           <PlusCircle className="h-4 w-4 mr-2" />Assign Work
         </Button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard label="Active jobs" value={stats.active} icon={<ListChecks className="h-4 w-4" />} />
-        <StatCard label="In progress" value={stats.inProgress} icon={<CircleDot className="h-4 w-4" />} />
-        <StatCard label={`Late (${WARN_DAYS}d+)`} value={stats.overdue} icon={<Clock className="h-4 w-4" />} tone={stats.overdue ? 'warn' : 'default'} />
-        <StatCard label={`Critical (${CRITICAL_DAYS}d+)`} value={stats.critical} icon={<Flame className="h-4 w-4" />} tone={stats.critical ? 'danger' : 'default'} />
-        <StatCard label="Unassigned" value={stats.unassigned} icon={<AlertTriangle className="h-4 w-4" />} tone={stats.unassigned ? 'danger' : 'good'} />
       </div>
 
       {/* Filters */}
@@ -814,14 +805,6 @@ export default function WorkshopPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input className="pl-8" placeholder="Search item, karigar, customer, order…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <Select value={karigarFilter} onValueChange={setKarigarFilter}>
-          <SelectTrigger className="w-full sm:w-[190px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All karigars</SelectItem>
-            <SelectItem value={UNASSIGNED_ID}>Unassigned</SelectItem>
-            {karigars.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
         <Select value={typeFilter} onValueChange={v => setTypeFilter(v as 'all' | 'order' | 'stock')}>
           <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
           <SelectContent>

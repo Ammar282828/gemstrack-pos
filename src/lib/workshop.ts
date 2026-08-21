@@ -46,6 +46,7 @@ export interface WorkshopJob {
   size?: string;
   referenceSku?: string;
   sampleGiven?: boolean;
+  sampleImage?: string;
   value?: number;             // order item estimate, or agreed cost on a manual job
   notes?: string;
   specialNote?: string;       // OrderItem.adminNote — making instructions
@@ -128,6 +129,7 @@ export function buildWorkshopJobs(
         size: item.size || undefined,
         referenceSku: item.referenceSku || undefined,
         sampleGiven: !!item.sampleGiven,
+        sampleImage: item.sampleImageDataUri || undefined,
         value: item.totalEstimate ?? 0,
         notes: item.stoneDetails || item.diamondDetails || undefined,
         specialNote: item.adminNote || undefined,

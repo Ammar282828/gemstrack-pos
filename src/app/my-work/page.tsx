@@ -25,7 +25,7 @@ interface Job {
   id: string; source: 'order' | 'manual';
   description: string; category?: string; metalType?: string; karat?: string;
   weightG?: number; quantity?: number;
-  size?: string; referenceSku?: string; sampleGiven?: boolean;
+  size?: string; referenceSku?: string; sampleGiven?: boolean; sampleImage?: string;
   status: 'pending' | 'in-progress' | 'completed';
   assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
   notes?: string; specialNote?: string;
@@ -204,6 +204,11 @@ export default function MyWorkPage() {
                 )}
                 {job.sampleGiven && <Badge variant="outline" className="text-xs">Sample provided</Badge>}
               </div>
+
+              {job.sampleImage && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={job.sampleImage} alt="Sample" className="mt-3 rounded-md border max-h-56 object-contain bg-muted" />
+              )}
 
               {/* 3 — how to make it */}
               {job.notes && (
