@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, DollarSign, CreditCard } from 'lucide-react';
+import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, DollarSign, CreditCard , ChevronDown } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -275,6 +275,7 @@ export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'All'>('All');
+  const [showFilters, setShowFilters] = useState(false);
   const [monthFilter, setMonthFilter] = useState<string>('All');
 
   const appReady = useAppReady();
@@ -299,6 +300,14 @@ export default function OrdersPage() {
     }
     return Array.from(set).sort().reverse();
   }, [orders]);
+
+  // Shown on the collapsed mobile Filters button so an active filter is never
+  // hidden from view.
+  const activeFilterCount = [
+    statusFilter !== 'All',
+    paymentFilter !== 'All',
+    monthFilter !== 'All',
+  ].filter(Boolean).length;
 
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
@@ -350,8 +359,19 @@ export default function OrdersPage() {
               />
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             </div>
+            {/* On a phone the date picker plus twelve status/payment pills
+                filled the whole first screen, so they collapse behind this
+                toggle. Desktop keeps everything visible. */}
+            <Button variant="outline" className="md:hidden justify-between"
+              onClick={() => setShowFilters(v => !v)}>
+              <span className="flex items-center"><Filter className="w-4 h-4 mr-2" />Filters</span>
+              {activeFilterCount > 0
+                ? <Badge variant="secondary" className="ml-2">{activeFilterCount}</Badge>
+                : <ChevronDown className={cn('w-4 h-4 transition-transform', showFilters && 'rotate-180')} />}
+            </Button>
+
             <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger className={cn('w-full sm:w-[180px]', !showFilters && 'hidden md:flex')}>
                 <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Month" />
               </SelectTrigger>
@@ -363,7 +383,7 @@ export default function OrdersPage() {
               </SelectContent>
             </Select>
           </div>
-           <div className="flex flex-wrap gap-2 items-center">
+           <div className={cn('flex flex-wrap gap-2 items-center', !showFilters && 'hidden md:flex')}>
              <span className="text-sm font-medium text-muted-foreground mr-2 flex items-center"><Filter className="w-4 h-4 mr-1"/>Status:</span>
             <Button
               variant={statusFilter === 'All' ? 'default' : 'outline'}
@@ -390,7 +410,7 @@ export default function OrdersPage() {
               </Button>
             ))}
           </div>
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className={cn('flex flex-wrap gap-2 items-center', !showFilters && 'hidden md:flex')}>
             <span className="text-sm font-medium text-muted-foreground mr-2 flex items-center"><CreditCard className="w-4 h-4 mr-1"/>Payment:</span>
             {(['All', 'Paid', 'Partial', 'Unpaid'] as const).map((ps) => (
               <Button

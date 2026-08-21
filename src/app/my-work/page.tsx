@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Hammer, LogOut, CheckCircle2, Flame, Clock, Scale, Banknote, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -322,6 +323,74 @@ export default function MyWorkPage() {
           </TabsList>
 
           <TabsContent value="work" className="mt-4">
+            {/* Desktop gets a table; a phone gets the cards below, since a
+                karigar is nearly always on a phone. */}
+            {active.length > 0 && (
+              <Card className="hidden md:block mb-4">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10"></TableHead>
+                        <TableHead>Job Details</TableHead>
+                        <TableHead>Order</TableHead>
+                        <TableHead>Given</TableHead>
+                        <TableHead className="text-right">Age</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {active.map(j => {
+                        const spec = [
+                          j.size ? `Size ${j.size}` : null,
+                          j.weightG ? `${j.weightG}g` : null,
+                          j.plating,
+                          j.category,
+                        ].filter(Boolean).join(' · ');
+                        return (
+                          <TableRow key={j.id}>
+                            <TableCell className="align-middle">
+                              {busy === j.id
+                                ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                : <Checkbox checked={false} disabled={!!data.preview}
+                                    onCheckedChange={() => toggle(j)} aria-label="Mark done" />}
+                            </TableCell>
+                            <TableCell className="align-middle py-3">
+                              <div className="font-medium">{j.description}</div>
+                              {spec && <div className="text-xs text-muted-foreground mt-0.5">{spec}</div>}
+                              {j.notes && (
+                                <div className="text-xs text-muted-foreground mt-0.5 max-w-md truncate" title={j.notes}>
+                                  {j.notes.replace(/\n/g, ' · ')}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="align-middle">
+                              {j.orderId
+                                ? <span className="font-mono text-sm">{j.orderId}</span>
+                                : <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
+                            </TableCell>
+                            <TableCell className="align-middle text-sm whitespace-nowrap">
+                              {format(parseISO(j.assignedDate), 'dd MMM yyyy')}
+                            </TableCell>
+                            <TableCell className="text-right align-middle">
+                              {j.urgency !== 'ok' && (
+                                <Badge variant="outline" className={cn('tabular-nums',
+                                  j.urgency === 'critical'
+                                    ? 'text-destructive border-destructive/40 bg-destructive/10'
+                                    : 'text-yellow-700 border-yellow-500/40 bg-yellow-500/10')}>
+                                  {j.ageDays}d
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="md:hidden">
             {active.length === 0 ? (
               <Card><CardContent className="py-12 text-center">
                 <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-600" />
@@ -337,6 +406,8 @@ export default function MyWorkPage() {
                 <Group title="In hand" jobs={ontrack} hint="on track" />
               </>
             )}
+            </div>
+
             {done.length > 0 && (
               <Group title="Completed" jobs={done}
                 icon={<CheckCircle2 className="h-4 w-4 text-green-600" />} tone="text-muted-foreground" />

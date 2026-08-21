@@ -238,7 +238,7 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
 
   return (
     <Dialog open={open} onOpenChange={v => { onOpenChange(v); if (!v) reset(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Hammer className="h-5 w-5 text-primary" />Assign Stock Work</DialogTitle>
           <DialogDescription>Pieces for your own inventory — not tied to a customer order. Also use this for repairs and samples.</DialogDescription>
@@ -284,7 +284,7 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Weight (g)</Label>
               <Input type="number" step="0.001" value={weightG} onChange={e => setWeightG(e.target.value)} placeholder="0.000" />
@@ -425,7 +425,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
 
   return (
     <Dialog open={!!job} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" />Making details</DialogTitle>
           <DialogDescription>
@@ -442,7 +442,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Size</Label>
               <Input value={size} onChange={e => setSize(e.target.value)} placeholder="e.g. 12" />
@@ -665,7 +665,7 @@ const FocusedKarigarView: React.FC<{
               </p>
             </div>
             {!isUnassigned && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button size="sm" variant="outline" onClick={share}><Share2 className="h-4 w-4 mr-1.5" />Send list</Button>
                 <Button size="sm" variant="outline" onClick={() => onAssign(load.karigarId)}><PlusCircle className="h-4 w-4 mr-1.5" />Add work</Button>
                 <Button size="sm" variant="ghost" asChild><Link href={`/karigars/${load.karigarId}`}>Profile <ExternalLink className="h-3.5 w-3.5 ml-1.5" /></Link></Button>
@@ -716,6 +716,71 @@ const FocusedKarigarView: React.FC<{
         </>
       )}
     </div>
+  );
+};
+
+/** Phone rendering of a job — a table with seven columns is unusable at 375px,
+ *  so below md the All Jobs view switches to these cards (same pattern the
+ *  Orders list uses). */
+const JobCardMobile: React.FC<{
+  job: WorkshopJob;
+  onToggleDone: (j: WorkshopJob) => void;
+  onEdit: (j: WorkshopJob) => void;
+}> = ({ job, onToggleDone, onEdit }) => {
+  const spec = [
+    job.size ? `Size ${job.size}` : null,
+    job.weightG ? `${job.weightG}g` : null,
+    job.plating,
+    job.category,
+  ].filter(Boolean).join(' · ');
+
+  return (
+    <Card className={cn(
+      'mb-2',
+      job.status === 'completed' && 'opacity-60',
+      job.status !== 'completed' && job.urgency === 'critical' && 'border-destructive/40',
+      job.status !== 'completed' && job.urgency === 'warning' && 'border-yellow-500/40',
+    )}>
+      <CardContent className="p-3">
+        <div className="flex items-start gap-3">
+          <Checkbox className="mt-1 h-5 w-5 flex-shrink-0" checked={job.status === 'completed'}
+            onCheckedChange={() => onToggleDone(job)} aria-label="Mark done" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <p className={cn('font-medium leading-snug break-words', job.status === 'completed' && 'line-through')}>
+                {job.description}
+              </p>
+              <span className="flex-shrink-0"><AgeBadge job={job} /></span>
+            </div>
+            {spec && <p className="text-xs text-muted-foreground mt-1">{spec}</p>}
+
+            <div className="flex items-center gap-2 flex-wrap mt-1.5 text-xs text-muted-foreground">
+              {job.orderId
+                ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
+                : <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
+              {job.customerName && <span className="truncate">{job.customerName}</span>}
+              <span>· {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
+            </div>
+
+            {job.notes && (
+              <div className="mt-2 border-l-2 border-amber-400/70 pl-2.5">
+                <p className="text-xs text-foreground/80 whitespace-pre-wrap">{job.notes}</p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 flex-wrap mt-2.5">
+              {job.source === 'order' && job.orderId && job.itemIndex !== undefined && job.status !== 'completed' && (
+                <KarigarAssign orderId={job.orderId} itemIndex={job.itemIndex}
+                  currentKarigarId={job.karigarId === UNASSIGNED_ID ? undefined : job.karigarId} size="compact" />
+              )}
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onEdit(job)}>
+                <Pencil className="h-3 w-3 mr-1.5" />Details
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -908,12 +973,12 @@ export default function WorkshopPage() {
 
       {/* Views */}
       <Tabs defaultValue="list">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
-          <TabsTrigger value="list" className="text-xs sm:text-sm"><TableIcon className="h-4 w-4 mr-1.5 hidden sm:inline" />All Jobs</TabsTrigger>
-          <TabsTrigger value="karigar" className="text-xs sm:text-sm"><Users className="h-4 w-4 mr-1.5 hidden sm:inline" />By Karigar</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl h-auto">
+          <TabsTrigger value="list" className="text-xs sm:text-sm"><TableIcon className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Jobs</span><span className="hidden sm:inline">All Jobs</span></TabsTrigger>
+          <TabsTrigger value="karigar" className="text-xs sm:text-sm"><Users className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Karigar</span><span className="hidden sm:inline">By Karigar</span></TabsTrigger>
           <TabsTrigger value="board" className="text-xs sm:text-sm"><LayoutGrid className="h-4 w-4 mr-1.5 hidden sm:inline" />Board</TabsTrigger>
           <TabsTrigger value="attention" className="text-xs sm:text-sm">
-            <AlertTriangle className="h-4 w-4 mr-1.5 hidden sm:inline" />Attention
+            <AlertTriangle className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Alert</span><span className="hidden sm:inline">Attention</span>
             {attention.length > 0 && <Badge variant="destructive" className="ml-1.5 h-4 px-1 text-[10px]">{attention.length}</Badge>}
           </TabsTrigger>
         </TabsList>
@@ -985,7 +1050,7 @@ export default function WorkshopPage() {
                   const isUnassigned = load.karigarId === UNASSIGNED_ID;
                   return (
                     <Card key={load.karigarId} className={cn(
-                      'w-[19rem] flex-shrink-0',
+                      'w-[85vw] sm:w-[19rem] flex-shrink-0',
                       load.critical > 0 && 'border-destructive/40',
                       isUnassigned && 'border-destructive/60 bg-destructive/5',
                     )}>
@@ -1065,7 +1130,15 @@ export default function WorkshopPage() {
 
         {/* View 3 — Table */}
         <TabsContent value="list" className="mt-4">
-          <Card>
+          <div className="md:hidden">
+            {filtered.length === 0
+              ? <Card><CardContent className="py-10 text-center text-muted-foreground">No jobs match.</CardContent></Card>
+              : filtered.map(j => (
+                  <JobCardMobile key={j.id} job={j} onToggleDone={handleToggleDone} onEdit={openEdit} />
+                ))}
+          </div>
+
+          <Card className="hidden md:block">
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
