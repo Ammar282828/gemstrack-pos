@@ -53,3 +53,8 @@ graphify-out/.graphify_root
 .claude/worktrees/
 .wwebjs_auth/
 .wwebjs_cache/
+
+# One-off script run-logs and data backups — these contain live customer data
+# (payments, addresses, prior document state) and must not enter the repo.
+scripts/*.[0-9]*.json
+scripts/*backup*.json
