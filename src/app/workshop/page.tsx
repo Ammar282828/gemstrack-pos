@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAppStore, KarigarJobStatus, MetalType, KaratValue, staticCategories } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import {
-  buildWorkshopJobs, groupByKarigar, formatJobListForShare,
+  buildWorkshopJobs, groupByKarigar, formatJobListForShare, groupJobsByOrder,
   WorkshopJob, KarigarWorkload, UNASSIGNED_ID, WARN_DAYS, CRITICAL_DAYS,
 } from '@/lib/workshop';
 import { STORE_CONFIG } from '@/lib/store-config';
@@ -119,15 +119,8 @@ const JobRow: React.FC<{
           </p>
         )}
 
-        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-x-2 gap-y-0.5 flex-wrap">
-          {job.orderId && (
-            <Link href={`/orders/${job.orderId}`} className="inline-flex items-center gap-1 min-w-0 hover:underline">
-              <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0">{job.orderId}</Badge>
-              {job.customerName && <span className="truncate">{job.customerName}</span>}
-              <ExternalLink className="h-3 w-3 flex-shrink-0 text-primary" />
-            </Link>
-          )}
-          <span>given {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
+        <div className="text-xs text-muted-foreground mt-0.5">
+          given {format(parseISO(job.assignedDate), 'dd MMM yy')}
         </div>
 
         {/* Controls sit under the content and wrap — keeps narrow cards readable */}
@@ -327,6 +320,46 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
   );
 };
 
+
+/** Pieces grouped under their order — the same heading a karigar sees. */
+const OrderGroupedJobs: React.FC<{
+  jobs: WorkshopJob[];
+  onToggleDone: (j: WorkshopJob) => void;
+  onSetStatus: (j: WorkshopJob, s: KarigarJobStatus) => void;
+  onDelete: (j: WorkshopJob) => void;
+  onEdit?: (j: WorkshopJob) => void;
+  showKarigar?: boolean;
+}> = ({ jobs, onToggleDone, onSetStatus, onDelete, onEdit, showKarigar }) => (
+  <>
+    {groupJobsByOrder(jobs).map(g => (
+      <div key={g.key} className="py-2 border-b border-border/60 last:border-0">
+        <div className="flex items-center gap-2 flex-wrap mb-1">
+          {g.isStock
+            ? <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock piece</Badge>
+            : (
+              <Link href={`/orders/${g.orderId}`} className="inline-flex items-center gap-1 hover:underline">
+                <span className="font-mono font-bold text-sm">{g.orderId}</span>
+                <ExternalLink className="h-3 w-3 text-primary" />
+              </Link>
+            )}
+          {g.jobs[0]?.customerName && <span className="text-xs text-muted-foreground truncate">{g.jobs[0].customerName}</span>}
+          {g.jobs.length > 1 && <Badge variant="outline" className="text-[10px]">{g.jobs.length} pieces</Badge>}
+          {showKarigar && g.jobs[0] && (
+            <Badge variant="outline" className={cn('text-[10px]', g.jobs[0].karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
+              {g.jobs[0].karigarName}
+            </Badge>
+          )}
+        </div>
+        <div className="pl-1">
+          {g.jobs.map(j => (
+            <JobRow key={j.id} job={j} onEdit={onEdit}
+              onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} />
+          ))}
+        </div>
+      </div>
+    ))}
+  </>
+);
 
 // ── edit the making details of a job (owner-side, Workshop only) ────────────
 
@@ -531,9 +564,7 @@ const KarigarCard: React.FC<{
           // not reserve empty space.
           <ScrollArea className={visible.length > 5 ? 'h-[30rem]' : ''}>
             <div className="pr-2">
-              {visible.map(j => (
-                <JobRow key={j.id} job={j} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
-              ))}
+              <OrderGroupedJobs jobs={visible} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
             </div>
           </ScrollArea>
         )}
@@ -593,9 +624,7 @@ const FocusedKarigarView: React.FC<{
           {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
         </div>
         <Card><CardContent className="py-1 px-4">
-          {jobs.map(j => (
-            <JobRow key={j.id} job={j} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
-          ))}
+          <OrderGroupedJobs jobs={jobs} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
         </CardContent></Card>
       </div>
     );
@@ -980,10 +1009,8 @@ export default function WorkshopPage() {
                       <CardContent>
                         <ScrollArea className={items.length > 4 ? 'h-[32rem]' : ''}>
                           <div className="pr-2">
-                            {items.map(j => (
-                              <JobRow key={j.id} job={j} onEdit={openEdit}
-                                onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
-                            ))}
+                            <OrderGroupedJobs jobs={items} onEdit={openEdit}
+                              onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
                           </div>
                         </ScrollArea>
                       </CardContent>
@@ -1010,10 +1037,8 @@ export default function WorkshopPage() {
                         : (
                           <ScrollArea className={items.length > 5 ? 'h-[34rem]' : ''}>
                             <div className="pr-2">
-                              {items.map(j => (
-                                <JobRow key={j.id} job={j} showKarigar
-                                  onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
-                              ))}
+                              <OrderGroupedJobs jobs={items} showKarigar onEdit={openEdit}
+                                onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
                             </div>
                           </ScrollArea>
                         )}
@@ -1110,7 +1135,7 @@ export default function WorkshopPage() {
                   .slice()
                   .sort((a, b) => (b.karigarId === UNASSIGNED_ID ? 1 : 0) - (a.karigarId === UNASSIGNED_ID ? 1 : 0) || b.ageDays - a.ageDays)
                   .map(j => (
-                    <JobRow key={j.id} job={j} showKarigar onEdit={openEdit}
+                    <OrderGroupedJobs key={j.id} jobs={[j]} showKarigar onEdit={openEdit}
                       onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
                   ))}
               </CardContent>

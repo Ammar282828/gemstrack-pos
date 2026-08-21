@@ -253,3 +253,53 @@ export function formatJobListForShare(load: KarigarWorkload, shopName = 'MINA'):
 
   return lines.join('\n');
 }
+
+/**
+ * Group pieces under the order they belong to.
+ *
+ * A karigar receives work by order — several pieces of one order are made
+ * together — so the order reference reads better as the heading than any one
+ * piece's name. Stock work has no order, so each stock piece stands alone.
+ *
+ * Written against a minimal shape so both the owner Workshop (WorkshopJob) and
+ * the karigar portal (its own leaner Job type) can share it.
+ */
+export interface OrderGroupable {
+  id: string;
+  orderId?: string;
+  source: 'order' | 'manual';
+  ageDays: number;
+  assignedDate: string;
+}
+
+export interface JobOrderGroup<T extends OrderGroupable> {
+  key: string;
+  orderId?: string;
+  isStock: boolean;
+  jobs: T[];
+  ageDays: number;
+  assignedDate: string;
+}
+
+export function groupJobsByOrder<T extends OrderGroupable>(jobs: T[]): JobOrderGroup<T>[] {
+  const groups = new Map<string, JobOrderGroup<T>>();
+  for (const j of jobs) {
+    // Stock pieces get their own group keyed by job id — they share no order.
+    const key = j.source === 'order' && j.orderId ? `order:${j.orderId}` : `job:${j.id}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.jobs.push(j);
+      existing.ageDays = Math.max(existing.ageDays, j.ageDays);
+    } else {
+      groups.set(key, {
+        key,
+        orderId: j.source === 'order' ? j.orderId : undefined,
+        isStock: j.source !== 'order',
+        jobs: [j],
+        ageDays: j.ageDays,
+        assignedDate: j.assignedDate,
+      });
+    }
+  }
+  return [...groups.values()].sort((a, b) => b.ageDays - a.ageDays);
+}

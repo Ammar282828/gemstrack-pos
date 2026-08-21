@@ -20,6 +20,7 @@ import { Loader2, Hammer, LogOut, CheckCircle2, Flame, Clock, Scale, Banknote, R
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
+import { groupJobsByOrder, type JobOrderGroup } from '@/lib/workshop';
 
 interface Job {
   id: string; source: 'order' | 'manual';
@@ -149,9 +150,9 @@ export default function MyWorkPage() {
    * glance on a phone: what to make (name) → what it must be (spec grid) →
    * how to make it (instructions) → when it came in (quiet footer).
    */
-  const JobCard: React.FC<{ job: Job }> = ({ job }) => {
+  /** One piece inside an order card. */
+  const PieceRow: React.FC<{ job: Job; last: boolean }> = ({ job, last }) => {
     const done = job.status === 'completed';
-    // Size first — it is the spec most likely to be wrong if missed.
     const specs: { label: string; value: string; accent?: boolean }[] = [];
     if (job.size) specs.push({ label: 'Size', value: job.size, accent: true });
     if (job.weightG) specs.push({ label: 'Weight', value: `${job.weightG}g` });
@@ -161,93 +162,89 @@ export default function MyWorkPage() {
     if ((job.quantity ?? 1) > 1) specs.push({ label: 'Qty', value: String(job.quantity) });
 
     return (
+      <div className={cn('flex items-start gap-3 py-3', !last && 'border-b')}>
+        {busy === job.id
+          ? <Loader2 className="h-5 w-5 mt-0.5 animate-spin text-muted-foreground flex-shrink-0" />
+          : <Checkbox className="mt-0.5 h-5 w-5 flex-shrink-0" checked={done}
+              disabled={!!data.preview} onCheckedChange={() => toggle(job)} />}
+
+        <div className="min-w-0 flex-1">
+          <p className={cn('font-medium text-[15px] leading-snug break-words', done && 'line-through')}>
+            {job.description}
+          </p>
+
+          {specs.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mt-2">
+              {specs.map(sp => (
+                <div key={sp.label} className={cn(
+                  'rounded-md px-2.5 py-1.5 min-w-0',
+                  sp.accent ? 'bg-primary/10 ring-1 ring-primary/20' : 'bg-muted/60',
+                )}>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">{sp.label}</p>
+                  <p className={cn('text-sm font-semibold truncate mt-1', sp.accent && 'text-primary')}>{sp.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {job.sampleGiven && <Badge variant="outline" className="text-xs mt-2">Sample provided</Badge>}
+
+          {job.sampleImage && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={job.sampleImage} alt="Sample" className="mt-2 rounded-md border max-h-56 object-contain bg-muted" />
+          )}
+
+          {job.notes && (
+            <div className="mt-2 rounded-md border-l-2 border-primary/50 bg-muted/40 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Instructions</p>
+              <p className="text-sm whitespace-pre-wrap mt-0.5">{job.notes}</p>
+            </div>
+          )}
+
+          {job.specialNote && (
+            <div className="mt-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/25 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-amber-800 dark:text-amber-300 font-semibold">Special note</p>
+              <p className="text-sm whitespace-pre-wrap mt-0.5 text-amber-900 dark:text-amber-100">{job.specialNote}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  /** An order — the heading a karigar actually works from. */
+  const OrderCard: React.FC<{ group: JobOrderGroup<Job> }> = ({ group }) => {
+    const allDone = group.jobs.every(j => j.status === 'completed');
+    const urgency = allDone ? 'ok'
+      : group.ageDays >= 14 ? 'critical' : group.ageDays >= 7 ? 'warning' : 'ok';
+    return (
       <Card className={cn(
-        'transition-opacity',
-        done && 'opacity-55',
-        !done && job.urgency === 'critical' && 'border-destructive/40',
-        !done && job.urgency === 'warning' && 'border-yellow-500/40',
+        allDone && 'opacity-55',
+        !allDone && urgency === 'critical' && 'border-destructive/40',
+        !allDone && urgency === 'warning' && 'border-yellow-500/40',
       )}>
         <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            {busy === job.id
-              ? <Loader2 className="h-5 w-5 mt-0.5 animate-spin text-muted-foreground flex-shrink-0" />
-              : <Checkbox className="mt-0.5 h-5 w-5 flex-shrink-0" checked={done}
-                  disabled={!!data.preview} onCheckedChange={() => toggle(job)} />}
-
-            <div className="min-w-0 flex-1">
-              {/* 1 — what to make */}
-              <div className="flex items-start justify-between gap-2">
-                <h3 className={cn('font-semibold text-base leading-snug break-words', done && 'line-through')}>
-                  {job.description}
-                </h3>
-                {!done && job.urgency !== 'ok' && (
-                  <Badge variant="outline" className={cn('flex-shrink-0 tabular-nums',
-                    job.urgency === 'critical'
-                      ? 'text-destructive border-destructive/40 bg-destructive/10'
-                      : 'text-yellow-700 border-yellow-500/40 bg-yellow-500/10')}>
-                    {job.ageDays}d
-                  </Badge>
-                )}
-              </div>
-
-              {/* 2 — what it must be */}
-              {specs.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mt-3">
-                  {specs.map(s => (
-                    <div key={s.label} className={cn(
-                      'rounded-md px-2.5 py-1.5 min-w-0',
-                      s.accent ? 'bg-primary/10 ring-1 ring-primary/20' : 'bg-muted/60',
-                    )}>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">{s.label}</p>
-                      <p className={cn('text-sm font-semibold truncate mt-1', s.accent && 'text-primary')}>{s.value}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                {job.orderId && (
-                  <Badge variant="outline" className="text-xs font-mono">
-                    {job.orderId}
-                    {(perOrder.get(job.orderId) || 0) > 1 && (
-                      <span className="ml-1 font-sans font-normal text-muted-foreground">
-                        · {perOrder.get(job.orderId)} pieces
-                      </span>
-                    )}
-                  </Badge>
-                )}
-                {job.source === 'manual' && (
-                  <Badge variant="secondary" className="text-xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock piece</Badge>
-                )}
-                {job.sampleGiven && <Badge variant="outline" className="text-xs">Sample provided</Badge>}
-              </div>
-
-              {job.sampleImage && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={job.sampleImage} alt="Sample" className="mt-3 rounded-md border max-h-56 object-contain bg-muted" />
-              )}
-
-              {/* 3 — how to make it */}
-              {job.notes && (
-                <div className="mt-3 rounded-md border-l-2 border-primary/50 bg-muted/40 px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Instructions</p>
-                  <p className="text-sm whitespace-pre-wrap mt-0.5">{job.notes}</p>
-                </div>
-              )}
-
-              {job.specialNote && (
-                <div className="mt-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/25 px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-wide text-amber-800 dark:text-amber-300 font-semibold">Special note</p>
-                  <p className="text-sm whitespace-pre-wrap mt-0.5 text-amber-900 dark:text-amber-100">{job.specialNote}</p>
-                </div>
-              )}
-
-              {/* 4 — when it came in */}
-              <p className="text-xs text-muted-foreground mt-3">
-                Given {format(parseISO(job.assignedDate), 'dd MMM yyyy')} · {job.ageDays} day{job.ageDays === 1 ? '' : 's'} ago
+          <div className="flex items-start justify-between gap-2 pb-1">
+            <div className="min-w-0">
+              <h3 className={cn('font-bold text-base', group.isStock ? '' : 'font-mono tracking-tight')}>
+                {group.isStock ? 'Stock piece' : group.orderId}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {group.jobs.length} piece{group.jobs.length === 1 ? '' : 's'} · given{' '}
+                {format(parseISO(group.assignedDate), 'dd MMM yyyy')} · {group.ageDays} day{group.ageDays === 1 ? '' : 's'} ago
               </p>
             </div>
+            {!allDone && urgency !== 'ok' && (
+              <Badge variant="outline" className={cn('flex-shrink-0 tabular-nums',
+                urgency === 'critical'
+                  ? 'text-destructive border-destructive/40 bg-destructive/10'
+                  : 'text-yellow-700 border-yellow-500/40 bg-yellow-500/10')}>
+                {group.ageDays}d
+              </Badge>
+            )}
           </div>
+          <Separator />
+          {group.jobs.map((j, i) => <PieceRow key={j.id} job={j} last={i === group.jobs.length - 1} />)}
         </CardContent>
       </Card>
     );
@@ -256,6 +253,7 @@ export default function MyWorkPage() {
   const Group: React.FC<{ title: string; jobs: Job[]; icon?: React.ReactNode; tone?: string; hint?: string }> =
   ({ title, jobs, icon, tone, hint }) => {
     if (!jobs.length) return null;
+    const groups = groupJobsByOrder(jobs);
     return (
       <section className="mt-6 first:mt-0">
         <div className="flex items-center gap-2 mb-2 px-0.5">
@@ -265,7 +263,7 @@ export default function MyWorkPage() {
           {hint && <span className="text-[11px] text-muted-foreground ml-auto">{hint}</span>}
         </div>
         <div className="space-y-2">
-          {jobs.map(j => <JobCard key={j.id} job={j} />)}
+          {groups.map(g => <OrderCard key={g.key} group={g} />)}
         </div>
       </section>
     );
