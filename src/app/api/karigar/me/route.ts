@@ -32,14 +32,28 @@ export async function GET(req: NextRequest) {
     const email = await verifyRequestEmail(req);
     if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Owners are not karigars — tell the client so it can show the full app.
     const owner = isOwnerEmail(email);
-    const identity = await resolveKarigar(req);
-    if (!identity) {
-      return NextResponse.json({ role: owner ? 'owner' : 'none', karigar: null }, { status: owner ? 200 : 403 });
-    }
 
-    const { karigarId, name } = identity;
+    // Owner preview: shop owners can look at any karigar's portal exactly as
+    // that karigar sees it. This exposes nothing new — owners already have full
+    // access to every collection — it just makes the filtered view inspectable.
+    const previewId = req.nextUrl.searchParams.get('karigarId');
+    let karigarId: string;
+    let name: string;
+
+    if (owner && previewId) {
+      const doc = await adminDb.collection('karigars').doc(previewId).get();
+      if (!doc.exists) return NextResponse.json({ error: 'Karigar not found' }, { status: 404 });
+      karigarId = doc.id;
+      name = doc.data()?.name || 'Karigar';
+    } else {
+      const identity = await resolveKarigar(req);
+      if (!identity) {
+        return NextResponse.json({ role: owner ? 'owner' : 'none', karigar: null }, { status: owner ? 200 : 403 });
+      }
+      karigarId = identity.karigarId;
+      name = identity.name;
+    }
 
     const [ordersSnap, jobsSnap, hisaabSnap, expensesSnap] = await Promise.all([
       adminDb.collection('orders').get(),
@@ -141,6 +155,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       role: 'karigar',
+      preview: owner && !!previewId,
       karigar: { id: karigarId, name },
       summary: {
         active: active.length,

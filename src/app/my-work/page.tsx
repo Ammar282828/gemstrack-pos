@@ -31,6 +31,7 @@ interface Job {
 }
 interface Payload {
   role: string;
+  preview?: boolean;
   karigar: { id: string; name: string } | null;
   summary: { active: number; inProgress: number; late: number; critical: number; oldestDays: number };
   jobs: Job[];
@@ -54,7 +55,14 @@ export default function MyWorkPage() {
     if (!user) { setLoading(false); return; }
     try {
       const token = await user.getIdToken();
-      const res = await fetch('/api/karigar/me', { headers: { Authorization: `Bearer ${token}` } });
+      // ?preview=<karigarId> lets a signed-in owner inspect a karigar's portal.
+      // Read from location rather than useSearchParams to avoid needing a
+      // Suspense boundary around this client route.
+      const preview = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('preview')
+        : null;
+      const url = preview ? `/api/karigar/me?karigarId=${encodeURIComponent(preview)}` : '/api/karigar/me';
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) setData(await res.json());
     } catch { /* surfaced by the empty state */ }
     setLoading(false);
@@ -117,7 +125,8 @@ export default function MyWorkPage() {
       <div className={cn('flex items-start gap-3 py-3 border-b last:border-0', job.status === 'completed' && 'opacity-60')}>
         {busy === job.id
           ? <Loader2 className="h-5 w-5 mt-0.5 animate-spin text-muted-foreground flex-shrink-0" />
-          : <Checkbox className="mt-1 h-5 w-5 flex-shrink-0" checked={job.status === 'completed'} onCheckedChange={() => toggle(job)} />}
+          : <Checkbox className="mt-1 h-5 w-5 flex-shrink-0" checked={job.status === 'completed'}
+              disabled={!!data.preview} onCheckedChange={() => toggle(job)} />}
         <div className="min-w-0 flex-1">
           <p className={cn('font-medium', job.status === 'completed' && 'line-through')}>{job.description}</p>
           {meta && <p className="text-sm text-muted-foreground mt-0.5">{meta}</p>}
@@ -159,10 +168,21 @@ export default function MyWorkPage() {
             <Hammer className="h-4 w-4 text-primary flex-shrink-0" />{data.karigar.name}
           </h1>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => firebaseSignOut(auth)}>
-          <LogOut className="h-4 w-4 mr-1.5" />Sign out
-        </Button>
+        {data.preview
+          ? <Badge variant="secondary" className="flex-shrink-0">Owner preview</Badge>
+          : (
+            <Button variant="ghost" size="sm" onClick={() => firebaseSignOut(auth)}>
+              <LogOut className="h-4 w-4 mr-1.5" />Sign out
+            </Button>
+          )}
       </header>
+
+      {data.preview && (
+        <div className="bg-primary/10 border-b px-4 py-2 text-xs text-center">
+          Viewing exactly what <strong>{data.karigar.name}</strong> sees. Read-only —
+          tick items off from the Workshop dashboard instead.
+        </div>
+      )}
 
       <main className="p-4 max-w-2xl mx-auto pb-16">
         <div className="grid grid-cols-3 gap-3">

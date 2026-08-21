@@ -6,6 +6,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore, Expense, KarigarBatch, SilverTransaction } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,7 +14,8 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import {
   Edit3, Trash2, ArrowLeft, User, Phone, StickyNote,
-  PlusCircle, Banknote, CheckCircle2, ChevronDown, ChevronUp, Lock, Unlock, History
+  PlusCircle, Banknote, CheckCircle2, ChevronDown, ChevronUp, Lock, Unlock, History,
+  Scale, ArrowUp, ArrowDown, ExternalLink, Eye
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -181,7 +183,8 @@ export default function KarigarDetailPage() {
   const karigarBatches = useAppStore(state => state.karigarBatches);
   const deleteKarigarAction = useAppStore(state => state.deleteKarigar);
   const silverTransactions = useAppStore(state => state.silverTransactions);
-  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars, addSilverTransaction, loadSilverTransactions, deleteSilverTransaction } = useAppStore();
+  const hisaabEntries = useAppStore(state => state.hisaabEntries);
+  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars, addSilverTransaction, loadSilverTransactions, deleteSilverTransaction, loadHisaab } = useAppStore();
 
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
   const [isSilverDialogOpen, setIsSilverDialogOpen] = useState(false);
@@ -195,7 +198,8 @@ export default function KarigarDetailPage() {
     loadKarigarBatches();
     loadKarigars();
     loadSilverTransactions();
-  }, [loadExpenses, loadKarigarBatches, loadKarigars, loadSilverTransactions]);
+    loadHisaab();
+  }, [loadExpenses, loadKarigarBatches, loadKarigars, loadSilverTransactions, loadHisaab]);
 
   useEffect(() => {
     if (!karigarId) return;
@@ -234,6 +238,17 @@ export default function KarigarDetailPage() {
       .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()),
     [allKarigarExpenses]
   );
+
+  // ── Gold khata (gold given to / pieces received from this karigar) ──
+  // Stored as hisaab entries: goldDebitGrams = gold we gave, goldCreditGrams = pieces back.
+  const goldKhata = useMemo(() => {
+    const entries = hisaabEntries
+      .filter(h => h.entityType === 'karigar' && h.entityId === karigarId)
+      .sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
+    const given = entries.reduce((s, e) => s + (Number(e.goldDebitGrams) || 0), 0);
+    const received = entries.reduce((s, e) => s + (Number(e.goldCreditGrams) || 0), 0);
+    return { entries, given, received, net: given - received };
+  }, [hisaabEntries, karigarId]);
 
   const grandTotal = allKarigarExpenses.reduce((s, e) => s + e.amount, 0);
   const openBatchTotal = openBatchExpenses.reduce((s, e) => s + e.amount, 0);
@@ -357,6 +372,11 @@ export default function KarigarDetailPage() {
             </div>
             <div className="flex gap-2">
               <Button asChild variant="outline" size="sm">
+                <Link href={`/my-work?preview=${karigarId}`} title="See the portal exactly as this karigar sees it">
+                  <Eye className="mr-1.5 h-4 w-4" />Their view
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
                 <Link href={`/karigars/${karigarId}/edit`}><Edit3 className="mr-1.5 h-4 w-4" />Edit</Link>
               </Button>
               <AlertDialog>
@@ -389,6 +409,62 @@ export default function KarigarDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Gold Khata (gold given / pieces received) ── */}
+      {goldKhata.entries.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base"><Scale className="h-5 w-5 text-primary" />Gold Khata</CardTitle>
+              <Button asChild variant="ghost" size="sm" className="text-primary">
+                <Link href={`/hisaab/${karigarId}?type=karigar`}>Full ledger <ExternalLink className="ml-1.5 h-3.5 w-3.5" /></Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-lg bg-muted/50 py-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center justify-center gap-1"><ArrowUp className="h-3 w-3 text-destructive" />Given</p>
+                <p className="text-lg font-bold">{goldKhata.given.toFixed(3)}<span className="text-xs font-normal text-muted-foreground">g</span></p>
+              </div>
+              <div className="rounded-lg bg-muted/50 py-3">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center justify-center gap-1"><ArrowDown className="h-3 w-3 text-green-600" />Received</p>
+                <p className="text-lg font-bold">{goldKhata.received.toFixed(3)}<span className="text-xs font-normal text-muted-foreground">g</span></p>
+              </div>
+              <div className={cn("rounded-lg py-3", goldKhata.net >= 0 ? 'bg-destructive/10' : 'bg-green-600/10')}>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Net (out)</p>
+                <p className={cn("text-lg font-bold", goldKhata.net >= 0 ? 'text-destructive' : 'text-green-600')}>{goldKhata.net.toFixed(3)}<span className="text-xs font-normal text-muted-foreground">g</span></p>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground text-center mt-2">
+              {goldKhata.entries.length} entries · net = gold still with the karigar
+            </p>
+            <Separator className="my-3" />
+            <ScrollArea className="max-h-64">
+              <div className="space-y-1 pr-3">
+                {goldKhata.entries.slice(0, 40).map(e => {
+                  const isGiven = (Number(e.goldDebitGrams) || 0) > 0;
+                  const grams = isGiven ? Number(e.goldDebitGrams) : Number(e.goldCreditGrams);
+                  return (
+                    <div key={e.id} className="flex items-center justify-between text-sm py-1 border-b border-border/50 last:border-0">
+                      <div className="min-w-0">
+                        <span className="text-muted-foreground text-xs">{format(parseISO(e.date), 'dd MMM yy')}</span>
+                        <span className="ml-2">{e.description}</span>
+                      </div>
+                      <span className={cn("font-semibold flex-shrink-0 tabular-nums", isGiven ? 'text-destructive' : 'text-green-600')}>
+                        {isGiven ? '↑' : '↓'} {grams.toFixed(3)}g
+                      </span>
+                    </div>
+                  );
+                })}
+                {goldKhata.entries.length > 40 && (
+                  <p className="text-xs text-muted-foreground text-center pt-2">… {goldKhata.entries.length - 40} more — see full ledger</p>
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Dialogs ── */}
       <Dialog open={isPaymentFormOpen} onOpenChange={setIsPaymentFormOpen}>
