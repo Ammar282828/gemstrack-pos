@@ -535,7 +535,8 @@ const KarigarCard: React.FC<{
               )}
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              {load.active} active · {load.inProgress} in progress
+              {load.active} active
+              {load.inProgress !== load.active && ` · ${load.inProgress} in progress`}
               {load.oldestActiveDays > 0 && ` · oldest ${load.oldestActiveDays}d`}
             </p>
           </div>
@@ -672,34 +673,31 @@ const FocusedKarigarView: React.FC<{
             )}
           </div>
 
-          <Separator className="my-4" />
+          <Separator className="my-3" />
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active</p>
-              <p className="text-2xl font-bold">{load.active}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">In progress</p>
-              <p className="text-2xl font-bold text-blue-600">{load.inProgress}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Late {WARN_DAYS}d+</p>
-              <p className={cn('text-2xl font-bold', late.length ? 'text-yellow-600' : 'text-muted-foreground')}>{late.length}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Critical {CRITICAL_DAYS}d+</p>
-              <p className={cn('text-2xl font-bold', load.critical ? 'text-destructive' : 'text-muted-foreground')}>{load.critical}</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Gold out</p>
-              <p className="text-2xl font-bold">{load.totalWeightG > 0 ? load.totalWeightG.toFixed(1) : '—'}<span className="text-xs font-normal text-muted-foreground">{load.totalWeightG > 0 ? 'g' : ''}</span></p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Value</p>
-              <p className="text-2xl font-bold">{load.totalValue > 0 ? `${Math.round(load.totalValue / 1000)}k` : '—'}</p>
-            </div>
-          </div>
+          {/* Only the cells that say something: in-progress is dropped when it
+              equals active (it did — 16 and 16), and zero counts are omitted
+              rather than printed as a muted 0. */}
+          {(() => {
+            const cells: { label: string; value: string; tone?: string }[] = [
+              { label: 'Active', value: String(load.active) },
+            ];
+            if (load.inProgress !== load.active) cells.push({ label: 'In progress', value: String(load.inProgress), tone: 'text-blue-600' });
+            if (late.length) cells.push({ label: `Late ${WARN_DAYS}d+`, value: String(late.length), tone: 'text-yellow-600' });
+            if (load.critical) cells.push({ label: `Critical ${CRITICAL_DAYS}d+`, value: String(load.critical), tone: 'text-destructive' });
+            if (load.totalWeightG > 0) cells.push({ label: 'Gold out', value: `${load.totalWeightG.toFixed(1)}g` });
+            if (load.totalValue > 0) cells.push({ label: 'Value', value: `${Math.round(load.totalValue / 1000)}k` });
+            return (
+              <div className="flex flex-wrap gap-x-8 gap-y-3">
+                {cells.map(c => (
+                  <div key={c.label}>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</p>
+                    <p className={cn('text-xl font-bold leading-tight', c.tone)}>{c.value}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
 
