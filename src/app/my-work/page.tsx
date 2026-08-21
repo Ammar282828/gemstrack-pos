@@ -137,49 +137,105 @@ export default function MyWorkPage() {
   const late = active.filter(j => j.urgency === 'warning');
   const ontrack = active.filter(j => j.urgency === 'ok');
 
+  /**
+   * One piece of work. The layout is deliberately tiered so it reads at a
+   * glance on a phone: what to make (name) → what it must be (spec grid) →
+   * how to make it (instructions) → when it came in (quiet footer).
+   */
   const JobCard: React.FC<{ job: Job }> = ({ job }) => {
-    const meta = [job.category, job.weightG ? `${job.weightG}g` : null, job.karat ? String(job.karat).toUpperCase() : null]
-      .filter(Boolean).join(' · ');
+    const done = job.status === 'completed';
+    // Size first — it is the spec most likely to be wrong if missed.
+    const specs: { label: string; value: string; accent?: boolean }[] = [];
+    if (job.size) specs.push({ label: 'Size', value: job.size, accent: true });
+    if (job.weightG) specs.push({ label: 'Weight', value: `${job.weightG}g` });
+    if (job.category) specs.push({ label: 'Type', value: job.category });
+    if (job.karat) specs.push({ label: 'Karat', value: String(job.karat).toUpperCase() });
+    if (job.referenceSku) specs.push({ label: 'Ref', value: job.referenceSku });
+    if ((job.quantity ?? 1) > 1) specs.push({ label: 'Qty', value: String(job.quantity) });
+
     return (
-      <div className={cn('flex items-start gap-3 py-3 border-b last:border-0', job.status === 'completed' && 'opacity-60')}>
-        {busy === job.id
-          ? <Loader2 className="h-5 w-5 mt-0.5 animate-spin text-muted-foreground flex-shrink-0" />
-          : <Checkbox className="mt-1 h-5 w-5 flex-shrink-0" checked={job.status === 'completed'}
-              disabled={!!data.preview} onCheckedChange={() => toggle(job)} />}
-        <div className="min-w-0 flex-1">
-          <p className={cn('font-medium', job.status === 'completed' && 'line-through')}>{job.description}</p>
-          {meta && <p className="text-sm text-muted-foreground mt-0.5">{meta}</p>}
-          <div className="flex items-center gap-1.5 flex-wrap mt-1">
-            {job.size && <Badge variant="secondary" className="text-xs font-semibold">Size {job.size}</Badge>}
-            {job.referenceSku && <Badge variant="outline" className="text-xs">Ref {job.referenceSku}</Badge>}
-            {job.sampleGiven && <Badge variant="outline" className="text-xs">Sample given</Badge>}
+      <Card className={cn(
+        'transition-opacity',
+        done && 'opacity-55',
+        !done && job.urgency === 'critical' && 'border-destructive/40',
+        !done && job.urgency === 'warning' && 'border-yellow-500/40',
+      )}>
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            {busy === job.id
+              ? <Loader2 className="h-5 w-5 mt-0.5 animate-spin text-muted-foreground flex-shrink-0" />
+              : <Checkbox className="mt-0.5 h-5 w-5 flex-shrink-0" checked={done}
+                  disabled={!!data.preview} onCheckedChange={() => toggle(job)} />}
+
+            <div className="min-w-0 flex-1">
+              {/* 1 — what to make */}
+              <div className="flex items-start justify-between gap-2">
+                <h3 className={cn('font-semibold text-base leading-snug break-words', done && 'line-through')}>
+                  {job.description}
+                </h3>
+                {!done && job.urgency !== 'ok' && (
+                  <Badge variant="outline" className={cn('flex-shrink-0 tabular-nums',
+                    job.urgency === 'critical'
+                      ? 'text-destructive border-destructive/40 bg-destructive/10'
+                      : 'text-yellow-700 border-yellow-500/40 bg-yellow-500/10')}>
+                    {job.ageDays}d
+                  </Badge>
+                )}
+              </div>
+
+              {/* 2 — what it must be */}
+              {specs.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mt-3">
+                  {specs.map(s => (
+                    <div key={s.label} className={cn(
+                      'rounded-md px-2.5 py-1.5 min-w-0',
+                      s.accent ? 'bg-primary/10 ring-1 ring-primary/20' : 'bg-muted/60',
+                    )}>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">{s.label}</p>
+                      <p className={cn('text-sm font-semibold truncate mt-1', s.accent && 'text-primary')}>{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {job.sampleGiven && (
+                <Badge variant="outline" className="text-xs mt-2">Sample provided</Badge>
+              )}
+
+              {/* 3 — how to make it */}
+              {job.notes && (
+                <div className="mt-3 rounded-md border-l-2 border-primary/50 bg-muted/40 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Instructions</p>
+                  <p className="text-sm whitespace-pre-wrap mt-0.5">{job.notes}</p>
+                </div>
+              )}
+
+              {/* 4 — when it came in */}
+              <p className="text-xs text-muted-foreground mt-3">
+                Given {format(parseISO(job.assignedDate), 'dd MMM yyyy')} · {job.ageDays} day{job.ageDays === 1 ? '' : 's'} ago
+              </p>
+            </div>
           </div>
-          {job.notes && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{job.notes}</p>}
-          <p className="text-xs text-muted-foreground mt-1">
-            Given {format(parseISO(job.assignedDate), 'dd MMM yyyy')} · {job.ageDays} day{job.ageDays === 1 ? '' : 's'} ago
-          </p>
-        </div>
-        {job.status !== 'completed' && job.urgency !== 'ok' && (
-          <Badge variant="outline" className={cn('flex-shrink-0',
-            job.urgency === 'critical' ? 'text-destructive border-destructive/40 bg-destructive/10' : 'text-yellow-700 border-yellow-500/40 bg-yellow-500/10')}>
-            {job.ageDays}d
-          </Badge>
-        )}
-      </div>
+        </CardContent>
+      </Card>
     );
   };
 
-  const Group: React.FC<{ title: string; jobs: Job[]; icon?: React.ReactNode; tone?: string }> = ({ title, jobs, icon, tone }) => {
+  const Group: React.FC<{ title: string; jobs: Job[]; icon?: React.ReactNode; tone?: string; hint?: string }> =
+  ({ title, jobs, icon, tone, hint }) => {
     if (!jobs.length) return null;
     return (
-      <div className="mt-4 first:mt-0">
-        <div className="flex items-center gap-2 mb-1">
+      <section className="mt-6 first:mt-0">
+        <div className="flex items-center gap-2 mb-2 px-0.5">
           {icon}
-          <h2 className={cn('text-sm font-semibold', tone)}>{title}</h2>
+          <h2 className={cn('text-xs font-bold uppercase tracking-widest', tone)}>{title}</h2>
           <Badge variant="secondary" className="text-[10px]">{jobs.length}</Badge>
+          {hint && <span className="text-[11px] text-muted-foreground ml-auto">{hint}</span>}
         </div>
-        <Card><CardContent className="py-1 px-4">{jobs.map(j => <JobCard key={j.id} job={j} />)}</CardContent></Card>
-      </div>
+        <div className="space-y-2">
+          {jobs.map(j => <JobCard key={j.id} job={j} />)}
+        </div>
+      </section>
     );
   };
 
@@ -250,12 +306,17 @@ export default function MyWorkPage() {
               </CardContent></Card>
             ) : (
               <>
-                <Group title="Urgent" jobs={critical} icon={<Flame className="h-4 w-4 text-destructive" />} tone="text-destructive" />
-                <Group title="Late" jobs={late} icon={<Clock className="h-4 w-4 text-yellow-600" />} tone="text-yellow-700" />
-                <Group title="In hand" jobs={ontrack} />
+                <Group title="Urgent" jobs={critical} icon={<Flame className="h-4 w-4 text-destructive" />}
+                  tone="text-destructive" hint="14+ days" />
+                <Group title="Late" jobs={late} icon={<Clock className="h-4 w-4 text-yellow-600" />}
+                  tone="text-yellow-700" hint="7–14 days" />
+                <Group title="In hand" jobs={ontrack} hint="on track" />
               </>
             )}
-            {done.length > 0 && <Group title="Completed" jobs={done} tone="text-muted-foreground" />}
+            {done.length > 0 && (
+              <Group title="Completed" jobs={done}
+                icon={<CheckCircle2 className="h-4 w-4 text-green-600" />} tone="text-muted-foreground" />
+            )}
           </TabsContent>
 
           <TabsContent value="account" className="mt-4 space-y-4">
