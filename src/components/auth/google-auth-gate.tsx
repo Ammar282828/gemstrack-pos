@@ -14,6 +14,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, LogIn } from 'lucide-react';
 import { STORE_CONFIG } from '@/lib/store-config';
+import dynamic from 'next/dynamic';
+
+// Loaded lazily so the store app's bundle is not pulled in for karigars.
+const KarigarPortal = dynamic(() => import('@/app/my-work/page'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  ),
+});
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -81,6 +92,7 @@ const GoogleIcon = () => (
 
 export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<'owner' | 'karigar' | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,13 +102,30 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         if (!isAllowed(firebaseUser)) {
-          // Immediately sign out accounts not on the allowlist
-          await firebaseSignOut(auth);
-          setError('This Google account is not authorised to access this app.');
-          setUser(null);
+          // Not an owner — it may still be a karigar. Ask the server, which is
+          // the only side that can look up karigars (they have no Firestore
+          // access of their own).
+          let isKarigar = false;
+          try {
+            const token = await firebaseUser.getIdToken();
+            const res = await fetch('/api/karigar/me', { headers: { Authorization: `Bearer ${token}` } });
+            isKarigar = res.ok && (await res.json())?.role === 'karigar';
+          } catch { /* treated as not-a-karigar below */ }
+
+          if (!isKarigar) {
+            await firebaseSignOut(auth);
+            setError('This Google account is not authorised to access this app.');
+            setUser(null);
+            setIsLoading(false);
+            return;
+          }
+
+          setRole('karigar');
+          setUser(firebaseUser);
           setIsLoading(false);
           return;
         }
+        setRole('owner');
         // Force-resolve the auth token so Firestore has it before children mount
         await firebaseUser.getIdToken();
         // Log sign-in only once per session (not on every token refresh)
@@ -163,6 +192,18 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
           </CardContent>
         </Card>
       </div>
+    );
+  }
+
+  // Karigars never get the store app — only their own work portal. This is a
+  // convenience boundary; the real one is firestore.rules + the server-side
+  // checks in /api/karigar/*, which is why a karigar cannot read anything by
+  // bypassing this component.
+  if (role === 'karigar') {
+    return (
+      <AuthContext.Provider value={{ user, signOut: handleSignOut }}>
+        <KarigarPortal />
+      </AuthContext.Provider>
     );
   }
 

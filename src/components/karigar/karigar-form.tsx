@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAppStore, Karigar } from '@/lib/store';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +22,7 @@ const karigarSchema = z.object({
   name: z.string().min(1, "Name is required"),
   contact: z.string().optional(),
   notes: z.string().optional(),
+  email: z.string().email('Enter a valid email').optional().or(z.literal('')),
 });
 
 type KarigarFormData = z.infer<typeof karigarSchema>;
@@ -45,16 +46,21 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
       name: karigar.name,
       contact: normalizePhoneNumber(karigar.contact) || "",
       notes: karigar.notes || "",
+      email: karigar.email || "",
     } : {
       name: '',
       contact: '',
       notes: '',
+      email: '',
     },
   });
 
   const isEditMode = !!karigar;
 
-  const onSubmit = async (data: KarigarFormData) => {
+  const onSubmit = async (rawData: KarigarFormData) => {
+    // Store the login email lowercased — it is matched against the Google
+    // account's address on every karigar-portal request.
+    const data = { ...rawData, email: (rawData.email || '').trim().toLowerCase() };
     try {
       if (isEditMode && karigar) {
         await updateKarigar(karigar.id, data);
@@ -128,6 +134,24 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-base">Google Login (Optional)</FormLabel>
+                  <FormControl>
+                    <Input type="email" inputMode="email" autoComplete="off"
+                      placeholder="karigar@gmail.com" {...field} />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Adding a Gmail lets this karigar sign in and see only their own work list
+                    and account. They cannot see customers, prices, or any other karigar.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

@@ -521,6 +521,10 @@ export interface Karigar {
   name: string;
   contact?: string;
   notes?: string;
+  /** Google account this karigar signs in with. Grants access to their own
+   *  work list + hisaab ONLY, served through /api/karigar/* (never direct
+   *  Firestore access — see firestore.rules). */
+  email?: string;
 }
 
 export const ORDER_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Refunded'] as const;

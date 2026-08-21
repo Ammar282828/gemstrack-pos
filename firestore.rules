@@ -1,12 +1,35 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null
+
+    // Shop owners — full access to everything.
+    function isOwner() {
+      return request.auth != null
         && request.auth.token.email in [
           'potatomasta501@gmail.com',
           'minakhalid00@gmail.com'
         ];
+    }
+
+    // Karigars sign in with Google too, but they get NO direct database access.
+    // Their portal reads and writes exclusively through /api/karigar/*, which
+    // runs server-side with the Admin SDK and hand-picks the fields they may
+    // see. This matters because Firestore rules are per-document, not
+    // per-field: allowing a karigar to read an `orders` doc so they could see
+    // their own item would also expose the customer's name, phone number and
+    // the full pricing of that order. Denying them here keeps that impossible
+    // even if they bypass the UI and query Firestore directly.
+
+    // Sign-in audit trail: any authenticated account may record its own
+    // sign-in, but only owners can read the log back.
+    match /signInLogs/{logId} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if isOwner();
+    }
+
+    match /{document=**} {
+      allow read, write: if isOwner();
     }
   }
 }
