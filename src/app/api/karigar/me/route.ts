@@ -79,6 +79,7 @@ export async function GET(req: NextRequest) {
       const o = doc.data() as Record<string, any>;
       if (o.status === 'Cancelled' || o.status === 'Refunded') continue;
       if (o.invoiceId) continue; // delivered
+      if (o.status === 'Pending') continue; // not handed to the workshop yet
       const items = Array.isArray(o.items) ? o.items : [];
       items.forEach((item: Record<string, any>, idx: number) => {
         if (!item || item.karigarId !== karigarId) return;

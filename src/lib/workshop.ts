@@ -78,7 +78,7 @@ export function buildWorkshopJobs(
   orders: Order[],
   karigarJobs: KarigarJob[],
   karigars: Karigar[],
-  opts: { includeInvoicedOrders?: boolean } = {},
+  opts: { includeInvoicedOrders?: boolean; includePendingOrders?: boolean } = {},
 ): WorkshopJob[] {
   const nameById = new Map(karigars.map(k => [k.id, k.name]));
   const out: WorkshopJob[] = [];
@@ -87,6 +87,10 @@ export function buildWorkshopJobs(
     if (!order) continue;
     if (order.status === 'Cancelled' || order.status === 'Refunded') continue;
     if (order.invoiceId && !opts.includeInvoicedOrders) continue;
+    // A Pending order has not been handed to the workshop yet, so its pieces
+    // are not physically with any karigar — they would otherwise pad every
+    // list with work nobody has started.
+    if (order.status === 'Pending' && !opts.includePendingOrders) continue;
 
     const items = Array.isArray(order.items) ? order.items : [];
     items.forEach((item, idx) => {

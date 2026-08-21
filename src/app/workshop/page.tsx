@@ -594,6 +594,7 @@ export default function WorkshopPage() {
   const [search, setSearch] = useState('');
   const [karigarFilter, setKarigarFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active');
+  const [boardMode, setBoardMode] = useState<'karigar' | 'status'>('karigar');
 
   useEffect(() => {
     loadOrders(); loadKarigars(); loadKarigarJobs();
@@ -765,42 +766,106 @@ export default function WorkshopPage() {
 
         {/* View 2 — Board by status */}
         <TabsContent value="board" className="mt-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            {boardCols.map(col => {
-              const items = allJobs.filter(j => {
-                if (j.status !== col.key) return false;
-                if (karigarFilter !== 'all' && j.karigarId !== karigarFilter) return false;
-                const q = search.trim().toLowerCase();
-                if (!q) return true;
-                return [j.description, j.karigarName, j.customerName, j.orderId].filter(Boolean)
-                  .some(v => String(v).toLowerCase().includes(q));
-              });
-              return (
-                <Card key={col.key}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center justify-between">
-                      <span className="flex items-center gap-2">{col.icon}{col.label}</span>
-                      <Badge variant="secondary">{items.length}</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {items.length === 0
-                      ? <p className="text-sm text-muted-foreground text-center py-6">Empty</p>
-                      : (
-                        <ScrollArea className={items.length > 5 ? 'h-[34rem]' : ''}>
+          <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+            <p className="text-xs text-muted-foreground">
+              {boardMode === 'karigar'
+                ? 'One column per karigar holding pieces. Idle karigars are hidden.'
+                : 'Grouped by stage.'}
+            </p>
+            <div className="flex items-center gap-1 rounded-md border p-0.5">
+              <Button size="sm" variant={boardMode === 'karigar' ? 'secondary' : 'ghost'}
+                className="h-7 text-xs" onClick={() => setBoardMode('karigar')}>By Karigar</Button>
+              <Button size="sm" variant={boardMode === 'status' ? 'secondary' : 'ghost'}
+                className="h-7 text-xs" onClick={() => setBoardMode('status')}>By Stage</Button>
+            </div>
+          </div>
+
+          {boardMode === 'karigar' ? (
+            /* One column per karigar that actually holds pieces — scrolls
+               horizontally so workloads can be compared side by side. */
+            loads.filter(l => l.active > 0).length === 0 ? (
+              <Card><CardContent className="py-12 text-center text-muted-foreground">
+                <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />Nobody is holding pieces right now.
+              </CardContent></Card>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto pb-3 -mx-1 px-1">
+                {loads.filter(l => l.active > 0).map(load => {
+                  const items = load.jobs.filter(j => j.status !== 'completed');
+                  const isUnassigned = load.karigarId === UNASSIGNED_ID;
+                  return (
+                    <Card key={load.karigarId} className={cn(
+                      'w-[19rem] flex-shrink-0',
+                      load.critical > 0 && 'border-destructive/40',
+                      isUnassigned && 'border-destructive/60 bg-destructive/5',
+                    )}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center justify-between gap-2">
+                          <span className="truncate flex items-center gap-1.5">
+                            {isUnassigned
+                              ? <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
+                              : <Hammer className="h-4 w-4 text-primary flex-shrink-0" />}
+                            {isUnassigned
+                              ? <span className="text-destructive">Unassigned</span>
+                              : <Link href={`/karigars/${load.karigarId}`} className="hover:underline truncate">{load.karigarName}</Link>}
+                          </span>
+                          <Badge variant="secondary" className="flex-shrink-0">{items.length}</Badge>
+                        </CardTitle>
+                        <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                          {load.critical > 0 && <Badge variant="destructive" className="text-[10px]"><Flame className="h-3 w-3 mr-1" />{load.critical}</Badge>}
+                          {load.overdue > load.critical && (
+                            <Badge variant="outline" className="text-[10px] text-yellow-700 border-yellow-500/40 bg-yellow-500/10">
+                              {load.overdue - load.critical} late
+                            </Badge>
+                          )}
+                          {load.totalWeightG > 0 && <span className="text-[10px] text-muted-foreground">{load.totalWeightG.toFixed(1)}g</span>}
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className={items.length > 4 ? 'h-[32rem]' : ''}>
                           <div className="pr-2">
                             {items.map(j => (
-                              <JobRow key={j.id} job={j} showKarigar
+                              <JobRow key={j.id} job={j}
                                 onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
                             ))}
                           </div>
                         </ScrollArea>
-                      )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            <div className="grid gap-4 md:grid-cols-3">
+              {boardCols.map(col => {
+                const items = filtered.filter(j => j.status === col.key);
+                return (
+                  <Card key={col.key}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <span className="flex items-center gap-2">{col.icon}{col.label}</span>
+                        <Badge variant="secondary">{items.length}</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {items.length === 0
+                        ? <p className="text-sm text-muted-foreground text-center py-6">Empty</p>
+                        : (
+                          <ScrollArea className={items.length > 5 ? 'h-[34rem]' : ''}>
+                            <div className="pr-2">
+                              {items.map(j => (
+                                <JobRow key={j.id} job={j} showKarigar
+                                  onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         {/* View 3 — Table */}
