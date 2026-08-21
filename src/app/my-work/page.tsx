@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Loader2, Hammer, LogOut, CheckCircle2, Flame, Clock, Scale, Banknote } from 'lucide-react';
+import { Loader2, Hammer, LogOut, CheckCircle2, Flame, Clock, Scale, Banknote, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -49,6 +49,8 @@ export default function MyWorkPage() {
   const [data, setData] = useState<Payload | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -64,7 +66,7 @@ export default function MyWorkPage() {
         : null;
       const url = preview ? `/api/karigar/me?karigarId=${encodeURIComponent(preview)}` : '/api/karigar/me';
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setData(await res.json());
+      if (res.ok) { setData(await res.json()); setUpdatedAt(new Date()); }
     } catch { /* surfaced by the empty state */ }
     setLoading(false);
   }, []);
@@ -72,6 +74,22 @@ export default function MyWorkPage() {
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(() => load());
     return () => unsub();
+  }, [load]);
+
+  // Karigars have no direct Firestore access, so there is no realtime listener
+  // here (the owner-side store uses onSnapshot; this portal cannot). Re-fetch
+  // whenever the page regains focus and poll gently while it is visible, so
+  // edits made in the shop show up without the karigar knowing to refresh.
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    const id = setInterval(refresh, 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+      clearInterval(id);
+    };
   }, [load]);
 
   const toggle = async (job: Job) => {
@@ -174,13 +192,19 @@ export default function MyWorkPage() {
             <Hammer className="h-4 w-4 text-primary flex-shrink-0" />{data.karigar.name}
           </h1>
         </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Button variant="ghost" size="sm" title="Refresh"
+            onClick={async () => { setRefreshing(true); await load(); setRefreshing(false); }}>
+            <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
+          </Button>
         {data.preview
-          ? <Badge variant="secondary" className="flex-shrink-0">Owner preview</Badge>
+          ? <Badge variant="secondary">Owner preview</Badge>
           : (
             <Button variant="ghost" size="sm" onClick={() => firebaseSignOut(auth)}>
               <LogOut className="h-4 w-4 mr-1.5" />Sign out
             </Button>
           )}
+        </div>
       </header>
 
       {data.preview && (
@@ -191,6 +215,11 @@ export default function MyWorkPage() {
       )}
 
       <main className="p-4 max-w-2xl mx-auto pb-16">
+        {updatedAt && (
+          <p className="text-[11px] text-muted-foreground text-center mb-3">
+            Updated {format(updatedAt, 'h:mm a')} · refreshes automatically
+          </p>
+        )}
         <div className="grid grid-cols-3 gap-3">
           <Card><CardContent className="p-3 text-center">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">To do</p>
