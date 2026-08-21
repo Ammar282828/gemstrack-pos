@@ -219,9 +219,9 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
                   <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                   <Select onValueChange={(val) => handleStatusChange(val as OrderStatus)} defaultValue={order.status}>
-                      <SelectTrigger className="w-[150px] h-8 text-xs focus:ring-0 focus:ring-offset-0" id={`status-update-${order.id}`}>
+                      <SelectTrigger className="w-[140px] h-8 px-2 text-xs focus:ring-0 focus:ring-offset-0 [&>span]:flex-1" id={`status-update-${order.id}`}>
                           <SelectValue>
-                             <Badge className={cn("border-transparent", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
+                             <Badge className={cn("border-transparent w-full justify-center", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
                           </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
