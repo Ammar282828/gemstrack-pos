@@ -30,7 +30,7 @@ import {
 import {
   Hammer, Users, AlertTriangle, Clock, PlusCircle, Share2, Copy, ExternalLink,
   Loader2, Search, CheckCircle2, CircleDot, Circle, Trash2, PackageOpen, LayoutGrid,
-  ListChecks, Table as TableIcon, Flame,
+  ListChecks, Table as TableIcon, Flame, Pencil, Save,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -96,8 +96,9 @@ const JobRow: React.FC<{
   onToggleDone: (job: WorkshopJob) => void;
   onSetStatus: (job: WorkshopJob, s: KarigarJobStatus) => void;
   onDelete: (job: WorkshopJob) => void;
+  onEdit?: (job: WorkshopJob) => void;
   showKarigar?: boolean;
-}> = ({ job, onToggleDone, onSetStatus, onDelete, showKarigar }) => {
+}> = ({ job, onToggleDone, onSetStatus, onDelete, onEdit, showKarigar }) => {
   const meta = [
     job.category,
     job.size ? `Size ${job.size}` : null,
@@ -157,6 +158,11 @@ const JobRow: React.FC<{
         {/* Controls sit under the content and wrap — keeps narrow cards readable */}
         {(job.source === 'manual' || (job.source === 'order' && job.status !== 'completed')) && (
           <div className="flex items-center gap-1.5 flex-wrap mt-2">
+            {onEdit && (
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onEdit(job)}>
+                <Pencil className="h-3 w-3 mr-1.5" />Details
+              </Button>
+            )}
             {job.source === 'order' && job.orderId && job.itemIndex !== undefined && job.status !== 'completed' && (
               <KarigarAssign
                 orderId={job.orderId}
@@ -346,6 +352,110 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
   );
 };
 
+
+// ── edit the making details of a job (owner-side, Workshop only) ────────────
+
+const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void }> = ({ job, onClose }) => {
+  const updateOrderItemDetails = useAppStore(s => s.updateOrderItemDetails);
+  const updateKarigarJob = useAppStore(s => s.updateKarigarJob);
+  const { toast } = useToast();
+
+  const [size, setSize] = useState('');
+  const [weight, setWeight] = useState('');
+  const [ref, setRef] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [special, setSpecial] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!job) return;
+    setSize(job.size || '');
+    setWeight(job.weightG ? String(job.weightG) : '');
+    setRef(job.referenceSku || '');
+    setInstructions(job.notes || '');
+    setSpecial(job.specialNote || '');
+  }, [job]);
+
+  if (!job) return null;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      if (job.source === 'order' && job.orderId && job.itemIndex !== undefined) {
+        await updateOrderItemDetails(job.orderId, job.itemIndex, {
+          size, referenceSku: ref, stoneDetails: instructions, adminNote: special,
+          ...(weight !== '' && { estimatedWeightG: Number(weight) }),
+        });
+      } else {
+        await updateKarigarJob(job.id.replace(/^job:/, ''), {
+          size: size.trim() || undefined,
+          notes: special.trim() || instructions.trim() || undefined,
+          ...(weight !== '' && { weightG: Number(weight) }),
+        });
+      }
+      toast({ title: 'Details updated', description: job.description });
+      onClose();
+    } catch {
+      toast({ title: 'Could not save', description: 'Please try again.', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!job} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" />Making details</DialogTitle>
+          <DialogDescription>
+            {job.description} — only the fields the karigar sees. Price, customer and quantity are unchanged.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs">Size</Label>
+              <Input value={size} onChange={e => setSize(e.target.value)} placeholder="e.g. 12" />
+            </div>
+            <div>
+              <Label className="text-xs">Weight (g)</Label>
+              <Input type="number" step="0.001" value={weight} onChange={e => setWeight(e.target.value)} placeholder="0.000" />
+            </div>
+            <div>
+              <Label className="text-xs">Ref SKU</Label>
+              <Input value={ref} onChange={e => setRef(e.target.value)} placeholder="optional"
+                disabled={job.source !== 'order'} />
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Instructions</Label>
+            <Textarea rows={2} value={instructions} onChange={e => setInstructions(e.target.value)}
+              placeholder="Stone / diamond details" disabled={job.source !== 'order'} />
+          </div>
+
+          <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20 p-3">
+            <Label className="text-xs text-amber-800 dark:text-amber-200">Special note</Label>
+            <Textarea rows={3} value={special} onChange={e => setSpecial(e.target.value)}
+              placeholder="Making instructions for the karigar" className="mt-1" />
+            <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 mt-1">
+              Shown to the karigar. Never printed on an estimate or invoice — keep prices and customer details out of it.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={save} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // ── karigar workload card ───────────────────────────────────────────────────
 
 const KarigarCard: React.FC<{
@@ -354,8 +464,9 @@ const KarigarCard: React.FC<{
   onToggleDone: (j: WorkshopJob) => void;
   onSetStatus: (j: WorkshopJob, s: KarigarJobStatus) => void;
   onDelete: (j: WorkshopJob) => void;
+  onEdit: (j: WorkshopJob) => void;
   onAssign: (karigarId: string) => void;
-}> = ({ load, contact, onToggleDone, onSetStatus, onDelete, onAssign }) => {
+}> = ({ load, contact, onToggleDone, onSetStatus, onDelete, onEdit, onAssign }) => {
   const [showDone, setShowDone] = useState(false);
   const { toast } = useToast();
   const isUnassigned = load.karigarId === UNASSIGNED_ID;
@@ -435,7 +546,7 @@ const KarigarCard: React.FC<{
           <ScrollArea className={visible.length > 5 ? 'h-[30rem]' : ''}>
             <div className="pr-2">
               {visible.map(j => (
-                <JobRow key={j.id} job={j} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} />
+                <JobRow key={j.id} job={j} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
               ))}
             </div>
           </ScrollArea>
@@ -453,9 +564,10 @@ const FocusedKarigarView: React.FC<{
   onToggleDone: (j: WorkshopJob) => void;
   onSetStatus: (j: WorkshopJob, s: KarigarJobStatus) => void;
   onDelete: (j: WorkshopJob) => void;
+  onEdit: (j: WorkshopJob) => void;
   onAssign: (karigarId: string) => void;
   showCompleted: boolean;
-}> = ({ load, contact, onToggleDone, onSetStatus, onDelete, onAssign, showCompleted }) => {
+}> = ({ load, contact, onToggleDone, onSetStatus, onDelete, onEdit, onAssign, showCompleted }) => {
   const { toast } = useToast();
   const isUnassigned = load.karigarId === UNASSIGNED_ID;
 
@@ -496,7 +608,7 @@ const FocusedKarigarView: React.FC<{
         </div>
         <Card><CardContent className="py-1 px-4">
           {jobs.map(j => (
-            <JobRow key={j.id} job={j} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} />
+            <JobRow key={j.id} job={j} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
           ))}
         </CardContent></Card>
       </div>
@@ -591,6 +703,7 @@ export default function WorkshopPage() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [presetKarigar, setPresetKarigar] = useState<string | undefined>();
+  const [editJob, setEditJob] = useState<WorkshopJob | null>(null);
   const [search, setSearch] = useState('');
   const [karigarFilter, setKarigarFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active');
@@ -660,6 +773,7 @@ export default function WorkshopPage() {
     }
   };
   const openAssign = (karigarId: string) => { setPresetKarigar(karigarId); setAddOpen(true); };
+  const openEdit = (job: WorkshopJob) => setEditJob(job);
 
   if (!isHydrated) {
     return <div className="container mx-auto p-6 flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading workshop…</div>;
@@ -755,6 +869,7 @@ export default function WorkshopPage() {
               onToggleDone={handleToggleDone}
               onSetStatus={handleSetStatus}
               onDelete={handleDelete}
+              onEdit={openEdit}
               onAssign={openAssign}
               showCompleted={statusFilter === 'all' || statusFilter === 'completed'}
             />
@@ -768,6 +883,7 @@ export default function WorkshopPage() {
                   onToggleDone={handleToggleDone}
                   onSetStatus={handleSetStatus}
                   onDelete={handleDelete}
+                  onEdit={openEdit}
                   onAssign={openAssign}
                 />
               ))}
@@ -843,7 +959,7 @@ export default function WorkshopPage() {
                         <ScrollArea className={items.length > 4 ? 'h-[32rem]' : ''}>
                           <div className="pr-2">
                             {items.map(j => (
-                              <JobRow key={j.id} job={j}
+                              <JobRow key={j.id} job={j} onEdit={openEdit}
                                 onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
                             ))}
                           </div>
@@ -972,7 +1088,7 @@ export default function WorkshopPage() {
                   .slice()
                   .sort((a, b) => (b.karigarId === UNASSIGNED_ID ? 1 : 0) - (a.karigarId === UNASSIGNED_ID ? 1 : 0) || b.ageDays - a.ageDays)
                   .map(j => (
-                    <JobRow key={j.id} job={j} showKarigar
+                    <JobRow key={j.id} job={j} showKarigar onEdit={openEdit}
                       onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
                   ))}
               </CardContent>
@@ -982,6 +1098,7 @@ export default function WorkshopPage() {
       </Tabs>
 
       <AddJobDialog open={addOpen} onOpenChange={setAddOpen} presetKarigarId={presetKarigar} />
+      <EditDetailsDialog job={editJob} onClose={() => setEditJob(null)} />
     </div>
   );
 }

@@ -1097,6 +1097,9 @@ export interface AppState {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
   updateOrderItemKarigar: (orderId: string, itemIndex: number, karigarId: string) => Promise<void>;
+  updateOrderItemDetails: (orderId: string, itemIndex: number, patch: {
+    size?: string; stoneDetails?: string; adminNote?: string; referenceSku?: string; estimatedWeightG?: number;
+  }) => Promise<void>;
   assignOrderItemsToKarigar: (orderId: string, karigarId: string, onlyUnassigned?: boolean) => Promise<void>;
   removeItemFromOrder: (orderId: string, itemIndex: number) => Promise<void>;
   updateOrder: (orderId: string, updatedOrderData: Partial<Order>) => Promise<void>;
@@ -2927,6 +2930,44 @@ export const useAppStore = create<AppState>()(
           syncOrderShopify(orderId, 'upsert');
         } catch (error) {
           console.error(`Error assigning karigar for order ${orderId}:`, error);
+          throw error;
+        }
+      },
+
+      /**
+       * Update only the making details of an order item — the fields a karigar
+       * needs. Deliberately cannot touch price, customer or quantity, so this
+       * can be exposed on the Workshop dashboard without risk of editing the
+       * commercial side of an order by accident.
+       */
+      updateOrderItemDetails: async (orderId, itemIndex, patch) => {
+        if (get().settings.databaseLocked) return;
+        const order = get().orders.find(o => o.id === orderId);
+        if (!order) throw new Error('Order not found');
+
+        const updatedItems = order.items.map((item, i) => {
+          if (i !== itemIndex) return item;
+          const next: OrderItem = { ...item };
+          const setOrClear = (key: 'size' | 'stoneDetails' | 'adminNote' | 'referenceSku', value?: string) => {
+            const v = (value ?? '').trim();
+            if (v) next[key] = v;
+            else delete next[key];
+          };
+          if ('size' in patch) setOrClear('size', patch.size);
+          if ('stoneDetails' in patch) setOrClear('stoneDetails', patch.stoneDetails);
+          if ('adminNote' in patch) setOrClear('adminNote', patch.adminNote);
+          if ('referenceSku' in patch) setOrClear('referenceSku', patch.referenceSku);
+          if (patch.estimatedWeightG !== undefined) next.estimatedWeightG = Number(patch.estimatedWeightG) || 0;
+          return next;
+        });
+
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), { items: updatedItems }, { merge: true });
+          await addActivityLog('order.update', `Making details updated on ${orderId}`,
+            `${order.items[itemIndex]?.description || `Item ${itemIndex + 1}`}`, orderId);
+          syncOrderShopify(orderId, 'upsert');
+        } catch (error) {
+          console.error(`Error updating item details for ${orderId}:`, error);
           throw error;
         }
       },
