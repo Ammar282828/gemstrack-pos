@@ -368,6 +368,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
   const updateKarigarJob = useAppStore(s => s.updateKarigarJob);
   const { toast } = useToast();
 
+  const [name, setName] = useState('');
   const [size, setSize] = useState('');
   const [weight, setWeight] = useState('');
   const [ref, setRef] = useState('');
@@ -378,6 +379,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
 
   useEffect(() => {
     if (!job) return;
+    setName(job.description || '');
     setSize(job.size || '');
     setWeight(job.weightG ? String(job.weightG) : '');
     setRef(job.referenceSku || '');
@@ -389,16 +391,21 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
   if (!job) return null;
 
   const save = async () => {
+    if (!name.trim()) {
+      toast({ title: 'Name required', description: 'An item needs a name.', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     try {
       if (job.source === 'order' && job.orderId && job.itemIndex !== undefined) {
         await updateOrderItemDetails(job.orderId, job.itemIndex, {
-          size, referenceSku: ref, stoneDetails: instructions, adminNote: special,
-          sampleImageDataUri: sample,
+          description: name, size, referenceSku: ref, stoneDetails: instructions,
+          adminNote: special, sampleImageDataUri: sample,
           ...(weight !== '' && { estimatedWeightG: Number(weight) }),
         });
       } else {
         await updateKarigarJob(job.id.replace(/^job:/, ''), {
+          ...(name.trim() && { description: name.trim() }),
           size: size.trim() || undefined,
           notes: special.trim() || instructions.trim() || undefined,
           ...(weight !== '' && { weightG: Number(weight) }),
@@ -424,6 +431,14 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
         </DialogHeader>
 
         <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Item name</Label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="What is being made" />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Also prints on the customer&apos;s estimate and invoice.
+            </p>
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Size</Label>

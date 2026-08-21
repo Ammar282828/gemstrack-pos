@@ -1099,8 +1099,8 @@ export interface AppState {
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
   updateOrderItemKarigar: (orderId: string, itemIndex: number, karigarId: string) => Promise<void>;
   updateOrderItemDetails: (orderId: string, itemIndex: number, patch: {
-    size?: string; stoneDetails?: string; adminNote?: string; referenceSku?: string;
-    estimatedWeightG?: number; sampleImageDataUri?: string;
+    description?: string; size?: string; stoneDetails?: string; adminNote?: string;
+    referenceSku?: string; estimatedWeightG?: number; sampleImageDataUri?: string;
   }) => Promise<void>;
   assignOrderItemsToKarigar: (orderId: string, karigarId: string, onlyUnassigned?: boolean) => Promise<void>;
   removeItemFromOrder: (orderId: string, itemIndex: number) => Promise<void>;
@@ -2955,6 +2955,11 @@ export const useAppStore = create<AppState>()(
             if (v) next[key] = v;
             else delete next[key];
           };
+          // The description prints on the customer's estimate/invoice, so it
+          // is updated when given but never cleared to an empty string.
+          if (patch.description !== undefined && patch.description.trim()) {
+            next.description = patch.description.trim();
+          }
           if ('size' in patch) setOrClear('size', patch.size);
           if ('stoneDetails' in patch) setOrClear('stoneDetails', patch.stoneDetails);
           if ('adminNote' in patch) setOrClear('adminNote', patch.adminNote);
