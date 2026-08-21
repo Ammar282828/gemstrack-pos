@@ -172,44 +172,48 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
           </Link>
-          <p className="text-xs text-muted-foreground w-40 mt-1 flex items-start gap-1.5" title={order.summary}>
+          <p className="text-xs text-muted-foreground w-48 max-w-[13rem] mt-1 flex items-start gap-1.5" title={order.summary}>
             <MessageSquareQuote className="w-3 h-3 mt-0.5 flex-shrink-0" />
             <span className="min-w-0 truncate">{order.summary || 'No summary'}</span>
           </p>
         </TableCell>
-        <TableCell className="hidden lg:table-cell">
-            <div className="flex items-center gap-2 text-sm">
-                <Calendar className="w-4 h-4 text-muted-foreground"/>
-                {format(parseISO(order.createdAt), 'MMM dd, yyyy')}
+        <TableCell className="hidden lg:table-cell align-middle">
+            <div className="flex items-center gap-2 text-sm whitespace-nowrap">
+                <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0"/>
+                {format(parseISO(order.createdAt), 'dd MMM yyyy')}
             </div>
         </TableCell>
-        <TableCell>
-          <div className="flex items-center gap-2 text-sm">
-            <User className="w-4 h-4 text-muted-foreground"/>
-            <div>
-                <p>{order.customerName || 'Walk-in'}</p>
-                {order.customerContact && <p className="text-xs text-muted-foreground">{order.customerContact}</p>}
+        <TableCell className="align-middle">
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <User className="w-4 h-4 text-muted-foreground flex-shrink-0"/>
+            <div className="min-w-0 leading-tight">
+                <p className="truncate">{order.customerName || 'Walk-in'}</p>
+                {order.customerContact && <p className="text-xs text-muted-foreground whitespace-nowrap">{order.customerContact}</p>}
             </div>
           </div>
         </TableCell>
          <TableCell className="hidden xl:table-cell text-right">
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col items-end gap-0.5 leading-tight whitespace-nowrap">
               <Badge className={cn("border-transparent text-xs", getPaymentBadgeClass(getPaymentStatus(order)))}>{getPaymentStatus(order)}</Badge>
               <div className="text-xs text-muted-foreground">Bal: <span className="font-semibold text-foreground">{grandTotal.toLocaleString()}</span></div>
               <div className="text-xs text-muted-foreground">Adv: <span className="font-semibold text-foreground">{advancePayment.toLocaleString()}</span></div>
               <div className="text-xs text-muted-foreground border-t mt-1 pt-1">Total: <span className="font-bold text-foreground">{subtotal.toLocaleString()}</span></div>
           </div>
         </TableCell>
-        <TableCell>
-           <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
-              <div className="flex flex-col w-28">
-                  {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items</span>}
+        <TableCell className="align-middle">
+           <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
+              <div className="flex flex-col gap-1 w-36 flex-shrink-0">
+                  {totalItems > 0 && (
+                    <>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{completedItems} of {totalItems} items</span>
+                      <Progress value={progressPercentage} className="h-1.5" />
+                    </>
+                  )}
                   {unassignedItems > 0 && order.status !== 'Completed' && (
-                    <Badge variant="outline" className="ml-2 text-[10px] text-destructive border-destructive/40 bg-destructive/5">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 w-fit text-destructive border-destructive/40 bg-destructive/5 whitespace-nowrap">
                       {unassignedItems} unassigned
                     </Badge>
                   )}
-                  <Progress value={progressPercentage} className="h-1.5 mt-1" />
               </div>
               {isUpdatingStatus ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

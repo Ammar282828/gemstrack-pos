@@ -128,7 +128,7 @@ const JobRow: React.FC<{
 
         <div className="text-xs text-muted-foreground mt-1 flex items-center gap-x-2 gap-y-0.5 flex-wrap">
           {job.source === 'manual'
-            ? <Badge variant="secondary" className="text-[10px]">Manual</Badge>
+            ? <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
             : <Badge variant="outline" className="text-[10px]">Order</Badge>}
           {showKarigar && (
             <Badge variant="outline" className={cn('text-[10px]', job.karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
@@ -264,8 +264,8 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
     <Dialog open={open} onOpenChange={v => { onOpenChange(v); if (!v) reset(); }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Hammer className="h-5 w-5 text-primary" />Assign Work</DialogTitle>
-          <DialogDescription>Work that isn&apos;t tied to a customer order — stock pieces, repairs, samples.</DialogDescription>
+          <DialogTitle className="flex items-center gap-2"><Hammer className="h-5 w-5 text-primary" />Assign Stock Work</DialogTitle>
+          <DialogDescription>Pieces for your own inventory — not tied to a customer order. Also use this for repairs and samples.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -595,6 +595,7 @@ export default function WorkshopPage() {
   const [karigarFilter, setKarigarFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active');
   const [boardMode, setBoardMode] = useState<'karigar' | 'status'>('karigar');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'order' | 'stock'>('all');
 
   useEffect(() => {
     loadOrders(); loadKarigars(); loadKarigarJobs();
@@ -611,11 +612,13 @@ export default function WorkshopPage() {
       if (statusFilter === 'active' && j.status === 'completed') return false;
       if (statusFilter !== 'all' && statusFilter !== 'active' && j.status !== statusFilter) return false;
       if (karigarFilter !== 'all' && j.karigarId !== karigarFilter) return false;
+      if (typeFilter === 'order' && j.source !== 'order') return false;
+      if (typeFilter === 'stock' && j.source !== 'manual') return false;
       if (!q) return true;
       return [j.description, j.karigarName, j.customerName, j.orderId, j.category]
         .filter(Boolean).some(v => String(v).toLowerCase().includes(q));
     });
-  }, [allJobs, search, karigarFilter, statusFilter]);
+  }, [allJobs, search, karigarFilter, statusFilter, typeFilter]);
 
   const loads = useMemo(() => groupByKarigar(filtered), [filtered]);
 
@@ -703,6 +706,14 @@ export default function WorkshopPage() {
             <SelectItem value="all">All karigars</SelectItem>
             <SelectItem value={UNASSIGNED_ID}>Unassigned</SelectItem>
             {karigars.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={v => setTypeFilter(v as 'all' | 'order' | 'stock')}>
+          <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All work</SelectItem>
+            <SelectItem value="order">Customer orders</SelectItem>
+            <SelectItem value="stock">Stock / inventory</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -811,6 +822,14 @@ export default function WorkshopPage() {
                           <Badge variant="secondary" className="flex-shrink-0">{items.length}</Badge>
                         </CardTitle>
                         <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                          {items.filter(j => j.source === 'manual').length > 0 && (
+                            <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">
+                              {items.filter(j => j.source === 'manual').length} stock
+                            </Badge>
+                          )}
+                          {items.filter(j => j.source === 'order').length > 0 && (
+                            <Badge variant="outline" className="text-[10px]">{items.filter(j => j.source === 'order').length} order</Badge>
+                          )}
                           {load.critical > 0 && <Badge variant="destructive" className="text-[10px]"><Flame className="h-3 w-3 mr-1" />{load.critical}</Badge>}
                           {load.overdue > load.critical && (
                             <Badge variant="outline" className="text-[10px] text-yellow-700 border-yellow-500/40 bg-yellow-500/10">
@@ -895,7 +914,7 @@ export default function WorkshopPage() {
                         <div className={cn('font-medium text-sm', j.status === 'completed' && 'line-through')}>{j.description}</div>
                         <div className="text-xs text-muted-foreground">
                           {[j.category, j.weightG ? `${j.weightG}g` : null].filter(Boolean).join(' · ')}
-                          {j.source === 'manual' && <Badge variant="secondary" className="ml-1.5 text-[10px]">Manual</Badge>}
+                          {j.source === 'manual' && <Badge variant="secondary" className="ml-1.5 text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
                         </div>
                       </TableCell>
                       <TableCell>

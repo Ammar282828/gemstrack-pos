@@ -198,9 +198,12 @@ export default function MyWorkPage() {
                 </div>
               )}
 
-              {job.sampleGiven && (
-                <Badge variant="outline" className="text-xs mt-2">Sample provided</Badge>
-              )}
+              <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                {job.source === 'manual' && (
+                  <Badge variant="secondary" className="text-xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock piece</Badge>
+                )}
+                {job.sampleGiven && <Badge variant="outline" className="text-xs">Sample provided</Badge>}
+              </div>
 
               {/* 3 — how to make it */}
               {job.notes && (
