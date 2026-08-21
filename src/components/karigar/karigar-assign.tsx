@@ -104,17 +104,24 @@ export const KarigarAssign: React.FC<{
     <Select value={assigned ? currentKarigarId : UNASSIGNED_VALUE} onValueChange={onChange} disabled={saving}>
       <SelectTrigger
         className={cn(
-          compact ? 'h-7 text-xs w-[150px]' : 'h-8 text-sm w-[200px]',
+          // py-0 so the base py-2 does not fight the reduced height
+          compact ? 'h-7 text-xs w-[165px] px-2 py-0' : 'h-8 text-sm w-[200px] py-0',
           !assigned && 'text-destructive border-destructive/40',
           className,
         )}
       >
+        {/* `!flex` is required: SelectTrigger applies [&>span]:line-clamp-1, and
+            line-clamp sets display:-webkit-box + vertical box-orient, which would
+            otherwise stack the icon above the name. */}
         {saving ? (
-          <span className="flex items-center gap-1.5 text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Saving…</span>
+          <span className="!flex items-center gap-1.5 min-w-0 text-muted-foreground">
+            <Loader2 className="h-3 w-3 flex-shrink-0 animate-spin" />
+            <span className="truncate">Saving…</span>
+          </span>
         ) : (
-          <span className="flex items-center gap-1.5 truncate">
+          <span className="!flex items-center gap-1.5 min-w-0 overflow-hidden">
             {assigned ? <Briefcase className="h-3 w-3 flex-shrink-0" /> : <UserPlus className="h-3 w-3 flex-shrink-0" />}
-            <SelectValue placeholder="Assign karigar" />
+            <span className="truncate"><SelectValue placeholder="Assign karigar" /></span>
           </span>
         )}
       </SelectTrigger>
@@ -159,8 +166,8 @@ export const KarigarBulkAssign: React.FC<{
     <Select onValueChange={onChange} disabled={saving}>
       <SelectTrigger className={cn('h-8 text-xs w-auto gap-1.5', className)}>
         {saving
-          ? <span className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" />Assigning…</span>
-          : <span className="flex items-center gap-1.5"><UserPlus className="h-3.5 w-3.5" />Assign all {unassignedCount} unassigned</span>}
+          ? <span className="!flex items-center gap-1.5"><Loader2 className="h-3 w-3 flex-shrink-0 animate-spin" />Assigning…</span>
+          : <span className="!flex items-center gap-1.5 whitespace-nowrap"><UserPlus className="h-3.5 w-3.5 flex-shrink-0" />Assign all {unassignedCount} unassigned</span>}
       </SelectTrigger>
       <SelectContent>
         {karigars.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
