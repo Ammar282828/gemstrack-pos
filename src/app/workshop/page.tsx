@@ -427,6 +427,140 @@ const KarigarCard: React.FC<{
   );
 };
 
+// ── focused view for a single selected karigar ──────────────────────────────
+
+const FocusedKarigarView: React.FC<{
+  load: KarigarWorkload;
+  contact?: string;
+  onToggleDone: (j: WorkshopJob) => void;
+  onSetStatus: (j: WorkshopJob, s: KarigarJobStatus) => void;
+  onDelete: (j: WorkshopJob) => void;
+  onAssign: (karigarId: string) => void;
+  showCompleted: boolean;
+}> = ({ load, contact, onToggleDone, onSetStatus, onDelete, onAssign, showCompleted }) => {
+  const { toast } = useToast();
+  const isUnassigned = load.karigarId === UNASSIGNED_ID;
+
+  const share = async () => {
+    const text = formatJobListForShare(load, STORE_CONFIG.name);
+    try { await navigator.clipboard.writeText(text); } catch { /* clipboard may be blocked */ }
+    const phone = (contact || '').replace(/\D/g, '');
+    if (phone) {
+      window.open(`https://wa.me/${phone.startsWith('92') ? phone : '92' + phone.replace(/^0/, '')}?text=${encodeURIComponent(text)}`, '_blank');
+      toast({ title: 'Opening WhatsApp', description: 'Job list copied too.' });
+    } else {
+      toast({ title: 'Job list copied', description: 'No phone saved for this karigar — paste it anywhere.' });
+    }
+  };
+
+  const active = load.jobs.filter(j => j.status !== 'completed');
+  const critical = active.filter(j => j.urgency === 'critical').sort((a, b) => b.ageDays - a.ageDays);
+  const late = active.filter(j => j.urgency === 'warning').sort((a, b) => b.ageDays - a.ageDays);
+  const onTrack = active.filter(j => j.urgency === 'ok').sort((a, b) => b.ageDays - a.ageDays);
+  const done = load.jobs.filter(j => j.status === 'completed');
+  const orderCount = new Set(active.map(j => j.orderId).filter(Boolean)).size;
+
+  const Section: React.FC<{ title: string; jobs: WorkshopJob[]; tone: 'danger' | 'warn' | 'ok' | 'muted'; hint?: string }> =
+  ({ title, jobs, tone, hint }) => {
+    if (!jobs.length) return null;
+    return (
+      <div>
+        <div className="flex items-baseline gap-2 mb-1 mt-4 first:mt-0">
+          <h3 className={cn(
+            'text-sm font-semibold',
+            tone === 'danger' && 'text-destructive',
+            tone === 'warn' && 'text-yellow-700',
+            tone === 'ok' && 'text-foreground',
+            tone === 'muted' && 'text-muted-foreground',
+          )}>{title}</h3>
+          <Badge variant="secondary" className="text-[10px]">{jobs.length}</Badge>
+          {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+        </div>
+        <Card><CardContent className="py-1 px-4">
+          {jobs.map(j => (
+            <JobRow key={j.id} job={j} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} />
+          ))}
+        </CardContent></Card>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Summary header */}
+      <Card className={cn(load.critical > 0 && 'border-destructive/40', isUnassigned && 'border-destructive/60 bg-destructive/5')}>
+        <CardContent className="pt-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                {isUnassigned ? <AlertTriangle className="h-5 w-5 text-destructive" /> : <Hammer className="h-5 w-5 text-primary" />}
+                {isUnassigned ? <span className="text-destructive">Unassigned work</span>
+                  : <Link href={`/karigars/${load.karigarId}`} className="hover:underline">{load.karigarName}</Link>}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {load.active} active job{load.active === 1 ? '' : 's'}
+                {orderCount > 0 && ` across ${orderCount} order${orderCount === 1 ? '' : 's'}`}
+                {load.oldestActiveDays > 0 && ` · oldest ${load.oldestActiveDays} days`}
+              </p>
+            </div>
+            {!isUnassigned && (
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={share}><Share2 className="h-4 w-4 mr-1.5" />Send list</Button>
+                <Button size="sm" variant="outline" onClick={() => onAssign(load.karigarId)}><PlusCircle className="h-4 w-4 mr-1.5" />Add work</Button>
+                <Button size="sm" variant="ghost" asChild><Link href={`/karigars/${load.karigarId}`}>Profile <ExternalLink className="h-3.5 w-3.5 ml-1.5" /></Link></Button>
+              </div>
+            )}
+          </div>
+
+          <Separator className="my-4" />
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active</p>
+              <p className="text-2xl font-bold">{load.active}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">In progress</p>
+              <p className="text-2xl font-bold text-blue-600">{load.inProgress}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Late {WARN_DAYS}d+</p>
+              <p className={cn('text-2xl font-bold', late.length ? 'text-yellow-600' : 'text-muted-foreground')}>{late.length}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Critical {CRITICAL_DAYS}d+</p>
+              <p className={cn('text-2xl font-bold', load.critical ? 'text-destructive' : 'text-muted-foreground')}>{load.critical}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Gold out</p>
+              <p className="text-2xl font-bold">{load.totalWeightG > 0 ? load.totalWeightG.toFixed(1) : '—'}<span className="text-xs font-normal text-muted-foreground">{load.totalWeightG > 0 ? 'g' : ''}</span></p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Value</p>
+              <p className="text-2xl font-bold">{load.totalValue > 0 ? `${Math.round(load.totalValue / 1000)}k` : '—'}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {active.length === 0 && !showCompleted ? (
+        <Card><CardContent className="py-12 text-center">
+          <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-600" />
+          <p className="font-medium">Nothing pending</p>
+          <p className="text-sm text-muted-foreground">All caught up.</p>
+        </CardContent></Card>
+      ) : (
+        <>
+          <Section title="Critical" jobs={critical} tone="danger" hint={`sitting ${CRITICAL_DAYS}+ days`} />
+          <Section title="Late" jobs={late} tone="warn" hint={`${WARN_DAYS}–${CRITICAL_DAYS} days`} />
+          <Section title="On track" jobs={onTrack} tone="ok" />
+          {showCompleted && <Section title="Completed" jobs={done} tone="muted" />}
+        </>
+      )}
+    </div>
+  );
+};
+
 // ── page ────────────────────────────────────────────────────────────────────
 
 export default function WorkshopPage() {
@@ -582,6 +716,18 @@ export default function WorkshopPage() {
             <Card><CardContent className="py-12 text-center text-muted-foreground">
               <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />No work matches these filters.
             </CardContent></Card>
+          ) : karigarFilter !== 'all' ? (
+            /* One karigar selected — give them a full-width, at-a-glance view
+               instead of a cramped card in a 3-column grid. */
+            <FocusedKarigarView
+              load={loads[0]}
+              contact={contactById.get(loads[0].karigarId)}
+              onToggleDone={handleToggleDone}
+              onSetStatus={handleSetStatus}
+              onDelete={handleDelete}
+              onAssign={openAssign}
+              showCompleted={statusFilter === 'all' || statusFilter === 'completed'}
+            />
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {loads.map(load => (

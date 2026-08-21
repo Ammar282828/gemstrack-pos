@@ -92,7 +92,10 @@ export function buildWorkshopJobs(
       const karigarId = rawId || UNASSIGNED_ID;
       const karigarName = rawId ? (nameById.get(rawId) || 'Unknown karigar') : 'Unassigned';
 
-      const status: KarigarJobStatus = item.isCompleted
+      // An order marked Completed means the work is done, even if the
+      // per-item checkboxes were never ticked one by one — otherwise old
+      // finished pieces linger as "pending" forever.
+      const status: KarigarJobStatus = (item.isCompleted || order.status === 'Completed')
         ? 'completed'
         : order.status === 'In Progress' ? 'in-progress' : 'pending';
 
