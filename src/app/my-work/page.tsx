@@ -26,6 +26,7 @@ interface Job {
   description: string; category?: string; metalType?: string; karat?: string;
   weightG?: number; quantity?: number;
   size?: string; referenceSku?: string; sampleGiven?: boolean; sampleImage?: string;
+  orderId?: string;
   status: 'pending' | 'in-progress' | 'completed';
   assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
   notes?: string; specialNote?: string;
@@ -132,10 +133,16 @@ export default function MyWorkPage() {
   }
 
   const active = data.jobs.filter(j => j.status !== 'completed');
+  // Pieces from one order are usually made together, so show how many of the
+  // karigar's own pieces sit on the same order.
+  const perOrder = new Map<string, number>();
+  for (const j of data.jobs) if (j.orderId) perOrder.set(j.orderId, (perOrder.get(j.orderId) || 0) + 1);
   const done = data.jobs.filter(j => j.status === 'completed');
-  const critical = active.filter(j => j.urgency === 'critical');
-  const late = active.filter(j => j.urgency === 'warning');
-  const ontrack = active.filter(j => j.urgency === 'ok');
+  const byOrderThenAge = (a: Job, b: Job) =>
+    (a.orderId || 'zzz').localeCompare(b.orderId || 'zzz') || b.ageDays - a.ageDays;
+  const critical = active.filter(j => j.urgency === 'critical').sort(byOrderThenAge);
+  const late = active.filter(j => j.urgency === 'warning').sort(byOrderThenAge);
+  const ontrack = active.filter(j => j.urgency === 'ok').sort(byOrderThenAge);
 
   /**
    * One piece of work. The layout is deliberately tiered so it reads at a
@@ -199,6 +206,16 @@ export default function MyWorkPage() {
               )}
 
               <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                {job.orderId && (
+                  <Badge variant="outline" className="text-xs font-mono">
+                    {job.orderId}
+                    {(perOrder.get(job.orderId) || 0) > 1 && (
+                      <span className="ml-1 font-sans font-normal text-muted-foreground">
+                        · {perOrder.get(job.orderId)} pieces
+                      </span>
+                    )}
+                  </Badge>
+                )}
                 {job.source === 'manual' && (
                   <Badge variant="secondary" className="text-xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock piece</Badge>
                 )}

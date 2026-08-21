@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
       description: string; category?: string; metalType?: string; karat?: string;
       weightG?: number; quantity?: number;
       size?: string; referenceSku?: string; sampleGiven?: boolean; sampleImage?: string;
+      orderId?: string;
       status: 'pending' | 'in-progress' | 'completed';
       assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
       notes?: string; specialNote?: string;
@@ -110,7 +111,10 @@ export async function GET(req: NextRequest) {
           // making instructions (sizes, stone choices, platings), so karigars
           // need it.
           specialNote: item.adminNote || undefined,
-          // deliberately omitted: customerName, customerContact, prices, order id
+          // The order reference is only a number — it lets a karigar quote a
+          // job on the phone. Customer name, contact and every price are still
+          // deliberately omitted.
+          orderId: doc.id,
         });
       });
     }

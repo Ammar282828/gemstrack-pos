@@ -121,9 +121,10 @@ const JobRow: React.FC<{
 
         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-x-2 gap-y-0.5 flex-wrap">
           {job.orderId && (
-            <Link href={`/orders/${job.orderId}`} className="text-primary hover:underline inline-flex items-center gap-1 min-w-0">
-              <span className="truncate">{job.orderId}{job.customerName ? ` · ${job.customerName}` : ''}</span>
-              <ExternalLink className="h-3 w-3 flex-shrink-0" />
+            <Link href={`/orders/${job.orderId}`} className="inline-flex items-center gap-1 min-w-0 hover:underline">
+              <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0">{job.orderId}</Badge>
+              {job.customerName && <span className="truncate">{job.customerName}</span>}
+              <ExternalLink className="h-3 w-3 flex-shrink-0 text-primary" />
             </Link>
           )}
           <span>given {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
@@ -1068,7 +1069,7 @@ export default function WorkshopPage() {
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-sm">
                         {j.orderId
-                          ? <Link href={`/orders/${j.orderId}`} className="text-primary hover:underline">{j.orderId}</Link>
+                          ? <Link href={`/orders/${j.orderId}`} className="font-mono text-xs text-primary hover:underline">{j.orderId}</Link>
                           : <span className="text-muted-foreground">—</span>}
                         {j.customerName && <div className="text-xs text-muted-foreground">{j.customerName}</div>}
                       </TableCell>
