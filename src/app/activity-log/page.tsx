@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAppStore, ActivityLog, LOG_EVENT_TYPES, LogEventType } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, History, Filter, Calendar as CalendarIcon, User, Package, FileText, Briefcase, CreditCard, RotateCcw, TrendingUp, HandCoins } from 'lucide-react';
+import { Loader2, History, Filter, Calendar as CalendarIcon, User, Package, FileText, Briefcase, CreditCard, RotateCcw, TrendingUp, HandCoins, Hammer } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import type { DateRange } from "react-day-picker";
@@ -45,6 +45,9 @@ const eventIcons: Record<LogEventType, React.ReactNode> = {
     'given.update': <HandCoins className="h-4 w-4" />,
     'given.delete': <HandCoins className="h-4 w-4" />,
     'given.returned': <HandCoins className="h-4 w-4" />,
+    'job.create': <Hammer className="h-4 w-4" />,
+    'job.update': <Hammer className="h-4 w-4" />,
+    'job.delete': <Hammer className="h-4 w-4" />,
 };
 
 const getEventTypeColor = (eventType: LogEventType) => {

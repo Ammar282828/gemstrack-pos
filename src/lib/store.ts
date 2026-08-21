@@ -26,6 +26,7 @@ const FIRESTORE_COLLECTIONS = {
   ACTIVITY_LOG: "activity_log",
   GIVEN_ITEMS: "given_items",
   SILVER_TRANSACTIONS: "silver_transactions",
+  KARIGAR_JOBS: "karigar_jobs",
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
 
@@ -647,6 +648,32 @@ export interface KarigarBatch {
   totalPaid?: number;  // Stored when closed for quick display
 }
 
+export const KARIGAR_JOB_STATUSES = ['pending', 'in-progress', 'completed'] as const;
+export type KarigarJobStatus = typeof KARIGAR_JOB_STATUSES[number];
+
+/**
+ * A standalone piece of work assigned to a karigar that does NOT come from a
+ * customer order — e.g. stock pieces, repairs, samples, re-polish jobs.
+ * Order-sourced work is derived from OrderItem.karigarId instead; the Workshop
+ * dashboard merges both into one view (see src/lib/workshop.ts).
+ */
+export interface KarigarJob {
+  id: string;
+  karigarId: string;
+  karigarName: string;
+  description: string;
+  itemCategory?: string;
+  metalType?: MetalType;
+  karat?: KaratValue;
+  weightG?: number;
+  quantity?: number;
+  status: KarigarJobStatus;
+  assignedDate: string;    // ISO — when the work was handed over
+  completedDate?: string;  // ISO — set when marked completed
+  agreedCost?: number;     // making charges agreed with the karigar
+  notes?: string;
+}
+
 export interface SilverTransaction {
   id: string;
   karigarId: string;
@@ -880,7 +907,8 @@ export type LogEventType =
   | 'order.create' | 'order.update' | 'order.delete' | 'order.revert' | 'order.refund'
   | 'expense.create' | 'expense.update' | 'expense.delete'
   | 'revenue.create' | 'revenue.update' | 'revenue.delete'
-  | 'given.create' | 'given.update' | 'given.delete' | 'given.returned';
+  | 'given.create' | 'given.update' | 'given.delete' | 'given.returned'
+  | 'job.create' | 'job.update' | 'job.delete';
 
 export interface ActivityLog {
     id: string;
@@ -954,6 +982,7 @@ export interface AppState {
   expenses: Expense[];
   additionalRevenues: AdditionalRevenue[];
   givenItems: GivenItem[];
+  karigarJobs: KarigarJob[];
   soldProducts: Product[];
   activityLog: ActivityLog[];
   printHistory: PrintHistoryEntry[];
@@ -972,6 +1001,7 @@ export interface AppState {
   isExpensesLoading: boolean;
   isAdditionalRevenueLoading: boolean;
   isGivenItemsLoading: boolean;
+  isKarigarJobsLoading: boolean;
   isActivityLogLoading: boolean;
   
   // Data loaded flags
@@ -988,6 +1018,7 @@ export interface AppState {
   hasExpensesLoaded: boolean;
   hasAdditionalRevenueLoaded: boolean;
   hasGivenItemsLoaded: boolean;
+  hasKarigarJobsLoaded: boolean;
   hasActivityLogLoaded: boolean;
 
   // Error states
@@ -1004,6 +1035,7 @@ export interface AppState {
   expensesError: string | null;
   additionalRevenueError: string | null;
   givenItemsError: string | null;
+  karigarJobsError: string | null;
   activityLogError: string | null;
 
 
@@ -1101,6 +1133,11 @@ export interface AppState {
   updateAdditionalRevenue: (id: string, data: Partial<Omit<AdditionalRevenue, 'id'>>) => Promise<void>;
   deleteAdditionalRevenue: (id: string) => Promise<void>;
 
+  loadKarigarJobs: () => void;
+  addKarigarJob: (data: Omit<KarigarJob, 'id'>) => Promise<KarigarJob | null>;
+  updateKarigarJob: (id: string, data: Partial<Omit<KarigarJob, 'id'>>) => Promise<void>;
+  deleteKarigarJob: (id: string) => Promise<void>;
+  setKarigarJobStatus: (id: string, status: KarigarJobStatus) => Promise<void>;
   loadGivenItems: () => void;
   addGivenItem: (data: Omit<GivenItem, 'id'>) => Promise<GivenItem | null>;
   updateGivenItem: (id: string, data: Partial<Omit<GivenItem, 'id'>>) => Promise<void>;
@@ -1146,9 +1183,9 @@ function cleanObject<T extends object>(obj: T): T {
 const createDataLoader = <T, K extends keyof AppState>(
   collectionName: string,
   stateKey: K,
-  loadingKey: 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isKarigarBatchesLoading' | 'isSilverTransactionsLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isAdditionalRevenueLoading' | 'isGivenItemsLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading',
-  errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'karigarBatchesError' | 'silverTransactionsError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'additionalRevenueError' | 'givenItemsError' | 'soldProductsError' | 'activityLogError',
-  loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasKarigarBatchesLoaded' | 'hasSilverTransactionsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasAdditionalRevenueLoaded' | 'hasGivenItemsLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
+  loadingKey: 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isKarigarBatchesLoading' | 'isSilverTransactionsLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isAdditionalRevenueLoading' | 'isGivenItemsLoading' | 'isKarigarJobsLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading',
+  errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'karigarBatchesError' | 'silverTransactionsError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'additionalRevenueError' | 'givenItemsError' | 'karigarJobsError' | 'soldProductsError' | 'activityLogError',
+  loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasKarigarBatchesLoaded' | 'hasSilverTransactionsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasAdditionalRevenueLoaded' | 'hasGivenItemsLoaded' | 'hasKarigarJobsLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
   orderByField: string = "name",
   orderByDirection: "asc" | "desc" = "asc",
   onData?: (list: T[], get: () => AppState) => void
@@ -1230,6 +1267,7 @@ const loadHisaab = createDataLoader<HisaabEntry, 'hisaabEntries'>('hisaab', 'his
 const loadExpenses = createDataLoader<Expense, 'expenses'>('expenses', 'expenses', 'isExpensesLoading', 'expensesError', 'hasExpensesLoaded', 'date', 'desc');
 const loadAdditionalRevenues = createDataLoader<AdditionalRevenue, 'additionalRevenues'>('additional_revenue', 'additionalRevenues', 'isAdditionalRevenueLoading', 'additionalRevenueError', 'hasAdditionalRevenueLoaded', 'date', 'desc');
 const loadGivenItems = createDataLoader<GivenItem, 'givenItems'>('given_items', 'givenItems', 'isGivenItemsLoading', 'givenItemsError', 'hasGivenItemsLoaded', 'date', 'desc');
+const loadKarigarJobs = createDataLoader<KarigarJob, 'karigarJobs'>('karigar_jobs', 'karigarJobs', 'isKarigarJobsLoading', 'karigarJobsError', 'hasKarigarJobsLoaded', 'assignedDate', 'desc');
 const loadSoldProducts = createDataLoader<Product, 'soldProducts'>('sold_products', 'soldProducts', 'isSoldProductsLoading', 'soldProductsError', 'hasSoldProductsLoaded', 'sku', 'asc');
 const loadActivityLog = createDataLoader<ActivityLog, 'activityLog'>('activity_log', 'activityLog', 'isActivityLogLoading', 'activityLogError', 'hasActivityLogLoaded', 'timestamp', 'desc');
 
@@ -1258,6 +1296,7 @@ export const useAppStore = create<AppState>()(
       expenses: [],
       additionalRevenues: [],
       givenItems: [],
+      karigarJobs: [],
       activityLog: [],
       printHistory: [],
 
@@ -1274,6 +1313,7 @@ export const useAppStore = create<AppState>()(
       isExpensesLoading: true,
       isAdditionalRevenueLoading: true,
       isGivenItemsLoading: true,
+      isKarigarJobsLoading: true,
       isActivityLogLoading: true,
       
       hasSettingsLoaded: false,
@@ -1289,6 +1329,7 @@ export const useAppStore = create<AppState>()(
       hasExpensesLoaded: false,
       hasAdditionalRevenueLoaded: false,
       hasGivenItemsLoaded: false,
+      hasKarigarJobsLoaded: false,
       hasActivityLogLoaded: false,
 
       settingsError: null,
@@ -1304,6 +1345,7 @@ export const useAppStore = create<AppState>()(
       expensesError: null,
       additionalRevenueError: null,
       givenItemsError: null,
+      karigarJobsError: null,
       activityLogError: null,
 
 
@@ -1469,6 +1511,7 @@ export const useAppStore = create<AppState>()(
       loadExpenses: () => loadExpenses(set, get),
       loadAdditionalRevenues: () => loadAdditionalRevenues(set, get),
       loadGivenItems: () => loadGivenItems(set, get),
+      loadKarigarJobs: () => loadKarigarJobs(set, get),
       loadActivityLog: () => loadActivityLog(set, get),
 
        reAddSoldProductToInventory: async (soldProduct) => {
@@ -3331,6 +3374,52 @@ export const useAppStore = create<AppState>()(
         } catch (error) {
           console.error(`[GemsTrack Store deleteAdditionalRevenue] Error:`, error);
           throw error;
+        }
+      },
+
+      // ── Karigar jobs (standalone workshop work, not from a customer order) ──
+      addKarigarJob: async (data) => {
+        if (get().settings.databaseLocked) return null;
+        try {
+          const clean = cleanObject(data as KarigarJob);
+          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.KARIGAR_JOBS), clean);
+          await addActivityLog('job.create', `Assigned job to ${data.karigarName}`, `${data.description}`, docRef.id);
+          return { id: docRef.id, ...data };
+        } catch (error) {
+          console.error('[GemsTrack Store addKarigarJob] Error:', error);
+          return null;
+        }
+      },
+      updateKarigarJob: async (id, data) => {
+        if (get().settings.databaseLocked) return;
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGAR_JOBS, id), cleanObject(data as KarigarJob), { merge: true });
+          await addActivityLog('job.update', `Updated workshop job`, `ID: ${id}`, id);
+        } catch (error) {
+          console.error('[GemsTrack Store updateKarigarJob] Error:', error);
+        }
+      },
+      deleteKarigarJob: async (id) => {
+        if (get().settings.databaseLocked) return;
+        const job = get().karigarJobs.find(j => j.id === id);
+        try {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGAR_JOBS, id));
+          await addActivityLog('job.delete', `Deleted workshop job: ${job?.description || id}`, `Karigar: ${job?.karigarName || '—'}`, id);
+        } catch (error) {
+          console.error('[GemsTrack Store deleteKarigarJob] Error:', error);
+          throw error;
+        }
+      },
+      setKarigarJobStatus: async (id, status) => {
+        if (get().settings.databaseLocked) return;
+        const job = get().karigarJobs.find(j => j.id === id);
+        try {
+          const patch: Partial<KarigarJob> = { status };
+          if (status === 'completed') patch.completedDate = new Date().toISOString();
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGAR_JOBS, id), patch, { merge: true });
+          await addActivityLog('job.update', `Job marked ${status}`, `${job?.description || id} — ${job?.karigarName || ''}`, id);
+        } catch (error) {
+          console.error('[GemsTrack Store setKarigarJobStatus] Error:', error);
         }
       },
 

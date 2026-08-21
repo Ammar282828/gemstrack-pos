@@ -1,0 +1,710 @@
+"use client";
+
+import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useAppStore, KarigarJobStatus, MetalType, KaratValue, staticCategories } from '@/lib/store';
+import { useIsStoreHydrated } from '@/hooks/use-store';
+import {
+  buildWorkshopJobs, groupByKarigar, formatJobListForShare,
+  WorkshopJob, KarigarWorkload, UNASSIGNED_ID, WARN_DAYS, CRITICAL_DAYS,
+} from '@/lib/workshop';
+import { STORE_CONFIG } from '@/lib/store-config';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  Hammer, Users, AlertTriangle, Clock, PlusCircle, Share2, Copy, ExternalLink,
+  Loader2, Search, CheckCircle2, CircleDot, Circle, Trash2, PackageOpen, LayoutGrid,
+  ListChecks, Table as TableIcon, Flame,
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { format, parseISO } from 'date-fns';
+
+// ── small presentational helpers ────────────────────────────────────────────
+
+const StatCard: React.FC<{ label: string; value: React.ReactNode; icon: React.ReactNode; tone?: 'default' | 'warn' | 'danger' | 'good' }> =
+({ label, value, icon, tone = 'default' }) => (
+  <Card className={cn(
+    tone === 'danger' && 'border-destructive/40 bg-destructive/5',
+    tone === 'warn' && 'border-yellow-500/40 bg-yellow-500/5',
+    tone === 'good' && 'border-green-600/40 bg-green-600/5',
+  )}>
+    <CardContent className="p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+        <span className={cn(
+          'opacity-70',
+          tone === 'danger' && 'text-destructive',
+          tone === 'warn' && 'text-yellow-600',
+          tone === 'good' && 'text-green-600',
+        )}>{icon}</span>
+      </div>
+      <p className={cn(
+        'text-2xl font-bold mt-1',
+        tone === 'danger' && 'text-destructive',
+        tone === 'warn' && 'text-yellow-600',
+        tone === 'good' && 'text-green-600',
+      )}>{value}</p>
+    </CardContent>
+  </Card>
+);
+
+const AgeBadge: React.FC<{ job: WorkshopJob }> = ({ job }) => {
+  if (job.status === 'completed') {
+    return <Badge variant="outline" className="text-green-700 border-green-600/40 bg-green-600/10">Done</Badge>;
+  }
+  const cls = job.urgency === 'critical'
+    ? 'text-destructive border-destructive/40 bg-destructive/10'
+    : job.urgency === 'warning'
+      ? 'text-yellow-700 border-yellow-500/40 bg-yellow-500/10'
+      : 'text-muted-foreground';
+  return <Badge variant="outline" className={cn('tabular-nums', cls)}>{job.ageDays}d</Badge>;
+};
+
+const StatusDot: React.FC<{ status: KarigarJobStatus }> = ({ status }) => (
+  status === 'completed' ? <CheckCircle2 className="h-4 w-4 text-green-600" />
+    : status === 'in-progress' ? <CircleDot className="h-4 w-4 text-blue-500" />
+    : <Circle className="h-4 w-4 text-muted-foreground" />
+);
+
+const STATUS_LABEL: Record<KarigarJobStatus, string> = {
+  'pending': 'Pending',
+  'in-progress': 'In Progress',
+  'completed': 'Completed',
+};
+
+// ── one job line ────────────────────────────────────────────────────────────
+
+const JobRow: React.FC<{
+  job: WorkshopJob;
+  onToggleDone: (job: WorkshopJob) => void;
+  onSetStatus: (job: WorkshopJob, s: KarigarJobStatus) => void;
+  onDelete: (job: WorkshopJob) => void;
+  showKarigar?: boolean;
+}> = ({ job, onToggleDone, onSetStatus, onDelete, showKarigar }) => {
+  const meta = [job.category, job.weightG ? `${job.weightG}g` : null, job.karat ? String(job.karat).toUpperCase() : null]
+    .filter(Boolean).join(' · ');
+
+  return (
+    <div className={cn(
+      'flex items-start gap-3 py-2.5 border-b border-border/60 last:border-0',
+      job.status === 'completed' && 'opacity-60',
+    )}>
+      <Checkbox
+        className="mt-1 flex-shrink-0"
+        checked={job.status === 'completed'}
+        onCheckedChange={() => onToggleDone(job)}
+        aria-label="Mark done"
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={cn('font-medium text-sm', job.status === 'completed' && 'line-through')}>
+            {job.description}
+          </span>
+          {job.source === 'manual'
+            ? <Badge variant="secondary" className="text-[10px]">Manual</Badge>
+            : <Badge variant="outline" className="text-[10px]">Order</Badge>}
+          {showKarigar && (
+            <Badge variant="outline" className={cn('text-[10px]', job.karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
+              {job.karigarName}
+            </Badge>
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+          {meta && <span>{meta}</span>}
+          {job.orderId && (
+            <Link href={`/orders/${job.orderId}`} className="text-primary hover:underline inline-flex items-center gap-1">
+              {job.orderId}{job.customerName ? ` · ${job.customerName}` : ''}<ExternalLink className="h-3 w-3" />
+            </Link>
+          )}
+          <span>· given {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <AgeBadge job={job} />
+        {job.source === 'manual' && (
+          <>
+            <Select value={job.status} onValueChange={v => onSetStatus(job, v as KarigarJobStatus)}>
+              <SelectTrigger className="h-7 w-[120px] text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this job?</AlertDialogTitle>
+                  <AlertDialogDescription>&ldquo;{job.description}&rdquo; will be removed. This cannot be undone.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDelete(job)}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── add-job dialog ──────────────────────────────────────────────────────────
+
+const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void; presetKarigarId?: string }> =
+({ open, onOpenChange, presetKarigarId }) => {
+  const karigars = useAppStore(s => s.karigars);
+  const addKarigarJob = useAppStore(s => s.addKarigarJob);
+  const { toast } = useToast();
+
+  const [karigarId, setKarigarId] = useState(presetKarigarId || '');
+  const [description, setDescription] = useState('');
+  const [itemCategory, setItemCategory] = useState('');
+  const [metalType, setMetalType] = useState<string>('gold');
+  const [karat, setKarat] = useState<string>('');
+  const [weightG, setWeightG] = useState('');
+  const [quantity, setQuantity] = useState('1');
+  const [agreedCost, setAgreedCost] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { if (open) setKarigarId(presetKarigarId || ''); }, [open, presetKarigarId]);
+
+  const reset = () => {
+    setKarigarId(presetKarigarId || ''); setDescription(''); setItemCategory('');
+    setMetalType('gold'); setKarat(''); setWeightG(''); setQuantity('1');
+    setAgreedCost(''); setNotes('');
+  };
+
+  const submit = async () => {
+    if (!karigarId || !description.trim()) {
+      toast({ title: 'Missing info', description: 'Pick a karigar and describe the work.', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const karigar = karigars.find(k => k.id === karigarId);
+    const res = await addKarigarJob({
+      karigarId,
+      karigarName: karigar?.name || 'Karigar',
+      description: description.trim(),
+      status: 'pending',
+      assignedDate: new Date().toISOString(),
+      ...(itemCategory && { itemCategory }),
+      ...(metalType && { metalType: metalType as MetalType }),
+      ...(karat && { karat: karat as KaratValue }),
+      ...(weightG && { weightG: Number(weightG) }),
+      ...(quantity && { quantity: Number(quantity) }),
+      ...(agreedCost && { agreedCost: Number(agreedCost) }),
+      ...(notes.trim() && { notes: notes.trim() }),
+    });
+    setSaving(false);
+    if (res) {
+      toast({ title: 'Job assigned', description: `${description.trim()} → ${karigar?.name}` });
+      reset(); onOpenChange(false);
+    } else {
+      toast({ title: 'Error', description: 'Could not save the job.', variant: 'destructive' });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={v => { onOpenChange(v); if (!v) reset(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Hammer className="h-5 w-5 text-primary" />Assign Work</DialogTitle>
+          <DialogDescription>Work that isn&apos;t tied to a customer order — stock pieces, repairs, samples.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Karigar *</Label>
+            <Select value={karigarId} onValueChange={setKarigarId}>
+              <SelectTrigger><SelectValue placeholder="Select karigar" /></SelectTrigger>
+              <SelectContent>
+                {karigars.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label className="text-xs">What are they making? *</Label>
+            <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. 4 stacked rings, moti set repair" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Category</Label>
+              <Select value={itemCategory} onValueChange={setItemCategory}>
+                <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
+                <SelectContent>
+                  {staticCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Metal</Label>
+              <Select value={metalType} onValueChange={setMetalType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gold">Gold</SelectItem>
+                  <SelectItem value="silver">Silver</SelectItem>
+                  <SelectItem value="platinum">Platinum</SelectItem>
+                  <SelectItem value="palladium">Palladium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label className="text-xs">Weight (g)</Label>
+              <Input type="number" step="0.001" value={weightG} onChange={e => setWeightG(e.target.value)} placeholder="0.000" />
+            </div>
+            <div>
+              <Label className="text-xs">Qty</Label>
+              <Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Making (PKR)</Label>
+              <Input type="number" value={agreedCost} onChange={e => setAgreedCost(e.target.value)} placeholder="0" />
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs">Notes</Label>
+            <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Instructions, stone details…" />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PlusCircle className="h-4 w-4 mr-2" />}
+            Assign
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ── karigar workload card ───────────────────────────────────────────────────
+
+const KarigarCard: React.FC<{
+  load: KarigarWorkload;
+  contact?: string;
+  onToggleDone: (j: WorkshopJob) => void;
+  onSetStatus: (j: WorkshopJob, s: KarigarJobStatus) => void;
+  onDelete: (j: WorkshopJob) => void;
+  onAssign: (karigarId: string) => void;
+}> = ({ load, contact, onToggleDone, onSetStatus, onDelete, onAssign }) => {
+  const [showDone, setShowDone] = useState(false);
+  const { toast } = useToast();
+  const isUnassigned = load.karigarId === UNASSIGNED_ID;
+  const visible = showDone ? load.jobs : load.jobs.filter(j => j.status !== 'completed');
+
+  const share = async () => {
+    const text = formatJobListForShare(load, STORE_CONFIG.name);
+    try { await navigator.clipboard.writeText(text); } catch { /* clipboard may be blocked */ }
+    const phone = (contact || '').replace(/\D/g, '');
+    if (phone) {
+      window.open(`https://wa.me/${phone.startsWith('92') ? phone : '92' + phone.replace(/^0/, '')}?text=${encodeURIComponent(text)}`, '_blank');
+      toast({ title: 'Opening WhatsApp', description: 'Job list copied too.' });
+    } else {
+      toast({ title: 'Job list copied', description: 'No phone saved for this karigar — paste it anywhere.' });
+    }
+  };
+
+  return (
+    <Card className={cn(
+      load.critical > 0 && 'border-destructive/40',
+      isUnassigned && load.active > 0 && 'border-destructive/60 bg-destructive/5',
+    )}>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-base flex items-center gap-2">
+              {isUnassigned ? <AlertTriangle className="h-4 w-4 text-destructive" /> : <Hammer className="h-4 w-4 text-primary" />}
+              {isUnassigned ? (
+                <span className="text-destructive">Unassigned</span>
+              ) : (
+                <Link href={`/karigars/${load.karigarId}`} className="hover:underline">{load.karigarName}</Link>
+              )}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              {load.active} active · {load.inProgress} in progress
+              {load.oldestActiveDays > 0 && ` · oldest ${load.oldestActiveDays}d`}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {load.critical > 0 && <Badge variant="destructive" className="text-[10px]"><Flame className="h-3 w-3 mr-1" />{load.critical}</Badge>}
+            {load.overdue > load.critical && <Badge variant="outline" className="text-[10px] text-yellow-700 border-yellow-500/40 bg-yellow-500/10">{load.overdue - load.critical} late</Badge>}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 pt-2">
+          {!isUnassigned && (
+            <>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={share}>
+                <Share2 className="h-3.5 w-3.5 mr-1.5" />Send list
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onAssign(load.karigarId)}>
+                <PlusCircle className="h-3.5 w-3.5 mr-1.5" />Add
+              </Button>
+            </>
+          )}
+          {load.completed > 0 && (
+            <Button size="sm" variant="ghost" className="h-7 text-xs ml-auto text-muted-foreground"
+              onClick={() => setShowDone(v => !v)}>
+              {showDone ? 'Hide' : 'Show'} {load.completed} done
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {load.active > 0 && (
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2">
+            <span>{load.totalWeightG > 0 ? `${load.totalWeightG.toFixed(3)}g out` : ''}</span>
+            <span>{load.totalValue > 0 ? `PKR ${load.totalValue.toLocaleString()}` : ''}</span>
+          </div>
+        )}
+        {visible.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-3">Nothing pending ✅</p>
+        ) : (
+          <ScrollArea className={visible.length > 6 ? 'h-72' : ''}>
+            <div className="pr-2">
+              {visible.map(j => (
+                <JobRow key={j.id} job={j} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} />
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// ── page ────────────────────────────────────────────────────────────────────
+
+export default function WorkshopPage() {
+  const isHydrated = useIsStoreHydrated();
+  const orders = useAppStore(s => s.orders);
+  const karigars = useAppStore(s => s.karigars);
+  const karigarJobs = useAppStore(s => s.karigarJobs);
+  const { loadOrders, loadKarigars, loadKarigarJobs, updateOrderItemStatus, setKarigarJobStatus, deleteKarigarJob } = useAppStore();
+  const { toast } = useToast();
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [presetKarigar, setPresetKarigar] = useState<string | undefined>();
+  const [search, setSearch] = useState('');
+  const [karigarFilter, setKarigarFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active');
+
+  useEffect(() => {
+    loadOrders(); loadKarigars(); loadKarigarJobs();
+  }, [loadOrders, loadKarigars, loadKarigarJobs]);
+
+  const allJobs = useMemo(
+    () => buildWorkshopJobs(orders, karigarJobs, karigars),
+    [orders, karigarJobs, karigars],
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allJobs.filter(j => {
+      if (statusFilter === 'active' && j.status === 'completed') return false;
+      if (statusFilter !== 'all' && statusFilter !== 'active' && j.status !== statusFilter) return false;
+      if (karigarFilter !== 'all' && j.karigarId !== karigarFilter) return false;
+      if (!q) return true;
+      return [j.description, j.karigarName, j.customerName, j.orderId, j.category]
+        .filter(Boolean).some(v => String(v).toLowerCase().includes(q));
+    });
+  }, [allJobs, search, karigarFilter, statusFilter]);
+
+  const loads = useMemo(() => groupByKarigar(filtered), [filtered]);
+
+  const stats = useMemo(() => {
+    const active = allJobs.filter(j => j.status !== 'completed');
+    return {
+      active: active.length,
+      inProgress: active.filter(j => j.status === 'in-progress').length,
+      overdue: active.filter(j => j.urgency !== 'ok').length,
+      critical: active.filter(j => j.urgency === 'critical').length,
+      unassigned: active.filter(j => j.karigarId === UNASSIGNED_ID).length,
+      workers: new Set(active.filter(j => j.karigarId !== UNASSIGNED_ID).map(j => j.karigarId)).size,
+    };
+  }, [allJobs]);
+
+  const contactById = useMemo(
+    () => new Map(karigars.map(k => [k.id, k.contact || ''])),
+    [karigars],
+  );
+
+  // ── actions ──
+  const handleToggleDone = async (job: WorkshopJob) => {
+    if (job.source === 'order' && job.orderId && job.itemIndex !== undefined) {
+      await updateOrderItemStatus(job.orderId, job.itemIndex, job.status !== 'completed');
+    } else if (job.source === 'manual') {
+      await setKarigarJobStatus(job.id.replace(/^job:/, ''), job.status === 'completed' ? 'pending' : 'completed');
+    }
+  };
+  const handleSetStatus = async (job: WorkshopJob, s: KarigarJobStatus) => {
+    if (job.source === 'manual') await setKarigarJobStatus(job.id.replace(/^job:/, ''), s);
+  };
+  const handleDelete = async (job: WorkshopJob) => {
+    if (job.source !== 'manual') return;
+    try {
+      await deleteKarigarJob(job.id.replace(/^job:/, ''));
+      toast({ title: 'Job deleted' });
+    } catch {
+      toast({ title: 'Error', description: 'Could not delete.', variant: 'destructive' });
+    }
+  };
+  const openAssign = (karigarId: string) => { setPresetKarigar(karigarId); setAddOpen(true); };
+
+  if (!isHydrated) {
+    return <div className="container mx-auto p-6 flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading workshop…</div>;
+  }
+
+  const boardCols: { key: KarigarJobStatus; label: string; icon: React.ReactNode }[] = [
+    { key: 'pending', label: 'Pending', icon: <Circle className="h-4 w-4" /> },
+    { key: 'in-progress', label: 'In Progress', icon: <CircleDot className="h-4 w-4 text-blue-500" /> },
+    { key: 'completed', label: 'Completed', icon: <CheckCircle2 className="h-4 w-4 text-green-600" /> },
+  ];
+  const attention = filtered.filter(j => j.status !== 'completed' && (j.urgency !== 'ok' || j.karigarId === UNASSIGNED_ID));
+
+  return (
+    <div className="container mx-auto p-4 md:p-6 space-y-5 max-w-7xl">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Hammer className="h-6 w-6 text-primary" />Workshop</h1>
+          <p className="text-sm text-muted-foreground">Who&apos;s making what — across orders and assigned work.</p>
+        </div>
+        <Button onClick={() => { setPresetKarigar(undefined); setAddOpen(true); }}>
+          <PlusCircle className="h-4 w-4 mr-2" />Assign Work
+        </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <StatCard label="Active jobs" value={stats.active} icon={<ListChecks className="h-4 w-4" />} />
+        <StatCard label="In progress" value={stats.inProgress} icon={<CircleDot className="h-4 w-4" />} />
+        <StatCard label={`Late (${WARN_DAYS}d+)`} value={stats.overdue} icon={<Clock className="h-4 w-4" />} tone={stats.overdue ? 'warn' : 'default'} />
+        <StatCard label={`Critical (${CRITICAL_DAYS}d+)`} value={stats.critical} icon={<Flame className="h-4 w-4" />} tone={stats.critical ? 'danger' : 'default'} />
+        <StatCard label="Unassigned" value={stats.unassigned} icon={<AlertTriangle className="h-4 w-4" />} tone={stats.unassigned ? 'danger' : 'good'} />
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-8" placeholder="Search item, karigar, customer, order…" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <Select value={karigarFilter} onValueChange={setKarigarFilter}>
+          <SelectTrigger className="w-full sm:w-[190px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All karigars</SelectItem>
+            <SelectItem value={UNASSIGNED_ID}>Unassigned</SelectItem>
+            {karigars.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active only</SelectItem>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="in-progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Views */}
+      <Tabs defaultValue="karigar">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+          <TabsTrigger value="karigar" className="text-xs sm:text-sm"><Users className="h-4 w-4 mr-1.5 hidden sm:inline" />By Karigar</TabsTrigger>
+          <TabsTrigger value="board" className="text-xs sm:text-sm"><LayoutGrid className="h-4 w-4 mr-1.5 hidden sm:inline" />Board</TabsTrigger>
+          <TabsTrigger value="list" className="text-xs sm:text-sm"><TableIcon className="h-4 w-4 mr-1.5 hidden sm:inline" />All Jobs</TabsTrigger>
+          <TabsTrigger value="attention" className="text-xs sm:text-sm">
+            <AlertTriangle className="h-4 w-4 mr-1.5 hidden sm:inline" />Attention
+            {attention.length > 0 && <Badge variant="destructive" className="ml-1.5 h-4 px-1 text-[10px]">{attention.length}</Badge>}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* View 1 — By Karigar */}
+        <TabsContent value="karigar" className="mt-4">
+          {loads.length === 0 ? (
+            <Card><CardContent className="py-12 text-center text-muted-foreground">
+              <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />No work matches these filters.
+            </CardContent></Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {loads.map(load => (
+                <KarigarCard
+                  key={load.karigarId}
+                  load={load}
+                  contact={contactById.get(load.karigarId)}
+                  onToggleDone={handleToggleDone}
+                  onSetStatus={handleSetStatus}
+                  onDelete={handleDelete}
+                  onAssign={openAssign}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* View 2 — Board by status */}
+        <TabsContent value="board" className="mt-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            {boardCols.map(col => {
+              const items = allJobs.filter(j => {
+                if (j.status !== col.key) return false;
+                if (karigarFilter !== 'all' && j.karigarId !== karigarFilter) return false;
+                const q = search.trim().toLowerCase();
+                if (!q) return true;
+                return [j.description, j.karigarName, j.customerName, j.orderId].filter(Boolean)
+                  .some(v => String(v).toLowerCase().includes(q));
+              });
+              return (
+                <Card key={col.key}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center justify-between">
+                      <span className="flex items-center gap-2">{col.icon}{col.label}</span>
+                      <Badge variant="secondary">{items.length}</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {items.length === 0
+                      ? <p className="text-sm text-muted-foreground text-center py-6">Empty</p>
+                      : (
+                        <ScrollArea className="h-[28rem]">
+                          <div className="pr-2">
+                            {items.map(j => (
+                              <JobRow key={j.id} job={j} showKarigar
+                                onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </TabsContent>
+
+        {/* View 3 — Table */}
+        <TabsContent value="list" className="mt-4">
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8"></TableHead>
+                    <TableHead>Item</TableHead>
+                    <TableHead>Karigar</TableHead>
+                    <TableHead className="hidden md:table-cell">Order / Customer</TableHead>
+                    <TableHead className="hidden lg:table-cell">Given</TableHead>
+                    <TableHead className="text-right">Age</TableHead>
+                    <TableHead className="text-right hidden sm:table-cell">Value</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.length === 0 && (
+                    <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No jobs match.</TableCell></TableRow>
+                  )}
+                  {filtered.map(j => (
+                    <TableRow key={j.id} className={cn(j.status === 'completed' && 'opacity-60')}>
+                      <TableCell><StatusDot status={j.status} /></TableCell>
+                      <TableCell>
+                        <div className={cn('font-medium text-sm', j.status === 'completed' && 'line-through')}>{j.description}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {[j.category, j.weightG ? `${j.weightG}g` : null].filter(Boolean).join(' · ')}
+                          {j.source === 'manual' && <Badge variant="secondary" className="ml-1.5 text-[10px]">Manual</Badge>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {j.karigarId === UNASSIGNED_ID
+                          ? <Badge variant="outline" className="text-destructive border-destructive/40 text-xs">Unassigned</Badge>
+                          : <Link href={`/karigars/${j.karigarId}`} className="text-sm text-primary hover:underline">{j.karigarName}</Link>}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-sm">
+                        {j.orderId
+                          ? <Link href={`/orders/${j.orderId}`} className="text-primary hover:underline">{j.orderId}</Link>
+                          : <span className="text-muted-foreground">—</span>}
+                        {j.customerName && <div className="text-xs text-muted-foreground">{j.customerName}</div>}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
+                        {format(parseISO(j.assignedDate), 'dd MMM yy')}
+                      </TableCell>
+                      <TableCell className="text-right"><AgeBadge job={j} /></TableCell>
+                      <TableCell className="text-right hidden sm:table-cell text-sm tabular-nums">
+                        {j.value ? j.value.toLocaleString() : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* View 4 — Needs attention */}
+        <TabsContent value="attention" className="mt-4">
+          {attention.length === 0 ? (
+            <Card><CardContent className="py-12 text-center">
+              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-600" />
+              <p className="font-medium">Nothing needs attention</p>
+              <p className="text-sm text-muted-foreground">No overdue or unassigned work.</p>
+            </CardContent></Card>
+          ) : (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  {attention.length} job{attention.length === 1 ? '' : 's'} need attention
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">Unassigned work, or sitting {WARN_DAYS}+ days with a karigar. Oldest first.</p>
+              </CardHeader>
+              <CardContent>
+                {attention
+                  .slice()
+                  .sort((a, b) => (b.karigarId === UNASSIGNED_ID ? 1 : 0) - (a.karigarId === UNASSIGNED_ID ? 1 : 0) || b.ageDays - a.ageDays)
+                  .map(j => (
+                    <JobRow key={j.id} job={j} showKarigar
+                      onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
+                  ))}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <AddJobDialog open={addOpen} onOpenChange={setAddOpen} presetKarigarId={presetKarigar} />
+    </div>
+  );
+}

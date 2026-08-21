@@ -11,7 +11,7 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, Calculator, LogOut, HandCoins, WifiOff } from 'lucide-react';
+import { Home, ShoppingCart, Settings as SettingsIcon, Users, Gem, ScanQrCode, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, Calculator, LogOut, HandCoins, WifiOff, Hammer } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -54,6 +54,7 @@ const navGroups: NavGroup[] = [
       { href: '/products', label: 'Products', icon: <Gem /> },
       { href: '/customers', label: 'Customers', icon: <Users /> },
       { href: '/karigars', label: 'Karigars', icon: <Briefcase /> },
+      { href: '/workshop', label: 'Workshop', icon: <Hammer /> },
       { href: '/documents', label: 'Documents', icon: <FileText /> },
       { href: '/calendar', label: 'Calendar', icon: <Calendar /> },
       { href: '/expenses', label: 'Expenses', icon: <CreditCard /> },
