@@ -9,6 +9,7 @@ import {
   WorkshopJob, KarigarWorkload, UNASSIGNED_ID, WARN_DAYS, CRITICAL_DAYS,
 } from '@/lib/workshop';
 import { STORE_CONFIG } from '@/lib/store-config';
+import { KarigarAssign } from '@/components/karigar/karigar-assign';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -137,6 +138,14 @@ const JobRow: React.FC<{
       </div>
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <AgeBadge job={job} />
+        {job.source === 'order' && job.orderId && job.itemIndex !== undefined && job.status !== 'completed' && (
+          <KarigarAssign
+            orderId={job.orderId}
+            itemIndex={job.itemIndex}
+            currentKarigarId={job.karigarId === UNASSIGNED_ID ? undefined : job.karigarId}
+            size="compact"
+          />
+        )}
         {job.source === 'manual' && (
           <>
             <Select value={job.status} onValueChange={v => onSetStatus(job, v as KarigarJobStatus)}>
@@ -648,7 +657,14 @@ export default function WorkshopPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {j.karigarId === UNASSIGNED_ID
+                        {j.source === 'order' && j.orderId && j.itemIndex !== undefined && j.status !== 'completed' ? (
+                          <KarigarAssign
+                            orderId={j.orderId}
+                            itemIndex={j.itemIndex}
+                            currentKarigarId={j.karigarId === UNASSIGNED_ID ? undefined : j.karigarId}
+                            size="compact"
+                          />
+                        ) : j.karigarId === UNASSIGNED_ID
                           ? <Badge variant="outline" className="text-destructive border-destructive/40 text-xs">Unassigned</Badge>
                           : <Link href={`/karigars/${j.karigarId}`} className="text-sm text-primary hover:underline">{j.karigarName}</Link>}
                       </TableCell>

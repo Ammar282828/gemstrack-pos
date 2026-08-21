@@ -65,6 +65,7 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
   const completedItems = safeItems.filter(item => item.isCompleted).length;
   const totalItems = safeItems.length;
   const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+  const unassignedItems = safeItems.filter(item => !item.karigarId || item.karigarId === 'none').length;
   
   const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
   const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
@@ -107,6 +108,11 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
 
             <div className="pt-1">
                  {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items completed</span>}
+                 {unassignedItems > 0 && order.status !== 'Completed' && (
+                   <Badge variant="outline" className="ml-2 text-[10px] text-destructive border-destructive/40 bg-destructive/5">
+                     {unassignedItems} unassigned
+                   </Badge>
+                 )}
                  <Progress value={progressPercentage} className="h-1.5 mt-1" />
             </div>
 
@@ -154,6 +160,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
     const completedItems = safeItems.filter(item => item.isCompleted).length;
     const totalItems = safeItems.length;
     const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+    const unassignedItems = safeItems.filter(item => !item.karigarId || item.karigarId === 'none').length;
     const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
     const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
     const subtotal = typeof order.subtotal === 'number' ? order.subtotal : 0;
@@ -197,6 +204,11 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
            <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
               <div className="flex flex-col w-28">
                   {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items</span>}
+                  {unassignedItems > 0 && order.status !== 'Completed' && (
+                    <Badge variant="outline" className="ml-2 text-[10px] text-destructive border-destructive/40 bg-destructive/5">
+                      {unassignedItems} unassigned
+                    </Badge>
+                  )}
                   <Progress value={progressPercentage} className="h-1.5 mt-1" />
               </div>
               {isUpdatingStatus ? (

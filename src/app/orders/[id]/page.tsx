@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
+import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -1225,10 +1226,15 @@ export default function OrderDetailPage() {
                     </div>
                   ) : (
                   <>
-                  <h3 className="text-lg font-semibold mb-4">Order Items Checklist</h3>
+                  <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                    <h3 className="text-lg font-semibold">Order Items Checklist</h3>
+                    <KarigarBulkAssign
+                      orderId={order.id}
+                      unassignedCount={order.items.filter(i => !i.karigarId || i.karigarId === 'none').length}
+                    />
+                  </div>
                   <div className="space-y-4">
                       {order.items.map((item, index) => {
-                          const karigarName = karigars.find(k => k.id === item.karigarId)?.name;
                           return (
                           <div key={index} className="p-4 border rounded-lg flex flex-col md:flex-row gap-4 bg-muted/30">
                               <div className="flex items-start gap-4 flex-grow">
@@ -1259,7 +1265,16 @@ export default function OrderDetailPage() {
                                           })()}
                                           {item.referenceSku && <p>Ref SKU: {item.referenceSku}</p>}
                                           {item.sampleGiven && <p>Sample Provided by Customer</p>}
-                                          {karigarName && <p className="font-medium flex items-center gap-1"><Briefcase className="w-3 h-3"/>Karigar: {karigarName}</p>}
+                                      </div>
+                                      {/* Inline karigar assignment — no need to reopen the order form */}
+                                      <div className="mt-2 flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground flex items-center gap-1"><Briefcase className="w-3 h-3"/>Karigar:</span>
+                                        <KarigarAssign
+                                          orderId={order.id}
+                                          itemIndex={index}
+                                          currentKarigarId={item.karigarId}
+                                          size="compact"
+                                        />
                                       </div>
                                       {item.stoneDetails && (
                                           <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">

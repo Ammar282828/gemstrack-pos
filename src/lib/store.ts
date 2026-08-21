@@ -1107,6 +1107,8 @@ export interface AppState {
   addOrder: (orderData: OrderDataForAdd) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
+  updateOrderItemKarigar: (orderId: string, itemIndex: number, karigarId: string) => Promise<void>;
+  assignOrderItemsToKarigar: (orderId: string, karigarId: string, onlyUnassigned?: boolean) => Promise<void>;
   removeItemFromOrder: (orderId: string, itemIndex: number) => Promise<void>;
   updateOrder: (orderId: string, updatedOrderData: Partial<Order>) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
@@ -2900,6 +2902,61 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
+      /** Assign (or clear) the karigar on a single order item, without opening the order form. */
+      updateOrderItemKarigar: async (orderId, itemIndex, karigarId) => {
+        if (get().settings.databaseLocked) return;
+        const order = get().orders.find(o => o.id === orderId);
+        if (!order) throw new Error('Order not found');
+
+        const clearing = !karigarId || karigarId === 'none';
+        const updatedItems = order.items.map((item, i) => {
+          if (i !== itemIndex) return item;
+          const next = { ...item };
+          if (clearing) delete next.karigarId; else next.karigarId = karigarId;
+          return next;
+        });
+
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), { items: updatedItems }, { merge: true });
+          const name = clearing ? 'Unassigned' : (get().karigars.find(k => k.id === karigarId)?.name || karigarId);
+          await addActivityLog('order.update', `Karigar assigned on ${orderId}`,
+            `${order.items[itemIndex]?.description || `Item ${itemIndex + 1}`} → ${name}`, orderId);
+          syncOrderShopify(orderId, 'upsert');
+        } catch (error) {
+          console.error(`Error assigning karigar for order ${orderId}:`, error);
+          throw error;
+        }
+      },
+
+      /** Assign every item on an order to one karigar. `onlyUnassigned` leaves existing assignments alone. */
+      assignOrderItemsToKarigar: async (orderId, karigarId, onlyUnassigned = false) => {
+        if (get().settings.databaseLocked) return;
+        const order = get().orders.find(o => o.id === orderId);
+        if (!order) throw new Error('Order not found');
+
+        const clearing = !karigarId || karigarId === 'none';
+        let changed = 0;
+        const updatedItems = order.items.map(item => {
+          const assigned = item.karigarId && item.karigarId !== 'none';
+          if (onlyUnassigned && assigned) return item;
+          const next = { ...item };
+          if (clearing) delete next.karigarId; else next.karigarId = karigarId;
+          changed++;
+          return next;
+        });
+        if (!changed) return;
+
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), { items: updatedItems }, { merge: true });
+          const name = clearing ? 'Unassigned' : (get().karigars.find(k => k.id === karigarId)?.name || karigarId);
+          await addActivityLog('order.update', `Bulk karigar assign on ${orderId}`, `${changed} item(s) → ${name}`, orderId);
+          syncOrderShopify(orderId, 'upsert');
+        } catch (error) {
+          console.error(`Error bulk-assigning karigar for order ${orderId}:`, error);
+          throw error;
+        }
+      },
+
       removeItemFromOrder: async (orderId, itemIndex) => {
         if (get().settings.databaseLocked) return;
         const order = get().orders.find(o => o.id === orderId);
