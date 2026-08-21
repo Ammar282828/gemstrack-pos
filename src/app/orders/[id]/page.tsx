@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { mergeInstructions } from '@/lib/workshop';
 import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { METAL_TYPES as metalTypeValues, describeMetal } from '@/lib/materials';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
@@ -844,8 +845,8 @@ export default function OrderDetailPage() {
         detailLines.push(item.description);
         detailLines.push(metalLine);
         if (item.referenceSku) detailLines.push(`Ref SKU: ${item.referenceSku}`);
-        if (item.stoneDetails) detailLines.push(`Instructions: ${item.stoneDetails}`);
-        if (item.diamondDetails) detailLines.push(`Instructions: ${item.diamondDetails}`);
+        const instructions = mergeInstructions(item);
+        if (instructions) instructions.split('\n').forEach(l => detailLines.push(`Instructions: ${l}`));
 
         tableRows.push([
             i + 1,

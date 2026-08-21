@@ -113,9 +113,9 @@ const JobRow: React.FC<{
           {meta && <span>{meta}</span>}
         </div>
 
-        {job.specialNote && (
+        {job.notes && (
           <p className="text-xs mt-1 rounded border border-amber-300/70 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/25 px-2 py-1 text-amber-900 dark:text-amber-100 whitespace-pre-wrap">
-            <span className="font-semibold">Note: </span>{job.specialNote}
+            <span className="font-semibold">Instructions: </span>{job.notes}
           </p>
         )}
 
@@ -373,7 +373,6 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
   const [weight, setWeight] = useState('');
   const [ref, setRef] = useState('');
   const [instructions, setInstructions] = useState('');
-  const [special, setSpecial] = useState('');
   const [sample, setSample] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -384,7 +383,6 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
     setWeight(job.weightG ? String(job.weightG) : '');
     setRef(job.referenceSku || '');
     setInstructions(job.notes || '');
-    setSpecial(job.specialNote || '');
     setSample(job.sampleImage || '');
   }, [job]);
 
@@ -399,15 +397,18 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
     try {
       if (job.source === 'order' && job.orderId && job.itemIndex !== undefined) {
         await updateOrderItemDetails(job.orderId, job.itemIndex, {
-          description: name, size, referenceSku: ref, stoneDetails: instructions,
-          adminNote: special, sampleImageDataUri: sample,
+          description: name, size, referenceSku: ref,
+          // Instructions are consolidated into adminNote; the legacy
+          // stone/diamond fields are cleared so nothing renders twice.
+          adminNote: instructions, stoneDetails: '', diamondDetails: '',
+          sampleImageDataUri: sample,
           ...(weight !== '' && { estimatedWeightG: Number(weight) }),
         });
       } else {
         await updateKarigarJob(job.id.replace(/^job:/, ''), {
           ...(name.trim() && { description: name.trim() }),
           size: size.trim() || undefined,
-          notes: special.trim() || instructions.trim() || undefined,
+          notes: instructions.trim() || undefined,
           ...(weight !== '' && { weightG: Number(weight) }),
         });
       }
@@ -455,11 +456,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
             </div>
           </div>
 
-          <div>
-            <Label className="text-xs">Instructions</Label>
-            <Textarea rows={2} value={instructions} onChange={e => setInstructions(e.target.value)}
-              placeholder="Stone / diamond details" disabled={job.source !== 'order'} />
-          </div>
+
 
           <div>
             <Label className="text-xs flex items-center gap-1.5"><ImagePlus className="h-3.5 w-3.5" />Sample picture</Label>
@@ -470,11 +467,12 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
           </div>
 
           <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20 p-3">
-            <Label className="text-xs text-amber-800 dark:text-amber-200">Special note</Label>
-            <Textarea rows={3} value={special} onChange={e => setSpecial(e.target.value)}
-              placeholder="Making instructions for the karigar" className="mt-1" />
+            <Label className="text-xs text-amber-800 dark:text-amber-200">Instructions</Label>
+            <Textarea rows={4} value={instructions} onChange={e => setInstructions(e.target.value)}
+              placeholder="Stones, plating, sizing — anything the karigar needs" className="mt-1" />
             <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 mt-1">
-              Shown to the karigar. Never printed on an estimate or invoice — keep prices and customer details out of it.
+              Shown to the karigar and on the workshop slip. Never printed on a customer estimate or
+              invoice — keep prices and customer details out of it.
             </p>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { resolveKarigar, verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
 import { categoryTitle, displayKarat } from '@/lib/categories';
+import { mergeInstructions } from '@/lib/workshop';
 
 /**
  * Returns the signed-in karigar's own work list and account balance.
@@ -71,7 +72,7 @@ export async function GET(req: NextRequest) {
       orderId?: string;
       status: 'pending' | 'in-progress' | 'completed';
       assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
-      notes?: string; specialNote?: string;
+      notes?: string;
     };
     const jobs: SafeJob[] = [];
 
@@ -105,12 +106,9 @@ export async function GET(req: NextRequest) {
           assignedDate: o.createdAt,
           ageDays: age,
           urgency: urgency(age, done),
-          notes: item.stoneDetails || item.diamondDetails || undefined,
-          // The order form calls this the "Admin-Only Note", meaning it never
-          // prints on a customer estimate/invoice — in practice it holds the
-          // making instructions (sizes, stone choices, platings), so karigars
-          // need it.
-          specialNote: item.adminNote || undefined,
+          // stoneDetails / diamondDetails / adminNote all hold making notes;
+          // merged so the karigar sees one instruction block, not three.
+          notes: mergeInstructions(item),
           // The order reference is only a number — it lets a karigar quote a
           // job on the phone. Customer name, contact and every price are still
           // deliberately omitted.
@@ -138,7 +136,7 @@ export async function GET(req: NextRequest) {
         assignedDate: j.assignedDate,
         ageDays: age,
         urgency: urgency(age, done),
-        notes: j.notes || undefined,
+        notes: mergeInstructions(j),
       });
     }
 

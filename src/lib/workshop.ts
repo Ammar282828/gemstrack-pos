@@ -48,8 +48,7 @@ export interface WorkshopJob {
   sampleGiven?: boolean;
   sampleImage?: string;
   value?: number;             // order item estimate, or agreed cost on a manual job
-  notes?: string;
-  specialNote?: string;       // OrderItem.adminNote — making instructions
+  notes?: string;             // merged instructions — see mergeInstructions
 }
 
 export function daysSince(iso: string | undefined): number {
@@ -131,8 +130,7 @@ export function buildWorkshopJobs(
         sampleGiven: !!item.sampleGiven,
         sampleImage: item.sampleImageDataUri || undefined,
         value: item.totalEstimate ?? 0,
-        notes: item.stoneDetails || item.diamondDetails || undefined,
-        specialNote: item.adminNote || undefined,
+        notes: mergeInstructions(item),
       });
     });
   }
@@ -159,7 +157,7 @@ export function buildWorkshopJobs(
       quantity: job.quantity ?? 1,
       size: job.size || undefined,
       value: job.agreedCost ?? 0,
-      notes: job.notes,
+      notes: mergeInstructions(job),
     });
   }
 
@@ -302,4 +300,30 @@ export function groupJobsByOrder<T extends OrderGroupable>(jobs: T[]): JobOrderG
     }
   }
   return [...groups.values()].sort((a, b) => b.ageDays - a.ageDays);
+}
+
+/**
+ * One instruction block per item.
+ *
+ * Making notes historically lived in three fields — stoneDetails,
+ * diamondDetails and the order form's "Admin-Only Note" — which meant a
+ * karigar saw two or three separate boxes saying much the same thing. They are
+ * merged here (blank and duplicate lines dropped) so every surface renders a
+ * single set of instructions.
+ */
+export function mergeInstructions(item: {
+  stoneDetails?: string;
+  diamondDetails?: string;
+  adminNote?: string;
+  notes?: string;
+}): string | undefined {
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const raw of [item.stoneDetails, item.diamondDetails, item.adminNote, item.notes]) {
+    const v = (raw || '').trim();
+    if (!v || seen.has(v)) continue;
+    seen.add(v);
+    parts.push(v);
+  }
+  return parts.length ? parts.join('\n') : undefined;
 }

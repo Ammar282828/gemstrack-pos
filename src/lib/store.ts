@@ -1099,8 +1099,8 @@ export interface AppState {
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
   updateOrderItemKarigar: (orderId: string, itemIndex: number, karigarId: string) => Promise<void>;
   updateOrderItemDetails: (orderId: string, itemIndex: number, patch: {
-    description?: string; size?: string; stoneDetails?: string; adminNote?: string;
-    referenceSku?: string; estimatedWeightG?: number; sampleImageDataUri?: string;
+    description?: string; size?: string; stoneDetails?: string; diamondDetails?: string;
+    adminNote?: string; referenceSku?: string; estimatedWeightG?: number; sampleImageDataUri?: string;
   }) => Promise<void>;
   assignOrderItemsToKarigar: (orderId: string, karigarId: string, onlyUnassigned?: boolean) => Promise<void>;
   removeItemFromOrder: (orderId: string, itemIndex: number) => Promise<void>;
@@ -2950,7 +2950,7 @@ export const useAppStore = create<AppState>()(
         const updatedItems = order.items.map((item, i) => {
           if (i !== itemIndex) return item;
           const next: OrderItem = { ...item };
-          const setOrClear = (key: 'size' | 'stoneDetails' | 'adminNote' | 'referenceSku', value?: string) => {
+          const setOrClear = (key: 'size' | 'stoneDetails' | 'diamondDetails' | 'adminNote' | 'referenceSku', value?: string) => {
             const v = (value ?? '').trim();
             if (v) next[key] = v;
             else delete next[key];
@@ -2962,6 +2962,7 @@ export const useAppStore = create<AppState>()(
           }
           if ('size' in patch) setOrClear('size', patch.size);
           if ('stoneDetails' in patch) setOrClear('stoneDetails', patch.stoneDetails);
+          if ('diamondDetails' in patch) setOrClear('diamondDetails', patch.diamondDetails);
           if ('adminNote' in patch) setOrClear('adminNote', patch.adminNote);
           if ('referenceSku' in patch) setOrClear('referenceSku', patch.referenceSku);
           if (patch.estimatedWeightG !== undefined) next.estimatedWeightG = Number(patch.estimatedWeightG) || 0;
