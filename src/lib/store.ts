@@ -449,6 +449,9 @@ export interface Product {
   customPrice?: number;
   description?: string;
   size?: string; // Optional ring/bracelet size (e.g. "10 Indian / 5 US"); free text
+  platingType?: string;  // 925 silver only
+  platingNote?: string;
+  nickelFree?: boolean;
   silverRatePerGram?: number;
   shopifyProductId?: string;
   shopifyVariantId?: string;
@@ -478,6 +481,9 @@ export interface InvoiceItem {
   isManualPrice?: boolean;
   itemCategory?: string;
   size?: string; // Optional ring/bracelet size carried from product or order
+  platingType?: string;  // 925 silver only
+  platingNote?: string;
+  nickelFree?: boolean;
   adminNote?: string; // Internal-only note; never printed on estimates/invoices
 }
 
@@ -557,6 +563,9 @@ export interface OrderItem {
   isManualPrice?: boolean;
   manualPrice?: number;
   size?: string; // Optional ring/bracelet size (e.g. "10 Indian / 5 US"); free text
+  platingType?: string;  // 925 silver only — White Rhodium, 21K Gold Plating, …
+  platingNote?: string;  // free text when platingType is "Other"
+  nickelFree?: boolean;  // nickel-free finish requested
   adminNote?: string; // Internal-only note; never printed on estimates/invoices
 }
 
@@ -827,7 +836,7 @@ export type SizeScalePart = {
 
 export type SizeScale =
   | { label: string; options: string[] }                  // single-dropdown
-  | { label: string; parts: SizeScalePart[] };            // multi-part (e.g. ring + bangle)
+  | { label: string; parts: SizeScalePart[]; legacyPartKey?: string };            // multi-part (e.g. ring + bangle)
 
 /** Per-category size scale. If a category isn't in this map, the size input
  * falls back to a free-text field (when SIZE_ELIGIBLE_CATEGORY_IDS includes it). */
@@ -837,10 +846,34 @@ export const SIZE_SCALES: Record<string, SizeScale> = {
   'cat009': { label: 'Band size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
   'cat010': { label: 'Ring size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
   'cat005': { label: 'Bracelet size (1.1–3.0)',                 options: BRACELET_BANGLE_SIZES },
-  'cat006': { label: 'Bracelet size (1.1–3.0)',                 options: BRACELET_BANGLE_SIZES },
+  'cat006': {
+    label: 'Ring + Bracelet size',
+    legacyPartKey: 'Bracelet',
+    parts: [
+      { key: 'Ring',     label: 'Ring size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
+      { key: 'Bracelet', label: 'Bracelet size (1.1–3.0)',            options: BRACELET_BANGLE_SIZES },
+    ],
+  },
   'cat007': { label: 'Bangle size (1.1–3.0)',                   options: BRACELET_BANGLE_SIZES },
-  'cat014': { label: 'Bracelet size (1.1–3.0)',                 options: BRACELET_BANGLE_SIZES },
-  'cat015': { label: 'Bracelet size (1.1–3.0)',                 options: BRACELET_BANGLE_SIZES },
+  'cat014': {
+    label: 'Ring + Bracelet size',
+    legacyPartKey: 'Bracelet',
+    parts: [
+      { key: 'Ring',     label: 'Ring size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
+      { key: 'Bracelet', label: 'Bracelet size (1.1–3.0)',            options: BRACELET_BANGLE_SIZES },
+    ],
+  },
+  'cat015': {
+    label: 'Ring + Bracelet size',
+    legacyPartKey: 'Bracelet',
+    parts: [
+      { key: 'Ring',     label: 'Ring size (Indian 0–25, 0.5 steps)', options: RING_SIZES_INDIAN },
+      { key: 'Bracelet', label: 'Bracelet size (1.1–3.0)',            options: BRACELET_BANGLE_SIZES },
+    ],
+  },
+  // Necklace sets without bracelets can still include a ring.
+  'cat013': { label: 'Ring size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
+  'cat016': { label: 'Ring size (Indian 0–25, 0.5 steps)',      options: RING_SIZES_INDIAN },
   'cat019': { label: 'Loose bracelet (inches)',                 options: LOOSE_BRACELET_SIZES },
   'cat012': { label: 'String length (inches)',                  options: NECKLACE_SIZES },
   'cat011': {
@@ -852,8 +885,14 @@ export const SIZE_SCALES: Record<string, SizeScale> = {
   },
 };
 
-export function isMultiPartScale(s: SizeScale | undefined): s is { label: string; parts: SizeScalePart[] } {
+export function isMultiPartScale(s: SizeScale | undefined): s is { label: string; parts: SizeScalePart[]; legacyPartKey?: string } {
   return !!s && 'parts' in s;
+}
+
+/** Which part a pre-multi-part size string belonged to, e.g. "2.2" on a
+ *  Bracelet-and-Ring set was always the bracelet. */
+export function legacyPartKeyFor(s: SizeScale | undefined): string | undefined {
+  return isMultiPartScale(s) ? (s as { legacyPartKey?: string }).legacyPartKey : undefined;
 }
 
 /** Compose a combined size string from a multi-part scale's values.
@@ -864,12 +903,18 @@ export function composeMultiSize(values: Record<string, string>): string {
 }
 
 /** Parse "Ring: 10 · Bangle: 2.4" → { Ring: "10", Bangle: "2.4" } */
-export function parseMultiSize(value: string | undefined): Record<string, string> {
+export function parseMultiSize(value: string | undefined, legacyKey?: string): Record<string, string> {
   const out: Record<string, string> = {};
   if (!value) return out;
   for (const chunk of value.split('·')) {
     const m = chunk.match(/^\s*([^:]+?)\s*:\s*(.+?)\s*$/);
     if (m) out[m[1]] = m[2];
+  }
+  // Sizes saved before a category gained a second part are stored bare
+  // ("2.2" rather than "Bracelet: 2.2") — keep them attached to their part
+  // instead of silently dropping them from the form.
+  if (Object.keys(out).length === 0 && legacyKey && value.trim()) {
+    out[legacyKey] = value.trim();
   }
   return out;
 }
@@ -879,6 +924,24 @@ export function parseMultiSize(value: string | undefined): Record<string, string
  * SIZE_SCALES so adding a new scale entry automatically enables the field.
  */
 export const SIZE_ELIGIBLE_CATEGORY_IDS: ReadonlySet<string> = new Set(Object.keys(SIZE_SCALES));
+
+/**
+ * Finishes applied to 925 sterling silver. Only offered when the metal is
+ * silver — plating is meaningless on a solid gold piece.
+ */
+export const PLATING_TYPES = [
+  'White Rhodium',
+  '21K Gold Plating',
+  '18K Gold Plating',
+  'Chandi White Plating',
+  'Other',
+] as const;
+export type PlatingType = typeof PLATING_TYPES[number];
+
+/** Plating only applies to silver. */
+export function metalSupportsPlating(metalType?: string): boolean {
+  return metalType === 'silver';
+}
 
 export function categoryNeedsSize(categoryId?: string): boolean {
   return !!categoryId && SIZE_ELIGIBLE_CATEGORY_IDS.has(categoryId);

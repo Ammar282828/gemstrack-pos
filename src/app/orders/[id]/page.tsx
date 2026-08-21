@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { mergeInstructions } from '@/lib/workshop';
+import { describePlating } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { METAL_TYPES as metalTypeValues, describeMetal } from '@/lib/materials';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
@@ -845,6 +846,8 @@ export default function OrderDetailPage() {
         detailLines.push(item.description);
         detailLines.push(metalLine);
         if (item.referenceSku) detailLines.push(`Ref SKU: ${item.referenceSku}`);
+        const plating = describePlating(item);
+        if (plating) detailLines.push(`Finish: ${plating}`);
         const instructions = mergeInstructions(item);
         if (instructions) instructions.split('\n').forEach(l => detailLines.push(`Instructions: ${l}`));
 

@@ -39,3 +39,18 @@ export function describeMetal(metalType: string | undefined | null, karat?: stri
   if (metalType !== 'gold' || !karat) return base;
   return `${base} (${karatLabel(karat)})`;
 }
+
+/**
+ * The finish on a 925 silver piece, e.g. "White Rhodium · Nickel free".
+ * Returns undefined for non-silver or when nothing was specified.
+ */
+export function describePlating(item: {
+  metalType?: string; platingType?: string; platingNote?: string; nickelFree?: boolean;
+}): string | undefined {
+  if (item.metalType !== 'silver') return undefined;
+  const parts: string[] = [];
+  if (item.platingType === 'Other' && item.platingNote?.trim()) parts.push(item.platingNote.trim());
+  else if (item.platingType) parts.push(item.platingType);
+  if (item.nickelFree) parts.push('Nickel free');
+  return parts.length ? parts.join(' · ') : undefined;
+}

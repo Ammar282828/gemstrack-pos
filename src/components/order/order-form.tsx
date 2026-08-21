@@ -7,8 +7,9 @@ import { useForm, useFieldArray, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { SampleImageInput } from '@/components/shared/sample-image-input';
+import { PLATING_TYPES } from '@/lib/store';
 import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel } from '@/lib/materials';
-import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize, legacyPartKeyFor, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,9 +50,19 @@ declare module 'jspdf' {
  * or it shows up as a meaningless "21K" everywhere the item is displayed.
  */
 function stripMeaninglessKarat<T extends { metalType?: string; karat?: unknown }>(item: T): T {
-  if (item.metalType === 'gold') return item;
-  const { karat, ...rest } = item as Record<string, unknown>;
-  return rest as T;
+  const o = item as Record<string, unknown>;
+  let next: Record<string, unknown> = o;
+  // Karat only means something for gold.
+  if (o.metalType !== 'gold') {
+    const { karat, ...rest } = next;
+    next = rest;
+  }
+  // Plating only applies to silver — don't persist it on a gold piece.
+  if (o.metalType !== 'silver') {
+    const { platingType, platingNote, nickelFree, ...rest } = next;
+    next = rest;
+  }
+  return next as T;
 }
 
 // Schema for a single custom order item
@@ -80,6 +91,9 @@ const orderItemSchema = z.object({
   // Optional size (e.g. "10 Indian / 5 US") for rings, bracelets and similar items
   size: z.string().optional(),
   // Internal-only note; never printed on estimates/invoices
+  platingType: z.string().optional(),
+  platingNote: z.string().optional(),
+  nickelFree: z.boolean().default(false),
   adminNote: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.isManualPrice) {
@@ -268,6 +282,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             stoneDetails: item.stoneDetails || '',
             diamondDetails: item.diamondDetails || '',
             karigarId: item.karigarId || '',
+            platingType: item.platingType || '', platingNote: item.platingNote || '',
+            nickelFree: !!item.nickelFree,
             adminNote: item.adminNote || '',
         })),
         goldRate18k: rates.goldRatePerGram18k || 0,
@@ -480,7 +496,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             karigarId: '',
             isManualPrice: false,
             manualPrice: 0,
-            adminNote: '',
+            platingType: '', platingNote: '', nickelFree: false,
+        adminNote: '',
         });
     };
 
@@ -507,6 +524,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         karigarId: '',
         isManualPrice: true,
         manualPrice: 0,
+        platingType: '', platingNote: '', nickelFree: false,
         adminNote: '',
     });
   };
@@ -562,6 +580,38 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                 </div>
                             </div>
 
+                            {form.watch(`items.${index}.metalType`) === 'silver' && (
+                              <div className="rounded-md border p-3 space-y-3">
+                                <p className="text-sm font-medium">925 Sterling Silver finish</p>
+                                <FormField control={form.control} name={`items.${index}.platingType`} render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-xs">Plating</FormLabel>
+                                    <Select value={field.value || '__none__'} onValueChange={v => field.onChange(v === '__none__' ? '' : v)}>
+                                      <FormControl><SelectTrigger><SelectValue placeholder="No plating" /></SelectTrigger></FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="__none__">No plating</SelectItem>
+                                        {PLATING_TYPES.map(pt => <SelectItem key={pt} value={pt}>{pt}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </FormItem>
+                                )}/>
+                                {form.watch(`items.${index}.platingType`) === 'Other' && (
+                                  <FormField control={form.control} name={`items.${index}.platingNote`} render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="text-xs">Describe the plating</FormLabel>
+                                      <FormControl><Input placeholder="e.g. Rose gold plating" {...field} /></FormControl>
+                                    </FormItem>
+                                  )}/>
+                                )}
+                                <FormField control={form.control} name={`items.${index}.nickelFree`} render={({ field }) => (
+                                  <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    <FormLabel className="font-normal text-sm cursor-pointer">Nickel free</FormLabel>
+                                  </FormItem>
+                                )}/>
+                              </div>
+                            )}
+
                             <FormField control={form.control} name={`items.${index}.adminNote`} render={({ field }) => (
                                <FormItem className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20 p-3">
                                   <FormLabel className="flex items-center text-amber-800 dark:text-amber-200"><Lock className="mr-2 h-4 w-4"/>Admin-Only Note</FormLabel>
@@ -580,7 +630,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                         const current = field.value || '';
 
                                         if (isMultiPartScale(scale)) {
-                                            const parsed = parseMultiSize(current);
+                                            const parsed = parseMultiSize(current, legacyPartKeyFor(scale));
                                             const setPart = (key: string, val: string) => {
                                                 const next = { ...parsed, [key]: val };
                                                 field.onChange(composeMultiSize(next));

@@ -24,6 +24,7 @@ import { doc, getDoc, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { metalLabel, describeMetal } from '@/lib/materials';
 import { mergeInstructions } from '@/lib/workshop';
+import { describePlating } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import jsPDF from 'jspdf';
@@ -310,6 +311,8 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
     detailLines.push(item.description);
     detailLines.push(metalLine);
     if (item.referenceSku) detailLines.push(`Ref SKU: ${item.referenceSku}`);
+    const plating = describePlating(item);
+    if (plating) detailLines.push(`Finish: ${plating}`);
     const instructions = mergeInstructions(item);
     if (instructions) instructions.split('\n').forEach(l => detailLines.push(`Instructions: ${l}`));
     return [i + 1, detailLines.join('\n'), `PKR ${(item.totalEstimate || 0).toLocaleString()}`];

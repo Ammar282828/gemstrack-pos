@@ -76,6 +76,7 @@ const JobRow: React.FC<{
   const meta = [
     job.category,
     job.size ? `Size ${job.size}` : null,
+    job.plating,
     job.weightG ? `${job.weightG}g` : null,
     job.karat ? String(job.karat).toUpperCase() : null,
     job.referenceSku ? `Ref ${job.referenceSku}` : null,

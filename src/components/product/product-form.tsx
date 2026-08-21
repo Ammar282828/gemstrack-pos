@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel } from '@/lib/materials';
-import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize } from '@/lib/store';
+import { PLATING_TYPES } from '@/lib/store';
+import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize, legacyPartKeyFor } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem, Info, Upload, Loader2, CaseSensitive } from 'lucide-react';
@@ -57,6 +58,9 @@ const productFormSchema = z.object({
   description: z.string().optional(),
   // Optional size for rings / bracelets / similar (e.g. "10 Indian / 5 US")
   size: z.string().optional(),
+  platingType: z.string().optional(),
+  platingNote: z.string().optional(),
+  nickelFree: z.boolean().default(false),
 }).superRefine((data, ctx) => {
   if (data.isCustomPrice) {
     if (!data.description || data.description.length < 3) {
@@ -102,6 +106,9 @@ const getSafeDefaultValues = (p?: Product): ProductFormData => {
     return {
       name: p?.name || '',
       categoryId: p?.categoryId || '',
+      platingType: p?.platingType || '',
+      platingNote: p?.platingNote || '',
+      nickelFree: !!p?.nickelFree,
       metalType: p?.metalType || 'silver',
       karat: p?.karat || undefined,
       metalWeightG: p?.metalWeightG || 0,
@@ -332,6 +339,38 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           </FormItem>
                         )}
                       />
+                      {selectedMetalType === 'silver' && (
+                        <div className="rounded-md border p-3 space-y-3 md:col-span-2">
+                          <p className="text-sm font-medium">925 Sterling Silver finish</p>
+                          <FormField control={form.control} name="platingType" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Plating</FormLabel>
+                              <Select value={field.value || '__none__'} onValueChange={v => field.onChange(v === '__none__' ? '' : v)}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="No plating" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                  <SelectItem value="__none__">No plating</SelectItem>
+                                  {PLATING_TYPES.map(pt => <SelectItem key={pt} value={pt}>{pt}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}/>
+                          {watch('platingType') === 'Other' && (
+                            <FormField control={form.control} name="platingNote" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs">Describe the plating</FormLabel>
+                                <FormControl><Input placeholder="e.g. Rose gold plating" {...field} /></FormControl>
+                              </FormItem>
+                            )}/>
+                          )}
+                          <FormField control={form.control} name="nickelFree" render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                              <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                              <FormLabel className="font-normal text-sm cursor-pointer">Nickel free</FormLabel>
+                            </FormItem>
+                          )}/>
+                        </div>
+                      )}
+
                       {categoryNeedsSize(selectedCategoryId) && (() => {
                         const scale = sizeScaleFor(selectedCategoryId);
                         return (
@@ -342,7 +381,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
                               // Multi-part scale (e.g. cat011: Ring + Bangle)
                               if (isMultiPartScale(scale)) {
-                                const parsed = parseMultiSize(current);
+                                const parsed = parseMultiSize(current, legacyPartKeyFor(scale));
                                 const setPart = (key: string, val: string) => {
                                   const next = { ...parsed, [key]: val };
                                   field.onChange(composeMultiSize(next));

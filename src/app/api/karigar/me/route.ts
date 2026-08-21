@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { resolveKarigar, verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
 import { categoryTitle, displayKarat } from '@/lib/categories';
 import { mergeInstructions } from '@/lib/workshop';
+import { describePlating } from '@/lib/materials';
 
 /**
  * Returns the signed-in karigar's own work list and account balance.
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
       id: string; source: 'order' | 'manual';
       description: string; category?: string; metalType?: string; karat?: string;
       weightG?: number; quantity?: number;
-      size?: string; referenceSku?: string; sampleGiven?: boolean; sampleImage?: string;
+      size?: string; referenceSku?: string; sampleGiven?: boolean; sampleImage?: string; plating?: string;
       orderId?: string;
       status: 'pending' | 'in-progress' | 'completed';
       assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
@@ -102,6 +103,7 @@ export async function GET(req: NextRequest) {
           referenceSku: item.referenceSku || undefined,
           sampleGiven: !!item.sampleGiven,
           sampleImage: item.sampleImageDataUri || undefined,
+          plating: describePlating(item),
           status: done ? 'completed' : (o.status === 'In Progress' ? 'in-progress' : 'pending'),
           assignedDate: o.createdAt,
           ageDays: age,

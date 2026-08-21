@@ -14,6 +14,7 @@
 
 import type { Order, KarigarJob, KarigarJobStatus, Karigar } from './store';
 import { categoryTitle as resolveCategoryTitle, displayKarat } from './categories';
+import { describePlating } from './materials';
 
 export const WARN_DAYS = 7;
 export const CRITICAL_DAYS = 14;
@@ -47,6 +48,7 @@ export interface WorkshopJob {
   referenceSku?: string;
   sampleGiven?: boolean;
   sampleImage?: string;
+  plating?: string;
   value?: number;             // order item estimate, or agreed cost on a manual job
   notes?: string;             // merged instructions — see mergeInstructions
 }
@@ -129,6 +131,7 @@ export function buildWorkshopJobs(
         referenceSku: item.referenceSku || undefined,
         sampleGiven: !!item.sampleGiven,
         sampleImage: item.sampleImageDataUri || undefined,
+        plating: describePlating(item),
         value: item.totalEstimate ?? 0,
         notes: mergeInstructions(item),
       });

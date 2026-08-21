@@ -26,7 +26,7 @@ interface Job {
   id: string; source: 'order' | 'manual';
   description: string; category?: string; metalType?: string; karat?: string;
   weightG?: number; quantity?: number;
-  size?: string; referenceSku?: string; sampleGiven?: boolean; sampleImage?: string;
+  size?: string; referenceSku?: string; sampleGiven?: boolean; sampleImage?: string; plating?: string;
   orderId?: string;
   status: 'pending' | 'in-progress' | 'completed';
   assignedDate: string; ageDays: number; urgency: 'ok' | 'warning' | 'critical';
@@ -156,6 +156,7 @@ export default function MyWorkPage() {
     const specs: { label: string; value: string; accent?: boolean }[] = [];
     if (job.size) specs.push({ label: 'Size', value: job.size, accent: true });
     if (job.weightG) specs.push({ label: 'Weight', value: `${job.weightG}g` });
+    if (job.plating) specs.push({ label: 'Finish', value: job.plating, accent: true });
     if (job.category) specs.push({ label: 'Type', value: job.category });
     if (job.karat) specs.push({ label: 'Karat', value: String(job.karat).toUpperCase() });
     if (job.referenceSku) specs.push({ label: 'Ref', value: job.referenceSku });
