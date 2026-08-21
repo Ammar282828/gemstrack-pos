@@ -65,14 +65,18 @@ function useKarigarsByRecency(bump: number): Karigar[] {
 }
 
 export const KarigarAssign: React.FC<{
-  orderId: string;
+  /** Bench work hangs off either an order or an invoice (a sold piece coming
+   *  back for resizing, or a Shopify sale, which lands as an invoice). */
+  orderId?: string;
+  invoiceId?: string;
   itemIndex: number;
   currentKarigarId?: string;
   /** `compact` suits dense rows (workshop list); `default` suits the order page. */
   size?: 'compact' | 'default';
   className?: string;
-}> = ({ orderId, itemIndex, currentKarigarId, size = 'default', className }) => {
+}> = ({ orderId, invoiceId, itemIndex, currentKarigarId, size = 'default', className }) => {
   const updateOrderItemKarigar = useAppStore(s => s.updateOrderItemKarigar);
+  const updateInvoiceItemKarigar = useAppStore(s => s.updateInvoiceItemKarigar);
   const [saving, setSaving] = useState(false);
   const [bump, setBump] = useState(0);
   const karigars = useKarigarsByRecency(bump);
@@ -83,20 +87,22 @@ export const KarigarAssign: React.FC<{
   const onChange = useCallback(async (value: string) => {
     setSaving(true);
     try {
-      await updateOrderItemKarigar(orderId, itemIndex, value);
+      if (invoiceId) await updateInvoiceItemKarigar(invoiceId, itemIndex, value);
+      else if (orderId) await updateOrderItemKarigar(orderId, itemIndex, value);
+      else return;
       rememberRecent(value);
       setBump(b => b + 1);
       const name = value === UNASSIGNED_VALUE ? null : karigars.find(k => k.id === value)?.name;
       toast({
         title: name ? `Assigned to ${name}` : 'Karigar cleared',
-        description: `${orderId} · item ${itemIndex + 1}`,
+        description: `${invoiceId || orderId} · item ${itemIndex + 1}`,
       });
     } catch {
       toast({ title: 'Error', description: 'Could not assign karigar.', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
-  }, [updateOrderItemKarigar, orderId, itemIndex, karigars, toast]);
+  }, [updateOrderItemKarigar, updateInvoiceItemKarigar, orderId, invoiceId, itemIndex, karigars, toast]);
 
   const compact = size === 'compact';
 

@@ -86,6 +86,9 @@ const JobRow: React.FC<{
     <div className={cn(
       'flex items-start gap-3 py-3 border-b border-border/40 last:border-0',
       job.status === 'completed' && 'opacity-60',
+      // Online sales are highlighted so they stand out from bench work
+      // that came in through an order.
+      job.isOnline && 'bg-green-500/[0.06] -mx-3 px-3 rounded-md',
     )}>
       <Checkbox
         className="mt-1 flex-shrink-0"
@@ -105,7 +108,9 @@ const JobRow: React.FC<{
         <div className="text-xs text-muted-foreground mt-1 flex items-center gap-x-2 gap-y-0.5 flex-wrap">
           {job.source === 'manual'
             ? <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
-            : <Badge variant="outline" className="text-[10px]">Order</Badge>}
+            : job.isOnline
+              ? <Badge variant="secondary" className="text-[10px] bg-green-500/15 text-green-700 dark:text-green-300">Online</Badge>
+              : <Badge variant="outline" className="text-[10px]">Order</Badge>}
           {showKarigar && (
             <Badge variant="outline" className={cn('text-[10px]', job.karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
               {job.karigarName}
@@ -126,16 +131,17 @@ const JobRow: React.FC<{
         </div>
 
         {/* Controls sit under the content and wrap — keeps narrow cards readable */}
-        {(job.source === 'manual' || (job.source === 'order' && job.status !== 'completed')) && (
+        {(job.source === 'manual' || job.status !== 'completed') && (
           <div className="flex items-center gap-1.5 flex-wrap mt-2">
             {onEdit && (
               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onEdit(job)}>
                 <Pencil className="h-3 w-3 mr-1.5" />Details
               </Button>
             )}
-            {job.source === 'order' && job.orderId && job.itemIndex !== undefined && job.status !== 'completed' && (
+            {job.source !== 'manual' && job.itemIndex !== undefined && job.status !== 'completed' && (
               <KarigarAssign
                 orderId={job.orderId}
+                invoiceId={job.invoiceId}
                 itemIndex={job.itemIndex}
                 currentKarigarId={job.karigarId === UNASSIGNED_ID ? undefined : job.karigarId}
                 size="compact"
@@ -334,16 +340,26 @@ const OrderGroupedJobs: React.FC<{
 }> = ({ jobs, onToggleDone, onSetStatus, onDelete, onEdit, showKarigar }) => (
   <>
     {groupJobsByOrder(jobs).map(g => (
-      <div key={g.key} className="rounded-lg border bg-muted/20 px-3 py-2.5 mb-3 last:mb-0">
+      <div key={g.key} className={cn(
+        'rounded-lg border px-3 py-2.5 mb-3 last:mb-0',
+        g.jobs[0]?.isOnline ? 'bg-green-500/[0.07] border-green-500/30' : 'bg-muted/20',
+      )}>
         <div className="flex items-center gap-2 flex-wrap mb-1.5">
           {g.isStock
             ? <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock piece</Badge>
-            : (
-              <Link href={`/orders/${g.orderId}`} className="inline-flex items-center gap-1 hover:underline">
-                <span className="font-mono font-bold text-sm">{g.orderId}</span>
-                <ExternalLink className="h-3 w-3 text-primary" />
-              </Link>
-            )}
+            : g.invoiceId
+              ? (
+                <Link href={`/view-invoice/${g.invoiceId}`} className="inline-flex items-center gap-1 hover:underline">
+                  <span className="font-mono font-bold text-sm text-green-700 dark:text-green-400">{g.invoiceId}</span>
+                  <ExternalLink className="h-3 w-3 text-green-600" />
+                </Link>
+              )
+              : (
+                <Link href={`/orders/${g.orderId}`} className="inline-flex items-center gap-1 hover:underline">
+                  <span className="font-mono font-bold text-sm">{g.orderId}</span>
+                  <ExternalLink className="h-3 w-3 text-primary" />
+                </Link>
+              )}
           {g.jobs[0]?.customerName && <span className="text-xs text-muted-foreground truncate">{g.jobs[0].customerName}</span>}
           {g.jobs.length > 1 && <Badge variant="outline" className="text-[10px]">{g.jobs.length} pieces</Badge>}
           {showKarigar && g.jobs[0] && (
@@ -738,6 +754,7 @@ const JobCardMobile: React.FC<{
     <Card className={cn(
       'mb-2',
       job.status === 'completed' && 'opacity-60',
+      job.isOnline && 'bg-green-500/[0.06] border-green-500/30',
       job.status !== 'completed' && job.urgency === 'critical' && 'border-destructive/40',
       job.status !== 'completed' && job.urgency === 'warning' && 'border-yellow-500/40',
     )}>
@@ -755,9 +772,11 @@ const JobCardMobile: React.FC<{
             {spec && <p className="text-xs text-muted-foreground mt-1">{spec}</p>}
 
             <div className="flex items-center gap-2 flex-wrap mt-1.5 text-xs text-muted-foreground">
-              {job.orderId
-                ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
-                : <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
+              {job.invoiceId
+                ? <Link href={`/view-invoice/${job.invoiceId}`} className="font-mono text-green-700 dark:text-green-400 hover:underline">{job.invoiceId}</Link>
+                : job.orderId
+                  ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
+                  : <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
               {job.customerName && <span className="truncate">{job.customerName}</span>}
               <span>· {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
             </div>
@@ -769,8 +788,8 @@ const JobCardMobile: React.FC<{
             )}
 
             <div className="flex items-center gap-2 flex-wrap mt-2.5">
-              {job.source === 'order' && job.orderId && job.itemIndex !== undefined && job.status !== 'completed' && (
-                <KarigarAssign orderId={job.orderId} itemIndex={job.itemIndex}
+              {job.source !== 'manual' && job.itemIndex !== undefined && job.status !== 'completed' && (
+                <KarigarAssign orderId={job.orderId} invoiceId={job.invoiceId} itemIndex={job.itemIndex}
                   currentKarigarId={job.karigarId === UNASSIGNED_ID ? undefined : job.karigarId} size="compact" />
               )}
               <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onEdit(job)}>
@@ -791,7 +810,8 @@ export default function WorkshopPage() {
   const orders = useAppStore(s => s.orders);
   const karigars = useAppStore(s => s.karigars);
   const karigarJobs = useAppStore(s => s.karigarJobs);
-  const { loadOrders, loadKarigars, loadKarigarJobs, updateOrderItemStatus, setKarigarJobStatus, deleteKarigarJob } = useAppStore();
+  const invoices = useAppStore(s => s.generatedInvoices);
+  const { loadOrders, loadKarigars, loadKarigarJobs, loadGeneratedInvoices, updateOrderItemStatus, updateInvoiceItemStatus, setKarigarJobStatus, deleteKarigarJob } = useAppStore();
   const { toast } = useToast();
 
   const [addOpen, setAddOpen] = useState(false);
@@ -804,12 +824,12 @@ export default function WorkshopPage() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'order' | 'stock'>('all');
 
   useEffect(() => {
-    loadOrders(); loadKarigars(); loadKarigarJobs();
-  }, [loadOrders, loadKarigars, loadKarigarJobs]);
+    loadOrders(); loadKarigars(); loadKarigarJobs(); loadGeneratedInvoices();
+  }, [loadOrders, loadKarigars, loadKarigarJobs, loadGeneratedInvoices]);
 
   const allJobs = useMemo(
-    () => buildWorkshopJobs(orders, karigarJobs, karigars),
-    [orders, karigarJobs, karigars],
+    () => buildWorkshopJobs(orders, karigarJobs, karigars, { invoices }),
+    [orders, karigarJobs, karigars, invoices],
   );
 
   const filtered = useMemo(() => {
@@ -849,6 +869,8 @@ export default function WorkshopPage() {
   const handleToggleDone = async (job: WorkshopJob) => {
     if (job.source === 'order' && job.orderId && job.itemIndex !== undefined) {
       await updateOrderItemStatus(job.orderId, job.itemIndex, job.status !== 'completed');
+    } else if (job.source === 'invoice' && job.invoiceId && job.itemIndex !== undefined) {
+      await updateInvoiceItemStatus(job.invoiceId, job.itemIndex, job.status !== 'completed');
     } else if (job.source === 'manual') {
       await setKarigarJobStatus(job.id.replace(/^job:/, ''), job.status === 'completed' ? 'pending' : 'completed');
     }
@@ -1164,7 +1186,10 @@ export default function WorkshopPage() {
                       j.category,
                     ].filter(Boolean).join(' · ');
                     return (
-                      <TableRow key={j.id} className={cn(j.status === 'completed' && 'opacity-60')}>
+                      <TableRow key={j.id} className={cn(
+                        j.status === 'completed' && 'opacity-60',
+                        j.isOnline && 'bg-green-500/[0.06] hover:bg-green-500/[0.1]',
+                      )}>
                         <TableCell className="align-middle">
                           <Checkbox checked={j.status === 'completed'}
                             onCheckedChange={() => handleToggleDone(j)} aria-label="Mark done" />
@@ -1186,6 +1211,9 @@ export default function WorkshopPage() {
                           {j.source === 'manual' && (
                             <Badge variant="secondary" className="mt-1 text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
                           )}
+                          {j.isOnline && (
+                            <Badge variant="secondary" className="mt-1 text-[10px] bg-green-500/15 text-green-700 dark:text-green-300">Online</Badge>
+                          )}
                         </TableCell>
 
                         <TableCell className="hidden lg:table-cell align-middle">
@@ -1196,15 +1224,17 @@ export default function WorkshopPage() {
                         </TableCell>
 
                         <TableCell className="hidden md:table-cell align-middle">
-                          {j.orderId
-                            ? <Link href={`/orders/${j.orderId}`} className="font-mono text-sm text-primary hover:underline">{j.orderId}</Link>
-                            : <span className="text-sm text-muted-foreground">—</span>}
+                          {j.invoiceId
+                            ? <Link href={`/view-invoice/${j.invoiceId}`} className="font-mono text-sm text-green-700 dark:text-green-400 hover:underline">{j.invoiceId}</Link>
+                            : j.orderId
+                              ? <Link href={`/orders/${j.orderId}`} className="font-mono text-sm text-primary hover:underline">{j.orderId}</Link>
+                              : <span className="text-sm text-muted-foreground">—</span>}
                           {j.customerName && <div className="text-xs text-muted-foreground truncate max-w-[11rem]">{j.customerName}</div>}
                         </TableCell>
 
                         <TableCell className="align-middle">
-                          {j.source === 'order' && j.orderId && j.itemIndex !== undefined && j.status !== 'completed' ? (
-                            <KarigarAssign orderId={j.orderId} itemIndex={j.itemIndex}
+                          {j.source !== 'manual' && j.itemIndex !== undefined && j.status !== 'completed' ? (
+                            <KarigarAssign orderId={j.orderId} invoiceId={j.invoiceId} itemIndex={j.itemIndex}
                               currentKarigarId={j.karigarId === UNASSIGNED_ID ? undefined : j.karigarId} size="compact" />
                           ) : j.karigarId === UNASSIGNED_ID
                             ? <Badge variant="outline" className="text-destructive border-destructive/40 text-xs">Unassigned</Badge>

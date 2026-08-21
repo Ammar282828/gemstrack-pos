@@ -485,6 +485,11 @@ export interface InvoiceItem {
   platingNote?: string;
   nickelFree?: boolean;
   adminNote?: string; // Internal-only note; never printed on estimates/invoices
+  // Workshop fields — a sold piece can still need bench work (resizing,
+  // replating, a repair), and Shopify orders arrive here as invoices rather
+  // than orders, so they need somewhere to be assigned from.
+  karigarId?: string;
+  isCompleted?: boolean;
 }
 
 export interface Payment {
@@ -513,6 +518,9 @@ export interface Invoice {
   paymentHistory: Payment[];
   sourceOrderId?: string; // Set when invoice is created from an order
   source?: string; // 'shopify_import' | 'shopify' for imported/synced orders
+  notes?: string;  // import provenance / fulfilment status for Shopify orders
+  shopifyFulfillment?: string;      // 'fulfilled' | 'unfulfilled' | ''
+  shopifyFinancialStatus?: string;  // 'paid' | 'pending' | 'voided' | …
   shopifyOrderName?: string;
   shopifyOrderId?: string;
   shopifyOrderNumber?: number;
@@ -1166,6 +1174,8 @@ export interface AppState {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
   updateOrderItemKarigar: (orderId: string, itemIndex: number, karigarId: string) => Promise<void>;
+  updateInvoiceItemKarigar: (invoiceId: string, itemIndex: number, karigarId: string) => Promise<void>;
+  updateInvoiceItemStatus: (invoiceId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
   updateOrderItemDetails: (orderId: string, itemIndex: number, patch: {
     description?: string; size?: string; stoneDetails?: string; diamondDetails?: string;
     adminNote?: string; referenceSku?: string; estimatedWeightG?: number; sampleImageDataUri?: string;
@@ -3054,6 +3064,45 @@ export const useAppStore = create<AppState>()(
           syncOrderShopify(orderId, 'upsert');
         } catch (error) {
           console.error(`Error updating item details for ${orderId}:`, error);
+          throw error;
+        }
+      },
+
+      /** Assign a karigar to a sold item — resizing, replating, repairs, and
+       *  Shopify orders (which land as invoices, not orders). */
+      updateInvoiceItemKarigar: async (invoiceId, itemIndex, karigarId) => {
+        if (get().settings.databaseLocked) return;
+        const inv = get().generatedInvoices.find(i => i.id === invoiceId);
+        if (!inv) throw new Error('Invoice not found');
+        const items = (Array.isArray(inv.items) ? inv.items : Object.values(inv.items || {})) as InvoiceItem[];
+        const clearing = !karigarId || karigarId === 'none';
+        const updated = items.map((item, i) => {
+          if (i !== itemIndex) return item;
+          const next = { ...item };
+          if (clearing) delete next.karigarId; else next.karigarId = karigarId;
+          return next;
+        });
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), { items: updated }, { merge: true });
+          const name = clearing ? 'Unassigned' : (get().karigars.find(k => k.id === karigarId)?.name || karigarId);
+          await addActivityLog('invoice.update', `Karigar assigned on ${invoiceId}`,
+            `${items[itemIndex]?.name || `Item ${itemIndex + 1}`} → ${name}`, invoiceId);
+        } catch (error) {
+          console.error(`Error assigning karigar on invoice ${invoiceId}:`, error);
+          throw error;
+        }
+      },
+
+      updateInvoiceItemStatus: async (invoiceId, itemIndex, isCompleted) => {
+        if (get().settings.databaseLocked) return;
+        const inv = get().generatedInvoices.find(i => i.id === invoiceId);
+        if (!inv) throw new Error('Invoice not found');
+        const items = (Array.isArray(inv.items) ? inv.items : Object.values(inv.items || {})) as InvoiceItem[];
+        const updated = items.map((item, i) => (i === itemIndex ? { ...item, isCompleted } : item));
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), { items: updated }, { merge: true });
+        } catch (error) {
+          console.error(`Error updating invoice item status on ${invoiceId}:`, error);
           throw error;
         }
       },

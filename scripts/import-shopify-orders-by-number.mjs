@@ -146,6 +146,8 @@ for (const order of orders.sort((a, b) => a.order_number - b.order_number)) {
     ratesApplied: { goldRatePerGram24k: 0, goldRatePerGram22k: 0, goldRatePerGram21k: 0, goldRatePerGram18k: 0 },
     paymentHistory: amountPaid > 0 ? [{ amount: amountPaid, date: order.created_at, notes: `Shopify ${order.financial_status}` }] : [],
     source: 'shopify',
+    shopifyFulfillment: order.fulfillment_status || 'unfulfilled',
+    shopifyFinancialStatus: order.financial_status || '',
     notes: `Imported from Shopify Order #${order.order_number}. Status: ${order.financial_status}/${order.fulfillment_status || 'unfulfilled'}`,
   };
   let customerDoc = null, customerId = null;

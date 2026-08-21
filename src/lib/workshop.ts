@@ -12,14 +12,14 @@
  * 7-day / 14-day thresholds the overdue WhatsApp alerts already use.
  */
 
-import type { Order, KarigarJob, KarigarJobStatus, Karigar } from './store';
+import type { Order, KarigarJob, KarigarJobStatus, Karigar, Invoice, InvoiceItem } from './store';
 import { categoryTitle as resolveCategoryTitle, displayKarat } from './categories';
 import { describePlating } from './materials';
 
 export const WARN_DAYS = 7;
 export const CRITICAL_DAYS = 14;
 
-export type WorkshopJobSource = 'order' | 'manual';
+export type WorkshopJobSource = 'order' | 'manual' | 'invoice';
 export type WorkshopUrgency = 'ok' | 'warning' | 'critical';
 
 export const UNASSIGNED_ID = '__unassigned__';
@@ -37,6 +37,10 @@ export interface WorkshopJob {
   urgency: WorkshopUrgency;
   // context
   orderId?: string;
+  invoiceId?: string;
+  /** Sold online — surfaced in the Workshop so it can be assigned, and
+   *  highlighted so it is distinguishable from bench work off an order. */
+  isOnline?: boolean;
   itemIndex?: number;
   customerName?: string;
   category?: string;
@@ -80,7 +84,7 @@ export function buildWorkshopJobs(
   orders: Order[],
   karigarJobs: KarigarJob[],
   karigars: Karigar[],
-  opts: { includeInvoicedOrders?: boolean; includePendingOrders?: boolean } = {},
+  opts: { includeInvoicedOrders?: boolean; includePendingOrders?: boolean; invoices?: Invoice[] } = {},
 ): WorkshopJob[] {
   const nameById = new Map(karigars.map(k => [k.id, k.name]));
   const out: WorkshopJob[] = [];
@@ -161,6 +165,54 @@ export function buildWorkshopJobs(
       size: job.size || undefined,
       value: job.agreedCost ?? 0,
       notes: mergeInstructions(job),
+    });
+  }
+
+  // ── Sold pieces that still need bench work ──
+  // Shopify orders arrive as invoices rather than orders, so they would never
+  // reach the Workshop otherwise. Also included: any invoice line someone has
+  // deliberately assigned to a karigar — a resize, a replate, a repair.
+  for (const inv of opts.invoices || []) {
+    if (!inv || inv.status === 'Refunded') continue;
+    // An online sale only needs bench work while it is still unfulfilled.
+    // Shipped orders — and the older bulk imports that carry no fulfilment
+    // status at all — would otherwise bury the board: 203 items instead of 12.
+    const isOnline = String(inv.source || '').startsWith('shopify')
+      && /unfulfilled/i.test(String(inv.notes || ''));
+    const items = (Array.isArray(inv.items) ? inv.items : Object.values(inv.items || {})) as InvoiceItem[];
+    items.forEach((item, idx) => {
+      if (!item) return;
+      const assigned = item.karigarId && item.karigarId !== 'none' ? item.karigarId : '';
+      // Only online sales come in automatically; everything else appears once
+      // it has actually been handed to someone.
+      if (!isOnline && !assigned) return;
+      if (item.isCompleted) return;
+
+      const ageDays = daysSince(inv.createdAt);
+      out.push({
+        id: `invoice:${inv.id}:${idx}`,
+        source: 'invoice',
+        karigarId: assigned || UNASSIGNED_ID,
+        karigarName: assigned ? (nameById.get(assigned) || 'Unknown karigar') : 'Unassigned',
+        description: item.name || 'Item',
+        status: 'pending',
+        assignedDate: inv.createdAt,
+        ageDays,
+        urgency: urgencyOf('pending', ageDays),
+        invoiceId: inv.id,
+        isOnline,
+        itemIndex: idx,
+        customerName: inv.customerName || 'Walk-in',
+        category: categoryTitle(item.itemCategory),
+        metalType: item.metalType,
+        karat: displayKarat(item.metalType, item.karat),
+        plating: describePlating(item),
+        weightG: item.metalWeightG,
+        quantity: item.quantity ?? 1,
+        size: item.size || undefined,
+        value: item.itemTotal ?? 0,
+        notes: mergeInstructions(item),
+      });
     });
   }
 
@@ -268,7 +320,8 @@ export function formatJobListForShare(load: KarigarWorkload, shopName = 'MINA'):
 export interface OrderGroupable {
   id: string;
   orderId?: string;
-  source: 'order' | 'manual';
+  invoiceId?: string;
+  source: 'order' | 'manual' | 'invoice';
   ageDays: number;
   assignedDate: string;
 }
@@ -276,6 +329,7 @@ export interface OrderGroupable {
 export interface JobOrderGroup<T extends OrderGroupable> {
   key: string;
   orderId?: string;
+  invoiceId?: string;
   isStock: boolean;
   jobs: T[];
   ageDays: number;
@@ -285,8 +339,10 @@ export interface JobOrderGroup<T extends OrderGroupable> {
 export function groupJobsByOrder<T extends OrderGroupable>(jobs: T[]): JobOrderGroup<T>[] {
   const groups = new Map<string, JobOrderGroup<T>>();
   for (const j of jobs) {
-    // Stock pieces get their own group keyed by job id — they share no order.
-    const key = j.source === 'order' && j.orderId ? `order:${j.orderId}` : `job:${j.id}`;
+    // Sold pieces group under their invoice; stock pieces stand alone.
+    const key = j.source === 'order' && j.orderId ? `order:${j.orderId}`
+      : j.source === 'invoice' && j.invoiceId ? `invoice:${j.invoiceId}`
+      : `job:${j.id}`;
     const existing = groups.get(key);
     if (existing) {
       existing.jobs.push(j);
@@ -295,7 +351,8 @@ export function groupJobsByOrder<T extends OrderGroupable>(jobs: T[]): JobOrderG
       groups.set(key, {
         key,
         orderId: j.source === 'order' ? j.orderId : undefined,
-        isStock: j.source !== 'order',
+        invoiceId: j.source === 'invoice' ? j.invoiceId : undefined,
+        isStock: j.source === 'manual',
         jobs: [j],
         ageDays: j.ageDays,
         assignedDate: j.assignedDate,
