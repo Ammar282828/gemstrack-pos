@@ -16,7 +16,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -73,6 +73,7 @@ export default function CartPage() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const preloadedInvoiceId = searchParams.get('invoice_id');
+  const paymentLockRef = React.useRef(false);
 
   const appReady = useAppReady();
   const { cartItemsFromStore, customers, settings, allInvoices, products, removeFromCart, clearCart, generateInvoice: generateInvoiceAction, addHisaabEntry, updateInvoicePayment, refundInvoicePartial, updateInvoiceDiscount, loadCartFromInvoice, deleteInvoice, updateCartItem, updateSettings, addToCart, addProductToCart, loadCustomers, loadGeneratedInvoices, loadProducts } = useAppStore(state => ({
@@ -479,9 +480,9 @@ export default function CartPage() {
     setGeneratedInvoice(null);
   };
   
-    const handleRecordPayment = async () => {
-    if (!generatedInvoice || !paymentAmount) return;
-    const amount = parseFloat(paymentAmount);
+    const handleRecordPayment = async (overrideAmount?: number) => {
+    if (!generatedInvoice) return;
+    const amount = overrideAmount ?? parseFloat(paymentAmount);
     if (isNaN(amount) || amount <= 0) {
       toast({ title: "Invalid Amount", description: "Please enter a positive payment amount.", variant: "destructive" });
       return;
@@ -490,6 +491,13 @@ export default function CartPage() {
       toast({ title: "Overpayment", description: `Payment cannot exceed the balance due of PKR ${generatedInvoice.balanceDue.toLocaleString()}.`, variant: "destructive" });
       return;
     }
+
+    // A ref, not the isSubmitting state: React batches state updates, so a fast
+    // double-click can fire this twice before the disabled prop re-renders.
+    // That is exactly how INV-000257 ended up with two identical payments 1.3
+    // seconds apart.
+    if (paymentLockRef.current) return;
+    paymentLockRef.current = true;
 
     setIsSubmittingPayment(true);
     try {
@@ -504,6 +512,7 @@ export default function CartPage() {
     } catch (error) {
       toast({ title: "Error", description: "Failed to record payment.", variant: "destructive" });
     } finally {
+      paymentLockRef.current = false;
       setIsSubmittingPayment(false);
     }
   };
@@ -1082,11 +1091,25 @@ export default function CartPage() {
                         <Button 
                             className="w-full"
                             disabled={!paymentAmount || isSubmittingPayment || generatedInvoice.balanceDue <= 0}
-                            onClick={handleRecordPayment}
+                            onClick={() => handleRecordPayment()}
                         >
                             {isSubmittingPayment ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Banknote className="mr-2 h-4 w-4"/>}
                             Submit Payment
                         </Button>
+
+                        {generatedInvoice.balanceDue > 0 && (
+                          <Button
+                            variant="secondary"
+                            className="w-full"
+                            disabled={isSubmittingPayment}
+                            onClick={() => handleRecordPayment(generatedInvoice.balanceDue)}
+                          >
+                            {isSubmittingPayment
+                              ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                              : <CheckCircle className="mr-2 h-4 w-4"/>}
+                            Mark Paid — PKR {generatedInvoice.balanceDue.toLocaleString()}
+                          </Button>
+                        )}
                     </div>
                 </div>
                  {generatedInvoice.paymentHistory && generatedInvoice.paymentHistory.length > 0 && (
