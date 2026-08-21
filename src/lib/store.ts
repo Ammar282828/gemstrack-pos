@@ -2845,8 +2845,22 @@ export const useAppStore = create<AppState>()(
         console.log(`[GemsTrack Store updateOrderStatus] Updating order ${orderId} to status: ${status}`);
         try {
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
-          await setDoc(orderDocRef, { status }, { merge: true });
+
+          // Completing an order completes every piece in it — nobody ticks the
+          // per-item boxes one by one, and leaving them unticked makes finished
+          // work linger as "pending" on the Workshop dashboard forever.
+          const existing = get().orders.find(o => o.id === orderId);
+          const items = Array.isArray(existing?.items) ? existing!.items : [];
+          const needsTicking = status === 'Completed' && items.some(i => !i.isCompleted);
+          const payload: Record<string, unknown> = { status };
+          if (needsTicking) payload.items = items.map(i => ({ ...i, isCompleted: true }));
+
+          await setDoc(orderDocRef, payload, { merge: true });
           await addActivityLog('order.update', `Order ${orderId} status changed`, `New status: ${status}`, orderId);
+          if (needsTicking) {
+            await addActivityLog('order.update', `All items marked complete on ${orderId}`,
+              `${items.filter(i => !i.isCompleted).length} item(s) auto-completed`, orderId);
+          }
           // Cancelled / Refunded → drop the Shopify draft. Other statuses just update.
           if (status === 'Cancelled' || status === 'Refunded') {
             syncOrderShopify(orderId, 'cancel');
