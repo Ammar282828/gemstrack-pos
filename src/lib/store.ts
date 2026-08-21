@@ -977,6 +977,11 @@ export interface PrintHistoryEntry {
   timestamp: string; // ISO string
 }
 
+// NOTE: activity logging must stay OUTSIDE runTransaction. addActivityLog is a
+// plain addDoc, not a transactional write, and Firestore re-runs a transaction
+// callback on contention — so logging inside it writes one log per attempt
+// while the document is written once. That is how INV-000319 ended up with six
+// "Created invoice" lines against a single invoice.
 async function addActivityLog(
   eventType: LogEventType,
   description: string,
@@ -2179,7 +2184,6 @@ export const useAppStore = create<AppState>()(
 
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), cleanInvoiceData);
 
-                addActivityLog('invoice.create', `Created invoice ${invoiceId}`, `Customer: ${finalCustomerName || 'Walk-in'} | Total: ${grandTotal.toLocaleString()}`, invoiceId);
                 
                 const finalInvoice = { ...cleanInvoiceData, id: invoiceId } as Invoice;
                 if(finalInvoice.items && typeof finalInvoice.items === 'object' && !Array.isArray(finalInvoice.items)){
@@ -2188,6 +2192,11 @@ export const useAppStore = create<AppState>()(
 
                 return finalInvoice;
             });
+
+            if (result) {
+              addActivityLog('invoice.create', `Created invoice ${result.id}`,
+                `Customer: ${result.customerName || 'Walk-in'} | Total: ${Number(result.grandTotal || 0).toLocaleString()}`, result.id);
+            }
 
             // This line should be outside the transaction, in the main function body.
             set(state => { state.cart = []; });
@@ -2274,12 +2283,12 @@ export const useAppStore = create<AppState>()(
                 
                 transaction.update(invoiceRef, updatedFields);
                 
-                addActivityLog('invoice.payment', `Payment received for invoice ${invoiceId}`, `Amount: ${paymentAmount.toLocaleString()} | Customer: ${invoiceData.customerName}`, invoiceId);
-
-
                 return { ...invoiceData, ...updatedFields, id: invoiceId };
             });
             if (updatedInvoice) {
+                addActivityLog('invoice.payment', `Payment received for invoice ${invoiceId}`,
+                  `Amount: ${paymentAmount.toLocaleString()} | Customer: ${updatedInvoice.customerName}`, invoiceId);
+
                 // Find all hisaab entries linked to this invoice and update to reflect new balanceDue.
                 // Single-field query to avoid composite index requirement; filter cashDebit in JS.
                 const hisaabSnap = await getDocs(query(
@@ -2373,11 +2382,12 @@ export const useAppStore = create<AppState>()(
               balanceDue: newBalanceDue,
             });
 
-            addActivityLog('invoice.refund', `Partial refund on invoice ${invoiceId}`, `Amount: ${refundAmount.toLocaleString()}${reason ? ` | ${reason}` : ''}`, invoiceId);
             return { ...invoiceData, id: invoiceId, paymentHistory: newPaymentHistory, amountPaid: newAmountPaid, balanceDue: newBalanceDue } as Invoice;
           });
 
           if (updatedInvoice) {
+            addActivityLog('invoice.refund', `Partial refund on invoice ${invoiceId}`,
+              `Amount: ${refundAmount.toLocaleString()}${reason ? ` | ${reason}` : ''}`, invoiceId);
             // Reconcile linked hisaab debit entries (the customer owes again).
             const hisaabSnap = await getDocs(query(
               collection(db, FIRESTORE_COLLECTIONS.HISAAB),
@@ -2446,12 +2456,13 @@ export const useAppStore = create<AppState>()(
 
             transaction.update(invoiceRef, updatedFields);
 
-            addActivityLog('invoice.update', `Discount updated on invoice ${invoiceId}`, `Discount: ${newDiscountAmount.toLocaleString()} | New total: ${newGrandTotal.toLocaleString()}`, invoiceId);
 
             return { ...invoiceData, ...updatedFields, id: invoiceId };
           });
 
           if (updatedInvoice) {
+            addActivityLog('invoice.update', `Discount updated on invoice ${invoiceId}`,
+              `Discount: ${Number(updatedInvoice.discountAmount || 0).toLocaleString()} | New total: ${Number(updatedInvoice.grandTotal || 0).toLocaleString()}`, invoiceId);
             // Update linked hisaab entries
             const hisaabSnap = await getDocs(query(
               collection(db, FIRESTORE_COLLECTIONS.HISAAB),
@@ -3385,11 +3396,13 @@ export const useAppStore = create<AppState>()(
                 
                 // No hisaab entry here — the advance is captured as cashCredit when
                 // the order is finalized to an invoice, avoiding double-counting.
-                await addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${amount.toLocaleString()}`, orderId);
 
                 return { ...orderData, advancePayment: newAdvancePayment, grandTotal: newGrandTotal } as Order;
             });
             syncOrderShopify(orderId, 'upsert');
+            if (updatedOrder) {
+              await addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${amount.toLocaleString()}`, orderId);
+            }
             return updatedOrder;
         } catch (error) {
             console.error(`Error recording advance for order ${orderId}:`, error);
