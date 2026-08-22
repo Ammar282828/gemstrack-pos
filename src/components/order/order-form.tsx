@@ -237,10 +237,41 @@ interface OrderFormProps {
     order?: Order;
 }
 
-export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
+/** Map a cart line onto an order item. Same piece, different destination:
+ *  the cart bills it now, an order sends it to the bench first. */
+function cartItemToOrderItem(p: Product) {
+  return {
+    itemCategory: p.categoryId || undefined,
+    description: p.name || '',
+    karat: p.metalType === 'gold' ? p.karat : undefined,
+    estimatedWeightG: p.metalWeightG || 0,
+    wastagePercentage: p.wastagePercentage || 0,
+    makingCharges: p.makingCharges || 0,
+    diamondCharges: p.diamondCharges || 0,
+    stoneCharges: p.stoneCharges || 0,
+    referenceSku: p.sku,
+    sampleGiven: false,
+    hasDiamonds: !!p.hasDiamonds,
+    hasStones: !!p.hasStones,
+    stoneWeightG: p.stoneWeightG || 0,
+    stoneDetails: p.stoneDetails || undefined,
+    diamondDetails: p.diamondDetails || undefined,
+    metalType: (p.metalType || 'silver') as MetalType,
+    isCompleted: false,
+    isManualPrice: true,
+    manualPrice: p.isCustomPrice ? (p.customPrice || 0) : 0,
+    size: p.size || undefined,
+    platingType: p.platingType || undefined,
+    platingNote: p.platingNote || undefined,
+    nickelFree: !!p.nickelFree,
+  };
+}
+
+export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = ({ order, seedFromCart }) => {
   const { toast } = useToast();
   const router = useRouter();
-  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder } = useAppStore();
+  const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, clearCart } = useAppStore();
+  const cartItems = useAppStore(state => state.cart);
   const isEditMode = !!order;
 
   useEffect(() => {
@@ -249,10 +280,17 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
     loadKarigars();
   }, [loadSettings, loadCustomers, loadKarigars]);
 
+  // Items carried over from the cart, so "create an order" reuses this form
+  // rather than a second, divergent order-creation path.
+  const seededItems = React.useMemo(
+    () => (seedFromCart && !order ? cartItems.map(cartItemToOrderItem) : []),
+    [seedFromCart, order, cartItems],
+  );
+
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderFormSchema),
     defaultValues: {
-      items: [],
+      items: seededItems,
       goldRate18k: 0, goldRate21k: 0, goldRate22k: 0, goldRate24k: 0,
       advancePayment: 0,
       advanceInExchangeDescription: '',
@@ -452,6 +490,9 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
         try {
             const newOrder = await addOrder(orderToSave);
             if (newOrder) {
+                // The cart's contents have become the order; leaving them
+                // behind would bill the same pieces a second time.
+                if (seedFromCart) clearCart();
                 toast({ title: `Order ${newOrder.id} Created`, description: "Custom order has been saved." });
                 router.push(`/orders/${newOrder.id}`);
             } else {

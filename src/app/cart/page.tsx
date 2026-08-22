@@ -7,6 +7,7 @@ import { whatsAppLink } from '@/lib/whatsapp';
 import Image from 'next/image';
 import Link from 'next/link';
 import { EditCartItemDialog, blankCartItem } from '@/components/cart/edit-cart-item-dialog';
+import { useRouter } from 'next/navigation';
 import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories } from '@/lib/store';
 import { metalLabel, describeMetal } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
@@ -18,7 +19,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban, CheckCircle } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, ClipboardList, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -71,6 +72,7 @@ type PhoneForm = {
 };
 
 export default function CartPage() {
+  const router = useRouter();
   console.log("[GemsTrack] CartPage: Rendering START");
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -1466,10 +1468,25 @@ export default function CartPage() {
                         <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-2">
-                         <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate} aria-label="Open document">
+                         <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate}>
                             {isGeneratingEstimate ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <FileText className="mr-2 h-5 w-5"/>}
-                            {isEditingEstimate ? 'Update Estimate' : 'Generate Estimate'}
+                            {isEditingEstimate ? 'Update Estimate' : 'Create Invoice'}
                         </Button>
+                        {/* The same basket has two destinations: bill it now, or
+                            send it to the bench as an order. Both continue on the
+                            paths that already exist. */}
+                        {!isEditingEstimate && (
+                          <>
+                            <Button size="lg" variant="outline" className="w-full"
+                              disabled={cartItemsFromStore.length === 0}
+                              onClick={() => router.push('/orders/add?fromCart=1')}>
+                              <ClipboardList className="mr-2 h-5 w-5" />Create Order
+                            </Button>
+                            <p className="text-xs text-muted-foreground text-center">
+                              Invoice bills it now. Order sends it to the workshop first, with an advance if taken.
+                            </p>
+                          </>
+                        )}
                         {isEditingEstimate && (
                             <Button size="lg" variant="outline" className="w-full" onClick={handleCancelEdit}>
                                 <Ban className="mr-2 h-5 w-5"/> Cancel Edit

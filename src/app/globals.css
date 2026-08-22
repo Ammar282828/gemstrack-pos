@@ -32,11 +32,11 @@ body {
     /* Neutrals carry a trace of the 220 brand hue rather than being pure
        white, and the page sits a shade below the cards so a card lifts off
        the surface instead of relying on its border alone. */
-    --background: 220 20% 97.6%;
+    --background: 220 30% 99.4%;
     --foreground: 224 71.4% 4.1%;
-    --card: 220 30% 99.6%;
+    --card: 0 0% 100%;
     --card-foreground: 224 71.4% 4.1%;
-    --popover: 220 30% 99.6%;
+    --popover: 0 0% 100%;
     --popover-foreground: 224 71.4% 4.1%;
     --primary: 220.9 39.3% 11%;
     --primary-foreground: 210 20% 98%;
@@ -48,12 +48,14 @@ body {
     --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
-    /* Paid / done / on-track and late / at-risk. Chosen to clear 4.5:1 on the
-       card surface so they are usable as text, not just as fills. */
-    --success: 142 72% 26%;
-    --success-foreground: 140 40% 98%;
-    --warning: 32 90% 30%;
-    --warning-foreground: 40 40% 98%;
+    /* Paid / done / on-track and late / at-risk. Pitched at the brightness of
+       the green-500/600 and yellow-500 these replaced — the punch is the point.
+       They read as status, not as body copy; anything small and grey-on-white
+       uses --muted-foreground instead. */
+    --success: 142 71% 40%;
+    --success-foreground: 140 60% 99%;
+    --warning: 38 94% 42%;
+    --warning-foreground: 40 60% 99%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 224 71.4% 4.1%;
@@ -92,11 +94,10 @@ body {
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    /* Lifted and desaturated for dark surfaces; the light-mode values would
-       read as near-black here. Every .theme-* block inherits these. */
-    --success: 142 58% 52%;
+    /* Lifted for dark surfaces; every .theme-* block inherits these. */
+    --success: 142 69% 58%;
     --success-foreground: 145 60% 6%;
-    --warning: 38 88% 58%;
+    --warning: 43 96% 60%;
     --warning-foreground: 40 60% 8%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
