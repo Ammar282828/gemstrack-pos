@@ -89,6 +89,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const cartCount = useAppStore(state => state.cart.length);
   const { user, signOut } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
+  // Restore the last sidebar state. The provider writes sidebar_state on
+  // every toggle but only reads defaultOpen once, so a hardcoded `true` threw
+  // the choice away on each reload. Must sit above the early return below —
+  // a hook after a conditional return is a Rules-of-Hooks violation.
+  const [sidebarDefaultOpen] = useState(() => {
+    if (typeof document === 'undefined') return true;
+    const m = document.cookie.match(/(?:^|;\s*)sidebar_state=([^;]+)/);
+    return m ? m[1] !== 'false' : true;
+  });
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -115,7 +124,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-      <SidebarProvider defaultOpen={true}>
+      <SidebarProvider defaultOpen={sidebarDefaultOpen}>
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4 pb-3">
             <Link href="/" className="flex items-center justify-start text-primary h-[26px]">
@@ -209,8 +218,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Sidebar>
 
         <SidebarInset>
-          <header className="sticky top-0 z-40 flex items-center h-14 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
-            <SidebarTrigger className="md:hidden" />
+          <header className="sticky top-0 z-40 flex items-center gap-2 h-14 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
+            {/* Was md:hidden, which meant the sidebar could collapse to icons
+                on paper but there was no way to trigger it on a desktop. On a
+                1280px screen the rail is a fifth of the width; collapsing it
+                is what makes the wide tables fit. Cmd/Ctrl+B also toggles. */}
+            <SidebarTrigger />
+            <span className="hidden lg:inline text-2xs text-muted-foreground">⌘B</span>
           </header>
 
           {/* Offline banner */}

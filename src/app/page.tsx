@@ -36,13 +36,25 @@ const CartSummaryItem: React.FC<{
   </div>
 );
 
+/** PKR at a glance. A seven-across strip cannot hold "PKR 1,213,450", and a
+ *  truncated "PKR 1,21..." is worse than useless — it reads as a smaller
+ *  number. Exact value stays available on hover. */
+function compactPKR(n: number): string {
+  const abs = Math.abs(n);
+  // 999_500 not 1_000_000: rounding 999,999 to the nearest thousand yields
+  // "1000k", which is worse than "1M".
+  if (abs >= 999_500) return `PKR ${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M`;
+  if (abs >= 100_000)   return `PKR ${Math.round(n / 1000)}k`;
+  return `PKR ${n.toLocaleString()}`;
+}
+
 /** One figure in the metrics strip. Deliberately not a StatCard: seven of
  *  those with their icon chips would not fit on one row. */
-const MetricTile: React.FC<{ label: string; value: string; sub?: string; tone?: string }> =
-({ label, value, sub, tone }) => (
-  <div className="rounded-lg border bg-card px-3 py-2 min-w-0">
+const MetricTile: React.FC<{ label: string; value: string; sub?: string; tone?: string; exact?: string }> =
+({ label, value, sub, tone, exact }) => (
+  <div className="rounded-lg border bg-card px-3 py-2 min-w-0" title={exact}>
     <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">{label}</p>
-    <p className={cn('text-base font-bold leading-tight truncate tabular-nums', tone)}>{value}</p>
+    <p className={cn('text-sm xl:text-base font-bold leading-tight truncate tabular-nums', tone)}>{value}</p>
     {sub && <p className="text-2xs text-muted-foreground truncate">{sub}</p>}
   </div>
 );
@@ -76,20 +88,20 @@ const OngoingOrderRow: React.FC<{ order: Order }> = ({ order }) => {
     : 'bg-blue-500/80 text-blue-50';
 
   return (
-    <Link href={`/orders/${order.id}`} className="flex items-center justify-between py-2.5 px-1 hover:bg-muted/40 rounded-md transition-colors group">
+    /* Two stacked lines rather than two side-by-side columns: in a third of
+       the board's width the id and the amount collided. */
+    <Link href={`/orders/${order.id}`} className="block py-2 px-1 hover:bg-muted/40 rounded-md transition-colors group">
       <div className="flex items-center gap-2 min-w-0">
-        <Badge className={cn("border-transparent flex-shrink-0 text-xs", statusColor)}>{order.status}</Badge>
-        <div className="min-w-0">
-          <p className="font-semibold text-sm">{order.id}</p>
-          <p className="text-xs text-muted-foreground truncate">{order.customerName || 'Walk-in'}</p>
-        </div>
+        <Badge className={cn("border-transparent flex-shrink-0 text-2xs px-1.5", statusColor)}>{order.status}</Badge>
+        <span className="font-semibold text-sm font-mono truncate">{order.id}</span>
+        <ArrowRight className="w-3.5 h-3.5 ml-auto flex-shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <div className="text-right">
-          <p className="text-sm font-semibold text-primary">PKR {grandTotal.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground">{format(parseISO(order.createdAt), 'MMM d')}</p>
-        </div>
-        <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+      <div className="flex items-baseline justify-between gap-2 mt-0.5 pl-0.5">
+        <span className="text-xs text-muted-foreground truncate">{order.customerName || 'Walk-in'}</span>
+        <span className="text-xs flex-shrink-0 tabular-nums">
+          <span className="font-semibold text-primary">PKR {grandTotal.toLocaleString()}</span>
+          <span className="text-muted-foreground"> · {format(parseISO(order.createdAt), 'MMM d')}</span>
+        </span>
       </div>
     </Link>
   );
@@ -97,20 +109,20 @@ const OngoingOrderRow: React.FC<{ order: Order }> = ({ order }) => {
 
 // --- Recent invoice row ---
 const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => (
-  <Link href={`/view-invoice?invoiceId=${invoice.id}`} className="flex items-center justify-between py-2.5 px-1 hover:bg-muted/40 rounded-md transition-colors group">
-    <div className="min-w-0">
-      <p className="font-semibold text-sm">{invoice.customerName || 'Walk-in'}</p>
-      <p className="text-xs text-muted-foreground">{format(parseISO(invoice.createdAt), 'MMM d, h:mm a')}</p>
+  <Link href={`/view-invoice?invoiceId=${invoice.id}`} className="block py-2 px-1 hover:bg-muted/40 rounded-md transition-colors group">
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="font-semibold text-sm truncate">{invoice.customerName || 'Walk-in'}</span>
+      <ArrowRight className="w-3.5 h-3.5 ml-auto flex-shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
     </div>
-    <div className="flex items-center gap-2 flex-shrink-0">
-      <div className="text-right">
-        <p className="text-sm font-semibold text-primary">PKR {(invoice.grandTotal || 0).toLocaleString()}</p>
-        {(invoice.balanceDue || 0) > 0 && (
-          <p className="text-xs text-orange-500">Due: PKR {invoice.balanceDue.toLocaleString()}</p>
-        )}
-      </div>
-      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+    <div className="flex items-baseline justify-between gap-2 mt-0.5">
+      <span className="text-xs text-muted-foreground truncate">{format(parseISO(invoice.createdAt), 'MMM d, h:mm a')}</span>
+      <span className="text-xs flex-shrink-0 tabular-nums font-semibold text-primary">
+        PKR {(invoice.grandTotal || 0).toLocaleString()}
+      </span>
     </div>
+    {(invoice.balanceDue || 0) > 0 && (
+      <p className="text-2xs text-warning text-right tabular-nums">Due PKR {invoice.balanceDue.toLocaleString()}</p>
+    )}
   </Link>
 );
 
@@ -272,19 +284,20 @@ export default function HomePage() {
           sections with a heading and a separator each; together they cost
           about a third of the screen to show seven numbers. */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 flex-shrink-0">
-        <MetricTile label="Today" value={`PKR ${stats.todayRevenue.toLocaleString()}`}
+        <MetricTile label="Today" value={compactPKR(stats.todayRevenue)} exact={`PKR ${stats.todayRevenue.toLocaleString()}`}
           sub={`${stats.todayInvoiceCount} invoice${stats.todayInvoiceCount !== 1 ? 's' : ''}`}
           tone="text-success" />
         <MetricTile label="Ongoing" value={String(stats.ongoingOrders.length)}
           sub={`${stats.ongoingOrders.filter(o => o.status === 'Pending').length} pending`} />
         <MetricTile label="Outstanding"
-          value={stats.totalOutstanding > 0 ? `PKR ${stats.totalOutstanding.toLocaleString()}` : 'Nil'}
+          value={stats.totalOutstanding > 0 ? compactPKR(stats.totalOutstanding) : 'Nil'}
+          exact={`PKR ${stats.totalOutstanding.toLocaleString()}`}
           sub="unpaid" tone={stats.totalOutstanding > 0 ? 'text-destructive' : undefined} />
         <MetricTile label="Cart" value={String(cartItems.length)}
-          sub={cartItems.length > 0 ? `PKR ${cartSubtotal.toLocaleString()}` : 'empty'} />
-        <MetricTile label="Revenue 30d" value={`PKR ${stats.revenue30.toLocaleString()}`} tone="text-success" />
-        <MetricTile label="Expenses 30d" value={`PKR ${stats.expenses30.toLocaleString()}`} tone="text-destructive" />
-        <MetricTile label="Net 30d" value={`PKR ${stats.net30.toLocaleString()}`}
+          sub={cartItems.length > 0 ? compactPKR(cartSubtotal) : 'empty'} />
+        <MetricTile label="Revenue 30d" value={compactPKR(stats.revenue30)} exact={`PKR ${stats.revenue30.toLocaleString()}`} tone="text-success" />
+        <MetricTile label="Expenses 30d" value={compactPKR(stats.expenses30)} exact={`PKR ${stats.expenses30.toLocaleString()}`} tone="text-destructive" />
+        <MetricTile label="Net 30d" value={compactPKR(stats.net30)} exact={`PKR ${stats.net30.toLocaleString()}`}
           tone={stats.net30 >= 0 ? 'text-primary' : 'text-destructive'} />
       </div>
 
@@ -344,7 +357,7 @@ export default function HomePage() {
       </div>
 
       {/* Quick access as a single slim strip rather than a card of tiles. */}
-      <div className="flex-shrink-0 flex gap-1.5 overflow-x-auto pb-1 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex-shrink-0 flex gap-1.5 overflow-x-auto lg:overflow-visible lg:flex-wrap pb-1 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {QUICK_LINKS.map(({ href, icon, label }) => (
           <Button key={href} asChild variant="outline" size="sm"
             className="flex-shrink-0 h-9 gap-1.5 text-xs">

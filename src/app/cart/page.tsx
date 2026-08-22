@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { whatsAppLink } from '@/lib/whatsapp';
 import Image from 'next/image';
 import Link from 'next/link';
-import { EditCartItemDialog } from '@/components/cart/edit-cart-item-dialog';
+import { EditCartItemDialog, blankCartItem } from '@/components/cart/edit-cart-item-dialog';
 import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories } from '@/lib/store';
 import { metalLabel, describeMetal } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
@@ -178,7 +178,11 @@ export default function CartPage() {
     if (!sku) return;
     const found = products.find(p => p.sku === sku);
     if (!found) {
-      toast({ title: 'Product not found', description: `No product with SKU "${sku}"`, variant: 'destructive' });
+      // Not an error: an unrecognised code usually means a new piece.
+      const draft = blankCartItem();
+      setNewItem({ ...draft, name: skuOverride ? '' : (skuInput.trim() || '') });
+      setSkuInput('');
+      toast({ title: 'Not in inventory', description: 'Opening a new item so you can bill it directly.' });
       return;
     }
     if (cartItemsFromStore.find(i => i.sku === sku)) {
@@ -193,6 +197,9 @@ export default function CartPage() {
 
   // Line-item editor — every attribute of the line, any metal.
   const [editItem, setEditItem] = useState<Product | null>(null);
+  // Most pieces here are made to order and never existed in inventory, so
+  // billing starts by describing the piece rather than looking one up.
+  const [newItem, setNewItem] = useState<Product | null>(null);
 
   const phoneForm = useForm<PhoneForm>();
 
@@ -1244,9 +1251,22 @@ export default function CartPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Link href="/scan" passHref>
-                <Button className="w-full" size="lg">Start Scanning</Button>
-              </Link>
+              {/* Describing the piece is the common case here; scanning an
+                  already-tagged product is the exception. */}
+              <Button className="w-full" size="lg" onClick={() => setNewItem(blankCartItem())}>
+                <PlusCircle className="mr-2 h-5 w-5" />New item
+              </Button>
+              <p className="text-xs text-muted-foreground text-center -mt-1">
+                Bills the piece without touching your inventory.
+              </p>
+              <div className="flex gap-2">
+                <Button className="flex-1" variant="outline" onClick={() => setIsNewProductDialogOpen(true)}>
+                  New item + stock it
+                </Button>
+                <Button className="flex-1" variant="outline" asChild>
+                  <Link href="/scan">Scan</Link>
+                </Button>
+              </div>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -1364,8 +1384,15 @@ export default function CartPage() {
                             <Button variant="secondary" onClick={() => handleAddBySku()}>
                                 <PlusCircle className="h-4 w-4 mr-1"/> Add
                             </Button>
-                            <Button variant="outline" onClick={() => setIsNewProductDialogOpen(true)}>
-                                New
+                            {/* Two different intents that used to share one "New"
+                                button: a one-off piece for this bill, versus a
+                                product you want to keep in the catalogue. */}
+                            <Button onClick={() => setNewItem(blankCartItem())}>
+                                <PlusCircle className="h-4 w-4 mr-1"/> New item
+                            </Button>
+                            <Button variant="outline" onClick={() => setIsNewProductDialogOpen(true)}
+                                title="Also saves the piece to your product inventory">
+                                + Stock
                             </Button>
                         </div>
                         <Button variant="outline" onClick={clearCart} className="w-full">Clear All Items</Button>
@@ -1458,8 +1485,11 @@ export default function CartPage() {
       <Dialog open={isNewProductDialogOpen} onOpenChange={setIsNewProductDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
-            <DialogDescription>Create a new product and it will be added to inventory and your cart.</DialogDescription>
+            <DialogTitle>New item, and keep it in stock</DialogTitle>
+            <DialogDescription>
+              Adds the piece to this bill <em>and</em> saves it to your product inventory.
+              For a one-off you will not sell again, use <span className="font-medium">New item</span> instead.
+            </DialogDescription>
           </DialogHeader>
           <ProductForm
             onProductCreated={(newProduct) => {
@@ -1472,6 +1502,18 @@ export default function CartPage() {
       </Dialog>
 
       {/* Silver Item Edit Dialog */}
+      <EditCartItemDialog
+        mode="create"
+        item={newItem}
+        settings={settings}
+        onClose={() => setNewItem(null)}
+        onSave={(_sku, patch) => {
+          const product = { ...(newItem as Product), ...patch } as Product;
+          addProductToCart(product);
+          toast({ title: 'Added to bill', description: product.name });
+        }}
+      />
+
       <EditCartItemDialog
         item={editItem}
         settings={settings}

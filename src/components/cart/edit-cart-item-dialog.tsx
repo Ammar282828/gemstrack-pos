@@ -131,12 +131,25 @@ const Num: React.FC<{
   </div>
 );
 
+/** A blank line, for billing something that was never in inventory. */
+export function blankCartItem(): Product {
+  return {
+    sku: `NEW-${Date.now().toString(36).toUpperCase()}`,
+    name: '', categoryId: '', metalType: 'silver', metalWeightG: 0,
+    hasStones: false, stoneWeightG: 0, wastagePercentage: 0, makingCharges: 0,
+    hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0,
+    isCustomPrice: true, customPrice: 0,
+  };
+}
+
 export const EditCartItemDialog: React.FC<{
   item: Product | null;
   settings: Partial<Settings>;
   onClose: () => void;
   onSave: (sku: string, patch: Partial<Product>) => void;
-}> = ({ item, settings, onClose, onSave }) => {
+  /** 'create' relabels the dialog and requires a name before saving. */
+  mode?: 'edit' | 'create';
+}> = ({ item, settings, onClose, onSave, mode = 'edit' }) => {
   const [d, setD] = useState<Draft | null>(null);
   useEffect(() => { setD(item ? toDraft(item) : null); }, [item]);
 
@@ -160,10 +173,11 @@ export const EditCartItemDialog: React.FC<{
     <Dialog open={!!item} onOpenChange={o => { if (!o) onClose(); }}>
       <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit item</DialogTitle>
+          <DialogTitle>{mode === 'create' ? 'New item' : 'Edit item'}</DialogTitle>
           <DialogDescription>
-            {item.sku} — every detail on this line. Changes apply to this estimate only,
-            not to the product in your inventory.
+            {mode === 'create'
+              ? 'Describe the piece you are billing. It goes on this estimate only — your product inventory is untouched.'
+              : `${item.sku} — every detail on this line. Changes apply to this estimate only, not to the product in your inventory.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -311,8 +325,9 @@ export const EditCartItemDialog: React.FC<{
           </div>
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1 sm:flex-none" onClick={onClose}>Cancel</Button>
-            <Button className="flex-1 sm:flex-none" onClick={() => { onSave(item.sku, toPatch(d)); onClose(); }}>
-              <Save className="h-4 w-4 mr-2" />Apply
+            <Button className="flex-1 sm:flex-none" disabled={mode === 'create' && !d.name.trim()}
+              onClick={() => { onSave(item.sku, toPatch(d)); onClose(); }}>
+              <Save className="h-4 w-4 mr-2" />{mode === 'create' ? 'Add to bill' : 'Apply'}
             </Button>
           </div>
         </DialogFooter>
