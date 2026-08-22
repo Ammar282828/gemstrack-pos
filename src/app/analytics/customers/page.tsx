@@ -188,7 +188,7 @@ export default function CustomersAnalyticsPage() {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-10"
-                    />
+                     aria-label="Search by customer name"/>
                 </div>
             </CardContent>
         </Card>

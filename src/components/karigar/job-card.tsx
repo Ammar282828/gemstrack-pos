@@ -21,12 +21,12 @@ import { format, parseISO } from 'date-fns';
 
 export const AgeBadge: React.FC<{ job: WorkshopJob }> = ({ job }) => {
   if (job.status === 'completed') {
-    return <Badge variant="outline" className="text-green-700 border-green-600/40 bg-green-600/10">Done</Badge>;
+    return <Badge variant="outline" className="text-success border-success/40 bg-success/10">Done</Badge>;
   }
   const cls = job.urgency === 'critical'
     ? 'text-destructive border-destructive/40 bg-destructive/10'
     : job.urgency === 'warning'
-      ? 'text-yellow-700 border-yellow-500/40 bg-yellow-500/10'
+      ? 'text-warning border-warning/40 bg-warning/10'
       : 'text-muted-foreground';
   return <Badge variant="outline" className={cn('tabular-nums', cls)}>{job.ageDays}d</Badge>;
 };
@@ -53,13 +53,13 @@ const BoardJobCard: React.FC<{
     <Card className={cn(
       'flex flex-col overflow-hidden transition-shadow hover:shadow-md',
       done && 'opacity-60',
-      job.isOnline && 'bg-green-500/[0.05] border-green-500/30',
+      job.isOnline && 'bg-success/[0.05] border-success/30',
       !done && job.urgency === 'critical' && 'border-destructive/50',
-      !done && job.urgency === 'warning' && 'border-yellow-500/50',
+      !done && job.urgency === 'warning' && 'border-warning/50',
     )}>
       {job.sampleImage && (
         // eslint-disable-next-line @next/next/no-img-element -- data: URI, no loader
-        <img src={job.sampleImage} alt="" className="h-28 w-full object-cover bg-muted" />
+        <img src={job.sampleImage} alt="" className="h-28 w-full object-cover bg-muted" loading="lazy" decoding="async" />
       )}
 
       <CardContent className="p-3 flex flex-col gap-1.5 flex-1">
@@ -82,12 +82,12 @@ const BoardJobCard: React.FC<{
 
         <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
           {job.source === 'manual'
-            ? <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
+            ? <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
             : job.isOnline
-              ? <Badge variant="secondary" className="text-[10px] bg-green-500/15 text-green-700 dark:text-green-300">Online</Badge>
+              ? <Badge variant="secondary" className="text-2xs bg-success/15 text-success">Online</Badge>
               : null}
           {job.invoiceId
-            ? <Link href={`/view-invoice/${job.invoiceId}`} className="font-mono text-green-700 dark:text-green-400 hover:underline">{job.invoiceId}</Link>
+            ? <Link href={`/view-invoice/${job.invoiceId}`} className="font-mono text-success hover:underline">{job.invoiceId}</Link>
             : job.orderId
               ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
               : null}
@@ -97,13 +97,13 @@ const BoardJobCard: React.FC<{
         {/* The assign dropdown below already names the karigar, so the badge
             is only for cards that don't get one (stock jobs, completed work). */}
         {showKarigar && !canAssign && (
-          <Badge variant="outline" className={cn('text-[10px] w-fit', job.karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
+          <Badge variant="outline" className={cn('text-2xs w-fit', job.karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
             {job.karigarName}
           </Badge>
         )}
 
         {job.notes && (
-          <div className="border-l-2 border-amber-400/70 pl-2 mt-0.5" title={job.notes}>
+          <div className="rounded-md border border-warning/25 bg-warning/[0.06] px-2 py-1.5 mt-0.5" title={job.notes}>
             <p className="text-xs text-foreground/80 line-clamp-3 whitespace-pre-wrap">{job.notes}</p>
           </div>
         )}
@@ -118,7 +118,7 @@ const BoardJobCard: React.FC<{
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onEdit(job)}>
             <Pencil className="h-3 w-3 mr-1.5" />Details
           </Button>
-          <span className="ml-auto text-[10px] text-muted-foreground">
+          <span className="ml-auto text-2xs text-muted-foreground">
             {format(parseISO(job.assignedDate), 'dd MMM')}
           </span>
         </div>

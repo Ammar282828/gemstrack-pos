@@ -390,13 +390,13 @@ export default function ViewInvoicePage() {
   return (
     <div className="bg-muted min-h-screen p-4 sm:p-8">
       <div style={{ display: 'none' }}>
-        <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" />
+        <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" loading="lazy" decoding="async" />
         <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
         <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
       </div>
         <Card className="max-w-2xl mx-auto shadow-2xl">
             <CardHeader className="text-center">
-                <CheckCircle className="mx-auto h-12 w-12 text-green-500"/>
+                <CheckCircle className="mx-auto h-12 w-12 text-success"/>
                 <CardTitle className="text-2xl font-bold">Estimate Ready</CardTitle>
                 <CardDescription>
                     Your estimate <span className="font-mono font-medium text-foreground">{invoice.id}</span> is ready for download.
@@ -423,7 +423,7 @@ export default function ViewInvoicePage() {
                         <div className="border-t mt-3 pt-3">
                             <div className="flex justify-between items-center">
                                 <p className="text-sm text-muted-foreground">Amount Paid</p>
-                                <p className="font-semibold text-green-600">- PKR {invoice.amountPaid.toLocaleString()}</p>
+                                <p className="font-semibold text-success">- PKR {invoice.amountPaid.toLocaleString()}</p>
                             </div>
                             <div className="flex justify-between items-center mt-1">
                                 <p className="text-sm text-muted-foreground">Balance Due</p>

@@ -198,7 +198,7 @@ const ProductSearchDialog: React.FC<{ onAddProduct: (product: Product) => void }
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-10"
-                        />
+                         aria-label="Search by name or SKU"/>
                     </div>
                     <ScrollArea className="h-[40vh] border rounded-md">
                         {filteredProducts.length > 0 ? (
@@ -546,12 +546,15 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
             <CardContent>
                 <ScrollArea className="h-[60vh] pr-4 -mr-4">
                 <div className="space-y-6">
+                {/* Each item is a plain panel, not a Card: it already sits
+                    inside the form's Card, and card-in-card reads as two
+                    competing surfaces. */}
                 {fields.map((field, index) => (
-                    <Card key={field.id} className="p-4 relative bg-muted/30">
-                        <CardHeader className="p-0 pb-4">
-                           <CardTitle className="text-lg">Item #{index + 1}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0 space-y-4">
+                    <div key={field.id} className="rounded-lg border p-4 relative bg-muted/30">
+                        <div className="pb-4">
+                           <h3 className="text-lg font-semibold leading-none tracking-tight">Item #{index + 1}</h3>
+                        </div>
+                        <div className="space-y-4">
                             {fields.length > 1 && (
                                 <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => remove(index)}>
                                     <Trash2 className="h-4 w-4" />
@@ -613,10 +616,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                             )}
 
                             <FormField control={form.control} name={`items.${index}.adminNote`} render={({ field }) => (
-                               <FormItem className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20 p-3">
-                                  <FormLabel className="flex items-center text-amber-800 dark:text-amber-200"><Lock className="mr-2 h-4 w-4"/>Admin-Only Note</FormLabel>
+                               <FormItem className="rounded-md border border-warning/40 bg-warning/10 p-3">
+                                  <FormLabel className="flex items-center text-warning"><Lock className="mr-2 h-4 w-4"/>Admin-Only Note</FormLabel>
                                   <FormControl><Textarea placeholder="Internal note — visible only to staff" {...field} rows={2} /></FormControl>
-                                  <FormDescription className="text-amber-700/80 dark:text-amber-300/80">Never shown on printed estimates or invoices.</FormDescription>
+                                  <FormDescription className="text-warning">Never shown on printed estimates or invoices.</FormDescription>
                                   <FormMessage />
                                </FormItem>
                             )}/>
@@ -733,7 +736,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                     <div>
                                         <Label className="text-muted-foreground text-xs">Reference Rate per Gram (Optional)</Label>
                                         <p className="text-xs text-muted-foreground mb-1">For your reference only — does not affect the price.</p>
-                                        <Input type="number" step="0.01" placeholder="e.g., 275" className="mt-1" disabled />
+                                        <Input type="number" step="0.01" placeholder="e.g., 275" className="mt-1" disabled  aria-label="Reference Rate per Gram (Optional)"/>
                                     </div>
                                 </div>
                             )}
@@ -851,8 +854,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                                 <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                 <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer">Item is Completed</FormLabel></div></FormItem>
                             )}/>}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 ))}
                 </div>
                 </ScrollArea>
@@ -987,7 +990,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ order }) => {
                     <Button type="button" variant="outline" onClick={() => router.back()} className="w-full">
                         <Ban className="mr-2 h-4 w-4" /> Cancel
                     </Button>
-                    <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting}>
+                    <Button type="submit" size="lg" className="w-full" disabled={form.formState.isSubmitting} aria-label="Save">
                         {form.formState.isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Save className="mr-2 h-5 w-5" />}
                          {form.formState.isSubmitting ? "Saving..." : (isEditMode ? 'Save Changes' : 'Save Order')}
                     </Button>

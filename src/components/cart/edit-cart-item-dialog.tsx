@@ -127,7 +127,7 @@ const Num: React.FC<{
     <Label className="text-xs">{label}</Label>
     <Input type="number" step={step} value={value} placeholder={placeholder}
       onChange={e => onChange(e.target.value)} />
-    {hint && <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>}
+    {hint && <p className="text-2xs text-muted-foreground mt-0.5">{hint}</p>}
   </div>
 );
 
@@ -172,7 +172,7 @@ export const EditCartItemDialog: React.FC<{
           <div className="space-y-3">
             <div>
               <Label className="text-xs">Item name</Label>
-              <Input value={d.name} onChange={e => set('name', e.target.value)} placeholder="What is being sold" />
+              <Input value={d.name} onChange={e => set('name', e.target.value)} placeholder="What is being sold"  aria-label="Item name"/>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -287,17 +287,17 @@ export const EditCartItemDialog: React.FC<{
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Stone details</Label>
-                <Input value={d.stoneDetails} onChange={e => set('stoneDetails', e.target.value)} placeholder="e.g. 4 rubies" />
+                <Input value={d.stoneDetails} onChange={e => set('stoneDetails', e.target.value)} placeholder="e.g. 4 rubies"  aria-label="Stone details"/>
               </div>
               <div>
                 <Label className="text-xs">Diamond details</Label>
-                <Input value={d.diamondDetails} onChange={e => set('diamondDetails', e.target.value)} placeholder="e.g. 0.5ct round" />
+                <Input value={d.diamondDetails} onChange={e => set('diamondDetails', e.target.value)} placeholder="e.g. 0.5ct round"  aria-label="Diamond details"/>
               </div>
             </div>
             <div>
               <Label className="text-xs">Description</Label>
               <Textarea rows={2} value={d.description} onChange={e => set('description', e.target.value)}
-                placeholder="Anything else that should appear on the invoice" />
+                placeholder="Anything else that should appear on the invoice"  aria-label="Description"/>
             </div>
           </div>
         </div>

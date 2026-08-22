@@ -124,7 +124,7 @@ export const SampleImageInput: React.FC<{
       {value ? (
         <div className="relative inline-block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="Sample" className={cn('rounded-md border object-contain bg-muted', compact ? 'h-24' : 'h-32')} />
+          <img src={value} alt="Sample" className={cn('rounded-md border object-contain bg-muted', compact ? 'h-24' : 'h-32')} loading="lazy" decoding="async" />
           <Button type="button" variant="destructive" size="icon"
             className="h-6 w-6 absolute -top-2 -right-2 rounded-full" onClick={onRemove}>
             <X className="h-3 w-3" />

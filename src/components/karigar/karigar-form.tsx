@@ -177,7 +177,7 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
             <Button type="button" variant="outline" onClick={() => router.back()}>
               <Ban className="mr-2 h-4 w-4" /> Cancel
             </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
+            <Button type="submit" disabled={form.formState.isSubmitting} aria-label="Save">
               <Save className="mr-2 h-4 w-4" /> {isEditMode ? 'Save Changes' : 'Add Karigar'}
             </Button>
           </CardFooter>

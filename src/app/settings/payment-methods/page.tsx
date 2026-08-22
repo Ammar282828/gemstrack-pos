@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import { whatsAppLink } from '@/lib/whatsapp';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -180,8 +181,9 @@ export default function PaymentMethodsPage() {
     }
     message += `\nPlease send a screenshot of the transaction once completed. Thank you!`;
 
-    const numberOnly = data.phone.replace(/\D/g, '');
-    const whatsappUrl = `https://wa.me/${numberOnly}?text=${encodeURIComponent(message)}`;
+    // Country code and leading-zero handling live in one place; the raw
+    // digit strip that used to be here produced wa.me/0300… , a dead link.
+    const whatsappUrl = whatsAppLink(data.phone, message);
     window.open(whatsappUrl, '_blank');
     toast({ title: "Redirecting to WhatsApp", description: "Your message is ready to be sent." });
     setIsWhatsAppDialogOpen(false);
@@ -316,7 +318,7 @@ export default function PaymentMethodsPage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
-                />
+                 aria-label="Search by bank name, account name, or account number"/>
             </div>
         </CardContent>
       </Card>

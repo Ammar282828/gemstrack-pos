@@ -53,10 +53,10 @@ const KarigarRow: React.FC<{ karigar: Karigar; activeHisaab: string | null }> = 
     </TableCell>
     <TableCell className="text-right">
       <div className="flex justify-end gap-1">
-        <Button asChild size="sm" variant="ghost">
+        <Button asChild size="sm" variant="ghost" aria-label="View">
           <Link href={`/karigars/${karigar.id}`}><Eye className="w-4 h-4" /></Link>
         </Button>
-        <Button asChild size="sm" variant="ghost">
+        <Button asChild size="sm" variant="ghost" aria-label="Edit">
           <Link href={`/karigars/${karigar.id}/edit`}><Edit3 className="w-4 h-4" /></Link>
         </Button>
       </div>
@@ -141,7 +141,7 @@ export default function KarigarsPage() {
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="pl-10"
-            />
+             aria-label="Search by name or contact"/>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           </div>
         </CardContent>

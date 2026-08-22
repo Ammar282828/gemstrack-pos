@@ -229,7 +229,7 @@ export default function HisaabImportPage() {
                     {parsedData.map((row, index) => (
                       <TableRow key={index} className={!row.isValidDate ? 'bg-destructive/10' : ''}>
                         <TableCell>
-                          {row.isValidDate ? <Check className="h-4 w-4 text-green-500" /> : <X className="h-4 w-4 text-destructive" />}
+                          {row.isValidDate ? <Check className="h-4 w-4 text-success" /> : <X className="h-4 w-4 text-destructive" />}
                         </TableCell>
                         <TableCell>{row.isValidDate ? new Date(row.date).toLocaleDateString() : 'Invalid Date'}</TableCell>
                         <TableCell>{row.description}</TableCell>

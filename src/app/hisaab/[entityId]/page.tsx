@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
+import { whatsAppLink } from '@/lib/whatsapp';
 import { useAppStore, HisaabEntry, Customer, Karigar, Settings } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -92,7 +93,7 @@ const AddTransactionDialog: React.FC<{
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle className={cn("flex items-center gap-2", isGaveMode ? 'text-destructive' : 'text-green-600')}>
+                    <DialogTitle className={cn("flex items-center gap-2", isGaveMode ? 'text-destructive' : 'text-success')}>
                         {isGaveMode ? <ArrowUp /> : <ArrowDown />}
                         {isGaveMode ? 'You Gave' : 'You Got'}
                     </DialogTitle>
@@ -121,7 +122,7 @@ const AddTransactionDialog: React.FC<{
                         )}/>
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                            <Button type="submit" disabled={form.formState.isSubmitting} className={cn(isGaveMode ? 'bg-destructive hover:bg-destructive/90' : 'bg-green-600 hover:bg-green-700')}>
+                            <Button type="submit" disabled={form.formState.isSubmitting} className={cn(isGaveMode ? 'bg-destructive hover:bg-destructive/90' : 'bg-success hover:bg-success')}>
                                 {form.formState.isSubmitting ? <Loader2 className="animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
                                 Save Transaction
                             </Button>
@@ -241,8 +242,9 @@ export default function EntityHisaabPage() {
     message += `We would appreciate it if you could settle the balance at your earliest convenience.\n\n`;
     message += `Thank you!`;
 
-    const numberOnly = whatsAppNumber.replace(/\D/g, '');
-    const whatsappUrl = `https://wa.me/${numberOnly}?text=${encodeURIComponent(message)}`;
+    // Country code and leading-zero handling live in one place; the raw
+    // digit strip that used to be here produced wa.me/0300… , a dead link.
+    const whatsappUrl = whatsAppLink(whatsAppNumber, message);
 
     window.open(whatsappUrl, '_blank');
     toast({ title: "Redirecting to WhatsApp", description: "Your reminder message is ready to be sent." });
@@ -391,12 +393,12 @@ export default function EntityHisaabPage() {
       </header>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="p-3 rounded-lg bg-green-600/10 border border-green-600/20">
-          <p className="text-xs font-medium text-green-700 dark:text-green-500 mb-1">You will Get</p>
-          <p className="text-xl font-bold text-green-700 dark:text-green-500">PKR {Math.max(0, balances.finalCashBalance).toLocaleString()}</p>
-          {balances.finalGoldBalance > 0 && <p className="text-xs text-green-600/80 mt-0.5">{balances.finalGoldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
+        <div className="p-3 rounded-lg bg-success/10 border border-success/20">
+          <p className="text-xs font-medium text-success mb-1">You will Get</p>
+          <p className="text-xl font-bold text-success">PKR {Math.max(0, balances.finalCashBalance).toLocaleString()}</p>
+          {balances.finalGoldBalance > 0 && <p className="text-xs text-success/80 mt-0.5">{balances.finalGoldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
         </div>
-        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
           <p className="text-xs font-medium text-destructive mb-1">You will Give</p>
           <p className="text-xl font-bold text-destructive">PKR {Math.abs(Math.min(0, balances.finalCashBalance)).toLocaleString()}</p>
           {balances.finalGoldBalance < 0 && <p className="text-xs text-destructive/80 mt-0.5">{Math.abs(balances.finalGoldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})} g</p>}
@@ -412,7 +414,7 @@ export default function EntityHisaabPage() {
                     <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => { setDialogMode('gave'); setIsDialogOpen(true); }}>
                         <ArrowUp className="mr-1.5 h-3.5 w-3.5"/> You Gave
                     </Button>
-                    <Button size="sm" variant="outline" className="text-green-700 border-green-700/40 hover:bg-green-700/10 dark:text-green-500" onClick={() => { setDialogMode('got'); setIsDialogOpen(true); }}>
+                    <Button size="sm" variant="outline" className="text-success border-success/40 hover:bg-success/10" onClick={() => { setDialogMode('got'); setIsDialogOpen(true); }}>
                         <ArrowDown className="mr-1.5 h-3.5 w-3.5"/> You Got
                     </Button>
                   </div>
@@ -427,7 +429,7 @@ export default function EntityHisaabPage() {
                         {entityHisaab.map(entry => {
                           return (
                             <SwipeToDelete key={entry.id} onDelete={() => onDeleteEntry(entry.id)} className="rounded-lg border overflow-hidden">
-                              <Card className="border-0 shadow-none rounded-none">
+                              <div>
                                 <CardContent className="p-4">
                                   <div className="flex justify-between items-start gap-2">
                                     <div className="flex-1 min-w-0">
@@ -443,16 +445,16 @@ export default function EntityHisaabPage() {
                                     </div>
                                     <div className="text-right flex-shrink-0">
                                       {entry.cashDebit > 0 && <p className="font-bold text-destructive text-sm">-PKR {entry.cashDebit.toLocaleString()}</p>}
-                                      {entry.cashCredit > 0 && <p className="font-bold text-green-700 dark:text-green-500 text-sm">+PKR {entry.cashCredit.toLocaleString()}</p>}
+                                      {entry.cashCredit > 0 && <p className="font-bold text-success text-sm">+PKR {entry.cashCredit.toLocaleString()}</p>}
                                       {entry.goldDebitGrams > 0 && <p className="text-xs text-destructive">-{entry.goldDebitGrams.toFixed(3)}g</p>}
-                                      {entry.goldCreditGrams > 0 && <p className="text-xs text-green-700 dark:text-green-500">+{entry.goldCreditGrams.toFixed(3)}g</p>}
-                                      <p className={cn('text-xs mt-0.5', entry.runningCashBalance === 0 ? 'text-muted-foreground' : entry.runningCashBalance > 0 ? 'text-green-700/70 dark:text-green-500/70' : 'text-destructive/70')}>
+                                      {entry.goldCreditGrams > 0 && <p className="text-xs text-success">+{entry.goldCreditGrams.toFixed(3)}g</p>}
+                                      <p className={cn('text-xs mt-0.5', entry.runningCashBalance === 0 ? 'text-muted-foreground' : entry.runningCashBalance > 0 ? 'text-success' : 'text-destructive/70')}>
                                         Bal: PKR {entry.runningCashBalance.toLocaleString()}
                                       </p>
                                     </div>
                                   </div>
                                 </CardContent>
-                              </Card>
+                              </div>
                             </SwipeToDelete>
                           );
                         })}
@@ -492,23 +494,23 @@ export default function EntityHisaabPage() {
                                             {entry.goldDebitGrams > 0 && <div className="text-xs">{entry.goldDebitGrams.toFixed(3)} g</div>}
                                             {(entry.goldDebitGrams === 0 && entry.cashDebit === 0) && <span className="text-muted-foreground">—</span>}
                                         </TableCell>
-                                        <TableCell className="text-right font-medium text-green-600">
+                                        <TableCell className="text-right font-medium text-success">
                                             {entry.cashCredit > 0 && <div>PKR {entry.cashCredit.toLocaleString()}</div>}
                                             {entry.goldCreditGrams > 0 && <div className="text-xs">{entry.goldCreditGrams.toFixed(3)} g</div>}
                                             {(entry.goldCreditGrams === 0 && entry.cashCredit === 0) && <span className="text-muted-foreground">—</span>}
                                         </TableCell>
                                         {entityHisaab.some(e => e.goldDebitGrams > 0 || e.goldCreditGrams > 0) && (
-                                          <TableCell className={cn("text-right font-semibold", entry.runningGoldBalance === 0 ? 'text-muted-foreground' : entry.runningGoldBalance < 0 ? 'text-green-600' : 'text-destructive')}>
+                                          <TableCell className={cn("text-right font-semibold", entry.runningGoldBalance === 0 ? 'text-muted-foreground' : entry.runningGoldBalance < 0 ? 'text-success' : 'text-destructive')}>
                                               {entry.runningGoldBalance.toFixed(3)} g
                                           </TableCell>
                                         )}
-                                        <TableCell className={cn("text-right font-semibold", entry.runningCashBalance === 0 ? 'text-muted-foreground' : entry.runningCashBalance > 0 ? 'text-destructive' : 'text-green-600')}>
+                                        <TableCell className={cn("text-right font-semibold", entry.runningCashBalance === 0 ? 'text-muted-foreground' : entry.runningCashBalance > 0 ? 'text-destructive' : 'text-success')}>
                                             PKR {entry.runningCashBalance.toLocaleString()}
                                         </TableCell>
                                         <TableCell>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" disabled={isDeleting === entry.id} className="h-8 w-8">
+                                                    <Button variant="ghost" size="icon" disabled={isDeleting === entry.id} className="h-8 w-8" aria-label="Delete">
                                                         {isDeleting === entry.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive"/>}
                                                     </Button>
                                                 </AlertDialogTrigger>

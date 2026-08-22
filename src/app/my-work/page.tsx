@@ -171,7 +171,7 @@ export default function MyWorkPage() {
               disabled={!!data.preview} onCheckedChange={() => toggle(job)} />}
 
         <div className="min-w-0 flex-1">
-          <p className={cn('font-medium text-[15px] leading-snug break-words', done && 'line-through')}>
+          <p className={cn('font-medium text-base leading-snug break-words', done && 'line-through')}>
             {job.description}
           </p>
 
@@ -182,7 +182,7 @@ export default function MyWorkPage() {
                   'rounded-md px-2.5 py-1.5 min-w-0',
                   sp.accent ? 'bg-primary/10 ring-1 ring-primary/20' : 'bg-muted/60',
                 )}>
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">{sp.label}</p>
+                  <p className="text-2xs uppercase tracking-wide text-muted-foreground leading-none">{sp.label}</p>
                   <p className={cn('text-sm font-semibold truncate mt-1', sp.accent && 'text-primary')}>{sp.value}</p>
                 </div>
               ))}
@@ -193,12 +193,12 @@ export default function MyWorkPage() {
 
           {job.sampleImage && (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={job.sampleImage} alt="Sample" className="mt-2 rounded-md border max-h-56 object-contain bg-muted" />
+            <img src={job.sampleImage} alt="Sample" className="mt-2 rounded-md border max-h-56 object-contain bg-muted" loading="lazy" decoding="async" />
           )}
 
           {job.notes && (
-            <div className="mt-2 border-l-2 border-amber-400/70 pl-3">
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">Instructions</p>
+            <div className="mt-2 rounded-md border border-warning/25 bg-warning/[0.06] px-3 py-2">
+              <p className="text-2xs uppercase tracking-wide text-muted-foreground leading-none">Instructions</p>
               <p className="text-sm whitespace-pre-wrap mt-1">{job.notes}</p>
             </div>
           )}
@@ -216,7 +216,7 @@ export default function MyWorkPage() {
       <Card className={cn(
         allDone && 'opacity-55',
         !allDone && urgency === 'critical' && 'border-destructive/40',
-        !allDone && urgency === 'warning' && 'border-yellow-500/40',
+        !allDone && urgency === 'warning' && 'border-warning/40',
       )}>
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-2 pb-1">
@@ -233,7 +233,7 @@ export default function MyWorkPage() {
               <Badge variant="outline" className={cn('flex-shrink-0 tabular-nums',
                 urgency === 'critical'
                   ? 'text-destructive border-destructive/40 bg-destructive/10'
-                  : 'text-yellow-700 border-yellow-500/40 bg-yellow-500/10')}>
+                  : 'text-warning border-warning/40 bg-warning/10')}>
                 {group.ageDays}d
               </Badge>
             )}
@@ -254,8 +254,8 @@ export default function MyWorkPage() {
         <div className="flex items-center gap-2 mb-2 px-0.5">
           {icon}
           <h2 className={cn('text-xs font-bold uppercase tracking-widest', tone)}>{title}</h2>
-          <Badge variant="secondary" className="text-[10px]">{jobs.length}</Badge>
-          {hint && <span className="text-[11px] text-muted-foreground ml-auto">{hint}</span>}
+          <Badge variant="secondary" className="text-2xs">{jobs.length}</Badge>
+          {hint && <span className="text-2xs text-muted-foreground ml-auto">{hint}</span>}
         </div>
         <div className="space-y-3">
           {groups.map(g => <OrderCard key={g.key} group={g} />)}
@@ -297,21 +297,21 @@ export default function MyWorkPage() {
 
       <main className="p-4 lg:p-6 max-w-2xl lg:max-w-5xl mx-auto pb-16">
         {updatedAt && (
-          <p className="text-[11px] text-muted-foreground text-center mb-3">
+          <p className="text-2xs text-muted-foreground text-center mb-3">
             Updated {format(updatedAt, 'h:mm a')} · refreshes automatically
           </p>
         )}
         <div className="grid grid-cols-3 gap-3">
           <Card><CardContent className="p-3 text-center">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">To do</p>
+            <p className="text-2xs uppercase tracking-wide text-muted-foreground">To do</p>
             <p className="text-2xl font-bold">{data.summary.active}</p>
           </CardContent></Card>
-          <Card className={data.summary.late ? 'border-yellow-500/40' : ''}><CardContent className="p-3 text-center">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Late</p>
-            <p className={cn('text-2xl font-bold', data.summary.late && 'text-yellow-600')}>{data.summary.late}</p>
+          <Card className={data.summary.late ? 'border-warning/40' : ''}><CardContent className="p-3 text-center">
+            <p className="text-2xs uppercase tracking-wide text-muted-foreground">Late</p>
+            <p className={cn('text-2xl font-bold', data.summary.late && 'text-warning')}>{data.summary.late}</p>
           </CardContent></Card>
           <Card className={data.summary.critical ? 'border-destructive/40' : ''}><CardContent className="p-3 text-center">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Urgent</p>
+            <p className="text-2xs uppercase tracking-wide text-muted-foreground">Urgent</p>
             <p className={cn('text-2xl font-bold', data.summary.critical && 'text-destructive')}>{data.summary.critical}</p>
           </CardContent></Card>
         </div>
@@ -366,7 +366,7 @@ export default function MyWorkPage() {
                             <TableCell className="align-middle">
                               {j.orderId
                                 ? <span className="font-mono text-sm">{j.orderId}</span>
-                                : <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
+                                : <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
                             </TableCell>
                             <TableCell className="align-middle text-sm whitespace-nowrap">
                               {format(parseISO(j.assignedDate), 'dd MMM yyyy')}
@@ -376,7 +376,7 @@ export default function MyWorkPage() {
                                 <Badge variant="outline" className={cn('tabular-nums',
                                   j.urgency === 'critical'
                                     ? 'text-destructive border-destructive/40 bg-destructive/10'
-                                    : 'text-yellow-700 border-yellow-500/40 bg-yellow-500/10')}>
+                                    : 'text-warning border-warning/40 bg-warning/10')}>
                                   {j.ageDays}d
                                 </Badge>
                               )}
@@ -393,7 +393,7 @@ export default function MyWorkPage() {
             <div className="lg:hidden">
             {active.length === 0 ? (
               <Card><CardContent className="py-12 text-center">
-                <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-600" />
+                <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
                 <p className="font-medium">Nothing pending</p>
                 <p className="text-sm text-muted-foreground">You&apos;re all caught up.</p>
               </CardContent></Card>
@@ -401,8 +401,8 @@ export default function MyWorkPage() {
               <>
                 <Group title="Urgent" jobs={critical} icon={<Flame className="h-4 w-4 text-destructive" />}
                   tone="text-destructive" hint="14+ days" />
-                <Group title="Late" jobs={late} icon={<Clock className="h-4 w-4 text-yellow-600" />}
-                  tone="text-yellow-700" hint="7–14 days" />
+                <Group title="Late" jobs={late} icon={<Clock className="h-4 w-4 text-warning" />}
+                  tone="text-warning" hint="7–14 days" />
                 <Group title="In hand" jobs={ontrack} hint="on track" />
               </>
             )}
@@ -410,7 +410,7 @@ export default function MyWorkPage() {
 
             {done.length > 0 && (
               <Group title="Completed" jobs={done}
-                icon={<CheckCircle2 className="h-4 w-4 text-green-600" />} tone="text-muted-foreground" />
+                icon={<CheckCircle2 className="h-4 w-4 text-success" />} tone="text-muted-foreground" />
             )}
           </TabsContent>
 
@@ -420,15 +420,15 @@ export default function MyWorkPage() {
               <CardContent>
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div>
-                    <p className="text-[10px] uppercase text-muted-foreground">Received</p>
+                    <p className="text-2xs uppercase text-muted-foreground">Received</p>
                     <p className="text-lg font-bold">{data.account.goldGiven.toFixed(3)}g</p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase text-muted-foreground">Returned</p>
+                    <p className="text-2xs uppercase text-muted-foreground">Returned</p>
                     <p className="text-lg font-bold">{data.account.goldReceived.toFixed(3)}g</p>
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase text-muted-foreground">With you</p>
+                    <p className="text-2xs uppercase text-muted-foreground">With you</p>
                     <p className={cn('text-lg font-bold', data.account.goldNet > 0 && 'text-destructive')}>{data.account.goldNet.toFixed(3)}g</p>
                   </div>
                 </div>
@@ -442,7 +442,7 @@ export default function MyWorkPage() {
                             <span className="text-xs text-muted-foreground">{l.date ? format(parseISO(l.date), 'dd MMM yy') : ''}</span>
                             <span className="ml-2">{l.description}</span>
                           </div>
-                          <span className={cn('font-semibold tabular-nums flex-shrink-0', l.goldOut ? 'text-destructive' : 'text-green-600')}>
+                          <span className={cn('font-semibold tabular-nums flex-shrink-0', l.goldOut ? 'text-destructive' : 'text-success')}>
                             {l.goldOut ? `↑ ${l.goldOut.toFixed(3)}g` : `↓ ${l.goldIn.toFixed(3)}g`}
                           </span>
                         </div>

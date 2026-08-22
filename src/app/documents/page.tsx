@@ -361,12 +361,12 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
 
 const getStatusBadgeVariant = (status: Order['status'] | 'Paid' | 'Unpaid') => {
     switch (status) {
-      case 'Pending': return 'bg-yellow-500/80 text-yellow-50';
+      case 'Pending': return 'bg-warning text-warning-foreground';
       case 'In Progress': return 'bg-blue-500/80 text-blue-50';
-      case 'Completed': return 'bg-green-500/80 text-green-50';
-      case 'Cancelled': return 'bg-red-500/80 text-red-50';
+      case 'Completed': return 'bg-success text-success-foreground';
+      case 'Cancelled': return 'bg-destructive text-destructive-foreground';
       case 'Refunded': return 'bg-purple-500/80 text-purple-50';
-      case 'Paid': return 'bg-green-600/80 text-green-50';
+      case 'Paid': return 'bg-success text-success-foreground';
       case 'Unpaid': return 'bg-orange-500/80 text-orange-50';
       default: return 'secondary';
     }
@@ -374,10 +374,10 @@ const getStatusBadgeVariant = (status: Order['status'] | 'Paid' | 'Unpaid') => {
 
 const getStatusDotColor = (status: string) => {
     switch (status) {
-      case 'Pending': return 'bg-yellow-500';
+      case 'Pending': return 'bg-warning';
       case 'In Progress': return 'bg-blue-500';
-      case 'Completed': return 'bg-green-500';
-      case 'Cancelled': return 'bg-red-500';
+      case 'Completed': return 'bg-success';
+      case 'Cancelled': return 'bg-destructive';
       case 'Refunded': return 'bg-purple-500';
       default: return 'bg-gray-400';
     }
@@ -427,7 +427,7 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
                                 {doc.docType}
                             </Badge>
                             {isShopifyDoc(doc) && (
-                                <Badge className="bg-green-600/80 text-green-50 border-transparent flex items-center gap-1 w-fit">
+                                <Badge className="bg-success text-success-foreground border-transparent flex items-center gap-1 w-fit">
                                     <ShoppingBag className="h-3 w-3"/> Shopify
                                 </Badge>
                             )}
@@ -473,7 +473,7 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
                     <Printer className="w-4 h-4 mr-2" /> Print
                 </Button>
                 {status === 'Unpaid' && onMarkPaid && (
-                    <Button variant="ghost" className="flex-1 justify-center text-green-600 hover:text-green-700 hover:bg-green-50" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
+                    <Button variant="ghost" className="flex-1 justify-center text-success hover:text-success hover:bg-success/10" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
                         <CheckCircle2 className="w-4 h-4 mr-2" /> Mark Paid
                     </Button>
                 )}
@@ -507,15 +507,15 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid
                  <div className="font-medium text-primary hover:underline">{doc.id}</div>
             </TableCell>
             <TableCell>{doc.customerName || 'Walk-in'}</TableCell>
-            <TableCell>{format(parseISO(doc.createdAt), 'dd MMM, yyyy')}</TableCell>
-            <TableCell>
+            <TableCell className="hidden xl:table-cell">{format(parseISO(doc.createdAt), 'dd MMM, yyyy')}</TableCell>
+            <TableCell className="hidden xl:table-cell">
                 <div className="flex items-center gap-1 flex-wrap">
                     <Badge variant={doc.docType === 'order' ? 'secondary' : 'default'} className="capitalize flex items-center gap-1">
                         {doc.docType === 'order' ? <ClipboardList className="h-3 w-3"/> : <FileText className="h-3 w-3"/>}
                         {doc.docType}
                     </Badge>
                     {isShopifyDoc(doc) && (
-                        <Badge className="bg-green-600/80 text-green-50 border-transparent flex items-center gap-1">
+                        <Badge className="bg-success text-success-foreground border-transparent flex items-center gap-1">
                             <ShoppingBag className="h-3 w-3"/> Shopify
                         </Badge>
                     )}
@@ -548,7 +548,7 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid
                         <Printer className="w-4 h-4 mr-1" /> Print
                     </Button>
                     {status === 'Unpaid' && onMarkPaid && (
-                        <Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
+                        <Button variant="ghost" size="sm" className="text-success hover:text-success hover:bg-success/10" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
                             <CheckCircle2 className="w-4 h-4 mr-1" /> Paid
                         </Button>
                     )}
@@ -919,8 +919,8 @@ export default function DocumentsPage() {
                     <TableRow>
                         <TableHead>ID</TableHead>
                         <TableHead>Customer</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
+                        <TableHead className="hidden xl:table-cell">Date</TableHead>
+                        <TableHead className="hidden xl:table-cell">Type</TableHead>
                         <TableHead className="text-right">Total (PKR)</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
@@ -966,7 +966,7 @@ export default function DocumentsPage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
-                    />
+                     aria-label="Search by ID or Customer Name"/>
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 </div>
                 <Select value={monthFilter} onValueChange={setMonthFilter}>
@@ -1030,7 +1030,7 @@ export default function DocumentsPage() {
             </div>
           ) : (
             <div className="py-6 flex flex-col items-center gap-2 text-center">
-              <CheckCircle2 className="w-12 h-12 text-green-500" />
+              <CheckCircle2 className="w-12 h-12 text-success" />
               <p className="font-semibold text-lg">Import Complete</p>
               <p className="text-muted-foreground text-sm">All invoices have been saved to Firestore.</p>
             </div>

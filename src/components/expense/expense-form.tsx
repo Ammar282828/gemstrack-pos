@@ -213,7 +213,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
           <Button type="button" variant="outline" onClick={onSubmitSuccess}>
             <Ban className="mr-2 h-4 w-4" /> Cancel
           </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <Button type="submit" disabled={form.formState.isSubmitting} aria-label="Save">
             <Save className="mr-2 h-4 w-4" /> {isEditMode ? 'Save Changes' : 'Add Expense'}
           </Button>
         </div>

@@ -39,7 +39,7 @@ interface ProductCardProps {
 }
 
 const METAL_COLORS: Record<string, string> = {
-  gold: 'bg-amber-100 text-amber-800 border-amber-300',
+  gold: 'bg-warning text-warning border-warning',
   silver: 'bg-slate-100 text-slate-700 border-slate-300',
   platinum: 'bg-blue-100 text-blue-800 border-blue-300',
   palladium: 'bg-purple-100 text-purple-800 border-purple-300',
@@ -54,7 +54,7 @@ function getMetalLabel(product: Product): string {
 const DeleteButton: React.FC<{ product: Product; onDelete: (sku: string) => Promise<void> }> = ({ product, onDelete }) => (
   <AlertDialog>
     <AlertDialogTrigger asChild>
-      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10">
+      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10" aria-label="Delete">
         <Trash2 className="w-4 h-4" />
       </Button>
     </AlertDialogTrigger>
@@ -108,10 +108,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, categoryTitle, setti
           </Link>
           <p className="text-xs text-muted-foreground mt-0.5">SKU: {product.sku}</p>
           <div className="flex flex-wrap gap-1 mt-1.5">
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${METAL_COLORS[product.metalType] || 'bg-muted text-muted-foreground'}`}>
+            <span className={`text-2xs font-medium px-1.5 py-0.5 rounded border ${METAL_COLORS[product.metalType] || 'bg-muted text-muted-foreground'}`}>
               {getMetalLabel(product)} · {product.metalWeightG}g
             </span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">{categoryTitle}</Badge>
+            <Badge variant="secondary" className="text-2xs px-1.5 py-0.5">{categoryTitle}</Badge>
           </div>
         </div>
       </div>
@@ -126,7 +126,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, categoryTitle, setti
         <Button size="sm" onClick={handleAddToCart} className="flex-1 h-8">
           <ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Add to Cart
         </Button>
-        <Button asChild size="icon" variant="outline" className="h-8 w-8 shrink-0">
+        <Button asChild size="icon" variant="outline" className="h-8 w-8 shrink-0" aria-label="Edit">
           <Link href={`/products/${product.sku}/edit`}><Edit3 className="w-4 h-4" /></Link>
         </Button>
         <DeleteButton product={product} onDelete={onDelete} />
@@ -157,10 +157,10 @@ const ProductRow: React.FC<ProductCardProps> = ({ product, categoryTitle, settin
         <Link href={`/products/${product.sku}`} className="font-medium hover:text-primary transition-colors">{product.name}</Link>
         <p className="text-xs text-muted-foreground">{product.sku}</p>
       </TableCell>
-      <TableCell>
+      <TableCell className="hidden xl:table-cell">
         <Badge variant="secondary" className="text-xs">{categoryTitle}</Badge>
       </TableCell>
-      <TableCell>
+      <TableCell className="hidden xl:table-cell">
         <span className={`text-xs font-medium px-1.5 py-0.5 rounded border ${METAL_COLORS[product.metalType] || ''}`}>
           {getMetalLabel(product)}
         </span>
@@ -174,7 +174,7 @@ const ProductRow: React.FC<ProductCardProps> = ({ product, categoryTitle, settin
           <Button size="sm" className="h-7 text-xs" onClick={() => { addToCart(product.sku); toast({ title: 'Added', description: product.name }); }}>
             <ShoppingCart className="w-3 h-3 mr-1" /> Cart
           </Button>
-          <Button asChild size="icon" variant="outline" className="h-7 w-7">
+          <Button asChild size="icon" variant="outline" className="h-7 w-7" aria-label="Edit">
             <Link href={`/products/${product.sku}/edit`}><Edit3 className="w-3.5 h-3.5" /></Link>
           </Button>
           <DeleteButton product={product} onDelete={onDelete} />
@@ -308,7 +308,7 @@ export default function ProductsPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
-              />
+               aria-label="Search by name or SKU"/>
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             </div>
             <div className="flex gap-1 border rounded-md p-0.5">
@@ -402,8 +402,8 @@ export default function ProductsPage() {
                   <TableHead className="w-8"></TableHead>
                   <TableHead className="w-12"></TableHead>
                   <TableHead>Name / SKU</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Metal</TableHead>
+                  <TableHead className="hidden xl:table-cell">Category</TableHead>
+                  <TableHead className="hidden xl:table-cell">Metal</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>

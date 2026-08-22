@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { whatsAppLink } from '@/lib/whatsapp';
 import Image from 'next/image';
 import Link from 'next/link';
 import { EditCartItemDialog } from '@/components/cart/edit-cart-item-dialog';
@@ -573,8 +574,9 @@ export default function CartPage() {
     // Fallback for desktop: open wa.me with a pre-composed text + link
     const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://gemstrack-pos.web.app';
     message += `\n\nView estimate: ${appUrl}/view-invoice/${invoiceToSend.id}`;
-    const numberOnly = whatsAppNumber.replace(/\D/g, '');
-    const whatsappUrl = `https://wa.me/${numberOnly}?text=${encodeURIComponent(message)}`;
+    // Country code and leading-zero handling live in one place; the raw
+    // digit strip that used to be here produced wa.me/0300… , a dead link.
+    const whatsappUrl = whatsAppLink(whatsAppNumber, message);
     window.open(whatsappUrl, '_blank');
     toast({ title: "Redirecting to WhatsApp", description: "Your message is ready to be sent." });
   };
@@ -954,7 +956,7 @@ export default function CartPage() {
     return (
       <div className="bg-muted min-h-screen p-4 sm:p-8">
         <div style={{ display: 'none' }}>
-          <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" />
+          <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" loading="lazy" decoding="async" />
           <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
           <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
         </div>
@@ -1021,7 +1023,7 @@ export default function CartPage() {
                                 autoFocus
                                 onKeyDown={(e) => { if (e.key === 'Enter') handleSaveDiscount(); if (e.key === 'Escape') setIsEditingDiscount(false); }}
                               />
-                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleSaveDiscount} disabled={isSavingDiscount}>
+                              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleSaveDiscount} disabled={isSavingDiscount} aria-label="Confirm">
                                 {isSavingDiscount ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                               </Button>
                               <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setIsEditingDiscount(false)}>
@@ -1102,8 +1104,7 @@ export default function CartPage() {
                  {generatedInvoice.paymentHistory && generatedInvoice.paymentHistory.length > 0 && (
                      <div>
                         <h3 className="text-lg font-semibold flex items-center mb-2"><List className="mr-2 h-5 w-5"/>Payment History</h3>
-                        <Card>
-                            <CardContent className="p-0">
+                        <div className="rounded-lg border overflow-hidden">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -1122,10 +1123,9 @@ export default function CartPage() {
                                         ))}
                                     </TableBody>
                                 </Table>
-                            </CardContent>
-                        </Card>
-                        <Alert variant="default" className="mt-4 bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-300">
-                            <Check className="h-4 w-4 text-green-600"/>
+                        </div>
+                        <Alert variant="default" className="mt-4 bg-success/10 border-success/30 text-success">
+                            <Check className="h-4 w-4 text-success"/>
                             <AlertTitle>Payment Summary</AlertTitle>
                             <AlertDescription>
                                 A total of <strong className="font-semibold">PKR {generatedInvoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</strong> has been paid. 
@@ -1257,7 +1257,7 @@ export default function CartPage() {
                     onKeyDown={e => { if (e.key === 'Enter') handleAddBySku(); if (e.key === 'Escape') setSkuDropdownOpen(false); }}
                     onBlur={() => setTimeout(() => setSkuDropdownOpen(false), 150)}
                     onFocus={() => skuSuggestions.length > 0 && setSkuDropdownOpen(true)}
-                  />
+                   aria-label="Search by SKU or product name"/>
                   {skuDropdownOpen && (
                     <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
                       {skuSuggestions.map(p => (
@@ -1310,7 +1310,7 @@ export default function CartPage() {
                                                 {item.size && <p className="text-xs text-muted-foreground">Size: {item.size}</p>}
                                                 <p className="text-xs text-muted-foreground">{item.sku}</p>
                                                 {item.metalType === 'silver' && item.isCustomPrice && (
-                                                    <p className="text-xs text-amber-600 font-medium">Manual: PKR {item.customPrice?.toLocaleString()}</p>
+                                                    <p className="text-xs text-warning font-medium">Manual: PKR {item.customPrice?.toLocaleString()}</p>
                                                 )}
                                                 {item.metalType === 'silver' && !item.isCustomPrice && item.silverRatePerGram && (
                                                     <p className="text-xs text-blue-500">Rate: {item.silverRatePerGram}/g · {item.metalWeightG}g</p>
@@ -1344,7 +1344,7 @@ export default function CartPage() {
                                 onKeyDown={e => { if (e.key === 'Enter') handleAddBySku(); if (e.key === 'Escape') setSkuDropdownOpen(false); }}
                                 onBlur={() => setTimeout(() => setSkuDropdownOpen(false), 150)}
                                 onFocus={() => skuSuggestions.length > 0 && setSkuDropdownOpen(true)}
-                              />
+                               aria-label="Search by SKU or product name"/>
                               {skuDropdownOpen && (
                                 <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
                                   {skuSuggestions.map(p => (
@@ -1408,10 +1408,10 @@ export default function CartPage() {
                         <div className="space-y-2">
                              <Label>Gold Rates (PKR)</Label>
                              <div className="grid grid-cols-2 gap-2">
-                                {cartMetalInfo.karats.has('18k') && <div><Label className="text-xs">18k/gram</Label><Input value={rateInputs.gold18k} onChange={e => handleRateChange('gold18k', e.target.value)} /></div>}
-                                {cartMetalInfo.karats.has('21k') && <div><Label className="text-xs">21k/gram</Label><Input value={rateInputs.gold21k} onChange={e => handleRateChange('gold21k', e.target.value)} /></div>}
-                                {cartMetalInfo.karats.has('22k') && <div><Label className="text-xs">22k/gram</Label><Input value={rateInputs.gold22k} onChange={e => handleRateChange('gold22k', e.target.value)} /></div>}
-                                {cartMetalInfo.karats.has('24k') && <div><Label className="text-xs">24k/gram</Label><Input value={rateInputs.gold24k} onChange={e => handleRateChange('gold24k', e.target.value)} /></div>}
+                                {cartMetalInfo.karats.has('18k') && <div><Label className="text-xs">18k/gram</Label><Input value={rateInputs.gold18k} onChange={e => handleRateChange('gold18k', e.target.value)}  aria-label="18k/gram"/></div>}
+                                {cartMetalInfo.karats.has('21k') && <div><Label className="text-xs">21k/gram</Label><Input value={rateInputs.gold21k} onChange={e => handleRateChange('gold21k', e.target.value)}  aria-label="21k/gram"/></div>}
+                                {cartMetalInfo.karats.has('22k') && <div><Label className="text-xs">22k/gram</Label><Input value={rateInputs.gold22k} onChange={e => handleRateChange('gold22k', e.target.value)}  aria-label="22k/gram"/></div>}
+                                {cartMetalInfo.karats.has('24k') && <div><Label className="text-xs">24k/gram</Label><Input value={rateInputs.gold24k} onChange={e => handleRateChange('gold24k', e.target.value)}  aria-label="24k/gram"/></div>}
                              </div>
                         </div>
 
@@ -1429,17 +1429,17 @@ export default function CartPage() {
                         </div>
                         <div className="space-y-2 p-3 border rounded-md bg-muted/40">
                             <Label className="text-sm font-medium">Exchange / Trade-in</Label>
-                            <Input placeholder="Description (e.g. Old 22k ring)" value={exchangeDescription} onChange={e => setExchangeDescription(e.target.value)} />
+                            <Input placeholder="Description (e.g. Old 22k ring)" value={exchangeDescription} onChange={e => setExchangeDescription(e.target.value)}  aria-label="Exchange / Trade-in"/>
                             <div className="grid grid-cols-2 gap-2">
-                                <Input type="number" placeholder="Amount 1 (PKR)" value={exchangeAmount1Input} onChange={e => setExchangeAmount1Input(e.target.value)} />
-                                <Input type="number" placeholder="Amount 2 (PKR)" value={exchangeAmount2Input} onChange={e => setExchangeAmount2Input(e.target.value)} />
+                                <Input type="number" placeholder="Amount 1 (PKR)" value={exchangeAmount1Input} onChange={e => setExchangeAmount1Input(e.target.value)}  aria-label="Amount 1 (PKR)"/>
+                                <Input type="number" placeholder="Amount 2 (PKR)" value={exchangeAmount2Input} onChange={e => setExchangeAmount2Input(e.target.value)}  aria-label="Amount 2 (PKR)"/>
                             </div>
                         </div>
                         <Separator />
                         <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-2">
-                         <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate}>
+                         <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate} aria-label="Open document">
                             {isGeneratingEstimate ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <FileText className="mr-2 h-5 w-5"/>}
                             {isEditingEstimate ? 'Update Estimate' : 'Generate Estimate'}
                         </Button>

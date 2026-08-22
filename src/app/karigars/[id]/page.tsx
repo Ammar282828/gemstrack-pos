@@ -424,19 +424,19 @@ export default function KarigarDetailPage() {
           <CardContent>
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="rounded-lg bg-muted/50 py-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center justify-center gap-1"><ArrowUp className="h-3 w-3 text-destructive" />Given</p>
+                <p className="text-2xs uppercase tracking-wide text-muted-foreground flex items-center justify-center gap-1"><ArrowUp className="h-3 w-3 text-destructive" />Given</p>
                 <p className="text-lg font-bold">{goldKhata.given.toFixed(3)}<span className="text-xs font-normal text-muted-foreground">g</span></p>
               </div>
               <div className="rounded-lg bg-muted/50 py-3">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center justify-center gap-1"><ArrowDown className="h-3 w-3 text-green-600" />Received</p>
+                <p className="text-2xs uppercase tracking-wide text-muted-foreground flex items-center justify-center gap-1"><ArrowDown className="h-3 w-3 text-success" />Received</p>
                 <p className="text-lg font-bold">{goldKhata.received.toFixed(3)}<span className="text-xs font-normal text-muted-foreground">g</span></p>
               </div>
-              <div className={cn("rounded-lg py-3", goldKhata.net >= 0 ? 'bg-destructive/10' : 'bg-green-600/10')}>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Net (out)</p>
-                <p className={cn("text-lg font-bold", goldKhata.net >= 0 ? 'text-destructive' : 'text-green-600')}>{goldKhata.net.toFixed(3)}<span className="text-xs font-normal text-muted-foreground">g</span></p>
+              <div className={cn("rounded-lg py-3", goldKhata.net >= 0 ? 'bg-destructive/10' : 'bg-success/10')}>
+                <p className="text-2xs uppercase tracking-wide text-muted-foreground">Net (out)</p>
+                <p className={cn("text-lg font-bold", goldKhata.net >= 0 ? 'text-destructive' : 'text-success')}>{goldKhata.net.toFixed(3)}<span className="text-xs font-normal text-muted-foreground">g</span></p>
               </div>
             </div>
-            <p className="text-[11px] text-muted-foreground text-center mt-2">
+            <p className="text-2xs text-muted-foreground text-center mt-2">
               {goldKhata.entries.length} entries · net = gold still with the karigar
             </p>
             <Separator className="my-3" />
@@ -451,7 +451,7 @@ export default function KarigarDetailPage() {
                         <span className="text-muted-foreground text-xs">{format(parseISO(e.date), 'dd MMM yy')}</span>
                         <span className="ml-2">{e.description}</span>
                       </div>
-                      <span className={cn("font-semibold flex-shrink-0 tabular-nums", isGiven ? 'text-destructive' : 'text-green-600')}>
+                      <span className={cn("font-semibold flex-shrink-0 tabular-nums", isGiven ? 'text-destructive' : 'text-success')}>
                         {isGiven ? '↑' : '↓'} {grams.toFixed(3)}g
                       </span>
                     </div>
@@ -533,7 +533,7 @@ export default function KarigarDetailPage() {
       <Dialog open={isCloseDialogOpen} onOpenChange={(v) => { setIsCloseDialogOpen(v); if (!v) setCarryOverLabel(''); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-600" />Settle & Close Hisaab</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-success" />Settle & Close Hisaab</DialogTitle>
             <DialogDescription>
               Closing <strong>{openBatch?.label}</strong> · total <strong>PKR {openBatchTotal.toLocaleString()}</strong>.
             </DialogDescription>
@@ -551,7 +551,7 @@ export default function KarigarDetailPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsCloseDialogOpen(false); setCarryOverLabel(''); }}>Cancel</Button>
-            <Button onClick={handleCloseBatch} className="bg-green-600 hover:bg-green-700">
+            <Button onClick={handleCloseBatch} className="bg-success hover:bg-success" aria-label="Locked">
               <Lock className="mr-2 h-4 w-4" />{carryOverLabel.trim() ? 'Settle & Carry Over' : 'Settle & Close'}
             </Button>
           </DialogFooter>
@@ -580,7 +580,7 @@ export default function KarigarDetailPage() {
                 <PlusCircle className="mr-1.5 h-4 w-4" />Add Payment
               </Button>
               <Button size="sm" variant="outline" onClick={() => setIsCloseDialogOpen(true)}
-                className="border-green-500 text-green-700 hover:bg-green-50 dark:hover:bg-green-950">
+                className="border-success text-success hover:bg-success/10 dark:hover:bg-success">
                 <CheckCircle2 className="mr-1.5 h-4 w-4" />Settle
               </Button>
             </div>
@@ -680,7 +680,7 @@ export default function KarigarDetailPage() {
                       <TableCell>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label="Delete">
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </AlertDialogTrigger>

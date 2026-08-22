@@ -33,22 +33,22 @@ const getPaymentStatus = (order: Order): PaymentStatus => {
 
 const getPaymentBadgeClass = (status: PaymentStatus) => {
   switch (status) {
-    case 'Paid': return 'bg-green-500/80 text-green-50';
+    case 'Paid': return 'bg-success text-success-foreground';
     case 'Partial': return 'bg-orange-500/80 text-orange-50';
-    case 'Unpaid': return 'bg-red-500/80 text-red-50';
+    case 'Unpaid': return 'bg-destructive text-destructive-foreground';
   }
 };
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
     switch (status) {
       case 'Pending':
-        return 'bg-yellow-500/80 text-yellow-50';
+        return 'bg-warning text-warning-foreground';
       case 'In Progress':
         return 'bg-blue-500/80 text-blue-50';
       case 'Completed':
-        return 'bg-green-500/80 text-green-50';
+        return 'bg-success text-success-foreground';
       case 'Cancelled':
-        return 'bg-red-500/80 text-red-50';
+        return 'bg-destructive text-destructive-foreground';
       case 'Refunded':
         return 'bg-purple-500/80 text-purple-50';
       default:
@@ -109,7 +109,7 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
             <div className="pt-1">
                  {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items completed</span>}
                  {unassignedItems > 0 && order.status !== 'Completed' && (
-                   <Badge variant="outline" className="ml-2 text-[10px] text-destructive border-destructive/40 bg-destructive/5">
+                   <Badge variant="outline" className="ml-2 text-2xs text-destructive border-destructive/40 bg-destructive/5">
                      {unassignedItems} unassigned
                    </Badge>
                  )}
@@ -210,7 +210,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
                     </>
                   )}
                   {unassignedItems > 0 && order.status !== 'Completed' && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 w-fit text-destructive border-destructive/40 bg-destructive/5 whitespace-nowrap">
+                    <Badge variant="outline" className="text-2xs px-1.5 py-0 w-fit text-destructive border-destructive/40 bg-destructive/5 whitespace-nowrap">
                       {unassignedItems} unassigned
                     </Badge>
                   )}
@@ -356,7 +356,7 @@ export default function OrdersPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
-              />
+               aria-label="Search by Order ID, Customer Name, or Contact"/>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             </div>
             {/* On a phone the date picker plus twelve status/payment pills
@@ -399,10 +399,10 @@ export default function OrdersPage() {
                 size="sm"
                 onClick={() => setStatusFilter(status)}
                 className={cn(statusFilter !== status && "hover:bg-muted/50", {
-                    'bg-yellow-500/20 border-yellow-500/50 text-yellow-800 hover:bg-yellow-500/30 dark:text-yellow-200': statusFilter === 'Pending' && status === 'Pending',
+                    'bg-warning/20 border-warning/50 text-warning hover:bg-warning/30 ': statusFilter === 'Pending' && status === 'Pending',
                     'bg-blue-500/20 border-blue-500/50 text-blue-800 hover:bg-blue-500/30 dark:text-blue-200': statusFilter === 'In Progress' && status === 'In Progress',
-                    'bg-green-500/20 border-green-500/50 text-green-800 hover:bg-green-500/30 dark:text-green-200': statusFilter === 'Completed' && status === 'Completed',
-                    'bg-red-500/20 border-red-500/50 text-red-800 hover:bg-red-500/30 dark:text-red-200': statusFilter === 'Cancelled' && status === 'Cancelled',
+                    'bg-success/20 border-success/50 text-success hover:bg-success/30 ': statusFilter === 'Completed' && status === 'Completed',
+                    'bg-destructive/20 border-destructive/50 text-destructive hover:bg-destructive/30 dark:text-destructive': statusFilter === 'Cancelled' && status === 'Cancelled',
                     'bg-purple-500/20 border-purple-500/50 text-purple-800 hover:bg-purple-500/30 dark:text-purple-200': statusFilter === 'Refunded' && status === 'Refunded',
                 })}
               >
@@ -419,9 +419,9 @@ export default function OrdersPage() {
                 size="sm"
                 onClick={() => setPaymentFilter(ps)}
                 className={cn(paymentFilter !== ps && "hover:bg-muted/50", {
-                  'bg-green-500/20 border-green-500/50 text-green-800 hover:bg-green-500/30 dark:text-green-200': paymentFilter === 'Paid' && ps === 'Paid',
+                  'bg-success/20 border-success/50 text-success hover:bg-success/30 ': paymentFilter === 'Paid' && ps === 'Paid',
                   'bg-orange-500/20 border-orange-500/50 text-orange-800 hover:bg-orange-500/30 dark:text-orange-200': paymentFilter === 'Partial' && ps === 'Partial',
-                  'bg-red-500/20 border-red-500/50 text-red-800 hover:bg-red-500/30 dark:text-red-200': paymentFilter === 'Unpaid' && ps === 'Unpaid',
+                  'bg-destructive/20 border-destructive/50 text-destructive hover:bg-destructive/30 dark:text-destructive': paymentFilter === 'Unpaid' && ps === 'Unpaid',
                 })}
               >
                 {ps}

@@ -752,16 +752,16 @@ export default function AnalyticsPage() {
                       <p className="text-xs text-muted-foreground mt-1 hidden sm:block">Revenue × 40% — before expenses</p>
                     </CardContent>
                   </Card>
-                  <Card className={`${netProfit >= 0 ? 'border-green-500/40' : 'border-red-500/40'} animate-in fade-in-0 slide-in-from-bottom-4 duration-500`} style={{ animationDelay: '180ms', animationFillMode: 'both' }}>
+                  <Card className={`${netProfit >= 0 ? 'border-success/40' : 'border-destructive/40'} animate-in fade-in-0 slide-in-from-bottom-4 duration-500`} style={{ animationDelay: '180ms', animationFillMode: 'both' }}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
                       {netProfit >= 0
-                        ? <TrendingUp className="h-4 w-4 text-green-600" />
+                        ? <TrendingUp className="h-4 w-4 text-success" />
                         : <TrendingDown className="h-4 w-4 text-destructive" />
                       }
                     </CardHeader>
                     <CardContent>
-                      <div className={`text-xl sm:text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                      <div className={`text-xl sm:text-2xl font-bold ${netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
                         PKR {netProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -773,13 +773,13 @@ export default function AnalyticsPage() {
               );
             })()}
             {analyticsData.totalUnpaid > 0 && (
-              <Card className="border-amber-500/40 animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '240ms', animationFillMode: 'both' }}>
+              <Card className="border-warning/40 animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '240ms', animationFillMode: 'both' }}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
-                  <Clock className="h-4 w-4 text-amber-500" />
+                  <Clock className="h-4 w-4 text-warning" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-xl sm:text-2xl font-bold text-amber-600">
+                  <div className="text-xl sm:text-2xl font-bold text-warning">
                     PKR {analyticsData.totalUnpaid.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 hidden sm:block">Unpaid balance on invoices in this period</p>
@@ -849,53 +849,50 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                    <Card className="border-green-500/40">
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Cash In</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-xl sm:text-2xl font-bold text-green-600">
-                          PKR {cashIn.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Invoice payments: PKR {cashInFromInvoicePayments.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                          {cashInFromOrderAdvances > 0 && <> · Advances incl. trade-ins: PKR {cashInFromOrderAdvances.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>}
-                          {cashInFromExtraRevenue > 0 && <> · Extra: PKR {cashInFromExtraRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>}
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card className="border-red-500/40">
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Cash Out</CardTitle>
+                    {/* Plain panels, not Cards: these already sit inside the
+                        Cash Flow card, and a card inside a card reads as two
+                        competing surfaces. */}
+                    <div className="rounded-lg border border-success/40 p-4">
+                      <div className="flex flex-row items-center justify-between pb-2">
+                        <h4 className="text-sm font-medium">Cash In</h4>
+                        <TrendingUp className="h-4 w-4 text-success" />
+                      </div>
+                      <div className="text-xl sm:text-2xl font-bold text-success">
+                        PKR {cashIn.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Invoice payments: PKR {cashInFromInvoicePayments.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        {cashInFromOrderAdvances > 0 && <> · Advances incl. trade-ins: PKR {cashInFromOrderAdvances.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>}
+                        {cashInFromExtraRevenue > 0 && <> · Extra: PKR {cashInFromExtraRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-destructive/40 p-4">
+                      <div className="flex flex-row items-center justify-between pb-2">
+                        <h4 className="text-sm font-medium">Cash Out</h4>
                         <TrendingDown className="h-4 w-4 text-destructive" />
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-xl sm:text-2xl font-bold text-destructive">
-                          PKR {cashOut.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">Every expense paid in this period</p>
-                      </CardContent>
-                    </Card>
-                    <Card className={cn('col-span-2 lg:col-span-1', netCashFlow >= 0 ? 'border-green-600/40 bg-green-50/30 dark:bg-green-950/10' : 'border-red-600/40 bg-red-50/30 dark:bg-red-950/10')}>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Net Cash Flow</CardTitle>
+                      </div>
+                      <div className="text-xl sm:text-2xl font-bold text-destructive">
+                        PKR {cashOut.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Every expense paid in this period</p>
+                    </div>
+                    <div className={cn('rounded-lg border p-4 col-span-2 lg:col-span-1', netCashFlow >= 0 ? 'border-success/40 bg-success/10' : 'border-destructive/40 bg-destructive/10')}>
+                      <div className="flex flex-row items-center justify-between pb-2">
+                        <h4 className="text-sm font-medium">Net Cash Flow</h4>
                         {netCashFlow >= 0
-                          ? <TrendingUp className="h-4 w-4 text-green-600" />
+                          ? <TrendingUp className="h-4 w-4 text-success" />
                           : <TrendingDown className="h-4 w-4 text-destructive" />}
-                      </CardHeader>
-                      <CardContent>
-                        <div className={cn('text-xl sm:text-2xl font-bold', netCashFlow >= 0 ? 'text-green-700 dark:text-green-300' : 'text-destructive')}>
-                          {netCashFlow >= 0 ? '+' : '−'}PKR {Math.abs(netCashFlow).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {netCashFlow >= 0 ? 'Business gained cash in this period' : 'Business spent more cash than it took in'}
-                        </p>
-                      </CardContent>
-                    </Card>
+                      </div>
+                      <div className={cn('text-xl sm:text-2xl font-bold', netCashFlow >= 0 ? 'text-success' : 'text-destructive')}>
+                        {netCashFlow >= 0 ? '+' : '−'}PKR {Math.abs(netCashFlow).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {netCashFlow >= 0 ? 'Business gained cash in this period' : 'Business spent more cash than it took in'}
+                      </p>
+                    </div>
                   </div>
                   {accrualVsCashGap > 0 && (
-                    <div className="mt-3 rounded-md border bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-200">
+                    <div className="mt-3 rounded-md border bg-warning/10 border-warning/40 p-3 text-xs text-warning">
                       <span className="font-semibold">PKR {accrualVsCashGap.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span> of recognised revenue is <em>not yet collected</em> — sitting as customer receivables and uninvoiced open orders. That gap is the difference between &ldquo;Total Revenue&rdquo; (accrual) and &ldquo;Cash In&rdquo;.
                     </div>
                   )}
@@ -920,7 +917,7 @@ export default function AnalyticsPage() {
                     <TableRow>
                       <TableHead>Year</TableHead>
                       <TableHead className="text-right">Revenue</TableHead>
-                      <TableHead className="text-right text-amber-600 hidden sm:table-cell">Unpaid</TableHead>
+                      <TableHead className="text-right text-warning hidden sm:table-cell">Unpaid</TableHead>
                       <TableHead className="text-right hidden sm:table-cell">Expenses</TableHead>
                       <TableHead className="text-right text-blue-600 hidden md:table-cell">Est. Profit (40%)</TableHead>
                       <TableHead className="text-right">Net Profit</TableHead>
@@ -936,14 +933,14 @@ export default function AnalyticsPage() {
                       >
                         <TableCell className="font-semibold">{row.year}</TableCell>
                         <TableCell className="text-right">{row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                        <TableCell className="text-right font-medium text-amber-600 hidden sm:table-cell">
+                        <TableCell className="text-right font-medium text-warning hidden sm:table-cell">
                           {row.unpaid > 0 ? row.unpaid.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}
                         </TableCell>
                         <TableCell className="text-right text-destructive hidden sm:table-cell">{row.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                         <TableCell className="text-right font-medium text-blue-600 hidden md:table-cell">
                           {(row.revenue * 0.40).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </TableCell>
-                        <TableCell className={`text-right font-semibold ${row.netProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        <TableCell className={`text-right font-semibold ${row.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
                           {row.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground text-sm hidden sm:table-cell">

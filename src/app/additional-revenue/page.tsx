@@ -84,8 +84,7 @@ function RevenueForm({
                   <FormControl>
                     <Button
                       variant="outline"
-                      className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}
-                    >
+                      className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
                       {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                       <Calendar className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
@@ -135,7 +134,7 @@ function RevenueForm({
           <Button type="button" variant="outline" onClick={onSubmitSuccess}>
             <Ban className="mr-2 h-4 w-4" /> Cancel
           </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <Button type="submit" disabled={form.formState.isSubmitting} aria-label="Save">
             <Save className="mr-2 h-4 w-4" /> {isEditMode ? 'Save Changes' : 'Add Revenue'}
           </Button>
         </div>
@@ -239,16 +238,16 @@ export default function AdditionalRevenuePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="bg-primary/5 p-4">
+            <div className="rounded-lg border bg-primary/5 p-4">
               <p className="text-sm font-medium text-muted-foreground">Total Revenue for Period</p>
               <p className="text-3xl font-bold text-primary">
                 PKR {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </p>
-            </Card>
-            <Card className="bg-muted/50 p-4">
+            </div>
+            <div className="rounded-lg border bg-muted/50 p-4">
               <p className="text-sm font-medium text-muted-foreground">Total Entries</p>
               <p className="text-3xl font-bold">{filtered.length}</p>
-            </Card>
+            </div>
           </div>
           <div className="relative w-full">
             <Input
@@ -257,7 +256,7 @@ export default function AdditionalRevenuePage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
-            />
+             aria-label="Search by description"/>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           </div>
           <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />
@@ -334,7 +333,7 @@ export default function AdditionalRevenuePage() {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>

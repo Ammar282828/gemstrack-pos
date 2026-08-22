@@ -233,7 +233,7 @@ export default function ContactImportPage() {
                     {parsedData.map((row, index) => (
                       <TableRow key={index} className={!row.isValid ? 'bg-destructive/10' : ''}>
                         <TableCell>
-                          {row.isValid ? <Check className="h-4 w-4 text-green-500" /> : <X className="h-4 w-4 text-destructive" />}
+                          {row.isValid ? <Check className="h-4 w-4 text-success" /> : <X className="h-4 w-4 text-destructive" />}
                         </TableCell>
                         <TableCell>{row.Name}</TableCell>
                         <TableCell>{row.Phone}</TableCell>

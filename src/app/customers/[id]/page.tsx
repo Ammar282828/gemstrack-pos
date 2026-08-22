@@ -30,10 +30,10 @@ import { cn } from '@/lib/utils';
 
 const getStatusBadgeVariant = (status: Order['status']) => {
     switch (status) {
-      case 'Pending': return 'bg-yellow-500/80 text-yellow-50';
+      case 'Pending': return 'bg-warning text-warning-foreground';
       case 'In Progress': return 'bg-blue-500/80 text-blue-50';
-      case 'Completed': return 'bg-green-500/80 text-green-50';
-      case 'Cancelled': return 'bg-red-500/80 text-red-50';
+      case 'Completed': return 'bg-success text-success-foreground';
+      case 'Cancelled': return 'bg-destructive text-destructive-foreground';
       case 'Refunded': return 'bg-purple-500/80 text-purple-50';
       default: return 'secondary';
     }

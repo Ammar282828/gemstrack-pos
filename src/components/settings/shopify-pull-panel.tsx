@@ -118,14 +118,14 @@ export const ShopifyPullPanel: React.FC = () => {
             Nothing is written back to Shopify.
           </p>
         </div>
-        <Button onClick={check} disabled={loading} size="sm" variant="outline" className="flex-shrink-0">
+        <Button onClick={check} disabled={loading} size="sm" variant="outline" className="flex-shrink-0" aria-label="Refresh">
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
           {loading ? 'Checking…' : orders ? 'Re-check' : 'Check for new orders'}
         </Button>
       </div>
 
       {orders && orders.length === 0 && (
-        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 py-3">
+        <div className="flex items-center gap-2 text-sm text-success py-3">
           <CheckCircle2 className="h-4 w-4" />
           Every Shopify order after #{meta?.since} is already in the POS.
         </div>
@@ -147,7 +147,7 @@ export const ShopifyPullPanel: React.FC = () => {
             <div className="relative flex-1 min-w-[12rem]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input className="pl-8 h-9" placeholder="Filter by order number or customer…"
-                value={q} onChange={e => setQ(e.target.value)} />
+                value={q} onChange={e => setQ(e.target.value)}  aria-label="Filter by order number or customer"/>
             </div>
           </div>
 
@@ -190,7 +190,7 @@ export const ShopifyPullPanel: React.FC = () => {
                           <span className="block text-xs text-muted-foreground truncate">{item.subtitle}</span>
                         )}
                         {item.date && (
-                          <span className="block text-[11px] text-muted-foreground">{fmtDate(item.date)}</span>
+                          <span className="block text-2xs text-muted-foreground">{fmtDate(item.date)}</span>
                         )}
                       </span>
                     </label>

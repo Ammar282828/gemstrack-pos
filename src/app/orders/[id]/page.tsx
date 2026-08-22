@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { whatsAppLink } from '@/lib/whatsapp';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
@@ -59,10 +60,10 @@ import QRCode from 'qrcode.react';
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
     switch (status) {
-      case 'Pending': return 'bg-yellow-500/80 text-yellow-50';
+      case 'Pending': return 'bg-warning text-warning-foreground';
       case 'In Progress': return 'bg-blue-500/80 text-blue-50';
-      case 'Completed': return 'bg-green-500/80 text-green-50';
-      case 'Cancelled': return 'bg-red-500/80 text-red-50';
+      case 'Completed': return 'bg-success text-success-foreground';
+      case 'Cancelled': return 'bg-destructive text-destructive-foreground';
       case 'Refunded': return 'bg-purple-500/80 text-purple-50';
       default: return 'secondary';
     }
@@ -81,9 +82,9 @@ const getPaymentStatus = (order: Order): PaymentStatus => {
 };
 const getPaymentBadgeClass = (status: PaymentStatus) => {
   switch (status) {
-    case 'Paid': return 'bg-green-500/80 text-green-50';
+    case 'Paid': return 'bg-success text-success-foreground';
     case 'Partial': return 'bg-orange-500/80 text-orange-50';
-    case 'Unpaid': return 'bg-red-500/80 text-red-50';
+    case 'Unpaid': return 'bg-destructive text-destructive-foreground';
   }
 };
 
@@ -730,8 +731,9 @@ export default function OrderDetailPage() {
     
     message += `Thank you for your business!`;
 
-    const numberOnly = whatsAppNumber.replace(/\D/g, '');
-    const whatsappUrl = `https://wa.me/${numberOnly}?text=${encodeURIComponent(message)}`;
+    // Country code and leading-zero handling live in one place; the raw
+    // digit strip that used to be here produced wa.me/0300… , a dead link.
+    const whatsappUrl = whatsAppLink(whatsAppNumber, message);
 
     window.open(whatsappUrl, '_blank');
     toast({ title: "Redirecting to WhatsApp", description: "Your message is ready to be sent." });
@@ -979,7 +981,7 @@ export default function OrderDetailPage() {
     <>
     <div className="container mx-auto py-8 px-4 space-y-6">
       <div style={{ display: 'none' }}>
-        <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" />
+        <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" loading="lazy" decoding="async" />
         <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
         <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
       </div>
@@ -1218,7 +1220,7 @@ export default function OrderDetailPage() {
                             )}
                             <div className="flex justify-between font-bold"><span>Grand Total:</span> <span>PKR {linkedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                             {linkedInvoice.amountPaid > 0 && (
-                              <div className="flex justify-between text-green-600"><span>Amount Paid:</span> <span className="font-semibold">PKR {linkedInvoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                              <div className="flex justify-between text-success"><span>Amount Paid:</span> <span className="font-semibold">PKR {linkedInvoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                             )}
                             <Separator className="my-2 bg-muted-foreground/20"/>
                             <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {linkedInvoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
@@ -1291,9 +1293,9 @@ export default function OrderDetailPage() {
                                           </div>
                                       )}
                                       {item.adminNote && (
-                                          <div className="mt-2 text-xs p-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
-                                              <p className="font-semibold flex items-center text-amber-800 dark:text-amber-200"><Lock className="w-3 h-3 mr-1.5"/>Admin-Only Note <span className="ml-1.5 font-normal text-amber-700/70 dark:text-amber-300/70">(not printed)</span></p>
-                                              <p className="text-amber-800/90 dark:text-amber-200/90 whitespace-pre-wrap">{item.adminNote}</p>
+                                          <div className="mt-2 text-xs p-2 rounded-md border border-warning/40 bg-warning/10">
+                                              <p className="font-semibold flex items-center text-warning"><Lock className="w-3 h-3 mr-1.5"/>Admin-Only Note <span className="ml-1.5 font-normal text-warning">(not printed)</span></p>
+                                              <p className="text-warning whitespace-pre-wrap">{item.adminNote}</p>
                                           </div>
                                       )}
                                       <div className="text-sm mt-2 p-2 bg-background rounded-md">

@@ -67,7 +67,7 @@ export const SizePicker: React.FC<{
     return (
       <div className={className}>
         <Label className="text-xs">Size</Label>
-        <Input value={value} onChange={e => onChange(e.target.value)} placeholder="Optional" />
+        <Input value={value} onChange={e => onChange(e.target.value)} placeholder="Optional"  aria-label="Size"/>
       </div>
     );
   }
@@ -84,7 +84,7 @@ export const SizePicker: React.FC<{
               value={parsed[part.key] || ''} onChange={v => setPart(part.key, v)} />
           ))}
         </div>
-        <p className="text-[11px] text-muted-foreground mt-1">Leave either blank if not applicable.</p>
+        <p className="text-2xs text-muted-foreground mt-1">Leave either blank if not applicable.</p>
       </div>
     );
   }
@@ -100,7 +100,7 @@ export const SizePicker: React.FC<{
   return (
     <div className={className}>
       <Label className="text-xs">Size</Label>
-      <Input value={value} onChange={e => onChange(e.target.value)} placeholder="Optional" />
+      <Input value={value} onChange={e => onChange(e.target.value)} placeholder="Optional"  aria-label="Size"/>
     </div>
   );
 };

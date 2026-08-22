@@ -127,7 +127,7 @@ export default function WeprintApiPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
-            />
+             aria-label="Search products by name or SKU"/>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={handleSelectAllFiltered} variant="outline" size="sm" disabled={filteredProducts.length === 0}>
@@ -159,9 +159,9 @@ export default function WeprintApiPage() {
                       <span className="ml-2 text-xs text-muted-foreground font-mono">({product.sku})</span>
                     </label>
                      {settings.weprintApiSkus?.includes(product.sku) ? (
-                        <span className="text-xs text-green-600 flex items-center gap-1 flex-shrink-0"><Check className="h-3 w-3"/> Published</span>
+                        <span className="text-xs text-success flex items-center gap-1 flex-shrink-0"><Check className="h-3 w-3"/> Published</span>
                      ) : (
-                        <span className="text-xs text-amber-600 flex items-center gap-1 flex-shrink-0"><X className="h-3 w-3"/> Not Published</span>
+                        <span className="text-xs text-warning flex items-center gap-1 flex-shrink-0"><X className="h-3 w-3"/> Not Published</span>
                      )}
                   </div>
                 ))}

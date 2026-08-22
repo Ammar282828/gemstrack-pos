@@ -140,7 +140,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <ScrollArea className="h-full">
               {navGroups.map((group, gi) => (
                 <SidebarGroup key={group.label} className={gi === 0 ? 'pt-2' : 'pt-0'}>
-                  <SidebarGroupLabel className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70 px-3 pb-1 group-data-[collapsible=icon]:hidden">
+                  <SidebarGroupLabel className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 px-3 pb-1 group-data-[collapsible=icon]:hidden">
                     {group.label}
                   </SidebarGroupLabel>
                   <SidebarGroupContent>
@@ -185,7 +185,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </Avatar>
                 <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
                   <p className="text-xs font-semibold truncate leading-tight">{user.displayName || user.email}</p>
-                  {user.displayName && <p className="text-[10px] text-muted-foreground truncate leading-tight">{user.email}</p>}
+                  {user.displayName && <p className="text-2xs text-muted-foreground truncate leading-tight">{user.email}</p>}
                 </div>
                 <button
                   onClick={signOut}
@@ -215,7 +215,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Offline banner */}
           {!isOnline && (
-            <div className="flex items-center justify-center gap-2 px-4 py-2 bg-yellow-500 text-yellow-950 text-sm font-medium">
+            <div className="flex items-center justify-center gap-2 px-4 py-2 bg-warning text-warning text-sm font-medium">
               <WifiOff className="w-4 h-4 flex-shrink-0" />
               You're offline — changes will sync when reconnected.
             </div>
@@ -235,14 +235,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors',
+                    'relative flex flex-1 flex-col items-center justify-center gap-0.5 text-2xs font-medium transition-colors',
                     isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
                   <span className="relative">
                     {item.icon}
                     {item.badge ? (
-                      <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-0.5 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-bold leading-none">
+                      <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-0.5 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-2xs font-bold leading-none">
                         {item.badge}
                       </span>
                     ) : null}

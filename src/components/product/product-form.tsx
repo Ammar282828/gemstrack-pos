@@ -712,7 +712,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           }
           {isDialogMode && (
              <div className="p-6 pt-0">
-                <Button type="submit" disabled={isSubmitting || isUploading} className="w-full">
+                <Button type="submit" disabled={isSubmitting || isUploading} className="w-full" aria-label="Save">
                     {isSubmitting || isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     {isCartEditMode ? 'Apply Changes to Cart Item' : 'Create New Product'}
                 </Button>

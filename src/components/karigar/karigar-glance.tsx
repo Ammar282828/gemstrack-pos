@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { openWhatsApp } from '@/lib/whatsapp';
 
 /** How many pieces to preview on a card before "+N more". */
 const PEEK = 3;
@@ -95,9 +96,7 @@ function useShare(contactById: Map<string, string>) {
     if (!row.load) return;
     const text = formatJobListForShare(row.load, STORE_CONFIG.name);
     try { await navigator.clipboard.writeText(text); } catch { /* clipboard may be blocked */ }
-    const phone = (contactById.get(row.karigarId) || '').replace(/\D/g, '');
-    if (phone) {
-      window.open(`https://wa.me/${phone.startsWith('92') ? phone : '92' + phone.replace(/^0/, '')}?text=${encodeURIComponent(text)}`, '_blank');
+    if (openWhatsApp(contactById.get(row.karigarId), text)) {
       toast({ title: 'Opening WhatsApp', description: 'Job list copied too.' });
     } else {
       toast({ title: 'Job list copied', description: 'No phone saved for this karigar — paste it anywhere.' });
@@ -110,7 +109,7 @@ const Age: React.FC<{ days: number }> = ({ days }) => (
   <span className={cn(
     'tabular-nums text-xs font-medium w-9 flex-shrink-0',
     days >= CRITICAL_DAYS ? 'text-destructive'
-      : days >= WARN_DAYS ? 'text-yellow-600'
+      : days >= WARN_DAYS ? 'text-warning'
       : 'text-muted-foreground',
   )}>{days}d</span>
 );
@@ -154,7 +153,7 @@ const KarigarPanel: React.FC<{
             {row.oldestDays > 0 && (
               <span className={cn('text-sm ml-auto tabular-nums',
                 row.oldestDays >= CRITICAL_DAYS ? 'text-destructive font-medium'
-                  : row.oldestDays >= WARN_DAYS ? 'text-yellow-600' : 'text-muted-foreground')}>
+                  : row.oldestDays >= WARN_DAYS ? 'text-warning' : 'text-muted-foreground')}>
                 oldest {row.oldestDays}d
               </span>
             )}
@@ -164,12 +163,12 @@ const KarigarPanel: React.FC<{
         {(row.critical > 0 || row.late > 0) && (
           <div className="flex items-center gap-1.5 mt-2">
             {row.critical > 0 && (
-              <Badge variant="destructive" className="text-[10px]">
+              <Badge variant="destructive" className="text-2xs">
                 <Flame className="h-3 w-3 mr-1" />{row.critical} critical
               </Badge>
             )}
             {row.late > 0 && (
-              <Badge variant="outline" className="text-[10px] text-yellow-700 border-yellow-500/40 bg-yellow-500/10">
+              <Badge variant="outline" className="text-2xs text-warning border-warning/40 bg-warning/10">
                 {row.late} late
               </Badge>
             )}
@@ -223,7 +222,7 @@ const KarigarPanel: React.FC<{
                   onClick={() => onAssign(row.karigarId)} aria-label="Add work">
                   <PlusCircle className="h-4 w-4" />
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 flex-shrink-0" asChild>
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 flex-shrink-0" asChild aria-label="Open">
                   <Link href={`/karigars/${row.karigarId}`} aria-label="Profile">
                     <ExternalLink className="h-3.5 w-3.5" />
                   </Link>
@@ -276,13 +275,13 @@ export const KarigarGlance: React.FC<{
             {[
               { label: 'Pieces out', value: String(totals.active) },
               { label: 'Benches working', value: `${busy.filter(r => !r.isUnassigned).length}` },
-              { label: `Late ${WARN_DAYS}d+`, value: String(totals.late), tone: totals.late ? 'text-yellow-600' : undefined },
+              { label: `Late ${WARN_DAYS}d+`, value: String(totals.late), tone: totals.late ? 'text-warning' : undefined },
               { label: `Critical ${CRITICAL_DAYS}d+`, value: String(totals.critical), tone: totals.critical ? 'text-destructive' : undefined },
               { label: 'Gold out', value: totals.weightG > 0 ? `${totals.weightG.toFixed(1)}g` : '—' },
               { label: 'Value out', value: totals.value > 0 ? `PKR ${Math.round(totals.value / 1000)}k` : '—' },
             ].map(c => (
               <div key={c.label} className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">{c.label}</p>
+                <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">{c.label}</p>
                 <p className={cn('text-lg sm:text-xl font-bold leading-tight tabular-nums truncate', c.tone)}>{c.value}</p>
               </div>
             ))}

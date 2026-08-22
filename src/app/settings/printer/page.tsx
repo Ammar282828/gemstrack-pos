@@ -103,7 +103,7 @@ const ProductSearch: React.FC<{ onSelect: (product: Product) => void, selectedPr
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
               autoFocus
-            />
+             aria-label="Search by name or SKU"/>
           </div>
         </div>
         <ScrollArea className="h-64">
@@ -258,19 +258,19 @@ const TagEditor: React.FC<{ layout: LabelLayout; setLayout: React.Dispatch<React
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <Label>X</Label>
-              <Input type="number" value={field.x} onChange={(e) => handleFieldChange(index, 'x', parseInt(e.target.value, 10) || 0)} />
+              <Input type="number" value={field.x} onChange={(e) => handleFieldChange(index, 'x', parseInt(e.target.value, 10) || 0)}  aria-label="X"/>
             </div>
             <div className="space-y-1">
               <Label>Y</Label>
-              <Input type="number" value={field.y} onChange={(e) => handleFieldChange(index, 'y', parseInt(e.target.value, 10) || 0)} />
+              <Input type="number" value={field.y} onChange={(e) => handleFieldChange(index, 'y', parseInt(e.target.value, 10) || 0)}  aria-label="Y"/>
             </div>
             <div className="space-y-1">
               <Label>Data</Label>
-              <Input value={field.data} onChange={(e) => handleFieldChange(index, 'data', e.target.value)} />
+              <Input value={field.data} onChange={(e) => handleFieldChange(index, 'data', e.target.value)}  aria-label="Data"/>
             </div>
             <div className="space-y-1">
               <Label>Font Size</Label>
-              <Input type="number" value={field.fontSize ?? 20} onChange={(e) => handleFieldChange(index, 'fontSize', parseInt(e.target.value, 10) || 20)} />
+              <Input type="number" value={field.fontSize ?? 20} onChange={(e) => handleFieldChange(index, 'fontSize', parseInt(e.target.value, 10) || 20)}  aria-label="Font Size"/>
             </div>
             <div className="space-y-1">
               <Label>Rotation</Label>

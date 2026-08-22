@@ -195,7 +195,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
             <Button type="button" variant="outline" onClick={() => router.back()}>
               <Ban className="mr-2 h-4 w-4" /> Cancel
             </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
+            <Button type="submit" disabled={form.formState.isSubmitting} aria-label="Save">
               <Save className="mr-2 h-4 w-4" /> {isEditMode ? 'Save Changes' : 'Add Customer'}
             </Button>
           </CardFooter>

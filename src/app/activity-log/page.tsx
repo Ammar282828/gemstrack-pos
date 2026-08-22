@@ -51,9 +51,9 @@ const eventIcons: Record<LogEventType, React.ReactNode> = {
 };
 
 const getEventTypeColor = (eventType: LogEventType) => {
-    if (eventType.includes('create') || eventType.includes('payment')) return 'text-green-600';
+    if (eventType.includes('create') || eventType.includes('payment')) return 'text-success';
     if (eventType.includes('update')) return 'text-blue-600';
-    if (eventType.includes('delete')) return 'text-red-600';
+    if (eventType.includes('delete')) return 'text-destructive';
     return 'text-muted-foreground';
 };
 
@@ -215,7 +215,7 @@ export default function ActivityLogPage() {
                     <Button variant="outline" onClick={() => setRevertTarget(null)} disabled={isReverting}>
                         Cancel
                     </Button>
-                    <Button variant="destructive" onClick={handleRevert} disabled={isReverting}>
+                    <Button variant="destructive" onClick={handleRevert} disabled={isReverting} aria-label="Undo">
                         {isReverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
                         {isReverting ? 'Reverting...' : 'Revert'}
                     </Button>

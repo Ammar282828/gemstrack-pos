@@ -38,12 +38,13 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { openWhatsApp } from '@/lib/whatsapp';
 import { format, parseISO } from 'date-fns';
 
 // ── small presentational helpers ────────────────────────────────────────────
 
 const StatusDot: React.FC<{ status: KarigarJobStatus }> = ({ status }) => (
-  status === 'completed' ? <CheckCircle2 className="h-4 w-4 text-green-600" />
+  status === 'completed' ? <CheckCircle2 className="h-4 w-4 text-success" />
     : status === 'in-progress' ? <CircleDot className="h-4 w-4 text-blue-500" />
     : <Circle className="h-4 w-4 text-muted-foreground" />
 );
@@ -79,7 +80,7 @@ const JobRow: React.FC<{
       job.status === 'completed' && 'opacity-60',
       // Online sales are highlighted so they stand out from bench work
       // that came in through an order.
-      job.isOnline && 'bg-green-500/[0.06] -mx-3 px-3 rounded-md',
+      job.isOnline && 'bg-success/[0.06] -mx-3 px-3 rounded-md',
     )}>
       <Checkbox
         className="mt-0.5 h-5 w-5 sm:mt-1 sm:h-4 sm:w-4 flex-shrink-0"
@@ -98,12 +99,12 @@ const JobRow: React.FC<{
 
         <div className="text-xs text-muted-foreground mt-1 flex items-center gap-x-2 gap-y-0.5 flex-wrap">
           {job.source === 'manual'
-            ? <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
+            ? <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
             : job.isOnline
-              ? <Badge variant="secondary" className="text-[10px] bg-green-500/15 text-green-700 dark:text-green-300">Online</Badge>
-              : <Badge variant="outline" className="text-[10px]">Order</Badge>}
+              ? <Badge variant="secondary" className="text-2xs bg-success/15 text-success">Online</Badge>
+              : <Badge variant="outline" className="text-2xs">Order</Badge>}
           {showKarigar && (
-            <Badge variant="outline" className={cn('text-[10px]', job.karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
+            <Badge variant="outline" className={cn('text-2xs', job.karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
               {job.karigarName}
             </Badge>
           )}
@@ -111,8 +112,8 @@ const JobRow: React.FC<{
         </div>
 
         {job.notes && (
-          <div className="mt-1.5 border-l-2 border-amber-400/70 pl-2.5">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">Instructions</p>
+          <div className="mt-1.5 rounded-md border border-warning/25 bg-warning/[0.06] px-2.5 py-1.5">
+            <p className="text-2xs uppercase tracking-wide text-muted-foreground leading-none">Instructions</p>
             <p className="text-xs text-foreground/80 whitespace-pre-wrap mt-1">{job.notes}</p>
           </div>
         )}
@@ -150,7 +151,7 @@ const JobRow: React.FC<{
                 </Select>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label="Delete">
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </AlertDialogTrigger>
@@ -254,7 +255,7 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
 
           <div>
             <Label className="text-xs">What are they making? *</Label>
-            <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. 4 stacked rings, moti set repair" />
+            <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. 4 stacked rings, moti set repair"  aria-label="What are they making?"/>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -284,26 +285,26 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Weight (g)</Label>
-              <Input type="number" step="0.001" value={weightG} onChange={e => setWeightG(e.target.value)} placeholder="0.000" />
+              <Input type="number" step="0.001" value={weightG} onChange={e => setWeightG(e.target.value)} placeholder="0.000"  aria-label="Weight (g)"/>
             </div>
             <div>
               <Label className="text-xs">Qty</Label>
-              <Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} />
+              <Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)}  aria-label="Qty"/>
             </div>
             <div>
               <Label className="text-xs">Making (PKR)</Label>
-              <Input type="number" value={agreedCost} onChange={e => setAgreedCost(e.target.value)} placeholder="0" />
+              <Input type="number" value={agreedCost} onChange={e => setAgreedCost(e.target.value)} placeholder="0"  aria-label="Making (PKR)"/>
             </div>
           </div>
 
           <div>
             <Label className="text-xs">Size</Label>
-            <Input value={size} onChange={e => setSize(e.target.value)} placeholder="e.g. 12, 2.4, 7.5&quot;" />
+            <Input value={size} onChange={e => setSize(e.target.value)} placeholder="e.g. 12, 2.4, 7.5&quot;"  aria-label="Size"/>
           </div>
 
           <div>
             <Label className="text-xs">Notes</Label>
-            <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Instructions, stone details…" />
+            <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Instructions, stone details…"  aria-label="Notes"/>
           </div>
         </div>
 
@@ -333,16 +334,16 @@ const OrderGroupedJobs: React.FC<{
     {groupJobsByOrder(jobs).map(g => (
       <div key={g.key} className={cn(
         'rounded-lg border px-3 py-2.5 mb-3 last:mb-0',
-        g.jobs[0]?.isOnline ? 'bg-green-500/[0.07] border-green-500/30' : 'bg-muted/20',
+        g.jobs[0]?.isOnline ? 'bg-success/[0.07] border-success/30' : 'bg-muted/20',
       )}>
         <div className="flex items-center gap-2 flex-wrap mb-1.5">
           {g.isStock
-            ? <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock piece</Badge>
+            ? <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock piece</Badge>
             : g.invoiceId
               ? (
                 <Link href={`/view-invoice/${g.invoiceId}`} className="inline-flex items-center gap-1 hover:underline">
-                  <span className="font-mono font-bold text-sm text-green-700 dark:text-green-400">{g.invoiceId}</span>
-                  <ExternalLink className="h-3 w-3 text-green-600" />
+                  <span className="font-mono font-bold text-sm text-success">{g.invoiceId}</span>
+                  <ExternalLink className="h-3 w-3 text-success" />
                 </Link>
               )
               : (
@@ -352,9 +353,9 @@ const OrderGroupedJobs: React.FC<{
                 </Link>
               )}
           {g.jobs[0]?.customerName && <span className="text-xs text-muted-foreground truncate">{g.jobs[0].customerName}</span>}
-          {g.jobs.length > 1 && <Badge variant="outline" className="text-[10px]">{g.jobs.length} pieces</Badge>}
+          {g.jobs.length > 1 && <Badge variant="outline" className="text-2xs">{g.jobs.length} pieces</Badge>}
           {showKarigar && g.jobs[0] && (
-            <Badge variant="outline" className={cn('text-[10px]', g.jobs[0].karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
+            <Badge variant="outline" className={cn('text-2xs', g.jobs[0].karigarId === UNASSIGNED_ID && 'text-destructive border-destructive/40')}>
               {g.jobs[0].karigarName}
             </Badge>
           )}
@@ -443,8 +444,8 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
         <div className="space-y-3">
           <div>
             <Label className="text-xs">Item name</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="What is being made" />
-            <p className="text-[11px] text-muted-foreground mt-1">
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="What is being made"  aria-label="Item name"/>
+            <p className="text-2xs text-muted-foreground mt-1">
               Also prints on the customer&apos;s estimate and invoice.
             </p>
           </div>
@@ -452,16 +453,16 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Size</Label>
-              <Input value={size} onChange={e => setSize(e.target.value)} placeholder="e.g. 12" />
+              <Input value={size} onChange={e => setSize(e.target.value)} placeholder="e.g. 12"  aria-label="Size"/>
             </div>
             <div>
               <Label className="text-xs">Weight (g)</Label>
-              <Input type="number" step="0.001" value={weight} onChange={e => setWeight(e.target.value)} placeholder="0.000" />
+              <Input type="number" step="0.001" value={weight} onChange={e => setWeight(e.target.value)} placeholder="0.000"  aria-label="Weight (g)"/>
             </div>
             <div>
               <Label className="text-xs">Ref SKU</Label>
               <Input value={ref} onChange={e => setRef(e.target.value)} placeholder="optional"
-                disabled={job.source !== 'order'} />
+                disabled={job.source !== 'order'}  aria-label="Ref SKU"/>
             </div>
           </div>
 
@@ -469,17 +470,17 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
 
           <div>
             <Label className="text-xs flex items-center gap-1.5"><ImagePlus className="h-3.5 w-3.5" />Sample picture</Label>
-            <p className="text-[11px] text-muted-foreground mb-1.5">Shown to the karigar on their work list.</p>
+            <p className="text-2xs text-muted-foreground mb-1.5">Shown to the karigar on their work list.</p>
             {job.source === 'order'
               ? <SampleImageInput key={job.id} value={sample} onChange={setSample} onRemove={() => setSample('')} compact />
               : <p className="text-xs text-muted-foreground">Available on order items.</p>}
           </div>
 
-          <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-950/20 p-3">
-            <Label className="text-xs text-amber-800 dark:text-amber-200">Instructions</Label>
+          <div className="rounded-md border border-warning/40 bg-warning/10 p-3">
+            <Label className="text-xs text-warning">Instructions</Label>
             <Textarea rows={4} value={instructions} onChange={e => setInstructions(e.target.value)}
-              placeholder="Stones, plating, sizing — anything the karigar needs" className="mt-1" />
-            <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80 mt-1">
+              placeholder="Stones, plating, sizing — anything the karigar needs" className="mt-1"  aria-label="Instructions"/>
+            <p className="text-2xs text-warning mt-1">
               Shown to the karigar and on the workshop slip. Never printed on a customer estimate or
               invoice — keep prices and customer details out of it.
             </p>
@@ -516,9 +517,7 @@ const KarigarCard: React.FC<{
   const share = async () => {
     const text = formatJobListForShare(load, STORE_CONFIG.name);
     try { await navigator.clipboard.writeText(text); } catch { /* clipboard may be blocked */ }
-    const phone = (contact || '').replace(/\D/g, '');
-    if (phone) {
-      window.open(`https://wa.me/${phone.startsWith('92') ? phone : '92' + phone.replace(/^0/, '')}?text=${encodeURIComponent(text)}`, '_blank');
+    if (openWhatsApp(contact, text)) {
       toast({ title: 'Opening WhatsApp', description: 'Job list copied too.' });
     } else {
       toast({ title: 'Job list copied', description: 'No phone saved for this karigar — paste it anywhere.' });
@@ -548,8 +547,8 @@ const KarigarCard: React.FC<{
             </p>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {load.critical > 0 && <Badge variant="destructive" className="text-[10px]"><Flame className="h-3 w-3 mr-1" />{load.critical}</Badge>}
-            {load.overdue > load.critical && <Badge variant="outline" className="text-[10px] text-yellow-700 border-yellow-500/40 bg-yellow-500/10">{load.overdue - load.critical} late</Badge>}
+            {load.critical > 0 && <Badge variant="destructive" className="text-2xs"><Flame className="h-3 w-3 mr-1" />{load.critical}</Badge>}
+            {load.overdue > load.critical && <Badge variant="outline" className="text-2xs text-warning border-warning/40 bg-warning/10">{load.overdue - load.critical} late</Badge>}
           </div>
         </div>
 
@@ -574,7 +573,7 @@ const KarigarCard: React.FC<{
       </CardHeader>
       <CardContent className="pt-0">
         {load.active > 0 && (
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2">
+          <div className="flex items-center justify-between text-2xs text-muted-foreground mb-2">
             <span>{load.totalWeightG > 0 ? `${load.totalWeightG.toFixed(3)}g out` : ''}</span>
             <span>{load.totalValue > 0 ? `PKR ${load.totalValue.toLocaleString()}` : ''}</span>
           </div>
@@ -615,9 +614,7 @@ const FocusedKarigarView: React.FC<{
   const share = async () => {
     const text = formatJobListForShare(load, STORE_CONFIG.name);
     try { await navigator.clipboard.writeText(text); } catch { /* clipboard may be blocked */ }
-    const phone = (contact || '').replace(/\D/g, '');
-    if (phone) {
-      window.open(`https://wa.me/${phone.startsWith('92') ? phone : '92' + phone.replace(/^0/, '')}?text=${encodeURIComponent(text)}`, '_blank');
+    if (openWhatsApp(contact, text)) {
       toast({ title: 'Opening WhatsApp', description: 'Job list copied too.' });
     } else {
       toast({ title: 'Job list copied', description: 'No phone saved for this karigar — paste it anywhere.' });
@@ -640,11 +637,11 @@ const FocusedKarigarView: React.FC<{
           <h3 className={cn(
             'text-sm font-semibold',
             tone === 'danger' && 'text-destructive',
-            tone === 'warn' && 'text-yellow-700',
+            tone === 'warn' && 'text-warning',
             tone === 'ok' && 'text-foreground',
             tone === 'muted' && 'text-muted-foreground',
           )}>{title}</h3>
-          <Badge variant="secondary" className="text-[10px]">{jobs.length}</Badge>
+          <Badge variant="secondary" className="text-2xs">{jobs.length}</Badge>
           {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
         </div>
         <Card><CardContent className="p-2 sm:p-3">
@@ -698,7 +695,7 @@ const FocusedKarigarView: React.FC<{
               { label: 'Active', value: String(load.active) },
             ];
             if (load.inProgress !== load.active) cells.push({ label: 'In progress', value: String(load.inProgress), tone: 'text-blue-600' });
-            if (late.length) cells.push({ label: `Late ${WARN_DAYS}d+`, value: String(late.length), tone: 'text-yellow-600' });
+            if (late.length) cells.push({ label: `Late ${WARN_DAYS}d+`, value: String(late.length), tone: 'text-warning' });
             if (load.critical) cells.push({ label: `Critical ${CRITICAL_DAYS}d+`, value: String(load.critical), tone: 'text-destructive' });
             if (load.totalWeightG > 0) cells.push({ label: 'Gold out', value: `${load.totalWeightG.toFixed(1)}g` });
             if (load.totalValue > 0) cells.push({ label: 'Value', value: `${Math.round(load.totalValue / 1000)}k` });
@@ -706,7 +703,7 @@ const FocusedKarigarView: React.FC<{
               <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-x-4 sm:gap-x-8 gap-y-3">
                 {cells.map(c => (
                   <div key={c.label} className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">{c.label}</p>
+                    <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">{c.label}</p>
                     <p className={cn('text-lg sm:text-xl font-bold leading-tight tabular-nums', c.tone)}>{c.value}</p>
                   </div>
                 ))}
@@ -718,7 +715,7 @@ const FocusedKarigarView: React.FC<{
 
       {active.length === 0 && !showCompleted ? (
         <Card><CardContent className="py-12 text-center">
-          <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-600" />
+          <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
           <p className="font-medium">Nothing pending</p>
           <p className="text-sm text-muted-foreground">All caught up.</p>
         </CardContent></Card>
@@ -753,9 +750,9 @@ const JobCardMobile: React.FC<{
     <Card className={cn(
       'mb-2',
       job.status === 'completed' && 'opacity-60',
-      job.isOnline && 'bg-green-500/[0.06] border-green-500/30',
+      job.isOnline && 'bg-success/[0.06] border-success/30',
       job.status !== 'completed' && job.urgency === 'critical' && 'border-destructive/40',
-      job.status !== 'completed' && job.urgency === 'warning' && 'border-yellow-500/40',
+      job.status !== 'completed' && job.urgency === 'warning' && 'border-warning/40',
     )}>
       <CardContent className="p-3">
         <div className="flex items-start gap-3">
@@ -772,16 +769,16 @@ const JobCardMobile: React.FC<{
 
             <div className="flex items-center gap-2 flex-wrap mt-1.5 text-xs text-muted-foreground">
               {job.invoiceId
-                ? <Link href={`/view-invoice/${job.invoiceId}`} className="font-mono text-green-700 dark:text-green-400 hover:underline">{job.invoiceId}</Link>
+                ? <Link href={`/view-invoice/${job.invoiceId}`} className="font-mono text-success hover:underline">{job.invoiceId}</Link>
                 : job.orderId
                   ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
-                  : <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
+                  : <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
               {job.customerName && <span className="truncate">{job.customerName}</span>}
               <span>· {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
             </div>
 
             {job.notes && (
-              <div className="mt-2 border-l-2 border-amber-400/70 pl-2.5">
+              <div className="mt-2 rounded-md border border-warning/25 bg-warning/[0.06] px-2.5 py-1.5">
                 <p className="text-xs text-foreground/80 whitespace-pre-wrap">{job.notes}</p>
               </div>
             )}
@@ -908,7 +905,7 @@ export default function WorkshopPage() {
   const boardCols: { key: KarigarJobStatus; label: string; icon: React.ReactNode }[] = [
     { key: 'pending', label: 'Pending', icon: <Circle className="h-4 w-4" /> },
     { key: 'in-progress', label: 'In Progress', icon: <CircleDot className="h-4 w-4 text-blue-500" /> },
-    { key: 'completed', label: 'Completed', icon: <CheckCircle2 className="h-4 w-4 text-green-600" /> },
+    { key: 'completed', label: 'Completed', icon: <CheckCircle2 className="h-4 w-4 text-success" /> },
   ];
   const attention = filtered.filter(j => j.status !== 'completed' && (j.urgency !== 'ok' || j.karigarId === UNASSIGNED_ID));
 
@@ -925,7 +922,7 @@ export default function WorkshopPage() {
             <span><span className="font-semibold text-foreground">{stats.active}</span> active</span>
             {stats.inProgress !== stats.active && <span>· {stats.inProgress} in progress</span>}
             {stats.overdue > 0 && (
-              <span className="text-yellow-700 dark:text-yellow-500">· <span className="font-semibold">{stats.overdue}</span> late</span>
+              <span className="text-warning">· <span className="font-semibold">{stats.overdue}</span> late</span>
             )}
             {stats.critical > 0 && (
               <span className="text-destructive">· <span className="font-semibold">{stats.critical}</span> critical</span>
@@ -945,7 +942,7 @@ export default function WorkshopPage() {
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Search item, karigar, customer, order…" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input className="pl-8" placeholder="Search item, karigar, customer, order…" value={search} onChange={e => setSearch(e.target.value)}  aria-label="Search item, karigar, customer, order"/>
         </div>
         {/* `sm:contents` dissolves this wrapper above the breakpoint so the two
             selects rejoin the parent flex row instead of staying a 2-up grid. */}
@@ -990,7 +987,7 @@ export default function WorkshopPage() {
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 sm:flex-wrap sm:overflow-visible sm:pb-0 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <Button size="sm" variant={karigarFilter === 'all' ? 'secondary' : 'outline'}
               className="h-8 sm:h-7 text-xs flex-shrink-0" onClick={() => setKarigarFilter('all')}>
-              Everyone <Badge variant="secondary" className="ml-1.5 text-[10px]">{active.length}</Badge>
+              Everyone <Badge variant="secondary" className="ml-1.5 text-2xs">{active.length}</Badge>
             </Button>
             {chips.map(([id, c]) => {
               const on = karigarFilter === id;
@@ -1000,7 +997,7 @@ export default function WorkshopPage() {
                   className={cn('h-8 sm:h-7 text-xs flex-shrink-0', unassigned && !on && 'text-destructive border-destructive/40')}
                   onClick={() => setKarigarFilter(on ? 'all' : id)}>
                   {unassigned ? 'Unassigned' : c.name}
-                  <Badge variant="secondary" className="ml-1.5 text-[10px]">{c.n}</Badge>
+                  <Badge variant="secondary" className="ml-1.5 text-2xs">{c.n}</Badge>
                   {c.crit > 0 && <Flame className="h-3 w-3 ml-1 text-destructive" />}
                 </Button>
               );
@@ -1017,7 +1014,7 @@ export default function WorkshopPage() {
           <TabsTrigger value="board" className="text-xs sm:text-sm"><LayoutGrid className="h-4 w-4 mr-1.5 hidden sm:inline" />Board</TabsTrigger>
           <TabsTrigger value="attention" className="text-xs sm:text-sm">
             <AlertTriangle className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Alert</span><span className="hidden sm:inline">Attention</span>
-            {attention.length > 0 && <Badge variant="destructive" className="ml-1.5 h-4 px-1 text-[10px]">{attention.length}</Badge>}
+            {attention.length > 0 && <Badge variant="destructive" className="ml-1.5 h-4 px-1 text-2xs">{attention.length}</Badge>}
           </TabsTrigger>
         </TabsList>
 
@@ -1177,15 +1174,15 @@ export default function WorkshopPage() {
                     <div className="flex items-center gap-2 flex-wrap mb-2 pb-1.5 border-b">
                       {sec.icon}
                       <h3 className={cn('text-sm font-semibold', sec.danger && 'text-destructive')}>{sec.title}</h3>
-                      <Badge variant="secondary" className="text-[10px]">{sec.jobs.length}</Badge>
+                      <Badge variant="secondary" className="text-2xs">{sec.jobs.length}</Badge>
                       {sec.critical > 0 && (
-                        <Badge variant="destructive" className="text-[10px]"><Flame className="h-3 w-3 mr-1" />{sec.critical}</Badge>
+                        <Badge variant="destructive" className="text-2xs"><Flame className="h-3 w-3 mr-1" />{sec.critical}</Badge>
                       )}
                       {sec.late > 0 && (
-                        <Badge variant="outline" className="text-[10px] text-yellow-700 border-yellow-500/40 bg-yellow-500/10">{sec.late} late</Badge>
+                        <Badge variant="outline" className="text-2xs text-warning border-warning/40 bg-warning/10">{sec.late} late</Badge>
                       )}
                       {sec.weightG > 0 && (
-                        <span className="text-[10px] text-muted-foreground ml-auto tabular-nums">{sec.weightG.toFixed(1)}g out</span>
+                        <span className="text-2xs text-muted-foreground ml-auto tabular-nums">{sec.weightG.toFixed(1)}g out</span>
                       )}
                     </div>
                     <div className={grid}>
@@ -1239,7 +1236,7 @@ export default function WorkshopPage() {
                     return (
                       <TableRow key={j.id} className={cn(
                         j.status === 'completed' && 'opacity-60',
-                        j.isOnline && 'bg-green-500/[0.06] hover:bg-green-500/[0.1]',
+                        j.isOnline && 'bg-success/[0.06] hover:bg-success/[0.1]',
                       )}>
                         <TableCell className="align-middle">
                           <Checkbox checked={j.status === 'completed'}
@@ -1260,10 +1257,10 @@ export default function WorkshopPage() {
                             </div>
                           )}
                           {j.source === 'manual' && (
-                            <Badge variant="secondary" className="mt-1 text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
+                            <Badge variant="secondary" className="mt-1 text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>
                           )}
                           {j.isOnline && (
-                            <Badge variant="secondary" className="mt-1 text-[10px] bg-green-500/15 text-green-700 dark:text-green-300">Online</Badge>
+                            <Badge variant="secondary" className="mt-1 text-2xs bg-success/15 text-success">Online</Badge>
                           )}
                         </TableCell>
 
@@ -1276,7 +1273,7 @@ export default function WorkshopPage() {
 
                         <TableCell className="align-middle">
                           {j.invoiceId
-                            ? <Link href={`/view-invoice/${j.invoiceId}`} className="font-mono text-sm text-green-700 dark:text-green-400 hover:underline">{j.invoiceId}</Link>
+                            ? <Link href={`/view-invoice/${j.invoiceId}`} className="font-mono text-sm text-success hover:underline">{j.invoiceId}</Link>
                             : j.orderId
                               ? <Link href={`/orders/${j.orderId}`} className="font-mono text-sm text-primary hover:underline">{j.orderId}</Link>
                               : <span className="text-sm text-muted-foreground">—</span>}
@@ -1312,7 +1309,7 @@ export default function WorkshopPage() {
         <TabsContent value="attention" className="mt-4">
           {attention.length === 0 ? (
             <Card><CardContent className="py-12 text-center">
-              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-600" />
+              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
               <p className="font-medium">Nothing needs attention</p>
               <p className="text-sm text-muted-foreground">No overdue or unassigned work.</p>
             </CardContent></Card>

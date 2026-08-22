@@ -140,7 +140,7 @@ const ExportCard: React.FC = () => {
           </div>
           {lastExport && (
             <div className="text-right flex-shrink-0">
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1 justify-end"><Clock className="h-3 w-3" /> Last export</p>
+              <p className="text-2xs text-muted-foreground flex items-center gap-1 justify-end"><Clock className="h-3 w-3" /> Last export</p>
               <p className="text-xs font-medium">{lastExport}</p>
             </div>
           )}
@@ -344,7 +344,7 @@ const SoldProductRecovery: React.FC = () => {
       <CardContent className="space-y-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search SKU or name of a sold item…" className="pl-9" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <Input placeholder="Search SKU or name of a sold item…" className="pl-9" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}  aria-label="Search SKU or name of a sold item"/>
         </div>
         {isSoldProductsLoading && searchTerm && <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>}
         {filteredSoldProducts.length > 0 && (

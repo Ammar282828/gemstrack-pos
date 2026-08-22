@@ -401,10 +401,10 @@ export default function MinaAccountPage() {
             const claim = balances.totalClaim; // positive = biz owes Mina
             const positive = claim > 0;
             const headline = positive ? 'Business owes Mina' : claim < 0 ? 'Mina owes the business' : 'All settled';
-            const color = positive ? 'border-green-500 bg-green-50 dark:bg-green-950/20'
+            const color = positive ? 'border-success bg-success/10 '
                        : claim < 0 ? 'border-orange-400 bg-orange-50 dark:bg-orange-950/20'
                        : 'border-border';
-            const numColor = positive ? 'text-green-700 dark:text-green-300'
+            const numColor = positive ? 'text-success'
                           : claim < 0 ? 'text-orange-600 dark:text-orange-400'
                           : 'text-foreground';
             return (
@@ -417,15 +417,15 @@ export default function MinaAccountPage() {
                   <div className="border-t pt-3 space-y-1.5 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Loan she gave the business</span>
-                      <span className="tabular-nums text-green-700 dark:text-green-300">+ {fmt(balances.loanBalance)}</span>
+                      <span className="tabular-nums text-success">+ {fmt(balances.loanBalance)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Her equity stake (capital in)</span>
-                      <span className="tabular-nums text-green-700 dark:text-green-300">+ {fmt(balances.equityBalance)}</span>
+                      <span className="tabular-nums text-success">+ {fmt(balances.equityBalance)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Her share of the {balances.netPnL >= 0 ? 'profit' : 'loss'}</span>
-                      <span className={cn('tabular-nums', balances.netPnL >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400')}>
+                      <span className={cn('tabular-nums', balances.netPnL >= 0 ? 'text-success' : 'text-destructive')}>
                         {balances.netPnL >= 0 ? '+ ' : '− '}{fmt(balances.netPnL)}
                       </span>
                     </div>
@@ -457,7 +457,7 @@ export default function MinaAccountPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
                 <div className="space-y-1.5">
                   <Label className="text-sm">Business cash available (PKR)</Label>
-                  <Input type="number" placeholder="e.g. 2,000,000" value={calcCash} onChange={e => setCalcCash(e.target.value)} min={0} />
+                  <Input type="number" placeholder="e.g. 2,000,000" value={calcCash} onChange={e => setCalcCash(e.target.value)} min={0}  aria-label="Business cash available (PKR)"/>
                 </div>
                 <WorkingCapitalFloor onFloorChange={setCalcFloor} setBy="Mina" />
               </div>
@@ -495,7 +495,7 @@ export default function MinaAccountPage() {
                         {distribution.perPartner.map(p => (
                           <div key={p.name} className="flex justify-between text-sm px-2">
                             <span>{p.name}</span>
-                            <span className="tabular-nums font-medium text-green-700 dark:text-green-300">{fmt(p.profitShare)}</span>
+                            <span className="tabular-nums font-medium text-success">{fmt(p.profitShare)}</span>
                           </div>
                         ))}
                       </div>
@@ -525,17 +525,17 @@ export default function MinaAccountPage() {
           {/* ── Expenses (auto, read-only) ── */}
           <CollapsibleSection
             title="Expenses (50%)"
-            icon={<CreditCard className="w-4 h-4 text-red-500" />}
+            icon={<CreditCard className="w-4 h-4 text-destructive" />}
             count={filteredExpenses.length}
             total={minaExpShare}
             totalLabel={`50% of ${fmt(totalExpenses)} total expenses from Jul 2, 2025`}
-            colorClass="text-red-600 dark:text-red-400"
+            colorClass="text-destructive"
           >
             <div className="max-h-80 overflow-y-auto">
               {filteredExpenses.map(e => (
                 <div key={e.id} className="flex items-center gap-3 py-2.5 border-b last:border-0">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                    <ArrowUpRight className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <ArrowUpRight className="w-3.5 h-3.5 text-destructive" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate">{e.description}</p>
@@ -544,7 +544,7 @@ export default function MinaAccountPage() {
                       {e.category ? ` · ${e.category}` : ''}
                     </p>
                   </div>
-                  <p className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400 flex-shrink-0">
+                  <p className="text-sm font-semibold tabular-nums text-destructive flex-shrink-0">
                     {fmt(e.amount * 0.5)}
                   </p>
                 </div>
@@ -630,7 +630,7 @@ export default function MinaAccountPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-green-500" /> Payments by Mina
+                <Wallet className="w-4 h-4 text-success" /> Payments by Mina
                 {payments.length > 0 && (
                   <span className="text-xs font-normal bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{payments.length}</span>
                 )}
@@ -647,7 +647,7 @@ export default function MinaAccountPage() {
                       placeholder="e.g. Cash payment, Bank transfer"
                       value={payDesc}
                       onChange={e => setPayDesc(e.target.value)}
-                    />
+                     aria-label="Description"/>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-sm">Amount (PKR)</Label>
@@ -657,7 +657,7 @@ export default function MinaAccountPage() {
                       value={payAmount}
                       onChange={e => setPayAmount(e.target.value)}
                       min={0}
-                    />
+                     aria-label="Amount (PKR)"/>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-sm">Date</Label>
@@ -665,7 +665,7 @@ export default function MinaAccountPage() {
                       type="date"
                       value={payDate}
                       onChange={e => setPayDate(e.target.value)}
-                    />
+                     aria-label="Date"/>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-sm">Type</Label>
@@ -691,8 +691,8 @@ export default function MinaAccountPage() {
               {/* Payment list */}
               {payments.map(p => (
                 <div key={p.id} className="flex items-center gap-3 py-2.5 border-b last:border-0">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                    <ArrowDownRight className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-success/10 flex items-center justify-center">
+                    <ArrowDownRight className="w-3.5 h-3.5 text-success" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate">{p.description}</p>
@@ -700,12 +700,12 @@ export default function MinaAccountPage() {
                       {p.date.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
-                  <p className="text-sm font-semibold tabular-nums text-green-600 dark:text-green-400 flex-shrink-0">
+                  <p className="text-sm font-semibold tabular-nums text-success flex-shrink-0">
                     {fmt(p.amount)}
                   </p>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-destructive">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-destructive" aria-label="Delete">
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </AlertDialogTrigger>
@@ -753,7 +753,7 @@ export default function MinaAccountPage() {
                       placeholder="e.g. Personal cash, Bank transfer out"
                       value={wdDesc}
                       onChange={e => setWdDesc(e.target.value)}
-                    />
+                     aria-label="Description"/>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-sm">Amount (PKR)</Label>
@@ -763,7 +763,7 @@ export default function MinaAccountPage() {
                       value={wdAmount}
                       onChange={e => setWdAmount(e.target.value)}
                       min={0}
-                    />
+                     aria-label="Amount (PKR)"/>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-sm">Date</Label>
@@ -771,7 +771,7 @@ export default function MinaAccountPage() {
                       type="date"
                       value={wdDate}
                       onChange={e => setWdDate(e.target.value)}
-                    />
+                     aria-label="Date"/>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-sm">Type</Label>
@@ -810,7 +810,7 @@ export default function MinaAccountPage() {
                   </p>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-destructive">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-destructive" aria-label="Delete">
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </AlertDialogTrigger>

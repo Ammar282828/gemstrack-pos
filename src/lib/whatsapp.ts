@@ -130,3 +130,44 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<voi
 
   console.warn(`[WhatsApp] No transport configured for ${to} — skipping notification.`);
 }
+
+// ── Deep links to the WhatsApp app (client-side) ─────────────────────────────
+// Distinct from sendWhatsAppMessage above, which posts through the bridge.
+// The link-building and Pakistani number normalisation below were previously
+// reimplemented in six files, in two slightly different ways: some stripped
+// non-digits and used the result as-is, others prefixed 92 and dropped a
+// leading 0. A number saved as "0300…" produced a working link on one screen
+// and a dead one on another. This is the single rule.
+
+/**
+ * Digits only, with a Pakistan country code.
+ *   0300 1234567 -> 923001234567
+ *   +92 300 …    -> 923001234567
+ *   300 1234567  -> 923001234567
+ * Returns '' when there is nothing dialable.
+ */
+export function toWhatsAppNumber(phone: string | undefined | null): string {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('92')) return digits;
+  if (digits.startsWith('0')) return '92' + digits.replace(/^0+/, '');
+  return '92' + digits;
+}
+
+/** wa.me link for a number and a prefilled message. '' if the number is unusable. */
+export function whatsAppLink(phone: string | undefined | null, message = ''): string {
+  const num = toWhatsAppNumber(phone);
+  if (!num) return '';
+  return `https://wa.me/${num}${message ? `?text=${encodeURIComponent(message)}` : ''}`;
+}
+
+/**
+ * Open WhatsApp in a new tab. Returns false when there is no usable number, so
+ * callers can fall back to "copied to clipboard" instead of opening nothing.
+ */
+export function openWhatsApp(phone: string | undefined | null, message = ''): boolean {
+  const url = whatsAppLink(phone, message);
+  if (!url || typeof window === 'undefined') return false;
+  window.open(url, '_blank');
+  return true;
+}

@@ -273,12 +273,12 @@ export default function QuotationGenerator() {
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label>Product Name</Label>
-                            <Input placeholder="e.g., Bridal Set" value={productName} onChange={e => setProductName(e.target.value)} />
+                            <Input placeholder="e.g., Bridal Set" value={productName} onChange={e => setProductName(e.target.value)}  aria-label="Product Name"/>
                         </div>
                         
                         <div className="space-y-2">
                             <Label>Gold Rate (per g)</Label>
-                            <Input type="number" value={currentRate} onChange={e => setCurrentRate(parseFloat(e.target.value) || 0)} />
+                            <Input type="number" value={currentRate} onChange={e => setCurrentRate(parseFloat(e.target.value) || 0)}  aria-label="Gold Rate (per g)"/>
                         </div>
 
                         <div className="space-y-2">
@@ -297,11 +297,11 @@ export default function QuotationGenerator() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Wastage %</Label>
-                                <Input type="number" value={wastagePercentage} onChange={e => setWastagePercentage(parseFloat(e.target.value) || 0)} />
+                                <Input type="number" value={wastagePercentage} onChange={e => setWastagePercentage(parseFloat(e.target.value) || 0)}  aria-label="Wastage %"/>
                             </div>
                             <div className="space-y-2">
                                 <Label>Making Charges</Label>
-                                <Input type="number" value={makingCharges} onChange={e => setMakingCharges(parseFloat(e.target.value) || 0)} />
+                                <Input type="number" value={makingCharges} onChange={e => setMakingCharges(parseFloat(e.target.value) || 0)}  aria-label="Making Charges"/>
                             </div>
                         </div>
 
@@ -311,15 +311,15 @@ export default function QuotationGenerator() {
                         <div className="grid grid-cols-3 gap-2">
                             <div className="space-y-2">
                                 <Label className="text-xs">Stone</Label>
-                                <Input type="number" className="h-8" value={stoneCharges} onChange={e => setStoneCharges(parseFloat(e.target.value) || 0)} />
+                                <Input type="number" className="h-8" value={stoneCharges} onChange={e => setStoneCharges(parseFloat(e.target.value) || 0)}  aria-label="Stone"/>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-xs">Diamond</Label>
-                                <Input type="number" className="h-8" value={diamondCharges} onChange={e => setDiamondCharges(parseFloat(e.target.value) || 0)} />
+                                <Input type="number" className="h-8" value={diamondCharges} onChange={e => setDiamondCharges(parseFloat(e.target.value) || 0)}  aria-label="Diamond"/>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-xs">Misc</Label>
-                                <Input type="number" className="h-8" value={miscCharges} onChange={e => setMiscCharges(parseFloat(e.target.value) || 0)} />
+                                <Input type="number" className="h-8" value={miscCharges} onChange={e => setMiscCharges(parseFloat(e.target.value) || 0)}  aria-label="Misc"/>
                             </div>
                         </div>
                     </CardContent>
@@ -334,12 +334,12 @@ export default function QuotationGenerator() {
                     <CardContent className="space-y-6">
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <Label className="text-green-600 font-semibold">Lowest Weight (g)</Label>
-                                <Input type="number" className="border-green-200 focus-visible:ring-green-500" value={weightMin || ''} onChange={e => setWeightMin(parseFloat(e.target.value) || 0)} />
+                                <Label className="text-success font-semibold">Lowest Weight (g)</Label>
+                                <Input type="number" className="border-success focus-visible:ring-green-500" value={weightMin || ''} onChange={e => setWeightMin(parseFloat(e.target.value) || 0)}  aria-label="Lowest Weight (g)"/>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-red-600 font-semibold">Highest Weight (g)</Label>
-                                <Input type="number" className="border-red-200 focus-visible:ring-red-500" value={weightMax || ''} onChange={e => setWeightMax(parseFloat(e.target.value) || 0)} />
+                                <Label className="text-destructive font-semibold">Highest Weight (g)</Label>
+                                <Input type="number" className="border-destructive focus-visible:ring-red-500" value={weightMax || ''} onChange={e => setWeightMax(parseFloat(e.target.value) || 0)}  aria-label="Highest Weight (g)"/>
                             </div>
                         </div>
                     </CardContent>
@@ -377,7 +377,7 @@ export default function QuotationGenerator() {
                                 </TableHeader>
                                 <TableBody>
                                     {tableData.length > 0 ? tableData.map((row, index) => (
-                                        <TableRow key={index} className={index === 0 ? "bg-green-50" : "bg-red-50"}>
+                                        <TableRow key={index} className={index === 0 ? "bg-success/10" : "bg-destructive/10"}>
                                             <TableCell className="font-medium">{row.label}</TableCell>
                                             <TableCell>{row.weight.toFixed(3)} g</TableCell>
                                             <TableCell className="text-right font-bold text-lg">{row.total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>

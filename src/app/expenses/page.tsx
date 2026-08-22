@@ -219,7 +219,7 @@ export default function ExpensesPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
-            />
+             aria-label="Search by description or category"/>
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           </div>
            <div className="flex flex-col sm:flex-row gap-3">
@@ -285,7 +285,7 @@ export default function ExpensesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Category</TableHead>
+                  <TableHead className="hidden xl:table-cell">Category</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Amount (PKR)</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -295,7 +295,7 @@ export default function ExpensesPage() {
                 {filteredExpenses.map((expense) => (
                   <TableRow key={expense.id}>
                     <TableCell>{format(parseISO(expense.date), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell>{expense.category}</TableCell>
+                    <TableCell className="hidden xl:table-cell">{expense.category}</TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
                         <span>{expense.description}</span>
@@ -312,7 +312,7 @@ export default function ExpensesPage() {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>

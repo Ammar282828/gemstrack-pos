@@ -63,14 +63,12 @@ const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selected
     return (
         <div className="space-y-3">
             {events.map(event => (
-               <div key={event.id} className={cn("p-3 rounded-lg border-l-4 bg-muted/20 flex flex-col md:flex-row justify-between gap-2", {
-                    'border-green-500': event.eventType === 'invoice',
-                    'border-blue-500': event.eventType === 'order'
-                })}>
+               <div key={event.id} className="p-3 rounded-lg border bg-muted/20 flex flex-col md:flex-row justify-between gap-2">
                     <Link href={event.eventType === 'order' ? `/orders/${event.id}` : `/cart?invoice_id=${event.id}`} passHref className="flex-grow">
                         <div className="flex items-center justify-between cursor-pointer hover:bg-muted/50 rounded-md p-1 -m-1">
                             <div className="flex items-center gap-2">
-                                {event.eventType === 'invoice' ? <FileText className="h-4 w-4 text-green-500" /> : <ClipboardList className="h-4 w-4 text-blue-500"/>}
+                                <span aria-hidden className={cn('h-2 w-2 rounded-full flex-shrink-0', event.eventType === 'invoice' ? 'bg-success' : 'bg-blue-500')} />
+                                {event.eventType === 'invoice' ? <FileText className="h-4 w-4 text-success" /> : <ClipboardList className="h-4 w-4 text-blue-500"/>}
                                 <Badge variant="outline" className="text-xs font-mono">{event.id}</Badge>
                             </div>
                             <ArrowRight className="h-4 w-4 text-muted-foreground" />
@@ -84,7 +82,7 @@ const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selected
                     <div className="flex-shrink-0 self-end md:self-center">
                          <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Delete">
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </AlertDialogTrigger>
@@ -174,12 +172,12 @@ export default function CalendarPage() {
     return (
       <div className="flex flex-col gap-0.5 mt-0.5 w-full">
         {dayData.invoices > 0 && (
-          <span className="w-full rounded text-[9px] leading-tight px-1 py-0.5 bg-green-500/15 text-green-700 dark:text-green-300 truncate">
+          <span className="w-full rounded text-2xs leading-tight px-1 py-0.5 bg-success/15 text-success truncate">
             {dayData.invoices} sale{dayData.invoices > 1 ? 's' : ''}
           </span>
         )}
         {dayData.orders > 0 && (
-          <span className="w-full rounded text-[9px] leading-tight px-1 py-0.5 bg-blue-500/15 text-blue-700 dark:text-blue-300 truncate">
+          <span className="w-full rounded text-2xs leading-tight px-1 py-0.5 bg-blue-500/15 text-blue-700 dark:text-blue-300 truncate">
             {dayData.orders} order{dayData.orders > 1 ? 's' : ''}
           </span>
         )}
@@ -202,7 +200,7 @@ export default function CalendarPage() {
         <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><CalendarIcon className="mr-3 h-8 w-8"/>Activity Calendar</h1>
         <p className="text-muted-foreground">Visualize your sales and custom orders over time.</p>
         <div className="flex items-center gap-4 mt-2 text-sm">
-            <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-green-500"></div> Sales Invoices</div>
+            <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-success"></div> Sales Invoices</div>
             <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-blue-500"></div> Custom Orders</div>
         </div>
       </header>

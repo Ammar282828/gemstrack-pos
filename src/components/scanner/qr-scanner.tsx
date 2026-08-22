@@ -53,7 +53,7 @@ const Viewfinder = () => (
             <div className="absolute bottom-4 left-4 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
             <div className="absolute bottom-4 right-4 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
         </div>
-        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-red-500/50 animate-scan-line" />
+        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-destructive/50 animate-scan-line" />
     </>
 );
 
@@ -246,7 +246,7 @@ export default function QrScanner({ isActive }: QrScannerProps) {
             // clip-path clips <video> on iOS Safari where overflow-hidden does not
             "w-full border-4 border-transparent rounded-md bg-muted overflow-hidden [clip-path:inset(0_round_0.375rem)] mx-auto max-w-lg relative transition-all duration-300 min-h-[250px]",
             " [&>span]:hidden [&>video]:w-full [&>video]:h-full [&>video]:object-cover",
-            scanSuccess && "border-green-500 shadow-lg shadow-green-500/50"
+            scanSuccess && "border-success shadow-lg shadow-green-500/50"
           )}
         >
           {scannerState === 'scanning' && <Viewfinder />}

@@ -79,14 +79,14 @@ const EmergencyLock: React.FC = () => {
 
     if (settings.databaseLocked) {
         return (
-             <Card className="border-green-500 bg-green-500/10">
+             <Card className="border-success bg-success/10">
                 <CardHeader>
-                    <CardTitle className="text-xl flex items-center text-green-600">
+                    <CardTitle className="text-xl flex items-center text-success">
                         <ShieldCheck className="mr-2 h-5 w-5" /> Database Secured
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-green-700 dark:text-green-300">
+                    <p className="text-success">
                         The connection to the database is currently locked. No data can be read or written. To restore access, you must request a reset from the developer.
                     </p>
                 </CardContent>
@@ -361,17 +361,17 @@ const ShopifyCard: React.FC = () => {
         <CardDescription>Connected store — credentials are hardcoded in environment variables.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 font-medium">
+        <div className="flex items-center gap-2 text-sm text-success font-medium">
           <CheckCircle2 className="h-4 w-4" />
           Connected · real-time webhooks active
         </div>
         {needsReauth && (
-          <Alert variant="destructive" className="border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-600">
+          <Alert variant="destructive" className="border-warning bg-warning/10 text-warning [&>svg]:text-warning">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Scope upgrade required</AlertTitle>
             <AlertDescription className="space-y-2">
               <p className="text-sm">Two-way sync and payment links need additional permissions: <span className="font-mono text-xs">{missingScopes.join(', ')}</span></p>
-              <Button onClick={handleReauth} size="sm" variant="outline" className="border-amber-500 text-amber-700 hover:bg-amber-500/10">
+              <Button onClick={handleReauth} size="sm" variant="outline" className="border-warning text-warning hover:bg-warning/10">
                 <RefreshCw className="mr-2 h-3 w-3" /> Re-authorize Shopify
               </Button>
             </AlertDescription>
@@ -380,11 +380,11 @@ const ShopifyCard: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-sm text-muted-foreground">Shop domain</Label>
-            <Input value="af894b-7f.myshopify.com" readOnly className="bg-muted cursor-default" />
+            <Input value="af894b-7f.myshopify.com" readOnly className="bg-muted cursor-default"  aria-label="Shop domain"/>
           </div>
           <div className="space-y-1.5">
             <Label className="text-sm text-muted-foreground">Admin API access token</Label>
-            <Input value="shpat_••••••••••••••••••••••" readOnly className="bg-muted cursor-default" />
+            <Input value="shpat_••••••••••••••••••••••" readOnly className="bg-muted cursor-default"  aria-label="Admin API access token"/>
           </div>
         </div>
         {settings.shopifyLastSyncedAt && (
@@ -894,7 +894,7 @@ export default function SettingsPage() {
               {signInLogs.map(log => (
                 <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
                   {log.photoURL && log.photoURL.length > 0 ? (
-                    <img src={log.photoURL} alt={log.displayName || ''} className="h-9 w-9 rounded-full flex-shrink-0 object-cover" />
+                    <img src={log.photoURL} alt={log.displayName || ''} className="h-9 w-9 rounded-full flex-shrink-0 object-cover" loading="lazy" decoding="async" />
                   ) : (
                     <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <span className="text-sm font-semibold text-primary">{(log.displayName || log.email || '?')[0].toUpperCase()}</span>

@@ -57,12 +57,12 @@ const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => Prom
       <TableCell>{customer.address || '-'}</TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
-          <Button asChild size="sm" variant="ghost">
+          <Button asChild size="sm" variant="ghost" aria-label="Open ledger">
             <Link href={`/hisaab/${customer.id}?type=customer`}>
               <BookUser className="w-4 h-4" />
             </Link>
           </Button>
-          <Button asChild size="sm" variant="ghost">
+          <Button asChild size="sm" variant="ghost" aria-label="Edit">
             <Link href={`/customers/${customer.id}/edit`}>
               <Edit3 className="w-4 h-4" />
             </Link>
@@ -284,15 +284,15 @@ const SpamReviewDialog: React.FC<{
                     <p className="font-medium truncate">{customer.name || '(no name)'}</p>
                     <p className="text-xs text-muted-foreground truncate">{customer.email || 'no email'}</p>
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {reasons.map(r => <Badge key={r} variant="outline" className="text-[10px]">{r}</Badge>)}
-                      {customer.shopifyCustomerId && <Badge variant="secondary" className="text-[10px]">Shopify</Badge>}
+                      {reasons.map(r => <Badge key={r} variant="outline" className="text-2xs">{r}</Badge>)}
+                      {customer.shopifyCustomerId && <Badge variant="secondary" className="text-2xs">Shopify</Badge>}
                     </div>
                   </label>
                 </div>
               ))}
             </div>
             {candidates.some(c => c.customer.shopifyCustomerId) && (
-              <p className="text-[11px] text-amber-600 dark:text-amber-500">
+              <p className="text-2xs text-warning">
                 Note: rows tagged “Shopify” originated from your Shopify store. Deleting them here removes them from this app; if storefront spam continues they may re-sync. Add a signup CAPTCHA in Shopify to stop the source.
               </p>
             )}
@@ -446,7 +446,7 @@ const MergeCustomersDialog: React.FC<{
             <p className="text-sm font-medium">Manual merge</p>
             <div>
               <label className="text-xs font-medium text-primary">Keep (primary)</label>
-              <Input placeholder="Search by name or phone..." value={manualKeepCustomer ? manualKeepCustomer.name : manualKeepSearch} onChange={e => { setManualKeepId(''); setManualKeepSearch(e.target.value); }} className="mt-1 h-8 text-sm" />
+              <Input placeholder="Search by name or phone..." value={manualKeepCustomer ? manualKeepCustomer.name : manualKeepSearch} onChange={e => { setManualKeepId(''); setManualKeepSearch(e.target.value); }} className="mt-1 h-8 text-sm"  aria-label="Search by name or phone"/>
               {manualKeepResults.length > 0 && !manualKeepCustomer && (
                 <div className="border rounded-md mt-1 divide-y max-h-32 overflow-y-auto">
                   {manualKeepResults.map(c => (
@@ -460,7 +460,7 @@ const MergeCustomersDialog: React.FC<{
             </div>
             <div>
               <label className="text-xs font-medium text-destructive">Duplicate (will be deleted)</label>
-              <Input placeholder="Search by name or phone..." value={manualDeleteCustomer ? manualDeleteCustomer.name : manualDeleteSearch} onChange={e => { setManualDeleteId(''); setManualDeleteSearch(e.target.value); }} className="mt-1 h-8 text-sm border-destructive/40" />
+              <Input placeholder="Search by name or phone..." value={manualDeleteCustomer ? manualDeleteCustomer.name : manualDeleteSearch} onChange={e => { setManualDeleteId(''); setManualDeleteSearch(e.target.value); }} className="mt-1 h-8 text-sm border-destructive/40"  aria-label="Search by name or phone"/>
               {manualDeleteResults.length > 0 && !manualDeleteCustomer && (
                 <div className="border rounded-md mt-1 divide-y max-h-32 overflow-y-auto">
                   {manualDeleteResults.map(c => (
@@ -589,7 +589,7 @@ export default function CustomersPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
-            />
+             aria-label="Search by name, phone, or email"/>
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           </div>
         </CardContent>

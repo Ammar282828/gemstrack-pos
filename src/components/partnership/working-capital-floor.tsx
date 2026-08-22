@@ -68,11 +68,11 @@ export const WorkingCapitalFloor: React.FC<Props> = ({ onFloorChange, setBy }) =
   return (
     <div className="space-y-2">
       {showReviewBanner && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-2.5 flex items-start gap-2 text-xs">
-          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+        <div className="rounded-md border border-warning bg-warning/10 p-2.5 flex items-start gap-2 text-xs">
+          <AlertCircle className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="font-medium text-amber-800 dark:text-amber-200">It&apos;s a new month — review the working-capital floor for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}.</p>
-            <p className="text-amber-700 dark:text-amber-300 mt-0.5">Last set: {fmtDate(settings.floorLastSetAt)}{settings.floorHistory[settings.floorHistory.length - 1]?.by ? ` by ${settings.floorHistory[settings.floorHistory.length - 1].by}` : ''}.</p>
+            <p className="font-medium text-warning">It&apos;s a new month — review the working-capital floor for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}.</p>
+            <p className="text-warning mt-0.5">Last set: {fmtDate(settings.floorLastSetAt)}{settings.floorHistory[settings.floorHistory.length - 1]?.by ? ` by ${settings.floorHistory[settings.floorHistory.length - 1].by}` : ''}.</p>
           </div>
         </div>
       )}
@@ -85,8 +85,8 @@ export const WorkingCapitalFloor: React.FC<Props> = ({ onFloorChange, setBy }) =
             value={draft}
             onChange={e => setDraft(e.target.value)}
             min={0}
-            className={cn(hasChange && 'border-amber-400 focus-visible:ring-amber-400')}
-          />
+            className={cn(hasChange && 'border-warning focus-visible:ring-amber-400')}
+           aria-label="Working capital floor (PKR)"/>
           <Button
             type="button"
             size="sm"
@@ -94,8 +94,8 @@ export const WorkingCapitalFloor: React.FC<Props> = ({ onFloorChange, setBy }) =
             onClick={handleSave}
             disabled={saving || !hasChange}
             className="flex-shrink-0"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : hasChange ? <Save className="w-4 h-4 mr-1" /> : <CheckCircle2 className="w-4 h-4 mr-1 text-green-600" />}
+           aria-label="Save">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : hasChange ? <Save className="w-4 h-4 mr-1" /> : <CheckCircle2 className="w-4 h-4 mr-1 text-success" />}
             {saving ? '' : hasChange ? 'Save' : 'Saved'}
           </Button>
         </div>

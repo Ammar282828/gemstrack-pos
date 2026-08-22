@@ -7,13 +7,36 @@ body {
   font-family: 'Inter', sans-serif; /* A clean, elegant, and readable font */
 }
 
+/* Touch comfort.
+   The dense control sizes (h-6/h-7/h-8) are deliberate on a mouse: this is a
+   shop tool and the operator wants a lot on screen. On a touch device those
+   same controls are 24-32px tall, which clears WCAG 2.5.8's 24px floor but
+   sits well under the 44px platform guideline, so they grow vertically only
+   where the pointer is coarse. Height alone, never width, so nothing reflows
+   sideways and no tight button row starts wrapping. */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  a[role="button"] {
+    min-height: 2.75rem;
+  }
+  /* Calendar cells are a grid; growing them breaks the date picker layout. */
+  [role="gridcell"] button,
+  .rdp button {
+    min-height: 0;
+  }
+}
+
 @layer base {
   :root, .theme-default {
-    --background: 0 0% 100%;
+    /* Neutrals carry a trace of the 220 brand hue rather than being pure
+       white, and the page sits a shade below the cards so a card lifts off
+       the surface instead of relying on its border alone. */
+    --background: 220 20% 97.6%;
     --foreground: 224 71.4% 4.1%;
-    --card: 0 0% 100%;
+    --card: 220 30% 99.6%;
     --card-foreground: 224 71.4% 4.1%;
-    --popover: 0 0% 100%;
+    --popover: 220 30% 99.6%;
     --popover-foreground: 224 71.4% 4.1%;
     --primary: 220.9 39.3% 11%;
     --primary-foreground: 210 20% 98%;
@@ -25,6 +48,12 @@ body {
     --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
+    /* Paid / done / on-track and late / at-risk. Chosen to clear 4.5:1 on the
+       card surface so they are usable as text, not just as fills. */
+    --success: 142 72% 26%;
+    --success-foreground: 140 40% 98%;
+    --warning: 32 90% 30%;
+    --warning-foreground: 40 40% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 224 71.4% 4.1%;
@@ -63,6 +92,12 @@ body {
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
+    /* Lifted and desaturated for dark surfaces; the light-mode values would
+       read as near-black here. Every .theme-* block inherits these. */
+    --success: 142 58% 52%;
+    --success-foreground: 145 60% 6%;
+    --warning: 38 88% 58%;
+    --warning-foreground: 40 60% 8%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 215 20.2% 65.1%;

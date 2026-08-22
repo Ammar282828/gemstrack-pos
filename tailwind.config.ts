@@ -9,6 +9,12 @@ export default {
   ],
   theme: {
   	extend: {
+  		fontSize: {
+  			// One micro step instead of the three arbitrary sizes that had crept
+  			// in (9px, 10px, 11px). 11px is the floor: below that, muted grey
+  			// text is not readable on a phone in a shop.
+  			'2xs': ['0.6875rem', { lineHeight: '0.875rem' }],
+  		},
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -39,6 +45,14 @@ export default {
   			destructive: {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
+  			},
+  			success: {
+  				DEFAULT: 'hsl(var(--success))',
+  				foreground: 'hsl(var(--success-foreground))'
+  			},
+  			warning: {
+  				DEFAULT: 'hsl(var(--warning))',
+  				foreground: 'hsl(var(--warning-foreground))'
   			},
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',

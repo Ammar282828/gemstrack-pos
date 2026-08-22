@@ -54,7 +54,7 @@ export const PlatingFields: React.FC<{
           <Label className="text-xs">Describe the plating</Label>
           <Input placeholder="e.g. Rose gold plating"
             value={value.platingNote || ''}
-            onChange={e => onChange({ ...value, platingNote: e.target.value })} />
+            onChange={e => onChange({ ...value, platingNote: e.target.value })}  aria-label="Describe the plating"/>
         </div>
       )}
 

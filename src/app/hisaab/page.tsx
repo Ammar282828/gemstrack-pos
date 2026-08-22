@@ -84,7 +84,7 @@ const AddNewHisaabDialog: React.FC<{
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-10"
-                        />
+                         aria-label="Search by name"/>
                     </div>
                     <ScrollArea className="h-[300px] border rounded-md">
                          {filteredContacts.length > 0 ? (
@@ -289,19 +289,19 @@ export default function HisaabPage() {
       </header>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <Card className="bg-green-600/10 border-green-600/20">
+        <Card className="bg-success/10 border-success/20">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center text-green-700 dark:text-green-500 text-base">
+            <CardTitle className="flex items-center text-success text-base">
               <ArrowDown className="mr-2 h-4 w-4"/>
               You will Get (Receivable)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-700 dark:text-green-500">PKR {totalReceivable.toLocaleString()}</p>
-            {totalReceivableGold > 0 && <p className="text-sm font-semibold text-green-600/90">{totalReceivableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g Gold</p>}
+            <p className="text-2xl font-bold text-success">PKR {totalReceivable.toLocaleString()}</p>
+            {totalReceivableGold > 0 && <p className="text-sm font-semibold text-success/90">{totalReceivableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g Gold</p>}
           </CardContent>
         </Card>
-        <Card className="bg-red-500/10 border-red-500/20">
+        <Card className="bg-destructive/10 border-destructive/20">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center text-destructive text-base">
                 <ArrowUp className="mr-2 h-4 w-4"/>
@@ -324,7 +324,7 @@ export default function HisaabPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
-                />
+                 aria-label="Search by name"/>
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             </div>
              <Button variant="outline" onClick={handlePrintReport} className="flex-shrink-0" size="sm">
@@ -349,7 +349,7 @@ export default function HisaabPage() {
                                         <div className="flex items-center justify-between gap-2">
                                             <p className="font-semibold truncate">{summary.entityName}</p>
                                             <div className="text-right flex-shrink-0">
-                                                {summary.cashBalance > 0 && <p className="font-bold text-green-700 dark:text-green-500 text-sm">PKR {summary.cashBalance.toLocaleString()}</p>}
+                                                {summary.cashBalance > 0 && <p className="font-bold text-success text-sm">PKR {summary.cashBalance.toLocaleString()}</p>}
                                                 {summary.cashBalance < 0 && <p className="font-bold text-destructive text-sm">PKR {Math.abs(summary.cashBalance).toLocaleString()}</p>}
                                             </div>
                                         </div>
@@ -365,7 +365,7 @@ export default function HisaabPage() {
                                               <div key={inv.id} className="flex items-center justify-between text-xs">
                                                 <span className="text-muted-foreground font-mono">{inv.id}</span>
                                                 <span className="text-muted-foreground">
-                                                  <span className="text-green-600 font-medium">PKR {inv.amountPaid.toLocaleString()}</span>
+                                                  <span className="text-success font-medium">PKR {inv.amountPaid.toLocaleString()}</span>
                                                   {' / '}
                                                   {inv.grandTotal.toLocaleString()}
                                                   {' — '}

@@ -304,13 +304,13 @@ export default function GivenItemsPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Still Out</p>
-            <p className="text-2xl font-bold text-amber-500">{outCount}</p>
+            <p className="text-2xl font-bold text-warning">{outCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Returned</p>
-            <p className="text-2xl font-bold text-green-600">{returnedCount}</p>
+            <p className="text-2xl font-bold text-success">{returnedCount}</p>
           </CardContent>
         </Card>
         <Card>
@@ -330,7 +330,7 @@ export default function GivenItemsPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-10"
-            />
+             aria-label="Search by item or recipient"/>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           </div>
           <div className="flex gap-2">
@@ -377,11 +377,11 @@ export default function GivenItemsPage() {
                       </p>
                     </div>
                     {item.status === 'out' ? (
-                      <Badge variant="outline" className="border-amber-400 text-amber-600 gap-1 flex-shrink-0">
+                      <Badge variant="outline" className="border-warning text-warning gap-1 flex-shrink-0">
                         <Clock className="w-3 h-3" /> Out
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="border-green-500 text-green-600 gap-1 flex-shrink-0">
+                      <Badge variant="outline" className="border-success text-success gap-1 flex-shrink-0">
                         <CheckCircle2 className="w-3 h-3" /> Returned
                       </Badge>
                     )}
@@ -389,7 +389,7 @@ export default function GivenItemsPage() {
                   {item.notes && <p className="text-xs text-muted-foreground mb-2">{item.notes}</p>}
                   <div className="flex justify-end gap-1 border-t pt-2">
                     {item.status === 'out' && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs text-green-700 border-green-400 hover:bg-green-50"
+                      <Button size="sm" variant="outline" className="h-7 text-xs text-success border-success hover:bg-success/10"
                         onClick={() => handleMarkReturned(item)}>
                         <CheckCircle2 className="w-3 h-3 mr-1" /> Got Back
                       </Button>
@@ -399,7 +399,7 @@ export default function GivenItemsPage() {
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10">
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10" aria-label="Delete">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </AlertDialogTrigger>
@@ -426,18 +426,18 @@ export default function GivenItemsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
+                  <TableHead className="hidden xl:table-cell">Date</TableHead>
                   <TableHead>Item / Description</TableHead>
                   <TableHead>Given To</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Notes</TableHead>
+                  <TableHead className="hidden xl:table-cell">Notes</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map(item => (
                   <TableRow key={item.id} className={item.status === 'returned' ? 'opacity-60' : ''}>
-                    <TableCell className="whitespace-nowrap text-sm">
+                    <TableCell className="hidden xl:table-cell whitespace-nowrap text-sm">
                       {format(parseISO(item.date), 'd MMM yy')}
                     </TableCell>
                     <TableCell className="font-medium">{item.description}</TableCell>
@@ -449,29 +449,29 @@ export default function GivenItemsPage() {
                     </TableCell>
                     <TableCell>
                       {item.status === 'out' ? (
-                        <Badge variant="outline" className="border-amber-400 text-amber-600 gap-1">
+                        <Badge variant="outline" className="border-warning text-warning gap-1">
                           <Clock className="w-3 h-3" /> Out
                         </Badge>
                       ) : (
                         <div>
-                          <Badge variant="outline" className="border-green-500 text-green-600 gap-1">
+                          <Badge variant="outline" className="border-success text-success gap-1">
                             <CheckCircle2 className="w-3 h-3" /> Returned
                           </Badge>
                           {item.returnedDate && (
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                            <p className="text-2xs text-muted-foreground mt-0.5">
                               {format(parseISO(item.returnedDate), 'd MMM yy')}
                             </p>
                           )}
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-[180px] truncate">
+                    <TableCell className="hidden xl:table-cell text-sm text-muted-foreground max-w-[180px] truncate">
                       {item.notes || '—'}
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end items-center gap-1">
                         {item.status === 'out' && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-green-700 border-green-400 hover:bg-green-50"
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-success border-success hover:bg-success/10"
                             onClick={() => handleMarkReturned(item)}>
                             <CheckCircle2 className="w-3 h-3 mr-1" /> Got Back
                           </Button>
@@ -481,7 +481,7 @@ export default function GivenItemsPage() {
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10">
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10" aria-label="Delete">
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
                           </AlertDialogTrigger>
