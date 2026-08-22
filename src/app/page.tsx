@@ -42,7 +42,7 @@ const Headline: React.FC<{
   label: string; value: string; sub?: string; tone?: string; href: string; icon: React.ReactNode; exact?: string;
 }> = ({ label, value, sub, tone, href, icon, exact }) => (
   <Link href={href}
-    className="rounded-xl border bg-card p-4 hover:border-primary/40 transition-colors group min-w-0"
+    className="rounded-xl border bg-card p-5 hover:border-primary/40 transition-colors group min-w-0"
     title={exact}>
     <div className="flex items-center gap-2 text-muted-foreground">
       {icon}
@@ -58,7 +58,7 @@ const Headline: React.FC<{
 const TaskRow: React.FC<{
   href: string; title: string; detail: string; amount?: string; tone: 'danger' | 'warn' | 'plain';
 }> = ({ href, title, detail, amount, tone }) => (
-  <Link href={href} className="flex items-center gap-3 py-2 px-1 rounded-md hover:bg-muted/50 transition-colors group">
+  <Link href={href} className="flex items-center gap-3 py-2.5 px-1.5 rounded-md hover:bg-muted/50 transition-colors group">
     <span className={cn('h-1.5 w-1.5 rounded-full flex-shrink-0',
       tone === 'danger' ? 'bg-destructive' : tone === 'warn' ? 'bg-warning' : 'bg-muted-foreground/40')} />
     <span className="min-w-0 flex-1">
@@ -73,20 +73,25 @@ const TaskRow: React.FC<{
 const OngoingOrderRow: React.FC<{ order: Order }> = ({ order }) => {
   const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
   return (
-    <Link href={`/orders/${order.id}`} className="block py-2 px-1 hover:bg-muted/50 rounded-md transition-colors group">
-      <div className="flex items-center gap-2 min-w-0">
-        <Badge className={cn('border-transparent flex-shrink-0 text-2xs px-1.5',
-          order.status === 'Pending' ? 'bg-warning text-warning-foreground' : 'bg-blue-500 text-white')}>
-          {order.status}
-        </Badge>
-        <span className="font-semibold text-sm font-mono truncate">{order.id}</span>
-        <ArrowRight className="w-3.5 h-3.5 ml-auto flex-shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+    /* Status is a dot and a quiet word, not a saturated filled pill. Twenty
+       solid badges down a narrow column drowned out the orders themselves. */
+    <Link href={`/orders/${order.id}`} className="block py-2.5 px-1.5 hover:bg-muted/50 rounded-md transition-colors group">
+      <div className="flex items-baseline justify-between gap-3 min-w-0">
+        <span className="flex items-baseline gap-2 min-w-0">
+          <span className={cn('h-1.5 w-1.5 rounded-full flex-shrink-0 translate-y-[-1px]',
+            order.status === 'Pending' ? 'bg-warning' : 'bg-blue-500')} />
+          <span className="font-semibold text-sm font-mono truncate">{order.id}</span>
+        </span>
+        <span className="text-sm font-semibold tabular-nums flex-shrink-0">
+          PKR {grandTotal.toLocaleString()}
+        </span>
       </div>
-      <div className="flex items-baseline justify-between gap-2 mt-0.5">
-        <span className="text-xs text-muted-foreground truncate">{order.customerName || 'Walk-in'}</span>
-        <span className="text-xs flex-shrink-0 tabular-nums">
-          <span className="font-semibold">PKR {grandTotal.toLocaleString()}</span>
-          <span className="text-muted-foreground"> · {format(parseISO(order.createdAt), 'MMM d')}</span>
+      <div className="flex items-baseline justify-between gap-3 mt-1 pl-3.5">
+        <span className="text-xs text-muted-foreground truncate">
+          {order.status} · {order.customerName || 'Walk-in'}
+        </span>
+        <span className="text-xs text-muted-foreground tabular-nums flex-shrink-0">
+          {format(parseISO(order.createdAt), 'd MMM')}
         </span>
       </div>
     </Link>
@@ -94,18 +99,21 @@ const OngoingOrderRow: React.FC<{ order: Order }> = ({ order }) => {
 };
 
 const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => (
-  <Link href={`/view-invoice?invoiceId=${invoice.id}`} className="block py-2 px-1 hover:bg-muted/50 rounded-md transition-colors group">
-    <div className="flex items-center gap-2 min-w-0">
+  <Link href={`/view-invoice?invoiceId=${invoice.id}`} className="block py-2.5 px-1.5 hover:bg-muted/50 rounded-md transition-colors group">
+    <div className="flex items-baseline justify-between gap-3 min-w-0">
       <span className="font-semibold text-sm truncate">{invoice.customerName || 'Walk-in'}</span>
-      <ArrowRight className="w-3.5 h-3.5 ml-auto flex-shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      <span className="text-sm font-semibold tabular-nums flex-shrink-0">
+        PKR {(invoice.grandTotal || 0).toLocaleString()}
+      </span>
     </div>
-    <div className="flex items-baseline justify-between gap-2 mt-0.5">
-      <span className="text-xs text-muted-foreground truncate">{format(parseISO(invoice.createdAt), 'MMM d, h:mm a')}</span>
-      <span className="text-xs flex-shrink-0 tabular-nums font-semibold">PKR {(invoice.grandTotal || 0).toLocaleString()}</span>
+    <div className="flex items-baseline justify-between gap-3 mt-1">
+      <span className="text-xs text-muted-foreground truncate">{format(parseISO(invoice.createdAt), 'd MMM, h:mm a')}</span>
+      {(invoice.balanceDue || 0) > 0 && (
+        <span className="text-xs text-warning tabular-nums flex-shrink-0">
+          PKR {invoice.balanceDue.toLocaleString()} due
+        </span>
+      )}
     </div>
-    {(invoice.balanceDue || 0) > 0 && (
-      <p className="text-2xs text-warning text-right tabular-nums">Due PKR {invoice.balanceDue.toLocaleString()}</p>
-    )}
   </Link>
 );
 
@@ -131,7 +139,7 @@ const Panel: React.FC<{
         </Button>
       )}
     </CardHeader>
-    <CardContent className="flex-1 lg:min-h-0 overflow-y-auto p-4 pt-0">{children}</CardContent>
+    <CardContent className="flex-1 lg:min-h-0 overflow-y-auto px-3 pb-3 pt-0">{children}</CardContent>
   </Card>
 );
 
@@ -273,7 +281,7 @@ export default function HomePage() {
       </header>
 
       {/* Three figures, big enough to read at a glance. */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-shrink-0">
         <Headline label="Taken today" href="/analytics" icon={<Wallet className="h-4 w-4" />}
           value={compactPKR(stats.todayRevenue)} exact={`PKR ${stats.todayRevenue.toLocaleString()}`}
           tone={stats.todayRevenue > 0 ? 'text-success' : undefined}
@@ -292,17 +300,17 @@ export default function HomePage() {
       </div>
 
       {/* Needs you, then the two running lists. */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:flex-1 lg:min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:flex-1 lg:min-h-0">
 
         <Panel title="Needs you" count={tasks.length}
           icon={<AlertTriangle className={cn('h-4 w-4', tasks.length ? 'text-destructive' : 'text-muted-foreground')} />}>
           {tasks.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
+            <div className="text-center py-12 text-muted-foreground">
               <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
               <p className="text-sm">Nothing overdue or unpaid.</p>
             </div>
           ) : (
-            <div className="divide-y">
+            <div className="divide-y divide-border/60">
               {tasks.map((t, i) => <TaskRow key={`${t.href}-${i}`} {...t} />)}
             </div>
           )}
@@ -313,7 +321,7 @@ export default function HomePage() {
           {stats.ongoingOrders.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">No ongoing orders.</p>
           ) : (
-            <div className="divide-y">
+            <div className="divide-y divide-border/60">
               {stats.ongoingOrders.map(o => <OngoingOrderRow key={o.id} order={o} />)}
             </div>
           )}
@@ -323,7 +331,7 @@ export default function HomePage() {
           {stats.recentInvoices.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">No invoices yet.</p>
           ) : (
-            <div className="divide-y">
+            <div className="divide-y divide-border/60">
               {stats.recentInvoices.map(i => <RecentInvoiceRow key={i.id} invoice={i} />)}
             </div>
           )}
