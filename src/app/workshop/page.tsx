@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, KarigarJobStatus, MetalType, KaratValue, staticCategories } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -938,35 +939,30 @@ export default function WorkshopPage() {
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Search item, karigar, customer, order…" value={search} onChange={e => setSearch(e.target.value)}  aria-label="Search item, karigar, customer, order"/>
-        </div>
-        {/* `sm:contents` dissolves this wrapper above the breakpoint so the two
-            selects rejoin the parent flex row instead of staying a 2-up grid. */}
-        <div className="grid grid-cols-2 gap-2 sm:contents">
-          <Select value={typeFilter} onValueChange={v => setTypeFilter(v as 'all' | 'order' | 'stock')}>
-            <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All work</SelectItem>
-              <SelectItem value="order">Customer orders</SelectItem>
-              <SelectItem value="stock">Stock / inventory</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active only</SelectItem>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <FilterBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Search item, karigar, customer, order…"
+      >
+        <Select value={typeFilter} onValueChange={v => setTypeFilter(v as 'all' | 'order' | 'stock')}>
+          <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All work</SelectItem>
+            <SelectItem value="order">Customer orders</SelectItem>
+            <SelectItem value="stock">Stock / inventory</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active only</SelectItem>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="in-progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+          </SelectContent>
+        </Select>
+      </FilterBar>
 
       {/* Quick-select karigars — click to focus one, click again to clear */}
       {(() => {

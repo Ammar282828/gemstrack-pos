@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Customer } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
@@ -580,20 +581,7 @@ export default function CustomersPage() {
         </div>
       </header>
 
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="relative flex-grow w-full">
-            <Input
-              type="search"
-              placeholder="Search by name, phone, or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-             aria-label="Search by name, phone, or email"/>
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          </div>
-        </CardContent>
-      </Card>
+      <FilterBar value={searchTerm} onChange={setSearchTerm} placeholder="Search by name, phone, or email…" />
 
       {isCustomersLoading ? (
          <div className="text-center py-12">

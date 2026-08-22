@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
+import { FilterBar } from '@/components/shared/filter-bar';
 import { useAppStore, Customer, Karigar, Invoice } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -316,22 +317,18 @@ export default function HisaabPage() {
       </div>
 
       <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 p-3 md:p-4 bg-background/95 backdrop-blur-sm border rounded-lg sticky top-0 z-10 shadow-sm">
-            <div className="relative flex-grow w-full">
-                <Input
-                type="search"
-                placeholder="Search by name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-                 aria-label="Search by name"/>
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            </div>
-             <Button variant="outline" onClick={handlePrintReport} className="flex-shrink-0" size="sm">
-                <FileText className="mr-2 h-4 w-4"/>
-                Export PDF
-            </Button>
-          </div>
+          {/* Stays sticky: this list is long and the search has to follow you. */}
+          <FilterBar
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search by name…"
+            className="mb-0 sticky top-0 z-10 bg-background/95 backdrop-blur-sm shadow-sm"
+            actions={
+              <Button variant="outline" className="h-10 flex-shrink-0" onClick={handlePrintReport}>
+                <FileText className="mr-2 h-4 w-4" />Export PDF
+              </Button>
+            }
+          />
 
           {filteredSummaries.length > 0 ? (
               <div className="space-y-3">

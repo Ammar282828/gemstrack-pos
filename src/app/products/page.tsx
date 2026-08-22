@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAppStore, Settings, Product, calculateProductPrice } from '@/lib/store';
@@ -296,83 +297,44 @@ export default function ProductsPage() {
         </div>
       </header>
 
-      {/* Search + filter toolbar */}
-      <Card className="mb-5">
-        <CardContent className="p-4 space-y-3">
-          {/* Row 1: Search + view toggle + export */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Input
-                type="search"
-                placeholder="Search by name or SKU…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-               aria-label="Search by name or SKU"/>
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            </div>
-            <div className="flex gap-1 border rounded-md p-0.5">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setViewMode('grid')}
-                title="Grid view"
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setViewMode('list')}
-                title="List view"
-              >
-                <List className="w-4 h-4" />
-              </Button>
-            </div>
-            <Button
-              variant="outline"
-              onClick={handleBulkExportCsv}
-              disabled={selectedProductSkus.length === 0}
-              title="Export selected to CSV for WEPrint"
-            >
-              <Download className="w-4 h-4 mr-2" /> Export ({selectedProductSkus.length})
-            </Button>
+      <FilterBar
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder="Search by name or SKU…"
+        actions={<>
+          <div className="flex gap-1 border rounded-md p-0.5">
+            <Button variant={viewMode === 'grid' ? 'default' : 'ghost'} size="icon" className="h-9 w-9"
+              onClick={() => setViewMode('grid')} aria-label="Grid view"><LayoutGrid className="w-4 h-4" /></Button>
+            <Button variant={viewMode === 'list' ? 'default' : 'ghost'} size="icon" className="h-9 w-9"
+              onClick={() => setViewMode('list')} aria-label="List view"><List className="w-4 h-4" /></Button>
           </div>
-
-          {/* Row 2: Select all + category filters */}
+          <Button variant="outline" className="h-10" onClick={handleBulkExportCsv}
+            disabled={selectedProductSkus.length === 0} title="Export selected to CSV for WEPrint">
+            <Download className="w-4 h-4 mr-2" />Export ({selectedProductSkus.length})
+          </Button>
+        </>}
+        footer={
           <div className="flex flex-wrap gap-2 items-center">
             <Button variant="outline" size="sm" onClick={handleSelectAllFiltered} disabled={filteredProducts.length === 0}>
               Select All ({filteredProducts.length})
             </Button>
             {selectedProductSkus.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={handleDeselectAll}>
-                Deselect ({selectedProductSkus.length})
-              </Button>
+              <Button variant="ghost" size="sm" onClick={handleDeselectAll}>Deselect ({selectedProductSkus.length})</Button>
             )}
             <span className="text-muted-foreground text-xs">|</span>
-            <Button
-              variant={selectedCategory === null ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedCategory(null)}
-            >
-              All ({allStoreProducts.length})
-            </Button>
+            <Button variant={selectedCategory === null ? 'default' : 'outline'} size="sm"
+              onClick={() => setSelectedCategory(null)}>All ({allStoreProducts.length})</Button>
             {categories.map((category) => (
-              <Button
-                key={category.id}
+              <Button key={category.id} size="sm"
                 variant={selectedCategory === category.id ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedCategory(category.id)}
-              >
+                onClick={() => setSelectedCategory(category.id)}>
                 {category.title}
                 {categoryCounts[category.id] ? <span className="ml-1.5 text-xs opacity-70">{categoryCounts[category.id]}</span> : null}
               </Button>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        }
+      />
 
       {isProductsLoading ? (
         <div className="text-center py-12">

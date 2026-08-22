@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Order, ORDER_STATUSES, OrderStatus, OrderItem } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
@@ -346,43 +347,33 @@ export default function OrdersPage() {
         </Button>
       </header>
 
-      <Card className="mb-6">
-        <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-grow">
-              <Input
-                type="search"
-                placeholder="Search by Order ID, Customer Name, or Contact..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-               aria-label="Search by Order ID, Customer Name, or Contact"/>
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            </div>
-            {/* On a phone the date picker plus twelve status/payment pills
-                filled the whole first screen, so they collapse behind this
-                toggle. Desktop keeps everything visible. */}
-            <Button variant="outline" className="md:hidden justify-between"
-              onClick={() => setShowFilters(v => !v)}>
-              <span className="flex items-center"><Filter className="w-4 h-4 mr-2" />Filters</span>
-              {activeFilterCount > 0
-                ? <Badge variant="secondary" className="ml-2">{activeFilterCount}</Badge>
-                : <ChevronDown className={cn('w-4 h-4 transition-transform', showFilters && 'rotate-180')} />}
-            </Button>
-
-            <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className={cn('w-full sm:w-[180px]', !showFilters && 'hidden md:flex')}>
-                <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Month" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All time</SelectItem>
-                {monthOptions.map(m => (
-                  <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      {/* The pill rows keep their mobile collapse — twelve status and payment
+          pills filled a phone's first screen — so they ride in the footer
+          slot rather than being flattened into the filter row. */}
+      <FilterBar
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder="Search by order ID, customer, or contact…"
+        actions={
+          <Button variant="outline" className="md:hidden justify-between flex-1 h-10"
+            onClick={() => setShowFilters(v => !v)}>
+            <span className="flex items-center"><Filter className="w-4 h-4 mr-2" />Filters</span>
+            {activeFilterCount > 0
+              ? <Badge variant="secondary" className="ml-2">{activeFilterCount}</Badge>
+              : <ChevronDown className={cn('w-4 h-4 transition-transform', showFilters && 'rotate-180')} />}
+          </Button>
+        }
+        footer={<>
+          <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <SelectTrigger className={cn('w-full sm:w-[180px]', !showFilters && 'hidden md:flex')}>
+              <Calendar className="w-4 h-4 mr-2 text-muted-foreground flex-shrink-0" />
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All time</SelectItem>
+              {monthOptions.map(m => <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>)}
+            </SelectContent>
+          </Select>
            <div className={cn('flex flex-wrap gap-2 items-center', !showFilters && 'hidden md:flex')}>
              <span className="text-sm font-medium text-muted-foreground mr-2 flex items-center"><Filter className="w-4 h-4 mr-1"/>Status:</span>
             <Button
@@ -428,8 +419,8 @@ export default function OrdersPage() {
               </Button>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </>}
+      />
 
       {isOrdersLoading ? (
          <div className="text-center py-12">

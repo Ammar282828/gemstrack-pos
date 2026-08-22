@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { FilterBar } from '@/components/shared/filter-bar';
 import { useAppStore, AdditionalRevenue } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { useForm } from 'react-hook-form';
@@ -249,17 +250,13 @@ export default function AdditionalRevenuePage() {
               <p className="text-3xl font-bold">{filtered.length}</p>
             </div>
           </div>
-          <div className="relative w-full">
-            <Input
-              type="search"
-              placeholder="Search by description..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-             aria-label="Search by description"/>
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          </div>
-          <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />
+          <FilterBar
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search by description…"
+            className="mb-0 border-0 shadow-none [&>div]:px-0 [&>div]:py-0"
+            actions={<DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />}
+          />
         </CardContent>
       </Card>
 

@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { FilterBar } from '@/components/shared/filter-bar';
 import { useAppStore, Expense, EXPENSE_CATEGORIES } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -212,35 +213,26 @@ export default function ExpensesPage() {
                     <p className="text-lg md:text-2xl font-bold">{summaryData.transactionCount}</p>
                 </div>
             </div>
-          <div className="relative flex-grow w-full">
-            <Input
-              type="search"
-              placeholder="Search by description or category..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-             aria-label="Search by description or category"/>
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          </div>
-           <div className="flex flex-col sm:flex-row gap-3">
-                <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <span className="text-sm font-medium text-muted-foreground flex items-center flex-shrink-0"><Filter className="w-4 h-4 mr-1"/>Category:</span>
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="flex-1 sm:w-48">
-                            <SelectValue placeholder="All Categories" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="All">All</SelectItem>
-                            {EXPENSE_CATEGORIES.map((cat) => (
-                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
         </CardContent>
       </Card>
+
+      <FilterBar
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder="Search by description or category…"
+        actions={<DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />}
+      >
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <Filter className="w-4 h-4 mr-2 text-muted-foreground flex-shrink-0" />
+            <SelectValue placeholder="All categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All categories</SelectItem>
+            {EXPENSE_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </FilterBar>
 
       {isExpensesLoading ? (
          <div className="text-center py-12">

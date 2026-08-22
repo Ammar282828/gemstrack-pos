@@ -709,61 +709,74 @@ export default function AnalyticsPage() {
         </Card>
       ) : (
         <>
-          {/* Key metrics. Nine Cards, each with a header row, an icon chip and a
-              sub-line, took most of the first screen to show nine numbers.
-              These are plain tiles saying the same thing in a strip. */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-            {(() => {
-              const netProfit = analyticsData.totalSales - analyticsData.totalExpenses;
-              const estProfit = analyticsData.totalSales * 0.40;
-              const margin = analyticsData.totalSales > 0 ? (netProfit / analyticsData.totalSales) * 100 : 0;
-              const money = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+          {/* Key metrics in two tiers rather than nine equal tiles. The four money
+              figures get the room; the counts sit underneath at half the weight.
+              One flat five-across strip read as cramped — everything shouting
+              at the same volume is the same problem as nine full Cards. */}
+          {(() => {
+            const netProfit = analyticsData.totalSales - analyticsData.totalExpenses;
+            const estProfit = analyticsData.totalSales * 0.40;
+            const margin = analyticsData.totalSales > 0 ? (netProfit / analyticsData.totalSales) * 100 : 0;
+            const money = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
-              const tiles: { label: string; value: string; sub?: string; tone?: string; icon: React.ReactNode; border?: string }[] = [
-                {
-                  label: 'Revenue', value: money(analyticsData.totalSales), tone: 'text-success',
-                  icon: <DollarSign className="h-4 w-4" />,
-                  sub: [
-                    `Invoices ${money(analyticsData.invoiceSales)}`,
-                    analyticsData.orderSales > 0 ? `Orders ${money(analyticsData.orderSales)}` : null,
-                    analyticsData.extraRevenue > 0 ? `Extra ${money(analyticsData.extraRevenue)}` : null,
-                  ].filter(Boolean).join(' · '),
-                },
-                { label: 'Expenses', value: money(analyticsData.totalExpenses), tone: 'text-destructive', icon: <CreditCard className="h-4 w-4" /> },
-                { label: 'Est. profit', value: money(estProfit), tone: 'text-blue-600', sub: 'revenue × 40%, pre-expenses', icon: <TrendingUp className="h-4 w-4" /> },
-                {
-                  label: 'Net profit', value: money(netProfit),
-                  tone: netProfit >= 0 ? 'text-success' : 'text-destructive',
-                  sub: analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% margin` : 'no revenue in period',
-                  icon: netProfit >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />,
-                  border: netProfit >= 0 ? 'border-success/40' : 'border-destructive/40',
-                },
-              ];
-              if (analyticsData.totalUnpaid > 0) tiles.push({
-                label: 'Outstanding', value: money(analyticsData.totalUnpaid), tone: 'text-warning',
-                sub: 'unpaid on invoices', icon: <Clock className="h-4 w-4" />, border: 'border-warning/40',
-              });
-              tiles.push(
-                { label: 'Orders', value: String(analyticsData.totalOrders), icon: <ShoppingBag className="h-4 w-4" /> },
-                { label: 'Avg. order', value: money(analyticsData.averageOrderValue), icon: <BarChart3 className="h-4 w-4" /> },
-                { label: 'Items sold', value: String(analyticsData.totalItemsSold), icon: <Package className="h-4 w-4" /> },
-                { label: 'Discounts', value: money(analyticsData.totalDiscounts), icon: <Percent className="h-4 w-4" /> },
-                { label: 'Items / order', value: analyticsData.averageItemsPerOrder.toFixed(2), icon: <ListOrdered className="h-4 w-4" /> },
-              );
+            const money_tiles = [
+              {
+                label: 'Revenue', value: money(analyticsData.totalSales), tone: 'text-success',
+                icon: <DollarSign className="h-4 w-4" />,
+                sub: [
+                  `Invoices ${money(analyticsData.invoiceSales)}`,
+                  analyticsData.orderSales > 0 ? `Orders ${money(analyticsData.orderSales)}` : null,
+                  analyticsData.extraRevenue > 0 ? `Extra ${money(analyticsData.extraRevenue)}` : null,
+                ].filter(Boolean).join(' · '),
+              },
+              { label: 'Expenses', value: money(analyticsData.totalExpenses), tone: 'text-destructive', icon: <CreditCard className="h-4 w-4" />, sub: 'paid out in this period' },
+              { label: 'Est. profit', value: money(estProfit), tone: 'text-blue-600', icon: <TrendingUp className="h-4 w-4" />, sub: 'revenue × 40%, before expenses' },
+              {
+                label: 'Net profit', value: money(netProfit),
+                tone: netProfit >= 0 ? 'text-success' : 'text-destructive',
+                icon: netProfit >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />,
+                sub: analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% margin` : 'no revenue in period',
+                border: netProfit >= 0 ? 'border-success/40' : 'border-destructive/40',
+              },
+            ];
 
-              return tiles.map(t => (
-                <div key={t.label} title={t.sub}
-                  className={cn('rounded-lg border bg-card px-3 py-2.5 min-w-0', t.border)}>
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <span className="flex-shrink-0">{t.icon}</span>
-                    <span className="text-2xs uppercase tracking-wide truncate">{t.label}</span>
-                  </div>
-                  <p className={cn('text-lg font-bold tabular-nums leading-tight mt-0.5 truncate', t.tone)}>{t.value}</p>
-                  {t.sub && <p className="text-2xs text-muted-foreground truncate">{t.sub}</p>}
+            const counts = [
+              ...(analyticsData.totalUnpaid > 0 ? [{ label: 'Outstanding', value: money(analyticsData.totalUnpaid), tone: 'text-warning' }] : []),
+              { label: 'Orders', value: String(analyticsData.totalOrders) },
+              { label: 'Avg. order', value: money(analyticsData.averageOrderValue) },
+              { label: 'Items sold', value: String(analyticsData.totalItemsSold) },
+              { label: 'Discounts', value: money(analyticsData.totalDiscounts) },
+              { label: 'Items / order', value: analyticsData.averageItemsPerOrder.toFixed(2) },
+            ];
+
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {money_tiles.map(t => (
+                    <div key={t.label} className={cn('rounded-xl border bg-card p-4 min-w-0', t.border)}>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <span className="flex-shrink-0">{t.icon}</span>
+                        <span className="text-xs uppercase tracking-wide truncate">{t.label}</span>
+                      </div>
+                      <p className={cn('text-2xl font-bold tabular-nums leading-tight mt-1.5 truncate', t.tone)} title={t.value}>
+                        {t.value}
+                      </p>
+                      {t.sub && <p className="text-xs text-muted-foreground truncate mt-1" title={t.sub}>{t.sub}</p>}
+                    </div>
+                  ))}
                 </div>
-              ));
-            })()}
-          </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {counts.map(c => (
+                    <div key={c.label} className="rounded-lg border bg-card/60 px-3 py-2 min-w-0">
+                      <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">{c.label}</p>
+                      <p className={cn('text-base font-semibold tabular-nums truncate', c.tone)}>{c.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── Cash Flow ── */}
           {(() => {

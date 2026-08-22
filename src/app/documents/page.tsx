@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Order, Invoice, Settings, Customer, InvoiceItem, staticCategories, ORDER_STATUSES, OrderStatus } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
@@ -956,35 +957,23 @@ export default function DocumentsPage() {
         </Button>
       </header>
 
-      <Card className="mb-6">
-        <CardContent className="p-4 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-4 items-center">
-                <div className="relative">
-                    <Input
-                    type="search"
-                    placeholder="Search by ID or Customer Name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                     aria-label="Search by ID or Customer Name"/>
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                </div>
-                <Select value={monthFilter} onValueChange={setMonthFilter}>
-                    <SelectTrigger className="w-full md:w-[180px]">
-                        <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-                        <SelectValue placeholder="Month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="All">All time</SelectItem>
-                        {monthOptions.map(m => (
-                            <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full md:w-auto" />
-            </div>
-        </CardContent>
-      </Card>
+      <FilterBar
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder="Search by ID or customer name…"
+        actions={<DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />}
+      >
+        <Select value={monthFilter} onValueChange={setMonthFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <Calendar className="w-4 h-4 mr-2 text-muted-foreground flex-shrink-0" />
+            <SelectValue placeholder="Month" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All time</SelectItem>
+            {monthOptions.map(m => <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </FilterBar>
       
       {/* Shopify CSV Import Dialog */}
       <Dialog open={importOpen} onOpenChange={(o) => { if (!isImporting) setImportOpen(o); }}>
