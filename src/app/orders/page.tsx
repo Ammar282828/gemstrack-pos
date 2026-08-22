@@ -173,7 +173,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
           </Link>
-          <p className="text-xs text-muted-foreground w-48 max-w-[13rem] mt-1 flex items-start gap-1.5" title={order.summary}>
+          <p className="text-xs text-muted-foreground max-w-[15rem] mt-1 flex items-start gap-1.5" title={order.summary}>
             <MessageSquareQuote className="w-3 h-3 mt-0.5 flex-shrink-0" />
             <span className="min-w-0 truncate">{order.summary || 'No summary'}</span>
           </p>
@@ -202,8 +202,11 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
           </div>
         </TableCell>
         <TableCell className="align-middle">
-           <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
-              <div className="flex flex-col gap-1 w-36 flex-shrink-0">
+           {/* Stacked, not side by side: a 144px progress block next to a
+               140px select made this the widest column in the table and
+               pushed the last one off the edge. */}
+           <div className="flex flex-col gap-1.5 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
                   {totalItems > 0 && (
                     <>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">{completedItems} of {totalItems} items</span>
@@ -220,7 +223,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
                   <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                   <Select onValueChange={(val) => handleStatusChange(val as OrderStatus)} defaultValue={order.status}>
-                      <SelectTrigger className="w-[140px] h-8 px-2 text-xs focus:ring-0 focus:ring-offset-0 [&>span]:flex-1" id={`status-update-${order.id}`}>
+                      <SelectTrigger className="w-[124px] h-8 px-2 text-xs focus:ring-0 focus:ring-offset-0 [&>span]:flex-1" id={`status-update-${order.id}`}>
                           <SelectValue>
                              <Badge className={cn("border-transparent w-full justify-center", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
                           </SelectValue>

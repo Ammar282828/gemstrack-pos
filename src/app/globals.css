@@ -7,6 +7,22 @@ body {
   font-family: 'Inter', sans-serif; /* A clean, elegant, and readable font */
 }
 
+/* Horizontal scroll shadow.
+   A table wider than its card used to end in a hard clipped edge that read as
+   a rendering bug. These four layers — two solid covers that scroll with the
+   content, two shadows pinned to the frame — reveal a shadow only on a side
+   that actually has more content. Pure CSS, no measuring. */
+.scroll-shadow-x {
+  background:
+    linear-gradient(to right, hsl(var(--card)) 30%, hsl(var(--card) / 0)),
+    linear-gradient(to left, hsl(var(--card)) 30%, hsl(var(--card) / 0)) 100% 0,
+    radial-gradient(farthest-side at 0 50%, hsl(var(--foreground) / 0.12), transparent),
+    radial-gradient(farthest-side at 100% 50%, hsl(var(--foreground) / 0.12), transparent) 100% 0;
+  background-repeat: no-repeat;
+  background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
 /* Touch comfort.
    The dense control sizes (h-6/h-7/h-8) are deliberate on a mouse: this is a
    shop tool and the operator wants a lot on screen. On a touch device those

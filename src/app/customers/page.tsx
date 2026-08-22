@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { format, parseISO } from 'date-fns';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Customer } from '@/lib/store';
@@ -45,7 +46,14 @@ const CustomerActions: React.FC<{ customer: Customer; onDelete: (id: string) => 
   );
 }
 
-const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void> }> = ({ customer, onDelete }) => {
+/** Lifetime spend, what is still owed, and when they last bought. */
+export interface CustomerStats { spent: number; owed: number; lastAt?: string; count: number }
+
+const money = (n: number) => n >= 100_000
+  ? `${Math.round(n / 1000)}k`
+  : n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelete: (id: string) => Promise<void> }> = ({ customer, stats, onDelete }) => {
   return (
     <TableRow>
       <TableCell>
@@ -53,9 +61,22 @@ const CustomerRow: React.FC<{ customer: Customer; onDelete: (id: string) => Prom
           {customer.name}
         </Link>
       </TableCell>
-      <TableCell>{customer.phone || '-'}</TableCell>
-      <TableCell>{customer.email || '-'}</TableCell>
-      <TableCell>{customer.address || '-'}</TableCell>
+      <TableCell className="text-muted-foreground">{customer.phone || '-'}</TableCell>
+      <TableCell className="text-right tabular-nums">
+        {stats?.spent ? <span className="font-medium">PKR {money(stats.spent)}</span> : <span className="text-muted-foreground">—</span>}
+        {stats?.count ? <span className="block text-2xs text-muted-foreground">{stats.count} sale{stats.count === 1 ? '' : 's'}</span> : null}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {stats?.owed
+          ? <span className="font-medium text-destructive">PKR {money(stats.owed)}</span>
+          : <span className="text-muted-foreground">—</span>}
+      </TableCell>
+      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm whitespace-nowrap">
+        {stats?.lastAt ? format(parseISO(stats.lastAt), 'd MMM yy') : '—'}
+      </TableCell>
+      <TableCell className="hidden xl:table-cell text-muted-foreground truncate max-w-[14rem]" title={customer.address}>
+        {customer.address || '-'}
+      </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
           <Button asChild size="sm" variant="ghost" aria-label="Open ledger">
@@ -538,6 +559,31 @@ export default function CustomersPage() {
     toast({ title: "Customers Merged", description: `Duplicate removed. ${result.updatedDocs} records updated.` });
   };
 
+  /** Spend, outstanding and last-sale date per customer.
+   *  Invoices with no customerId cannot be attributed — a known gap, since a
+   *  large share of imported invoices only carry a typed-in name. */
+  const statsById = useMemo(() => {
+    const map = new Map<string, CustomerStats>();
+    const bump = (id: string | undefined, total: number, due: number, at?: string) => {
+      if (!id) return;
+      const cur = map.get(id) || { spent: 0, owed: 0, count: 0 };
+      cur.spent += total;
+      cur.owed += Math.max(0, due);
+      cur.count += 1;
+      if (at && (!cur.lastAt || at > cur.lastAt)) cur.lastAt = at;
+      map.set(id, cur);
+    };
+    for (const inv of generatedInvoices) {
+      if (inv?.status === 'Refunded') continue;
+      bump(inv?.customerId, inv?.grandTotal || 0, inv?.balanceDue || 0, inv?.createdAt);
+    }
+    for (const o of orders) {
+      if (!o || o.invoiceId || o.status === 'Cancelled' || o.status === 'Refunded') continue;
+      bump(o.customerId, o.subtotal || 0, 0, o.createdAt);
+    }
+    return map;
+  }, [generatedInvoices, orders]);
+
   const filteredCustomers = useMemo(() => {
     if (!appReady) return [];
     return customers.filter(customer =>
@@ -604,14 +650,16 @@ export default function CustomersPage() {
                 <TableRow>
                     <TableHead><User className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Name</TableHead>
                     <TableHead><Phone className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Phone</TableHead>
-                    <TableHead><Mail className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Email</TableHead>
-                    <TableHead><MapPin className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Address</TableHead>
+                    <TableHead className="text-right">Spent</TableHead>
+                    <TableHead className="text-right">Owes</TableHead>
+                    <TableHead className="hidden lg:table-cell">Last sale</TableHead>
+                    <TableHead className="hidden xl:table-cell"><MapPin className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Address</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
                 </TableHeader>
                 <TableBody>
                 {filteredCustomers.map((customer) => (
-                    <CustomerRow key={customer.id} customer={customer} onDelete={handleDeleteCustomer} />
+                    <CustomerRow key={customer.id} customer={customer} stats={statsById.get(customer.id)} onDelete={handleDeleteCustomer} />
                 ))}
                 </TableBody>
             </Table>
