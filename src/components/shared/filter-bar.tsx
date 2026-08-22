@@ -33,14 +33,14 @@ export const FilterBar: React.FC<{
   footer?: React.ReactNode;
   className?: string;
 }> = ({ value, onChange, placeholder = 'Search…', children, actions, footer, className }) => (
-  <Card className={cn('mb-4', className)}>
-    <CardContent className="p-3 sm:p-4 space-y-3">
+  <Card className={cn('mb-3', className)}>
+    <CardContent className="p-2 sm:p-2.5 space-y-2">
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             type="search"
-            className="pl-8 pr-8"
+            className="h-9 pl-8 pr-8"
             placeholder={placeholder}
             value={value}
             onChange={e => onChange(e.target.value)}
@@ -49,7 +49,7 @@ export const FilterBar: React.FC<{
           {value && (
             <Button
               type="button" variant="ghost" size="icon"
-              className="absolute right-0.5 top-0.5 h-9 w-9 text-muted-foreground hover:text-foreground"
+              className="absolute right-0 top-0 h-9 w-9 text-muted-foreground hover:text-foreground"
               onClick={() => onChange('')} aria-label="Clear search"
             >
               <X className="h-4 w-4" />
@@ -60,10 +60,10 @@ export const FilterBar: React.FC<{
         {/* `sm:contents` dissolves this wrapper above the breakpoint so the
             filters rejoin the parent flex row instead of staying a 2-up grid. */}
         {children && (
-          <div className="grid grid-cols-2 gap-2 sm:contents">{children}</div>
+          <div className="grid grid-cols-2 gap-2 sm:contents [&_button]:h-9 [&_[role=combobox]]:h-9">{children}</div>
         )}
 
-        {actions && <div className="flex gap-2 flex-shrink-0">{actions}</div>}
+        {actions && <div className="flex gap-2 flex-shrink-0 [&_button]:h-9">{actions}</div>}
       </div>
       {footer}
     </CardContent>

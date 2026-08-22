@@ -3,6 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { FilterBar } from '@/components/shared/filter-bar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAppStore, Settings, Product, calculateProductPrice } from '@/lib/store';
@@ -313,28 +314,39 @@ export default function ProductsPage() {
             <Download className="w-4 h-4 mr-2" />Export ({selectedProductSkus.length})
           </Button>
         </>}
-        footer={
-          <div className="flex flex-wrap gap-2 items-center">
-            <Button variant="outline" size="sm" onClick={handleSelectAllFiltered} disabled={filteredProducts.length === 0}>
-              Select All ({filteredProducts.length})
-            </Button>
-            {selectedProductSkus.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={handleDeselectAll}>Deselect ({selectedProductSkus.length})</Button>
-            )}
-            <span className="text-muted-foreground text-xs">|</span>
-            <Button variant={selectedCategory === null ? 'default' : 'outline'} size="sm"
-              onClick={() => setSelectedCategory(null)}>All ({allStoreProducts.length})</Button>
-            {categories.map((category) => (
-              <Button key={category.id} size="sm"
-                variant={selectedCategory === category.id ? 'default' : 'outline'}
-                onClick={() => setSelectedCategory(category.id)}>
-                {category.title}
-                {categoryCounts[category.id] ? <span className="ml-1.5 text-xs opacity-70">{categoryCounts[category.id]}</span> : null}
-              </Button>
-            ))}
+        footer={selectedProductSkus.length > 0 ? (
+          /* Selection controls only appear once something is selected — they
+             were taking a permanent row to say "nothing is selected". */
+          <div className="flex flex-wrap gap-2 items-center text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{selectedProductSkus.length} selected</span>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleDeselectAll}>Clear</Button>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleSelectAllFiltered}
+              disabled={filteredProducts.length === 0}>Select all {filteredProducts.length}</Button>
           </div>
-        }
-      />
+        ) : undefined}
+      >
+        {/* Fourteen category chips wrapped to three rows; one select does it. */}
+        <Select
+          value={selectedCategory ?? 'all'}
+          onValueChange={v => setSelectedCategory(v === 'all' ? null : v)}
+        >
+          <SelectTrigger className="w-full sm:w-[190px]">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories ({allStoreProducts.length})</SelectItem>
+            {categories.map(c => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.title}{categoryCounts[c.id] ? ` (${categoryCounts[c.id]})` : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" onClick={handleSelectAllFiltered}
+          disabled={filteredProducts.length === 0} className="w-full sm:w-auto">
+          Select all
+        </Button>
+      </FilterBar>
 
       {isProductsLoading ? (
         <div className="text-center py-12">

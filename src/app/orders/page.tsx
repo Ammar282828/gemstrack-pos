@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, DollarSign, CreditCard , ChevronDown } from 'lucide-react';
+import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, DollarSign, CreditCard  } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -276,7 +276,6 @@ export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'All'>('All');
-  const [showFilters, setShowFilters] = useState(false);
   const [monthFilter, setMonthFilter] = useState<string>('All');
 
   const appReady = useAppReady();
@@ -304,11 +303,6 @@ export default function OrdersPage() {
 
   // Shown on the collapsed mobile Filters button so an active filter is never
   // hidden from view.
-  const activeFilterCount = [
-    statusFilter !== 'All',
-    paymentFilter !== 'All',
-    monthFilter !== 'All',
-  ].filter(Boolean).length;
 
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
@@ -350,77 +344,46 @@ export default function OrdersPage() {
       {/* The pill rows keep their mobile collapse — twelve status and payment
           pills filled a phone's first screen — so they ride in the footer
           slot rather than being flattened into the filter row. */}
+      {/* Ten pills across two labelled rows became two selects: the bar is
+          one line now, and the active choice still reads off the trigger. */}
       <FilterBar
         value={searchTerm}
         onChange={setSearchTerm}
         placeholder="Search by order ID, customer, or contact…"
-        actions={
-          <Button variant="outline" className="md:hidden justify-between flex-1 h-10"
-            onClick={() => setShowFilters(v => !v)}>
-            <span className="flex items-center"><Filter className="w-4 h-4 mr-2" />Filters</span>
-            {activeFilterCount > 0
-              ? <Badge variant="secondary" className="ml-2">{activeFilterCount}</Badge>
-              : <ChevronDown className={cn('w-4 h-4 transition-transform', showFilters && 'rotate-180')} />}
-          </Button>
-        }
-        footer={<>
-          <Select value={monthFilter} onValueChange={setMonthFilter}>
-            <SelectTrigger className={cn('w-full sm:w-[180px]', !showFilters && 'hidden md:flex')}>
-              <Calendar className="w-4 h-4 mr-2 text-muted-foreground flex-shrink-0" />
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All time</SelectItem>
-              {monthOptions.map(m => <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>)}
-            </SelectContent>
-          </Select>
-           <div className={cn('flex flex-wrap gap-2 items-center', !showFilters && 'hidden md:flex')}>
-             <span className="text-sm font-medium text-muted-foreground mr-2 flex items-center"><Filter className="w-4 h-4 mr-1"/>Status:</span>
-            <Button
-              variant={statusFilter === 'All' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setStatusFilter('All')}
-            >
-              All
-            </Button>
-            {ORDER_STATUSES.map((status) => (
-              <Button
-                key={status}
-                variant={statusFilter === status ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setStatusFilter(status)}
-                className={cn(statusFilter !== status && "hover:bg-muted/50", {
-                    'bg-warning/20 border-warning/50 text-warning hover:bg-warning/30 ': statusFilter === 'Pending' && status === 'Pending',
-                    'bg-blue-500/20 border-blue-500/50 text-blue-800 hover:bg-blue-500/30 dark:text-blue-200': statusFilter === 'In Progress' && status === 'In Progress',
-                    'bg-success/20 border-success/50 text-success hover:bg-success/30 ': statusFilter === 'Completed' && status === 'Completed',
-                    'bg-destructive/20 border-destructive/50 text-destructive hover:bg-destructive/30 dark:text-destructive': statusFilter === 'Cancelled' && status === 'Cancelled',
-                    'bg-purple-500/20 border-purple-500/50 text-purple-800 hover:bg-purple-500/30 dark:text-purple-200': statusFilter === 'Refunded' && status === 'Refunded',
-                })}
-              >
-                {status}
-              </Button>
-            ))}
-          </div>
-          <div className={cn('flex flex-wrap gap-2 items-center', !showFilters && 'hidden md:flex')}>
-            <span className="text-sm font-medium text-muted-foreground mr-2 flex items-center"><CreditCard className="w-4 h-4 mr-1"/>Payment:</span>
-            {(['All', 'Paid', 'Partial', 'Unpaid'] as const).map((ps) => (
-              <Button
-                key={ps}
-                variant={paymentFilter === ps ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPaymentFilter(ps)}
-                className={cn(paymentFilter !== ps && "hover:bg-muted/50", {
-                  'bg-success/20 border-success/50 text-success hover:bg-success/30 ': paymentFilter === 'Paid' && ps === 'Paid',
-                  'bg-orange-500/20 border-orange-500/50 text-orange-800 hover:bg-orange-500/30 dark:text-orange-200': paymentFilter === 'Partial' && ps === 'Partial',
-                  'bg-destructive/20 border-destructive/50 text-destructive hover:bg-destructive/30 dark:text-destructive': paymentFilter === 'Unpaid' && ps === 'Unpaid',
-                })}
-              >
-                {ps}
-              </Button>
-            ))}
-          </div>
-        </>}
-      />
+      >
+        <Select value={monthFilter} onValueChange={setMonthFilter}>
+          <SelectTrigger className="w-full sm:w-[150px]">
+            <Calendar className="w-4 h-4 mr-1.5 text-muted-foreground flex-shrink-0" />
+            <SelectValue placeholder="Month" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">All time</SelectItem>
+            {monthOptions.map(m => <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={v => setStatusFilter(v as typeof statusFilter)}>
+          <SelectTrigger className="w-full sm:w-[145px]">
+            <Filter className="w-4 h-4 mr-1.5 text-muted-foreground flex-shrink-0" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">Any status</SelectItem>
+            {ORDER_STATUSES.map(st => <SelectItem key={st} value={st}>{st}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={paymentFilter} onValueChange={v => setPaymentFilter(v as typeof paymentFilter)}>
+          <SelectTrigger className="w-full sm:w-[135px]">
+            <CreditCard className="w-4 h-4 mr-1.5 text-muted-foreground flex-shrink-0" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="All">Any payment</SelectItem>
+            {(['Paid', 'Partial', 'Unpaid'] as const).map(ps => <SelectItem key={ps} value={ps}>{ps}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </FilterBar>
 
       {isOrdersLoading ? (
          <div className="text-center py-12">
