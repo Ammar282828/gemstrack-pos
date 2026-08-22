@@ -6,6 +6,7 @@ import { useAppReady } from '@/hooks/use-store';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { FilterBar } from '@/components/shared/filter-bar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -322,32 +323,18 @@ export default function GivenItemsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="mb-5">
-        <CardContent className="p-4 flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Input
-              placeholder="Search by item or recipient…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-10"
-             aria-label="Search by item or recipient"/>
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          </div>
-          <div className="flex gap-2">
-            {(['all', 'out', 'returned'] as const).map(s => (
-              <Button
-                key={s}
-                size="sm"
-                variant={statusFilter === s ? 'default' : 'outline'}
-                onClick={() => setStatusFilter(s)}
-                className="capitalize"
-              >
-                {s === 'all' ? 'All' : s === 'out' ? 'Still Out' : 'Returned'}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <FilterBar
+        value={search}
+        onChange={setSearch}
+        placeholder="Search by item or recipient…"
+        actions={(['all', 'out', 'returned'] as const).map(st => (
+          <Button key={st} size="sm" className="h-10 capitalize flex-1 sm:flex-none"
+            variant={statusFilter === st ? 'default' : 'outline'}
+            onClick={() => setStatusFilter(st)}>
+            {st === 'all' ? 'All' : st === 'out' ? 'Still Out' : 'Returned'}
+          </Button>
+        ))}
+      />
 
       {/* Table */}
       {isGivenItemsLoading ? (

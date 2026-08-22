@@ -517,8 +517,29 @@ export interface Payment {
   notes?: string;
 }
 
+/**
+ * Where a piece is going, when it is not being handed over at the counter.
+ * Shared by orders and invoices so a piece ordered for delivery keeps the same
+ * address when it is finally invoiced.
+ */
+export interface DeliveryInfo {
+  required: boolean;
+  address: string;
+  city?: string;
+  /** Only when the person receiving is not the customer on the bill. */
+  contactName?: string;
+  contactPhone?: string;
+  /** Instructions for whoever drops it — gate code, timing, landmark. */
+  notes?: string;
+  /** ISO date the customer expects it. */
+  expectedDate?: string;
+  /** Charged to the customer; 0 when delivery is free. */
+  charge?: number;
+}
+
 export interface Invoice {
   id: string; // Firestore document ID
+  delivery?: DeliveryInfo;
   customerId?: string;
   customerName: string;
   customerContact?: string;
@@ -597,6 +618,7 @@ export interface OrderItem {
 }
 
 export interface Order {
+  delivery?: DeliveryInfo;
   id: string; // Firestore document ID, e.g., ORD-000001
   createdAt: string; // ISO string
   status: OrderStatus;
@@ -1180,7 +1202,8 @@ export interface AppState {
     invoiceRates: Partial<Settings>,
     discountAmount: number,
     exchangeInfo?: { description: string; amount1: number; amount2: number },
-    existingInvoiceId?: string
+    existingInvoiceId?: string,
+    delivery?: DeliveryInfo
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string) => Promise<Invoice | null>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
@@ -2074,7 +2097,7 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?) => {
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?) => {
         if(get().settings.databaseLocked) return null;
         const { cart } = get();
         if (cart.length === 0) return null;
@@ -2207,6 +2230,10 @@ export const useAppStore = create<AppState>()(
                     ...(exchangeInfo?.description && { exchangeDescription: exchangeInfo.description }),
                     ...(exchangeInfo?.amount1 && { exchangeAmount1: exchangeInfo.amount1 }),
                     ...(exchangeInfo?.amount2 && { exchangeAmount2: exchangeInfo.amount2 }),
+                    // Recorded only when the piece is actually going out, so an
+                    // unticked box does not stamp every invoice with an empty
+                    // delivery object.
+                    ...(delivery?.required && delivery.address.trim() ? { delivery } : {}),
                 };
 
                 const cleanInvoiceData = cleanObject(newInvoiceData as Invoice);

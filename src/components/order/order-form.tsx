@@ -8,8 +8,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { SampleImageInput } from '@/components/shared/sample-image-input';
 import { PLATING_TYPES } from '@/lib/store';
+import { describeMetal } from '@/lib/materials';
+import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/shared/delivery-fields';
 import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel } from '@/lib/materials';
-import { useAppStore, Settings, KaratValue, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize, legacyPartKeyFor, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, DeliveryInfo, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize, legacyPartKeyFor, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock } from 'lucide-react';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock , ChevronRight } from 'lucide-react';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
@@ -272,6 +274,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
   const router = useRouter();
   const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, clearCart } = useAppStore();
   const cartItems = useAppStore(state => state.cart);
+  // Past orders supply the addresses this customer has been delivered to.
+  const orders = useAppStore(state => state.orders);
   const isEditMode = !!order;
 
   useEffect(() => {
@@ -282,6 +286,13 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
 
   // Items carried over from the cart, so "create an order" reuses this form
   // rather than a second, divergent order-creation path.
+  // Only one item is expanded at a time: twenty fields per piece across a
+  // five-piece order is otherwise a hundred fields of uninterrupted scrolling.
+  const [openItem, setOpenItem] = React.useState(0);
+  // Delivery is held outside the zod form: it is a self-contained block with
+  // its own validity, and threading it through the item schema buys nothing.
+  const [delivery, setDelivery] = React.useState<DeliveryInfo>(order?.delivery ?? EMPTY_DELIVERY);
+
   const seededItems = React.useMemo(
     () => (seedFromCart && !order ? cartItems.map(cartItemToOrderItem) : []),
     [seedFromCart, order, cartItems],
@@ -364,6 +375,20 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         }
     }
   }, [selectedCustomerId, customers, form]);
+
+  /** Price one item, exactly the way the subtotal below does. */
+  const priceOfItem = React.useCallback((item: OrderFormData['items'][number], rates: Partial<Settings>) => {
+    if (item.isManualPrice) return Number(item.manualPrice) || 0;
+    if (!item.estimatedWeightG || item.estimatedWeightG <= 0) return 0;
+    return calculateProductCosts({
+      categoryId: '',
+      metalType: item.metalType, karat: item.karat, metalWeightG: item.estimatedWeightG,
+      wastagePercentage: item.metalType === 'silver' ? 0 : item.wastagePercentage,
+      makingCharges: item.makingCharges, hasDiamonds: item.hasDiamonds,
+      diamondCharges: item.diamondCharges, stoneCharges: item.stoneCharges, miscCharges: 0,
+      stoneWeightG: item.stoneWeightG, hasStones: item.hasStones,
+    }, rates).totalPrice;
+  }, []);
 
   const liveEstimate = useMemo(() => {
     let subtotal = 0;
@@ -485,6 +510,9 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
             customerName: finalCustomerName,
             customerContact: data.customerContact,
             source: data.source,
+            // Only recorded when actually being delivered, so an unticked box
+            // does not litter every order with an empty delivery object.
+            ...(delivery.required && delivery.address.trim() ? { delivery } : {}),
         };
 
         try {
@@ -515,6 +543,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
   }
 
     const handleAddInventoryProduct = (product: Product) => {
+        // A freshly added piece opens straight away — it is what you came to fill in.
+        setOpenItem(fields.length);
         append({
             itemCategory: product.categoryId || '',
             description: product.name,
@@ -543,6 +573,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
     };
 
   const handleAddNewItem = () => {
+    setOpenItem(fields.length);
     append({
         itemCategory: '',
         description: '',
@@ -590,19 +621,55 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                 {/* Each item is a plain panel, not a Card: it already sits
                     inside the form's Card, and card-in-card reads as two
                     competing surfaces. */}
-                {fields.map((field, index) => (
-                    <div key={field.id} className="rounded-lg border p-4 relative bg-muted/30">
-                        <div className="pb-4">
-                           <h3 className="text-lg font-semibold leading-none tracking-tight">Item #{index + 1}</h3>
-                        </div>
-                        <div className="space-y-4">
-                            {fields.length > 1 && (
-                                <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => remove(index)}>
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Remove Item</span>
-                                </Button>
+                {fields.map((field, index) => {
+                    const it = (formValues.items || [])[index];
+                    const open = openItem === index;
+                    const rowPrice = it ? priceOfItem(it, {
+                      goldRatePerGram18k: formValues.goldRate18k || 0,
+                      goldRatePerGram21k: formValues.goldRate21k || 0,
+                      goldRatePerGram22k: formValues.goldRate22k || 0,
+                      goldRatePerGram24k: formValues.goldRate24k || 0,
+                      palladiumRatePerGram: settings.palladiumRatePerGram,
+                      platinumRatePerGram: settings.platinumRatePerGram,
+                      silverRatePerGram: settings.silverRatePerGram,
+                    }) : 0;
+                    const spec = [
+                      it?.metalType ? describeMetal(it.metalType, it.karat) : null,
+                      it?.estimatedWeightG ? `${it.estimatedWeightG}g` : null,
+                      it?.size || null,
+                    ].filter(Boolean).join(' · ');
+                    return (
+                    <div key={field.id} className={cn('rounded-lg border bg-muted/30', open && 'ring-1 ring-primary/30')}>
+                        {/* Collapsed, an item still says what it is and what it
+                            costs — enough to spot the wrong one without opening it. */}
+                        <div className="flex items-center gap-2 p-3">
+                          <button type="button" onClick={() => setOpenItem(open ? -1 : index)}
+                            className="flex items-center gap-3 min-w-0 flex-1 text-left">
+                            <ChevronRight className={cn('h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} />
+                            <span className="text-xs font-mono text-muted-foreground flex-shrink-0">#{index + 1}</span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-semibold truncate">
+                                {it?.description?.trim() || <span className="text-muted-foreground font-normal">Untitled piece</span>}
+                              </span>
+                              {spec && <span className="block text-xs text-muted-foreground truncate">{spec}</span>}
+                            </span>
+                            {rowPrice > 0 && (
+                              <span className="text-sm font-semibold tabular-nums flex-shrink-0">
+                                PKR {rowPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                              </span>
                             )}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          </button>
+                          {fields.length > 1 && (
+                            <Button type="button" variant="ghost" size="icon"
+                              className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => remove(index)} aria-label="Remove item">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className={cn('space-y-4 px-4 pb-4', !open && 'hidden')}>
+                            <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">The piece</p>
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <FormField control={form.control} name={`items.${index}.itemCategory`} render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Category</FormLabel>
@@ -655,15 +722,6 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 )}/>
                               </div>
                             )}
-
-                            <FormField control={form.control} name={`items.${index}.adminNote`} render={({ field }) => (
-                               <FormItem className="rounded-md border border-warning/40 bg-warning/10 p-3">
-                                  <FormLabel className="flex items-center text-warning"><Lock className="mr-2 h-4 w-4"/>Admin-Only Note</FormLabel>
-                                  <FormControl><Textarea placeholder="Internal note — visible only to staff" {...field} rows={2} /></FormControl>
-                                  <FormDescription className="text-warning">Never shown on printed estimates or invoices.</FormDescription>
-                                  <FormMessage />
-                               </FormItem>
-                            )}/>
 
                             {(() => {
                                 const itemCat = form.watch(`items.${index}.itemCategory`);
@@ -768,6 +826,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 }
                             </div>
 
+                            <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">Price</p>
                             {/* Manual price mode (Primary) */}
                             {form.watch(`items.${index}.isManualPrice`) && (
                                 <div className="space-y-4 p-3 border rounded-md bg-muted/30">
@@ -793,6 +852,17 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 </FormItem>
                             )}/>
 
+                            <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">For the workshop</p>
+                            {/* Instructions belong with what the bench needs,
+                                not stranded between plating and size. */}
+                            <FormField control={form.control} name={`items.${index}.adminNote`} render={({ field }) => (
+                               <FormItem className="rounded-md border border-warning/40 bg-warning/10 p-3">
+                                  <FormLabel className="flex items-center text-warning"><Lock className="mr-2 h-4 w-4"/>Instructions for the karigar</FormLabel>
+                                  <FormControl><Textarea placeholder="Stones, plating, sizing — anything the bench needs" {...field} rows={2} /></FormControl>
+                                  <FormDescription className="text-warning">Never printed on a customer estimate or invoice.</FormDescription>
+                                  <FormMessage />
+                               </FormItem>
+                            )}/>
                             {/* Karigar always visible */}
                             <FormField
                                 control={form.control}
@@ -897,15 +967,19 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             )}/>}
                         </div>
                     </div>
-                ))}
+                    );
+                })}
                 </div>
                 </ScrollArea>
             </CardContent>
-            <CardFooter className="flex gap-2">
-                 <Button type="button" variant="outline" onClick={handleAddNewItem}>
-                    <PlusCircle className="mr-2 h-4 w-4"/> Add Custom Item
+            <CardFooter className="flex gap-2 flex-wrap">
+                 <Button type="button" onClick={handleAddNewItem}>
+                    <PlusCircle className="mr-2 h-4 w-4"/> Add piece
                 </Button>
                 <ProductSearchDialog onAddProduct={handleAddInventoryProduct} />
+                <span className="text-xs text-muted-foreground ml-auto self-center">
+                  {fields.length} piece{fields.length === 1 ? '' : 's'} on this order
+                </span>
             </CardFooter>
           </Card>
         </div>
@@ -990,6 +1064,16 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                         <FormDescription>This rate applies to all items in this estimate.</FormDescription>
                     </div>
                     )}
+
+                    <DeliveryFields
+                      value={delivery}
+                      onChange={setDelivery}
+                      knownAddresses={knownAddressesFor(
+                        selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE ? selectedCustomerId : undefined,
+                        customers.find(c => c.id === selectedCustomerId)?.address,
+                        orders,
+                      )}
+                    />
 
                     <FormField control={form.control} name="advancePayment" render={({ field }) => (
                        <FormItem>

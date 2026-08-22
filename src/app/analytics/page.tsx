@@ -709,128 +709,60 @@ export default function AnalyticsPage() {
         </Card>
       ) : (
         <>
-          {/* Key Metrics Section */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-            <Card className="col-span-2 lg:col-span-1 animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '0ms', animationFillMode: 'both' }}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl sm:text-2xl font-bold">PKR {analyticsData.totalSales.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
-                  Invoices: PKR {analyticsData.invoiceSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  {analyticsData.orderSales > 0 && ` · Orders: PKR ${analyticsData.orderSales.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                  {analyticsData.extraRevenue > 0 && ` · Extra: PKR ${analyticsData.extraRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '60ms', animationFillMode: 'both' }}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl sm:text-2xl font-bold text-destructive">PKR {analyticsData.totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-              </CardContent>
-            </Card>
+          {/* Key metrics. Nine Cards, each with a header row, an icon chip and a
+              sub-line, took most of the first screen to show nine numbers.
+              These are plain tiles saying the same thing in a strip. */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {(() => {
               const netProfit = analyticsData.totalSales - analyticsData.totalExpenses;
               const estProfit = analyticsData.totalSales * 0.40;
               const margin = analyticsData.totalSales > 0 ? (netProfit / analyticsData.totalSales) * 100 : 0;
-              return (
-                <>
-                  <Card className="border-blue-500/40 animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '120ms', animationFillMode: 'both' }}>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Est. Profit (40%)</CardTitle>
-                      <TrendingUp className="h-4 w-4 text-blue-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                        PKR {estProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1 hidden sm:block">Revenue × 40% — before expenses</p>
-                    </CardContent>
-                  </Card>
-                  <Card className={`${netProfit >= 0 ? 'border-success/40' : 'border-destructive/40'} animate-in fade-in-0 slide-in-from-bottom-4 duration-500`} style={{ animationDelay: '180ms', animationFillMode: 'both' }}>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
-                      {netProfit >= 0
-                        ? <TrendingUp className="h-4 w-4 text-success" />
-                        : <TrendingDown className="h-4 w-4 text-destructive" />
-                      }
-                    </CardHeader>
-                    <CardContent>
-                      <div className={`text-xl sm:text-2xl font-bold ${netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        PKR {netProfit.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% margin` : 'No revenue in period'}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </>
+              const money = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+
+              const tiles: { label: string; value: string; sub?: string; tone?: string; icon: React.ReactNode; border?: string }[] = [
+                {
+                  label: 'Revenue', value: money(analyticsData.totalSales), tone: 'text-success',
+                  icon: <DollarSign className="h-4 w-4" />,
+                  sub: [
+                    `Invoices ${money(analyticsData.invoiceSales)}`,
+                    analyticsData.orderSales > 0 ? `Orders ${money(analyticsData.orderSales)}` : null,
+                    analyticsData.extraRevenue > 0 ? `Extra ${money(analyticsData.extraRevenue)}` : null,
+                  ].filter(Boolean).join(' · '),
+                },
+                { label: 'Expenses', value: money(analyticsData.totalExpenses), tone: 'text-destructive', icon: <CreditCard className="h-4 w-4" /> },
+                { label: 'Est. profit', value: money(estProfit), tone: 'text-blue-600', sub: 'revenue × 40%, pre-expenses', icon: <TrendingUp className="h-4 w-4" /> },
+                {
+                  label: 'Net profit', value: money(netProfit),
+                  tone: netProfit >= 0 ? 'text-success' : 'text-destructive',
+                  sub: analyticsData.totalSales > 0 ? `${margin.toFixed(1)}% margin` : 'no revenue in period',
+                  icon: netProfit >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />,
+                  border: netProfit >= 0 ? 'border-success/40' : 'border-destructive/40',
+                },
+              ];
+              if (analyticsData.totalUnpaid > 0) tiles.push({
+                label: 'Outstanding', value: money(analyticsData.totalUnpaid), tone: 'text-warning',
+                sub: 'unpaid on invoices', icon: <Clock className="h-4 w-4" />, border: 'border-warning/40',
+              });
+              tiles.push(
+                { label: 'Orders', value: String(analyticsData.totalOrders), icon: <ShoppingBag className="h-4 w-4" /> },
+                { label: 'Avg. order', value: money(analyticsData.averageOrderValue), icon: <BarChart3 className="h-4 w-4" /> },
+                { label: 'Items sold', value: String(analyticsData.totalItemsSold), icon: <Package className="h-4 w-4" /> },
+                { label: 'Discounts', value: money(analyticsData.totalDiscounts), icon: <Percent className="h-4 w-4" /> },
+                { label: 'Items / order', value: analyticsData.averageItemsPerOrder.toFixed(2), icon: <ListOrdered className="h-4 w-4" /> },
               );
-            })()}
-            {analyticsData.totalUnpaid > 0 && (
-              <Card className="border-warning/40 animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '240ms', animationFillMode: 'both' }}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
-                  <Clock className="h-4 w-4 text-warning" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl sm:text-2xl font-bold text-warning">
-                    PKR {analyticsData.totalUnpaid.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+
+              return tiles.map(t => (
+                <div key={t.label} title={t.sub}
+                  className={cn('rounded-lg border bg-card px-3 py-2.5 min-w-0', t.border)}>
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="flex-shrink-0">{t.icon}</span>
+                    <span className="text-2xs uppercase tracking-wide truncate">{t.label}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1 hidden sm:block">Unpaid balance on invoices in this period</p>
-                </CardContent>
-              </Card>
-            )}
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{analyticsData.totalOrders}</div>
-              </CardContent>
-            </Card>
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '360ms', animationFillMode: 'both' }}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Avg. Order Value</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl sm:text-2xl font-bold">PKR {analyticsData.averageOrderValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-              </CardContent>
-            </Card>
-             <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '420ms', animationFillMode: 'both' }}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Items Sold</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl sm:text-2xl font-bold">{analyticsData.totalItemsSold}</div>
-              </CardContent>
-            </Card>
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '480ms', animationFillMode: 'both' }}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Discounts</CardTitle>
-                <Percent className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl sm:text-2xl font-bold">PKR {analyticsData.totalDiscounts.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-              </CardContent>
-            </Card>
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500" style={{ animationDelay: '540ms', animationFillMode: 'both' }}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Avg. Items / Order</CardTitle>
-                <ListOrdered className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl sm:text-2xl font-bold">{analyticsData.averageItemsPerOrder.toFixed(2)}</div>
-              </CardContent>
-            </Card>
+                  <p className={cn('text-lg font-bold tabular-nums leading-tight mt-0.5 truncate', t.tone)}>{t.value}</p>
+                  {t.sub && <p className="text-2xs text-muted-foreground truncate">{t.sub}</p>}
+                </div>
+              ));
+            })()}
           </div>
 
           {/* ── Cash Flow ── */}

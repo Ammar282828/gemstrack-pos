@@ -7,8 +7,9 @@ import { whatsAppLink } from '@/lib/whatsapp';
 import Image from 'next/image';
 import Link from 'next/link';
 import { EditCartItemDialog, blankCartItem } from '@/components/cart/edit-cart-item-dialog';
+import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/shared/delivery-fields';
 import { useRouter } from 'next/navigation';
-import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories } from '@/lib/store';
+import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories , DeliveryInfo } from '@/lib/store';
 import { metalLabel, describeMetal } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
@@ -202,6 +203,8 @@ export default function CartPage() {
   // Most pieces here are made to order and never existed in inventory, so
   // billing starts by describing the piece rather than looking one up.
   const [newItem, setNewItem] = useState<Product | null>(null);
+  // Most sales are handed over at the counter, so this stays off until ticked.
+  const [delivery, setDelivery] = useState<DeliveryInfo>(EMPTY_DELIVERY);
 
   const phoneForm = useForm<PhoneForm>();
 
@@ -416,7 +419,7 @@ export default function CartPage() {
     setIsGeneratingEstimate(true);
     let invoice;
     try {
-      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined);
+      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery);
     } finally {
       setIsGeneratingEstimate(false);
     }
@@ -1464,6 +1467,20 @@ export default function CartPage() {
                                 <Input type="number" placeholder="Amount 2 (PKR)" value={exchangeAmount2Input} onChange={e => setExchangeAmount2Input(e.target.value)}  aria-label="Amount 2 (PKR)"/>
                             </div>
                         </div>
+                        <Separator />
+
+                        {/* Sits with the bill rather than the customer block:
+                            whether a piece is delivered is part of the sale. */}
+                        <DeliveryFields
+                          value={delivery}
+                          onChange={setDelivery}
+                          knownAddresses={knownAddressesFor(
+                            selectedCustomerId || undefined,
+                            customers.find(c => c.id === selectedCustomerId)?.address,
+                            allInvoices,
+                          )}
+                        />
+
                         <Separator />
                         <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
                     </CardContent>

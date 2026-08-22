@@ -114,16 +114,20 @@ const Panel: React.FC<{
   title: string; icon: React.ReactNode; href?: string; count?: number; children: React.ReactNode;
 }> = ({ title, icon, href, count, children }) => (
   <Card className="flex flex-col lg:min-h-0 overflow-hidden">
-    <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 flex-shrink-0">
-      <CardTitle className="text-base flex items-center gap-2">
-        {icon}{title}
+    {/* Every part of this header shrinks or truncates: at a third of the
+        board's width, "Ongoing Orders" was wrapping onto two lines and
+        shoving the count and the All link out of alignment. */}
+    <CardHeader className="pb-2 px-4 pt-4 flex flex-row items-center gap-2 justify-between space-y-0 flex-shrink-0">
+      <CardTitle className="text-sm font-semibold flex items-center gap-1.5 min-w-0">
+        <span className="flex-shrink-0 text-muted-foreground">{icon}</span>
+        <span className="truncate">{title}</span>
         {count !== undefined && count > 0 && (
-          <Badge variant="secondary" className="text-2xs">{count}</Badge>
+          <span className="flex-shrink-0 text-2xs font-normal text-muted-foreground tabular-nums">{count}</span>
         )}
       </CardTitle>
       {href && (
-        <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
-          <Link href={href}>All <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
+        <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs flex-shrink-0">
+          <Link href={href}>All <ArrowRight className="ml-0.5 h-3.5 w-3.5" /></Link>
         </Button>
       )}
     </CardHeader>
