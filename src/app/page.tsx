@@ -21,8 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  PlusCircle, ClipboardList, Loader2, FileText, ArrowRight, Clock, Hammer,
-  AlertTriangle, Receipt, CheckCircle2, Flame, Wallet,
+  ClipboardList, Loader2, FileText, ArrowRight, Clock, Hammer,
+  AlertTriangle, Receipt, CheckCircle2, Wallet,
 } from 'lucide-react';
 import { format, parseISO, subDays, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -260,10 +260,10 @@ export default function HomePage() {
         </div>
         <div className="flex gap-2 flex-shrink-0">
           <Button asChild>
-            <Link href="/cart"><PlusCircle className="w-4 h-4 mr-2" />New Bill{cartItems.length > 0 ? ` (${cartItems.length})` : ''}</Link>
+            <Link href="/cart"><Receipt className="w-4 h-4 mr-2" />Create Invoice{cartItems.length > 0 ? ` (${cartItems.length})` : ''}</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/orders/add"><ClipboardList className="w-4 h-4 mr-2" />New Order</Link>
+            <Link href="/orders/add"><ClipboardList className="w-4 h-4 mr-2" />Create Order</Link>
           </Button>
         </div>
       </header>

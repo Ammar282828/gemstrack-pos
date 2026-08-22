@@ -1247,7 +1247,7 @@ export default function CartPage() {
           <Card className="max-w-2xl mx-auto">
             <CardHeader className="text-center">
               <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground" />
-              <CardTitle className="text-2xl mt-4">Your Cart is Empty</CardTitle>
+              <CardTitle className="text-2xl mt-4">Add the first piece</CardTitle>
               <CardDescription>
                 Add some products to the cart from the Products page or by using the QR scanner to create an estimate.
               </CardDescription>
@@ -1311,7 +1311,7 @@ export default function CartPage() {
             <div className="lg:col-span-2 space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center"><Link href="/scan"><ArrowLeft className="mr-4 h-5 w-5"/></Link> Shopping Cart</CardTitle>
+                        <CardTitle className="flex items-center"><Link href="/new" aria-label="Back"><ArrowLeft className="mr-4 h-5 w-5"/></Link> New Invoice</CardTitle>
                         <CardDescription>Review items and apply discounts before generating the final estimate.</CardDescription>
                     </CardHeader>
                     <CardContent>
