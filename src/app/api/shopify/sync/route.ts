@@ -83,9 +83,13 @@ export async function POST(request: NextRequest) {
       } catch (e: any) { results.errors.push(`Products: ${e.message}`); }
     }
 
-    // ── Push: POS → Shopify ──
+    // ── Push: POS → Shopify — DISABLED ──
+    // Outbound push is off (see PUSH_TO_SHOPIFY in src/lib/store.ts). This
+    // route is no longer reachable from the UI, but it is guarded here too so
+    // a direct call cannot create storefront orders behind your back.
+    const PUSH_ENABLED = false;
 
-    try {
+    if (PUSH_ENABLED) try {
       const allInvoices = await adminDb.collection('invoices').get();
 
       // Build fingerprint set from SHOPIFY- docs to detect re-entered POS copies
@@ -163,7 +167,7 @@ export async function POST(request: NextRequest) {
     } catch (e: any) { results.errors.push(`Push scan: ${e.message}`); }
 
     // Also push POS customers that don't have a Shopify ID yet
-    if (syncCustomers) {
+    if (PUSH_ENABLED && syncCustomers) {
       try {
         const allCustomers = await adminDb.collection('customers').get();
         for (const custDoc of allCustomers.docs) {

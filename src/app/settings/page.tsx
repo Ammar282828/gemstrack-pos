@@ -15,8 +15,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { ShopifyPullPanel } from '@/components/settings/shopify-pull-panel';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, ShoppingBag, RefreshCw, CheckCircle2, Lock } from 'lucide-react';
+import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, ShoppingBag, RefreshCw, CheckCircle2, Lock, ChevronRight } from 'lucide-react';
 import { STORE_LOGO_URL } from '@/lib/store-config';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -330,8 +331,6 @@ const REQUIRED_SHOPIFY_SCOPES = 'read_orders,write_orders,read_customers,write_c
 const ShopifyCard: React.FC = () => {
   const { settings } = useAppStore();
   const { toast } = useToast();
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncProducts, setSyncProducts] = useState(false);
 
   const grantedScopes = (settings.shopifyGrantedScopes || '').split(',').filter(Boolean);
   const requiredScopes = REQUIRED_SHOPIFY_SCOPES.split(',');
@@ -350,28 +349,6 @@ const ShopifyCard: React.FC = () => {
   };
   const missingScopes = requiredScopes.filter(s => !hasScope(s));
   const needsReauth = missingScopes.length > 0 && grantedScopes.length > 0;
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      const res = await fetch('/api/shopify/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ syncOrders: true, syncCustomers: true, syncProducts }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Sync failed');
-      const r = data.results;
-      toast({
-        title: 'Sync Complete',
-        description: `Pulled: ${r.orders} orders, ${r.customers} customers${syncProducts ? `, ${r.products} products` : ''} · Pushed: ${r.pushed || 0} invoices · ${r.skipped} skipped`,
-      });
-    } catch (e: any) {
-      toast({ title: 'Sync Failed', description: e.message, variant: 'destructive' });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   const handleReauth = () => {
     window.location.href = '/api/shopify/auth?shop=af894b-7f.myshopify.com';
@@ -413,15 +390,14 @@ const ShopifyCard: React.FC = () => {
         {settings.shopifyLastSyncedAt && (
           <p className="text-xs text-muted-foreground">Last synced: {new Date(settings.shopifyLastSyncedAt).toLocaleString()}</p>
         )}
-        <div className="flex items-center gap-2">
-          <Switch id="sync-products" checked={syncProducts} onCheckedChange={setSyncProducts} />
-          <Label htmlFor="sync-products" className="text-sm">Include product catalog</Label>
-        </div>
-        <Button onClick={handleSync} disabled={isSyncing} size="sm">
-          {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          {isSyncing ? 'Syncing…' : 'Sync Now'}
-        </Button>
-        <p className="text-xs text-muted-foreground">New invoices, customers, and products sync to Shopify automatically in real time.</p>
+        <ShopifyPullPanel />
+
+
+        <p className="text-xs text-muted-foreground">
+          Sync runs one way only: Shopify &rarr; POS. Nothing you do in the POS creates or updates
+          orders, draft orders, or customers on the storefront. Refunds and cancellations of sales
+          already pushed to Shopify still go through, so nothing is left live there by mistake.
+        </p>
       </CardContent>
     </Card>
   );

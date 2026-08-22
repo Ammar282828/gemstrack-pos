@@ -42,6 +42,23 @@ const GOLD_COIN_CATEGORY_ID_INTERNAL = 'cat017';
 const MENS_RING_CATEGORY_ID_INTERNAL = 'cat018';
 
 /**
+ * Outbound POS → Shopify sync, OFF.
+ *
+ * With this false, nothing you do in the POS creates or updates a record on
+ * the storefront: no draft order per POS order, no Shopify order per invoice,
+ * no customer push. Shopify → POS import is unaffected and still runs from
+ * Settings.
+ *
+ * Retractions (`cancel` / `refund`) deliberately still fire. They only close
+ * out orders that were pushed to Shopify previously; blocking them would leave
+ * a refunded sale sitting live on the storefront with no way to take it down
+ * from here.
+ *
+ * Flip to true to restore two-way behaviour.
+ */
+const PUSH_TO_SHOPIFY = false;
+
+/**
  * Fire-and-forget Shopify sync. Idempotent on the server; safe to call from
  * any invoice mutation. Skipped for SHOPIFY-originated docs and during SSR.
  */
@@ -49,6 +66,7 @@ function syncInvoiceShopify(invoiceId: string | undefined | null, action: 'upser
   if (!invoiceId) return;
   if (typeof window === 'undefined') return;
   if (invoiceId.startsWith('SHOPIFY-')) return;
+  if (!PUSH_TO_SHOPIFY && action === 'upsert') return;
   fetch('/api/shopify/sync/invoice', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -75,6 +93,7 @@ function syncShopifyOrderById(shopifyOrderId: string | undefined | null, action:
 function syncOrderShopify(orderId: string | undefined | null, action: 'upsert' | 'cancel' = 'upsert') {
   if (!orderId) return;
   if (typeof window === 'undefined') return;
+  if (!PUSH_TO_SHOPIFY && action === 'upsert') return;
   fetch('/api/shopify/sync/order', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1783,7 +1802,7 @@ export const useAppStore = create<AppState>()(
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustomerId), newCustomer);
           await addActivityLog('customer.create', `Created customer: ${newCustomer.name}`, `ID: ${newCustomerId}`, newCustomerId);
           if (typeof window !== 'undefined' && !newCustomerId.startsWith('shopify-')) {
-            fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: newCustomerId }) }).catch(() => {});
+            if (PUSH_TO_SHOPIFY) fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: newCustomerId }) }).catch(() => {});
           }
           console.log("[GemsTrack Store addCustomer] Customer added successfully:", newCustomerId);
           return newCustomer;
@@ -1804,7 +1823,7 @@ export const useAppStore = create<AppState>()(
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), dataToWrite, { merge: true });
           await addActivityLog('customer.update', `Updated customer: ${updatedCustomerData.name}`, `ID: ${id}`, id);
           if (typeof window !== 'undefined' && !id.startsWith('shopify-')) {
-            fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: id }) }).catch(() => {});
+            if (PUSH_TO_SHOPIFY) fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: id }) }).catch(() => {});
           }
           console.log(`[GemsTrack Store updateCustomer] Customer ID ${id} updated successfully.`);
         } catch (error) {

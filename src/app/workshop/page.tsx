@@ -10,6 +10,8 @@ import {
 } from '@/lib/workshop';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { KarigarAssign } from '@/components/karigar/karigar-assign';
+import { KarigarGlance } from '@/components/karigar/karigar-glance';
+import { AgeBadge, BoardJobCard } from '@/components/karigar/job-card';
 import { SampleImageInput } from '@/components/shared/sample-image-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,24 +34,13 @@ import {
   Hammer, Users, AlertTriangle, Clock, PlusCircle, Share2, Copy, ExternalLink,
   Loader2, Search, CheckCircle2, CircleDot, Circle, Trash2, PackageOpen, LayoutGrid,
   Table as TableIcon, Flame, Pencil, Save, ImagePlus, Calendar, MessageSquareQuote,
+  Gauge, ArrowLeft, Rows3,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
 // ── small presentational helpers ────────────────────────────────────────────
-
-const AgeBadge: React.FC<{ job: WorkshopJob }> = ({ job }) => {
-  if (job.status === 'completed') {
-    return <Badge variant="outline" className="text-green-700 border-green-600/40 bg-green-600/10">Done</Badge>;
-  }
-  const cls = job.urgency === 'critical'
-    ? 'text-destructive border-destructive/40 bg-destructive/10'
-    : job.urgency === 'warning'
-      ? 'text-yellow-700 border-yellow-500/40 bg-yellow-500/10'
-      : 'text-muted-foreground';
-  return <Badge variant="outline" className={cn('tabular-nums', cls)}>{job.ageDays}d</Badge>;
-};
 
 const StatusDot: React.FC<{ status: KarigarJobStatus }> = ({ status }) => (
   status === 'completed' ? <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -91,7 +82,7 @@ const JobRow: React.FC<{
       job.isOnline && 'bg-green-500/[0.06] -mx-3 px-3 rounded-md',
     )}>
       <Checkbox
-        className="mt-1 flex-shrink-0"
+        className="mt-0.5 h-5 w-5 sm:mt-1 sm:h-4 sm:w-4 flex-shrink-0"
         checked={job.status === 'completed'}
         onCheckedChange={() => onToggleDone(job)}
         aria-label="Mark done"
@@ -244,7 +235,7 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
 
   return (
     <Dialog open={open} onOpenChange={v => { onOpenChange(v); if (!v) reset(); }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-lg max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Hammer className="h-5 w-5 text-primary" />Assign Stock Work</DialogTitle>
           <DialogDescription>Pieces for your own inventory — not tied to a customer order. Also use this for repairs and samples.</DialogDescription>
@@ -441,7 +432,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
 
   return (
     <Dialog open={!!job} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-lg max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" />Making details</DialogTitle>
           <DialogDescription>
@@ -594,7 +585,7 @@ const KarigarCard: React.FC<{
           // Fixed height only once the list is long enough to need scrolling:
           // Radix ScrollArea needs a definite height, and a short list should
           // not reserve empty space.
-          <ScrollArea className={visible.length > 5 ? 'h-[30rem]' : ''}>
+          <ScrollArea className={visible.length > 5 ? 'h-[65vh] lg:h-[30rem]' : ''}>
             <div className="pr-2">
               <OrderGroupedJobs jobs={visible} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
             </div>
@@ -616,7 +607,8 @@ const FocusedKarigarView: React.FC<{
   onEdit: (j: WorkshopJob) => void;
   onAssign: (karigarId: string) => void;
   showCompleted: boolean;
-}> = ({ load, contact, onToggleDone, onSetStatus, onDelete, onEdit, onAssign, showCompleted }) => {
+  onBack?: () => void;
+}> = ({ load, contact, onToggleDone, onSetStatus, onDelete, onEdit, onAssign, showCompleted, onBack }) => {
   const { toast } = useToast();
   const isUnassigned = load.karigarId === UNASSIGNED_ID;
 
@@ -655,7 +647,7 @@ const FocusedKarigarView: React.FC<{
           <Badge variant="secondary" className="text-[10px]">{jobs.length}</Badge>
           {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
         </div>
-        <Card><CardContent className="p-3">
+        <Card><CardContent className="p-2 sm:p-3">
           <OrderGroupedJobs jobs={jobs} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
         </CardContent></Card>
       </div>
@@ -666,7 +658,7 @@ const FocusedKarigarView: React.FC<{
     <div className="space-y-4">
       {/* Summary header */}
       <Card className={cn(load.critical > 0 && 'border-destructive/40', isUnassigned && 'border-destructive/60 bg-destructive/5')}>
-        <CardContent className="pt-5">
+        <CardContent className="p-4 sm:p-6 sm:pt-5">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
               <h2 className="text-xl font-bold flex items-center gap-2">
@@ -680,13 +672,20 @@ const FocusedKarigarView: React.FC<{
                 {load.oldestActiveDays > 0 && ` · oldest ${load.oldestActiveDays} days`}
               </p>
             </div>
-            {!isUnassigned && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button size="sm" variant="outline" onClick={share}><Share2 className="h-4 w-4 mr-1.5" />Send list</Button>
-                <Button size="sm" variant="outline" onClick={() => onAssign(load.karigarId)}><PlusCircle className="h-4 w-4 mr-1.5" />Add work</Button>
-                <Button size="sm" variant="ghost" asChild><Link href={`/karigars/${load.karigarId}`}>Profile <ExternalLink className="h-3.5 w-3.5 ml-1.5" /></Link></Button>
-              </div>
-            )}
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+              {onBack && (
+                <Button size="sm" variant="ghost" className="flex-1 sm:flex-none" onClick={onBack}>
+                  <ArrowLeft className="h-4 w-4 mr-1.5" />All karigars
+                </Button>
+              )}
+              {!isUnassigned && (
+                <>
+                  <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={share}><Share2 className="h-4 w-4 mr-1.5" />Send list</Button>
+                  <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => onAssign(load.karigarId)}><PlusCircle className="h-4 w-4 mr-1.5" />Add work</Button>
+                  <Button size="sm" variant="ghost" className="hidden sm:inline-flex" asChild><Link href={`/karigars/${load.karigarId}`}>Profile <ExternalLink className="h-3.5 w-3.5 ml-1.5" /></Link></Button>
+                </>
+              )}
+            </div>
           </div>
 
           <Separator className="my-3" />
@@ -704,11 +703,11 @@ const FocusedKarigarView: React.FC<{
             if (load.totalWeightG > 0) cells.push({ label: 'Gold out', value: `${load.totalWeightG.toFixed(1)}g` });
             if (load.totalValue > 0) cells.push({ label: 'Value', value: `${Math.round(load.totalValue / 1000)}k` });
             return (
-              <div className="flex flex-wrap gap-x-8 gap-y-3">
+              <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-x-4 sm:gap-x-8 gap-y-3">
                 {cells.map(c => (
-                  <div key={c.label}>
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{c.label}</p>
-                    <p className={cn('text-xl font-bold leading-tight', c.tone)}>{c.value}</p>
+                  <div key={c.label} className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">{c.label}</p>
+                    <p className={cn('text-lg sm:text-xl font-bold leading-tight tabular-nums', c.tone)}>{c.value}</p>
                   </div>
                 ))}
               </div>
@@ -735,9 +734,9 @@ const FocusedKarigarView: React.FC<{
   );
 };
 
-/** Phone rendering of a job — a table with seven columns is unusable at 375px,
- *  so below md the All Jobs view switches to these cards (same pattern the
- *  Orders list uses). */
+/** Phone and tablet rendering of a job — a seven-column table is unusable at
+ *  375px and still cramped at an iPad's 768px portrait width, so below lg the
+ *  All Jobs view switches to these cards (same pattern the Orders list uses). */
 const JobCardMobile: React.FC<{
   job: WorkshopJob;
   onToggleDone: (j: WorkshopJob) => void;
@@ -820,8 +819,10 @@ export default function WorkshopPage() {
   const [search, setSearch] = useState('');
   const [karigarFilter, setKarigarFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active');
-  const [boardMode, setBoardMode] = useState<'karigar' | 'status'>('karigar');
+  const [boardMode, setBoardMode] = useState<'karigar' | 'status' | 'none'>('karigar');
   const [typeFilter, setTypeFilter] = useState<'all' | 'order' | 'stock'>('all');
+  // Inside "By Karigar": the whole-bench summary, or the per-karigar cards.
+  const [karigarView, setKarigarView] = useState<'glance' | 'cards'>('glance');
 
   useEffect(() => {
     loadOrders(); loadKarigars(); loadKarigarJobs(); loadGeneratedInvoices();
@@ -832,21 +833,31 @@ export default function WorkshopPage() {
     [orders, karigarJobs, karigars, invoices],
   );
 
-  const filtered = useMemo(() => {
+  // Everything except the karigar filter — the at-a-glance view must keep
+  // showing the whole bench even while one karigar is focused.
+  const benchJobs = useMemo(() => {
     const q = search.trim().toLowerCase();
     return allJobs.filter(j => {
       if (statusFilter === 'active' && j.status === 'completed') return false;
       if (statusFilter !== 'all' && statusFilter !== 'active' && j.status !== statusFilter) return false;
-      if (karigarFilter !== 'all' && j.karigarId !== karigarFilter) return false;
       if (typeFilter === 'order' && j.source !== 'order') return false;
       if (typeFilter === 'stock' && j.source !== 'manual') return false;
       if (!q) return true;
       return [j.description, j.karigarName, j.customerName, j.orderId, j.category]
         .filter(Boolean).some(v => String(v).toLowerCase().includes(q));
     });
-  }, [allJobs, search, karigarFilter, statusFilter, typeFilter]);
+  }, [allJobs, search, statusFilter, typeFilter]);
+
+  const filtered = useMemo(
+    () => karigarFilter === 'all' ? benchJobs : benchJobs.filter(j => j.karigarId === karigarFilter),
+    [benchJobs, karigarFilter],
+  );
 
   const loads = useMemo(() => groupByKarigar(filtered), [filtered]);
+  const benchLoads = useMemo(() => groupByKarigar(benchJobs), [benchJobs]);
+  // While a search or type filter is narrowing the list, an idle karigar means
+  // "no match", not "empty bench" — so don't pad the glance with all of them.
+  const narrowed = search.trim() !== '' || typeFilter !== 'all' || statusFilter !== 'active';
 
   const stats = useMemo(() => {
     const active = allJobs.filter(j => j.status !== 'completed');
@@ -924,7 +935,8 @@ export default function WorkshopPage() {
             )}
           </p>
         </div>
-        <Button onClick={() => { setPresetKarigar(undefined); setAddOpen(true); }}>
+        <Button className="w-full sm:w-auto sm:flex-shrink-0"
+          onClick={() => { setPresetKarigar(undefined); setAddOpen(true); }}>
           <PlusCircle className="h-4 w-4 mr-2" />Assign Work
         </Button>
       </div>
@@ -935,24 +947,28 @@ export default function WorkshopPage() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input className="pl-8" placeholder="Search item, karigar, customer, order…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <Select value={typeFilter} onValueChange={v => setTypeFilter(v as 'all' | 'order' | 'stock')}>
-          <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All work</SelectItem>
-            <SelectItem value="order">Customer orders</SelectItem>
-            <SelectItem value="stock">Stock / inventory</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">Active only</SelectItem>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in-progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* `sm:contents` dissolves this wrapper above the breakpoint so the two
+            selects rejoin the parent flex row instead of staying a 2-up grid. */}
+        <div className="grid grid-cols-2 gap-2 sm:contents">
+          <Select value={typeFilter} onValueChange={v => setTypeFilter(v as 'all' | 'order' | 'stock')}>
+            <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All work</SelectItem>
+              <SelectItem value="order">Customer orders</SelectItem>
+              <SelectItem value="stock">Stock / inventory</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Active only</SelectItem>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="in-progress">In Progress</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Quick-select karigars — click to focus one, click again to clear */}
@@ -971,9 +987,9 @@ export default function WorkshopPage() {
         });
         if (chips.length === 0) return null;
         return (
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 sm:flex-wrap sm:overflow-visible sm:pb-0 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <Button size="sm" variant={karigarFilter === 'all' ? 'secondary' : 'outline'}
-              className="h-7 text-xs" onClick={() => setKarigarFilter('all')}>
+              className="h-8 sm:h-7 text-xs flex-shrink-0" onClick={() => setKarigarFilter('all')}>
               Everyone <Badge variant="secondary" className="ml-1.5 text-[10px]">{active.length}</Badge>
             </Button>
             {chips.map(([id, c]) => {
@@ -981,7 +997,7 @@ export default function WorkshopPage() {
               const unassigned = id === UNASSIGNED_ID;
               return (
                 <Button key={id} size="sm" variant={on ? 'secondary' : 'outline'}
-                  className={cn('h-7 text-xs', unassigned && !on && 'text-destructive border-destructive/40')}
+                  className={cn('h-8 sm:h-7 text-xs flex-shrink-0', unassigned && !on && 'text-destructive border-destructive/40')}
                   onClick={() => setKarigarFilter(on ? 'all' : id)}>
                   {unassigned ? 'Unassigned' : c.name}
                   <Badge variant="secondary" className="ml-1.5 text-[10px]">{c.n}</Badge>
@@ -1005,15 +1021,18 @@ export default function WorkshopPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* View 1 — By Karigar */}
-        <TabsContent value="karigar" className="mt-4">
-          {loads.length === 0 ? (
+        {/* View 1 — By Karigar: whole bench at a glance, then drill into one */}
+        <TabsContent value="karigar" className="mt-4 space-y-3">
+          {karigarFilter !== 'all' && loads.length === 0 ? (
             <Card><CardContent className="py-12 text-center text-muted-foreground">
-              <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />No work matches these filters.
+              <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>Nothing here for this karigar under these filters.</p>
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => setKarigarFilter('all')}>
+                <ArrowLeft className="h-4 w-4 mr-1.5" />Back to all karigars
+              </Button>
             </CardContent></Card>
           ) : karigarFilter !== 'all' ? (
-            /* One karigar selected — give them a full-width, at-a-glance view
-               instead of a cramped card in a 3-column grid. */
+            /* One karigar selected — full width, sectioned by urgency. */
             <FocusedKarigarView
               load={loads[0]}
               contact={contactById.get(loads[0].karigarId)}
@@ -1022,137 +1041,169 @@ export default function WorkshopPage() {
               onDelete={handleDelete}
               onEdit={openEdit}
               onAssign={openAssign}
+              onBack={() => setKarigarFilter('all')}
               showCompleted={statusFilter === 'all' || statusFilter === 'completed'}
             />
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {loads.map(load => (
-                <KarigarCard
-                  key={load.karigarId}
-                  load={load}
-                  contact={contactById.get(load.karigarId)}
-                  onToggleDone={handleToggleDone}
-                  onSetStatus={handleSetStatus}
-                  onDelete={handleDelete}
-                  onEdit={openEdit}
+            <>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-xs text-muted-foreground">
+                  {karigarView === 'glance'
+                    ? 'Every karigar on one screen — idle benches included. Tap one to open their jobs.'
+                    : 'Each karigar with their pieces listed underneath.'}
+                </p>
+                <div className="flex items-center gap-1 rounded-md border p-0.5">
+                  <Button size="sm" variant={karigarView === 'glance' ? 'secondary' : 'ghost'}
+                    className="h-7 text-xs" onClick={() => setKarigarView('glance')}>
+                    <Gauge className="h-3.5 w-3.5 mr-1.5" />At a glance
+                  </Button>
+                  <Button size="sm" variant={karigarView === 'cards' ? 'secondary' : 'ghost'}
+                    className="h-7 text-xs" onClick={() => setKarigarView('cards')}>
+                    <Rows3 className="h-3.5 w-3.5 mr-1.5" />Job lists
+                  </Button>
+                </div>
+              </div>
+
+              {karigarView === 'glance' ? (
+                <KarigarGlance
+                  loads={benchLoads}
+                  karigars={narrowed ? [] : karigars}
+                  contactById={contactById}
+                  onFocus={setKarigarFilter}
                   onAssign={openAssign}
                 />
-              ))}
-            </div>
+              ) : loads.length === 0 ? (
+                <Card><CardContent className="py-12 text-center text-muted-foreground">
+                  <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />No work matches these filters.
+                </CardContent></Card>
+              ) : (
+                /* Single column until lg — two of these side by side on an
+                   iPad's 768px portrait leaves each one unreadably narrow. */
+                <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                  {loads.map(load => (
+                    <KarigarCard
+                      key={load.karigarId}
+                      load={load}
+                      contact={contactById.get(load.karigarId)}
+                      onToggleDone={handleToggleDone}
+                      onSetStatus={handleSetStatus}
+                      onDelete={handleDelete}
+                      onEdit={openEdit}
+                      onAssign={openAssign}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </TabsContent>
 
-        {/* View 2 — Board by status */}
+        {/* View 2 — Board: every piece as a card, grouped how you choose */}
         <TabsContent value="board" className="mt-4">
           <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
             <p className="text-xs text-muted-foreground">
               {boardMode === 'karigar'
-                ? 'One column per karigar holding pieces. Idle karigars are hidden.'
-                : 'Grouped by stage.'}
+                ? 'Every piece on the bench, grouped by who is making it.'
+                : boardMode === 'status'
+                  ? 'Every piece grouped by the stage it is at.'
+                  : 'Every piece, oldest first.'}
             </p>
             <div className="flex items-center gap-1 rounded-md border p-0.5">
               <Button size="sm" variant={boardMode === 'karigar' ? 'secondary' : 'ghost'}
-                className="h-7 text-xs" onClick={() => setBoardMode('karigar')}>By Karigar</Button>
+                className="h-7 text-xs px-2" onClick={() => setBoardMode('karigar')}>Karigar</Button>
               <Button size="sm" variant={boardMode === 'status' ? 'secondary' : 'ghost'}
-                className="h-7 text-xs" onClick={() => setBoardMode('status')}>By Stage</Button>
+                className="h-7 text-xs px-2" onClick={() => setBoardMode('status')}>Stage</Button>
+              <Button size="sm" variant={boardMode === 'none' ? 'secondary' : 'ghost'}
+                className="h-7 text-xs px-2" onClick={() => setBoardMode('none')}>All</Button>
             </div>
           </div>
 
-          {boardMode === 'karigar' ? (
-            /* One column per karigar that actually holds pieces — scrolls
-               horizontally so workloads can be compared side by side. */
-            loads.filter(l => l.active > 0).length === 0 ? (
-              <Card><CardContent className="py-12 text-center text-muted-foreground">
-                <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />Nobody is holding pieces right now.
-              </CardContent></Card>
-            ) : (
-              <div className="flex gap-3 overflow-x-auto pb-3 -mx-1 px-1">
-                {loads.filter(l => l.active > 0).map(load => {
-                  const items = load.jobs.filter(j => j.status !== 'completed');
-                  const isUnassigned = load.karigarId === UNASSIGNED_ID;
-                  return (
-                    <Card key={load.karigarId} className={cn(
-                      'w-[85vw] sm:w-[19rem] flex-shrink-0',
-                      load.critical > 0 && 'border-destructive/40',
-                      isUnassigned && 'border-destructive/60 bg-destructive/5',
-                    )}>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center justify-between gap-2">
-                          <span className="truncate flex items-center gap-1.5">
-                            {isUnassigned
-                              ? <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
-                              : <Hammer className="h-4 w-4 text-primary flex-shrink-0" />}
-                            {isUnassigned
-                              ? <span className="text-destructive">Unassigned</span>
-                              : <Link href={`/karigars/${load.karigarId}`} className="hover:underline truncate">{load.karigarName}</Link>}
-                          </span>
-                          <Badge variant="secondary" className="flex-shrink-0">{items.length}</Badge>
-                        </CardTitle>
-                        <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                          {items.filter(j => j.source === 'manual').length > 0 && (
-                            <Badge variant="secondary" className="text-[10px] bg-violet-500/15 text-violet-700 dark:text-violet-300">
-                              {items.filter(j => j.source === 'manual').length} stock
-                            </Badge>
-                          )}
-                          {items.filter(j => j.source === 'order').length > 0 && (
-                            <Badge variant="outline" className="text-[10px]">{items.filter(j => j.source === 'order').length} order</Badge>
-                          )}
-                          {load.critical > 0 && <Badge variant="destructive" className="text-[10px]"><Flame className="h-3 w-3 mr-1" />{load.critical}</Badge>}
-                          {load.overdue > load.critical && (
-                            <Badge variant="outline" className="text-[10px] text-yellow-700 border-yellow-500/40 bg-yellow-500/10">
-                              {load.overdue - load.critical} late
-                            </Badge>
-                          )}
-                          {load.totalWeightG > 0 && <span className="text-[10px] text-muted-foreground">{load.totalWeightG.toFixed(1)}g</span>}
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className={items.length > 4 ? 'h-[32rem]' : ''}>
-                          <div className="pr-2">
-                            <OrderGroupedJobs jobs={items} onEdit={openEdit}
-                              onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
-                          </div>
-                        </ScrollArea>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+          {(() => {
+            const grid = 'grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+
+            if (boardMode === 'none') {
+              return filtered.length === 0 ? (
+                <Card><CardContent className="py-12 text-center text-muted-foreground">
+                  <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />No pieces match these filters.
+                </CardContent></Card>
+              ) : (
+                <div className={grid}>
+                  {filtered.map(j => (
+                    <BoardJobCard key={j.id} job={j} showKarigar
+                      onToggleDone={handleToggleDone} onEdit={openEdit} />
+                  ))}
+                </div>
+              );
+            }
+
+            // Section headings carry the group's counts so the grid below can
+            // stay purely visual.
+            const sections = boardMode === 'karigar'
+              ? loads.filter(l => l.jobs.length > 0).map(l => ({
+                  key: l.karigarId,
+                  title: l.karigarId === UNASSIGNED_ID ? 'Unassigned' : l.karigarName,
+                  danger: l.karigarId === UNASSIGNED_ID,
+                  icon: l.karigarId === UNASSIGNED_ID
+                    ? <AlertTriangle className="h-4 w-4 text-destructive" />
+                    : <Hammer className="h-4 w-4 text-primary" />,
+                  critical: l.critical,
+                  late: l.overdue - l.critical,
+                  weightG: l.totalWeightG,
+                  jobs: l.jobs,
+                }))
+              : boardCols.map(col => {
+                  const jobs = filtered.filter(j => j.status === col.key);
+                  return {
+                    key: col.key, title: col.label, danger: false, icon: col.icon,
+                    critical: jobs.filter(j => j.urgency === 'critical').length,
+                    late: jobs.filter(j => j.urgency === 'warning').length,
+                    weightG: 0,
+                    jobs,
+                  };
+                }).filter(sec => sec.jobs.length > 0);
+
+            if (sections.length === 0) {
+              return (
+                <Card><CardContent className="py-12 text-center text-muted-foreground">
+                  <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />No pieces match these filters.
+                </CardContent></Card>
+              );
+            }
+
+            return (
+              <div className="space-y-6">
+                {sections.map(sec => (
+                  <section key={sec.key}>
+                    <div className="flex items-center gap-2 flex-wrap mb-2 pb-1.5 border-b">
+                      {sec.icon}
+                      <h3 className={cn('text-sm font-semibold', sec.danger && 'text-destructive')}>{sec.title}</h3>
+                      <Badge variant="secondary" className="text-[10px]">{sec.jobs.length}</Badge>
+                      {sec.critical > 0 && (
+                        <Badge variant="destructive" className="text-[10px]"><Flame className="h-3 w-3 mr-1" />{sec.critical}</Badge>
+                      )}
+                      {sec.late > 0 && (
+                        <Badge variant="outline" className="text-[10px] text-yellow-700 border-yellow-500/40 bg-yellow-500/10">{sec.late} late</Badge>
+                      )}
+                      {sec.weightG > 0 && (
+                        <span className="text-[10px] text-muted-foreground ml-auto tabular-nums">{sec.weightG.toFixed(1)}g out</span>
+                      )}
+                    </div>
+                    <div className={grid}>
+                      {sec.jobs.map(j => (
+                        <BoardJobCard key={j.id} job={j} showKarigar={boardMode === 'status'}
+                          onToggleDone={handleToggleDone} onEdit={openEdit} />
+                      ))}
+                    </div>
+                  </section>
+                ))}
               </div>
-            )
-          ) : (
-            <div className="grid gap-4 md:grid-cols-3">
-              {boardCols.map(col => {
-                const items = filtered.filter(j => j.status === col.key);
-                return (
-                  <Card key={col.key}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm flex items-center justify-between">
-                        <span className="flex items-center gap-2">{col.icon}{col.label}</span>
-                        <Badge variant="secondary">{items.length}</Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {items.length === 0
-                        ? <p className="text-sm text-muted-foreground text-center py-6">Empty</p>
-                        : (
-                          <ScrollArea className={items.length > 5 ? 'h-[34rem]' : ''}>
-                            <div className="pr-2">
-                              <OrderGroupedJobs jobs={items} showKarigar onEdit={openEdit}
-                                onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
-                            </div>
-                          </ScrollArea>
-                        )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+            );
+          })()}
         </TabsContent>
 
         {/* View 3 — Table */}
         <TabsContent value="list" className="mt-4">
-          <div className="md:hidden">
+          <div className="lg:hidden">
             {filtered.length === 0
               ? <Card><CardContent className="py-10 text-center text-muted-foreground">No jobs match.</CardContent></Card>
               : filtered.map(j => (
@@ -1160,15 +1211,15 @@ export default function WorkshopPage() {
                 ))}
           </div>
 
-          <Card className="hidden md:block">
+          <Card className="hidden lg:block">
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10"></TableHead>
                     <TableHead>Job Details</TableHead>
-                    <TableHead className="hidden lg:table-cell">Given</TableHead>
-                    <TableHead className="hidden md:table-cell">Order / Customer</TableHead>
+                    <TableHead className="hidden xl:table-cell">Given</TableHead>
+                    <TableHead>Order / Customer</TableHead>
                     <TableHead>Karigar</TableHead>
                     <TableHead className="text-right">Age</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -1216,14 +1267,14 @@ export default function WorkshopPage() {
                           )}
                         </TableCell>
 
-                        <TableCell className="hidden lg:table-cell align-middle">
+                        <TableCell className="hidden xl:table-cell align-middle">
                           <div className="flex items-center gap-2 text-sm whitespace-nowrap">
                             <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                             {format(parseISO(j.assignedDate), 'dd MMM yyyy')}
                           </div>
                         </TableCell>
 
-                        <TableCell className="hidden md:table-cell align-middle">
+                        <TableCell className="align-middle">
                           {j.invoiceId
                             ? <Link href={`/view-invoice/${j.invoiceId}`} className="font-mono text-sm text-green-700 dark:text-green-400 hover:underline">{j.invoiceId}</Link>
                             : j.orderId
@@ -1274,7 +1325,7 @@ export default function WorkshopPage() {
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">Unassigned work, or sitting {WARN_DAYS}+ days with a karigar. Oldest first.</p>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 sm:p-6 sm:pt-0">
                 {attention
                   .slice()
                   .sort((a, b) => (b.karigarId === UNASSIGNED_ID ? 1 : 0) - (a.karigarId === UNASSIGNED_ID ? 1 : 0) || b.ageDays - a.ageDays)

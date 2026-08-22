@@ -6,8 +6,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem, AdditionalRevenue, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS, CustomerSource, getInvoiceRevenueDate } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval, startOfYear, endOfYear, getYear } from 'date-fns';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ReferenceLine, Cell } from 'recharts';
+import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval, startOfYear, endOfYear, getYear, eachMonthOfInterval, startOfMonth } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight, TrendingUp, TrendingDown, Clock } from 'lucide-react';
@@ -117,6 +117,64 @@ export default function AnalyticsPage() {
       }))
       .sort((a, b) => b.year - a.year);
   }, [generatedInvoices, orders, ordersById, expenses, additionalRevenues]);
+
+  /**
+   * Revenue per calendar month across the whole history — deliberately not
+   * bound to the date-range filter, since the point of this chart is the shape
+   * of the trend rather than a slice of it. Same revenue basis as everywhere
+   * else: invoice grandTotal on its order date, uninvoiced order subtotals,
+   * and additional revenue. Empty months are kept so gaps read as gaps.
+   */
+  const monthlyRevenue = useMemo(() => {
+    const bucket: Record<string, { revenue: number; sales: number }> = {};
+    const add = (iso: string, amount: number) => {
+      const d = parseISO(iso);
+      if (Number.isNaN(d.getTime())) return;
+      const key = format(startOfMonth(d), 'yyyy-MM');
+      if (!bucket[key]) bucket[key] = { revenue: 0, sales: 0 };
+      bucket[key].revenue += amount;
+      bucket[key].sales += 1;
+    };
+
+    generatedInvoices.forEach(inv => {
+      if (!inv?.createdAt || inv.status === 'Refunded') return;
+      add(getInvoiceRevenueDate(inv, ordersById), inv.grandTotal || 0);
+    });
+    orders.forEach(o => {
+      if (!o?.createdAt || o.status === 'Cancelled' || o.status === 'Refunded' || o.invoiceId) return;
+      add(o.createdAt, o.subtotal || 0);
+    });
+    additionalRevenues.forEach(r => { if (r?.date) add(r.date, r.amount || 0); });
+
+    const keys = Object.keys(bucket).sort();
+    if (!keys.length) return { data: [], average: 0, best: null as string | null };
+
+    // Walk every month between the first and last so a quiet month shows as a
+    // gap in the series instead of silently collapsing the timeline.
+    const months = eachMonthOfInterval({
+      start: parseISO(`${keys[0]}-01`),
+      end: parseISO(`${keys[keys.length - 1]}-01`),
+    });
+
+    const data = months.map(m => {
+      const key = format(m, 'yyyy-MM');
+      const b = bucket[key];
+      return {
+        key,
+        month: format(m, 'MMM yy'),
+        revenue: b?.revenue || 0,
+        sales: b?.sales || 0,
+      };
+    });
+
+    const withRevenue = data.filter(d => d.revenue > 0);
+    const average = withRevenue.length
+      ? withRevenue.reduce((s, d) => s + d.revenue, 0) / withRevenue.length
+      : 0;
+    const best = data.reduce((m, d) => (d.revenue > (m?.revenue ?? -1) ? d : m), data[0])?.key ?? null;
+
+    return { data, average, best };
+  }, [generatedInvoices, orders, ordersById, additionalRevenues]);
 
   const filteredInvoices = useMemo(() => {
     const base = generatedInvoices.filter(invoice => invoice?.status !== 'Refunded');
@@ -934,6 +992,70 @@ export default function AnalyticsPage() {
                  )}
               </CardContent>
             </Card>
+
+          {/* Month-by-month revenue — full history, independent of the filter */}
+          {monthlyRevenue.data.length > 0 && (
+            <Card className="lg:col-span-2 animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '340ms', animationFillMode: 'both' }}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />Revenue by Month
+                </CardTitle>
+                <CardDescription>
+                  Every month on record, regardless of the date filter above.
+                  {monthlyRevenue.average > 0 && (
+                    <> Averaging <span className="font-medium text-foreground">PKR {Math.round(monthlyRevenue.average).toLocaleString()}</span> across months with sales.</>
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <ResponsiveContainer width="100%" height={340}>
+                  <BarChart data={monthlyRevenue.data} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis
+                      dataKey="month"
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      interval="preserveStartEnd"
+                      minTickGap={8}
+                    />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => `PKR ${Number(v / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip
+                      cursor={{ fill: 'hsl(var(--muted))', opacity: 0.35 }}
+                      contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      itemStyle={{ color: 'hsl(var(--foreground))' }}
+                      formatter={(value: number, _name: string, entry: { payload?: { sales?: number } }) => [
+                        `PKR ${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}${entry?.payload?.sales ? ` · ${entry.payload.sales} sale${entry.payload.sales === 1 ? '' : 's'}` : ''}`,
+                        'Revenue',
+                      ]}
+                    />
+                    {monthlyRevenue.average > 0 && (
+                      <ReferenceLine
+                        y={monthlyRevenue.average}
+                        stroke="hsl(var(--muted-foreground))"
+                        strokeDasharray="4 4"
+                        label={{ value: 'avg', position: 'right', fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      />
+                    )}
+                    <Bar dataKey="revenue" name="Revenue" radius={[4, 4, 0, 0]}>
+                      {/* The best month is picked out so the peak is findable at a glance. */}
+                      {monthlyRevenue.data.map(d => (
+                        <Cell key={d.key} fill={d.key === monthlyRevenue.best ? 'hsl(var(--chart-2))' : 'hsl(var(--chart-1))'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
             
           <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '400ms', animationFillMode: 'both' }}>
             <CardHeader>

@@ -222,7 +222,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
 
           {/* Extra bottom padding on mobile so content clears the bottom nav */}
-          <main className="flex-1 p-4 overflow-auto md:p-6 pb-20 md:pb-6">
+          <main className="flex-1 min-w-0 p-4 overflow-auto md:p-6 pb-20 md:pb-6">
             {children}
           </main>
 

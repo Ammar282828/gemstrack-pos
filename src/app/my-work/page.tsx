@@ -295,7 +295,7 @@ export default function MyWorkPage() {
         </div>
       )}
 
-      <main className="p-4 max-w-2xl mx-auto pb-16">
+      <main className="p-4 lg:p-6 max-w-2xl lg:max-w-5xl mx-auto pb-16">
         {updatedAt && (
           <p className="text-[11px] text-muted-foreground text-center mb-3">
             Updated {format(updatedAt, 'h:mm a')} · refreshes automatically
@@ -323,10 +323,10 @@ export default function MyWorkPage() {
           </TabsList>
 
           <TabsContent value="work" className="mt-4">
-            {/* Desktop gets a table; a phone gets the cards below, since a
-                karigar is nearly always on a phone. */}
+            {/* Desktop gets a table; phones and tablets get the cards below,
+                since a karigar is nearly always on a phone. */}
             {active.length > 0 && (
-              <Card className="hidden md:block mb-4">
+              <Card className="hidden lg:block mb-4">
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
@@ -390,7 +390,7 @@ export default function MyWorkPage() {
               </Card>
             )}
 
-            <div className="md:hidden">
+            <div className="lg:hidden">
             {active.length === 0 ? (
               <Card><CardContent className="py-12 text-center">
                 <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-600" />

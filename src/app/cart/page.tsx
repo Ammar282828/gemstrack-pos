@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { EditCartItemDialog } from '@/components/cart/edit-cart-item-dialog';
 import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories } from '@/lib/store';
 import { metalLabel, describeMetal } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
@@ -189,22 +190,8 @@ export default function CartPage() {
     setSkuInput('');
   };
 
-  // Silver item inline editor
-  const [silverEditItem, setSilverEditItem] = useState<Product | null>(null);
-  const [editRate, setEditRate] = useState('');
-  const [editWeight, setEditWeight] = useState('');
-  const [useManualPrice, setUseManualPrice] = useState(true);
-  const [editManualPrice, setEditManualPrice] = useState('');
-
-  useEffect(() => {
-    if (silverEditItem) {
-      setEditRate(silverEditItem.silverRatePerGram?.toString() ?? parseFloat(rateInputs.silver || '0').toFixed(2));
-      setEditWeight(silverEditItem.metalWeightG?.toString() ?? '');
-      setUseManualPrice(silverEditItem.isCustomPrice ?? false);
-      setEditManualPrice(silverEditItem.customPrice?.toString() ?? '');
-    }
-  }, [silverEditItem]);
-
+  // Line-item editor — every attribute of the line, any metal.
+  const [editItem, setEditItem] = useState<Product | null>(null);
 
   const phoneForm = useForm<PhoneForm>();
 
@@ -1332,11 +1319,9 @@ export default function CartPage() {
                                             <TableCell className="text-right font-semibold">PKR {calculateProductCosts(item, settings).totalPrice.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                                             <TableCell className="w-20">
                                                 <div className="flex items-center gap-1">
-                                                    {item.metalType === 'silver' && (
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setSilverEditItem(item)}>
-                                                            <Edit className="h-4 w-4"/>
-                                                        </Button>
-                                                    )}
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setEditItem(item)}>
+                                                        <Edit className="h-4 w-4"/>
+                                                    </Button>
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeFromCart(item.sku)}>
                                                         <Trash2 className="h-4 w-4"/>
                                                     </Button>
@@ -1487,87 +1472,12 @@ export default function CartPage() {
       </Dialog>
 
       {/* Silver Item Edit Dialog */}
-      <Dialog open={!!silverEditItem} onOpenChange={(open) => { if (!open) setSilverEditItem(null); }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Edit Silver Item</DialogTitle>
-            <DialogDescription>{silverEditItem?.name} · {silverEditItem?.sku}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            {/* Manual price (Primary) */}
-            {useManualPrice && (
-              <div className="space-y-3 p-3 border rounded-md bg-muted/30">
-                <div className="space-y-1">
-                  <Label>Manual Price (PKR)</Label>
-                  <Input
-                    type="number"
-                    value={editManualPrice}
-                    onChange={e => setEditManualPrice(e.target.value)}
-                    placeholder="e.g. 5000"
-                    autoFocus
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground text-xs">Reference Rate per Gram (Optional)</Label>
-                  <p className="text-xs text-muted-foreground">For your reference only — does not affect the price.</p>
-                  <Input
-                    type="number"
-                    value={editRate}
-                    onChange={e => setEditRate(e.target.value)}
-                    placeholder="e.g. 150"
-                  />
-                </div>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <input
-                id="use-rate-calc"
-                type="checkbox"
-                checked={!useManualPrice}
-                onChange={e => setUseManualPrice(!e.target.checked)}
-                className="h-4 w-4 accent-primary"
-              />
-              <Label htmlFor="use-rate-calc" className="cursor-pointer text-sm text-muted-foreground">Use rate &amp; weight calculation instead</Label>
-            </div>
-            {/* Rate & weight calculation (Secondary) */}
-            {!useManualPrice && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Rate per gram (PKR)</Label>
-                  <Input
-                    type="number"
-                    value={editRate}
-                    onChange={e => setEditRate(e.target.value)}
-                    placeholder="e.g. 150"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Weight (g)</Label>
-                  <Input
-                    type="number"
-                    value={editWeight}
-                    onChange={e => setEditWeight(e.target.value)}
-                    placeholder="e.g. 25.5"
-                  />
-                </div>
-              </div>
-            )}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setSilverEditItem(null)}>Cancel</Button>
-              <Button onClick={() => {
-                if (!silverEditItem) return;
-                updateCartItem(silverEditItem.sku, {
-                  metalWeightG: parseFloat(editWeight) || silverEditItem.metalWeightG,
-                  silverRatePerGram: parseFloat(editRate) || undefined,
-                  isCustomPrice: useManualPrice,
-                  customPrice: useManualPrice ? (parseFloat(editManualPrice) || 0) : undefined,
-                });
-                setSilverEditItem(null);
-              }}>Apply</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <EditCartItemDialog
+        item={editItem}
+        settings={settings}
+        onClose={() => setEditItem(null)}
+        onSave={(sku, patch) => updateCartItem(sku, patch)}
+      />
     </div>
   );
 }
