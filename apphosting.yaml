@@ -40,3 +40,11 @@ env:
     secret: GREENAPI_API_TOKEN
     availability:
       - RUNTIME
+  - variable: SHOPIFY_STORE_DOMAIN
+    secret: SHOPIFY_STORE_DOMAIN
+    availability:
+      - RUNTIME
+  - variable: SHOPIFY_ACCESS_TOKEN
+    secret: SHOPIFY_ACCESS_TOKEN
+    availability:
+      - RUNTIME
