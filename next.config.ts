@@ -24,6 +24,9 @@ const nextConfig: NextConfig = {
     return [
       { source: '/mina', destination: '/shareholders', permanent: false },
       { source: '/ammar', destination: '/shareholders', permanent: false },
+      // "Documents" said nothing about what the page holds. It is the billing
+      // view: every order and invoice with what is still owed on it.
+      { source: '/documents', destination: '/billing', permanent: false },
     ];
   },
   webpack: (config, { isServer }) => {

@@ -54,7 +54,7 @@ const navGroups: NavGroup[] = [
       { href: '/customers', label: 'Customers', icon: <Users /> },
       { href: '/karigars', label: 'Karigars', icon: <Briefcase /> },
       { href: '/workshop', label: 'Workshop', icon: <Hammer /> },
-      { href: '/documents', label: 'Documents', icon: <FileText /> },
+      { href: '/billing', label: 'Billing', icon: <FileText /> },
       { href: '/calendar', label: 'Calendar', icon: <Calendar /> },
       { href: '/expenses', label: 'Expenses', icon: <CreditCard /> },
       { href: '/additional-revenue', label: 'Extra Revenue', icon: <TrendingUp /> },

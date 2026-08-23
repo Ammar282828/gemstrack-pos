@@ -887,6 +887,21 @@ export default function DocumentsPage() {
     return docs;
   }, [combinedDocuments, dateRange, searchTerm, monthFilter]);
 
+  /** What the filtered set is worth, and what of it is still owed. */
+  const billingTotals = useMemo(() => {
+    let billed = 0, outstanding = 0, unpaidCount = 0, orderCount = 0;
+    for (const d of filteredDocuments) {
+      if (d.docType === 'order') { orderCount++; continue; }
+      const inv = d as Invoice;
+      if (inv.status === 'Refunded') continue;
+      billed += inv.grandTotal || 0;
+      const due = Math.max(0, inv.balanceDue || 0);
+      outstanding += due;
+      if (due > 0) unpaidCount++;
+    }
+    return { billed, outstanding, collected: billed - outstanding, unpaidCount, orderCount };
+  }, [filteredDocuments]);
+
   const renderContent = (docs: DocumentType[]) => {
       if (isLoading) {
          return (
@@ -945,17 +960,45 @@ export default function DocumentsPage() {
     );
   }
 
+  const pkr = (n: number) => 'PKR ' + Math.round(n).toLocaleString();
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><FileText className="w-8 h-8 mr-3"/>Documents</h1>
-          <p className="text-muted-foreground">Search and manage all invoices and custom orders.</p>
+    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl space-y-4">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
+            <FileText className="w-7 h-7 flex-shrink-0"/>Billing
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Every invoice and custom order, and what is still owed on it.
+          </p>
         </div>
-        <Button variant="outline" onClick={() => { setImportOpen(true); setImportFile(null); setImportPreview(null); setImportProgress([]); setImportDone(false); }}>
-          <Upload className="w-4 h-4 mr-2" /> Import Shopify CSV
+        <Button variant="outline" size="sm" className="flex-shrink-0"
+          onClick={() => { setImportOpen(true); setImportFile(null); setImportPreview(null); setImportProgress([]); setImportDone(false); }}>
+          <Upload className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Import Shopify CSV</span><span className="sm:hidden">Import</span>
         </Button>
       </header>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Billed</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight truncate">{pkr(billingTotals.billed)}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Still owed</p>
+          <p className={cn('text-base sm:text-xl md:text-2xl font-bold leading-tight truncate',
+            billingTotals.outstanding > 0 && 'text-destructive')}>{pkr(billingTotals.outstanding)}</p>
+          <p className="text-2xs text-muted-foreground">{billingTotals.unpaidCount} unpaid</p>
+        </div>
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Collected</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold text-success leading-tight truncate">{pkr(billingTotals.collected)}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Open orders</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{billingTotals.orderCount}</p>
+        </div>
+      </div>
 
       <FilterBar
         value={searchTerm}

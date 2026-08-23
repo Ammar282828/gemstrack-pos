@@ -4,7 +4,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, subMonths } from 'date-fns';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Customer } from '@/lib/store';
@@ -29,6 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const CustomerActions: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void>; isCard?: boolean }> = ({ customer, onDelete, isCard }) => {
   return (
@@ -54,6 +55,9 @@ const money = (n: number) => n >= 100_000
   ? `${Math.round(n / 1000)}k`
   : n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
+/** The same figure with its unit, for anywhere it stands alone. */
+const pkr = (n: number) => `PKR ${money(n)}`;
+
 const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelete: (id: string) => Promise<void> }> = ({ customer, stats, onDelete }) => {
   return (
     <TableRow>
@@ -64,12 +68,12 @@ const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelet
       </TableCell>
       <TableCell className="text-muted-foreground">{customer.phone || '-'}</TableCell>
       <TableCell className="text-right tabular-nums">
-        {stats?.spent ? <span className="font-medium">PKR {money(stats.spent)}</span> : <span className="text-muted-foreground">—</span>}
+        {stats?.spent ? <span className="font-medium">{pkr(stats.spent)}</span> : <span className="text-muted-foreground">—</span>}
         {stats?.count ? <span className="block text-2xs text-muted-foreground">{stats.count} sale{stats.count === 1 ? '' : 's'}</span> : null}
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {stats?.owed
-          ? <span className="font-medium text-destructive">PKR {money(stats.owed)}</span>
+          ? <span className="font-medium text-destructive">{pkr(stats.owed)}</span>
           : <span className="text-muted-foreground">—</span>}
       </TableCell>
       <TableCell className="hidden lg:table-cell text-muted-foreground text-sm whitespace-nowrap">
@@ -96,22 +100,29 @@ const CustomerRow: React.FC<{ customer: Customer; stats?: CustomerStats; onDelet
   );
 };
 
-const CustomerCard: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void> }> = ({ customer, onDelete }) => (
-    <Card className="mb-4">
-        <CardHeader>
-             <Link href={`/customers/${customer.id}`} className="font-bold text-primary hover:underline">
-                <CardTitle className="flex items-center gap-2">
-                    <User className="w-5 h-5"/>
-                    {customer.name}
-                </CardTitle>
-            </Link>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-            {customer.phone && <div className="flex items-center gap-2"><Phone className="w-4 h-4"/><span>{customer.phone}</span></div>}
-            {customer.email && <div className="flex items-center gap-2"><Mail className="w-4 h-4"/><span>{customer.email}</span></div>}
-            {customer.address && <div className="flex items-start gap-2"><MapPin className="w-4 h-4 mt-1 flex-shrink-0"/><span>{customer.address}</span></div>}
+const CustomerCard: React.FC<{ customer: Customer; stats?: CustomerStats; onDelete: (id: string) => Promise<void> }> = ({ customer, stats, onDelete }) => (
+    <Card className="mb-2.5">
+        <CardContent className="p-3">
+            <div className="flex items-start justify-between gap-2">
+                <Link href={`/customers/${customer.id}`} className="min-w-0 flex-1">
+                    <p className="font-semibold text-primary truncate">{customer.name}</p>
+                    {customer.phone && <p className="text-xs text-muted-foreground truncate">{customer.phone}</p>}
+                </Link>
+                {/* What is owed leads: it is the reason you look a customer up. */}
+                {stats && stats.owed > 0 ? (
+                    <span className="text-sm font-semibold text-destructive tabular-nums flex-shrink-0">{pkr(stats.owed)}</span>
+                ) : stats && stats.spent > 0 ? (
+                    <span className="text-sm text-muted-foreground tabular-nums flex-shrink-0">{pkr(stats.spent)}</span>
+                ) : null}
+            </div>
+            {stats && stats.count > 0 && (
+                <p className="text-2xs text-muted-foreground mt-1">
+                    {stats.count} sale{stats.count === 1 ? '' : 's'}
+                    {stats.lastAt && ` · last ${format(parseISO(stats.lastAt), 'MMM yyyy')}`}
+                </p>
+            )}
         </CardContent>
-        <CardFooter className="p-2 border-t bg-muted/30">
+        <CardFooter className="p-1.5 border-t bg-muted/30">
             <CustomerActions customer={customer} onDelete={onDelete} isCard />
         </CardFooter>
     </Card>
@@ -512,6 +523,7 @@ const MergeCustomersDialog: React.FC<{
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [view, setView] = useState<'all' | 'owing' | 'active'>('all');
   const [spamOpen, setSpamOpen] = useState(false);
 
   const appReady = useAppReady();
@@ -585,14 +597,53 @@ export default function CustomersPage() {
     return map;
   }, [generatedInvoices, orders]);
 
-  const filteredCustomers = useMemo(() => {
+  const matched = useMemo(() => {
     if (!appReady) return [];
-    return customers.filter(customer =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (customer.phone && customer.phone.includes(searchTerm)) ||
-      (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      (c.phone && c.phone.includes(searchTerm)) ||
+      (c.email && c.email.toLowerCase().includes(q))
     );
   }, [customers, searchTerm, appReady]);
+
+  /**
+   * Grouped by the reason you would be looking someone up: money outstanding
+   * first, then people who have bought recently, then everyone else. A flat
+   * A-to-Z list of 442 names answers no question at all.
+   */
+  const DORMANT_AFTER_MONTHS = 12;
+  const groups = useMemo(() => {
+    const cutoff = subMonths(new Date(), DORMANT_AFTER_MONTHS).toISOString();
+    const owing: Customer[] = [], active: Customer[] = [], quiet: Customer[] = [];
+    for (const c of matched) {
+      const s = statsById.get(c.id);
+      if (s && s.owed > 0) owing.push(c);
+      else if (s?.lastAt && s.lastAt >= cutoff) active.push(c);
+      else quiet.push(c);
+    }
+    const byOwed = (a: Customer, b: Customer) =>
+      (statsById.get(b.id)?.owed || 0) - (statsById.get(a.id)?.owed || 0);
+    const byRecent = (a: Customer, b: Customer) =>
+      (statsById.get(b.id)?.lastAt || '').localeCompare(statsById.get(a.id)?.lastAt || '');
+    const byName = (a: Customer, b: Customer) => (a.name || '').localeCompare(b.name || '');
+    return { owing: owing.sort(byOwed), active: active.sort(byRecent), quiet: quiet.sort(byName) };
+  }, [matched, statsById]);
+
+  const visible = view === 'owing' ? { owing: groups.owing, active: [], quiet: [] }
+    : view === 'active' ? { owing: [], active: groups.active, quiet: [] }
+    : groups;
+
+  const totals = useMemo(() => {
+    let owed = 0, spent = 0;
+    for (const c of customers) {
+      const s = statsById.get(c.id);
+      owed += s?.owed || 0;
+      spent += s?.spent || 0;
+    }
+    return { owed, spent, owingCount: groups.owing.length };
+  }, [customers, statsById, groups.owing.length]);
 
   if (!appReady) {
     return (
@@ -602,76 +653,134 @@ export default function CustomersPage() {
     );
   }
 
+  const Section: React.FC<{ title: string; hint: string; people: Customer[] }> = ({ title, hint, people }) => {
+    if (people.length === 0) return null;
+    return (
+      <section>
+        <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <h2 className="text-sm font-semibold truncate">{title}</h2>
+            <span className="text-2xs text-muted-foreground flex-shrink-0">{hint}</span>
+          </div>
+          <span className="text-2xs text-muted-foreground flex-shrink-0">{people.length}</span>
+        </div>
+
+        <div className="md:hidden">
+          {people.map(c => (
+            <CustomerCard key={c.id} customer={c} stats={statsById.get(c.id)} onDelete={handleDeleteCustomer} />
+          ))}
+        </div>
+
+        <Card className="hidden md:block">
+          <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead className="text-right">Spent</TableHead>
+                  <TableHead className="text-right">Owes</TableHead>
+                  <TableHead className="hidden lg:table-cell">Last sale</TableHead>
+                  <TableHead className="hidden xl:table-cell">Address</TableHead>
+                  <TableHead className="text-right w-[7rem]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {people.map(c => (
+                  <CustomerRow key={c.id} customer={c} stats={statsById.get(c.id)} onDelete={handleDeleteCustomer} />
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </section>
+    );
+  };
+
   return (
-    <div className="container mx-auto py-4 px-3 md:py-8 md:px-4">
+    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl space-y-4">
       <MergeCustomersDialog open={mergeOpen} onOpenChange={setMergeOpen} customers={customers} onMerge={handleMerge} />
       <SpamReviewDialog open={spamOpen} onOpenChange={setSpamOpen} candidates={spamCandidates} onDelete={handleDeleteCustomer} />
 
-      <header className="mb-4 md:mb-6 flex flex-row justify-between items-start gap-3">
-        <div>
-          <h1 className="text-xl md:text-3xl font-bold text-primary flex items-center"><Users className="w-6 h-6 md:w-8 md:h-8 mr-2 md:mr-3"/>Customers</h1>
-          <p className="text-sm text-muted-foreground">{customers.length} customer{customers.length !== 1 ? 's' : ''}</p>
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
+            <Users className="w-7 h-7 flex-shrink-0" />Customers
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {customers.length} on file
+            {totals.owingCount > 0 && <> · {totals.owingCount} owing {pkr(totals.owed)}</>}
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0 [&>*]:flex-1 sm:[&>*]:flex-none">
           {spamCandidates.length > 0 && (
-            <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10" onClick={() => setSpamOpen(true)}>
-              <Trash2 className="w-4 h-4 mr-2" />Clean spam ({spamCandidates.length})
+            <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10"
+              onClick={() => setSpamOpen(true)}>
+              <Trash2 className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Clean spam ({spamCandidates.length})</span>
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={() => setMergeOpen(true)}>
-            <Merge className="w-4 h-4 mr-2" />Merge Duplicates
+            <Merge className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Merge duplicates</span>
           </Button>
           <Button asChild size="sm">
-            <Link href="/customers/add"><PlusCircle className="w-4 h-4 mr-2" />Add Customer</Link>
+            <Link href="/customers/add"><PlusCircle className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add customer</span><span className="sm:hidden">Add</span></Link>
           </Button>
         </div>
       </header>
 
-      <FilterBar value={searchTerm} onChange={setSearchTerm} placeholder="Search by name, phone, or email…" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Customers</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{customers.length}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Owed to you</p>
+          <p className={cn('text-base sm:text-xl md:text-2xl font-bold leading-tight truncate',
+            totals.owed > 0 && 'text-destructive')}>{pkr(totals.owed)}</p>
+          <p className="text-2xs text-muted-foreground">{totals.owingCount} customer{totals.owingCount === 1 ? '' : 's'}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Bought in {DORMANT_AFTER_MONTHS}m</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{groups.active.length + groups.owing.length}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Lifetime sales</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold text-primary leading-tight truncate">{pkr(totals.spent)}</p>
+        </div>
+      </div>
 
-      {isCustomersLoading ? (
-         <div className="text-center py-12">
-            <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
-            <p className="text-muted-foreground">Refreshing customer list...</p>
-         </div>
-      ) : filteredCustomers.length > 0 ? (
-        <>
-            {/* Mobile View: Cards */}
-            <div className="md:hidden">
-                {filteredCustomers.map((customer) => (
-                    <CustomerCard key={customer.id} customer={customer} onDelete={handleDeleteCustomer} />
-                ))}
-            </div>
+      <FilterBar
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder="Search by name, phone, or email…"
+        actions={
+          <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Show">
+            {([['all', 'Everyone'], ['owing', 'Owing'], ['active', 'Recent']] as const).map(([id, label]) => (
+              <button
+                key={id} type="button" onClick={() => setView(id)} aria-pressed={view === id}
+                className={cn('px-2.5 text-xs h-9 transition-colors whitespace-nowrap',
+                  view === id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
-            {/* Desktop View: Table */}
-            <Card className="hidden md:block">
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead><User className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Name</TableHead>
-                    <TableHead><Phone className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Phone</TableHead>
-                    <TableHead className="text-right">Spent</TableHead>
-                    <TableHead className="text-right">Owes</TableHead>
-                    <TableHead className="hidden lg:table-cell">Last sale</TableHead>
-                    <TableHead className="hidden xl:table-cell"><MapPin className="inline-block mr-1 h-4 w-4 text-muted-foreground"/>Address</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-                </TableHeader>
-                <TableBody>
-                {filteredCustomers.map((customer) => (
-                    <CustomerRow key={customer.id} customer={customer} stats={statsById.get(customer.id)} onDelete={handleDeleteCustomer} />
-                ))}
-                </TableBody>
-            </Table>
-            </Card>
-        </>
-      ) : (
-        <div className="text-center py-12 bg-card rounded-lg shadow">
-          <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Customers Found</h3>
-          <p className="text-muted-foreground">
-            {searchTerm ? "Try adjusting your search term." : "Add a customer to begin."}
+      {matched.length === 0 ? (
+        <div className="text-center py-14 bg-card rounded-xl border">
+          <Users className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+          <h3 className="text-lg font-semibold mb-1">No customers found</h3>
+          <p className="text-sm text-muted-foreground">
+            {searchTerm ? 'Try a different search term.' : 'Add a customer to begin.'}
           </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <Section title="Owing money" hint="most owed first" people={visible.owing} />
+          <Section title="Recent" hint={`bought in the last ${DORMANT_AFTER_MONTHS} months`} people={visible.active} />
+          <Section title="Quiet" hint="no sale in a year" people={visible.quiet} />
         </div>
       )}
     </div>

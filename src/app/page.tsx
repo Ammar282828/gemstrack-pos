@@ -293,7 +293,7 @@ export default function HomePage() {
           value={compactPKR(stats.todayRevenue)} exact={`PKR ${stats.todayRevenue.toLocaleString()}`}
           tone={stats.todayRevenue > 0 ? 'text-success' : undefined}
           sub={`${stats.todayInvoiceCount} invoice${stats.todayInvoiceCount === 1 ? '' : 's'} today`} />
-        <Headline label="Owed to you" href="/documents" icon={<Receipt className="h-4 w-4" />}
+        <Headline label="Owed to you" href="/billing" icon={<Receipt className="h-4 w-4" />}
           value={stats.totalOutstanding > 0 ? compactPKR(stats.totalOutstanding) : 'Nil'}
           exact={`PKR ${stats.totalOutstanding.toLocaleString()}`}
           tone={stats.totalOutstanding > 0 ? 'text-destructive' : undefined}
@@ -334,7 +334,7 @@ export default function HomePage() {
           )}
         </Panel>
 
-        <Panel title="Recent Invoices" icon={<FileText className="h-4 w-4" />} href="/documents">
+        <Panel title="Recent Invoices" icon={<FileText className="h-4 w-4" />} href="/billing">
           {stats.recentInvoices.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">No invoices yet.</p>
           ) : (
