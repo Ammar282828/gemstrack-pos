@@ -19,6 +19,7 @@ import { useAppReady } from '@/hooks/use-store';
 import { ArrowLeft, Plus, Trash2, Copy, Loader2, Save } from 'lucide-react';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { CategoryPicker } from '@/components/shared/category-picker';
+import { AmountInput } from '@/components/ui/amount-input';
 
 // --- Schema Definition ---
 // We use a simplified schema for bulk adding, focusing on shared attributes + individual weights.
@@ -284,7 +285,7 @@ export default function BulkAddProductPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Making (PKR)</FormLabel>
-                            <FormControl><Input type="number" {...field} /></FormControl>
+                            <FormControl><AmountInput {...field} /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -310,14 +311,14 @@ export default function BulkAddProductPage() {
                             control={form.control}
                             name="stoneCharges"
                             render={({ field }) => (
-                              <FormItem><FormLabel>Stone Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                              <FormItem><FormLabel>Stone Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
                             )}
                           />
                            <FormField
                             control={form.control}
                             name="stoneWeightG"
                             render={({ field }) => (
-                              <FormItem><FormLabel>Stone Weight</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                              <FormItem><FormLabel>Stone Weight</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
                             )}
                           />
                           </>
@@ -340,7 +341,7 @@ export default function BulkAddProductPage() {
                             control={form.control}
                             name="diamondCharges"
                             render={({ field }) => (
-                              <FormItem><FormLabel>Diamond Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                              <FormItem><FormLabel>Diamond Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
                             )}
                           />
                       )}
@@ -349,7 +350,7 @@ export default function BulkAddProductPage() {
                         control={form.control}
                         name="miscCharges"
                         render={({ field }) => (
-                          <FormItem><FormLabel>Misc Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                          <FormItem><FormLabel>Misc Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl></FormItem>
                         )}
                       />
                   </div>
@@ -380,7 +381,7 @@ export default function BulkAddProductPage() {
                                     name={`items.${index}.weight`}
                                     render={({ field }) => (
                                         <FormItem className="flex-1 space-y-0">
-                                            <FormControl><Input type="number" placeholder="Weight (g)" {...field} /></FormControl>
+                                            <FormControl><AmountInput placeholder="Weight (g)" {...field} /></FormControl>
                                         </FormItem>
                                     )}
                                   />

@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { SearchablePicker } from '@/components/shared/searchable-picker';
 import { KarigarPicker } from '@/components/karigar/karigar-picker';
+import { AmountInput } from '@/components/ui/amount-input';
 
 const expenseSchema = z.object({
   date: z.date({ required_error: "A date is required." }),
@@ -168,7 +169,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
             <FormItem>
               <FormLabel>Amount (PKR)</FormLabel>
               <FormControl>
-                <Input type="number" step="0.01" inputMode="decimal" placeholder="0.00" {...field} />
+                <AmountInput inputMode="decimal" placeholder="0.00" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

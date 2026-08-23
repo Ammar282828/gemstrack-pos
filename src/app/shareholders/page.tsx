@@ -41,6 +41,7 @@ import {
   linkExpense, isBusinessCost, type ShareholderId, type LedgerRow,
 } from '@/lib/shareholders';
 import { format } from 'date-fns';
+import { AmountInput } from '@/components/ui/amount-input';
 
 /** Expenses from "Pearls - Studs x2" onward. */
 const EXPENSE_CUTOFF = '2025-07-02';
@@ -530,8 +531,8 @@ export default function ShareholderFinancesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label htmlFor="calcCash" className="text-xs">Cash available</Label>
-              <Input id="calcCash" type="number" inputMode="decimal" placeholder="0"
-                value={calcCash} onChange={e => setCalcCash(e.target.value)} className="mt-1" />
+              <AmountInput id="calcCash" inputMode="decimal" placeholder="0"
+                value={calcCash} onValueChange={v => setCalcCash(v === undefined ? '' : String(v))} className="mt-1" />
             </div>
             <WorkingCapitalFloor onFloorChange={setCalcFloor} setBy="Shareholders" />
           </div>
@@ -601,8 +602,8 @@ export default function ShareholderFinancesPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="amt" className="text-xs">Amount (PKR)</Label>
-                <Input id="amt" type="number" inputMode="decimal" step="0.01" placeholder="0"
-                  value={amount} onChange={e => setAmount(e.target.value)} className="mt-1" />
+                <AmountInput id="amt" inputMode="decimal" placeholder="0"
+                  value={amount} onValueChange={v => setAmount(v === undefined ? '' : String(v))} className="mt-1" />
               </div>
               <div>
                 <Label htmlFor="dt" className="text-xs">Date</Label>

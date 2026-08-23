@@ -39,6 +39,7 @@ import { ProductForm } from '@/components/product/product-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
+import { AmountInput } from '@/components/ui/amount-input';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -1087,12 +1088,11 @@ export default function CartPage() {
                         <h3 className="font-semibold text-lg">Record a Payment</h3>
                         <div className="space-y-2">
                             <Label htmlFor="payment-amount">Payment Amount Received (PKR)</Label>
-                            <Input 
+                            <AmountInput 
                                 id="payment-amount" 
-                                type="number" 
                                 placeholder={`Balance due: ${generatedInvoice.balanceDue.toLocaleString()}`}
                                 value={paymentAmount}
-                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                onValueChange={v => setPaymentAmount(v === undefined ? '' : String(v))}
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
@@ -1248,13 +1248,12 @@ export default function CartPage() {
             {refundMode === 'partial' && (
               <div className="space-y-2 pt-2">
                 <Label htmlFor="refund-amount">Refund amount (PKR)</Label>
-                <Input
+                <AmountInput
                   id="refund-amount"
-                  type="number"
                   inputMode="decimal"
                   placeholder="e.g. 1500"
                   value={partialRefundAmount}
-                  onChange={e => setPartialRefundAmount(e.target.value)}
+                  onValueChange={v => setPartialRefundAmount(v === undefined ? '' : String(v))}
                   disabled={isRefunding}
                 />
                 <Label htmlFor="refund-reason">Reason (optional)</Label>
@@ -1499,8 +1498,8 @@ export default function CartPage() {
                             <Label className="text-sm font-medium">Exchange / Trade-in</Label>
                             <Input placeholder="Description (e.g. Old 22k ring)" value={exchangeDescription} onChange={e => setExchangeDescription(e.target.value)}  aria-label="Exchange / Trade-in"/>
                             <div className="grid grid-cols-2 gap-2">
-                                <Input type="number" placeholder="Amount 1 (PKR)" value={exchangeAmount1Input} onChange={e => setExchangeAmount1Input(e.target.value)}  aria-label="Amount 1 (PKR)"/>
-                                <Input type="number" placeholder="Amount 2 (PKR)" value={exchangeAmount2Input} onChange={e => setExchangeAmount2Input(e.target.value)}  aria-label="Amount 2 (PKR)"/>
+                                <AmountInput placeholder="Amount 1 (PKR)" value={exchangeAmount1Input} onValueChange={v => setExchangeAmount1Input(v === undefined ? '' : String(v))}  aria-label="Amount 1 (PKR)"/>
+                                <AmountInput placeholder="Amount 2 (PKR)" value={exchangeAmount2Input} onValueChange={v => setExchangeAmount2Input(v === undefined ? '' : String(v))}  aria-label="Amount 2 (PKR)"/>
                             </div>
                         </div>
                         <Separator />

@@ -15,6 +15,7 @@ import {
   isMonthStart,
   type PartnershipSettings,
 } from '@/lib/partnership-settings';
+import { AmountInput } from '@/components/ui/amount-input';
 
 interface Props {
   /** Optional callback fired whenever the saved floor changes. */
@@ -80,10 +81,9 @@ export const WorkingCapitalFloor: React.FC<Props> = ({ onFloorChange, setBy }) =
       <div className="space-y-1.5">
         <Label className="text-sm">Working capital floor (PKR)</Label>
         <div className="flex gap-2">
-          <Input
-            type="number"
+          <AmountInput
             value={draft}
-            onChange={e => setDraft(e.target.value)}
+            onValueChange={v => setDraft(v === undefined ? '' : String(v))}
             min={0}
             className={cn(hasChange && 'border-warning focus-visible:ring-amber-400')}
            aria-label="Working capital floor (PKR)"/>

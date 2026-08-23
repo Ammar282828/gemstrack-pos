@@ -35,6 +35,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Save, Loader2 as Spinner } from 'lucide-react';
+import { AmountInput } from '@/components/ui/amount-input';
 
 const silverTransactionSchema = z.object({
   silverGrams: z.coerce.number().positive("Silver grams must be greater than 0"),
@@ -494,10 +495,10 @@ export default function KarigarDetailPage() {
           <Form {...silverForm}>
             <form onSubmit={silverForm.handleSubmit(handleSilverTransaction)} className="space-y-4 py-4">
               <FormField control={silverForm.control} name="silverGrams" render={({ field }) => (
-                <FormItem><FormLabel>Silver Received (grams)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g. 50.5" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Silver Received (grams)</FormLabel><FormControl><AmountInput placeholder="e.g. 50.5" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={silverForm.control} name="surchargePerGram" render={({ field }) => (
-                <FormItem><FormLabel>Surcharge per gram (PKR)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="e.g. 35" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Surcharge per gram (PKR)</FormLabel><FormControl><AmountInput placeholder="e.g. 35" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               {totalSurcharge > 0 && (
                 <div className="text-sm font-medium text-muted-foreground px-1">

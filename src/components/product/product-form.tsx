@@ -26,6 +26,7 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { CategoryPicker } from '@/components/shared/category-picker';
+import { AmountInput } from '@/components/ui/amount-input';
 
 
 // Schema for the form data
@@ -402,7 +403,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Final Price (PKR)</FormLabel>
-                                <FormControl><Input type="number" placeholder="e.g., 15000" {...field} /></FormControl>
+                                <FormControl><AmountInput placeholder="e.g., 15000" {...field} /></FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -412,7 +413,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                               <FormItem>
                                 <FormLabel className="text-muted-foreground">Reference Rate per Gram (Optional)</FormLabel>
                                 <FormDescription>For internal reference only — does not affect the price.</FormDescription>
-                                <FormControl><Input type="number" step="0.01" placeholder="e.g., 275" {...field} /></FormControl>
+                                <FormControl><AmountInput placeholder="e.g., 275" {...field} /></FormControl>
                               </FormItem>
                             )}
                           />
@@ -483,7 +484,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4" /> Weight (g)</FormLabel>
-                              <FormControl><Input type="number" step="0.001" placeholder="e.g., 5.75" {...field} /></FormControl>
+                              <FormControl><AmountInput placeholder="e.g., 5.75" {...field} /></FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -499,7 +500,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                     <FormDescription>
                                         Set an all-inclusive rate for this silver item. If 0, the global rate from settings is used.
                                     </FormDescription>
-                                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 275" {...field} /></FormControl>
+                                    <FormControl><AmountInput placeholder="e.g., 275" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -544,7 +545,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4" /> Weight (g)</FormLabel>
-                                    <FormControl><Input type="number" step="0.001" placeholder="e.g., 1.25" {...field} disabled={!selectedSecondaryMetalType || selectedSecondaryMetalType === 'none'} /></FormControl>
+                                    <FormControl><AmountInput placeholder="e.g., 1.25" {...field} disabled={!selectedSecondaryMetalType || selectedSecondaryMetalType === 'none'} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                                 )}
@@ -588,10 +589,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           </>
                         )}
 
-                        {hasStonesValue && <FormField control={form.control} name="stoneWeightG" render={({ field }) => (<FormItem><FormLabel>Stone Weight (grams)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g., 0.5" {...field} /></FormControl><FormMessage /></FormItem>)}/>}
-                        {hasDiamondsValue && <FormField control={form.control} name="diamondCharges" render={({ field }) => (<FormItem><FormLabel>Diamond Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 50000" {...field} /></FormControl><FormMessage /></FormItem>)} />}
-                        {hasStonesValue && <FormField control={form.control} name="stoneCharges" render={({ field }) => (<FormItem><FormLabel>Stone Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 15000" {...field} /></FormControl><FormMessage /></FormItem>)} />}
-                        <FormField control={form.control} name="miscCharges" render={({ field }) => (<FormItem><FormLabel>Miscellaneous Charges</FormLabel><FormControl><Input type="number" step="1" placeholder="e.g., 250" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        {hasStonesValue && <FormField control={form.control} name="stoneWeightG" render={({ field }) => (<FormItem><FormLabel>Stone Weight (grams)</FormLabel><FormControl><AmountInput placeholder="e.g., 0.5" {...field} /></FormControl><FormMessage /></FormItem>)}/>}
+                        {hasDiamondsValue && <FormField control={form.control} name="diamondCharges" render={({ field }) => (<FormItem><FormLabel>Diamond Charges</FormLabel><FormControl><AmountInput placeholder="e.g., 50000" {...field} /></FormControl><FormMessage /></FormItem>)} />}
+                        {hasStonesValue && <FormField control={form.control} name="stoneCharges" render={({ field }) => (<FormItem><FormLabel>Stone Charges</FormLabel><FormControl><AmountInput placeholder="e.g., 15000" {...field} /></FormControl><FormMessage /></FormItem>)} />}
+                        <FormField control={form.control} name="miscCharges" render={({ field }) => (<FormItem><FormLabel>Miscellaneous Charges</FormLabel><FormControl><AmountInput placeholder="e.g., 250" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         {hasStonesValue && <FormField control={form.control} name="stoneDetails" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel className="flex items-center"><Gem className="mr-2 h-4 w-4 text-primary" /> Secondary Metal &amp; Stone Details</FormLabel><FormControl><Textarea placeholder="e.g., 1x Ruby (2ct) and 2g gold accent" {...field} /></FormControl><FormMessage /></FormItem>)} />}
                         {hasDiamondsValue && <FormField control={form.control} name="diamondDetails" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4 text-primary" /> Diamond Details</FormLabel><FormControl><Textarea placeholder="e.g., Center: 1ct VVS1, Side: 12x 0.05ct VS2" {...field} /></FormControl><FormMessage /></FormItem>)} />}
                       </div>

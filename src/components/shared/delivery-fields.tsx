@@ -19,6 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AmountInput } from '@/components/ui/amount-input';
 
 const NEW_ADDRESS = '__new__';
 
@@ -119,8 +120,9 @@ export const DeliveryFields: React.FC<{
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Delivery charge (PKR)</Label>
-              <Input type="number" value={value.charge ?? ''}
-                onChange={e => set('charge', e.target.value === '' ? undefined : Number(e.target.value))}
+              <AmountInput value={value.charge ?? ''}
+                onValueChange={v => set('charge', v ?? undefined)}
+                emptyValue={undefined}
                 placeholder="0 if free" aria-label="Delivery charge (PKR)" />
             </div>
             <div>

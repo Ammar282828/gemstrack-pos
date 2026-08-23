@@ -21,6 +21,7 @@ import { Progress } from '@/components/ui/progress';
 import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
+import { AmountInput } from '@/components/ui/amount-input';
 
 const LAST_EXPORT_KEY = 'gemstrack-last-export';
 
@@ -403,7 +404,8 @@ const DangerZone: React.FC = () => {
       <CardContent>
         <Label htmlFor="delete-count">Delete Latest N Products (by highest SKU)</Label>
         <div className="flex items-center gap-2 mt-1.5">
-          <Input id="delete-count" type="number" value={deleteCount} onChange={e => setDeleteCount(parseInt(e.target.value, 10) || 1)} min="1" className="w-28" />
+          <AmountInput id="delete-count" value={deleteCount} maxDecimals={0}
+            onValueChange={v => setDeleteCount(v || 1)} className="w-28" aria-label="Delete latest N products" />
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" disabled={isDeleting}>

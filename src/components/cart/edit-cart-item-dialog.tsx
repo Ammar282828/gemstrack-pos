@@ -31,6 +31,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save } from 'lucide-react';
 import { CategoryPicker } from '@/components/shared/category-picker';
+import { AmountInput } from '@/components/ui/amount-input';
 
 /** Everything the dialog edits, held as strings so inputs stay controlled. */
 interface Draft {
@@ -126,8 +127,8 @@ const Num: React.FC<{
 }> = ({ label, value, onChange, step, placeholder, hint }) => (
   <div>
     <Label className="text-xs">{label}</Label>
-    <Input type="number" step={step} value={value} placeholder={placeholder}
-      onChange={e => onChange(e.target.value)} />
+    <AmountInput step={step} value={value} placeholder={placeholder}
+      onValueChange={v => onChange(v === undefined ? '' : String(v))} />
     {hint && <p className="text-2xs text-muted-foreground mt-0.5">{hint}</p>}
   </div>
 );

@@ -479,17 +479,23 @@ body {
   align-items: center;
 }
 
+/* Every call site frames the wrapper — `rounded-md border border-input h-10`
+   — so the inner input must not draw a second one. It used to carry the full
+   input styling including its own border, height and padding, which put a
+   bordered box inside a bordered box: the inner one overflowed the outer,
+   and the flag ended up squeezed into the wrapper's padding looking clipped.
+   The frame belongs to the wrapper; this is just the text field inside it. */
 .PhoneInputInput {
-  @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm;
+  @apply h-full w-full min-w-0 border-0 bg-transparent p-0 text-base outline-none placeholder:text-muted-foreground focus:outline-none focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm;
   flex: 1;
 }
 
 .PhoneInputCountry {
-  @apply relative mr-2;
+  @apply relative mr-2 flex flex-shrink-0 items-center gap-1;
 }
 
 .PhoneInputCountryIcon {
-  @apply h-6 w-auto rounded-sm;
+  @apply h-4 w-6 flex-shrink-0 overflow-hidden rounded-sm object-cover;
 }
 
 .PhoneInputCountrySelect {

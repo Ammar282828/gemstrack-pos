@@ -35,6 +35,7 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/
 import { Progress } from '@/components/ui/progress';
 import StandalonePhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
+import { AmountInput } from '@/components/ui/amount-input';
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
@@ -734,10 +735,10 @@ export default function SettingsPage() {
                   </Button>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border rounded-lg">
-                     <FormField control={form.control} name="goldRatePerGram24k" render={({ field }) => (<FormItem><FormLabel className="text-sm">24k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                     <FormField control={form.control} name="goldRatePerGram22k" render={({ field }) => (<FormItem><FormLabel className="text-sm">22k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                     <FormField control={form.control} name="goldRatePerGram21k" render={({ field }) => (<FormItem><FormLabel className="text-sm">21k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                     <FormField control={form.control} name="goldRatePerGram18k" render={({ field }) => (<FormItem><FormLabel className="text-sm">18k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                     <FormField control={form.control} name="goldRatePerGram24k" render={({ field }) => (<FormItem><FormLabel className="text-sm">24k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                     <FormField control={form.control} name="goldRatePerGram22k" render={({ field }) => (<FormItem><FormLabel className="text-sm">22k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                     <FormField control={form.control} name="goldRatePerGram21k" render={({ field }) => (<FormItem><FormLabel className="text-sm">21k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                     <FormField control={form.control} name="goldRatePerGram18k" render={({ field }) => (<FormItem><FormLabel className="text-sm">18k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
                 </div>
               </div>
                <FormField
@@ -749,7 +750,7 @@ export default function SettingsPage() {
                         <Shield className="h-5 w-5 mr-2 text-muted-foreground" /> Current Palladium Rate (PKR per gram)
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="e.g., 22000.00" {...field} />
+                      <AmountInput placeholder="e.g., 22000.00" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -764,7 +765,7 @@ export default function SettingsPage() {
                         <Shield className="h-5 w-5 mr-2 text-muted-foreground" /> Current Platinum Rate (PKR per gram)
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="e.g., 25000.00" {...field} />
+                      <AmountInput placeholder="e.g., 25000.00" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -779,7 +780,7 @@ export default function SettingsPage() {
                         <Shield className="h-5 w-5 mr-2 text-muted-foreground" /> Current Silver Rate (PKR per gram)
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="e.g., 250.00" {...field} />
+                      <AmountInput placeholder="e.g., 250.00" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -41,6 +41,7 @@ import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/ut
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
+import { AmountInput } from '@/components/ui/amount-input';
 
 
 // Re-declare module for jsPDF in this file as well
@@ -110,14 +111,14 @@ const AddTransactionDialog: React.FC<{
                         <FormField control={form.control} name={primaryField} render={({ field }) => (
                             <FormItem>
                                 <FormLabel>{isKarigar ? 'Gold (grams)' : 'Cash Amount (PKR)'}</FormLabel>
-                                <FormControl><Input type="number" step={isKarigar ? "0.001" : "0.01"} {...field} /></FormControl>
+                                <FormControl><AmountInput step={isKarigar ? "0.001" : "0.01"} {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}/>
                          <FormField control={form.control} name={secondaryField} render={({ field }) => (
                             <FormItem>
                                 <FormLabel>{isKarigar ? 'Cash Amount (PKR)' : 'Gold (grams)'}</FormLabel>
-                                <FormControl><Input type="number" step={isKarigar ? "0.01" : "0.001"} {...field} /></FormControl>
+                                <FormControl><AmountInput step={isKarigar ? "0.01" : "0.001"} {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}/>

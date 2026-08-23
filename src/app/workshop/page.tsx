@@ -41,6 +41,7 @@ import { openWhatsApp } from '@/lib/whatsapp';
 import { format, parseISO } from 'date-fns';
 import { KarigarPicker } from '@/components/karigar/karigar-picker';
 import { CategoryPicker } from '@/components/shared/category-picker';
+import { AmountInput } from '@/components/ui/amount-input';
 
 // ── small presentational helpers ────────────────────────────────────────────
 
@@ -286,15 +287,15 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <Label className="text-xs">Weight (g)</Label>
-              <Input type="number" step="0.001" value={weightG} onChange={e => setWeightG(e.target.value)} placeholder="0.000"  aria-label="Weight (g)"/>
+              <AmountInput value={weightG} onValueChange={v => setWeightG(v === undefined ? '' : String(v))} placeholder="0.000"  aria-label="Weight (g)"/>
             </div>
             <div>
               <Label className="text-xs">Qty</Label>
-              <Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)}  aria-label="Qty"/>
+              <AmountInput value={quantity} onValueChange={v => setQuantity(v === undefined ? '' : String(v))}  aria-label="Qty"/>
             </div>
             <div>
               <Label className="text-xs">Making (PKR)</Label>
-              <Input type="number" value={agreedCost} onChange={e => setAgreedCost(e.target.value)} placeholder="0"  aria-label="Making (PKR)"/>
+              <AmountInput value={agreedCost} onValueChange={v => setAgreedCost(v === undefined ? '' : String(v))} placeholder="0"  aria-label="Making (PKR)"/>
             </div>
           </div>
 
@@ -458,7 +459,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
             </div>
             <div>
               <Label className="text-xs">Weight (g)</Label>
-              <Input type="number" step="0.001" value={weight} onChange={e => setWeight(e.target.value)} placeholder="0.000"  aria-label="Weight (g)"/>
+              <AmountInput value={weight} onValueChange={v => setWeight(v === undefined ? '' : String(v))} placeholder="0.000"  aria-label="Weight (g)"/>
             </div>
             <div>
               <Label className="text-xs">Ref SKU</Label>

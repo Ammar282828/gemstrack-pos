@@ -36,6 +36,7 @@ import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
 import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { CategoryPicker } from '@/components/shared/category-picker';
+import { AmountInput } from '@/components/ui/amount-input';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -764,12 +765,12 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             {form.watch(`items.${index}.isManualPrice`) && (
                                 <div className="space-y-4 p-3 border rounded-md bg-muted/30">
                                     <FormField control={form.control} name={`items.${index}.manualPrice`} render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Manual Price (PKR)</FormLabel><FormControl><Input type="number" step="0.01" placeholder="Enter total price for this item" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Manual Price (PKR)</FormLabel><FormControl><AmountInput placeholder="Enter total price for this item" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <div>
                                         <Label className="text-muted-foreground text-xs">Reference Rate per Gram (Optional)</Label>
                                         <p className="text-xs text-muted-foreground mb-1">For internal reference only — does not affect the price.</p>
-                                        <Input type="number" step="0.01" placeholder="e.g., 275" className="mt-1" disabled  aria-label="Reference Rate per Gram (Optional)"/>
+                                        <AmountInput value="" placeholder="e.g., 275" className="mt-1" disabled aria-label="Reference Rate per Gram (Optional)"/>
                                     </div>
                                 </div>
                             )}
@@ -823,7 +824,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                             <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>
                                                 {form.watch(`items.${index}.metalType`) === 'silver' ? 'Weight (g) × 925 Sterling Silver Rate/g' : 'Est. Weight (g)'}
                                             </FormLabel>
-                                            <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                                            <FormControl><AmountInput {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}/>
@@ -838,13 +839,13 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 <p className="font-medium text-sm">Additional Charges & Details</p>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <FormField control={form.control} name={`items.${index}.makingCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Making</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Making</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <FormField control={form.control} name={`items.${index}.diamondCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamonds</FormLabel><FormControl><Input type="number" {...field} disabled={!form.watch(`items.${index}.hasDiamonds`)} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamonds</FormLabel><FormControl><AmountInput {...field} disabled={!form.watch(`items.${index}.hasDiamonds`)} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <FormField control={form.control} name={`items.${index}.stoneCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel>Stones</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Stones</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </div>
                                 <div className="flex gap-4">
@@ -857,7 +858,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                         <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer">Item Contains Other Stones?</FormLabel></div></FormItem>
                                     )}/>
                                 </div>
-                                {form.watch(`items.${index}.hasStones`) && <FormField control={form.control} name={`items.${index}.stoneWeightG`} render={({ field }) => (<FormItem><FormLabel>Stone Weight (grams)</FormLabel><FormControl><Input type="number" step="0.001" placeholder="e.g., 0.5" {...field} /></FormControl><FormMessage /></FormItem>)}/>}
+                                {form.watch(`items.${index}.hasStones`) && <FormField control={form.control} name={`items.${index}.stoneWeightG`} render={({ field }) => (<FormItem><FormLabel>Stone Weight (grams)</FormLabel><FormControl><AmountInput placeholder="e.g., 0.5" {...field} /></FormControl><FormMessage /></FormItem>)}/>}
                                 {form.watch(`items.${index}.hasStones`) && <FormField control={form.control} name={`items.${index}.stoneDetails`} render={({ field }) => (
                                    <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Stone Details</FormLabel><FormControl><Textarea placeholder="e.g., 1x Ruby (2ct), 4x Sapphire (0.5ct each)" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>}
@@ -986,10 +987,10 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                     <div className="space-y-2">
                         <Label className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rates (PKR/gram)</Label>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 border rounded-md">
-                            <FormField control={form.control} name="goldRate24k" render={({ field }) => (<FormItem><FormLabel className="text-xs">24k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                            <FormField control={form.control} name="goldRate22k" render={({ field }) => (<FormItem><FormLabel className="text-xs">22k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                            <FormField control={form.control} name="goldRate21k" render={({ field }) => (<FormItem><FormLabel className="text-xs">21k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                            <FormField control={form.control} name="goldRate18k" render={({ field }) => (<FormItem><FormLabel className="text-xs">18k</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="goldRate24k" render={({ field }) => (<FormItem><FormLabel className="text-xs">24k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="goldRate22k" render={({ field }) => (<FormItem><FormLabel className="text-xs">22k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="goldRate21k" render={({ field }) => (<FormItem><FormLabel className="text-xs">21k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="goldRate18k" render={({ field }) => (<FormItem><FormLabel className="text-xs">18k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
                         </div>
                         <FormDescription>This rate applies to all items in this estimate.</FormDescription>
                     </div>
@@ -1008,7 +1009,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                     <FormField control={form.control} name="advancePayment" render={({ field }) => (
                        <FormItem>
                             <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Advance Payment (Cash)</FormLabel>
-                            <FormControl><Input type="number" {...field} /></FormControl><FormMessage />
+                            <FormControl><AmountInput {...field} /></FormControl><FormMessage />
                         </FormItem>
                     )}/>
                     
@@ -1019,7 +1020,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                <FormItem><FormLabel className="text-xs">Description of Items Received</FormLabel><FormControl><Textarea placeholder="e.g., Old gold ring (21k, ~5.2g)" {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="advanceInExchangeValue" render={({ field }) => (
-                               <FormItem><FormLabel className="text-xs">Estimated Value (PKR)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                               <FormItem><FormLabel className="text-xs">Estimated Value (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                         </div>
                     </div>

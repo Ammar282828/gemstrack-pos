@@ -58,6 +58,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import { SearchablePicker } from '@/components/shared/searchable-picker';
+import { AmountInput } from '@/components/ui/amount-input';
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -289,14 +290,14 @@ const BookCourierDialog: React.FC<{
                             <FormField control={form.control} name="weightKg" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Parcel Weight (kg)</FormLabel>
-                                    <FormControl><Input type="number" step="0.1" min="0.5" {...field} /></FormControl>
+                                    <FormControl><AmountInput {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />
                             <FormField control={form.control} name="codAmount" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>COD Amount (PKR)</FormLabel>
-                                    <FormControl><Input type="number" min="0" placeholder="0 if prepaid" {...field} /></FormControl>
+                                    <FormControl><AmountInput placeholder="0 if prepaid" {...field} /></FormControl>
                                     <FormDescription className="text-xs">Cash on delivery. 0 if already paid.</FormDescription>
                                     <FormMessage />
                                 </FormItem>
@@ -416,7 +417,7 @@ const FinalizeOrderDialog: React.FC<{
                                         {/* Manual price (Primary) */}
                                         {form.watch(`items.${index}.isManualPrice`) && (
                                             <FormField control={form.control} name={`items.${index}.finalManualPrice`} render={({ field }) => (
-                                                <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Final Price (PKR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                                                <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Final Price (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
                                             )}/>
                                         )}
                                         {/* Toggle to rate calculation */}
@@ -432,16 +433,16 @@ const FinalizeOrderDialog: React.FC<{
                                         {!form.watch(`items.${index}.isManualPrice`) && (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <FormField control={form.control} name={`items.${index}.finalWeightG`} render={({ field }) => (
-                                                    <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4"/>Final Weight (g)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                                                    <FormItem><FormLabel className="flex items-center"><Weight className="mr-2 h-4"/>Final Weight (g)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
                                                 )}/>
                                                 <FormField control={form.control} name={`items.${index}.finalMakingCharges`} render={({ field }) => (
-                                                    <FormItem><FormLabel className="flex items-center"><Gem className="mr-2 h-4"/>Final Making Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                                    <FormItem><FormLabel className="flex items-center"><Gem className="mr-2 h-4"/>Final Making Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
                                                 )}/>
                                                 <FormField control={form.control} name={`items.${index}.finalDiamondCharges`} render={({ field }) => (
-                                                    <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4"/>Final Diamond Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                                    <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4"/>Final Diamond Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
                                                 )}/>
                                                 <FormField control={form.control} name={`items.${index}.finalStoneCharges`} render={({ field }) => (
-                                                    <FormItem><FormLabel>Final Stone Charges</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                                    <FormItem><FormLabel>Final Stone Charges</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
                                                 )}/>
                                             </div>
                                         )}
@@ -517,7 +518,7 @@ const RecordAdvanceDialog: React.FC<{
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleRecordAdvance)} className="space-y-4 pt-4">
                         <FormField control={form.control} name="amount" render={({ field }) => (
-                           <FormItem><FormLabel>Advance Amount (PKR)</FormLabel><FormControl><Input type="number" placeholder="Enter amount received" {...field} /></FormControl><FormMessage /></FormItem>
+                           <FormItem><FormLabel>Advance Amount (PKR)</FormLabel><FormControl><AmountInput placeholder="Enter amount received" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                         <FormField control={form.control} name="notes" render={({ field }) => (
                            <FormItem><FormLabel>Notes</FormLabel><FormControl><Input placeholder="e.g., Second advance payment" {...field} /></FormControl><FormMessage /></FormItem>

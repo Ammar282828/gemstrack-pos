@@ -28,6 +28,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { AmountInput } from '@/components/ui/amount-input';
 
 // ── Form schema ──────────────────────────────────────────────────────────────
 const revenueSchema = z.object({
@@ -126,7 +127,7 @@ function RevenueForm({
             <FormItem>
               <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4" />Amount (PKR)</FormLabel>
               <FormControl>
-                <Input type="number" step="0.01" placeholder="0" {...field} />
+                <AmountInput placeholder="0" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
