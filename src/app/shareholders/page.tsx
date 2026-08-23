@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Loader2, Trash2, Users, ArrowDownLeft, ArrowUpRight, Plus, Wallet, Info,
+  Loader2, Trash2, Users, ArrowDownLeft, ArrowUpRight, Plus, Wallet, Info, BadgeIndianRupee,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -31,7 +31,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { SearchablePicker } from '@/components/shared/searchable-picker';
 import { BoardSkeleton } from '@/components/shared/skeletons';
 import {
-  calculateDistribution, partnerBalance, categorise,
+  calculateDistribution, partnerBalance, categorise, PARTNER_SALARY,
   type LedgerCategory, type LedgerEntry,
 } from '@/lib/partnership';
 import { WorkingCapitalFloor } from '@/components/partnership/working-capital-floor';
@@ -50,7 +50,18 @@ const REVENUE_CUTOFF = '2025-07-16';
 const fmt = (n: number) => 'PKR ' + Math.abs(Math.round(n)).toLocaleString('en-PK');
 const today = () => new Date().toISOString().split('T')[0];
 
-type Mode = 'contribution' | 'withdrawal';
+type Mode = 'contribution' | 'salary' | 'withdrawal';
+
+/**
+ * A salary is not a draw.
+ *
+ * A draw hands a partner their own capital back — it shrinks their stake and
+ * is not a business cost. A salary pays them for work, which is a cost like
+ * any other wage, so it stays inside profit and does not touch their equity.
+ * The consequence worth knowing: on a 50/50 split, half of one partner's
+ * salary comes out of the other partner's share, so unequal salaries move
+ * money between the partners. Equal ones cancel.
+ */
 
 export default function ShareholderFinancesPage() {
   const { toast } = useToast();
@@ -121,6 +132,20 @@ export default function ShareholderFinancesPage() {
     return { totalExpenses, totalRevenue, drawings, expShare: totalExpenses / 2, revShare: totalRevenue / 2 };
   }, [expenses, generatedInvoices, orders, additionalRevenues, ordersById]);
 
+  /** Salary rows live in Expenses, not the ledger — a wage is a cost of doing
+   *  business, not a movement of anybody's capital. */
+  const salariesBy = useMemo(() => {
+    const out: Record<string, typeof expenses> = { mina: [], ammar: [] };
+    for (const e of expenses) {
+      if (e.category !== PARTNER_SALARY || !e.shareholderId) continue;
+      (out[e.shareholderId] ||= []).push(e);
+    }
+    for (const k of Object.keys(out)) {
+      out[k].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    }
+    return out;
+  }, [expenses]);
+
   /** One partner's position, from their ledger plus their half of the P&L. */
   const positions = useMemo(() => {
     return SHAREHOLDERS.map(s => {
@@ -128,15 +153,28 @@ export default function ShareholderFinancesPage() {
       const payments = rows.filter(r => r.type === 'payment');
       const withdrawals = rows.filter(r => r.type === 'withdrawal');
       const buckets = categorise(payments as unknown as LedgerEntry[], withdrawals as unknown as LedgerEntry[]);
+      const salaries = salariesBy[s.id] || [];
       return {
         ...s,
-        rows, payments, withdrawals,
+        rows, payments, withdrawals, salaries,
         contributed: payments.reduce((a, p) => a + p.amount, 0),
         withdrawn: withdrawals.reduce((a, w) => a + w.amount, 0),
+        salaryPaid: salaries.reduce((a, e) => a + e.amount, 0),
         balance: partnerBalance(buckets, totals.expShare, totals.revShare),
       };
     });
-  }, [ledgers, totals.expShare, totals.revShare]);
+  }, [ledgers, salariesBy, totals.expShare, totals.revShare]);
+
+  /** Unequal salaries quietly move money between partners; equal ones cancel. */
+  const salaryGap = useMemo(() => {
+    const [a, b] = positions;
+    if (!a || !b) return null;
+    const diff = a.salaryPaid - b.salaryPaid;
+    if (Math.abs(diff) < 1) return null;
+    const ahead = diff > 0 ? a : b;
+    const behind = diff > 0 ? b : a;
+    return { ahead, behind, transferred: Math.abs(diff) / 2 };
+  }, [positions]);
 
   // ── Distribution waterfall ────────────────────────────────────────────────
 
@@ -180,7 +218,21 @@ export default function ShareholderFinancesPage() {
     const person = SHAREHOLDERS.find(s => s.id === who)!;
     setSaving(true);
     try {
-      if (mode === 'contribution') {
+      if (mode === 'salary') {
+        // Only an expense. A wage does not move anyone's capital, so nothing
+        // is written to the ledger — writing a withdrawal here would shrink
+        // their stake on top of paying them, which is the draw, not a salary.
+        const expense = await addExpense({
+          date: new Date(date).toISOString(),
+          category: PARTNER_SALARY,
+          description: `${person.name} salary — ${desc.trim()}`,
+          amount: amt,
+          paidBy: 'business',
+          shareholderId: who,
+        });
+        if (!expense?.id) throw new Error('expense write failed');
+        toast({ title: `${person.name} paid ${fmt(amt)}`, description: 'Recorded as a salary expense.' });
+      } else if (mode === 'contribution') {
         await addLedgerEntry(who, {
           type: 'payment', category, description: desc.trim(), amount: amt, date: new Date(date),
         });
@@ -215,6 +267,16 @@ export default function ShareholderFinancesPage() {
       toast({ title: 'Could not save that', variant: 'destructive' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const removeSalary = async (expenseId: string) => {
+    try {
+      await deleteExpense(expenseId);
+      toast({ title: 'Salary payment removed' });
+      loadExpenses();
+    } catch {
+      toast({ title: 'Delete failed', variant: 'destructive' });
     }
   };
 
@@ -254,11 +316,11 @@ export default function ShareholderFinancesPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-shrink-0 [&>*]:flex-1 sm:[&>*]:flex-none">
-          <Button size="sm" variant="outline" onClick={() => openDialog('withdrawal')}>
-            <ArrowUpRight className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Take from business</span><span className="sm:hidden">Take</span>
-          </Button>
-          <Button size="sm" onClick={() => openDialog('contribution')}>
+          <Button size="sm" variant="outline" onClick={() => openDialog('contribution')}>
             <Plus className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add contribution</span><span className="sm:hidden">Add</span>
+          </Button>
+          <Button size="sm" onClick={() => openDialog('salary')}>
+            <BadgeIndianRupee className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Pay salary</span><span className="sm:hidden">Salary</span>
           </Button>
         </div>
       </header>
@@ -328,25 +390,68 @@ export default function ShareholderFinancesPage() {
                   </div>
                   <div className="flex-1 rounded-lg bg-muted/50 p-2 min-w-0">
                     <p className="text-2xs text-muted-foreground flex items-center gap-1">
-                      <ArrowUpRight className="h-3 w-3" />Taken out
+                      <BadgeIndianRupee className="h-3 w-3" />Salary
+                    </p>
+                    <p className="text-sm font-semibold tabular-nums truncate">{fmt(p.salaryPaid)}</p>
+                  </div>
+                  <div className="flex-1 rounded-lg bg-muted/50 p-2 min-w-0">
+                    <p className="text-2xs text-muted-foreground flex items-center gap-1">
+                      <ArrowUpRight className="h-3 w-3" />Capital out
                     </p>
                     <p className="text-sm font-semibold tabular-nums truncate">{fmt(p.withdrawn)}</p>
                   </div>
                 </div>
 
                 <div className="flex gap-2">
+                  <Button size="sm" className="flex-1 h-8 text-xs"
+                    onClick={() => openDialog('salary', p.id)}>
+                    <BadgeIndianRupee className="h-3.5 w-3.5 mr-1" />Pay salary
+                  </Button>
                   <Button size="sm" variant="outline" className="flex-1 h-8 text-xs"
                     onClick={() => openDialog('contribution', p.id)}>
                     <Plus className="h-3.5 w-3.5 mr-1" />Contribution
                   </Button>
-                  <Button size="sm" variant="outline" className="flex-1 h-8 text-xs"
-                    onClick={() => openDialog('withdrawal', p.id)}>
-                    <ArrowUpRight className="h-3.5 w-3.5 mr-1" />Take out
+                  <Button size="sm" variant="outline" className="h-8 text-xs px-2"
+                    onClick={() => openDialog('withdrawal', p.id)}
+                    title="Take capital back out — reduces their stake, not a salary">
+                    <ArrowUpRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
 
-                {p.rows.length > 0 ? (
+                {p.rows.length + p.salaries.length > 0 ? (
                   <div className="border-t pt-2 max-h-64 overflow-y-auto -mx-1 px-1">
+                    {p.salaries.map(e => (
+                      <div key={e.id} className="flex items-center gap-2 py-1.5 border-b last:border-0">
+                        <span className="h-1.5 w-1.5 rounded-full flex-shrink-0 bg-primary" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm truncate">{e.description.replace(`${p.name} salary — `, '')}</p>
+                          <p className="text-2xs text-muted-foreground">
+                            {format(new Date(e.date), 'd MMM yyyy')} · Salary · a business cost
+                          </p>
+                        </div>
+                        <span className="text-sm tabular-nums flex-shrink-0 text-primary">{fmt(e.amount)}</span>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive flex-shrink-0"
+                              aria-label={`Delete ${e.description}`}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove this salary payment?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {e.description} — {fmt(e.amount)}. It will be deleted from Expenses too.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => removeSalary(e.id)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    ))}
                     {p.rows.map(r => (
                       <div key={r.id} className="flex items-center gap-2 py-1.5 border-b last:border-0">
                         <span className={cn('h-1.5 w-1.5 rounded-full flex-shrink-0',
@@ -394,6 +499,16 @@ export default function ShareholderFinancesPage() {
           );
         })}
       </div>
+
+      {salaryGap && (
+        <p className="text-xs text-muted-foreground flex items-start gap-1.5 px-1">
+          <Info className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+          {salaryGap.ahead.name} has drawn {fmt(salaryGap.ahead.salaryPaid - salaryGap.behind.salaryPaid)} more
+          salary than {salaryGap.behind.name}. A salary is a business cost split 50/50, so that gap has moved
+          about {fmt(salaryGap.transferred)} from {salaryGap.behind.name} to {salaryGap.ahead.name}. Equal
+          salaries cancel out entirely.
+        </p>
+      )}
 
       {totals.drawings > 0 && (
         <p className="text-xs text-muted-foreground flex items-start gap-1.5 px-1">
@@ -457,10 +572,16 @@ export default function ShareholderFinancesPage() {
       <Dialog open={mode !== null} onOpenChange={o => !o && setMode(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{mode === 'withdrawal' ? 'Take money from the business' : 'Add a contribution'}</DialogTitle>
+            <DialogTitle>
+              {mode === 'salary' ? 'Pay a salary'
+                : mode === 'withdrawal' ? 'Take capital out'
+                : 'Add a contribution'}
+            </DialogTitle>
             <DialogDescription>
-              {mode === 'withdrawal'
-                ? 'Recorded against the shareholder and logged in Expenses under Partner Drawings.'
+              {mode === 'salary'
+                ? 'Payment for work done. Logged in Expenses as a business cost — it does not touch their stake in the business.'
+                : mode === 'withdrawal'
+                ? 'Capital handed back, which shrinks their stake. Not a wage — use Pay salary for that.'
                 : 'Money put into the business — as equity, or as a loan to be repaid first.'}
             </DialogDescription>
           </DialogHeader>
@@ -489,6 +610,7 @@ export default function ShareholderFinancesPage() {
               </div>
             </div>
 
+            {mode !== 'salary' && (
             <div>
               <Label className="text-xs">Treated as</Label>
               <SearchablePicker
@@ -502,10 +624,19 @@ export default function ShareholderFinancesPage() {
                 triggerClassName="mt-1"
               />
             </div>
+            )}
+
+            {mode === 'salary' && salaryGap && salaryGap.behind.id === who && (
+              <p className="text-2xs text-muted-foreground flex items-start gap-1.5">
+                <Info className="h-3.5 w-3.5 flex-shrink-0 mt-px" />
+                {salaryGap.ahead.name} is {fmt(salaryGap.ahead.salaryPaid - salaryGap.behind.salaryPaid)} ahead on
+                salary. Paying {SHAREHOLDERS.find(x => x.id === who)?.name} evens that up.
+              </p>
+            )}
 
             <div>
               <Label htmlFor="ds" className="text-xs">Description</Label>
-              <Input id="ds" placeholder={mode === 'withdrawal' ? 'e.g. personal use' : 'e.g. bank transfer'}
+              <Input id="ds" placeholder={mode === 'salary' ? 'e.g. August' : mode === 'withdrawal' ? 'e.g. capital returned' : 'e.g. bank transfer'}
                 value={desc} onChange={e => setDesc(e.target.value)} className="mt-1" />
             </div>
 
@@ -513,7 +644,7 @@ export default function ShareholderFinancesPage() {
               <Button type="button" variant="outline" onClick={() => setMode(null)}>Cancel</Button>
               <Button type="submit" disabled={saving}>
                 {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {mode === 'withdrawal' ? 'Record withdrawal' : 'Record contribution'}
+                {mode === 'salary' ? 'Pay salary' : mode === 'withdrawal' ? 'Record withdrawal' : 'Record contribution'}
               </Button>
             </div>
           </form>

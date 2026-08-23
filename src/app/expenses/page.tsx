@@ -38,6 +38,7 @@ import {
 import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { SHAREHOLDERS } from '@/lib/shareholders';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -208,12 +209,20 @@ export default function ExpensesPage() {
   const Meta: React.FC<{ e: Expense }> = ({ e }) => {
     const k = e.karigarId ? karigars.find(x => x.id === e.karigarId) : null;
     const hisaab = e.batchId ? batchLabel.get(e.batchId) : null;
-    if (!k && e.paidBy === 'business') return null;
+    const partner = e.shareholderId
+      ? SHAREHOLDERS.find(x => x.id === e.shareholderId)?.name
+      : null;
+    if (!k && !partner && e.paidBy === 'business') return null;
     return (
       <div className="flex flex-wrap items-center gap-1 mt-1">
         {k && (
           <Badge variant="outline" className="text-2xs font-normal">
             <User className="h-3 w-3 mr-1" />{k.name}
+          </Badge>
+        )}
+        {partner && (
+          <Badge variant="outline" className="text-2xs font-normal">
+            <User className="h-3 w-3 mr-1" />{partner}
           </Badge>
         )}
         {hisaab && (

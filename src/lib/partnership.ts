@@ -19,12 +19,26 @@ export type LedgerCategory = 'equity' | 'loan';
 export const PARTNER_DRAWINGS = 'Partner Drawings';
 
 /**
+ * Expense category for a partner paying themselves for work done.
+ *
+ * Unlike a draw, a salary IS a cost of doing business, so it stays inside
+ * every profit figure. That has a consequence worth stating plainly: with a
+ * 50/50 split, one partner's salary comes half out of the other partner's
+ * share. Equal salaries cancel out; unequal ones do not, which is why the
+ * shareholder page shows the two side by side.
+ */
+export const PARTNER_SALARY = 'Partner Salary';
+
+/**
  * Is this expense a genuine cost of doing business?
  *
  * A partner drawing is a distribution of profit, not a cost of earning it.
  * Anything that calls itself profit has to leave drawings out, or taking
  * money out of the business would look like the business earned less — and
  * with a 50/50 split, half of one partner's draw would land on the other.
+ *
+ * A partner *salary* is the opposite case and deliberately stays in: paying
+ * someone for work is a real cost, whether or not they own the place.
  */
 export const isBusinessCost = (e: { category?: string | null }): boolean =>
   e.category !== PARTNER_DRAWINGS;

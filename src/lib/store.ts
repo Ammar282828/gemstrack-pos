@@ -705,9 +705,12 @@ export const EXPENSE_CATEGORIES = [
   'Rent', 'Salaries', 'Utilities', 'Marketing', 'Supplies', 
   'Repairs & Maintenance', 'Taxes', 'Travel', 'Making Charges',
   // Money a shareholder takes out. Kept out of the partnership P&L — see
-  // the note in lib/shareholders.ts — but it is real cash leaving the till,
+  // the note in lib/partnership.ts — but it is real cash leaving the till,
   // so it belongs in the expense list.
   'Partner Drawings',
+  // A partner paying themselves for work. A real business cost, so unlike a
+  // drawing this one does count against profit.
+  'Partner Salary',
   'Other'
 ] as const;
 export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
@@ -723,6 +726,7 @@ export interface Expense {
   karigarId?: string; // Links this expense to a karigar payment
   batchId?: string;   // Links this expense to a karigar hisaab batch
   paidBy?: PaidBy;    // Who fronted the cash; defaults to 'business'
+  shareholderId?: string; // Set on partner salary rows — which partner it paid
   ledgerEntryId?: string; // Auto-created entry on {paidBy}_ledger when paidBy !== 'business'
 }
 
