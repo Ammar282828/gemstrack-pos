@@ -28,7 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
-import { PERIODS, GRADUATIONS, periodRange, bucketOf, type PeriodId, type Graduation } from '@/lib/expense-grouping';
+import { PERIODS, GRADUATIONS, periodRange, bucketOf, type PeriodId, type Graduation } from '@/lib/date-grouping';
 import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,

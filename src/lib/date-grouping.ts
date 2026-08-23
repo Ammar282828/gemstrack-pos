@@ -1,9 +1,12 @@
 /**
- * The two date graduations the expenses page reads money at.
+ * The two date graduations money is read at.
  *
  * `periodRange` is how far back you are looking; `bucketOf` is how coarsely
  * the rows inside that span are grouped. They are separate on purpose — "this
  * year, by month" and "this month, by day" are both things you want.
+ *
+ * Shared by Expenses and Billing so the two pages offer the same spans and
+ * label a week the same way.
  */
 
 import {

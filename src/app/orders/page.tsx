@@ -12,13 +12,14 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Eye, ClipboardList, Loader2, Filter, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, DollarSign, CreditCard  } from 'lucide-react';
+import { Search, PlusCircle, Eye, ClipboardList, Loader2, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, DollarSign, CreditCard  } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn, settledRowClass } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
 
 type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
 
@@ -308,6 +309,9 @@ export default function OrdersPage() {
   // Shown on the collapsed mobile Filters button so an active filter is never
   // hidden from view.
 
+  /** Day by default, matching Expenses and Billing. */
+  const [groupBy, setGroupBy] = useState<'status' | Graduation>('day');
+
   const filteredOrders = useMemo(() => {
     if (!appReady) return [];
     return orders.filter(order =>
@@ -322,6 +326,54 @@ export default function OrdersPage() {
     ).sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
   }, [orders, searchTerm, appReady, statusFilter, paymentFilter, monthFilter]);
 
+  const stats = useMemo(() => {
+    let value = 0, owed = 0, unassigned = 0, active = 0;
+    for (const o of filteredOrders) {
+      value += o.subtotal || 0;
+      owed += Math.max(0, o.grandTotal || 0);
+      const items = Array.isArray(o.items) ? o.items : [];
+      if (items.some(i => !i.karigarId || i.karigarId === 'none')) unassigned++;
+      if (o.status === 'Pending' || o.status === 'In Progress') active++;
+    }
+    return { value, owed, unassigned, active };
+  }, [filteredOrders]);
+
+  /** The list broken into sections, each carrying its own totals. */
+  const sections = useMemo(() => {
+    const out: { key: string; title: string; hint: string; danger?: boolean; rows: Order[] }[] = [];
+    const push = (key: string, title: string, hint: string, rows: Order[], danger?: boolean) => {
+      if (rows.length) out.push({ key, title, hint, rows, danger });
+    };
+
+    if (groupBy === 'status') {
+      // Ordered the way work moves, so the list reads as a pipeline.
+      for (const st of ORDER_STATUSES) {
+        push(st, st, st === 'Pending' ? 'not started' : '', filteredOrders.filter(o => o.status === st),
+             st === 'Pending');
+      }
+      push('other', 'Everything else', '',
+        filteredOrders.filter(o => !(ORDER_STATUSES as readonly string[]).includes(o.status)));
+    } else {
+      const index = new Map<string, number>();
+      for (const o of filteredOrders) {
+        if (!o.createdAt) continue;
+        const b = bucketOf(parseISO(o.createdAt), groupBy);
+        let i = index.get(b.key);
+        if (i === undefined) {
+          i = out.length; index.set(b.key, i);
+          out.push({ key: b.key, title: b.label, hint: b.sub, rows: [] });
+        }
+        out[i].rows.push(o);
+      }
+    }
+
+    return out.map(s => ({
+      ...s,
+      value: s.rows.reduce((n, o) => n + (o.subtotal || 0), 0),
+      due: s.rows.reduce((n, o) => n + Math.max(0, o.grandTotal || 0), 0),
+    }));
+  }, [filteredOrders, groupBy]);
+
   if (!appReady) {
     return (
       <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
@@ -330,35 +382,68 @@ export default function OrdersPage() {
     );
   }
 
+  const pkr = (n: number) => 'PKR ' + Math.round(n).toLocaleString();
+
   return (
-    <div className="container mx-auto py-4 px-3 md:py-8 md:px-4">
-      <header className="mb-4 md:mb-6 flex flex-row justify-between items-start gap-3">
-        <div>
-          <h1 className="text-xl md:text-3xl font-bold text-primary flex items-center"><ClipboardList className="w-6 h-6 md:w-8 md:h-8 mr-2 md:mr-3"/>Orders</h1>
-          <p className="text-sm text-muted-foreground">{filteredOrders.length} of {orders.length} order{orders.length !== 1 ? 's' : ''}</p>
+    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl space-y-4">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
+            <ClipboardList className="w-7 h-7 flex-shrink-0"/>Orders
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {filteredOrders.length === orders.length
+              ? `${orders.length} order${orders.length === 1 ? '' : 's'}`
+              : `${filteredOrders.length} of ${orders.length} orders`}
+            {stats.active > 0 && ` · ${stats.active} in progress`}
+          </p>
         </div>
-        <Button asChild size="sm">
-          <Link href="/orders/add">
-            <PlusCircle className="w-4 h-4 mr-2" />New Order
-          </Link>
+        <Button asChild size="sm" className="flex-shrink-0">
+          <Link href="/orders/add"><PlusCircle className="w-4 h-4 mr-2" />New order</Link>
         </Button>
       </header>
 
-      {/* The pill rows keep their mobile collapse — twelve status and payment
-          pills filled a phone's first screen — so they ride in the footer
-          slot rather than being flattened into the filter row. */}
-      {/* Ten pills across two labelled rows became two selects: the bar is
-          one line now, and the active choice still reads off the trigger. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Orders shown</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{filteredOrders.length}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Order value</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold text-primary leading-tight truncate">{pkr(stats.value)}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Balance due</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight truncate">{pkr(stats.owed)}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Needs a karigar</p>
+          <p className={cn('text-base sm:text-xl md:text-2xl font-bold leading-tight',
+            stats.unassigned > 0 && 'text-destructive')}>{stats.unassigned}</p>
+        </div>
+      </div>
+
       <FilterBar
         value={searchTerm}
         onChange={setSearchTerm}
         placeholder="Search by order ID, customer, or contact…"
+        actions={
+          <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Group by">
+            {([['status', 'Status'], ...GRADUATIONS.map(g => [g.id, g.label] as const)] as const).map(([id, label]) => (
+              <button
+                key={id} type="button" onClick={() => setGroupBy(id as 'status' | Graduation)}
+                aria-pressed={groupBy === id}
+                className={cn('px-2.5 text-xs h-9 transition-colors whitespace-nowrap',
+                  groupBy === id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        }
       >
         <Select value={monthFilter} onValueChange={setMonthFilter}>
-          <SelectTrigger className="w-full sm:w-[150px]">
-            <Calendar className="w-4 h-4 mr-1.5 text-muted-foreground flex-shrink-0" />
-            <SelectValue placeholder="Month" />
-          </SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Month" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="All">All time</SelectItem>
             {monthOptions.map(m => <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>)}
@@ -366,10 +451,7 @@ export default function OrdersPage() {
         </Select>
 
         <Select value={statusFilter} onValueChange={v => setStatusFilter(v as typeof statusFilter)}>
-          <SelectTrigger className="w-full sm:w-[145px]">
-            <Filter className="w-4 h-4 mr-1.5 text-muted-foreground flex-shrink-0" />
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[145px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="All">Any status</SelectItem>
             {ORDER_STATUSES.map(st => <SelectItem key={st} value={st}>{st}</SelectItem>)}
@@ -377,10 +459,7 @@ export default function OrdersPage() {
         </Select>
 
         <Select value={paymentFilter} onValueChange={v => setPaymentFilter(v as typeof paymentFilter)}>
-          <SelectTrigger className="w-full sm:w-[135px]">
-            <CreditCard className="w-4 h-4 mr-1.5 text-muted-foreground flex-shrink-0" />
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[135px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="All">Any payment</SelectItem>
             {(['Paid', 'Partial', 'Unpaid'] as const).map(ps => <SelectItem key={ps} value={ps}>{ps}</SelectItem>)}
@@ -389,48 +468,57 @@ export default function OrdersPage() {
       </FilterBar>
 
       {isOrdersLoading ? (
-         <div className="text-center py-12">
-            <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
-            <p className="text-muted-foreground">Refreshing order list...</p>
-         </div>
-      ) : filteredOrders.length > 0 ? (
-        <>
-        <div className="md:hidden">
-            {filteredOrders.map((order) => (
-                <OrderRow key={order.id} order={order} />
-            ))}
-        </div>
-        <Card className="hidden md:block">
-            <Table>
-            <TableHeader>
-                <TableRow>
-                <TableHead>Order Details</TableHead>
-                <TableHead className="hidden lg:table-cell">Date</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead className="hidden xl:table-cell text-right">
-                  <div className="flex items-center justify-end">
-                    <DollarSign className="w-4 h-4 mr-1"/> Financials (PKR)
-                  </div>
-                </TableHead>
-                <TableHead>Status & Progress</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {filteredOrders.map((order) => (
-                    <OrderTableRow key={order.id} order={order} />
-                ))}
-            </TableBody>
-            </Table>
-        </Card>
-        </>
-      ) : (
-        <div className="text-center py-12 bg-card rounded-lg shadow">
-          <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Orders Found</h3>
-          <p className="text-muted-foreground">
-            {searchTerm || statusFilter !== 'All' ? "Try adjusting your search or filter." : "Create a custom order to begin."}
+        <ListSkeleton rows={5} />
+      ) : filteredOrders.length === 0 ? (
+        <div className="text-center py-14 bg-card rounded-xl border">
+          <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+          <h3 className="text-lg font-semibold mb-1">No orders found</h3>
+          <p className="text-sm text-muted-foreground">
+            {searchTerm || statusFilter !== 'All' || paymentFilter !== 'All' || monthFilter !== 'All'
+              ? 'Try adjusting the search or filters.'
+              : 'Create a custom order to begin.'}
           </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {sections.map(s => (
+            <section key={s.key}>
+              <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
+                <div className="flex items-baseline gap-2 min-w-0">
+                  <h2 className={cn('text-sm font-semibold truncate', s.danger && 'text-destructive')}>{s.title}</h2>
+                  {s.hint && <span className="text-2xs text-muted-foreground flex-shrink-0">{s.hint}</span>}
+                </div>
+                <div className="flex items-baseline gap-2 flex-shrink-0">
+                  <span className="text-2xs text-muted-foreground">{s.rows.length}</span>
+                  <span className="text-sm font-semibold tabular-nums">{pkr(s.value)}</span>
+                </div>
+              </div>
+
+              <div className="md:hidden">
+                {s.rows.map(order => <OrderRow key={order.id} order={order} />)}
+              </div>
+
+              <Card className="hidden md:block">
+                <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Order</TableHead>
+                        <TableHead className="hidden lg:table-cell">Date</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead className="hidden xl:table-cell text-right">Financials (PKR)</TableHead>
+                        <TableHead>Status &amp; progress</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {s.rows.map(order => <OrderTableRow key={order.id} order={order} />)}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </section>
+          ))}
         </div>
       )}
     </div>

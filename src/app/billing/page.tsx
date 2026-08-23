@@ -32,6 +32,7 @@ import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
+import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -716,6 +717,12 @@ export default function DocumentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [monthFilter, setMonthFilter] = useState<string>('All');
+  /**
+   * How the list is broken up. Day by default — the usual question is what
+   * happened recently — with the same graduations Expenses offers, plus a
+   * status view for chasing what is still owed.
+   */
+  const [groupBy, setGroupBy] = useState<'status' | Graduation>('day');
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<{ rows: number; firstNames: string[] } | null>(null);
@@ -902,6 +909,50 @@ export default function DocumentsPage() {
     return { billed, outstanding, collected: billed - outstanding, unpaidCount, orderCount };
   }, [filteredDocuments]);
 
+  /** One section of the list, with what it is worth and what is still owed. */
+  const buildSections = React.useCallback((docs: DocumentType[]) => {
+    const owedOf = (d: DocumentType) =>
+      d.docType === 'invoice' && (d as Invoice).status !== 'Refunded'
+        ? Math.max(0, (d as Invoice).balanceDue || 0) : 0;
+    const valueOf = (d: DocumentType) =>
+      d.docType === 'invoice' ? ((d as Invoice).grandTotal || 0) : ((d as Order).grandTotal || 0);
+
+    const out: { key: string; title: string; hint: string; danger?: boolean; rows: DocumentType[] }[] = [];
+    const push = (key: string, title: string, hint: string, rows: DocumentType[], danger?: boolean) => {
+      if (rows.length) out.push({ key, title, hint, rows, danger });
+    };
+
+    if (groupBy === 'status') {
+      const owing = docs.filter(d => owedOf(d) > 0)
+        // Oldest debt first: that is the one to chase.
+        .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+      const orders = docs.filter(d => d.docType === 'order' && owedOf(d) === 0);
+      const settled = docs.filter(d => d.docType === 'invoice' && owedOf(d) === 0)
+        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      push('owing', 'Awaiting payment', 'oldest first', owing, true);
+      push('orders', 'Orders not yet invoiced', 'still in the workshop', orders);
+      push('settled', 'Settled', 'nothing outstanding', settled);
+    } else {
+      const index = new Map<string, number>();
+      for (const d of docs) {
+        if (!d.createdAt) continue;
+        const b = bucketOf(parseISO(d.createdAt), groupBy);
+        let i = index.get(b.key);
+        if (i === undefined) {
+          i = out.length; index.set(b.key, i);
+          out.push({ key: b.key, title: b.label, hint: b.sub, rows: [] });
+        }
+        out[i].rows.push(d);
+      }
+    }
+
+    return out.map(s => ({
+      ...s,
+      billed: s.rows.reduce((n, d) => n + valueOf(d), 0),
+      owed: s.rows.reduce((n, d) => n + owedOf(d), 0),
+    }));
+  }, [groupBy]);
+
   const renderContent = (docs: DocumentType[]) => {
       if (isLoading) {
          return (
@@ -922,18 +973,46 @@ export default function DocumentsPage() {
             </div>
           );
       }
-      return (
-        <>
-            {/* Mobile View: Cards */}
-            <div className="md:hidden">
-                {docs.map((d) => <DocumentCard key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} onStatusChange={d.docType === 'order' ? (s) => handleOrderStatusChange(d.id, s) : undefined} onSendPaymentLink={d.docType === 'invoice' ? () => handleSendPaymentLink(d as Invoice) : undefined} isSendingLink={sendingLinkId === d.id} />)}
-            </div>
+      const sections = buildSections(docs);
 
-            {/* Desktop View: Table */}
-            <Card className="hidden md:block">
-                <Table>
-                <TableHeader>
-                    <TableRow>
+      const rowProps = (d: DocumentType) => ({
+        doc: d,
+        onPrint: () => handlePrint(d),
+        onMarkPaid: d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined,
+        onStatusChange: d.docType === 'order' ? (s: OrderStatus) => handleOrderStatusChange(d.id, s) : undefined,
+        onSendPaymentLink: d.docType === 'invoice' ? () => handleSendPaymentLink(d as Invoice) : undefined,
+        isSendingLink: sendingLinkId === d.id,
+      });
+
+      return (
+        <div className="space-y-4">
+          {sections.map(s => (
+            <section key={s.key}>
+              {/* Each section says what it is worth and what is still owed, so
+                  the number you came for is never further than the heading. */}
+              <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
+                <div className="flex items-baseline gap-2 min-w-0">
+                  <h2 className={cn('text-sm font-semibold truncate', s.danger && 'text-destructive')}>{s.title}</h2>
+                  {s.hint && <span className="text-2xs text-muted-foreground flex-shrink-0">{s.hint}</span>}
+                </div>
+                <div className="flex items-baseline gap-2 flex-shrink-0">
+                  <span className="text-2xs text-muted-foreground">{s.rows.length}</span>
+                  {s.owed > 0 && (
+                    <span className="text-sm font-semibold tabular-nums text-destructive">{pkr(s.owed)} owed</span>
+                  )}
+                  <span className="text-sm font-semibold tabular-nums">{pkr(s.billed)}</span>
+                </div>
+              </div>
+
+              <div className="md:hidden">
+                {s.rows.map(d => <DocumentCard key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
+              </div>
+
+              <Card className="hidden md:block">
+                <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
                         <TableHead>ID</TableHead>
                         <TableHead>Customer</TableHead>
                         <TableHead className="hidden xl:table-cell">Date</TableHead>
@@ -941,14 +1020,17 @@ export default function DocumentsPage() {
                         <TableHead className="text-right">Total (PKR)</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {docs.map((d) => <DocumentRow key={`${d.docType}-${d.id}`} doc={d} onPrint={() => handlePrint(d)} onMarkPaid={d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined} onStatusChange={d.docType === 'order' ? (s) => handleOrderStatusChange(d.id, s) : undefined} onSendPaymentLink={d.docType === 'invoice' ? () => handleSendPaymentLink(d as Invoice) : undefined} isSendingLink={sendingLinkId === d.id} />)}
-                </TableBody>
-                </Table>
-            </Card>
-        </>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {s.rows.map(d => <DocumentRow key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </section>
+          ))}
+        </div>
       );
   };
   
@@ -1004,7 +1086,23 @@ export default function DocumentsPage() {
         value={searchTerm}
         onChange={setSearchTerm}
         placeholder="Search by ID or customer name…"
-        actions={<DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />}
+        actions={
+          <>
+            <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Group by">
+              {([['status', 'Status'], ...GRADUATIONS.map(g => [g.id, g.label] as const)] as const).map(([id, label]) => (
+                <button
+                  key={id} type="button" onClick={() => setGroupBy(id as 'status' | Graduation)}
+                  aria-pressed={groupBy === id}
+                  className={cn('px-2.5 text-xs h-9 transition-colors whitespace-nowrap',
+                    groupBy === id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent')}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />
+          </>
+        }
       >
         <Select value={monthFilter} onValueChange={setMonthFilter}>
           <SelectTrigger className="w-full sm:w-[180px]">
