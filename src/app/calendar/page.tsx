@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useAppStore, Invoice, Order } from '@/lib/store';
+import { useAppStore, Invoice, Order, getInvoiceRevenueDate } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from "@/components/ui/calendar"
@@ -98,9 +98,14 @@ export default function CalendarPage() {
 
   const eventsByDate = useMemo((): EventsByDate => {
     const eventsMap: EventsByDate = {};
+    // Same recognition rule as the dashboard and Analytics: a sale belongs to
+    // the day its ORDER was taken, not the day it happened to be invoiced.
+    // Without this the calendar disagreed with every other revenue view —
+    // 32 invoices here cross a month boundary.
+    const ordersById = new Map(orders.map(o => [o.id, o]));
 
     generatedInvoices.forEach(invoice => {
-      const dateKey = format(startOfDay(parseISO(invoice.createdAt)), 'yyyy-MM-dd');
+      const dateKey = format(startOfDay(parseISO(getInvoiceRevenueDate(invoice, ordersById))), 'yyyy-MM-dd');
       if (!eventsMap[dateKey]) {
         eventsMap[dateKey] = { invoices: 0, orders: 0, total: 0, events: [] };
       }
