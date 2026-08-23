@@ -505,3 +505,14 @@ body {
 .PhoneInputCountrySelectArrow {
     @apply opacity-50;
 }
+
+/*
+ * First-paint background, set by the blocking script in the document head.
+ *
+ * The real theme only becomes knowable once Firestore answers, so without
+ * this the page painted the dark default and flipped to white a moment later.
+ * Background only — everything else follows the theme class as usual, and
+ * these are overridden the moment the body's theme lands.
+ */
+html.boot-light { background-color: hsl(220 30% 99.4%); }
+html.boot-dark  { background-color: hsl(220 15% 8%); }

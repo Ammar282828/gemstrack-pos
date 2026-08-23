@@ -13,6 +13,7 @@ import React, { useEffect } from 'react';
 import Script from 'next/script';
 import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
 import { STORE_CONFIG } from '@/lib/store-config';
+import { readCachedTheme, writeCachedTheme } from '@/lib/theme-cache';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -22,29 +23,36 @@ const inter = Inter({
 function AppBody({ children }: { children: React.ReactNode }) {
   const isHydrated = useIsStoreHydrated();
   const theme = useAppStore(state => state.settings.theme);
+  const hasSettingsLoaded = useAppStore(state => state.hasSettingsLoaded);
   const pathname = usePathname();
 
   // Determine if the current page is the public invoice view
   const isPublicInvoicePage = pathname.startsWith('/view-invoice');
 
-  // Render with the saved theme immediately (read from localStorage synchronously)
-  // so there is no flash of the default light theme before Zustand rehydrates.
+  // Settings come from Firestore and are not persisted into the store, so on a
+  // cold load nothing knows the theme until the network answers. The cached
+  // hint covers that gap; without it the store's 'slate' default painted a
+  // dark screen that flipped to white once settings arrived.
+  const cachedTheme = React.useMemo(() => readCachedTheme(), []);
+
+  // Keep the hint current for next time.
+  React.useEffect(() => {
+    if (hasSettingsLoaded && theme) writeCachedTheme(theme);
+  }, [hasSettingsLoaded, theme]);
+
   if (!isHydrated) {
-    let earlyTheme = 'slate';
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('gemstrack-pos-storage');
-        if (stored) earlyTheme = JSON.parse(stored)?.state?.settings?.theme ?? 'slate';
-      } catch {}
-    }
     return (
-      <body suppressHydrationWarning className={`${inter.variable} font-sans antialiased theme-${earlyTheme}`}>
+      <body suppressHydrationWarning className={`${inter.variable} font-sans antialiased theme-${cachedTheme}`}>
       </body>
     );
   }
 
+  // Hydrated, but settings may still be in flight — keep showing the cached
+  // theme rather than the store's default until the real one lands.
+  const activeTheme = hasSettingsLoaded && theme ? theme : cachedTheme;
+
   return (
-    <body className={`${inter.variable} font-sans antialiased theme-${theme}`}>
+    <body className={`${inter.variable} font-sans antialiased theme-${activeTheme}`}>
       {isPublicInvoicePage ? (
         // For public pages, render children directly without the main app layout
         <>
@@ -80,6 +88,24 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/* Dynamic theme-color will be handled by the theme logic, but we can set a default */}
         <meta name="theme-color" content="#0d1a16" />
+        {/*
+          Paint the right background before anything else runs.
+
+          The theme lives in Firestore and is not persisted into the store, so
+          React cannot know it during hydration — and it keeps the
+          server-rendered class anyway. That left every cold load painting the
+          store's 'slate' default, which is dark, before flipping to whatever
+          the shop actually chose. This blocking script reads the cached hint
+          and sets the page background itself, which is the part you see.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{
+              var t=localStorage.getItem('gemstrack:theme')||'default';
+              document.documentElement.classList.add(t==='default'?'boot-light':'boot-dark');
+            }catch(e){document.documentElement.classList.add('boot-light');}})();`,
+          }}
+        />
         <Script src="https://unpkg.com/zebra-browser-print-wrapper@3.0.0/js/zebra_browser_print_wrapper.js" type="text/javascript"></Script>
       </head>
       <AppBody>

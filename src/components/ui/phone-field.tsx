@@ -16,7 +16,7 @@
 
 import React from 'react';
 import PhoneInput from 'react-phone-number-input';
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { parsePhoneNumberFromString, getCountryCallingCode } from 'libphonenumber-js';
 import { AlertCircle, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,13 +32,30 @@ const FRAME =
  */
 export function toE164(raw: string | undefined, country: 'PK' = 'PK'): string {
   if (!raw) return '';
-  const parsed = parsePhoneNumberFromString(raw, country);
+  const compact = raw.replace(/[\s\-().]/g, '').replace(/^'+/, '');
+
+  // Strip a trunk zero sitting between the country code and the number. The
+  // calling code is looked up, never guessed: a greedy /^\+\d{1,3}0/ reads
+  // "+92 3000118653" as country "+923" followed by a trunk zero and quietly
+  // deletes a real digit from a valid number.
+  const cc = getCountryCallingCode(country);
+
+  // A pasted number sometimes carries the code twice — "+92 +92 333 …".
+  let cleaned = compact;
+  while (cleaned.startsWith(`+${cc}+${cc}`)) cleaned = `+${cc}${cleaned.slice(2 * cc.length + 2)}`;
+
+  const withoutTrunk = cleaned.startsWith(`+${cc}0`)
+    ? `+${cc}${cleaned.slice(cc.length + 2)}`
+    : cleaned;
+
+  // Only accept the stripped form if it actually improves matters.
+  const strippedParse = parsePhoneNumberFromString(withoutTrunk, country);
+  if (strippedParse?.isValid()) return strippedParse.number as string;
+
+  const parsed = parsePhoneNumberFromString(cleaned, country);
   if (parsed?.number) return parsed.number as string;
 
-  // Not parseable yet — half typed. Still strip an obvious +<cc>0 so the
-  // stored draft does not carry the trunk zero forward.
-  const m = raw.match(/^(\+\d{1,3})0(\d+)$/);
-  return m ? `${m[1]}${m[2]}` : raw;
+  return withoutTrunk !== compact ? withoutTrunk : raw;
 }
 
 /** How finished the number is, for the message under the field. */
