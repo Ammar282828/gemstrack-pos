@@ -183,6 +183,23 @@ function NotificationsCard() {
   }, []);
   React.useEffect(() => { void checkHealth(); }, [checkHealth]);
 
+  /** /api/notifications/send is owner-gated, so every caller must identify
+   *  itself. Both test buttons go through here — the per-recipient one was
+   *  left sending no token when the endpoint was locked down, and 401'd. */
+  const sendTestTo = React.useCallback(async (phone: string) => {
+    let token = '';
+    try { token = (await firebaseAuth?.currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
+    const res = await fetch('/api/notifications/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+      body: JSON.stringify({ to: phone, message: `Test from ${STORE_CONFIG.name} POS — notifications are working.` }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP ${res.status}`);
+    }
+  }, []);
+
   const sendTest = async () => {
     if (!phones.length) {
       toast({ title: 'No recipients', description: 'Add a number first.', variant: 'destructive' });
@@ -190,16 +207,8 @@ function NotificationsCard() {
     }
     setTesting(true);
     try {
-      let token = '';
-      try { token = (await firebaseAuth?.currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
-      const res = await fetch('/api/notifications/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
-        body: JSON.stringify({ to: phones[0], message: `Test from ${STORE_CONFIG.name} POS — notifications are working.` }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (res.ok) toast({ title: 'Test sent', description: `Check WhatsApp on ${phones[0]}.` });
-      else toast({ title: 'Test failed', description: body.error || `HTTP ${res.status}`, variant: 'destructive' });
+      await sendTestTo(phones[0]);
+      toast({ title: 'Test sent', description: `Check WhatsApp on ${phones[0]}.` });
     } catch (e) {
       toast({ title: 'Test failed', description: (e as Error).message, variant: 'destructive' });
     } finally { setTesting(false); }
@@ -228,12 +237,7 @@ function NotificationsCard() {
   const handleTestMessage = async (phone: string) => {
     setSaving(true);
     try {
-      const res = await fetch('/api/notifications/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: phone, message: '*GemsTrack Test* — notifications are working!' }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
+      await sendTestTo(phone);
       toast({ title: 'Test sent!', description: `Message sent to ${phone}` });
     } catch (e: unknown) {
       toast({ title: 'Send failed', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });

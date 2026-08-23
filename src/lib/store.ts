@@ -2942,17 +2942,14 @@ export const useAppStore = create<AppState>()(
           syncOrderShopify(finalOrder.id, 'upsert');
 
           // WhatsApp notification: new order
-          const s = get().settings;
-          if (s.notifEnabled && s.notifNewOrder && s.notifPhones?.length) {
+          // Through notifyWhatsApp, not a hand-rolled fetch: this used to
+          // duplicate it, which is how it missed the auth header when /send
+          // was locked down and started failing silently into a console warn.
+          {
+            const s = get().settings;
             const items = finalOrder.items.map(i => i.description || 'Item').join(', ');
             const msg = `*New Order* ${finalOrder.id}\nCustomer: ${finalCustomerName || 'Walk-in'}\nItems: ${items}\nTotal: PKR ${finalGrandTotal.toLocaleString()}`;
-            s.notifPhones.forEach(phone => {
-              fetch('/api/notifications/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ to: phone, message: msg }),
-              }).catch(e => console.warn('[notif] new order send failed:', e));
-            });
+            notifyWhatsApp(s, msg, !!s.notifNewOrder);
           }
 
           return finalOrder;
@@ -3027,15 +3024,8 @@ export const useAppStore = create<AppState>()(
             } else if ((status === 'Cancelled' || status === 'Refunded') && s.notifOrderCancelled) {
               msg = `*Order ${status}* ${orderId}\nCustomer: ${order.customerName || 'Walk-in'}\nTotal: PKR ${order.grandTotal.toLocaleString()}`;
             }
-            if (msg) {
-              s.notifPhones.forEach(phone => {
-                fetch('/api/notifications/send', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ to: phone, message: msg }),
-                }).catch(e => console.warn('[notif] status update send failed:', e));
-              });
-            }
+            // The specific toggle was already checked when msg was built.
+            if (msg) notifyWhatsApp(s, msg);
           }
         } catch (error) {
           console.error(`[GemsTrack Store updateOrderStatus] Error updating status for order ${orderId}:`, error);
