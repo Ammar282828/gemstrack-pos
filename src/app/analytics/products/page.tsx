@@ -187,7 +187,7 @@ export default function ProductsAnalyticsPage() {
         </Card>
 
         <Tabs defaultValue="revenue">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="w-full justify-start">
                 <TabsTrigger value="revenue">Top by Revenue</TabsTrigger>
                 <TabsTrigger value="quantity">Top by Quantity Sold</TabsTrigger>
                 <TabsTrigger value="orders">Top by Orders</TabsTrigger>

@@ -194,7 +194,7 @@ export default function CustomersAnalyticsPage() {
         </Card>
 
         <Tabs defaultValue="spent">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="w-full justify-start">
                 <TabsTrigger value="spent">Top by Spending</TabsTrigger>
                 <TabsTrigger value="orders">Top by Orders</TabsTrigger>
                 <TabsTrigger value="avgSpent">Top by Average Spend</TabsTrigger>

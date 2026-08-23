@@ -1044,12 +1044,15 @@ export default function DocumentsPage() {
       </div>
 
       <Tabs defaultValue="all">
-        <TabsList className="grid w-full grid-cols-4 md:w-fit md:grid-cols-4 mb-4">
-          <TabsTrigger value="all">All ({filteredDocuments.length})</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices ({filteredDocuments.filter(d => d.docType === 'invoice' && !isShopifyDoc(d)).length})</TabsTrigger>
-          <TabsTrigger value="orders">Orders ({filteredDocuments.filter(d => d.docType === 'order').length})</TabsTrigger>
+        {/* A four-column grid gave each tab 25% of a 375px screen — about 85px —
+            which "Invoices (174)" cannot fit, so the labels spilled out of their
+            cells. A scrolling flex row sizes each tab to its own label. */}
+        <TabsList className="w-full md:w-fit justify-start mb-4">
+          <TabsTrigger value="all">All <span className="ml-1 text-2xs opacity-60 tabular-nums">{filteredDocuments.length}</span></TabsTrigger>
+          <TabsTrigger value="invoices">Invoices <span className="ml-1 text-2xs opacity-60 tabular-nums">{filteredDocuments.filter(d => d.docType === 'invoice' && !isShopifyDoc(d)).length}</span></TabsTrigger>
+          <TabsTrigger value="orders">Orders <span className="ml-1 text-2xs opacity-60 tabular-nums">{filteredDocuments.filter(d => d.docType === 'order').length}</span></TabsTrigger>
           <TabsTrigger value="shopify" className="flex items-center gap-1">
-            <ShoppingBag className="h-3 w-3" /> Shopify ({filteredDocuments.filter(d => isShopifyDoc(d)).length})
+            <ShoppingBag className="h-3 w-3" /> Shopify <span className="text-2xs opacity-60 tabular-nums">{filteredDocuments.filter(d => isShopifyDoc(d)).length}</span>
           </TabsTrigger>
         </TabsList>
         <TabsContent value="all">

@@ -9,13 +9,14 @@ import Link from 'next/link';
 import { EditCartItemDialog, blankCartItem } from '@/components/cart/edit-cart-item-dialog';
 import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/shared/delivery-fields';
 import { useRouter } from 'next/navigation';
-import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories , DeliveryInfo } from '@/lib/store';
+import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories , DeliveryInfo , PAYMENT_TYPES, PaymentType } from '@/lib/store';
 import { metalLabel, describeMetal } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -205,6 +206,10 @@ export default function CartPage() {
   const [newItem, setNewItem] = useState<Product | null>(null);
   // Most sales are handed over at the counter, so this stays off until ticked.
   const [delivery, setDelivery] = useState<DeliveryInfo>(EMPTY_DELIVERY);
+  // Cash by default — most of the counter trade is cash, and the alternatives
+  // only matter when reconciling against a bank statement later.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentType>('Cash');
+  const [paymentRef, setPaymentRef] = useState('');
 
   const phoneForm = useForm<PhoneForm>();
 
@@ -501,11 +506,12 @@ export default function CartPage() {
 
     setIsSubmittingPayment(true);
     try {
-      const updatedInvoice = await updateInvoicePayment(generatedInvoice.id, amount, new Date().toISOString());
+      const updatedInvoice = await updateInvoicePayment(generatedInvoice.id, amount, new Date().toISOString(), paymentMethod, paymentRef);
       if (updatedInvoice) {
         setGeneratedInvoice(updatedInvoice); // Update local state with the new invoice data
         setPaymentAmount('');
-        toast({ title: "Payment Recorded", description: `PKR ${amount.toLocaleString()} has been recorded.` });
+        setPaymentRef('');
+        toast({ title: "Payment Recorded", description: `PKR ${amount.toLocaleString()} by ${paymentMethod}.` });
       } else {
         throw new Error("Failed to get updated invoice from the store.");
       }
@@ -1089,6 +1095,28 @@ export default function CartPage() {
                                 onChange={(e) => setPaymentAmount(e.target.value)}
                             />
                         </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-xs">Paid by</Label>
+                            <Select value={paymentMethod} onValueChange={v => setPaymentMethod(v as PaymentType)}>
+                              <SelectTrigger aria-label="Payment method"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {PAYMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-xs">
+                              {paymentMethod === 'Cheque' ? 'Cheque no.'
+                                : paymentMethod === 'Card' ? 'Last 4 digits'
+                                : paymentMethod === 'Bank Transfer' ? 'Reference' : 'Note'}
+                            </Label>
+                            <Input value={paymentRef} onChange={e => setPaymentRef(e.target.value)}
+                              placeholder="Optional" aria-label="Payment reference"
+                              disabled={paymentMethod === 'Cash'} />
+                          </div>
+                        </div>
+
                         <Button 
                             className="w-full"
                             disabled={!paymentAmount || isSubmittingPayment || generatedInvoice.balanceDue <= 0}
@@ -1121,7 +1149,8 @@ export default function CartPage() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead><CalendarIcon className="h-4 w-4 inline-block mr-1"/> Date</TableHead>
-                                            <TableHead>Notes</TableHead>
+                                            <TableHead>Method</TableHead>
+                                            <TableHead className="hidden sm:table-cell">Notes</TableHead>
                                             <TableHead className="text-right">Amount (PKR)</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -1129,7 +1158,14 @@ export default function CartPage() {
                                         {generatedInvoice.paymentHistory.map((p, index) => (
                                             <TableRow key={index}>
                                                 <TableCell>{format(new Date(p.date), 'PP')}</TableCell>
-                                                <TableCell>{p.notes || 'Payment received'}</TableCell>
+                                                <TableCell>
+                                                  {/* Older records predate payment types and have no method. */}
+                                                  {p.method
+                                                    ? <Badge variant="outline" className="text-2xs">{p.method}</Badge>
+                                                    : <span className="text-muted-foreground text-xs">—</span>}
+                                                  {p.reference && <span className="block text-2xs text-muted-foreground mt-0.5">{p.reference}</span>}
+                                                </TableCell>
+                                                <TableCell className="hidden sm:table-cell">{p.notes || 'Payment received'}</TableCell>
                                                 <TableCell className="text-right font-medium">{p.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
                                             </TableRow>
                                         ))}

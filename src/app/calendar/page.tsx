@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO, startOfDay, isSameDay } from 'date-fns';
-import { Loader2, ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X, Trash2, AlertTriangle } from 'lucide-react';
+import { format, parseISO, startOfDay, isSameDay, isSameMonth } from 'date-fns';
+import { Loader2, ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -20,8 +20,6 @@ import {
   DrawerDescription,
 } from "@/components/ui/drawer"
 import { Button } from '@/components/ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
 
 type CalendarEventType = (Invoice | Order) & { eventType: 'invoice' | 'order' };
 
@@ -29,29 +27,22 @@ type EventsByDate = {
   [date: string]: {
     invoices: number;
     orders: number;
+    /** Money taken that day. "3 sales" alone never answered the question
+     *  you actually open a calendar to ask. */
+    total: number;
     events: CalendarEventType[];
   };
 };
 
+/** Compact PKR for a calendar cell, which has room for about six characters. */
+function dayMoney(n: number): string {
+  if (n >= 999_500) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 1000) return `${Math.round(n / 1000)}k`;
+  return String(Math.round(n));
+}
+
 
 const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selectedDate: Date | undefined }> = ({ events, selectedDate }) => {
-    const { deleteInvoice, deleteOrder } = useAppStore();
-    const { toast } = useToast();
-    
-    const handleDelete = async (event: CalendarEventType) => {
-        try {
-            if (event.eventType === 'invoice') {
-                await deleteInvoice(event.id);
-                toast({ title: 'Invoice Deleted', description: `Invoice ${event.id} has been removed.`});
-            } else {
-                await deleteOrder(event.id);
-                toast({ title: 'Order Deleted', description: `Order ${event.id} has been removed.`});
-            }
-        } catch (e) {
-            toast({ title: 'Error', description: `Failed to delete the document.`, variant: 'destructive'});
-        }
-    };
-
     if (!selectedDate) {
         return <p className="text-muted-foreground text-center py-10">Select a day on the calendar to see its events.</p>;
     }
@@ -79,27 +70,6 @@ const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selected
                           <p className="text-xs text-muted-foreground">{format(parseISO(event.createdAt), 'hh:mm a')}</p>
                         </div>
                     </Link>
-                    <div className="flex-shrink-0 self-end md:self-center">
-                         <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Delete">
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Are you absolutely sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete the {event.eventType} <strong className="font-mono">{event.id}</strong> and all associated data.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDelete(event)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </div>
                 </div>
             ))}
         </div>
@@ -123,6 +93,8 @@ export default function CalendarPage() {
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  // Tracked so the summary describes the month you are looking at, not today's.
+  const [month, setMonth] = useState<Date>(new Date());
 
   const eventsByDate = useMemo((): EventsByDate => {
     const eventsMap: EventsByDate = {};
@@ -130,18 +102,23 @@ export default function CalendarPage() {
     generatedInvoices.forEach(invoice => {
       const dateKey = format(startOfDay(parseISO(invoice.createdAt)), 'yyyy-MM-dd');
       if (!eventsMap[dateKey]) {
-        eventsMap[dateKey] = { invoices: 0, orders: 0, events: [] };
+        eventsMap[dateKey] = { invoices: 0, orders: 0, total: 0, events: [] };
       }
       eventsMap[dateKey].invoices++;
+      if (invoice.status !== 'Refunded') eventsMap[dateKey].total += invoice.grandTotal || 0;
       eventsMap[dateKey].events.push({ ...invoice, eventType: 'invoice' });
     });
 
     orders.forEach(order => {
       const dateKey = format(startOfDay(parseISO(order.createdAt)), 'yyyy-MM-dd');
        if (!eventsMap[dateKey]) {
-        eventsMap[dateKey] = { invoices: 0, orders: 0, events: [] };
+        eventsMap[dateKey] = { invoices: 0, orders: 0, total: 0, events: [] };
       }
       eventsMap[dateKey].orders++;
+      // Uninvoiced orders only — an invoiced one is already counted above.
+      if (!order.invoiceId && order.status !== 'Cancelled' && order.status !== 'Refunded') {
+        eventsMap[dateKey].total += order.subtotal || 0;
+      }
       eventsMap[dateKey].events.push({ ...order, eventType: 'order' });
     });
 
@@ -153,14 +130,25 @@ export default function CalendarPage() {
     return eventsMap;
   }, [generatedInvoices, orders]);
 
+  /** Totals for the month on screen. */
+  const monthSummary = useMemo(() => {
+    let sales = 0, orderCount = 0, total = 0, days = 0;
+    for (const [key, d] of Object.entries(eventsByDate)) {
+      if (!isSameMonth(parseISO(key), month)) continue;
+      sales += d.invoices; orderCount += d.orders; total += d.total;
+      if (d.total > 0) days++;
+    }
+    return { sales, orders: orderCount, total, days, best: total && days ? total / days : 0 };
+  }, [eventsByDate, month]);
+
   const selectedDateString = selectedDate ? format(startOfDay(selectedDate), 'yyyy-MM-dd') : undefined;
   const eventsForSelectedDay = selectedDateString ? eventsByDate[selectedDateString]?.events : [];
 
   const handleDayClick = (day: Date | undefined) => {
     setSelectedDate(day);
-    if(isMobile && day && eventsByDate[format(startOfDay(day), 'yyyy-MM-dd')]) {
-        setIsDrawerOpen(true);
-    }
+    // Opens for any day, not only days that already have something: tapping a
+    // quiet day used to do nothing at all, which reads as the app being stuck.
+    if (isMobile && day) setIsDrawerOpen(true);
   };
 
   const EventDay = ({ date }: { date: Date }) => {
@@ -171,16 +159,23 @@ export default function CalendarPage() {
 
     return (
       <div className="flex flex-col gap-0.5 mt-0.5 w-full">
-        {dayData.invoices > 0 && (
-          <span className="w-full rounded text-2xs leading-tight px-1 py-0.5 bg-success/15 text-success truncate">
-            {dayData.invoices} sale{dayData.invoices > 1 ? 's' : ''}
+        {dayData.total > 0 && (
+          <span className="w-full text-2xs font-semibold leading-tight tabular-nums truncate">
+            {dayMoney(dayData.total)}
           </span>
         )}
-        {dayData.orders > 0 && (
-          <span className="w-full rounded text-2xs leading-tight px-1 py-0.5 bg-blue-500/15 text-blue-700 dark:text-blue-300 truncate">
-            {dayData.orders} order{dayData.orders > 1 ? 's' : ''}
-          </span>
-        )}
+        <span className="flex items-center gap-1 leading-none">
+          {dayData.invoices > 0 && (
+            <span className="flex items-center gap-0.5 text-2xs text-success">
+              <span className="h-1.5 w-1.5 rounded-full bg-success" />{dayData.invoices}
+            </span>
+          )}
+          {dayData.orders > 0 && (
+            <span className="flex items-center gap-0.5 text-2xs text-blue-600 dark:text-blue-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />{dayData.orders}
+            </span>
+          )}
+        </span>
       </div>
     );
   };
@@ -199,9 +194,28 @@ export default function CalendarPage() {
       <header className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><CalendarIcon className="mr-3 h-8 w-8"/>Activity Calendar</h1>
         <p className="text-muted-foreground">Visualize your sales and custom orders over time.</p>
-        <div className="flex items-center gap-4 mt-2 text-sm">
-            <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-success"></div> Sales Invoices</div>
-            <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-blue-500"></div> Custom Orders</div>
+        <div className="flex items-center gap-4 mt-2 text-sm flex-wrap">
+            <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-success"></div> Sales</div>
+            <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-blue-500"></div> Orders</div>
+            <Button variant="outline" size="sm" className="h-7 text-xs ml-auto"
+              onClick={() => { const t = new Date(); setMonth(t); setSelectedDate(t); }}>
+              Today
+            </Button>
+        </div>
+
+        {/* What the month on screen actually came to. */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+          {[
+            { label: format(month, 'MMMM yyyy'), value: `PKR ${monthSummary.total.toLocaleString()}`, tone: 'text-success' },
+            { label: 'Sales', value: String(monthSummary.sales) },
+            { label: 'Orders', value: String(monthSummary.orders) },
+            { label: 'Avg. trading day', value: monthSummary.best ? `PKR ${Math.round(monthSummary.best).toLocaleString()}` : '—' },
+          ].map(c => (
+            <div key={c.label} className="rounded-lg border bg-card px-3 py-2 min-w-0">
+              <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">{c.label}</p>
+              <p className={cn('text-base font-bold tabular-nums truncate', c.tone)}>{c.value}</p>
+            </div>
+          ))}
         </div>
       </header>
 
@@ -212,6 +226,8 @@ export default function CalendarPage() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={handleDayClick}
+                    month={month}
+                    onMonthChange={setMonth}
                     className="w-full"
                     classNames={{
                       months: "w-full",

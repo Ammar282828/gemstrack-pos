@@ -1004,7 +1004,7 @@ export default function WorkshopPage() {
 
       {/* Views */}
       <Tabs defaultValue="list">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl h-auto">
+        <TabsList className="w-full max-w-2xl justify-start h-auto">
           <TabsTrigger value="list" className="text-xs sm:text-sm"><TableIcon className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Jobs</span><span className="hidden sm:inline">All Jobs</span></TabsTrigger>
           <TabsTrigger value="karigar" className="text-xs sm:text-sm"><Users className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Karigar</span><span className="hidden sm:inline">By Karigar</span></TabsTrigger>
           <TabsTrigger value="board" className="text-xs sm:text-sm"><LayoutGrid className="h-4 w-4 mr-1.5 hidden sm:inline" />Board</TabsTrigger>

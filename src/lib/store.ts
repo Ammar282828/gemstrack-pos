@@ -511,10 +511,19 @@ export interface InvoiceItem {
   isCompleted?: boolean;
 }
 
+/** How the money actually arrived. Cash is the default because most of the
+ *  counter trade is cash; the rest matter for reconciling against a bank. */
+export const PAYMENT_TYPES = ['Cash', 'Card', 'Bank Transfer', 'Cheque'] as const;
+export type PaymentType = typeof PAYMENT_TYPES[number];
+
 export interface Payment {
   amount: number;
   date: string; // ISO string
   notes?: string;
+  /** Undefined on records written before payment types existed. */
+  method?: PaymentType;
+  /** Cheque number, last four of the card, transfer reference. */
+  reference?: string;
 }
 
 /**
@@ -1205,7 +1214,7 @@ export interface AppState {
     existingInvoiceId?: string,
     delivery?: DeliveryInfo
   ) => Promise<Invoice | null>;
-  updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string) => Promise<Invoice | null>;
+  updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string, method?: PaymentType, reference?: string) => Promise<Invoice | null>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
   updateInvoiceDiscount: (invoiceId: string, newDiscountAmount: number) => Promise<Invoice | null>;
   syncHisaabOutstandingBalances: () => Promise<void>;
@@ -2311,7 +2320,7 @@ export const useAppStore = create<AppState>()(
             return null;
         }
       },
-      updateInvoicePayment: async (invoiceId, paymentAmount, paymentDate) => {
+      updateInvoicePayment: async (invoiceId, paymentAmount, paymentDate, method, reference) => {
         if(get().settings.databaseLocked) return null;
         
         const invoiceRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
@@ -2325,7 +2334,12 @@ export const useAppStore = create<AppState>()(
 
                 const invoiceData = invoiceDoc.data() as Invoice;
                 
-                const newPayment: Payment = { amount: paymentAmount, date: paymentDate, notes: 'Payment received' };
+                const newPayment: Payment = {
+                  amount: paymentAmount, date: paymentDate,
+                  notes: method ? `Payment received (${method})` : 'Payment received',
+                  ...(method && { method }),
+                  ...(reference?.trim() && { reference: reference.trim() }),
+                };
                 const newPaymentHistory = [...(invoiceData.paymentHistory || []), newPayment];
                 
                 const newAmountPaid = newPaymentHistory.reduce((acc, p) => acc + p.amount, 0);
