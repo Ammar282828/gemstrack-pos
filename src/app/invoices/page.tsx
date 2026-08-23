@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, FileText, ClipboardList, AlertTriangle, User, Calendar, DollarSign, Eye, Upload, CheckCircle2, ShoppingBag, Printer, ChevronDown, Link2, Copy, Send } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { cn, openPDFWindowForIOS, savePDF, settledRowClass } from '@/lib/utils';
+import { cn, openPDFWindowForIOS, savePDF, settledRowClass, shopifyRowClass } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
@@ -399,7 +399,8 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
     };
 
     return (
-        <Card className={cn('mb-4', status === 'Completed' && settledRowClass)}>
+        <Card className={cn('mb-4', status === 'Completed' && settledRowClass,
+          isShopifyDoc(doc) && shopifyRowClass)}>
             <CardContent className="p-4 space-y-3" onClick={handleCardClick}>
                 <div className="flex justify-between items-start">
                     <div>
@@ -495,7 +496,8 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid
     };
 
     return (
-        <TableRow onClick={handleRowClick} className={cn('cursor-pointer', status === 'Completed' && settledRowClass)}>
+        <TableRow onClick={handleRowClick} className={cn('cursor-pointer',
+          status === 'Completed' && settledRowClass, isShopifyDoc(doc) && shopifyRowClass)}>
             <TableCell>
                  <div className="font-medium text-primary hover:underline">{doc.id}</div>
             </TableCell>

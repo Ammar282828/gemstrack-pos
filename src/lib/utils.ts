@@ -90,3 +90,21 @@ export function normalizePhoneNumber(phone: string | undefined | null): string {
  */
 export const settledRowClass =
   'opacity-55 hover:opacity-100 focus-within:opacity-100 transition-opacity';
+
+/**
+ * Rows that touch Shopify.
+ *
+ * A tint plus a left edge, rather than colour alone — the row still has to be
+ * findable if the green is hard to see. Deliberately faint: it marks where a
+ * record came from, it is not a status.
+ *
+ * The two pages mean slightly different things by it. An invoice carries
+ * `source: 'shopify'`, meaning the sale happened on the storefront. No order
+ * has ever originated on Shopify; an order is marked when it has been mirrored
+ * out as a draft order, which is the opposite direction.
+ */
+export const shopifyRowClass =
+  // An inset shadow rather than a left border: shadcn's TableBody carries
+  // `[&_tr:last-child]:border-0`, which zeroes every side, so the last row in
+  // each section silently lost its edge.
+  'bg-success/[0.07] hover:bg-success/[0.12] shadow-[inset_2px_0_0_0_hsl(var(--success))]';
