@@ -11,7 +11,7 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, PieChart } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -32,50 +32,61 @@ interface NavGroup {
   items: NavItem[];
 }
 
+/**
+ * Grouped by what each thing is, not by how it was added.
+ *
+ * "Management" had become a bin: people, the bench, billing, the calendar,
+ * expenses and extra revenue all under one heading, while a separate "Finance"
+ * group held the ledger. Money sat in both. Two icons were also doing double
+ * duty — TrendingUp for Extra Revenue and Analytics, HandCoins for Given Items
+ * and Shareholder Finances — so the strip could not be read by shape.
+ *
+ * Ordered within each group by how often you reach for it.
+ */
 const navGroups: NavGroup[] = [
   {
     label: 'Overview',
     items: [
       { href: '/', label: 'Home', icon: <Home /> },
+      { href: '/calendar', label: 'Calendar', icon: <Calendar /> },
     ],
   },
   {
-    label: 'Point of Sale',
+    label: 'Selling',
     items: [
       // One way in: pick invoice or order first, then add the pieces.
       // /scan and /cart are still reachable, just not decisions of their own.
       { href: '/new', label: 'New Sale', icon: <PlusCircle /> },
       { href: '/orders', label: 'Orders', icon: <ClipboardList /> },
-    ],
-  },
-  {
-    label: 'Management',
-    items: [
+      { href: '/billing', label: 'Billing', icon: <Receipt /> },
       { href: '/customers', label: 'Customers', icon: <Users /> },
-      { href: '/karigars', label: 'Karigars', icon: <Briefcase /> },
-      { href: '/workshop', label: 'Workshop', icon: <Hammer /> },
-      { href: '/billing', label: 'Billing', icon: <FileText /> },
-      { href: '/calendar', label: 'Calendar', icon: <Calendar /> },
-      { href: '/expenses', label: 'Expenses', icon: <CreditCard /> },
-      { href: '/additional-revenue', label: 'Extra Revenue', icon: <TrendingUp /> },
-      { href: '/given', label: 'Given Items', icon: <HandCoins /> },
     ],
   },
   {
-    label: 'Finance',
+    label: 'Workshop',
     items: [
+      { href: '/workshop', label: 'Workshop', icon: <Hammer /> },
+      { href: '/karigars', label: 'Karigars', icon: <Briefcase /> },
+      { href: '/given', label: 'Given Items', icon: <Package /> },
+    ],
+  },
+  {
+    label: 'Money',
+    items: [
+      { href: '/expenses', label: 'Expenses', icon: <CreditCard /> },
+      { href: '/additional-revenue', label: 'Extra Revenue', icon: <Coins /> },
       { href: '/hisaab', label: 'Hisaab / Ledger', icon: <BookUser /> },
+      { href: '/shareholders', label: 'Shareholder Finances', icon: <PieChart /> },
       { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
-      { href: '/shareholders', label: 'Shareholder Finances', icon: <HandCoins /> },
     ],
   },
   {
     label: 'System',
     items: [
-      { href: '/activity-log', label: 'Activity Log', icon: <History /> },
       { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
       { href: '/settings/payment-methods', label: 'Payment Methods', icon: <Landmark /> },
       { href: '/settings/backups', label: 'Backups', icon: <ArchiveRestore /> },
+      { href: '/activity-log', label: 'Activity Log', icon: <History /> },
     ],
   },
 ];

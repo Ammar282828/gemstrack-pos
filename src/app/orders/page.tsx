@@ -175,24 +175,26 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
           </Link>
-          <p className="text-xs text-muted-foreground max-w-[15rem] mt-1 flex items-start gap-1.5" title={order.summary}>
-            <MessageSquareQuote className="w-3 h-3 mt-0.5 flex-shrink-0" />
-            <span className="min-w-0 truncate">{order.summary || 'No summary'}</span>
+          {/* Count first: it is the scannable part, and the item list is
+              going to truncate whatever happens. */}
+          <p className="text-xs text-muted-foreground max-w-[18rem] mt-0.5 truncate" title={order.summary}>
+            {totalItems > 0 && <span className="tabular-nums">{totalItems} item{totalItems === 1 ? '' : 's'}</span>}
+            {totalItems > 0 && order.summary ? ' · ' : ''}
+            {order.summary || (totalItems === 0 ? 'No items' : '')}
           </p>
         </TableCell>
-        <TableCell className="hidden lg:table-cell align-middle">
-            <div className="flex items-center gap-2 text-sm whitespace-nowrap">
-                <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0"/>
-                {format(parseISO(order.createdAt), 'dd MMM yyyy')}
+        <TableCell className="hidden lg:table-cell align-top">
+            <div className="whitespace-nowrap leading-tight">
+                <p className="text-sm">{format(parseISO(order.createdAt), 'd MMM yyyy')}</p>
+                <p className="text-xs text-muted-foreground">{format(parseISO(order.createdAt), 'EEEE')}</p>
             </div>
         </TableCell>
-        <TableCell className="align-middle">
-          <div className="flex items-center gap-2 text-sm min-w-0">
-            <User className="w-4 h-4 text-muted-foreground flex-shrink-0"/>
-            <div className="min-w-0 leading-tight">
-                <p className="truncate">{order.customerName || 'Walk-in'}</p>
-                {order.customerContact && <p className="text-xs text-muted-foreground whitespace-nowrap">{order.customerContact}</p>}
-            </div>
+        <TableCell className="align-top">
+          <div className="min-w-0 leading-tight">
+            <p className="text-sm truncate">{order.customerName || 'Walk-in'}</p>
+            {order.customerContact && (
+              <p className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">{order.customerContact}</p>
+            )}
           </div>
         </TableCell>
          <TableCell className="hidden xl:table-cell text-right">

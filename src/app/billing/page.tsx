@@ -1189,12 +1189,26 @@ export default function DocumentsPage() {
             which "Invoices (174)" cannot fit, so the labels spilled out of their
             cells. A scrolling flex row sizes each tab to its own label. */}
         <TabsList className="w-full md:w-fit justify-start mb-4">
-          <TabsTrigger value="all">All <span className="ml-1 text-2xs opacity-60 tabular-nums">{filteredDocuments.length}</span></TabsTrigger>
-          <TabsTrigger value="invoices">Invoices <span className="ml-1 text-2xs opacity-60 tabular-nums">{filteredDocuments.filter(d => d.docType === 'invoice' && !isShopifyDoc(d)).length}</span></TabsTrigger>
-          <TabsTrigger value="orders">Orders <span className="ml-1 text-2xs opacity-60 tabular-nums">{filteredDocuments.filter(d => d.docType === 'order').length}</span></TabsTrigger>
-          <TabsTrigger value="shopify" className="flex items-center gap-1">
-            <ShoppingBag className="h-3 w-3" /> Shopify <span className="text-2xs opacity-60 tabular-nums">{filteredDocuments.filter(d => isShopifyDoc(d)).length}</span>
-          </TabsTrigger>
+          {([
+            { value: 'all', label: 'All', n: filteredDocuments.length },
+            { value: 'invoices', label: 'Invoices', n: filteredDocuments.filter(d => d.docType === 'invoice' && !isShopifyDoc(d)).length },
+            { value: 'orders', label: 'Orders', n: filteredDocuments.filter(d => d.docType === 'order').length },
+            { value: 'shopify', label: 'Shopify', n: filteredDocuments.filter(d => isShopifyDoc(d)).length, icon: <ShoppingBag className="h-3 w-3 self-center flex-shrink-0" /> },
+          ] as const).map(tab => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {/* One flex item, not three. TabsTrigger is `items-center`, so a
+                  bare label and a smaller count were centred against each
+                  other's line boxes rather than sharing a baseline — which is
+                  why the digits floated above the text. Grouping them lets
+                  `items-baseline` sit the count on the label's baseline, and
+                  the icon opts back out with `self-center`. */}
+              <span className="inline-flex items-baseline gap-1.5">
+                {'icon' in tab ? tab.icon : null}
+                {tab.label}
+                <span className="text-2xs opacity-60 tabular-nums">{tab.n}</span>
+              </span>
+            </TabsTrigger>
+          ))}
         </TabsList>
         <TabsContent value="all">
           {renderContent(filteredDocuments)}
