@@ -59,6 +59,7 @@ import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import { SearchablePicker } from '@/components/shared/searchable-picker';
 import { AmountInput } from '@/components/ui/amount-input';
+import { PageBack } from '@/components/shared/page-back';
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -373,7 +374,7 @@ const FinalizeOrderDialog: React.FC<{
                 finalDiamondCharges: item.diamondCharges,
                 finalStoneCharges: item.stoneCharges,
             })),
-            additionalDiscount: 0,
+            additionalDiscount: Number(order?.discountAmount) || 0,
         }
     });
 
@@ -453,7 +454,16 @@ const FinalizeOrderDialog: React.FC<{
                         <Separator />
                         <div className="p-3">
                             <FormField control={form.control} name="additionalDiscount" render={({ field }) => (
-                                <FormItem><FormLabel className="flex items-center text-base"><Percent className="mr-2 h-4"/>Additional Discount</FormLabel><FormControl><Input type="number" placeholder="Enter any extra discount amount" {...field} /></FormControl><FormDescription>This discount is applied on top of the advance payment.</FormDescription><FormMessage /></FormItem>
+                                <FormItem>
+                                  <FormLabel className="flex items-center text-base"><Percent className="mr-2 h-4"/>Discount</FormLabel>
+                                  <FormControl><AmountInput placeholder="0" {...field} /></FormControl>
+                                  <FormDescription>
+                                    {Number(order?.discountAmount) > 0
+                                      ? `Carried over from the order. Adjust it here if the agreed figure has changed.`
+                                      : 'Applied on top of the advance payment.'}
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
                             )}/>
                         </div>
                         <DialogFooter>
@@ -1079,9 +1089,7 @@ export default function OrderDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Button variant="outline" onClick={() => router.back()} className="mb-0">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
-      </Button>
+      <PageBack fallback="/orders" label="Back to orders" />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-3 space-y-6">

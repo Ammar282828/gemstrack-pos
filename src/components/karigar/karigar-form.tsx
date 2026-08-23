@@ -17,6 +17,7 @@ import { Save, Ban, User, Phone, StickyNote } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css';
 import { normalizePhoneNumber } from '@/lib/utils';
+import { PageBack } from '@/components/shared/page-back';
 
 const karigarSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -89,6 +90,7 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
 
   return (
     <Form {...form}>
+      <PageBack fallback="/karigars" label="Back to karigars" className="mb-2" />
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>

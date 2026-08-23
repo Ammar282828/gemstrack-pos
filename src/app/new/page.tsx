@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Receipt, ClipboardList, ArrowRight, ScanQrCode, Loader2, ShoppingCart,
 } from 'lucide-react';
+import { PageBack } from '@/components/shared/page-back';
 
 const Choice: React.FC<{
   href: string;
@@ -75,6 +76,7 @@ export default function NewSalePage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
+      <PageBack fallback="/" label="Back" />
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-primary">New sale</h1>
         <p className="text-muted-foreground mt-1">

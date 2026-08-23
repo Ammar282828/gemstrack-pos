@@ -15,6 +15,7 @@ import { Search, Loader2, Save, ExternalLink, Info, Check, X } from 'lucide-reac
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
+import { PageBack } from '@/components/shared/page-back';
 
 export default function WeprintApiPage() {
   const appReady = useAppReady();
@@ -95,6 +96,7 @@ export default function WeprintApiPage() {
   if (!appReady || (isProductsLoading && products.length === 0)) {
     return (
       <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+      <PageBack fallback="/settings" label="Back to settings" />
         <ListSkeleton />
       </div>
     );

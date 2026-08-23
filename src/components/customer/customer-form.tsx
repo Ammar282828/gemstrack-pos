@@ -20,6 +20,7 @@ import { Save, Ban } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { normalizePhoneNumber } from '@/lib/utils';
+import { PageBack } from '@/components/shared/page-back';
 
 const NO_SOURCE_VALUE = '__none__';
 
@@ -99,6 +100,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
 
   return (
     <Form {...form}>
+      <PageBack fallback="/customers" label="Back to customers" className="mb-2" />
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>

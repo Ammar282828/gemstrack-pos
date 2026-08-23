@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { parse, isValid } from 'date-fns';
+import { PageBack } from '@/components/shared/page-back';
 
 type ParsedRow = {
   date: string;
@@ -149,6 +150,7 @@ export default function HisaabImportPage() {
 
   return (
     <div className="container mx-auto p-4 space-y-8">
+      <PageBack fallback="/settings" label="Back to settings" />
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl flex items-center">

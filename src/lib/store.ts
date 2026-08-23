@@ -644,6 +644,9 @@ export interface Order {
   items: OrderItem[];
   ratesApplied: Partial<Settings>; // Store all rates at time of order
   subtotal: number;
+  /** Agreed at order time and carried into the invoice when it is finalised,
+   *  so a price settled with the customer does not have to be re-entered. */
+  discountAmount?: number;
   advancePayment: number;
   advanceGoldDetails?: string;
   grandTotal: number;

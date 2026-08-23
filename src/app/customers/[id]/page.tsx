@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { PageBack } from '@/components/shared/page-back';
 
 const getStatusBadgeVariant = (status: Order['status']) => {
     switch (status) {
@@ -126,9 +127,7 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-6">
-      <Button variant="outline" onClick={() => router.back()} className="mb-0">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to List
-      </Button>
+      <PageBack fallback="/customers" label="Back to customers" />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">

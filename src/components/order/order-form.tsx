@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock , ChevronRight } from 'lucide-react';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock , ChevronRight, TicketPercent } from 'lucide-react';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
@@ -37,6 +37,7 @@ import { Label } from '@/components/ui/label';
 import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
+import { PageBack } from '@/components/shared/page-back';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -116,6 +117,7 @@ const orderFormSchema = z.object({
     goldRate21k: z.coerce.number().min(0),
     goldRate22k: z.coerce.number().min(0),
     goldRate24k: z.coerce.number().min(0),
+    discountAmount: z.coerce.number().min(0).default(0),
     advancePayment: z.coerce.number().min(0).default(0),
     advanceInExchangeDescription: z.string().optional(),
     advanceInExchangeValue: z.coerce.number().min(0).default(0),
@@ -307,6 +309,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
     defaultValues: {
       items: seededItems,
       goldRate18k: 0, goldRate21k: 0, goldRate22k: 0, goldRate24k: 0,
+      discountAmount: 0,
       advancePayment: 0,
       advanceInExchangeDescription: '',
       advanceInExchangeValue: 0,
@@ -343,6 +346,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         goldRate21k: rates.goldRatePerGram21k || 0,
         goldRate22k: rates.goldRatePerGram22k || 0,
         goldRate24k: rates.goldRatePerGram24k || 0,
+        discountAmount: Number(order.discountAmount) || 0,
         advancePayment: Number(order.advancePayment) || 0,
         advanceInExchangeDescription: order.advanceInExchangeDescription || '',
         advanceInExchangeValue: Number(order.advanceInExchangeValue) || 0,
@@ -429,15 +433,17 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         subtotal += costs.totalPrice;
     });
 
+    // Never more than the subtotal — a discount cannot turn a sale into a debt.
+    const discount = Math.max(0, Math.min(subtotal, Number(formValues.discountAmount) || 0));
     const totalAdvance = (Number(formValues.advancePayment) || 0) + (Number(formValues.advanceInExchangeValue) || 0);
-    const grandTotal = subtotal - totalAdvance;
-    
-    return { subtotal, grandTotal };
+    const grandTotal = subtotal - discount - totalAdvance;
+
+    return { subtotal, discount, grandTotal };
   }, [formValues, settings]);
 
 
   const onSubmit = async (data: OrderFormData) => {
-    const { subtotal, grandTotal } = liveEstimate;
+    const { subtotal, discount, grandTotal } = liveEstimate;
     const ratesForOrder: Partial<Settings> = {
         goldRatePerGram18k: data.goldRate18k || 0,
         goldRatePerGram21k: data.goldRate21k || 0,
@@ -484,6 +490,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
             items: enrichedItems,
             ratesApplied: ratesForOrder,
             subtotal,
+            discountAmount: discount,
             grandTotal,
         };
         try {
@@ -509,6 +516,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
             advanceInExchangeDescription: data.advanceInExchangeDescription,
             advanceInExchangeValue: data.advanceInExchangeValue,
             subtotal,
+            discountAmount: discount,
             grandTotal,
             customerId: finalCustomerId,
             customerName: finalCustomerName,
@@ -607,6 +615,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
 
   return (
     <Form {...form}>
+      <PageBack fallback="/orders" label="Back to orders" className="mb-2" />
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           <Card>
@@ -1006,6 +1015,17 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                       )}
                     />
 
+                    <FormField control={form.control} name="discountAmount" render={({ field }) => (
+                       <FormItem>
+                            <FormLabel className="flex items-center"><TicketPercent className="mr-2 h-4 w-4"/>Discount (PKR)</FormLabel>
+                            <FormControl><AmountInput {...field} placeholder="0" /></FormControl>
+                            <FormDescription className="text-xs">
+                              Carried onto the invoice when this order is finalised.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
+
                     <FormField control={form.control} name="advancePayment" render={({ field }) => (
                        <FormItem>
                             <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Advance Payment (Cash)</FormLabel>
@@ -1031,6 +1051,12 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             <span className="text-muted-foreground">Subtotal:</span>
                             <span className="font-semibold text-base">PKR {liveEstimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </div>
+                        {liveEstimate.discount > 0 && (
+                          <div className="flex justify-between items-center text-destructive">
+                            <span className="text-muted-foreground">Discount:</span>
+                            <span className="font-semibold text-base">- PKR {liveEstimate.discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between items-center text-destructive">
                             <span className="text-muted-foreground">Advance (Cash + Exchange):</span>
                             <span className="font-semibold text-base">- PKR {((Number(formValues.advancePayment) || 0) + (Number(formValues.advanceInExchangeValue) || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>

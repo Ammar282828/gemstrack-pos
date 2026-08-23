@@ -27,6 +27,7 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
+import { PageBack } from '@/components/shared/page-back';
 
 
 // Schema for the form data
@@ -312,6 +313,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   
   return (
     <Form {...form}>
+      {/* Not in dialog mode — a dialog closes, it does not navigate. */}
+      {!isDialogMode && <PageBack fallback="/products" label="Back to products" className="mb-2" />}
       <form onSubmit={form.handleSubmit(processAndSubmit)}>
         <div className={cn(!isDialogMode && "p-1")}>
           {!isDialogMode &&

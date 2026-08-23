@@ -80,3 +80,13 @@ export function normalizePhoneNumber(phone: string | undefined | null): string {
   if (clean.startsWith('92') && clean.length >= 12) return `+${clean}`;
   return phone;
 }
+
+/**
+ * Rows for work that is finished.
+ *
+ * Dimmed so a long list reads as "these are done", but deliberately not
+ * disabled — the row still opens, and hover or keyboard focus brings it back
+ * to full strength so it can be read properly without leaving the list.
+ */
+export const settledRowClass =
+  'opacity-55 hover:opacity-100 focus-within:opacity-100 transition-opacity';
