@@ -19,10 +19,10 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import QRCode from 'qrcode.react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
 import { SearchablePicker } from '@/components/shared/searchable-picker';
+import { PhoneField } from '@/components/ui/phone-field';
 
 const PAKISTANI_BANKS = [
     "Al Baraka Bank (Pakistan) Limited",
@@ -263,15 +263,11 @@ export default function PaymentMethodsPage() {
                                 <FormItem>
                                 <FormLabel>Customer WhatsApp Number</FormLabel>
                                 <FormControl>
-                                    <PhoneInput
+                                    <PhoneField
                                         value={field.value || undefined}
-                                        onChange={(val) => field.onChange(val || '')}
+                                        onChange={v => field.onChange(v || '')}
                                         onBlur={field.onBlur}
-                                        defaultCountry="PK"
-                                        international
-                                        countryCallingCodeEditable={false}
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none"
-                                    />
+                                        aria-label="Phone number" />
                                 </FormControl>
                                 <FormMessage />
                                 </FormItem>

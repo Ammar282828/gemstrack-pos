@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { produce } from 'immer';
 import { QrCode } from 'lucide-react';
+import { FormSkeleton } from '@/components/shared/skeletons';
 
 // --- Types ---
 interface LabelField {
@@ -332,8 +333,8 @@ function PrinterPageComponent() {
   
   if (!appReady) {
     return (
-        <div className="flex h-screen w-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+            <FormSkeleton fields={5} columns={2} />
         </div>
     );
   }

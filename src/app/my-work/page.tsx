@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { groupJobsByOrder, type JobOrderGroup } from '@/lib/workshop';
+import { ListSkeleton } from '@/components/shared/skeletons';
 
 interface Job {
   id: string; source: 'order' | 'manual';
@@ -117,7 +118,7 @@ export default function MyWorkPage() {
   };
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+    return <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl"><ListSkeleton rows={5} /></div>;
   }
 
   if (!data?.karigar) {

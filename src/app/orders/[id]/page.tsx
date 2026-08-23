@@ -27,7 +27,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Control, useForm, useFieldArray } from 'react-hook-form';
-import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
 import {
   Dialog,
@@ -60,6 +59,7 @@ import QRCode from 'qrcode.react';
 import { SearchablePicker } from '@/components/shared/searchable-picker';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
+import { PhoneField } from '@/components/ui/phone-field';
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -1009,11 +1009,11 @@ export default function OrderDetailPage() {
             <div className="space-y-4 py-4">
                  <div>
                     <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
-                    <PhoneInput
-                        name="phone"
-                        control={phoneForm.control as unknown as Control}
-                        defaultCountry="PK"
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1"
+                    <PhoneField
+                        value={phoneForm.watch('phone') || undefined}
+                        onChange={v => phoneForm.setValue('phone', v || '')}
+                        aria-label="WhatsApp number"
+                        className="mt-1"
                     />
                 </div>
             </div>

@@ -14,10 +14,10 @@ import { useAppStore, Karigar } from '@/lib/store';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, User, Phone, StickyNote } from 'lucide-react';
-import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { PageBack } from '@/components/shared/page-back';
+import { PhoneField } from '@/components/ui/phone-field';
 
 const karigarSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -126,14 +126,11 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
                 <FormItem>
                   <FormLabel className="text-base">Contact Information (Optional)</FormLabel>
                   <FormControl>
-                    <PhoneInput
-                      name={field.name}
-                      value={field.value}
-                      onChange={field.onChange}
+                    <PhoneField
+                      value={field.value || undefined}
+                      onChange={v => field.onChange(v || '')}
                       onBlur={field.onBlur}
-                      ref={field.ref}
-                      defaultCountry="PK"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                      aria-label="Contact number"
                     />
                   </FormControl>
                   <FormMessage />

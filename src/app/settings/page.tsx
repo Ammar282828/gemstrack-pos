@@ -33,9 +33,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Image from 'next/image';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Progress } from '@/components/ui/progress';
-import StandalonePhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { AmountInput } from '@/components/ui/amount-input';
+import { PhoneField } from '@/components/ui/phone-field';
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
@@ -320,16 +320,13 @@ function NotificationsCard() {
 
               {/* Add new number */}
               <div className="flex gap-2 items-center">
-                <StandalonePhoneInput
-                  value={newPhone || undefined}
-                  onChange={(val) => setNewPhone(val || '')}
-                  defaultCountry="PK"
-                  international
-                  countryCallingCodeEditable={false}
-                  placeholder="Enter WhatsApp number"
-                  className="flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none"
-                  onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPhone(); } }}
-                />
+                <div className="w-full max-w-xs">
+                  <PhoneField
+                    value={newPhone || undefined}
+                    onChange={(val) => setNewPhone(val || '')}
+                    aria-label="WhatsApp number to notify"
+                  />
+                </div>
                 <Button variant="outline" size="sm" onClick={handleAddPhone} disabled={!newPhone}>
                   <Plus className="h-4 w-4 mr-1" /> Add
                 </Button>

@@ -17,10 +17,10 @@ import { useAppStore, Customer, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban } from 'lucide-react';
-import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { PageBack } from '@/components/shared/page-back';
+import { PhoneField } from '@/components/ui/phone-field';
 
 const NO_SOURCE_VALUE = '__none__';
 
@@ -127,15 +127,11 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
                     <FormItem>
                     <FormLabel>Phone Number (Optional)</FormLabel>
                     <FormControl>
-                        <PhoneInput
-                            value={field.value || undefined}
-                            onChange={(val) => field.onChange(val || '')}
-                            onBlur={field.onBlur}
-                            defaultCountry="PK"
-                            international
-                            countryCallingCodeEditable={false}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none"
-                        />
+                        <PhoneField
+                              value={field.value || undefined}
+                              onChange={v => field.onChange(v || '')}
+                              onBlur={field.onBlur}
+                              aria-label="Phone number" />
                     </FormControl>
                     <FormMessage />
                     </FormItem>

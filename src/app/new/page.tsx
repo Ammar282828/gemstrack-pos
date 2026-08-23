@@ -18,9 +18,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Receipt, ClipboardList, ArrowRight, ScanQrCode, Loader2, ShoppingCart,
+  Receipt, ClipboardList, ArrowRight, ScanQrCode, ShoppingCart,
 } from 'lucide-react';
 import { PageBack } from '@/components/shared/page-back';
+import { BoardSkeleton } from '@/components/shared/skeletons';
 
 const Choice: React.FC<{
   href: string;
@@ -68,8 +69,8 @@ export default function NewSalePage() {
 
   if (!appReady) {
     return (
-      <div className="container mx-auto py-8 px-4 flex items-center gap-2 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />Loading…
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <BoardSkeleton tiles={2} panels={2} />
       </div>
     );
   }

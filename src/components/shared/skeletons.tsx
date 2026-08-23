@@ -88,3 +88,66 @@ export const PageSkeleton: React.FC = () => (
     </CardContent></Card>
   </div>
 );
+
+/** A form: label/field pairs in a card, with the action row at the bottom. */
+export const FormSkeleton: React.FC<{ fields?: number; columns?: 1 | 2; className?: string }> = ({
+  fields = 6, columns = 1, className,
+}) => (
+  <div className={cn('space-y-4', className)} aria-busy="true" aria-live="polite">
+    <span className="sr-only">Loading…</span>
+    <Bar className="h-7 w-56" />
+    <Card>
+      <CardContent className="p-5 space-y-5">
+        <div className={cn('grid gap-5', columns === 2 ? 'sm:grid-cols-2' : 'grid-cols-1')}>
+          {Array.from({ length: fields }).map((_, i) => (
+            <div key={i} className="space-y-2" style={{ animationDelay: `${i * 60}ms` }}>
+              <Bar className="h-3 w-24 opacity-60" />
+              <Bar className="h-10 w-full" />
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end gap-2 pt-2 border-t">
+          <Bar className="h-10 w-24" />
+          <Bar className="h-10 w-32" />
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+);
+
+/** One record: title, a row of figures, then its sections. */
+export const DetailSkeleton: React.FC<{ sections?: number; className?: string }> = ({
+  sections = 2, className,
+}) => (
+  <div className={cn('space-y-4', className)} aria-busy="true" aria-live="polite">
+    <span className="sr-only">Loading…</span>
+    <div className="space-y-2">
+      <Bar className="h-7 w-52" />
+      <Bar className="h-3 w-36 opacity-60" />
+    </div>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {[0, 1, 2, 3].map(i => (
+        <div key={i} className="rounded-xl border bg-card p-4 space-y-2">
+          <Bar className="h-3 w-16 opacity-60" />
+          <Bar className="h-6 w-24" />
+        </div>
+      ))}
+    </div>
+    {Array.from({ length: sections }).map((_, i) => (
+      <Card key={i}>
+        <CardContent className="p-5 space-y-3">
+          <Bar className="h-4 w-32" />
+          {[0, 1, 2].map(r => (
+            <div key={r} className="flex items-center gap-3">
+              <Bar className="h-9 w-9 rounded-full flex-shrink-0" />
+              <div className="flex-1 space-y-2 min-w-0">
+                <Bar className="w-1/2" /><Bar className="w-1/3 opacity-60" />
+              </div>
+              <Bar className="w-20 flex-shrink-0 opacity-60" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+);

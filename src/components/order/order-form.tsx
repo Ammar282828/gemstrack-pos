@@ -24,20 +24,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock , ChevronRight, TicketPercent } from 'lucide-react';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock , ChevronRight, TicketPercent, Truck } from 'lucide-react';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import Image from 'next/image';
-import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
 import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
+import { PhoneField } from '@/components/ui/phone-field';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -274,6 +274,31 @@ function cartItemToOrderItem(p: Product) {
     nickelFree: !!p.nickelFree,
   };
 }
+
+/** Every figure in the order panel is written the same way. */
+const money = (n: number) =>
+  'PKR ' + (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/**
+ * One labelled group inside the order panel.
+ *
+ * The panel was a single flat column headed "Summary" holding the customer,
+ * their contact, the referral source, gold rates, delivery, the discount, two
+ * kinds of advance payment and the totals — everything the left column had no
+ * room for. Nothing said where one concern ended and the next began.
+ */
+const PanelSection: React.FC<{
+  title: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ title, icon, children }) => (
+  <section className="space-y-2.5">
+    <h3 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+      {icon}{title}
+    </h3>
+    {children}
+  </section>
+);
 
 export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = ({ order, seedFromCart }) => {
   const { toast } = useToast();
@@ -927,11 +952,12 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         <div className="lg:col-span-1">
             <Card className="sticky top-8">
                 <CardHeader>
-                    <CardTitle className="flex items-center"><List className="mr-2 h-5 w-5"/>Summary</CardTitle>
+                    <CardTitle className="flex items-center"><List className="mr-2 h-5 w-5"/>Order details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-5">
+                    <PanelSection title="Customer" icon={<User className="h-3.5 w-3.5" />}>
                     <FormItem>
-                        <FormLabel className="flex items-center"><User className="mr-2 h-4 w-4"/>Customer</FormLabel>
+                        <FormLabel className="text-xs">Name</FormLabel>
                         <CustomerAutocomplete
                             customers={customers}
                             value={form.watch('customerName') || ''}
@@ -949,17 +975,13 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                         name="customerContact"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4"/>Contact</FormLabel>
+                            <FormLabel className="text-xs">Contact</FormLabel>
                             <FormControl>
-                            <PhoneInput
+                            <PhoneField
                                 value={field.value || undefined}
-                                onChange={(val) => field.onChange(val || '')}
+                                onChange={v => field.onChange(v || '')}
                                 onBlur={field.onBlur}
-                                defaultCountry="PK"
-                                international
-                                countryCallingCodeEditable={false}
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none"
-                            />
+                                aria-label="Customer contact" />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -971,7 +993,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                         name="source"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="flex items-center"><Search className="mr-2 h-4 w-4"/>Source</FormLabel>
+                            <FormLabel className="text-xs">How they found us</FormLabel>
                             <Select
                                 value={field.value ?? '__none__'}
                                 onValueChange={(v) => field.onChange(v === '__none__' ? undefined : v)}
@@ -991,20 +1013,21 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                         </FormItem>
                         )}
                     />
+                    </PanelSection>
 
                     {(formValues.items || []).some(item => item.metalType === 'gold') && (
-                    <div className="space-y-2">
-                        <Label className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Gold Rates (PKR/gram)</Label>
+                    <PanelSection title="Gold rates (PKR / gram)" icon={<DollarSign className="h-3.5 w-3.5" />}>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 border rounded-md">
                             <FormField control={form.control} name="goldRate24k" render={({ field }) => (<FormItem><FormLabel className="text-xs">24k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
                             <FormField control={form.control} name="goldRate22k" render={({ field }) => (<FormItem><FormLabel className="text-xs">22k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
                             <FormField control={form.control} name="goldRate21k" render={({ field }) => (<FormItem><FormLabel className="text-xs">21k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
                             <FormField control={form.control} name="goldRate18k" render={({ field }) => (<FormItem><FormLabel className="text-xs">18k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
                         </div>
-                        <FormDescription>This rate applies to all items in this estimate.</FormDescription>
-                    </div>
+                        <FormDescription className="text-xs">Applies to every item in this estimate.</FormDescription>
+                    </PanelSection>
                     )}
 
+                    <PanelSection title="Delivery" icon={<Truck className="h-3.5 w-3.5" />}>
                     <DeliveryFields
                       value={delivery}
                       onChange={setDelivery}
@@ -1014,10 +1037,12 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                         orders,
                       )}
                     />
+                    </PanelSection>
 
+                    <PanelSection title="Payment" icon={<TicketPercent className="h-3.5 w-3.5" />}>
                     <FormField control={form.control} name="discountAmount" render={({ field }) => (
                        <FormItem>
-                            <FormLabel className="flex items-center"><TicketPercent className="mr-2 h-4 w-4"/>Discount (PKR)</FormLabel>
+                            <FormLabel className="text-xs">Discount (PKR)</FormLabel>
                             <FormControl><AmountInput {...field} placeholder="0" /></FormControl>
                             <FormDescription className="text-xs">
                               Carried onto the invoice when this order is finalised.
@@ -1028,13 +1053,13 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
 
                     <FormField control={form.control} name="advancePayment" render={({ field }) => (
                        <FormItem>
-                            <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Advance Payment (Cash)</FormLabel>
+                            <FormLabel className="text-xs">Advance paid (cash)</FormLabel>
                             <FormControl><AmountInput {...field} /></FormControl><FormMessage />
                         </FormItem>
                     )}/>
                     
                     <div className="p-3 border rounded-md bg-muted/30">
-                        <p className="font-semibold text-sm mb-2">Advance in Exchange (Gold/Diamonds)</p>
+                        <p className="text-xs font-medium mb-2">Advance in exchange (gold / diamonds)</p>
                         <div className="space-y-2">
                             <FormField control={form.control} name="advanceInExchangeDescription" render={({ field }) => (
                                <FormItem><FormLabel className="text-xs">Description of Items Received</FormLabel><FormControl><Textarea placeholder="e.g., Old gold ring (21k, ~5.2g)" {...field} rows={2} /></FormControl><FormMessage /></FormItem>
@@ -1044,27 +1069,51 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             )}/>
                         </div>
                     </div>
+                    </PanelSection>
 
-                    <Separator/>
-                    <div className="space-y-2 p-3 bg-muted/50 rounded-md">
-                        <div className="flex justify-between items-center">
-                            <span className="text-muted-foreground">Subtotal:</span>
-                            <span className="font-semibold text-base">PKR {liveEstimate.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-                        {liveEstimate.discount > 0 && (
-                          <div className="flex justify-between items-center text-destructive">
-                            <span className="text-muted-foreground">Discount:</span>
-                            <span className="font-semibold text-base">- PKR {liveEstimate.discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between items-center text-destructive">
-                            <span className="text-muted-foreground">Advance (Cash + Exchange):</span>
-                            <span className="font-semibold text-base">- PKR {((Number(formValues.advancePayment) || 0) + (Number(formValues.advanceInExchangeValue) || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-                        <Separator />
-                        <div className="flex justify-between items-center text-xl font-bold">
-                            <span>Balance Due:</span>
-                            <span className="text-primary">PKR {liveEstimate.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    {/* The arithmetic, laid out as a running deduction: what the
+                        pieces come to, what comes off, and what is left. Each
+                        line names where its figure was entered. */}
+                    <div className="rounded-lg border bg-muted/40 overflow-hidden">
+                        <dl className="divide-y text-sm">
+                            <div className="flex justify-between items-baseline gap-3 px-3 py-2">
+                                <dt className="text-muted-foreground">
+                                    Items
+                                    <span className="block text-2xs">{(formValues.items || []).length} piece{(formValues.items || []).length === 1 ? '' : 's'}</span>
+                                </dt>
+                                <dd className="font-medium tabular-nums">{money(liveEstimate.subtotal)}</dd>
+                            </div>
+
+                            {liveEstimate.discount > 0 && (
+                              <div className="flex justify-between items-baseline gap-3 px-3 py-2">
+                                <dt className="text-muted-foreground">Discount</dt>
+                                <dd className="font-medium tabular-nums text-destructive">− {money(liveEstimate.discount)}</dd>
+                              </div>
+                            )}
+
+                            {(Number(formValues.advancePayment) || 0) > 0 && (
+                              <div className="flex justify-between items-baseline gap-3 px-3 py-2">
+                                <dt className="text-muted-foreground">Advance paid</dt>
+                                <dd className="font-medium tabular-nums text-destructive">− {money(Number(formValues.advancePayment) || 0)}</dd>
+                              </div>
+                            )}
+
+                            {(Number(formValues.advanceInExchangeValue) || 0) > 0 && (
+                              <div className="flex justify-between items-baseline gap-3 px-3 py-2">
+                                <dt className="text-muted-foreground">
+                                    Taken in exchange
+                                    {formValues.advanceInExchangeDescription && (
+                                      <span className="block text-2xs truncate max-w-[11rem]">{formValues.advanceInExchangeDescription}</span>
+                                    )}
+                                </dt>
+                                <dd className="font-medium tabular-nums text-destructive">− {money(Number(formValues.advanceInExchangeValue) || 0)}</dd>
+                              </div>
+                            )}
+                        </dl>
+
+                        <div className="flex justify-between items-baseline gap-3 px-3 py-3 bg-primary/5 border-t">
+                            <span className="font-semibold">Balance due</span>
+                            <span className="text-xl font-bold text-primary tabular-nums">{money(liveEstimate.grandTotal)}</span>
                         </div>
                     </div>
                 </CardContent>

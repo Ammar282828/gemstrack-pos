@@ -20,6 +20,7 @@ import { ArrowLeft, Plus, Trash2, Copy, Loader2, Save } from 'lucide-react';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
+import { FormSkeleton } from '@/components/shared/skeletons';
 
 // --- Schema Definition ---
 // We use a simplified schema for bulk adding, focusing on shared attributes + individual weights.
@@ -170,7 +171,7 @@ export default function BulkAddProductPage() {
       }
   };
 
-  if (!appReady) return <div className="p-8 text-center"><Loader2 className="animate-spin h-8 w-8 mx-auto" /></div>;
+  if (!appReady) return <div className="container mx-auto py-6 max-w-4xl"><FormSkeleton fields={6} columns={2} /></div>;
 
   return (
     <div className="container mx-auto py-6 max-w-4xl">

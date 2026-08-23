@@ -18,6 +18,7 @@ import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import { format } from 'date-fns';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
+import { DetailSkeleton } from '@/components/shared/skeletons';
 
 // Re-declare module for jsPDF in this file as well
 declare module 'jspdf' {
@@ -366,8 +367,8 @@ export default function ViewInvoicePage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-muted">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
+        <DetailSkeleton sections={2} />
       </div>
     );
   }

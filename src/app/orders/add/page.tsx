@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { OrderForm } from '@/components/order/order-form';
 import { Loader2 } from 'lucide-react';
+import { FormSkeleton } from '@/components/shared/skeletons';
 
 function AddOrderInner() {
   // ?fromCart=1 carries the current cart into this form, so "create an order"
@@ -15,8 +16,8 @@ function AddOrderInner() {
 export default function AddOrderPage() {
   return (
     <Suspense fallback={
-      <div className="container mx-auto py-8 px-4 flex items-center gap-2 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />Loading order form…
+      <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+        <FormSkeleton fields={8} columns={2} />
       </div>
     }>
       <AddOrderInner />

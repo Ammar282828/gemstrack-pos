@@ -33,7 +33,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import PhoneInput from 'react-phone-number-input/react-hook-form-input';
 import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
@@ -42,6 +41,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 import { AmountInput } from '@/components/ui/amount-input';
+import { PhoneField } from '@/components/ui/phone-field';
 
 
 // Re-declare module for jsPDF in this file as well
@@ -381,7 +381,11 @@ export default function EntityHisaabPage() {
                 </DialogHeader>
                 <div className="py-4 space-y-2">
                   <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
-                  <PhoneInput name="phone" control={phoneForm.control as unknown as Control} defaultCountry="PK" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm" />
+                  <PhoneField
+                    value={phoneForm.watch('phone') || undefined}
+                    onChange={v => phoneForm.setValue('phone', v || '')}
+                    aria-label="WhatsApp number"
+                  />
                 </div>
                 <DialogFooter>
                   <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
