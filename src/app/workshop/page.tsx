@@ -23,7 +23,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
@@ -35,8 +34,7 @@ import {
   Hammer, Users, AlertTriangle, Clock, PlusCircle, Share2, Copy, ExternalLink,
   Loader2, Search, CheckCircle2, CircleDot, Circle, Trash2, PackageOpen, LayoutGrid,
   Table as TableIcon, Flame, Pencil, Save, ImagePlus, Calendar, MessageSquareQuote,
-  Gauge, ArrowLeft, Rows3, UserPlus,
-} from 'lucide-react';
+  Gauge, ArrowLeft, Rows3, } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { openWhatsApp } from '@/lib/whatsapp';
@@ -819,6 +817,17 @@ export default function WorkshopPage() {
   const [search, setSearch] = useState('');
   const [karigarFilter, setKarigarFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active');
+  /**
+   * Two axes that used to be one tab strip.
+   *
+   * `focus` is *what* you are looking at, `view` is *how* it is shaped. They
+   * were five tabs — All Jobs / By Karigar / Board / Unassigned / Attention —
+   * which mixed the two, so unassigned work could only ever be seen as cards
+   * and overdue work only ever as a list. Split apart, every combination
+   * works: unassigned on the board, one karigar's overdue pieces, and so on.
+   */
+  const [focus, setFocus] = useState<'all' | 'unassigned' | 'attention'>('all');
+  const [view, setView] = useState<'list' | 'board' | 'karigar'>('list');
   const [boardMode, setBoardMode] = useState<'karigar' | 'status' | 'none'>('karigar');
   const [typeFilter, setTypeFilter] = useState<'all' | 'order' | 'stock'>('all');
   // Inside "By Karigar": the whole-bench summary, or the per-karigar cards.
@@ -853,7 +862,6 @@ export default function WorkshopPage() {
     [benchJobs, karigarFilter],
   );
 
-  const loads = useMemo(() => groupByKarigar(filtered), [filtered]);
   const benchLoads = useMemo(() => groupByKarigar(benchJobs), [benchJobs]);
   // While a search or type filter is narrowing the list, an idle karigar means
   // "no match", not "empty bench" — so don't pad the glance with all of them.
@@ -917,6 +925,16 @@ export default function WorkshopPage() {
     .filter(j => j.status !== 'completed' && j.karigarId === UNASSIGNED_ID)
     .sort((a, b) => b.ageDays - a.ageDays);
 
+  // What the views actually render. Focusing unassigned work deliberately
+  // drops the karigar filter, since "nobody is on it" and "Uzair is on it"
+  // cannot both be true — narrowing by karigar would always empty the list.
+  const focused = focus === 'unassigned' ? unassignedJobs
+    : focus === 'attention' ? attention
+    : filtered;
+  const focusIgnoresKarigar = focus === 'unassigned' && karigarFilter !== 'all';
+  // The By-karigar view groups whatever is in focus, not the raw filter.
+  const focusedLoads = groupByKarigar(focused);
+
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-5 max-w-7xl">
       {/* Header */}
@@ -959,6 +977,14 @@ export default function WorkshopPage() {
             <SelectItem value="stock">Stock / inventory</SelectItem>
           </SelectContent>
         </Select>
+        <KarigarPicker
+          value={karigarFilter === 'all' ? '' : karigarFilter}
+          onChange={v => setKarigarFilter(!v || v === 'none' ? 'all' : v)}
+          placeholder="Everyone"
+          clearLabel="Everyone"
+          className="w-full sm:w-[170px]"
+          aria-label="Filter by karigar"
+        />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -971,66 +997,83 @@ export default function WorkshopPage() {
         </Select>
       </FilterBar>
 
-      {/* Quick-select karigars — click to focus one, click again to clear */}
-      {(() => {
-        const active = allJobs.filter(j => j.status !== 'completed');
-        const counts = new Map<string, { name: string; n: number; crit: number }>();
-        for (const j of active) {
-          const e = counts.get(j.karigarId) || { name: j.karigarName, n: 0, crit: 0 };
-          e.n++; if (j.urgency === 'critical') e.crit++;
-          counts.set(j.karigarId, e);
-        }
-        const chips = [...counts.entries()].sort((a, b) => {
-          if (a[0] === UNASSIGNED_ID) return -1;
-          if (b[0] === UNASSIGNED_ID) return 1;
-          return b[1].n - a[1].n;
-        });
-        if (chips.length === 0) return null;
-        return (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 sm:flex-wrap sm:overflow-visible sm:pb-0 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <Button size="sm" variant={karigarFilter === 'all' ? 'secondary' : 'outline'}
-              className="h-8 sm:h-7 text-xs flex-shrink-0" onClick={() => setKarigarFilter('all')}>
-              Everyone <Badge variant="secondary" className="ml-1.5 text-2xs">{active.length}</Badge>
-            </Button>
-            {chips.map(([id, c]) => {
-              const on = karigarFilter === id;
-              const unassigned = id === UNASSIGNED_ID;
-              return (
-                <Button key={id} size="sm" variant={on ? 'secondary' : 'outline'}
-                  className={cn('h-8 sm:h-7 text-xs flex-shrink-0', unassigned && !on && 'text-destructive border-destructive/40')}
-                  onClick={() => setKarigarFilter(on ? 'all' : id)}>
-                  {unassigned ? 'Unassigned' : c.name}
-                  <Badge variant="secondary" className="ml-1.5 text-2xs">{c.n}</Badge>
-                  {c.crit > 0 && <Flame className="h-3 w-3 ml-1 text-destructive" />}
-                </Button>
-              );
-            })}
-          </div>
-        );
-      })()}
-
       {/* Views */}
-      <Tabs defaultValue="list">
-        <TabsList className="w-full max-w-2xl justify-start h-auto">
-          <TabsTrigger value="list" className="text-xs sm:text-sm"><TableIcon className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Jobs</span><span className="hidden sm:inline">All Jobs</span></TabsTrigger>
-          <TabsTrigger value="karigar" className="text-xs sm:text-sm"><Users className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Karigar</span><span className="hidden sm:inline">By Karigar</span></TabsTrigger>
-          <TabsTrigger value="board" className="text-xs sm:text-sm"><LayoutGrid className="h-4 w-4 mr-1.5 hidden sm:inline" />Board</TabsTrigger>
-          <TabsTrigger value="unassigned" className="text-xs sm:text-sm">
-            <UserPlus className="h-4 w-4 mr-1.5 hidden sm:inline" />
-            <span className="sm:hidden">Free</span><span className="hidden sm:inline">Unassigned</span>
-            {unassignedJobs.length > 0 && (
-              <Badge variant="destructive" className="ml-1.5 h-4 px-1 text-2xs">{unassignedJobs.length}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="attention" className="text-xs sm:text-sm">
-            <AlertTriangle className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Alert</span><span className="hidden sm:inline">Attention</span>
-            {attention.length > 0 && <Badge variant="destructive" className="ml-1.5 h-4 px-1 text-2xs">{attention.length}</Badge>}
-          </TabsTrigger>
-        </TabsList>
+      {/* Focus is what you are looking at; view is how it is shaped. Two
+          controls, one row, instead of five tabs that mixed the two. */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <div className="inline-flex rounded-lg border p-0.5 gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {([
+            { id: 'all', label: 'All work', n: filtered.filter(j => j.status !== 'completed').length, tone: '' },
+            { id: 'unassigned', label: 'Needs assigning', n: unassignedJobs.length, tone: 'text-destructive' },
+            { id: 'attention', label: 'Needs attention', n: attention.length, tone: 'text-destructive' },
+          ] as const).map(f => (
+            <button
+              key={f.id} type="button" onClick={() => setFocus(f.id)}
+              aria-pressed={focus === f.id}
+              className={cn(
+                'h-8 px-2.5 rounded-md text-xs whitespace-nowrap transition-colors flex items-center gap-1.5',
+                focus === f.id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
+              )}
+            >
+              {f.label}
+              {f.n > 0 && (
+                <span className={cn(
+                  'tabular-nums text-2xs px-1.5 py-0.5 rounded-full',
+                  focus === f.id ? 'bg-primary-foreground/20' : cn('bg-muted', f.tone),
+                )}>{f.n}</span>
+              )}
+            </button>
+          ))}
+        </div>
 
-        {/* View 1 — By Karigar: whole bench at a glance, then drill into one */}
-        <TabsContent value="karigar" className="mt-4 space-y-3">
-          {karigarFilter !== 'all' && loads.length === 0 ? (
+        <div className="inline-flex rounded-lg border p-0.5 gap-0.5 sm:ml-auto flex-shrink-0" role="group" aria-label="View">
+          {([
+            { id: 'list', label: 'List', icon: <TableIcon className="h-4 w-4" /> },
+            { id: 'board', label: 'Board', icon: <LayoutGrid className="h-4 w-4" /> },
+            { id: 'karigar', label: 'By karigar', icon: <Users className="h-4 w-4" /> },
+          ] as const).map(v => (
+            <button
+              key={v.id} type="button" onClick={() => setView(v.id)}
+              aria-pressed={view === v.id} title={v.label} aria-label={v.label}
+              className={cn(
+                'h-8 px-2.5 rounded-md text-xs transition-colors flex items-center gap-1.5',
+                view === v.id ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
+              )}
+            >
+              {v.icon}<span className="hidden md:inline">{v.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {focus !== 'all' && (
+        <p className="text-xs text-muted-foreground">
+          {focus === 'unassigned'
+            ? <>Pieces with nobody on them, oldest first. Online sales land here automatically — pick a karigar on any row to hand it over.{focusIgnoresKarigar && ' The karigar filter does not apply to work nobody is on yet.'}</>
+            : <>Unassigned work, or sitting {WARN_DAYS}+ days with a karigar.</>}
+        </p>
+      )}
+
+      {focus !== 'all' && focused.length === 0 && (
+        <Card><CardContent className="py-12 text-center">
+          <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
+          <p className="font-medium">
+            {focus === 'unassigned' ? 'Everything has a karigar' : 'Nothing needs attention'}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {focus === 'unassigned' ? 'Nothing is waiting to be handed out.' : 'No overdue or unassigned work.'}
+          </p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => setFocus('all')}>
+            Back to all work
+          </Button>
+        </CardContent></Card>
+      )}
+
+      {!(focus !== 'all' && focused.length === 0) && (
+        <>
+        {view === 'karigar' && (
+        <div className="mt-4 space-y-3">
+          {karigarFilter !== 'all' && focusedLoads.length === 0 ? (
             <Card><CardContent className="py-12 text-center text-muted-foreground">
               <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>Nothing here for this karigar under these filters.</p>
@@ -1041,8 +1084,8 @@ export default function WorkshopPage() {
           ) : karigarFilter !== 'all' ? (
             /* One karigar selected — full width, sectioned by urgency. */
             <FocusedKarigarView
-              load={loads[0]}
-              contact={contactById.get(loads[0].karigarId)}
+              load={focusedLoads[0]}
+              contact={contactById.get(focusedLoads[0].karigarId)}
               onToggleDone={handleToggleDone}
               onSetStatus={handleSetStatus}
               onDelete={handleDelete}
@@ -1079,7 +1122,7 @@ export default function WorkshopPage() {
                   onFocus={setKarigarFilter}
                   onAssign={openAssign}
                 />
-              ) : loads.length === 0 ? (
+              ) : focusedLoads.length === 0 ? (
                 <Card><CardContent className="py-12 text-center text-muted-foreground">
                   <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />No work matches these filters.
                 </CardContent></Card>
@@ -1087,7 +1130,7 @@ export default function WorkshopPage() {
                 /* Single column until lg — two of these side by side on an
                    iPad's 768px portrait leaves each one unreadably narrow. */
                 <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                  {loads.map(load => (
+                  {focusedLoads.map(load => (
                     <KarigarCard
                       key={load.karigarId}
                       load={load}
@@ -1103,10 +1146,12 @@ export default function WorkshopPage() {
               )}
             </>
           )}
-        </TabsContent>
+        </div>
+        )}
 
         {/* View 2 — Board: every piece as a card, grouped how you choose */}
-        <TabsContent value="board" className="mt-4">
+        {view === 'board' && (
+        <div className="mt-4">
           <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
             <p className="text-xs text-muted-foreground">
               {boardMode === 'karigar'
@@ -1129,13 +1174,13 @@ export default function WorkshopPage() {
             const grid = 'grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
 
             if (boardMode === 'none') {
-              return filtered.length === 0 ? (
+              return focused.length === 0 ? (
                 <Card><CardContent className="py-12 text-center text-muted-foreground">
                   <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />No pieces match these filters.
                 </CardContent></Card>
               ) : (
                 <div className={grid}>
-                  {filtered.map(j => (
+                  {focused.map(j => (
                     <BoardJobCard key={j.id} job={j} showKarigar
                       onToggleDone={handleToggleDone} onEdit={openEdit} />
                   ))}
@@ -1146,7 +1191,7 @@ export default function WorkshopPage() {
             // Section headings carry the group's counts so the grid below can
             // stay purely visual.
             const sections = boardMode === 'karigar'
-              ? loads.filter(l => l.jobs.length > 0).map(l => ({
+              ? focusedLoads.filter(l => l.jobs.length > 0).map(l => ({
                   key: l.karigarId,
                   title: l.karigarId === UNASSIGNED_ID ? 'Unassigned' : l.karigarName,
                   danger: l.karigarId === UNASSIGNED_ID,
@@ -1159,7 +1204,7 @@ export default function WorkshopPage() {
                   jobs: l.jobs,
                 }))
               : boardCols.map(col => {
-                  const jobs = filtered.filter(j => j.status === col.key);
+                  const jobs = focused.filter(j => j.status === col.key);
                   return {
                     key: col.key, title: col.label, danger: false, icon: col.icon,
                     critical: jobs.filter(j => j.urgency === 'critical').length,
@@ -1206,14 +1251,16 @@ export default function WorkshopPage() {
               </div>
             );
           })()}
-        </TabsContent>
+        </div>
+        )}
 
         {/* View 3 — Table */}
-        <TabsContent value="list" className="mt-4">
+        {view === 'list' && (
+        <div className="mt-4">
           <div className="lg:hidden">
-            {filtered.length === 0
+            {focused.length === 0
               ? <Card><CardContent className="py-10 text-center text-muted-foreground">No jobs match.</CardContent></Card>
-              : filtered.map(j => (
+              : focused.map(j => (
                   <JobCardMobile key={j.id} job={j} onToggleDone={handleToggleDone} onEdit={openEdit} />
                 ))}
           </div>
@@ -1233,10 +1280,10 @@ export default function WorkshopPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.length === 0 && (
+                  {focused.length === 0 && (
                     <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No jobs match.</TableCell></TableRow>
                   )}
-                  {filtered.map(j => {
+                  {focused.map(j => {
                     const spec = [
                       j.size ? `Size ${j.size}` : null,
                       j.weightG ? `${j.weightG}g` : null,
@@ -1313,61 +1360,10 @@ export default function WorkshopPage() {
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* View 4 — Needs attention */}
-        <TabsContent value="unassigned" className="mt-4">
-          {unassignedJobs.length === 0 ? (
-            <Card><CardContent className="py-12 text-center">
-              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
-              <p className="font-medium">Everything has a karigar</p>
-              <p className="text-sm text-muted-foreground">Nothing is waiting to be handed out.</p>
-            </CardContent></Card>
-          ) : (
-            <>
-              <p className="text-xs text-muted-foreground mb-3">
-                {unassignedJobs.length} piece{unassignedJobs.length === 1 ? '' : 's'} with nobody on {unassignedJobs.length === 1 ? 'it' : 'them'},
-                oldest first. Online sales land here automatically. Pick a karigar on any row to hand it over.
-              </p>
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {unassignedJobs.map(j => (
-                  <BoardJobCard key={j.id} job={j}
-                    onToggleDone={handleToggleDone} onEdit={openEdit} />
-                ))}
-              </div>
-            </>
-          )}
-        </TabsContent>
-
-        <TabsContent value="attention" className="mt-4">
-          {attention.length === 0 ? (
-            <Card><CardContent className="py-12 text-center">
-              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
-              <p className="font-medium">Nothing needs attention</p>
-              <p className="text-sm text-muted-foreground">No overdue or unassigned work.</p>
-            </CardContent></Card>
-          ) : (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                  {attention.length} job{attention.length === 1 ? '' : 's'} need attention
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">Unassigned work, or sitting {WARN_DAYS}+ days with a karigar. Oldest first.</p>
-              </CardHeader>
-              <CardContent className="p-2 sm:p-6 sm:pt-0">
-                {attention
-                  .slice()
-                  .sort((a, b) => (b.karigarId === UNASSIGNED_ID ? 1 : 0) - (a.karigarId === UNASSIGNED_ID ? 1 : 0) || b.ageDays - a.ageDays)
-                  .map(j => (
-                    <OrderGroupedJobs key={j.id} jobs={[j]} showKarigar onEdit={openEdit}
-                      onToggleDone={handleToggleDone} onSetStatus={handleSetStatus} onDelete={handleDelete} />
-                  ))}
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+        </div>
+        )}
+        </>
+      )}
 
       <AddJobDialog open={addOpen} onOpenChange={setAddOpen} presetKarigarId={presetKarigar} />
       <EditDetailsDialog job={editJob} onClose={() => setEditJob(null)} />
