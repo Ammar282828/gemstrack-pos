@@ -84,7 +84,7 @@ export function buildWorkshopJobs(
   orders: Order[],
   karigarJobs: KarigarJob[],
   karigars: Karigar[],
-  opts: { includeInvoicedOrders?: boolean; includePendingOrders?: boolean; invoices?: Invoice[] } = {},
+  opts: { includeInvoicedOrders?: boolean; excludePendingOrders?: boolean; invoices?: Invoice[] } = {},
 ): WorkshopJob[] {
   const nameById = new Map(karigars.map(k => [k.id, k.name]));
   const out: WorkshopJob[] = [];
@@ -93,10 +93,12 @@ export function buildWorkshopJobs(
     if (!order) continue;
     if (order.status === 'Cancelled' || order.status === 'Refunded') continue;
     if (order.invoiceId && !opts.includeInvoicedOrders) continue;
-    // A Pending order has not been handed to the workshop yet, so its pieces
-    // are not physically with any karigar — they would otherwise pad every
-    // list with work nobody has started.
-    if (order.status === 'Pending' && !opts.includePendingOrders) continue;
+    // Pending orders belong here. They used to be excluded on the reasoning
+    // that nothing had been handed out yet — but assigning a karigar is
+    // exactly what moves an order to In Progress, so hiding Pending work made
+    // the one list you need in order to hand it out the one list it never
+    // appeared in. Pass excludePendingOrders to get the old behaviour.
+    if (order.status === 'Pending' && opts.excludePendingOrders) continue;
 
     const items = Array.isArray(order.items) ? order.items : [];
     items.forEach((item, idx) => {

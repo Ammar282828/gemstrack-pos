@@ -58,3 +58,6 @@ graphify-out/.graphify_root
 # (payments, addresses, prior document state) and must not enter the repo.
 scripts/*.[0-9]*.json
 scripts/*backup*.json
+
+# Ledger backups hold live financial records — never commit.
+backups/

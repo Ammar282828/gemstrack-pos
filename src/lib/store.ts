@@ -1242,6 +1242,8 @@ export interface AppState {
     adminNote?: string; referenceSku?: string; estimatedWeightG?: number; sampleImageDataUri?: string;
   }) => Promise<void>;
   assignOrderItemsToKarigar: (orderId: string, karigarId: string, onlyUnassigned?: boolean) => Promise<void>;
+  /** Internal: the status a Pending order should take once every piece is assigned. */
+  _statusAfterAssign: (order: Order, items: OrderItem[]) => OrderStatus | null;
   removeItemFromOrder: (orderId: string, itemIndex: number) => Promise<void>;
   updateOrder: (orderId: string, updatedOrderData: Partial<Order>) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
@@ -3055,6 +3057,19 @@ export const useAppStore = create<AppState>()(
         }
       },
       /** Assign (or clear) the karigar on a single order item, without opening the order form. */
+      /**
+       * A Pending order whose every piece now has a karigar has, by
+       * definition, been handed out — so it moves itself to In Progress.
+       * Returns the status to write, or null to leave it alone. Only ever
+       * promotes Pending; it will not touch Completed, Cancelled or Refunded.
+       */
+      _statusAfterAssign: (order: Order, items: OrderItem[]): OrderStatus | null => {
+        if (order.status !== 'Pending') return null;
+        if (!items.length) return null;
+        const allAssigned = items.every(i => i.karigarId && i.karigarId !== 'none');
+        return allAssigned ? 'In Progress' : null;
+      },
+
       updateOrderItemKarigar: async (orderId, itemIndex, karigarId) => {
         if (get().settings.databaseLocked) return;
         const order = get().orders.find(o => o.id === orderId);
@@ -3068,11 +3083,18 @@ export const useAppStore = create<AppState>()(
           return next;
         });
 
+        const nextStatus = get()._statusAfterAssign(order, updatedItems);
+
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), { items: updatedItems }, { merge: true });
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId),
+            { items: updatedItems, ...(nextStatus && { status: nextStatus }) }, { merge: true });
           const name = clearing ? 'Unassigned' : (get().karigars.find(k => k.id === karigarId)?.name || karigarId);
           await addActivityLog('order.update', `Karigar assigned on ${orderId}`,
             `${order.items[itemIndex]?.description || `Item ${itemIndex + 1}`} → ${name}`, orderId);
+          if (nextStatus) {
+            await addActivityLog('order.update', `${orderId} → ${nextStatus}`,
+              'Every piece now has a karigar', orderId);
+          }
           syncOrderShopify(orderId, 'upsert');
         } catch (error) {
           console.error(`Error assigning karigar for order ${orderId}:`, error);
@@ -3185,10 +3207,17 @@ export const useAppStore = create<AppState>()(
         });
         if (!changed) return;
 
+        const nextStatus = get()._statusAfterAssign(order, updatedItems);
+
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), { items: updatedItems }, { merge: true });
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId),
+            { items: updatedItems, ...(nextStatus && { status: nextStatus }) }, { merge: true });
           const name = clearing ? 'Unassigned' : (get().karigars.find(k => k.id === karigarId)?.name || karigarId);
           await addActivityLog('order.update', `Bulk karigar assign on ${orderId}`, `${changed} item(s) → ${name}`, orderId);
+          if (nextStatus) {
+            await addActivityLog('order.update', `${orderId} → ${nextStatus}`,
+              'Every piece now has a karigar', orderId);
+          }
           syncOrderShopify(orderId, 'upsert');
         } catch (error) {
           console.error(`Error bulk-assigning karigar for order ${orderId}:`, error);

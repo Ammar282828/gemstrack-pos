@@ -9,7 +9,10 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useAppStore, Karigar } from '@/lib/store';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Briefcase, UserPlus } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Loader2, Briefcase, UserPlus, Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -35,7 +38,14 @@ function rememberRecent(karigarId: string) {
  * Seeded from real data (latest order / job they were assigned) so the list is
  * already sensible before this browser has recorded any picks of its own.
  */
-function useKarigarsByRecency(bump: number): Karigar[] {
+interface RankedKarigars {
+  /** Recency order, as before. */
+  all: Karigar[];
+  /** Currently holding at least one unfinished piece — the likely pick. */
+  busy: Set<string>;
+}
+
+function useKarigarsByRecency(bump: number): RankedKarigars {
   const karigars = useAppStore(s => s.karigars);
   const orders = useAppStore(s => s.orders);
   const karigarJobs = useAppStore(s => s.karigarJobs);
@@ -53,13 +63,27 @@ function useKarigarsByRecency(bump: number): Karigar[] {
     }
     for (const j of karigarJobs || []) note(j?.karigarId, new Date(j?.assignedDate || 0).getTime());
 
+    // Who is mid-job right now. With 32 karigars on file and a handful
+    // actually working, this is what makes the list short.
+    const busy = new Set<string>();
+    for (const o of orders || []) {
+      if (!o || o.status === 'Completed' || o.status === 'Cancelled' || o.status === 'Refunded' || o.invoiceId) continue;
+      for (const item of (Array.isArray(o.items) ? o.items : [])) {
+        if (item?.karigarId && item.karigarId !== UNASSIGNED_VALUE && !item.isCompleted) busy.add(item.karigarId);
+      }
+    }
+    for (const j of karigarJobs || []) {
+      if (j?.karigarId && j.status !== 'completed') busy.add(j.karigarId);
+    }
+
     const recent = readRecent(); // this browser's own picks outrank historical data
-    return [...(karigars || [])].sort((a, b) => {
+    const all = [...(karigars || [])].sort((a, b) => {
       const sa = Math.max(recent[a.id] || 0, seen.get(a.id) || 0);
       const sb = Math.max(recent[b.id] || 0, seen.get(b.id) || 0);
       if (sb !== sa) return sb - sa;
       return (a.name || '').localeCompare(b.name || '');
     });
+    return { all, busy };
     // `bump` re-sorts immediately after an assignment is made from this component
   }, [karigars, orders, karigarJobs, bump]);
 }
@@ -79,12 +103,16 @@ export const KarigarAssign: React.FC<{
   const updateInvoiceItemKarigar = useAppStore(s => s.updateInvoiceItemKarigar);
   const [saving, setSaving] = useState(false);
   const [bump, setBump] = useState(0);
-  const karigars = useKarigarsByRecency(bump);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const { all, busy } = useKarigarsByRecency(bump);
   const { toast } = useToast();
 
   const assigned = !!currentKarigarId && currentKarigarId !== UNASSIGNED_VALUE;
+  const currentName = all.find(k => k.id === currentKarigarId)?.name;
 
-  const onChange = useCallback(async (value: string) => {
+  const commit = useCallback(async (value: string) => {
+    setOpen(false);
     setSaving(true);
     try {
       if (invoiceId) await updateInvoiceItemKarigar(invoiceId, itemIndex, value);
@@ -92,7 +120,7 @@ export const KarigarAssign: React.FC<{
       else return;
       rememberRecent(value);
       setBump(b => b + 1);
-      const name = value === UNASSIGNED_VALUE ? null : karigars.find(k => k.id === value)?.name;
+      const name = value === UNASSIGNED_VALUE ? null : all.find(k => k.id === value)?.name;
       toast({
         title: name ? `Assigned to ${name}` : 'Karigar cleared',
         description: `${invoiceId || orderId} · item ${itemIndex + 1}`,
@@ -102,40 +130,111 @@ export const KarigarAssign: React.FC<{
     } finally {
       setSaving(false);
     }
-  }, [updateOrderItemKarigar, updateInvoiceItemKarigar, orderId, invoiceId, itemIndex, karigars, toast]);
+  }, [updateOrderItemKarigar, updateInvoiceItemKarigar, orderId, invoiceId, itemIndex, all, toast]);
+
+  /* Thirty-two names in one flat dropdown, when a handful are actually
+     working, meant scrolling past everyone to reach the same few. Typing
+     filters; otherwise the ones mid-job come first and the rest sit under a
+     divider. */
+  const { working, others } = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const match = (k: Karigar) => !q || (k.name || '').toLowerCase().includes(q);
+    const hits = all.filter(match);
+    return {
+      working: hits.filter(k => busy.has(k.id)),
+      others: hits.filter(k => !busy.has(k.id)),
+    };
+  }, [all, busy, query]);
 
   const compact = size === 'compact';
 
+  const Row: React.FC<{ k: Karigar }> = ({ k }) => (
+    <button
+      type="button"
+      onClick={() => commit(k.id)}
+      className={cn(
+        'w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-left text-sm hover:bg-accent',
+        k.id === currentKarigarId && 'bg-accent',
+      )}
+    >
+      <Briefcase className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+      <span className="truncate flex-1">{k.name}</span>
+      {busy.has(k.id) && <span className="h-1.5 w-1.5 rounded-full bg-success flex-shrink-0" title="Has work on the bench" />}
+      {k.id === currentKarigarId && <Check className="h-3.5 w-3.5 flex-shrink-0" />}
+    </button>
+  );
+
   return (
-    <Select value={assigned ? currentKarigarId : UNASSIGNED_VALUE} onValueChange={onChange} disabled={saving}>
-      <SelectTrigger
-        className={cn(
-          // py-0 so the base py-2 does not fight the reduced height
-          compact ? 'h-7 text-xs w-[165px] px-2 py-0' : 'h-8 text-sm w-[200px] py-0',
-          !assigned && 'text-destructive border-destructive/40',
-          className,
+    <Popover open={open} onOpenChange={o => { setOpen(o); if (!o) setQuery(''); }}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={saving}
+          className={cn(
+            'justify-start font-normal',
+            compact ? 'h-7 text-xs w-[165px] px-2' : 'h-8 text-sm w-[200px] px-2.5',
+            !assigned && 'text-destructive border-destructive/40',
+            className,
+          )}
+        >
+          {saving
+            ? <><Loader2 className="h-3 w-3 mr-1.5 flex-shrink-0 animate-spin" /><span className="truncate">Saving…</span></>
+            : <>
+                {assigned
+                  ? <Briefcase className="h-3 w-3 mr-1.5 flex-shrink-0" />
+                  : <UserPlus className="h-3 w-3 mr-1.5 flex-shrink-0" />}
+                <span className="truncate">{assigned ? (currentName || 'Karigar') : 'Assign karigar'}</span>
+                <ChevronsUpDown className="h-3 w-3 ml-auto flex-shrink-0 opacity-50" />
+              </>}
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent className="w-[16rem] p-0" align="start">
+        <div className="p-2 border-b">
+          <Input
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search karigars…"
+            aria-label="Search karigars"
+            className="h-8 text-sm"
+          />
+        </div>
+
+        <div className="max-h-[15rem] overflow-y-auto p-1">
+          {working.length > 0 && (
+            <>
+              <p className="px-2.5 pt-1.5 pb-1 text-2xs uppercase tracking-wide text-muted-foreground">On the bench</p>
+              {working.map(k => <Row key={k.id} k={k} />)}
+            </>
+          )}
+          {others.length > 0 && (
+            <>
+              {working.length > 0 && (
+                <p className="px-2.5 pt-2 pb-1 text-2xs uppercase tracking-wide text-muted-foreground">Everyone else</p>
+              )}
+              {others.map(k => <Row key={k.id} k={k} />)}
+            </>
+          )}
+          {working.length === 0 && others.length === 0 && (
+            <p className="px-2.5 py-6 text-sm text-muted-foreground text-center">No karigar matches.</p>
+          )}
+        </div>
+
+        {assigned && (
+          <div className="border-t p-1">
+            <button
+              type="button"
+              onClick={() => commit(UNASSIGNED_VALUE)}
+              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-left text-sm text-destructive hover:bg-destructive/10"
+            >
+              <UserPlus className="h-3.5 w-3.5 flex-shrink-0" />Remove karigar
+            </button>
+          </div>
         )}
-      >
-        {/* `!flex` is required: SelectTrigger applies [&>span]:line-clamp-1, and
-            line-clamp sets display:-webkit-box + vertical box-orient, which would
-            otherwise stack the icon above the name. */}
-        {saving ? (
-          <span className="!flex items-center gap-1.5 min-w-0 text-muted-foreground">
-            <Loader2 className="h-3 w-3 flex-shrink-0 animate-spin" />
-            <span className="truncate">Saving…</span>
-          </span>
-        ) : (
-          <span className="!flex items-center gap-1.5 min-w-0 overflow-hidden">
-            {assigned ? <Briefcase className="h-3 w-3 flex-shrink-0" /> : <UserPlus className="h-3 w-3 flex-shrink-0" />}
-            <span className="truncate"><SelectValue placeholder="Assign karigar" /></span>
-          </span>
-        )}
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={UNASSIGNED_VALUE}>Unassigned</SelectItem>
-        {karigars.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
-      </SelectContent>
-    </Select>
+      </PopoverContent>
+    </Popover>
   );
 };
 
@@ -148,7 +247,7 @@ export const KarigarBulkAssign: React.FC<{
   const assignOrderItemsToKarigar = useAppStore(s => s.assignOrderItemsToKarigar);
   const [saving, setSaving] = useState(false);
   const [bump, setBump] = useState(0);
-  const karigars = useKarigarsByRecency(bump);
+  const { all: karigars } = useKarigarsByRecency(bump);
   const { toast } = useToast();
 
   const onChange = useCallback(async (value: string) => {
