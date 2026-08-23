@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchAllPages, mapCustomer, mapInvoice, mapProduct, getShopifyCredentials } from '../_lib';
 import { adminDb } from '@/lib/firebase-admin';
+import { verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
+
+/** Only a signed-in owner may list or import Shopify orders. Without this the
+ *  route exposed the storefront's order history — customer names, contacts and
+ *  totals — to anyone who knew the URL, and let them write invoices. */
+async function requireOwner(req: NextRequest): Promise<boolean> {
+  return isOwnerEmail(await verifyRequestEmail(req));
+}
 
 /**
  * Selective pull: Shopify → POS.
@@ -59,6 +67,9 @@ const SINCE_ORDER_NUMBER = 1381;
 
 export async function GET(request: NextRequest) {
   try {
+    if (!await requireOwner(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const params = new URL(request.url).searchParams;
     const q = (params.get('q') || '').trim().toLowerCase();
     const sinceRaw = Number(params.get('since'));
@@ -150,6 +161,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!await requireOwner(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const { orderIds = [], customerIds = [], productIds = [] } = await request.json();
     if (!orderIds.length && !customerIds.length && !productIds.length) {
       return NextResponse.json({ error: 'Nothing selected.' }, { status: 400 });

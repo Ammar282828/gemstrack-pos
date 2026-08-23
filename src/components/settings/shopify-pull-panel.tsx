@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { RefreshCw, Loader2, Download, CheckCircle2, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { getAuth } from 'firebase/auth';
 
 interface PullItem {
   id: string;
@@ -32,6 +33,14 @@ const fmtDate = (d?: string) => {
   return Number.isNaN(t.getTime()) ? '' : t.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: '2-digit' });
 };
 
+/** The pull route is owner-only now, so every call carries an ID token. */
+async function authHeader(): Promise<Record<string, string>> {
+  try {
+    const t = await getAuth().currentUser?.getIdToken();
+    return t ? { Authorization: `Bearer ${t}` } : {};
+  } catch { return {}; }
+}
+
 export const ShopifyPullPanel: React.FC = () => {
   const { toast } = useToast();
   const [orders, setOrders] = useState<PullItem[] | null>(null);
@@ -44,7 +53,7 @@ export const ShopifyPullPanel: React.FC = () => {
   const check = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/shopify/pull');
+      const res = await fetch('/api/shopify/pull', { headers: await authHeader() });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Could not reach Shopify');
       setOrders(json.orders || []);
@@ -83,7 +92,7 @@ export const ShopifyPullPanel: React.FC = () => {
     try {
       const res = await fetch('/api/shopify/pull', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ orderIds: [...picked] }),
       });
       const json = await res.json();

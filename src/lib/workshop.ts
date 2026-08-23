@@ -177,8 +177,14 @@ export function buildWorkshopJobs(
     // An online sale only needs bench work while it is still unfulfilled.
     // Shipped orders — and the older bulk imports that carry no fulfilment
     // status at all — would otherwise bury the board: 203 items instead of 12.
+    // Prefer the explicit field. The notes regex is the legacy path: the 158
+    // invoices imported before this field existed carry fulfilment only in
+    // their note text, and rewriting them is a migration, not a read fix.
+    const fulfilment = String(inv.shopifyFulfillment || '').toLowerCase();
     const isOnline = String(inv.source || '').startsWith('shopify')
-      && /unfulfilled/i.test(String(inv.notes || ''));
+      && (fulfilment
+        ? fulfilment !== 'fulfilled'
+        : /unfulfilled/i.test(String(inv.notes || '')));
     const items = (Array.isArray(inv.items) ? inv.items : Object.values(inv.items || {})) as InvoiceItem[];
     items.forEach((item, idx) => {
       if (!item) return;

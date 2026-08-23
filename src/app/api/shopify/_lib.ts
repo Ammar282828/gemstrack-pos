@@ -173,7 +173,13 @@ export function mapInvoice(order: any) {
     ratesApplied: { goldRatePerGram24k: 0, goldRatePerGram22k: 0, goldRatePerGram21k: 0, goldRatePerGram18k: 0 },
     paymentHistory: [],
     source: 'shopify',
-    notes: `Imported from Shopify Order #${order.order_number}. Status: ${order.financial_status}`,
+    // Recorded as a field, not prose. The Workshop used to decide whether a
+    // sold piece still needed bench work by regex-matching "unfulfilled" in
+    // the note below — which this importer never wrote, so orders synced from
+    // the app never reached the Workshop while script-imported ones did.
+    shopifyFulfillment: order.fulfillment_status || 'unfulfilled',
+    shopifyFinancialStatus: order.financial_status || '',
+    notes: `Imported from Shopify Order #${order.order_number}. Status: ${order.financial_status}/${order.fulfillment_status || 'unfulfilled'}`,
   };
 }
 
