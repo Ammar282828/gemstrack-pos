@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, subDays, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { isBusinessCost } from '@/lib/partnership';
 
 /** PKR at a glance. Exact value stays available on hover. */
 function compactPKR(n: number): string {
@@ -211,7 +212,9 @@ export default function HomePage() {
     const unassignedJobs = activeJobs.filter(j => j.karigarId === UNASSIGNED_ID);
 
     const revenue30 = rev(last30Start);
-    const expenses30 = expenses.filter(e => parseISO(e.date) >= last30Start).reduce((s, e) => s + (e.amount || 0), 0);
+    // net30 is a profit figure, so partner drawings stay out of it.
+    const expenses30 = expenses.filter(e => parseISO(e.date) >= last30Start && isBusinessCost(e))
+      .reduce((s, e) => s + (e.amount || 0), 0);
 
     return {
       ongoingOrders,

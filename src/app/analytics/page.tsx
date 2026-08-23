@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { isBusinessCost } from '@/lib/partnership';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -104,6 +105,8 @@ export default function AnalyticsPage() {
     });
     expenses.forEach(exp => {
       if (!exp?.date) return;
+      // Drawings are a distribution of profit, not a cost of earning it.
+      if (!isBusinessCost(exp)) return;
       const yr = getYear(parseISO(exp.date));
       if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
       yearMap[yr].expenses += exp.amount || 0;

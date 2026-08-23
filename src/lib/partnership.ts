@@ -9,6 +9,26 @@
  */
 
 export type LedgerCategory = 'equity' | 'loan';
+
+/**
+ * Expense category used for money a shareholder takes out of the business.
+ *
+ * Lives here, with no imports, so server routes can use it without dragging
+ * the client Firebase SDK along.
+ */
+export const PARTNER_DRAWINGS = 'Partner Drawings';
+
+/**
+ * Is this expense a genuine cost of doing business?
+ *
+ * A partner drawing is a distribution of profit, not a cost of earning it.
+ * Anything that calls itself profit has to leave drawings out, or taking
+ * money out of the business would look like the business earned less — and
+ * with a 50/50 split, half of one partner's draw would land on the other.
+ */
+export const isBusinessCost = (e: { category?: string | null }): boolean =>
+  e.category !== PARTNER_DRAWINGS;
+
 export type LedgerType = 'payment' | 'withdrawal';
 
 export interface LedgerEntry {

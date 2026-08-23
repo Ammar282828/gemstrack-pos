@@ -4,6 +4,7 @@ import { isCronAuthorized } from '@/lib/api-auth';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { generateGoldDailyUpdate, checkGoldBreakingNews } from '@/lib/gold-update';
+import { isBusinessCost } from '@/lib/partnership';
 
 function daysSince(isoDate: string) {
   return Math.floor((Date.now() - new Date(isoDate).getTime()) / 86400000);
@@ -277,7 +278,11 @@ async function sendWeeklyReport(phone: string) {
   const overdue7        = active.filter(o => daysSince(o.createdAt) >= 7);
   const overdue14       = active.filter(o => daysSince(o.createdAt) >= 14);
 
-  const expThisWeek  = expenses.filter((e: Record<string, string>) => new Date(e.date || e.createdAt).getTime() >= weekAgo);
+  // netProfit below is a profit figure, so a partner's draw must not count as
+  // a cost — with a 50/50 split it would otherwise charge the other partner
+  // for half of it.
+  const expThisWeek  = expenses.filter((e: Record<string, string>) =>
+    new Date(e.date || e.createdAt).getTime() >= weekAgo && isBusinessCost(e));
   const totalExp     = expThisWeek.reduce((s: number, e: Record<string, number>) => s + Number(e.amount || 0), 0);
   const totalRev     = doneThisWeek.reduce((s: number, o: Record<string, number>) => s + Number(o.grandTotal || 0), 0);
   const newOrdersVal = newThisWeek.reduce((s: number, o: Record<string, number>) => s + Number(o.grandTotal || 0), 0);

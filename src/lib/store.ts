@@ -703,7 +703,12 @@ export interface HisaabEntry {
 
 export const EXPENSE_CATEGORIES = [
   'Rent', 'Salaries', 'Utilities', 'Marketing', 'Supplies', 
-  'Repairs & Maintenance', 'Taxes', 'Travel', 'Making Charges', 'Other'
+  'Repairs & Maintenance', 'Taxes', 'Travel', 'Making Charges',
+  // Money a shareholder takes out. Kept out of the partnership P&L — see
+  // the note in lib/shareholders.ts — but it is real cash leaving the till,
+  // so it belongs in the expense list.
+  'Partner Drawings',
+  'Other'
 ] as const;
 export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
 
