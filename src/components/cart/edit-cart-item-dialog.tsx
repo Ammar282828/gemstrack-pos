@@ -256,7 +256,7 @@ export const EditCartItemDialog: React.FC<{
                 {isSilver && (
                   <Num label="Reference rate per gram (optional)" value={d.silverRatePerGram}
                     onChange={v => set('silverRatePerGram', v)} placeholder="e.g. 150"
-                    hint="Recorded for your reference — does not affect the price." />
+                    hint="For internal reference only — does not affect the price." />
                 )}
               </div>
             ) : (
@@ -312,7 +312,7 @@ export const EditCartItemDialog: React.FC<{
             <div>
               <Label className="text-xs">Description</Label>
               <Textarea rows={2} value={d.description} onChange={e => set('description', e.target.value)}
-                placeholder="Anything else that should appear on the invoice"  aria-label="Description"/>
+                placeholder="Additional details to appear on the invoice"  aria-label="Description"/>
             </div>
           </div>
         </div>

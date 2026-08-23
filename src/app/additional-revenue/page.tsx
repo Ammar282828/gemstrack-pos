@@ -87,7 +87,7 @@ function RevenueForm({
                     <Button
                       variant="outline"
                       className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
-                      {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                      {field.value ? format(field.value, 'PPP') : <span>Select a date</span>}
                       <Calendar className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </FormControl>
@@ -362,7 +362,7 @@ export default function AdditionalRevenuePage() {
           <p className="text-muted-foreground">
             {searchTerm || dateRange
               ? 'Try adjusting your search or filters.'
-              : 'Add a revenue entry to get started.'}
+              : 'Add a revenue entry to begin.'}
           </p>
         </div>
       )}

@@ -270,7 +270,7 @@ export default function ExpensesPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         <div className="rounded-xl border bg-card p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Total out</p>
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Total expenses</p>
           <p className="text-xl md:text-2xl font-bold text-primary leading-tight truncate">{PKR(summary.total)}</p>
         </div>
         <div className="rounded-xl border bg-card p-3.5 min-w-0">
@@ -278,20 +278,20 @@ export default function ExpensesPage() {
           <p className="text-xl md:text-2xl font-bold leading-tight">{summary.count}</p>
         </div>
         <div className="rounded-xl border bg-card p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Per {graduation}</p>
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Average per {graduation}</p>
           <p className="text-xl md:text-2xl font-bold leading-tight truncate">{PKR(summary.perBucket)}</p>
         </div>
         <div className="rounded-xl border bg-card p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">To karigars</p>
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Karigar payments</p>
           <p className="text-xl md:text-2xl font-bold leading-tight truncate">{PKR(summary.karigarTotal)}</p>
-          <p className="text-2xs text-muted-foreground">{summary.karigarShare}% of spend</p>
+          <p className="text-2xs text-muted-foreground">{summary.karigarShare}% of total</p>
         </div>
       </div>
 
       <FilterBar
         value={searchTerm}
         onChange={setSearchTerm}
-        placeholder="Search description, category or karigar…"
+        placeholder="Search by description, category, or karigar…"
         actions={
           <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Group by">
             {GRADUATIONS.map(g => (
@@ -427,10 +427,10 @@ export default function ExpensesPage() {
       ) : (
         <div className="text-center py-14 bg-card rounded-xl border">
           <CreditCard className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-          <h3 className="text-lg font-semibold mb-1">Nothing in this period</h3>
+          <h3 className="text-lg font-semibold mb-1">No expenses in this period</h3>
           <p className="text-sm text-muted-foreground">
             {searchTerm || categoryFilter !== 'All'
-              ? 'Try a wider period, or clear the filters.'
+              ? 'Select a wider period, or clear the filters.'
               : `No expenses recorded for ${periodLabel.toLowerCase()}.`}
           </p>
         </div>

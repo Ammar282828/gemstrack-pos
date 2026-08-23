@@ -834,7 +834,7 @@ export default function DocumentsPage() {
         toast({ title: `Imported ${count} invoices`, description: 'Shopify CSV import complete.' });
         loadGeneratedInvoices();
       } catch (e: any) {
-        toast({ title: 'Import Failed', description: e.message || 'Something went wrong.', variant: 'destructive' });
+        toast({ title: 'Import Failed', description: e.message || 'An unexpected error occurred.', variant: 'destructive' });
       } finally {
         setIsImporting(false);
       }

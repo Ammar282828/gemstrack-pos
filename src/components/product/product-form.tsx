@@ -411,7 +411,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel className="text-muted-foreground">Reference Rate per Gram (Optional)</FormLabel>
-                                <FormDescription>For your reference only — does not affect the price.</FormDescription>
+                                <FormDescription>For internal reference only — does not affect the price.</FormDescription>
                                 <FormControl><Input type="number" step="0.01" placeholder="e.g., 275" {...field} /></FormControl>
                               </FormItem>
                             )}

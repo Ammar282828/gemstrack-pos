@@ -429,7 +429,7 @@ export default function OrdersPage() {
           <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Orders Found</h3>
           <p className="text-muted-foreground">
-            {searchTerm || statusFilter !== 'All' ? "Try adjusting your search or filter." : "Create a custom order to get started!"}
+            {searchTerm || statusFilter !== 'All' ? "Try adjusting your search or filter." : "Create a custom order to begin."}
           </p>
         </div>
       )}

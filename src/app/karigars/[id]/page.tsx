@@ -555,7 +555,7 @@ export default function KarigarDetailPage() {
               onChange={e => setCarryOverLabel(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCloseBatch()}
             />
-            <p className="text-xs text-muted-foreground">Leave blank to just settle without starting a new hisaab.</p>
+            <p className="text-xs text-muted-foreground">Leave blank to settle without starting a new hisaab.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsCloseDialogOpen(false); setCarryOverLabel(''); }}>Cancel</Button>
@@ -619,7 +619,7 @@ export default function KarigarDetailPage() {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-center text-muted-foreground py-8 text-sm">No payments yet. Click "Add Payment" to record one.</p>
+                <p className="text-center text-muted-foreground py-8 text-sm">No payments recorded. Select "Add Payment" to record one.</p>
               )}
             </ScrollArea>
           </CardContent>

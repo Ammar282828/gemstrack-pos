@@ -312,7 +312,7 @@ export default function ShareholderFinancesPage() {
             <Users className="w-7 h-7 flex-shrink-0" />Shareholder Finances
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Split 50/50 · expenses from {format(new Date(EXPENSE_CUTOFF), 'd MMM yyyy')} · revenue from Shopify #1103
+            Divided equally · expenses from {format(new Date(EXPENSE_CUTOFF), 'd MMM yyyy')} · revenue from Shopify #1103
           </p>
         </div>
         <div className="flex gap-2 flex-shrink-0 [&>*]:flex-1 sm:[&>*]:flex-none">
@@ -335,7 +335,7 @@ export default function ShareholderFinancesPage() {
           <p className="text-lg md:text-xl font-bold leading-tight truncate">{fmt(totals.totalExpenses)}</p>
         </div>
         <div className="rounded-xl border bg-card p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Each partner&apos;s half</p>
+          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Each partner&apos;s share</p>
           <p className={cn('text-lg md:text-xl font-bold leading-tight truncate',
             totals.revShare - totals.expShare >= 0 ? 'text-success' : 'text-destructive')}>
             {totals.revShare - totals.expShare >= 0 ? '+' : '−'}{fmt(totals.revShare - totals.expShare)}
@@ -384,7 +384,7 @@ export default function ShareholderFinancesPage() {
                 <div className="flex gap-2 pt-1">
                   <div className="flex-1 rounded-lg bg-muted/50 p-2 min-w-0">
                     <p className="text-2xs text-muted-foreground flex items-center gap-1">
-                      <ArrowDownLeft className="h-3 w-3" />Put in
+                      <ArrowDownLeft className="h-3 w-3" />Contributed
                     </p>
                     <p className="text-sm font-semibold tabular-nums truncate">{fmt(p.contributed)}</p>
                   </div>
@@ -396,7 +396,7 @@ export default function ShareholderFinancesPage() {
                   </div>
                   <div className="flex-1 rounded-lg bg-muted/50 p-2 min-w-0">
                     <p className="text-2xs text-muted-foreground flex items-center gap-1">
-                      <ArrowUpRight className="h-3 w-3" />Capital out
+                      <ArrowUpRight className="h-3 w-3" />Capital drawn
                     </p>
                     <p className="text-sm font-semibold tabular-nums truncate">{fmt(p.withdrawn)}</p>
                   </div>
@@ -413,7 +413,7 @@ export default function ShareholderFinancesPage() {
                   </Button>
                   <Button size="sm" variant="outline" className="h-8 text-xs px-2"
                     onClick={() => openDialog('withdrawal', p.id)}
-                    title="Take capital back out — reduces their stake, not a salary">
+                    title="Withdraw capital — reduces their stake; this is not a salary">
                     <ArrowUpRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -426,7 +426,7 @@ export default function ShareholderFinancesPage() {
                         <div className="min-w-0 flex-1">
                           <p className="text-sm truncate">{e.description.replace(`${p.name} salary — `, '')}</p>
                           <p className="text-2xs text-muted-foreground">
-                            {format(new Date(e.date), 'd MMM yyyy')} · Salary · a business cost
+                            {format(new Date(e.date), 'd MMM yyyy')} · Salary · recorded as a business cost
                           </p>
                         </div>
                         <span className="text-sm tabular-nums flex-shrink-0 text-primary">{fmt(e.amount)}</span>
@@ -492,7 +492,7 @@ export default function ShareholderFinancesPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground text-center py-3 border-t">Nothing recorded yet.</p>
+                  <p className="text-xs text-muted-foreground text-center py-3 border-t">No entries recorded.</p>
                 )}
               </CardContent>
             </Card>
@@ -574,15 +574,15 @@ export default function ShareholderFinancesPage() {
           <DialogHeader>
             <DialogTitle>
               {mode === 'salary' ? 'Pay a salary'
-                : mode === 'withdrawal' ? 'Take capital out'
+                : mode === 'withdrawal' ? 'Withdraw capital'
                 : 'Add a contribution'}
             </DialogTitle>
             <DialogDescription>
               {mode === 'salary'
-                ? 'Payment for work done. Logged in Expenses as a business cost — it does not touch their stake in the business.'
+                ? 'Remuneration for work performed. Recorded in Expenses as a business cost; it does not affect their stake in the business.'
                 : mode === 'withdrawal'
-                ? 'Capital handed back, which shrinks their stake. Not a wage — use Pay salary for that.'
-                : 'Money put into the business — as equity, or as a loan to be repaid first.'}
+                ? 'Capital returned to the partner, which reduces their stake. This is not remuneration — use Pay salary for that.'
+                : 'Funds contributed to the business — as equity, or as a loan repaid before profits are split.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -617,8 +617,8 @@ export default function ShareholderFinancesPage() {
                 value={category}
                 onChange={v => v && setCategory(v as LedgerCategory)}
                 options={[
-                  { value: 'equity', label: 'Equity', hint: mode === 'withdrawal' ? 'Reduces their stake' : 'Their stake in the business' },
-                  { value: 'loan', label: 'Loan', hint: mode === 'withdrawal' ? 'Repayment of what they lent' : 'Repaid before profits are split' },
+                  { value: 'equity', label: 'Equity', hint: mode === 'withdrawal' ? 'Reduces their stake in the business' : 'Their stake in the business' },
+                  { value: 'loan', label: 'Loan', hint: mode === 'withdrawal' ? 'Repayment of funds they lent' : 'Repaid before profits are distributed' },
                 ]}
                 aria-label="Equity or loan"
                 triggerClassName="mt-1"

@@ -698,7 +698,7 @@ export default function AnalyticsPage() {
             <CardTitle>No Data Available for Selected Range</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">There are no invoices or orders in the selected date range. Try adjusting the dates or make some sales!</p>
+            <p className="text-muted-foreground">There are no invoices or orders in the selected date range. Adjust the date range to view another period.</p>
           </CardContent>
         </Card>
       ) : generatedInvoices.length === 0 && orders.length === 0 && expenses.length === 0 ? ( 
@@ -707,7 +707,7 @@ export default function AnalyticsPage() {
             <CardTitle>No Data Available</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">There is no data yet to generate analytics. Start by making some sales!</p>
+            <p className="text-muted-foreground">There is no data available to generate analytics yet.</p>
           </CardContent>
         </Card>
       ) : (

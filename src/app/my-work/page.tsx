@@ -394,8 +394,8 @@ export default function MyWorkPage() {
             {active.length === 0 ? (
               <Card><CardContent className="py-12 text-center">
                 <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
-                <p className="font-medium">Nothing pending</p>
-                <p className="text-sm text-muted-foreground">You&apos;re all caught up.</p>
+                <p className="font-medium">No pending work</p>
+                <p className="text-sm text-muted-foreground">No pending work.</p>
               </CardContent></Card>
             ) : (
               <>

@@ -111,7 +111,7 @@ export default function ActivityLogPage() {
             toast({ title: 'Reverted', description: `"${revertTarget.description}" has been undone.` });
             setRevertTarget(null);
         } catch {
-            toast({ title: 'Revert Failed', description: 'Something went wrong. Please try again.', variant: 'destructive' });
+            toast({ title: 'Revert Failed', description: 'An unexpected error occurred. Please try again.', variant: 'destructive' });
         } finally {
             setIsReverting(false);
         }

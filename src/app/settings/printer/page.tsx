@@ -383,7 +383,7 @@ function PrinterPageComponent() {
             <Card>
               <CardHeader>
                 <CardTitle>Field Editor</CardTitle>
-                 <CardDescription>Fine-tune field positions and properties.</CardDescription>
+                 <CardDescription>Adjust field positions and properties.</CardDescription>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-96">

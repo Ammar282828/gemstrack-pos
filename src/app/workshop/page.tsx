@@ -206,7 +206,7 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
 
   const submit = async () => {
     if (!karigarId || !description.trim()) {
-      toast({ title: 'Missing info', description: 'Pick a karigar and describe the work.', variant: 'destructive' });
+      toast({ title: 'Missing information', description: 'Select a karigar and describe the work.', variant: 'destructive' });
       return;
     }
     setSaving(true);
@@ -480,7 +480,7 @@ const EditDetailsDialog: React.FC<{ job: WorkshopJob | null; onClose: () => void
           <div className="rounded-md border border-warning/40 bg-warning/10 p-3">
             <Label className="text-xs text-warning">Instructions</Label>
             <Textarea rows={4} value={instructions} onChange={e => setInstructions(e.target.value)}
-              placeholder="Stones, plating, sizing — anything the karigar needs" className="mt-1"  aria-label="Instructions"/>
+              placeholder="Stones, plating, sizing, or other specifications" className="mt-1"  aria-label="Instructions"/>
             <p className="text-2xs text-warning mt-1">
               Shown to the karigar and on the workshop slip. Never printed on a customer estimate or
               invoice — keep prices and customer details out of it.
@@ -580,7 +580,7 @@ const KarigarCard: React.FC<{
           </div>
         )}
         {visible.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-3">Nothing pending ✅</p>
+          <p className="text-sm text-muted-foreground text-center py-3">No pending work</p>
         ) : (
           // Fixed height only once the list is long enough to need scrolling:
           // Radix ScrollArea needs a definite height, and a short list should
@@ -717,8 +717,8 @@ const FocusedKarigarView: React.FC<{
       {active.length === 0 && !showCompleted ? (
         <Card><CardContent className="py-12 text-center">
           <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
-          <p className="font-medium">Nothing pending</p>
-          <p className="text-sm text-muted-foreground">All caught up.</p>
+          <p className="font-medium">No pending work</p>
+          <p className="text-sm text-muted-foreground">No pending work.</p>
         </CardContent></Card>
       ) : (
         <>
@@ -1004,8 +1004,8 @@ export default function WorkshopPage() {
         <div className="inline-flex rounded-lg border p-0.5 gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {([
             { id: 'all', label: 'All work', n: filtered.filter(j => j.status !== 'completed').length, tone: '' },
-            { id: 'unassigned', label: 'Needs assigning', n: unassignedJobs.length, tone: 'text-destructive' },
-            { id: 'attention', label: 'Needs attention', n: attention.length, tone: 'text-destructive' },
+            { id: 'unassigned', label: 'Unassigned', n: unassignedJobs.length, tone: 'text-destructive' },
+            { id: 'attention', label: 'Requires attention', n: attention.length, tone: 'text-destructive' },
           ] as const).map(f => (
             <button
               key={f.id} type="button" onClick={() => setFocus(f.id)}
@@ -1049,7 +1049,7 @@ export default function WorkshopPage() {
       {focus !== 'all' && (
         <p className="text-xs text-muted-foreground">
           {focus === 'unassigned'
-            ? <>Pieces with nobody on them, oldest first. Online sales land here automatically — pick a karigar on any row to hand it over.{focusIgnoresKarigar && ' The karigar filter does not apply to work nobody is on yet.'}</>
+            ? <>Unassigned pieces, oldest first. Online sales are added automatically. Select a karigar on any row to assign it.{focusIgnoresKarigar && ' The karigar filter does not apply to unassigned work.'}</>
             : <>Unassigned work, or sitting {WARN_DAYS}+ days with a karigar.</>}
         </p>
       )}
@@ -1058,10 +1058,10 @@ export default function WorkshopPage() {
         <Card><CardContent className="py-12 text-center">
           <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
           <p className="font-medium">
-            {focus === 'unassigned' ? 'Everything has a karigar' : 'Nothing needs attention'}
+            {focus === 'unassigned' ? 'All work is assigned' : 'No work requires attention'}
           </p>
           <p className="text-sm text-muted-foreground">
-            {focus === 'unassigned' ? 'Nothing is waiting to be handed out.' : 'No overdue or unassigned work.'}
+            {focus === 'unassigned' ? 'No work is awaiting assignment.' : 'No overdue or unassigned work.'}
           </p>
           <Button variant="outline" size="sm" className="mt-3" onClick={() => setFocus('all')}>
             Back to all work
@@ -1076,7 +1076,7 @@ export default function WorkshopPage() {
           {karigarFilter !== 'all' && focusedLoads.length === 0 ? (
             <Card><CardContent className="py-12 text-center text-muted-foreground">
               <PackageOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Nothing here for this karigar under these filters.</p>
+              <p>No work matches these filters for this karigar.</p>
               <Button variant="outline" size="sm" className="mt-3" onClick={() => setKarigarFilter('all')}>
                 <ArrowLeft className="h-4 w-4 mr-1.5" />Back to all karigars
               </Button>
@@ -1155,7 +1155,7 @@ export default function WorkshopPage() {
           <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
             <p className="text-xs text-muted-foreground">
               {boardMode === 'karigar'
-                ? 'Every piece on the bench, grouped by who is making it.'
+                ? 'All active work, grouped by assigned karigar.'
                 : boardMode === 'status'
                   ? 'Every piece grouped by the stage it is at.'
                   : 'Every piece, oldest first.'}

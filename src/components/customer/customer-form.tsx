@@ -170,7 +170,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
               name="source"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>How did they find us? (Optional)</FormLabel>
+                  <FormLabel>Referral source (optional)</FormLabel>
                   <Select
                     value={field.value ?? NO_SOURCE_VALUE}
                     onValueChange={(v) => field.onChange(v === NO_SOURCE_VALUE ? undefined : v)}

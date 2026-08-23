@@ -88,7 +88,7 @@ export const KarigarAssign: React.FC<{
     >
       <Briefcase className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
       <span className="truncate flex-1">{k.name}</span>
-      {busy.has(k.id) && <span className="h-1.5 w-1.5 rounded-full bg-success flex-shrink-0" title="Has work on the bench" />}
+      {busy.has(k.id) && <span className="h-1.5 w-1.5 rounded-full bg-success flex-shrink-0" title="Currently has assigned work" />}
       {k.id === currentKarigarId && <Check className="h-3.5 w-3.5 flex-shrink-0" />}
     </button>
   );
@@ -134,14 +134,14 @@ export const KarigarAssign: React.FC<{
         <div className="max-h-[15rem] overflow-y-auto p-1">
           {working.length > 0 && (
             <>
-              <p className="px-2.5 pt-1.5 pb-1 text-2xs uppercase tracking-wide text-muted-foreground">On the bench</p>
+              <p className="px-2.5 pt-1.5 pb-1 text-2xs uppercase tracking-wide text-muted-foreground">Currently assigned</p>
               {working.map(k => <Row key={k.id} k={k} />)}
             </>
           )}
           {others.length > 0 && (
             <>
               {working.length > 0 && (
-                <p className="px-2.5 pt-2 pb-1 text-2xs uppercase tracking-wide text-muted-foreground">Everyone else</p>
+                <p className="px-2.5 pt-2 pb-1 text-2xs uppercase tracking-wide text-muted-foreground">Other karigars</p>
               )}
               {others.map(k => <Row key={k.id} k={k} />)}
             </>

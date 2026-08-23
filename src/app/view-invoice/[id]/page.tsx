@@ -440,7 +440,7 @@ export default function ViewInvoicePage() {
             </CardFooter>
         </Card>
          <footer className="text-center mt-8 text-sm text-muted-foreground">
-            <p>Thank you for your business!</p>
+            <p>Thank you for your business.</p>
             {settings?.shopName && <p>&copy; {new Date().getFullYear()} {settings.shopName}</p>}
         </footer>
     </div>

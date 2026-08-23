@@ -125,7 +125,7 @@ function GivenItemForm({
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button variant="outline" className={cn('w-full pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
-                      {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                      {field.value ? format(field.value, 'PPP') : <span>Select a date</span>}
                       <Calendar className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </FormControl>
@@ -346,7 +346,7 @@ export default function GivenItemsPage() {
           <HandCoins className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-1">Nothing here yet</h3>
           <p className="text-muted-foreground text-sm">
-            {search || statusFilter !== 'all' ? 'No items match your filter.' : 'Tap "Record Item Given" to get started.'}
+            {search || statusFilter !== 'all' ? 'No items match your filter.' : 'Select "Record Item Given" to add an entry.'}
           </p>
         </div>
       ) : (

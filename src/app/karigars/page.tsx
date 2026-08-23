@@ -196,7 +196,7 @@ export default function KarigarsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>On the bench</TableHead>
+                  <TableHead>Currently assigned</TableHead>
                   <TableHead className="hidden lg:table-cell"><Phone className="inline mr-1 h-3.5 w-3.5" />Contact</TableHead>
                   <TableHead className="hidden xl:table-cell">Active Hisaab</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -216,7 +216,7 @@ export default function KarigarsPage() {
           <Briefcase className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Karigars Found</h3>
           <p className="text-muted-foreground text-sm">
-            {searchTerm ? "Try adjusting your search term." : "Add your first karigar to get started."}
+            {searchTerm ? "Try adjusting your search term." : "Add a karigar to begin."}
           </p>
         </div>
       )}

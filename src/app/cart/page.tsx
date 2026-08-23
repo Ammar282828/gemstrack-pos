@@ -568,7 +568,7 @@ export default function CartPage() {
     } else {
       message += `*Amount Due:* PKR ${invoiceToSend.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
     }
-    message += `Thank you for your business!`;
+    message += `Thank you for your business.`;
 
     // Try Web Share API with PDF file (iOS 15+ / Android Chrome 86+)
     if (typeof navigator !== 'undefined' && navigator.canShare) {

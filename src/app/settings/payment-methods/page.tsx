@@ -176,7 +176,7 @@ export default function PaymentMethodsPage() {
     if (selectedMethodForWhatsApp.iban) {
       message += `*IBAN:* ${selectedMethodForWhatsApp.iban}\n`;
     }
-    message += `\nPlease send a screenshot of the transaction once completed. Thank you!`;
+    message += `\nPlease send a screenshot of the transaction once completed. Thank you.`;
 
     // Country code and leading-zero handling live in one place; the raw
     // digit strip that used to be here produced wa.me/0300… , a dead link.
@@ -295,7 +295,7 @@ export default function PaymentMethodsPage() {
         <div className="flex justify-between items-start">
             <div>
                 <h1 className="text-3xl font-bold text-primary flex items-center"><Landmark className="mr-3 h-8 w-8"/>Payment Methods</h1>
-                <p className="text-muted-foreground">Manage your bank details to share with customers for seamless payments.</p>
+                <p className="text-muted-foreground">Manage bank details to share with customers for payment.</p>
             </div>
             <Button onClick={() => { setEditingMethod(undefined); setIsFormOpen(true); }}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Add New Method
@@ -331,7 +331,7 @@ export default function PaymentMethodsPage() {
                     <Info className="h-4 w-4" />
                     <AlertTitle>Get Started</AlertTitle>
                     <AlertDescription>
-                        {searchTerm ? "No methods match your search." : "Click 'Add New Method' to add your first bank account."}
+                        {searchTerm ? "No methods match your search." : "Select 'Add New Method' to add a bank account."}
                     </AlertDescription>
                 </Alert>
             </CardContent>

@@ -768,7 +768,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                     )}/>
                                     <div>
                                         <Label className="text-muted-foreground text-xs">Reference Rate per Gram (Optional)</Label>
-                                        <p className="text-xs text-muted-foreground mb-1">For your reference only — does not affect the price.</p>
+                                        <p className="text-xs text-muted-foreground mb-1">For internal reference only — does not affect the price.</p>
                                         <Input type="number" step="0.01" placeholder="e.g., 275" className="mt-1" disabled  aria-label="Reference Rate per Gram (Optional)"/>
                                     </div>
                                 </div>
@@ -791,7 +791,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             <FormField control={form.control} name={`items.${index}.adminNote`} render={({ field }) => (
                                <FormItem className="rounded-md border border-warning/40 bg-warning/10 p-3">
                                   <FormLabel className="flex items-center text-warning"><Lock className="mr-2 h-4 w-4"/>Instructions for the karigar</FormLabel>
-                                  <FormControl><Textarea placeholder="Stones, plating, sizing — anything the bench needs" {...field} rows={2} /></FormControl>
+                                  <FormControl><Textarea placeholder="Stones, plating, sizing, or other specifications" {...field} rows={2} /></FormControl>
                                   <FormDescription className="text-warning">Never printed on a customer estimate or invoice.</FormDescription>
                                   <FormMessage />
                                </FormItem>
@@ -967,7 +967,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 onValueChange={(v) => field.onChange(v === '__none__' ? undefined : v)}
                             >
                                 <FormControl>
-                                    <SelectTrigger><SelectValue placeholder="How did they find us?" /></SelectTrigger>
+                                    <SelectTrigger><SelectValue placeholder="Referral source" /></SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                     <SelectItem value="__none__">— Not specified —</SelectItem>

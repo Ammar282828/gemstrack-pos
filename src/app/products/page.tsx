@@ -403,7 +403,7 @@ export default function ProductsPage() {
           <Tag className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Products Found</h3>
           <p className="text-muted-foreground">
-            {searchTerm || selectedCategory ? 'Try adjusting your search or filter.' : 'Add some products to get started.'}
+            {searchTerm || selectedCategory ? 'Try adjusting your search or filter.' : 'Add a product to begin.'}
           </p>
         </div>
       )}

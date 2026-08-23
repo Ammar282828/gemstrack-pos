@@ -94,13 +94,13 @@ export const KarigarPicker: React.FC<{
   const options = useMemo(() => {
     // With nobody mid-job the divider says nothing, so it is left off.
     const anyBusy = all.some(k => busy.has(k.id));
-    const label = (k: Karigar) => (anyBusy ? (busy.has(k.id) ? 'On the bench' : 'Everyone else') : '');
+    const label = (k: Karigar) => (anyBusy ? (busy.has(k.id) ? 'Currently assigned' : 'Other karigars') : '');
     return [...all]
       .sort((a, b) => Number(busy.has(b.id)) - Number(busy.has(a.id)))
       .map(k => ({
         value: k.id,
         label: k.name || k.id,
-        hint: busy.has(k.id) ? 'Has work on the bench' : undefined,
+        hint: busy.has(k.id) ? 'Currently has assigned work' : undefined,
         group: label(k),
       }));
   }, [all, busy]);

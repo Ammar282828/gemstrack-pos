@@ -69,7 +69,7 @@ export const DeliveryFields: React.FC<{
                 onValueChange={v => set('address', v === NEW_ADDRESS ? '' : v)}
               >
                 <SelectTrigger aria-label="Address on file">
-                  <SelectValue placeholder="Pick an address" />
+                  <SelectValue placeholder="Select an address" />
                 </SelectTrigger>
                 <SelectContent>
                   {options.map(a => (

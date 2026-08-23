@@ -239,7 +239,7 @@ function NotificationsCard() {
     setSaving(true);
     try {
       await sendTestTo(phone);
-      toast({ title: 'Test sent!', description: `Message sent to ${phone}` });
+      toast({ title: 'Test message sent', description: `Message sent to ${phone}` });
     } catch (e: unknown) {
       toast({ title: 'Send failed', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });
     } finally {

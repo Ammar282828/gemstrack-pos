@@ -241,7 +241,7 @@ export default function EntityHisaabPage() {
     message += `This is a friendly reminder from ${settings.shopName} regarding your outstanding balance.\n\n`;
     message += `*Amount Due:* PKR ${balances.finalCashBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
     message += `We would appreciate it if you could settle the balance at your earliest convenience.\n\n`;
-    message += `Thank you!`;
+    message += `Thank you.`;
 
     // Country code and leading-zero handling live in one place; the raw
     // digit strip that used to be here produced wa.me/0300… , a dead link.
@@ -516,7 +516,7 @@ export default function EntityHisaabPage() {
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                        <AlertDialogTitle className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2"/>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogTitle className="flex items-center"><AlertTriangle className="h-5 w-5 mr-2"/>Delete this transaction?</AlertDialogTitle>
                                                         <AlertDialogDescription>This will permanently delete the transaction: "{entry.description}".</AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>

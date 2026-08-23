@@ -236,13 +236,13 @@ export default function HomePage() {
       out.push({
         href: '/workshop', tone: 'danger',
         title: j.description,
-        detail: `${j.karigarName} · ${j.ageDays} days on the bench`,
+        detail: `${j.karigarName} · ${j.ageDays} days in progress`,
       });
     }
     if (stats.unassignedJobs.length) {
       out.push({
         href: '/workshop', tone: 'danger',
-        title: `${stats.unassignedJobs.length} piece${stats.unassignedJobs.length === 1 ? '' : 's'} with nobody on them`,
+        title: `${stats.unassignedJobs.length} unassigned piece${stats.unassignedJobs.length === 1 ? '' : 's'}`,
         detail: 'Not assigned to any karigar',
       });
     }

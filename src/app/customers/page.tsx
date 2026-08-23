@@ -670,7 +670,7 @@ export default function CustomersPage() {
           <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Customers Found</h3>
           <p className="text-muted-foreground">
-            {searchTerm ? "Try adjusting your search term." : "Add some customers to get started!"}
+            {searchTerm ? "Try adjusting your search term." : "Add a customer to begin."}
           </p>
         </div>
       )}

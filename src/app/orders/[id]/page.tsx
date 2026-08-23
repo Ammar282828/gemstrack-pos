@@ -196,7 +196,7 @@ const BookCourierDialog: React.FC<{
 
             if (result.status === true && result.consignmentNo) {
                 toast({
-                    title: 'Shipment Booked!',
+                    title: 'Shipment booked',
                     description: `TCS Consignment No: ${result.consignmentNo}`,
                 });
                 onBooked(result.consignmentNo);
@@ -724,12 +724,12 @@ export default function OrderDetailPage() {
         if (notificationType === 'inProgress') {
             message += `We are happy to inform you that your order is now *In Progress*. We will notify you again once it is ready for collection.\n\n`;
         } else if (notificationType === 'completed') {
-            message += `Great news! Your custom order is now *Completed* and ready for collection.\n\n`;
+            message += `Your custom order is now *Completed* and ready for collection.\n\n`;
             message += `*Amount Due:* PKR ${order.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}\n\n`;
         }
     }
     
-    message += `Thank you for your business!`;
+    message += `Thank you for your business.`;
 
     // Country code and leading-zero handling live in one place; the raw
     // digit strip that used to be here produced wa.me/0300… , a dead link.
