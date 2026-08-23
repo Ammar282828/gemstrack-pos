@@ -36,6 +36,7 @@ import { Progress } from '@/components/ui/progress';
 import 'react-phone-number-input/style.css';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PhoneField } from '@/components/ui/phone-field';
+import { listDrafts, clearAllDrafts } from '@/lib/form-drafts';
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
@@ -216,6 +217,11 @@ function NotificationsCard() {
     } finally { setTesting(false); }
   };
 
+  // Drafts live in this browser, so the count is read on mount rather than
+  // coming from the store.
+  const [draftCount, setDraftCount] = useState(0);
+  useEffect(() => { setDraftCount(listDrafts().length); }, []);
+
   const handleToggle = async (key: keyof Settings, value: boolean) => {
     await updateSettings({ [key]: value } as Partial<Settings>);
   };
@@ -281,6 +287,28 @@ function NotificationsCard() {
             {testing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}Send test
           </Button>
         </div>
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="min-w-0 pr-3">
+            <p className="font-medium">Keep unfinished orders and invoices</p>
+            <p className="text-sm text-muted-foreground">
+              Saves what you have entered on this device and offers it back if you leave the page
+              before saving. {draftCount > 0 && `${draftCount} kept right now.`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {draftCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => { clearAllDrafts(); setDraftCount(0); }}>
+                Clear
+              </Button>
+            )}
+            <Switch
+              checked={settings.autoDraftForms !== false}
+              onCheckedChange={v => handleToggle('autoDraftForms', v)}
+              aria-label="Keep unfinished orders and invoices"
+            />
+          </div>
+        </div>
+
         {/* Master toggle */}
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div>

@@ -408,6 +408,9 @@ export interface Settings extends GoldRates {
   shopifyLastSyncedAt?: string;
   shopifyGrantedScopes?: string;
   goldRatesLastFetchedAt?: string; // ISO string – when rates were last auto-fetched from gold.pk
+  /** Keep unfinished orders and invoices on this device and offer them back.
+   *  Defaults on — losing a half-entered order is worse than an occasional prompt. */
+  autoDraftForms?: boolean;
   // WhatsApp Notifications
   notifEnabled?: boolean;
   notifPhones?: string[]; // recipient numbers in international format, no +, e.g. ["923262275554"]
@@ -864,6 +867,9 @@ const initialSettingsData: Settings = {
   paymentMethods: [],
   theme: 'slate',
   databaseLocked: false,
+  // On by default: losing a half-entered custom order costs more than an
+  // occasional prompt offering it back.
+  autoDraftForms: true,
   notifEnabled: false,
   notifPhones: [],
   notifNewOrder: true,

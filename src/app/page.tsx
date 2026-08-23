@@ -44,15 +44,17 @@ const Headline: React.FC<{
   label: string; value: string; sub?: string; tone?: string; href: string; icon: React.ReactNode; exact?: string;
 }> = ({ label, value, sub, tone, href, icon, exact }) => (
   <Link href={href}
-    className="rounded-xl border bg-card p-5 hover:border-primary/40 transition-colors group min-w-0"
+    className="rounded-xl border bg-card p-2.5 sm:p-5 hover:border-primary/40 transition-colors group min-w-0"
     title={exact}>
-    <div className="flex items-center gap-2 text-muted-foreground">
-      {icon}
-      <span className="text-xs uppercase tracking-wide truncate">{label}</span>
-      <ArrowRight className="h-3.5 w-3.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+    <div className="flex items-center gap-1 sm:gap-2 text-muted-foreground">
+      {/* The icon is the first thing to go when the card is a third of a
+          phone's width — the label carries the meaning. */}
+      <span className="hidden sm:inline-flex flex-shrink-0">{icon}</span>
+      <span className="text-2xs sm:text-xs uppercase tracking-wide truncate">{label}</span>
+      <ArrowRight className="h-3.5 w-3.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 hidden sm:block" />
     </div>
-    <p className={cn('text-2xl xl:text-3xl font-bold tabular-nums mt-1.5 truncate', tone)}>{value}</p>
-    {sub && <p className="text-xs text-muted-foreground truncate mt-0.5">{sub}</p>}
+    <p className={cn('text-base sm:text-2xl xl:text-3xl font-bold tabular-nums mt-0.5 sm:mt-1.5 truncate', tone)}>{value}</p>
+    {sub && <p className="text-2xs sm:text-xs text-muted-foreground truncate mt-0.5">{sub}</p>}
   </Link>
 );
 
@@ -283,8 +285,10 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Three figures, big enough to read at a glance. */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-shrink-0">
+      {/* Three across even on a phone. Stacked, each card took a fifth of the
+          screen for a single number and pushed everything that matters below
+          the fold. */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 flex-shrink-0">
         <Headline label="Taken today" href="/analytics" icon={<Wallet className="h-4 w-4" />}
           value={compactPKR(stats.todayRevenue)} exact={`PKR ${stats.todayRevenue.toLocaleString()}`}
           tone={stats.todayRevenue > 0 ? 'text-success' : undefined}
@@ -293,13 +297,13 @@ export default function HomePage() {
           value={stats.totalOutstanding > 0 ? compactPKR(stats.totalOutstanding) : 'Nil'}
           exact={`PKR ${stats.totalOutstanding.toLocaleString()}`}
           tone={stats.totalOutstanding > 0 ? 'text-destructive' : undefined}
-          sub={`${stats.unpaid.length} unpaid invoice${stats.unpaid.length === 1 ? '' : 's'}`} />
-        <Headline label="On the bench" href="/workshop" icon={<Hammer className="h-4 w-4" />}
+          sub={`${stats.unpaid.length} unpaid`} />
+        <Headline label="In progress" href="/workshop" icon={<Hammer className="h-4 w-4" />}
           value={`${stats.activeJobs.length} piece${stats.activeJobs.length === 1 ? '' : 's'}`}
           tone={stats.criticalJobs.length > 0 ? 'text-destructive' : undefined}
           sub={stats.criticalJobs.length > 0
             ? `${stats.criticalJobs.length} sitting ${CRITICAL_DAYS}+ days`
-            : 'nothing overdue'} />
+            : 'Nothing overdue'} />
       </div>
 
       {/* Needs you, then the two running lists. */}

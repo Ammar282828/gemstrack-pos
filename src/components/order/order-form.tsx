@@ -38,6 +38,7 @@ import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
+import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -393,6 +394,23 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
 
 
   const formValues = form.watch();
+
+  // An unfinished order is kept on this device and offered back. Editing is
+  // skipped: that record already exists, so there is nothing to lose.
+  const { draft, discard, done } = useFormDraft({
+    kind: 'order',
+    id: isEditMode ? (order?.id || 'edit') : 'new',
+    value: formValues,
+    enabled: settings?.autoDraftForms !== false,
+    skip: isEditMode,
+  });
+
+  const restoreDraft = React.useCallback(() => {
+    if (!draft?.data) return;
+    form.reset(draft.data as never);
+    discard();
+    toast({ title: 'Draft restored', description: 'Picking up where you left off.' });
+  }, [draft, form, discard, toast]);
   const selectedCustomerId = form.watch('customerId');
 
   useEffect(() => {
@@ -558,6 +576,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                 // The cart's contents have become the order; leaving them
                 // behind would bill the same pieces a second time.
                 if (seedFromCart) clearCart();
+                done();
                 toast({ title: `Order ${newOrder.id} Created`, description: "Custom order has been saved." });
                 router.push(`/orders/${newOrder.id}`);
             } else {
@@ -641,6 +660,14 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
   return (
     <Form {...form}>
       <PageBack fallback="/orders" label="Back to orders" className="mb-2" />
+      {draft && (
+        <DraftRestoreBanner
+          savedAt={draft.savedAt}
+          noun="order"
+          onRestore={restoreDraft}
+          onDiscard={discard}
+        />
+      )}
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           <Card>

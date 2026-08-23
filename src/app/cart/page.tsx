@@ -41,6 +41,7 @@ import { format } from 'date-fns';
 import { AmountInput } from '@/components/ui/amount-input';
 import { FormSkeleton } from '@/components/shared/skeletons';
 import { PhoneField } from '@/components/ui/phone-field';
+import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -127,9 +128,20 @@ export default function CartPage() {
   });
   
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
+
   const [exchangeDescription, setExchangeDescription] = useState('');
   const [exchangeAmount1Input, setExchangeAmount1Input] = useState<string>('');
   const [exchangeAmount2Input, setExchangeAmount2Input] = useState<string>('');
+  // Everything typed around the cart — who it is for, the discount, anything
+  // taken in exchange. The items themselves already survive a reload via the
+  // store; this is the rest of the sale.
+  const invoiceDraftValue = useMemo(() => ({
+    walkInCustomerName, walkInCustomerPhone, discountAmountInput,
+    exchangeDescription, exchangeAmount1Input, exchangeAmount2Input,
+  }), [walkInCustomerName, walkInCustomerPhone, discountAmountInput,
+       exchangeDescription, exchangeAmount1Input, exchangeAmount2Input]);
+
+
   
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
@@ -138,6 +150,29 @@ export default function CartPage() {
   const [isSavingDiscount, setIsSavingDiscount] = useState(false);
   const [isEditingEstimate, setIsEditingEstimate] = useState(false);
   const isEditingEstimateRef = React.useRef(false);
+
+  const { draft: invoiceDraft, discard: discardInvoiceDraft, done: invoiceDraftDone } = useFormDraft({
+    kind: 'invoice',
+    id: 'new',
+    value: invoiceDraftValue,
+    enabled: settings?.autoDraftForms !== false,
+    // Editing an existing estimate already has its data saved.
+    skip: isEditingEstimate,
+  });
+
+  const restoreInvoiceDraft = () => {
+    const d = invoiceDraft?.data as typeof invoiceDraftValue | undefined;
+    if (!d) return;
+    setWalkInCustomerName(d.walkInCustomerName || '');
+    setWalkInCustomerPhone(d.walkInCustomerPhone || '');
+    setDiscountAmountInput(d.discountAmountInput || '0');
+    setExchangeDescription(d.exchangeDescription || '');
+    setExchangeAmount1Input(d.exchangeAmount1Input || '');
+    setExchangeAmount2Input(d.exchangeAmount2Input || '');
+    discardInvoiceDraft();
+    toast({ title: 'Draft restored', description: 'Picking up where you left off.' });
+  };
+
   const [isGeneratingEstimate, setIsGeneratingEstimate] = useState(false);
   const editingInvoiceOriginalRef = React.useRef<InvoiceType | null>(null);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | undefined>(undefined);
@@ -427,6 +462,7 @@ export default function CartPage() {
     let invoice;
     try {
       invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery);
+      if (invoice) invoiceDraftDone();
     } finally {
       setIsGeneratingEstimate(false);
     }
@@ -1189,6 +1225,14 @@ export default function CartPage() {
   
   return (
     <div className="container mx-auto py-8 px-4">
+      {invoiceDraft && (
+        <DraftRestoreBanner
+          savedAt={invoiceDraft.savedAt}
+          noun="invoice"
+          onRestore={restoreInvoiceDraft}
+          onDiscard={discardInvoiceDraft}
+        />
+      )}
       {/* Warn before clearing an active sale when a preloaded invoice link is opened */}
       <AlertDialog open={isCartClearWarningOpen} onOpenChange={setIsCartClearWarningOpen}>
         <AlertDialogContent>
