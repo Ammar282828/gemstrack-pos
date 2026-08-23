@@ -1,7 +1,7 @@
 # Graph Report - GemsTrack-POS  (2026-08-24)
 
 ## Corpus Check
-- 273 files · ~220,502 words
+- 273 files · ~220,718 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary

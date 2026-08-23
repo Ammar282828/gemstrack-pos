@@ -24,9 +24,11 @@ const nextConfig: NextConfig = {
     return [
       { source: '/mina', destination: '/shareholders', permanent: false },
       { source: '/ammar', destination: '/shareholders', permanent: false },
-      // "Documents" said nothing about what the page holds. It is the billing
-      // view: every order and invoice with what is still owed on it.
-      { source: '/documents', destination: '/billing', permanent: false },
+      // "Documents" said nothing about what the page holds, and "Billing"
+      // described the activity rather than the records. Both old URLs point
+      // at /invoices.
+      { source: '/documents', destination: '/invoices', permanent: false },
+      { source: '/billing', destination: '/invoices', permanent: false },
     ];
   },
   webpack: (config, { isServer }) => {

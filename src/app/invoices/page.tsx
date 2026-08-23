@@ -41,7 +41,6 @@ declare module 'jspdf' {
   }
 }
 
-
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
 
 async function generateInvoicePDF(
@@ -375,24 +374,6 @@ const getStatusBadgeVariant = (status: Order['status'] | 'Paid' | 'Unpaid') => {
     }
 };
 
-const getStatusDotColor = (status: string) => {
-    switch (status) {
-      case 'Pending': return 'bg-warning';
-      case 'In Progress': return 'bg-blue-500';
-      case 'Completed': return 'bg-success';
-      case 'Cancelled': return 'bg-destructive';
-      case 'Refunded': return 'bg-purple-500';
-      default: return 'bg-gray-400';
-    }
-};
-
-const StatusDot: React.FC<{ status: string }> = ({ status }) => (
-    <span className="flex items-center gap-2">
-        <span className={cn("inline-block w-2.5 h-2.5 rounded-full shrink-0", getStatusDotColor(status))} />
-        {status}
-    </span>
-);
-
 const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' => {
   if (doc.docType === 'order') {
     return (doc as Order).status;
@@ -404,7 +385,6 @@ const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' =>
 
 const isShopifyDoc = (doc: DocumentType): boolean =>
   doc.docType === 'invoice' && !!((doc as Invoice).source?.startsWith('shopify'));
-
 
 const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean }> = ({ doc, onPrint, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink }) => {
     const router = useRouter();
@@ -436,21 +416,32 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
                             )}
                         </div>
                     </div>
+                    {/* Same pill as the table, so a phone and a desktop show
+                        the same object. */}
                     {doc.docType === 'order' && onStatusChange ? (
                         <Select value={(doc as Order).status} onValueChange={(val) => onStatusChange(val as OrderStatus)}>
-                            <SelectTrigger className="w-[140px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
-                                <StatusDot status={(doc as Order).status} />
+                            <SelectTrigger
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={`Status: ${(doc as Order).status}`}
+                              className={cn(
+                                'h-7 w-fit gap-1 rounded-full border-transparent px-2.5 text-xs font-medium capitalize',
+                                'focus:ring-0 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-80',
+                                getStatusBadgeVariant((doc as Order).status),
+                              )}
+                            >
+                                <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                                 {ORDER_STATUSES.map(s => (
-                                    <SelectItem key={s} value={s}>
-                                        <StatusDot status={s} />
-                                    </SelectItem>
+                                    <SelectItem key={s} value={s}>{s}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     ) : (
-                        <Badge className={cn("border-transparent capitalize", getStatusBadgeVariant(status))}>{status}</Badge>
+                        <span className={cn(
+                          'inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium capitalize',
+                          getStatusBadgeVariant(status),
+                        )}>{status}</span>
                     )}
                 </div>
                  <div className="text-sm text-foreground space-y-2 pt-2 border-t mt-2">
@@ -491,7 +482,6 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
     );
 };
 
-
 const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean }> = ({ doc, onPrint, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
@@ -525,24 +515,38 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid
                 </div>
             </TableCell>
             <TableCell className="text-right">PKR {doc.grandTotal.toLocaleString()}</TableCell>
+             {/* One shape for the whole column. An order rendered as a
+                 bordered select box while an invoice rendered as a coloured
+                 pill, so the same column carried two different objects. Both
+                 are pills now; the order's is simply the one you can change,
+                 and the chevron is what says so. */}
              <TableCell>
                 {doc.docType === 'order' && onStatusChange ? (
                     <Select value={(doc as Order).status} onValueChange={(val) => onStatusChange(val as OrderStatus)}>
-                        <SelectTrigger className="w-[140px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
-                            <StatusDot status={(doc as Order).status} />
+                        <SelectTrigger
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Status: ${(doc as Order).status}`}
+                          className={cn(
+                            'h-7 w-fit gap-1 rounded-full border-transparent px-2.5 text-xs font-medium capitalize',
+                            'focus:ring-0 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-80',
+                            getStatusBadgeVariant((doc as Order).status),
+                          )}
+                        >
+                            <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                             {ORDER_STATUSES.map(s => (
-                                <SelectItem key={s} value={s}>
-                                    <StatusDot status={s} />
-                                </SelectItem>
+                                <SelectItem key={s} value={s}>{s}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                 ) : (
-                    <Badge className={cn("border-transparent capitalize", getStatusBadgeVariant(status))}>
+                    <span className={cn(
+                      'inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium capitalize',
+                      getStatusBadgeVariant(status),
+                    )}>
                          {status}
-                    </Badge>
+                    </span>
                 )}
             </TableCell>
             <TableCell>
@@ -566,7 +570,6 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid
         </TableRow>
     );
 };
-
 
 // --- CSV Parsing ---
 function parseCSVRow(line: string): string[] {
@@ -894,21 +897,6 @@ export default function DocumentsPage() {
     return docs;
   }, [combinedDocuments, dateRange, searchTerm, monthFilter]);
 
-  /** What the filtered set is worth, and what of it is still owed. */
-  const billingTotals = useMemo(() => {
-    let billed = 0, outstanding = 0, unpaidCount = 0, orderCount = 0;
-    for (const d of filteredDocuments) {
-      if (d.docType === 'order') { orderCount++; continue; }
-      const inv = d as Invoice;
-      if (inv.status === 'Refunded') continue;
-      billed += inv.grandTotal || 0;
-      const due = Math.max(0, inv.balanceDue || 0);
-      outstanding += due;
-      if (due > 0) unpaidCount++;
-    }
-    return { billed, outstanding, collected: billed - outstanding, unpaidCount, orderCount };
-  }, [filteredDocuments]);
-
   /** One section of the list, with what it is worth and what is still owed. */
   const buildSections = React.useCallback((docs: DocumentType[]) => {
     const owedOf = (d: DocumentType) =>
@@ -1049,7 +1037,7 @@ export default function DocumentsPage() {
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
-            <FileText className="w-7 h-7 flex-shrink-0"/>Billing
+            <FileText className="w-7 h-7 flex-shrink-0"/>Invoices
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Every invoice and custom order, and what is still owed on it.
@@ -1061,27 +1049,7 @@ export default function DocumentsPage() {
         </Button>
       </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Billed</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight truncate">{pkr(billingTotals.billed)}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Still owed</p>
-          <p className={cn('text-base sm:text-xl md:text-2xl font-bold leading-tight truncate',
-            billingTotals.outstanding > 0 && 'text-destructive')}>{pkr(billingTotals.outstanding)}</p>
-          <p className="text-2xs text-muted-foreground">{billingTotals.unpaidCount} unpaid</p>
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Collected</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold text-success leading-tight truncate">{pkr(billingTotals.collected)}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Open orders</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{billingTotals.orderCount}</p>
-        </div>
-      </div>
-
+      
       <FilterBar
         value={searchTerm}
         onChange={setSearchTerm}

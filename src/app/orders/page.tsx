@@ -171,7 +171,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
     return (
       <>
       <TableRow className={cn(order.status === 'Completed' && settledRowClass)}>
-        <TableCell className="font-medium">
+        <TableCell className="font-medium align-top">
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
           </Link>
@@ -197,7 +197,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
             )}
           </div>
         </TableCell>
-         <TableCell className="hidden xl:table-cell text-right">
+         <TableCell className="hidden xl:table-cell text-right align-top">
           <div className="flex flex-col items-end gap-0.5 leading-tight whitespace-nowrap">
               <Badge className={cn("border-transparent text-xs", getPaymentBadgeClass(getPaymentStatus(order)))}>{getPaymentStatus(order)}</Badge>
               <div className="text-xs text-muted-foreground">Bal: <span className="font-semibold text-foreground">{grandTotal.toLocaleString()}</span></div>
@@ -205,41 +205,50 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
               <div className="text-xs text-muted-foreground border-t mt-1 pt-1">Total: <span className="font-bold text-foreground">{subtotal.toLocaleString()}</span></div>
           </div>
         </TableCell>
-        <TableCell className="align-middle">
-           {/* Stacked, not side by side: a 144px progress block next to a
-               140px select made this the widest column in the table and
-               pushed the last one off the edge. */}
-           <div className="flex flex-col gap-1.5 min-w-0">
-              <div className="flex flex-col gap-1 min-w-0">
-                  {totalItems > 0 && (
-                    <>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">{completedItems} of {totalItems} items</span>
-                      <Progress value={progressPercentage} className="h-1.5" />
-                    </>
-                  )}
-                  {unassignedItems > 0 && order.status !== 'Completed' && (
-                    <Badge variant="outline" className="text-2xs px-1.5 py-0 w-fit text-destructive border-destructive/40 bg-destructive/5 whitespace-nowrap">
-                      {unassignedItems} unassigned
-                    </Badge>
-                  )}
-              </div>
+        <TableCell className="align-top">
+           {/* The trigger IS the pill. It used to be a bordered select box
+               wrapping a coloured badge, which read as two controls stacked on
+               each other, and the count, the bar and the badge each took their
+               own line — three rows of chrome for one status. */}
+           <div className="flex flex-col gap-1.5 w-[9.5rem]">
               {isUpdatingStatus ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="inline-flex h-7 items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…
+                  </span>
               ) : (
                   <Select onValueChange={(val) => handleStatusChange(val as OrderStatus)} defaultValue={order.status}>
-                      <SelectTrigger className="w-[124px] h-8 px-2 text-xs focus:ring-0 focus:ring-offset-0 [&>span]:flex-1" id={`status-update-${order.id}`}>
-                          <SelectValue>
-                             <Badge className={cn("border-transparent w-full justify-center", getStatusBadgeVariant(order.status))}>{order.status}</Badge>
-                          </SelectValue>
+                      <SelectTrigger
+                        id={`status-update-${order.id}`}
+                        aria-label={`Status: ${order.status}`}
+                        className={cn(
+                          'h-7 w-fit gap-1 rounded-full border-transparent px-2.5 text-xs font-medium',
+                          'focus:ring-0 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-80',
+                          getStatusBadgeVariant(order.status),
+                        )}
+                      >
+                          <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                           {ORDER_STATUSES.map(status => (
-                              <SelectItem key={status} value={status}>
-                                <Badge className={cn("border-transparent w-full justify-center", getStatusBadgeVariant(status))}>{status}</Badge>
-                              </SelectItem>
+                              <SelectItem key={status} value={status}>{status}</SelectItem>
                           ))}
                       </SelectContent>
                   </Select>
+              )}
+
+              {totalItems > 0 && (
+                <div className="space-y-1">
+                  {/* Count and warning share a line; the bar sits under both. */}
+                  <div className="flex items-baseline justify-between gap-2 text-2xs">
+                    <span className="text-muted-foreground tabular-nums whitespace-nowrap">
+                      {completedItems} of {totalItems} done
+                    </span>
+                    {unassignedItems > 0 && order.status !== 'Completed' && (
+                      <span className="text-destructive whitespace-nowrap">{unassignedItems} unassigned</span>
+                    )}
+                  </div>
+                  <Progress value={progressPercentage} className="h-1" />
+                </div>
               )}
           </div>
         </TableCell>
@@ -328,17 +337,11 @@ export default function OrdersPage() {
     ).sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
   }, [orders, searchTerm, appReady, statusFilter, paymentFilter, monthFilter]);
 
-  const stats = useMemo(() => {
-    let value = 0, owed = 0, unassigned = 0, active = 0;
-    for (const o of filteredOrders) {
-      value += o.subtotal || 0;
-      owed += Math.max(0, o.grandTotal || 0);
-      const items = Array.isArray(o.items) ? o.items : [];
-      if (items.some(i => !i.karigarId || i.karigarId === 'none')) unassigned++;
-      if (o.status === 'Pending' || o.status === 'In Progress') active++;
-    }
-    return { value, owed, unassigned, active };
-  }, [filteredOrders]);
+  /** Only the in-progress count is shown now; the tiles are gone. */
+  const activeCount = useMemo(
+    () => filteredOrders.filter(o => o.status === 'Pending' || o.status === 'In Progress').length,
+    [filteredOrders],
+  );
 
   /** The list broken into sections, each carrying its own totals. */
   const sections = useMemo(() => {
@@ -397,7 +400,7 @@ export default function OrdersPage() {
             {filteredOrders.length === orders.length
               ? `${orders.length} order${orders.length === 1 ? '' : 's'}`
               : `${filteredOrders.length} of ${orders.length} orders`}
-            {stats.active > 0 && ` · ${stats.active} in progress`}
+            {activeCount > 0 && ` · ${activeCount} in progress`}
           </p>
         </div>
         <Button asChild size="sm" className="flex-shrink-0">
@@ -405,26 +408,7 @@ export default function OrdersPage() {
         </Button>
       </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Orders shown</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{filteredOrders.length}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Order value</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold text-primary leading-tight truncate">{pkr(stats.value)}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Balance due</p>
-          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight truncate">{pkr(stats.owed)}</p>
-        </div>
-        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Needs a karigar</p>
-          <p className={cn('text-base sm:text-xl md:text-2xl font-bold leading-tight',
-            stats.unassigned > 0 && 'text-destructive')}>{stats.unassigned}</p>
-        </div>
-      </div>
-
+      
       <FilterBar
         value={searchTerm}
         onChange={setSearchTerm}

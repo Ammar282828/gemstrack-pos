@@ -58,7 +58,7 @@ const navGroups: NavGroup[] = [
       // /scan and /cart are still reachable, just not decisions of their own.
       { href: '/new', label: 'New Sale', icon: <PlusCircle /> },
       { href: '/orders', label: 'Orders', icon: <ClipboardList /> },
-      { href: '/billing', label: 'Billing', icon: <Receipt /> },
+      { href: '/invoices', label: 'Invoices', icon: <Receipt /> },
       { href: '/customers', label: 'Customers', icon: <Users /> },
     ],
   },
