@@ -269,21 +269,21 @@ export default function ExpensesPage() {
       </header>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        <div className="rounded-xl border bg-card p-3.5 min-w-0">
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Total expenses</p>
-          <p className="text-xl md:text-2xl font-bold text-primary leading-tight truncate">{PKR(summary.total)}</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold text-primary leading-tight truncate">{PKR(summary.total)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-3.5 min-w-0">
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Payments</p>
-          <p className="text-xl md:text-2xl font-bold leading-tight">{summary.count}</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight">{summary.count}</p>
         </div>
-        <div className="rounded-xl border bg-card p-3.5 min-w-0">
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Average per {graduation}</p>
-          <p className="text-xl md:text-2xl font-bold leading-tight truncate">{PKR(summary.perBucket)}</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight truncate">{PKR(summary.perBucket)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-3.5 min-w-0">
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Karigar payments</p>
-          <p className="text-xl md:text-2xl font-bold leading-tight truncate">{PKR(summary.karigarTotal)}</p>
+          <p className="text-base sm:text-xl md:text-2xl font-bold leading-tight truncate">{PKR(summary.karigarTotal)}</p>
           <p className="text-2xs text-muted-foreground">{summary.karigarShare}% of total</p>
         </div>
       </div>

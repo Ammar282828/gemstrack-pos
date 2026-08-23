@@ -327,17 +327,17 @@ export default function ShareholderFinancesPage() {
       </header>
 
       <div className="grid grid-cols-3 gap-2.5">
-        <div className="rounded-xl border bg-card p-3.5 min-w-0">
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Revenue</p>
-          <p className="text-lg md:text-xl font-bold text-success leading-tight truncate">{fmt(totals.totalRevenue)}</p>
+          <p className="text-base sm:text-lg md:text-xl font-bold text-success leading-tight truncate">{fmt(totals.totalRevenue)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-3.5 min-w-0">
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Expenses</p>
-          <p className="text-lg md:text-xl font-bold leading-tight truncate">{fmt(totals.totalExpenses)}</p>
+          <p className="text-base sm:text-lg md:text-xl font-bold leading-tight truncate">{fmt(totals.totalExpenses)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-3.5 min-w-0">
+        <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Each partner&apos;s share</p>
-          <p className={cn('text-lg md:text-xl font-bold leading-tight truncate',
+          <p className={cn('text-base sm:text-lg md:text-xl font-bold leading-tight truncate',
             totals.revShare - totals.expShare >= 0 ? 'text-success' : 'text-destructive')}>
             {totals.revShare - totals.expShare >= 0 ? '+' : '−'}{fmt(totals.revShare - totals.expShare)}
           </p>
