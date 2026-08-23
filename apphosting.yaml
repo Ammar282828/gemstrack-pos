@@ -14,6 +14,13 @@ env:
     value: "true"
     availability:
       - BUILD
+  # Not a secret: project ids are public. Needed by firebase-admin so
+  # verifyIdToken can check a token's audience.
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: hom-pos-52710474-ceeea
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: SHOPIFY_API_KEY
     value: 1c2467806ff47ad68ffc2cd4b9720b26
     availability:

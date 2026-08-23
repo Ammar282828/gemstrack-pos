@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { STORE_CONFIG } from '@/lib/store-config';
-import { getAuth } from 'firebase/auth';
+import { auth as firebaseAuth } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
@@ -191,7 +191,7 @@ function NotificationsCard() {
     setTesting(true);
     try {
       let token = '';
-      try { token = (await getAuth().currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
+      try { token = (await firebaseAuth?.currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
       const res = await fetch('/api/notifications/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },

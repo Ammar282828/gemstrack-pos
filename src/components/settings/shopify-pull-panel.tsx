@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { RefreshCw, Loader2, Download, CheckCircle2, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { getAuth } from 'firebase/auth';
+import { auth as firebaseAuth } from '@/lib/firebase';
 
 interface PullItem {
   id: string;
@@ -36,7 +36,7 @@ const fmtDate = (d?: string) => {
 /** The pull route is owner-only now, so every call carries an ID token. */
 async function authHeader(): Promise<Record<string, string>> {
   try {
-    const t = await getAuth().currentUser?.getIdToken();
+    const t = await firebaseAuth?.currentUser?.getIdToken();
     return t ? { Authorization: `Bearer ${t}` } : {};
   } catch { return {}; }
 }

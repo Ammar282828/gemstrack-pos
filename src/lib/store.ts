@@ -9,7 +9,7 @@ import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query,
 import { db, auth, firebaseConfig } from '@/lib/firebase';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { normalizePhoneNumber } from '@/lib/utils';
-import { getAuth } from 'firebase/auth';
+import { auth as firebaseAuth } from '@/lib/firebase';
 
 
 // --- Firestore Collection Names ---
@@ -121,7 +121,7 @@ function notifyWhatsApp(
   // Fire-and-forget: a notification must never block or fail a sale.
   (async () => {
     let token = '';
-    try { token = (await getAuth().currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
+    try { token = (await firebaseAuth?.currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
     for (const phone of phones) {
       fetch('/api/notifications/send', {
         method: 'POST',
