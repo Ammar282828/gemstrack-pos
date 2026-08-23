@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
+import { SearchablePicker } from '@/components/shared/searchable-picker';
 
 const PAKISTANI_BANKS = [
     "Al Baraka Bank (Pakistan) Limited",
@@ -91,18 +92,14 @@ const PaymentMethodForm: React.FC<{
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Bank Name</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a bank" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {PAKISTANI_BANKS.map((bank) => (
-                                    <SelectItem key={bank} value={bank}>{bank}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <SearchablePicker
+                            value={field.value || ''}
+                            onChange={field.onChange}
+                            options={PAKISTANI_BANKS.map(b => ({ value: b, label: b }))}
+                            placeholder="Select a bank"
+                            searchPlaceholder="Type a bank name…"
+                            aria-label="Bank name"
+                        />
                         <FormMessage />
                         </FormItem>
                     )}

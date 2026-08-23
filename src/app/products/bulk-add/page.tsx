@@ -18,6 +18,7 @@ import { useAppStore, KaratValue, MetalType } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { ArrowLeft, Plus, Trash2, Copy, Loader2, Save } from 'lucide-react';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { CategoryPicker } from '@/components/shared/category-picker';
 
 // --- Schema Definition ---
 // We use a simplified schema for bulk adding, focusing on shared attributes + individual weights.
@@ -197,12 +198,12 @@ export default function BulkAddProductPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Category</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger></FormControl>
-                              <SelectContent>
-                                {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
+                            <CategoryPicker
+                              categories={categories}
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              placeholder="Select category"
+                            />
                             <FormMessage />
                           </FormItem>
                         )}

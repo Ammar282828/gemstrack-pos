@@ -41,6 +41,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { openWhatsApp } from '@/lib/whatsapp';
 import { format, parseISO } from 'date-fns';
+import { KarigarPicker } from '@/components/karigar/karigar-picker';
+import { CategoryPicker } from '@/components/shared/category-picker';
 
 // ── small presentational helpers ────────────────────────────────────────────
 
@@ -246,12 +248,12 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
         <div className="space-y-3">
           <div>
             <Label className="text-xs">Karigar *</Label>
-            <Select value={karigarId} onValueChange={setKarigarId}>
-              <SelectTrigger><SelectValue placeholder="Select karigar" /></SelectTrigger>
-              <SelectContent>
-                {karigars.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <KarigarPicker
+              value={karigarId}
+              onChange={v => setKarigarId(v === 'none' ? '' : v)}
+              placeholder="Select karigar"
+              aria-label="Karigar"
+            />
           </div>
 
           <div>
@@ -262,12 +264,12 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Category</Label>
-              <Select value={itemCategory} onValueChange={setItemCategory}>
-                <SelectTrigger><SelectValue placeholder="Optional" /></SelectTrigger>
-                <SelectContent>
-                  {staticCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <CategoryPicker
+                categories={staticCategories}
+                value={itemCategory || ''}
+                onChange={setItemCategory}
+                placeholder="Optional"
+              />
             </div>
             <div>
               <Label className="text-xs">Metal</Label>

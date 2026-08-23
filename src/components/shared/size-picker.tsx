@@ -16,41 +16,37 @@ import {
 } from '@/lib/store';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchablePicker } from '@/components/shared/searchable-picker';
 import { cn } from '@/lib/utils';
 
-const NONE = '__none__';
-const CUSTOM = '__custom__';
-
-/** One dropdown plus an "Other…" escape hatch for a value off the scale. */
-const ScaleSelect: React.FC<{
+/**
+ * One size field. A grid rather than a dropdown: ring sizes run 0–25 in half
+ * steps, which is 51 rows to scroll past in a native Select, and a Ring +
+ * Bracelet set renders two of those. Typing filters, and an off-scale value
+ * can still be entered.
+ */
+const ScaleField: React.FC<{
   label: string;
   options: string[];
   value: string;
   onChange: (v: string) => void;
-}> = ({ label, options, value, onChange }) => {
-  const isCustom = !!value && !options.includes(value);
-  return (
-    <div>
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      <Select
-        value={isCustom ? CUSTOM : value}
-        onValueChange={v => onChange(v === CUSTOM ? value : v === NONE ? '' : v)}
-      >
-        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value={NONE}>— None —</SelectItem>
-          {options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-          <SelectItem value={CUSTOM}>Other…</SelectItem>
-        </SelectContent>
-      </Select>
-      {isCustom && (
-        <Input className="mt-2" placeholder={`Custom ${label.toLowerCase()}`}
-          value={value} onChange={e => onChange(e.target.value)} />
-      )}
-    </div>
-  );
-};
+}> = ({ label, options, value, onChange }) => (
+  <div>
+    <Label className="text-xs text-muted-foreground">{label}</Label>
+    <SearchablePicker
+      value={value}
+      onChange={onChange}
+      options={options.map(o => ({ value: o, label: o }))}
+      placeholder="Select"
+      searchPlaceholder="Type a size…"
+      layout="grid"
+      allowCustom
+      clearLabel="No size"
+      aria-label={label}
+      triggerClassName="mt-1"
+    />
+  </div>
+);
 
 export const SizePicker: React.FC<{
   categoryId?: string;
@@ -80,7 +76,7 @@ export const SizePicker: React.FC<{
         <Label className="text-xs">{scale.label}</Label>
         <div className={cn('grid gap-3 mt-1', scale.parts.length > 1 && 'sm:grid-cols-2')}>
           {scale.parts.map(part => (
-            <ScaleSelect key={part.key} label={part.label} options={part.options}
+            <ScaleField key={part.key} label={part.label} options={part.options}
               value={parsed[part.key] || ''} onChange={v => setPart(part.key, v)} />
           ))}
         </div>
@@ -92,7 +88,7 @@ export const SizePicker: React.FC<{
   if (scale && 'options' in scale) {
     return (
       <div className={className}>
-        <ScaleSelect label={scale.label} options={scale.options} value={value} onChange={onChange} />
+        <ScaleField label={scale.label} options={scale.options} value={value} onChange={onChange} />
       </div>
     );
   }

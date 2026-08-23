@@ -8,6 +8,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useAppStore, Karigar } from '@/lib/store';
+import { UNASSIGNED_VALUE, rememberRecent, useKarigarsByRecency, KarigarPicker } from './karigar-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -15,78 +16,6 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Briefcase, UserPlus, Check, ChevronsUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-
-const UNASSIGNED_VALUE = 'none';
-const RECENT_KEY = 'karigar_recent_assign';
-
-function readRecent(): Record<string, number> {
-  if (typeof window === 'undefined') return {};
-  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '{}'); } catch { return {}; }
-}
-
-function rememberRecent(karigarId: string) {
-  if (typeof window === 'undefined' || !karigarId || karigarId === UNASSIGNED_VALUE) return;
-  try {
-    const recent = readRecent();
-    recent[karigarId] = Date.now();
-    localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
-  } catch { /* storage may be unavailable */ }
-}
-
-/**
- * Karigars ordered so the ones you assigned to most recently come first.
- * Seeded from real data (latest order / job they were assigned) so the list is
- * already sensible before this browser has recorded any picks of its own.
- */
-interface RankedKarigars {
-  /** Recency order, as before. */
-  all: Karigar[];
-  /** Currently holding at least one unfinished piece — the likely pick. */
-  busy: Set<string>;
-}
-
-function useKarigarsByRecency(bump: number): RankedKarigars {
-  const karigars = useAppStore(s => s.karigars);
-  const orders = useAppStore(s => s.orders);
-  const karigarJobs = useAppStore(s => s.karigarJobs);
-
-  return useMemo(() => {
-    const seen = new Map<string, number>();
-    const note = (id: string | undefined, t: number) => {
-      if (!id || id === UNASSIGNED_VALUE || Number.isNaN(t)) return;
-      seen.set(id, Math.max(seen.get(id) || 0, t));
-    };
-
-    for (const o of orders || []) {
-      const t = new Date(o?.createdAt || 0).getTime();
-      for (const item of (Array.isArray(o?.items) ? o.items : [])) note(item?.karigarId, t);
-    }
-    for (const j of karigarJobs || []) note(j?.karigarId, new Date(j?.assignedDate || 0).getTime());
-
-    // Who is mid-job right now. With 32 karigars on file and a handful
-    // actually working, this is what makes the list short.
-    const busy = new Set<string>();
-    for (const o of orders || []) {
-      if (!o || o.status === 'Completed' || o.status === 'Cancelled' || o.status === 'Refunded' || o.invoiceId) continue;
-      for (const item of (Array.isArray(o.items) ? o.items : [])) {
-        if (item?.karigarId && item.karigarId !== UNASSIGNED_VALUE && !item.isCompleted) busy.add(item.karigarId);
-      }
-    }
-    for (const j of karigarJobs || []) {
-      if (j?.karigarId && j.status !== 'completed') busy.add(j.karigarId);
-    }
-
-    const recent = readRecent(); // this browser's own picks outrank historical data
-    const all = [...(karigars || [])].sort((a, b) => {
-      const sa = Math.max(recent[a.id] || 0, seen.get(a.id) || 0);
-      const sb = Math.max(recent[b.id] || 0, seen.get(b.id) || 0);
-      if (sb !== sa) return sb - sa;
-      return (a.name || '').localeCompare(b.name || '');
-    });
-    return { all, busy };
-    // `bump` re-sorts immediately after an assignment is made from this component
-  }, [karigars, orders, karigarJobs, bump]);
-}
 
 export const KarigarAssign: React.FC<{
   /** Bench work hangs off either an order or an invoice (a sold piece coming
@@ -268,15 +197,16 @@ export const KarigarBulkAssign: React.FC<{
   if (unassignedCount <= 1) return null;
 
   return (
-    <Select onValueChange={onChange} disabled={saving}>
-      <SelectTrigger className={cn('h-8 text-xs w-auto gap-1.5', className)}>
-        {saving
-          ? <span className="!flex items-center gap-1.5"><Loader2 className="h-3 w-3 flex-shrink-0 animate-spin" />Assigning…</span>
-          : <span className="!flex items-center gap-1.5 whitespace-nowrap"><UserPlus className="h-3.5 w-3.5 flex-shrink-0" />Assign all {unassignedCount} unassigned</span>}
-      </SelectTrigger>
-      <SelectContent>
-        {karigars.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
-      </SelectContent>
-    </Select>
+    <KarigarPicker
+      value=""
+      onChange={onChange}
+      disabled={saving}
+      icon={saving
+        ? <Loader2 className="h-3 w-3 animate-spin" />
+        : <UserPlus className="h-3.5 w-3.5" />}
+      placeholder={saving ? 'Assigning…' : `Assign all ${unassignedCount} unassigned`}
+      className={cn('h-8 text-xs w-auto gap-1.5 whitespace-nowrap', className)}
+      aria-label={`Assign all ${unassignedCount} unassigned items`}
+    />
   );
 };

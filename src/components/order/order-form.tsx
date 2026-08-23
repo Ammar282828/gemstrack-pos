@@ -9,9 +9,11 @@ import * as z from 'zod';
 import { SampleImageInput } from '@/components/shared/sample-image-input';
 import { PLATING_TYPES } from '@/lib/store';
 import { describeMetal } from '@/lib/materials';
+import { SizePicker } from '@/components/shared/size-picker';
+import { KarigarPicker } from '@/components/karigar/karigar-picker';
 import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/shared/delivery-fields';
 import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel } from '@/lib/materials';
-import { useAppStore, Settings, KaratValue, DeliveryInfo, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize, legacyPartKeyFor, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, DeliveryInfo, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,6 +35,7 @@ import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css'
 import { Label } from '@/components/ui/label';
 import { cn, normalizePhoneNumber } from '@/lib/utils';
+import { CategoryPicker } from '@/components/shared/category-picker';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -673,14 +676,12 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 <FormField control={form.control} name={`items.${index}.itemCategory`} render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Category</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value || ''} defaultValue={field.value || ''}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                                {staticCategories.map(cat => (
-                                                    <SelectItem key={cat.id} value={cat.id}>{cat.title}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <CategoryPicker
+                                          categories={staticCategories}
+                                          value={field.value || '' || ''}
+                                          onChange={field.onChange}
+                                          placeholder="Select category"
+                                        />
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
@@ -723,89 +724,21 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                               </div>
                             )}
 
-                            {(() => {
-                                const itemCat = form.watch(`items.${index}.itemCategory`);
-                                if (!categoryNeedsSize(itemCat)) return null;
-                                const scale = sizeScaleFor(itemCat);
-                                return (
-                                    <FormField control={form.control} name={`items.${index}.size`} render={({ field }) => {
-                                        const current = field.value || '';
-
-                                        if (isMultiPartScale(scale)) {
-                                            const parsed = parseMultiSize(current, legacyPartKeyFor(scale));
-                                            const setPart = (key: string, val: string) => {
-                                                const next = { ...parsed, [key]: val };
-                                                field.onChange(composeMultiSize(next));
-                                            };
-                                            return (
-                                                <FormItem>
-                                                    <FormLabel>{scale.label} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                        {scale.parts.map(part => {
-                                                            const value = parsed[part.key] || '';
-                                                            const isCustom = !!value && !part.options.includes(value);
-                                                            return (
-                                                                <div key={part.key}>
-                                                                    <Label className="text-xs text-muted-foreground">{part.label}</Label>
-                                                                    <Select
-                                                                        value={isCustom ? '__custom__' : value}
-                                                                        onValueChange={(v) => setPart(part.key, v === '__custom__' ? value : v === '__none__' ? '' : v)}
-                                                                    >
-                                                                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                                                                        <SelectContent>
-                                                                            <SelectItem value="__none__">— None —</SelectItem>
-                                                                            {part.options.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                                                                            <SelectItem value="__custom__">Other…</SelectItem>
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    {isCustom && (
-                                                                        <Input className="mt-2" placeholder={`Custom ${part.label.toLowerCase()}`} value={value} onChange={e => setPart(part.key, e.target.value)} />
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                    <FormDescription>Leave either blank if not applicable.</FormDescription>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            );
-                                        }
-
-                                        const isCustom = scale && 'options' in scale && !!current && !scale.options.includes(current);
-                                        return (
-                                            <FormItem>
-                                                <FormLabel>{(scale && 'label' in scale ? scale.label : 'Size')} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
-                                                {scale && 'options' in scale ? (
-                                                    <>
-                                                        <Select
-                                                            value={isCustom ? '__custom__' : current}
-                                                            onValueChange={(v) => field.onChange(v === '__custom__' ? current : v === '__none__' ? '' : v)}
-                                                        >
-                                                            <FormControl><SelectTrigger><SelectValue placeholder="Select a size" /></SelectTrigger></FormControl>
-                                                            <SelectContent>
-                                                                <SelectItem value="__none__">— None —</SelectItem>
-                                                                {scale.options.map(opt => (
-                                                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                                                ))}
-                                                                <SelectItem value="__custom__">Other…</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                        {isCustom && (
-                                                            <FormControl>
-                                                                <Input className="mt-2" placeholder="Custom size" value={current} onChange={e => field.onChange(e.target.value)} />
-                                                            </FormControl>
-                                                        )}
-                                                    </>
-                                                ) : (
-                                                    <FormControl><Input placeholder='e.g. "Medium"' {...field} value={current} /></FormControl>
-                                                )}
-                                                <FormDescription>Leave blank if not applicable.</FormDescription>
-                                                <FormMessage />
-                                            </FormItem>
-                                        );
-                                    }}/>
-                                );
-                            })()}
+                            {/* One SizePicker rather than seventy lines of
+                                inline Selects: the order form had its own copy
+                                of the scale logic, so a ring size here was a
+                                51-row dropdown while the same field elsewhere
+                                had already become a searchable grid. */}
+                            <FormField control={form.control} name={`items.${index}.size`} render={({ field }) => (
+                              <FormItem>
+                                <SizePicker
+                                  categoryId={form.watch(`items.${index}.itemCategory`)}
+                                  value={field.value || ''}
+                                  onChange={field.onChange}
+                                />
+                                <FormMessage />
+                              </FormItem>
+                            )}/>
 
                             {/* Metal + Karat — always visible so they are recorded even in manual price mode */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -870,15 +803,12 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 render={({ field }) => (
                                     <FormItem>
                                     <FormLabel className="flex items-center"><Briefcase className="mr-2 h-4 w-4"/>Assign to Karigar</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value || ''}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a karigar" /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                        <SelectItem value="none">None</SelectItem>
-                                        {karigars.map(k => (
-                                            <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>
-                                        ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <KarigarPicker
+                                      value={field.value || ''}
+                                      onChange={field.onChange}
+                                      clearLabel="No karigar yet"
+                                      aria-label="Assign to karigar"
+                                    />
                                     <FormMessage />
                                     </FormItem>
                                 )}

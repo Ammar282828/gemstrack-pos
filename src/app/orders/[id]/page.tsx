@@ -57,6 +57,7 @@ import * as z from 'zod';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
+import { SearchablePicker } from '@/components/shared/searchable-picker';
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -244,19 +245,17 @@ const BookCourierDialog: React.FC<{
                             <FormField control={form.control} name="cityCode" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>City</FormLabel>
-                                    <Select onValueChange={val => { field.onChange(val); }} value={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select city" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {TCS_CITIES.map(c => (
-                                                <SelectItem key={c.code} value={c.code}>{c.name} ({c.code})</SelectItem>
-                                            ))}
-                                            <SelectItem value="OTHER">Other (type below)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <SearchablePicker
+                                        value={field.value || ''}
+                                        onChange={field.onChange}
+                                        options={[
+                                          ...TCS_CITIES.map(c => ({ value: c.code, label: c.name, hint: c.code })),
+                                          { value: 'OTHER', label: 'Other (type below)' },
+                                        ]}
+                                        placeholder="Select city"
+                                        searchPlaceholder="Type a city…"
+                                        aria-label="Delivery city"
+                                    />
                                     <FormMessage />
                                 </FormItem>
                             )} />

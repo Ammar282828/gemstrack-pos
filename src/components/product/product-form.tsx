@@ -9,12 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { SizePicker } from '@/components/shared/size-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel } from '@/lib/materials';
 import { PLATING_TYPES } from '@/lib/store';
-import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, categoryNeedsSize, sizeScaleFor, isMultiPartScale, composeMultiSize, parseMultiSize, legacyPartKeyFor } from '@/lib/store';
+import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, legacyPartKeyFor } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Ban, Diamond, Zap, Shield, Weight, PlusCircle, Gem, Info, Upload, Loader2, CaseSensitive } from 'lucide-react';
@@ -24,6 +25,7 @@ import { Separator } from '../ui/separator';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { CategoryPicker } from '@/components/shared/category-picker';
 
 
 // Schema for the form data
@@ -327,14 +329,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Category</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                              <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
-                              <SelectContent>
-                                {categories.map((category: Category) => (
-                                  <SelectItem key={category.id} value={category.id}>{category.title}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <CategoryPicker
+                              categories={categories}
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              placeholder="Select a category"
+                            />
                             <FormMessage />
                           </FormItem>
                         )}
@@ -371,92 +371,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         </div>
                       )}
 
-                      {categoryNeedsSize(selectedCategoryId) && (() => {
-                        const scale = sizeScaleFor(selectedCategoryId);
-                        return (
-                          <FormField
-                            control={form.control} name="size"
-                            render={({ field }) => {
-                              const current = field.value || '';
-
-                              // Multi-part scale (e.g. cat011: Ring + Bangle)
-                              if (isMultiPartScale(scale)) {
-                                const parsed = parseMultiSize(current, legacyPartKeyFor(scale));
-                                const setPart = (key: string, val: string) => {
-                                  const next = { ...parsed, [key]: val };
-                                  field.onChange(composeMultiSize(next));
-                                };
-                                return (
-                                  <FormItem className="md:col-span-2">
-                                    <FormLabel>{scale.label} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      {scale.parts.map(part => {
-                                        const value = parsed[part.key] || '';
-                                        const isCustom = !!value && !part.options.includes(value);
-                                        return (
-                                          <div key={part.key}>
-                                            <Label className="text-xs text-muted-foreground">{part.label}</Label>
-                                            <Select
-                                              value={isCustom ? '__custom__' : value}
-                                              onValueChange={(v) => setPart(part.key, v === '__custom__' ? value : v === '__none__' ? '' : v)}
-                                            >
-                                              <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                                              <SelectContent>
-                                                <SelectItem value="__none__">— None —</SelectItem>
-                                                {part.options.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                                                <SelectItem value="__custom__">Other…</SelectItem>
-                                              </SelectContent>
-                                            </Select>
-                                            {isCustom && (
-                                              <Input className="mt-2" placeholder={`Custom ${part.label.toLowerCase()}`} value={value} onChange={e => setPart(part.key, e.target.value)} />
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                    <FormDescription>Leave either blank if not applicable.</FormDescription>
-                                    <FormMessage />
-                                  </FormItem>
-                                );
-                              }
-
-                              // Single-dropdown scale
-                              const isCustom = scale && 'options' in scale && !!current && !scale.options.includes(current);
-                              return (
-                                <FormItem>
-                                  <FormLabel>{(scale && 'label' in scale ? scale.label : 'Size')} <span className="text-xs text-muted-foreground font-normal">(optional)</span></FormLabel>
-                                  {scale && 'options' in scale ? (
-                                    <>
-                                      <Select
-                                        value={isCustom ? '__custom__' : current}
-                                        onValueChange={(v) => field.onChange(v === '__custom__' ? current : v === '__none__' ? '' : v)}
-                                      >
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a size" /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                          <SelectItem value="__none__">— None —</SelectItem>
-                                          {scale.options.map(opt => (
-                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                          ))}
-                                          <SelectItem value="__custom__">Other…</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                      {isCustom && (
-                                        <FormControl>
-                                          <Input className="mt-2" placeholder="Custom size" value={current} onChange={e => field.onChange(e.target.value)} />
-                                        </FormControl>
-                                      )}
-                                    </>
-                                  ) : (
-                                    <FormControl><Input placeholder='e.g. "Medium"' {...field} value={current} /></FormControl>
-                                  )}
-                                  <FormDescription>Leave blank if not applicable.</FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              );
-                            }}
+                      {/* The third copy of the scale logic in this codebase, now
+                          the shared one. SizePicker also decides whether the
+                          category has sizes at all, so the guard goes with it. */}
+                      <FormField control={form.control} name="size" render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <SizePicker
+                            categoryId={selectedCategoryId}
+                            value={field.value || ''}
+                            onChange={field.onChange}
                           />
-                        );
-                      })()}
+                          <FormMessage />
+                        </FormItem>
+                      )}/>
                   </div>
 
                   {/* Manual Price Section (Primary) */}

@@ -30,6 +30,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save } from 'lucide-react';
+import { CategoryPicker } from '@/components/shared/category-picker';
 
 /** Everything the dialog edits, held as strings so inputs stay controlled. */
 interface Draft {
@@ -192,12 +193,12 @@ export const EditCartItemDialog: React.FC<{
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Category</Label>
-                <Select value={d.categoryId} onValueChange={v => set('categoryId', v)}>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                  <SelectContent>
-                    {staticCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <CategoryPicker
+                  categories={staticCategories}
+                  value={d.categoryId || ''}
+                  onChange={v => set('categoryId', v)}
+                  placeholder="Select category"
+                />
               </div>
               <div>
                 <Label className="text-xs">Metal</Label>

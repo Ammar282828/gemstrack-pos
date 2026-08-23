@@ -18,6 +18,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { KarigarPicker } from '@/components/karigar/karigar-picker';
 
 const expenseSchema = z.object({
   date: z.date({ required_error: "A date is required." }),
@@ -198,15 +199,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
         ) : (
           <div className="space-y-1">
             <label className="text-sm font-medium flex items-center"><Briefcase className="mr-2 h-4 w-4"/> Link to Karigar (optional)</label>
-            <Select value={selectedKarigarId || '__none__'} onValueChange={v => setSelectedKarigarId(v === '__none__' ? '' : v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="None — not a karigar payment" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">None — not a karigar payment</SelectItem>
-                {karigars.map(k => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <KarigarPicker
+              value={selectedKarigarId || ''}
+              onChange={v => setSelectedKarigarId(v === 'none' ? '' : v)}
+              placeholder="None — not a karigar payment"
+              clearLabel="Not a karigar payment"
+              aria-label="Karigar this expense pays"
+            />
           </div>
         )}
         <div className="flex justify-end gap-2 pt-4">
