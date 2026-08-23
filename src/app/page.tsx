@@ -11,6 +11,7 @@
  */
 
 import React, { useMemo } from 'react';
+import { BoardSkeleton } from '@/components/shared/skeletons';
 import Link from 'next/link';
 import {
   useAppStore, selectCartDetails, Order, Invoice, getInvoiceRevenueDate,
@@ -21,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  ClipboardList, Loader2, FileText, ArrowRight, Clock, Hammer,
+  ClipboardList, FileText, ArrowRight, Clock, Hammer,
   AlertTriangle, Receipt, CheckCircle2, Wallet,
 } from 'lucide-react';
 import { format, parseISO, subDays, startOfDay } from 'date-fns';
@@ -255,9 +256,8 @@ export default function HomePage() {
 
   if (!appReady) {
     return (
-      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-        <p className="text-lg text-muted-foreground">Loading POS…</p>
+      <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+        <BoardSkeleton tiles={3} panels={3} />
       </div>
     );
   }

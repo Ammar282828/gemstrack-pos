@@ -2,13 +2,14 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
+import { ListSkeleton } from '@/components/shared/skeletons';
 import { useAppStore, Invoice, Order, getInvoiceRevenueDate } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, startOfDay, isSameDay, isSameMonth } from 'date-fns';
-import { Loader2, ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X } from 'lucide-react';
+import { ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -187,9 +188,8 @@ export default function CalendarPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-        <p className="text-lg text-muted-foreground">Loading calendar data...</p>
+      <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+        <ListSkeleton />
       </div>
     );
   }

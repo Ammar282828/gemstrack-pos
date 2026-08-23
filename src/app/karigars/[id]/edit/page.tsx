@@ -2,9 +2,9 @@
 "use client";
 
 import { KarigarForm } from '@/components/karigar/karigar-form';
+import { ListSkeleton } from '@/components/shared/skeletons';
 import { useAppStore } from '@/lib/store';
 import { useParams } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
@@ -26,9 +26,8 @@ export default function EditKarigarPage() {
 
   if (isKarigarsLoading && !karigar) {
     return (
-      <div className="container mx-auto p-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-        <p className="text-lg text-muted-foreground">Loading karigar data...</p>
+      <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+        <ListSkeleton />
       </div>
     );
   }

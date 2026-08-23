@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { ListSkeleton } from '@/components/shared/skeletons';
 import { useAppStore, Product } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -93,9 +94,8 @@ export default function WeprintApiPage() {
 
   if (!appReady || (isProductsLoading && products.length === 0)) {
     return (
-      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-        <p className="text-lg text-muted-foreground">Loading Products...</p>
+      <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+        <ListSkeleton />
       </div>
     );
   }

@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { ListSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
@@ -941,10 +942,9 @@ export default function OrderDetailPage() {
 
   if (!isHydrated) {
     return (
-        <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-          <p className="text-lg text-muted-foreground">Loading order details...</p>
-        </div>
+        <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+        <ListSkeleton />
+      </div>
       );
   }
 

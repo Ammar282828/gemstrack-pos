@@ -35,7 +35,7 @@ import {
   Hammer, Users, AlertTriangle, Clock, PlusCircle, Share2, Copy, ExternalLink,
   Loader2, Search, CheckCircle2, CircleDot, Circle, Trash2, PackageOpen, LayoutGrid,
   Table as TableIcon, Flame, Pencil, Save, ImagePlus, Calendar, MessageSquareQuote,
-  Gauge, ArrowLeft, Rows3,
+  Gauge, ArrowLeft, Rows3, UserPlus,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -909,6 +909,11 @@ export default function WorkshopPage() {
     { key: 'completed', label: 'Completed', icon: <CheckCircle2 className="h-4 w-4 text-success" /> },
   ];
   const attention = filtered.filter(j => j.status !== 'completed' && (j.urgency !== 'ok' || j.karigarId === UNASSIGNED_ID));
+  // Deliberately ignores the karigar filter: "show me work with nobody on it"
+  // is the whole point, and filtering it by karigar would always empty it.
+  const unassignedJobs = benchJobs
+    .filter(j => j.status !== 'completed' && j.karigarId === UNASSIGNED_ID)
+    .sort((a, b) => b.ageDays - a.ageDays);
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-5 max-w-7xl">
@@ -1008,6 +1013,13 @@ export default function WorkshopPage() {
           <TabsTrigger value="list" className="text-xs sm:text-sm"><TableIcon className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Jobs</span><span className="hidden sm:inline">All Jobs</span></TabsTrigger>
           <TabsTrigger value="karigar" className="text-xs sm:text-sm"><Users className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Karigar</span><span className="hidden sm:inline">By Karigar</span></TabsTrigger>
           <TabsTrigger value="board" className="text-xs sm:text-sm"><LayoutGrid className="h-4 w-4 mr-1.5 hidden sm:inline" />Board</TabsTrigger>
+          <TabsTrigger value="unassigned" className="text-xs sm:text-sm">
+            <UserPlus className="h-4 w-4 mr-1.5 hidden sm:inline" />
+            <span className="sm:hidden">Free</span><span className="hidden sm:inline">Unassigned</span>
+            {unassignedJobs.length > 0 && (
+              <Badge variant="destructive" className="ml-1.5 h-4 px-1 text-2xs">{unassignedJobs.length}</Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="attention" className="text-xs sm:text-sm">
             <AlertTriangle className="h-4 w-4 mr-1.5 hidden sm:inline" /><span className="sm:hidden">Alert</span><span className="hidden sm:inline">Attention</span>
             {attention.length > 0 && <Badge variant="destructive" className="ml-1.5 h-4 px-1 text-2xs">{attention.length}</Badge>}
@@ -1302,6 +1314,29 @@ export default function WorkshopPage() {
         </TabsContent>
 
         {/* View 4 — Needs attention */}
+        <TabsContent value="unassigned" className="mt-4">
+          {unassignedJobs.length === 0 ? (
+            <Card><CardContent className="py-12 text-center">
+              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-success" />
+              <p className="font-medium">Everything has a karigar</p>
+              <p className="text-sm text-muted-foreground">Nothing is waiting to be handed out.</p>
+            </CardContent></Card>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground mb-3">
+                {unassignedJobs.length} piece{unassignedJobs.length === 1 ? '' : 's'} with nobody on {unassignedJobs.length === 1 ? 'it' : 'them'},
+                oldest first. Online sales land here automatically. Pick a karigar on any row to hand it over.
+              </p>
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {unassignedJobs.map(j => (
+                  <BoardJobCard key={j.id} job={j}
+                    onToggleDone={handleToggleDone} onEdit={openEdit} />
+                ))}
+              </div>
+            </>
+          )}
+        </TabsContent>
+
         <TabsContent value="attention" className="mt-4">
           {attention.length === 0 ? (
             <Card><CardContent className="py-12 text-center">

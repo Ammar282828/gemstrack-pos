@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
+import { BoardSkeleton } from '@/components/shared/skeletons';
 import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem, AdditionalRevenue, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS, CustomerSource, getInvoiceRevenueDate } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -10,7 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval, startOfYear, endOfYear, getYear, eachMonthOfInterval, startOfMonth } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, Loader2, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -551,10 +552,9 @@ export default function AnalyticsPage() {
 
   if (isLoading) {
     return (
-        <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-            <p className="text-lg text-muted-foreground">Loading analytics...</p>
-        </div>
+        <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+        <BoardSkeleton tiles={4} panels={2} />
+      </div>
     );
   }
 

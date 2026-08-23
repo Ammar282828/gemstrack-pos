@@ -2,13 +2,14 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from 'react';
+import { ListSkeleton } from '@/components/shared/skeletons';
 import { useAppStore, Invoice, Product } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO, subDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, AlertTriangle, ArrowLeft, Package, Search } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Package, Search } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
@@ -106,9 +107,8 @@ export default function ProductsAnalyticsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-        <p className="text-lg text-muted-foreground">Loading product analytics...</p>
+      <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+        <ListSkeleton />
       </div>
     );
   }

@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { ListSkeleton } from '@/components/shared/skeletons';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore, Customer, Invoice, Order } from '@/lib/store';
@@ -12,7 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, BookUser, ClipboardList, FileText, Loader2 } from 'lucide-react';
+import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, BookUser, ClipboardList, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -106,9 +107,8 @@ export default function CustomerDetailPage() {
 
   if (!isHydrated) {
     return (
-      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-        <p className="text-lg text-muted-foreground">Loading customer details...</p>
+      <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+        <ListSkeleton />
       </div>
     );
   }
