@@ -33,6 +33,23 @@ const ALLOWED_EMAILS = STORE_CONFIG.allowedEmails;
 const isAllowed = (user: User | null) =>
   !!user?.email && ALLOWED_EMAILS.includes(user.email.toLowerCase());
 
+/**
+ * Local UI inspection without signing in. Requires BOTH a development build
+ * and an explicit ?dev=1 on the URL, so it cannot exist in any deployed
+ * build — `process.env.NODE_ENV` is compiled to the literal "production"
+ * there and the branch is dropped entirely. It skips the sign-in screen only;
+ * Firestore rules and the /api/karigar server checks are untouched, so no
+ * data is exposed that a signed-out browser could not already request.
+ */
+function useDevBypass(): boolean {
+  const [on, setOn] = React.useState(false);
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    setOn(new URLSearchParams(window.location.search).get('dev') === '1');
+  }, []);
+  return on;
+}
+
 function parseUserAgent(ua: string): { browser: string; os: string } {
   let browser = 'Unknown Browser';
   let os = 'Unknown OS';
@@ -140,6 +157,8 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const devBypass = useDevBypass();
+
   const handleSignIn = async () => {
     setIsSigningIn(true);
     setError(null);
@@ -157,6 +176,15 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     await firebaseSignOut(auth);
   };
+
+  // Dev-only, and only with ?dev=1 — see useDevBypass.
+  if (devBypass) {
+    return (
+      <AuthContext.Provider value={{ user: null, signOut: handleSignOut }}>
+        {children}
+      </AuthContext.Provider>
+    );
+  }
 
   if (isLoading) {
     return (

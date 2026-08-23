@@ -36,6 +36,15 @@ body {
   a[role="button"] {
     min-height: 2.75rem;
   }
+  /* Radix renders checkboxes, radios and switches as <button>, so the rule
+     above stretched a 20px checkbox to 44px tall while leaving it 20px wide —
+     a tall pill instead of a square tick box. These carry their own fixed
+     dimensions and must keep them. */
+  [role="checkbox"],
+  [role="radio"],
+  [role="switch"] {
+    min-height: 0;
+  }
   /* Calendar cells are a grid; growing them breaks the date picker layout. */
   [role="gridcell"] button,
   .rdp button {

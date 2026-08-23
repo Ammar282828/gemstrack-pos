@@ -85,7 +85,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isStoreHydrated = useIsStoreHydrated();
   const settings = useAppStore(state => state.settings);
-  const cartCount = useAppStore(state => state.cart.length);
   const { user, signOut } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
   // Restore the last sidebar state. The provider writes sidebar_state on
@@ -113,13 +112,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (!isStoreHydrated) return null;
 
   const logoToUse = STORE_LOGO_URL;
-
-  const bottomNavItems = [
-    { href: '/',       label: 'Home',   icon: <Home className="w-5 h-5" /> },
-    { href: '/new',    label: 'New',    icon: <PlusCircle className="w-5 h-5" />, badge: cartCount },
-    { href: '/orders', label: 'Orders', icon: <ClipboardList className="w-5 h-5" /> },
-    { href: '/hisaab', label: 'Hisaab', icon: <BookUser className="w-5 h-5" /> },
-  ];
 
   return (
       <SidebarProvider defaultOpen={sidebarDefaultOpen}>
@@ -233,38 +225,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          {/* Extra bottom padding on mobile so content clears the bottom nav */}
-          <main className="flex-1 min-w-0 p-4 overflow-auto md:p-6 pb-20 md:pb-6">
+          <main className="flex-1 min-w-0 p-4 overflow-auto md:p-6">
             {children}
           </main>
 
-          {/* Bottom nav — mobile only */}
-          <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-stretch bg-background border-t h-16 safe-area-inset-bottom">
-            {bottomNavItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'relative flex flex-1 flex-col items-center justify-center gap-0.5 text-2xs font-medium transition-colors',
-                    isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  <span className="relative">
-                    {item.icon}
-                    {item.badge ? (
-                      <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-0.5 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-2xs font-bold leading-none">
-                        {item.badge}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span>{item.label}</span>
-                  {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-primary" />}
-                </Link>
-              );
-            })}
-          </nav>
         </SidebarInset>
       </SidebarProvider>
   );
