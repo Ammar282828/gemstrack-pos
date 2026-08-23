@@ -2,6 +2,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { STORE_CONFIG } from '@/lib/store-config';
+import { getAuth } from 'firebase/auth';
+import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -164,6 +167,44 @@ function NotificationsCard() {
   const [newPhone, setNewPhone] = React.useState('');
   const phones = settings.notifPhones || [];
 
+  // A Green API instance drops out of "authorized" when the linked phone is
+  // offline too long, and the only symptom is messages quietly not arriving.
+  const [health, setHealth] = React.useState<{ ok: boolean; configured: boolean; state?: string; detail?: string } | null>(null);
+  const [checking, setChecking] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
+
+  const checkHealth = React.useCallback(async () => {
+    setChecking(true);
+    try {
+      setHealth(await (await fetch('/api/notifications/health')).json());
+    } catch {
+      setHealth({ ok: false, configured: false, detail: 'Could not reach the app.' });
+    } finally { setChecking(false); }
+  }, []);
+  React.useEffect(() => { void checkHealth(); }, [checkHealth]);
+
+  const sendTest = async () => {
+    if (!phones.length) {
+      toast({ title: 'No recipients', description: 'Add a number first.', variant: 'destructive' });
+      return;
+    }
+    setTesting(true);
+    try {
+      let token = '';
+      try { token = (await getAuth().currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
+      const res = await fetch('/api/notifications/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ to: phones[0], message: `Test from ${STORE_CONFIG.name} POS — notifications are working.` }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) toast({ title: 'Test sent', description: `Check WhatsApp on ${phones[0]}.` });
+      else toast({ title: 'Test failed', description: body.error || `HTTP ${res.status}`, variant: 'destructive' });
+    } catch (e) {
+      toast({ title: 'Test failed', description: (e as Error).message, variant: 'destructive' });
+    } finally { setTesting(false); }
+  };
+
   const handleToggle = async (key: keyof Settings, value: boolean) => {
     await updateSettings({ [key]: value } as Partial<Settings>);
   };
@@ -209,10 +250,31 @@ function NotificationsCard() {
           WhatsApp Notifications
         </CardTitle>
         <CardDescription>
-          Send shop alerts to a WhatsApp number via the Meta Business API. Requires <code className="text-xs bg-muted px-1 rounded">WHATSAPP_TOKEN</code> and <code className="text-xs bg-muted px-1 rounded">WHATSAPP_PHONE_ID</code> in <code className="text-xs bg-muted px-1 rounded">.env.local</code>.
+          Shop alerts sent through Green API. Needs <code className="text-xs bg-muted px-1 rounded">GREENAPI_ID_INSTANCE</code> and <code className="text-xs bg-muted px-1 rounded">GREENAPI_API_TOKEN</code>.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Whether it can actually send, rather than whether it is switched on. */}
+        <div className={cn('rounded-lg border p-3 flex items-center gap-3 flex-wrap',
+          health && !health.ok && 'border-destructive/40 bg-destructive/5')}>
+          <span className={cn('h-2 w-2 rounded-full flex-shrink-0',
+            checking ? 'bg-muted-foreground' : health?.ok ? 'bg-success' : 'bg-destructive')} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">
+              {checking ? 'Checking…'
+                : health?.ok ? 'Connected'
+                : !health?.configured ? 'Not configured'
+                : `Not ready${health.state ? ` — ${health.state}` : ''}`}
+            </p>
+            {health?.detail && <p className="text-xs text-muted-foreground">{health.detail}</p>}
+          </div>
+          <Button size="sm" variant="outline" onClick={checkHealth} disabled={checking}>
+            {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Re-check'}
+          </Button>
+          <Button size="sm" onClick={sendTest} disabled={testing || !health?.ok}>
+            {testing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}Send test
+          </Button>
+        </div>
         {/* Master toggle */}
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div>

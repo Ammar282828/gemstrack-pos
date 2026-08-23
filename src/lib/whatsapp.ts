@@ -1,134 +1,91 @@
-const GRAPH_API = 'https://graph.facebook.com/v22.0';
-const CALLMEBOT_API = 'https://api.callmebot.com/whatsapp.php';
+/**
+ * Outbound WhatsApp, via Green API.
+ *
+ * One transport, deliberately. This used to try a local whatsapp-web.js
+ * bridge, then Green API, then CallMeBot, then the Meta Cloud API, falling
+ * through silently — so when a message did not arrive there was no way to
+ * tell which of the four had been attempted, and an unconfigured deployment
+ * logged a warning and carried on as if it had sent.
+ *
+ * Green API is an unofficial gateway: one linked account (QR scan) can then
+ * message anyone, with no per-recipient setup and no 24-hour window. That is
+ * the right trade for internal alerts to your own number. It is the wrong
+ * trade for customer-facing messages — those need the official Meta Cloud
+ * API with approved templates, or the number risks being banned.
+ *
+ * Configure:
+ *   GREENAPI_ID_INSTANCE   instance id, e.g. "7103xxxxxx"
+ *   GREENAPI_API_TOKEN     API token for that instance
+ *   GREENAPI_BASE_URL      optional, defaults to https://api.green-api.com
+ */
 
-/** Strip everything but digits so "+92 326..." and "92326..." match the same key. */
+const DEFAULT_BASE = 'https://api.green-api.com';
+
+/** Strip everything but digits so "+92 300…" and "92300…" are one number. */
 function digitsOnly(phone: string): string {
   return String(phone || '').replace(/\D/g, '');
 }
 
-/**
- * Per-recipient CallMeBot API keys, configured via the CALLMEBOT_KEYS env var
- * as a JSON object mapping phone → apikey, e.g.
- *   {"923262275554":"123456","923161930960":"789012"}
- * Each recipient gets their own key by messaging the CallMeBot WhatsApp number
- * once ("I allow callmebot to send me messages"). Keys are matched digits-only.
- */
-function getCallMeBotKey(to: string): string | null {
-  const raw = process.env.CALLMEBOT_KEYS;
-  if (!raw) return null;
-  let map: Record<string, string>;
-  try {
-    map = JSON.parse(raw);
-  } catch {
-    console.warn('[WhatsApp] CALLMEBOT_KEYS is not valid JSON.');
-    return null;
-  }
-  const want = digitsOnly(to);
-  for (const [phone, key] of Object.entries(map)) {
-    if (digitsOnly(phone) === want) return key;
-  }
-  return null;
+function credentials(): { base: string; id: string; token: string } | null {
+  const id = process.env.GREENAPI_ID_INSTANCE;
+  const token = process.env.GREENAPI_API_TOKEN;
+  if (!id || !token) return null;
+  return { base: (process.env.GREENAPI_BASE_URL || DEFAULT_BASE).replace(/\/$/, ''), id, token };
 }
 
-/**
- * Local bridge — a self-hosted whatsapp-web.js service running on this machine
- * (see whatsapp-local-service.js). Sends through a linked WhatsApp account with
- * no third-party gateway. Configure via WHATSAPP_LOCAL_URL, e.g.
- *   WHATSAPP_LOCAL_URL=http://localhost:4001/send
- */
-async function sendViaLocalBridge(to: string, body: string, url: string): Promise<void> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to: digitsOnly(to), message: body }),
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`Local WhatsApp bridge error ${res.status}: ${text.slice(0, 200)}`);
+export class WhatsAppNotConfiguredError extends Error {
+  constructor() {
+    super('WhatsApp is not configured: set GREENAPI_ID_INSTANCE and GREENAPI_API_TOKEN.');
+    this.name = 'WhatsAppNotConfiguredError';
   }
 }
 
 /**
- * Green API — unofficial WhatsApp gateway. One account is linked as the sender
- * (QR scan), then it can message anyone with no per-recipient setup, templates,
- * or 24h window. Configure via:
- *   GREENAPI_ID_INSTANCE   — instance id (e.g. "7103xxxxxx")
- *   GREENAPI_API_TOKEN     — API token for that instance
- *   GREENAPI_BASE_URL      — optional, defaults to https://api.green-api.com
- */
-async function sendViaGreenApi(to: string, body: string, idInstance: string, apiToken: string): Promise<void> {
-  const base = (process.env.GREENAPI_BASE_URL || 'https://api.green-api.com').replace(/\/$/, '');
-  const chatId = `${digitsOnly(to)}@c.us`;
-  const url = `${base}/waInstance${idInstance}/sendMessage/${apiToken}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chatId, message: body }),
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`Green API error ${res.status}: ${text.slice(0, 200)}`);
-  }
-}
-
-async function sendViaCallMeBot(to: string, body: string, apikey: string): Promise<void> {
-  const phone = to.startsWith('+') ? to : `+${digitsOnly(to)}`;
-  const url = `${CALLMEBOT_API}?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(body)}&apikey=${encodeURIComponent(apikey)}`;
-  const res = await fetch(url, { method: 'GET' });
-  const text = await res.text();
-  // CallMeBot returns 200 with an HTML/text body; treat explicit error markers as failures.
-  if (!res.ok || /APIKey is invalid|not registered|error/i.test(text)) {
-    throw new Error(`CallMeBot error ${res.status}: ${text.slice(0, 200)}`);
-  }
-}
-
-async function sendViaMeta(to: string, body: string, token: string, phoneId: string): Promise<void> {
-  const res = await fetch(`${GRAPH_API}/${phoneId}/messages`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body } }),
-  });
-  if (!res.ok) {
-    throw new Error(`WhatsApp API error ${res.status}: ${await res.text()}`);
-  }
-}
-
-/**
- * Sends a WhatsApp text message. Transport priority:
- *   1. Local bridge — if WHATSAPP_LOCAL_URL is set (self-hosted whatsapp-web.js)
- *   2. Green API    — if GREENAPI_ID_INSTANCE + GREENAPI_API_TOKEN are set
- *   3. CallMeBot    — if a per-recipient key is configured via CALLMEBOT_KEYS
- *   4. Meta Cloud   — if WHATSAPP_TOKEN + WHATSAPP_PHONE_ID are set
- * Call only from server-side code.
+ * Send a WhatsApp text. Throws rather than warning: a notification that
+ * silently does not send is worse than one that fails loudly, because you
+ * carry on believing the shop is being watched.
  */
 export async function sendWhatsAppMessage(to: string, body: string): Promise<void> {
-  const localUrl = process.env.WHATSAPP_LOCAL_URL;
-  if (localUrl) {
-    await sendViaLocalBridge(to, body, localUrl);
-    return;
-  }
+  const creds = credentials();
+  if (!creds) throw new WhatsAppNotConfiguredError();
 
-  const greenId = process.env.GREENAPI_ID_INSTANCE;
-  const greenToken = process.env.GREENAPI_API_TOKEN;
-  if (greenId && greenToken) {
-    await sendViaGreenApi(to, body, greenId, greenToken);
-    return;
+  const res = await fetch(`${creds.base}/waInstance${creds.id}/sendMessage/${creds.token}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chatId: `${digitsOnly(to)}@c.us`, message: body }),
+  });
+  if (!res.ok) {
+    throw new Error(`Green API ${res.status}: ${(await res.text()).slice(0, 200)}`);
   }
+}
 
-  const callMeBotKey = getCallMeBotKey(to);
-  if (callMeBotKey) {
-    await sendViaCallMeBot(to, body, callMeBotKey);
-    return;
+/**
+ * Is the linked account actually authorized? Green API instances drop out of
+ * "authorized" when the phone is offline too long or the QR is revoked, and
+ * the only symptom otherwise is messages quietly not arriving.
+ */
+export async function whatsAppStatus(): Promise<{
+  configured: boolean; state?: string; ok: boolean; detail?: string;
+}> {
+  const creds = credentials();
+  if (!creds) return { configured: false, ok: false, detail: 'No Green API credentials set.' };
+  try {
+    const res = await fetch(`${creds.base}/waInstance${creds.id}/getStateInstance/${creds.token}`);
+    if (!res.ok) {
+      return { configured: true, ok: false, detail: `Green API ${res.status}` };
+    }
+    const data = await res.json();
+    const state = data?.stateInstance as string | undefined;
+    return {
+      configured: true,
+      state,
+      ok: state === 'authorized',
+      detail: state === 'authorized' ? undefined
+        : `Instance is "${state}" — rescan the QR in the Green API console.`,
+    };
+  } catch (e) {
+    return { configured: true, ok: false, detail: (e as Error).message };
   }
-
-  const token = process.env.WHATSAPP_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_ID;
-  if (token && phoneId) {
-    await sendViaMeta(to, body, token, phoneId);
-    return;
-  }
-
-  console.warn(`[WhatsApp] No transport configured for ${to} — skipping notification.`);
 }
 
 // ── Deep links to the WhatsApp app (client-side) ─────────────────────────────

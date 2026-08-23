@@ -9,6 +9,7 @@ import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query,
 import { db, auth, firebaseConfig } from '@/lib/firebase';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { normalizePhoneNumber } from '@/lib/utils';
+import { getAuth } from 'firebase/auth';
 
 
 // --- Firestore Collection Names ---
@@ -116,13 +117,22 @@ function notifyWhatsApp(
   if (!settings?.notifEnabled || !enabled) return;
   const phones = settings.notifPhones || [];
   if (!phones.length) return;
-  phones.forEach(phone => {
-    fetch('/api/notifications/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: phone, message }),
-    }).catch(e => console.warn('[notif] send failed:', e));
-  });
+  // The endpoint is no longer open, so the caller has to prove who it is.
+  // Fire-and-forget: a notification must never block or fail a sale.
+  (async () => {
+    let token = '';
+    try { token = (await getAuth().currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
+    for (const phone of phones) {
+      fetch('/api/notifications/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({ to: phone, message }),
+      }).catch(e => console.warn('[notif] send failed:', e));
+    }
+  })();
 }
 
 async function deleteCollection(collectionName: string) {

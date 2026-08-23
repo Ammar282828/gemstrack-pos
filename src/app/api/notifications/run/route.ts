@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
+import { isCronAuthorized } from '@/lib/api-auth';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { generateGoldDailyUpdate, checkGoldBreakingNews } from '@/lib/gold-update';
@@ -481,28 +482,10 @@ async function sendGoldBreakingNews() {
   return message;
 }
 
-/**
- * If CRON_SECRET is configured, require it on every call (Authorization: Bearer
- * <secret>, or ?key=<secret>). This lets Google Cloud Scheduler hit the public
- * endpoint without exposing it to the world. Localhost calls are always allowed
- * so the local dev scheduler keeps working without a secret.
- */
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // not configured → open (dev convenience)
-
-  const host = req.headers.get('host') || '';
-  if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) return true;
-
-  const auth = req.headers.get('authorization') || '';
-  if (auth === `Bearer ${secret}`) return true;
-  if (req.nextUrl.searchParams.get('key') === secret) return true;
-  return false;
-}
 
 export async function POST(req: NextRequest) {
   try {
-    if (!isAuthorized(req)) {
+    if (!isCronAuthorized(req)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const { task, force } = await req.json();
