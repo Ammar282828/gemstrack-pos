@@ -122,7 +122,15 @@ const ClosedBatchCard: React.FC<{
   );
 };
 
-const PreHisaabCard: React.FC<{ expenses: Expense[] }> = ({ expenses }) => {
+/**
+ * Payments that sit outside every hisaab.
+ *
+ * This used to be called "Pre-Hisaab — recorded before the batch system",
+ * which was true when the only unbatched rows were historical. Paying a
+ * karigar without opening a hisaab is a perfectly normal thing to do, and
+ * those payments land here too, so it is named for what it holds.
+ */
+const DirectPaymentsCard: React.FC<{ expenses: Expense[] }> = ({ expenses }) => {
   const [open, setOpen] = useState(false);
   const total = expenses.reduce((s, e) => s + e.amount, 0);
   return (
@@ -134,8 +142,8 @@ const PreHisaabCard: React.FC<{ expenses: Expense[] }> = ({ expenses }) => {
         <div className="flex items-center gap-3">
           <History className="h-4 w-4 text-muted-foreground" />
           <div>
-            <p className="font-semibold text-sm">Pre-Hisaab</p>
-            <p className="text-xs text-muted-foreground">Recorded before the batch system</p>
+            <p className="font-semibold text-sm">Direct payments</p>
+            <p className="text-xs text-muted-foreground">Not part of any hisaab</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -718,11 +726,11 @@ export default function KarigarDetailPage() {
         </div>
       )}
 
-      {/* Pre-Hisaab (unbatched) — shown as one collapsed hisaab */}
+      {/* Payments made outside any hisaab, collapsed into one card */}
       {unbatchedExpenses.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Pre-Hisaab</h3>
-          <PreHisaabCard expenses={unbatchedExpenses} />
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Direct payments</h3>
+          <DirectPaymentsCard expenses={unbatchedExpenses} />
         </div>
       )}
     </div>
