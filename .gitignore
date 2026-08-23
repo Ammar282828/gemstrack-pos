@@ -61,3 +61,4 @@ scripts/*backup*.json
 
 # Ledger backups hold live financial records — never commit.
 backups/
+.next-build/
