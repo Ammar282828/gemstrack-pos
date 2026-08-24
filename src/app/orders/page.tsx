@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Search, PlusCircle, Eye, ClipboardList, Loader2, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, DollarSign, CreditCard  } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { cn, settledRowClass, shopifyRowClass } from '@/lib/utils';
+import { cn, settledRowClass } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -59,10 +59,6 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
     }
   };
 
-/** No order originates on Shopify — this marks one mirrored out as a draft. */
-const isOnShopify = (order: Order): boolean =>
-  !!(order.shopifyDraftOrderId || order.shopifyOrderId);
-
 const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
   const { toast } = useToast();
   const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
@@ -79,8 +75,7 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
 
   return (
-    <Card className={cn('mb-4 md:hidden', order.status === 'Completed' && settledRowClass,
-      isOnShopify(order) && shopifyRowClass)}>
+    <Card className={cn('mb-4 md:hidden', order.status === 'Completed' && settledRowClass)}>
         <CardContent className="p-4 space-y-3">
             <div className="flex justify-between items-start">
                 <Link href={`/orders/${order.id}`} className="font-bold text-primary hover:underline text-lg">
@@ -175,8 +170,7 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
   
     return (
       <>
-      <TableRow className={cn(order.status === 'Completed' && settledRowClass,
-        isOnShopify(order) && shopifyRowClass)}>
+      <TableRow className={cn(order.status === 'Completed' && settledRowClass)}>
         <TableCell className="font-medium align-top">
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
