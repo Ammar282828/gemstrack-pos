@@ -728,6 +728,7 @@ export default function DocumentsPage() {
    * status view for chasing what is still owed.
    */
   const [groupBy, setGroupBy] = useState<'status' | Graduation>('day');
+  const [activeTab, setActiveTab] = useState<'all' | 'invoices' | 'orders' | 'shopify'>('all');
   const [importOpen, setImportOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importPreview, setImportPreview] = useState<{ rows: number; firstNames: string[] } | null>(null);
@@ -943,6 +944,18 @@ export default function DocumentsPage() {
     }));
   }, [groupBy]);
 
+  /** Split once. The tab counts ran three filters over every document on
+   *  every render, and the tab bodies then filtered the same list again. */
+  const byTab = useMemo(() => {
+    const invoicesOnly: DocumentType[] = [], ordersOnly: DocumentType[] = [], shopifyOnly: DocumentType[] = [];
+    for (const d of filteredDocuments) {
+      if (d.docType === 'order') ordersOnly.push(d);
+      else if (isShopifyDoc(d)) shopifyOnly.push(d);
+      else invoicesOnly.push(d);
+    }
+    return { all: filteredDocuments, invoices: invoicesOnly, orders: ordersOnly, shopify: shopifyOnly };
+  }, [filteredDocuments]);
+
   const renderContent = (docs: DocumentType[]) => {
       if (isLoading) {
          return (
@@ -974,53 +987,65 @@ export default function DocumentsPage() {
         isSendingLink: sendingLinkId === d.id,
       });
 
-      return (
-        <div className="space-y-4">
-          {sections.map(s => (
-            <section key={s.key}>
-              {/* Each section says what it is worth and what is still owed, so
-                  the number you came for is never further than the heading. */}
-              <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
-                <div className="flex items-baseline gap-2 min-w-0">
-                  <h2 className={cn('text-sm font-semibold truncate', s.danger && 'text-destructive')}>{s.title}</h2>
-                  {s.hint && <span className="text-2xs text-muted-foreground flex-shrink-0">{s.hint}</span>}
-                </div>
-                <div className="flex items-baseline gap-2 flex-shrink-0">
-                  <span className="text-2xs text-muted-foreground">{s.rows.length}</span>
-                  {s.owed > 0 && (
-                    <span className="text-sm font-semibold tabular-nums text-destructive">{pkr(s.owed)} owed</span>
-                  )}
-                  <span className="text-sm font-semibold tabular-nums">{pkr(s.billed)}</span>
-                </div>
-              </div>
-
-              <div className="md:hidden">
-                {s.rows.map(d => <DocumentCard key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
-              </div>
-
-              <Card className="hidden md:block">
-                <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead className="hidden xl:table-cell">Date</TableHead>
-                        <TableHead className="hidden xl:table-cell">Type</TableHead>
-                        <TableHead className="text-right">Total (PKR)</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {s.rows.map(d => <DocumentRow key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </section>
-          ))}
+      const heading = (s: typeof sections[number]) => (
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <span className={cn('text-sm font-semibold truncate', s.danger && 'text-destructive')}>{s.title}</span>
+            {s.hint && <span className="text-2xs text-muted-foreground flex-shrink-0">{s.hint}</span>}
+          </div>
+          <div className="flex items-baseline gap-2 flex-shrink-0">
+            <span className="text-2xs text-muted-foreground">{s.rows.length}</span>
+            {s.owed > 0 && (
+              <span className="text-sm font-semibold tabular-nums text-destructive">{pkr(s.owed)} owed</span>
+            )}
+            <span className="text-sm font-semibold tabular-nums">{pkr(s.billed)}</span>
+          </div>
         </div>
+      );
+
+      return (
+        <>
+          {/* One table, not one per group. Grouping by day produced 176
+              separate <Table> elements here for 461 documents — 176 scroll
+              containers and 176 repeated column headers. The group heading is
+              a row inside the single table now. */}
+          <div className="md:hidden space-y-4">
+            {sections.map(s => (
+              <section key={s.key}>
+                <div className="px-1 pb-1.5">{heading(s)}</div>
+                {s.rows.map(d => <DocumentCard key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
+              </section>
+            ))}
+          </div>
+
+          <Card className="hidden md:block">
+            <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="hidden xl:table-cell">Date</TableHead>
+                    <TableHead className="hidden xl:table-cell">Type</TableHead>
+                    <TableHead className="text-right">Total (PKR)</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sections.map(s => (
+                    <React.Fragment key={s.key}>
+                      <TableRow className="bg-muted/40 hover:bg-muted/40">
+                        <TableCell colSpan={7} className="py-1.5">{heading(s)}</TableCell>
+                      </TableRow>
+                      {s.rows.map(d => <DocumentRow key={`${d.docType}-${d.id}`} {...rowProps(d)} />)}
+                    </React.Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
       );
   };
   
@@ -1154,16 +1179,16 @@ export default function DocumentsPage() {
         <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
       </div>
 
-      <Tabs defaultValue="all">
+      <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)}>
         {/* A four-column grid gave each tab 25% of a 375px screen — about 85px —
             which "Invoices (174)" cannot fit, so the labels spilled out of their
             cells. A scrolling flex row sizes each tab to its own label. */}
         <TabsList className="w-full md:w-fit justify-start mb-4">
           {([
-            { value: 'all', label: 'All', n: filteredDocuments.length },
-            { value: 'invoices', label: 'Invoices', n: filteredDocuments.filter(d => d.docType === 'invoice' && !isShopifyDoc(d)).length },
-            { value: 'orders', label: 'Orders', n: filteredDocuments.filter(d => d.docType === 'order').length },
-            { value: 'shopify', label: 'Shopify', n: filteredDocuments.filter(d => isShopifyDoc(d)).length, icon: <ShoppingBag className="h-3 w-3 self-center flex-shrink-0" /> },
+            { value: 'all', label: 'All', n: byTab.all.length },
+            { value: 'invoices', label: 'Invoices', n: byTab.invoices.length },
+            { value: 'orders', label: 'Orders', n: byTab.orders.length },
+            { value: 'shopify', label: 'Shopify', n: byTab.shopify.length, icon: <ShoppingBag className="h-3 w-3 self-center flex-shrink-0" /> },
           ] as const).map(tab => (
             <TabsTrigger key={tab.value} value={tab.value}>
               {/* One flex item, not three. TabsTrigger is `items-center`, so a
@@ -1180,18 +1205,14 @@ export default function DocumentsPage() {
             </TabsTrigger>
           ))}
         </TabsList>
-        <TabsContent value="all">
-          {renderContent(filteredDocuments)}
-        </TabsContent>
-        <TabsContent value="invoices">
-          {renderContent(filteredDocuments.filter(d => d.docType === 'invoice' && !isShopifyDoc(d)))}
-        </TabsContent>
-        <TabsContent value="orders">
-          {renderContent(filteredDocuments.filter(d => d.docType === 'order'))}
-        </TabsContent>
-        <TabsContent value="shopify">
-          {renderContent(filteredDocuments.filter(d => isShopifyDoc(d)))}
-        </TabsContent>
+        {/* Radix mounts only the active panel, but JSX still *builds* every
+            child eagerly — so all four lists were constructed on every render
+            and three thrown away. Only the visible one is built now. */}
+        {(['all', 'invoices', 'orders', 'shopify'] as const).map(key => (
+          <TabsContent key={key} value={key}>
+            {activeTab === key ? renderContent(byTab[key]) : null}
+          </TabsContent>
+        ))}
       </Tabs>
       
     </div>

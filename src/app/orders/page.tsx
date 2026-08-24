@@ -467,44 +467,66 @@ export default function OrdersPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {sections.map(s => (
-            <section key={s.key}>
-              <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
-                <div className="flex items-baseline gap-2 min-w-0">
-                  <h2 className={cn('text-sm font-semibold truncate', s.danger && 'text-destructive')}>{s.title}</h2>
-                  {s.hint && <span className="text-2xs text-muted-foreground flex-shrink-0">{s.hint}</span>}
+          {/* One table, not one per group. Grouping by day put 79 separate
+              <Table> elements on this page for 124 orders — 79 scroll
+              containers and 79 repeated column headers, which is both slow and
+              why the header kept reappearing down the page. The group heading
+              is a row inside the single table now. */}
+          <div className="md:hidden space-y-4">
+            {sections.map(s => (
+              <section key={s.key}>
+                <div className="flex items-baseline justify-between gap-3 px-1 pb-1.5">
+                  <div className="flex items-baseline gap-2 min-w-0">
+                    <h2 className={cn('text-sm font-semibold truncate', s.danger && 'text-destructive')}>{s.title}</h2>
+                    {s.hint && <span className="text-2xs text-muted-foreground flex-shrink-0">{s.hint}</span>}
+                  </div>
+                  <div className="flex items-baseline gap-2 flex-shrink-0">
+                    <span className="text-2xs text-muted-foreground">{s.rows.length}</span>
+                    <span className="text-sm font-semibold tabular-nums">{pkr(s.value)}</span>
+                  </div>
                 </div>
-                <div className="flex items-baseline gap-2 flex-shrink-0">
-                  <span className="text-2xs text-muted-foreground">{s.rows.length}</span>
-                  <span className="text-sm font-semibold tabular-nums">{pkr(s.value)}</span>
-                </div>
-              </div>
-
-              <div className="md:hidden">
                 {s.rows.map(order => <OrderRow key={order.id} order={order} />)}
-              </div>
+              </section>
+            ))}
+          </div>
 
-              <Card className="hidden md:block">
-                <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Order</TableHead>
-                        <TableHead className="hidden lg:table-cell">Date</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead className="hidden xl:table-cell text-right">Financials (PKR)</TableHead>
-                        <TableHead>Status &amp; progress</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+          <Card className="hidden md:block">
+            <CardContent className="p-0 scroll-shadow-x overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order</TableHead>
+                    <TableHead className="hidden lg:table-cell">Date</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="hidden xl:table-cell text-right">Financials (PKR)</TableHead>
+                    <TableHead>Status &amp; progress</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sections.map(s => (
+                    <React.Fragment key={s.key}>
+                      <TableRow className="bg-muted/40 hover:bg-muted/40">
+                        <TableCell colSpan={6} className="py-1.5">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <div className="flex items-baseline gap-2 min-w-0">
+                              <span className={cn('text-sm font-semibold truncate', s.danger && 'text-destructive')}>{s.title}</span>
+                              {s.hint && <span className="text-2xs text-muted-foreground flex-shrink-0">{s.hint}</span>}
+                            </div>
+                            <div className="flex items-baseline gap-2 flex-shrink-0">
+                              <span className="text-2xs text-muted-foreground">{s.rows.length}</span>
+                              <span className="text-sm font-semibold tabular-nums">{pkr(s.value)}</span>
+                            </div>
+                          </div>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
                       {s.rows.map(order => <OrderTableRow key={order.id} order={order} />)}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </section>
-          ))}
+                    </React.Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
