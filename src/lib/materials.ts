@@ -54,3 +54,42 @@ export function describePlating(item: {
   if (item.nickelFree) parts.push('Nickel free');
   return parts.length ? parts.join(' · ') : undefined;
 }
+
+/**
+ * What is actually set into a piece, for the customer's copy.
+ *
+ * The invoice already prints what the stones *cost* — "+ Diamonds: PKR
+ * 45,000" — but never what they are. A customer paying for a 1.12ct VVS2
+ * stone should see that on the bill, not just its price; it is the part they
+ * would take to a valuer.
+ *
+ * Only what was actually recorded is printed. Nothing is inferred from a
+ * charge being present, because "there is a diamond charge" is not a
+ * description of a diamond.
+ */
+export function describeSettings(item: {
+  metalType?: string;
+  diamondDetails?: string | null;
+  stoneDetails?: string | null;
+  stoneWeightG?: number | null;
+  platingType?: string;
+  platingNote?: string;
+  nickelFree?: boolean;
+}): string[] {
+  const lines: string[] = [];
+  const oneLine = (s: string) => s.replace(/\s*\n+\s*/g, ' · ').trim();
+
+  const diamonds = item.diamondDetails?.trim();
+  if (diamonds) lines.push(`Diamonds: ${oneLine(diamonds)}`);
+
+  const stones = item.stoneDetails?.trim();
+  if (stones) lines.push(`Stones: ${oneLine(stones)}`);
+
+  const sw = Number(item.stoneWeightG) || 0;
+  if (sw > 0) lines.push(`Stone weight: ${sw.toFixed(2)}g`);
+
+  const plating = describePlating(item);
+  if (plating) lines.push(`Finish: ${plating}`);
+
+  return lines;
+}

@@ -10,7 +10,7 @@ import { EditCartItemDialog, blankCartItem } from '@/components/cart/edit-cart-i
 import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/shared/delivery-fields';
 import { useRouter } from 'next/navigation';
 import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories , DeliveryInfo , PAYMENT_TYPES, PaymentType } from '@/lib/store';
-import { metalLabel, describeMetal } from '@/lib/materials';
+import { metalLabel, describeMetal, describeSettings } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
@@ -42,6 +42,7 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { FormSkeleton } from '@/components/shared/skeletons';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
+import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -757,6 +758,11 @@ export default function CartPage() {
     const tableStartY = infoY + (ratesApplied.length > 0 ? 18 : 13);
     const tableColumn = ["#", "Product & Breakdown", "Qty", "Unit", "Total"];
     const tableRows: any[][] = [];
+    const itemBlocks: ItemBlock[] = [];
+    // The description column is 'auto', so its width is whatever the fixed
+    // columns leave. Computed here so the height and the drawing wrap at the
+    // same measure.
+    const descColWidth = (pageWidth - margin * 2) - (7 + 9 + 22 + 22);
 
     itemsToPrint.forEach((item: InvoiceItem, index) => {
         let breakdownLines = [];
@@ -773,15 +779,24 @@ export default function CartPage() {
         const weightPart = item.metalWeightG > 0 ? `, Wt: ${(item.metalWeightG || 0).toFixed(2)}g` : '';
         const metalDisplay = `${metalTypeName}${karat}${weightPart}`;
         
-        const mainTitle = `${item.name}`;
-        const sizeLine = item.size ? `Size: ${item.size}\n` : '';
-        const subTitle = `SKU: ${item.sku} | ${metalDisplay}`;
-        const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
-        const fullDescription = `${categoryTitle ? categoryTitle.toUpperCase() + '\n' : ''}${mainTitle}\n${sizeLine}${subTitle}${breakdownText ? `${breakdownText}` : ''}`;
-
+        // The cell is drawn by hand in didDrawCell — see lib/invoice-item-cell.
+        // The name leads, the specification sits under it, what is set into
+        // the piece gets its own line, and the costs are subordinate.
+        const block: ItemBlock = {
+            name: item.name || '',
+            spec: [
+                staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '',
+                metalDisplay,
+                item.size ? `Size ${item.size}` : '',
+                item.sku ? `SKU ${item.sku}` : '',
+            ].filter(Boolean).join('  ·  '),
+            settings: describeSettings(item),
+            breakdown: breakdownLines.map(l => l.trim().replace(/^\+\s*/, '')),
+        };
+        itemBlocks.push(block);
         const itemData = [
             index + 1,
-            fullDescription,
+            '',
             item.quantity,
             item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }),
             item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }),
@@ -802,6 +817,23 @@ export default function CartPage() {
             2: { cellWidth: 9, halign: 'right' },
             3: { cellWidth: 22, halign: 'right' },
             4: { cellWidth: 22, halign: 'right' },
+        },
+        didParseCell: (data: any) => {
+            // Tell autoTable how tall the hand-drawn cell will be, and stop it
+            // laying out text of its own there.
+            if (data.section === 'body' && data.column.index === 1) {
+                const block = itemBlocks[data.row.index];
+                if (block) {
+                    data.cell.text = [];
+                    data.cell.styles.minCellHeight = itemCellHeight(doc, block, descColWidth);
+                }
+            }
+        },
+        didDrawCell: (data: any) => {
+            if (data.section === 'body' && data.column.index === 1) {
+                const block = itemBlocks[data.row.index];
+                if (block) drawItemCell(doc, block, data.cell, descColWidth);
+            }
         },
         didDrawPage: (data: { pageNumber: number, settings: { startY: number } }) => {
             if (data.pageNumber > 1) {
