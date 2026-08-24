@@ -24,7 +24,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { metalLabel, describeMetal } from '@/lib/materials';
+import { metalLabel, describeMetal, describeSettings } from '@/lib/materials';
+import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
@@ -124,6 +125,9 @@ async function generateInvoicePDF(
 
   const tableStartY = infoY + (ratesApplied.length > 0 ? 18 : 13);
   const tableRows: any[][] = [];
+  const itemBlocks: ItemBlock[] = [];
+  // Same measure for the height and the drawing — see lib/invoice-item-cell.
+  const descColWidth = (pageWidth - margin * 2) - (7 + 9 + 22 + 22);
   itemsToPrint.forEach((item: InvoiceItem, index: number) => {
     const breakdownLines: string[] = [];
     if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
@@ -136,8 +140,14 @@ async function generateInvoicePDF(
     const karat = item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : '';
     const weightPart = item.metalWeightG > 0 ? `, Wt: ${(item.metalWeightG || 0).toFixed(2)}g` : '';
     const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
-    const fullDescription = `${categoryTitle ? categoryTitle.toUpperCase() + '\n' : ''}${item.name}\nSKU: ${item.sku} | ${metalTypeName}${karat}${weightPart}${breakdownLines.length > 0 ? '\n' + breakdownLines.join('\n') : ''}`;
-    tableRows.push([index + 1, fullDescription, item.quantity, item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }), item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })]);
+    itemBlocks.push({
+      name: item.name || '',
+      spec: [categoryTitle, `${metalTypeName}${karat}${weightPart}`, item.size ? `Size ${item.size}` : '', item.sku ? `SKU ${item.sku}` : '']
+        .filter(Boolean).join('  ·  '),
+      settings: describeSettings(item),
+      breakdown: breakdownLines.map(l => l.trim().replace(/^\+\s*/, '')),
+    });
+    tableRows.push([index + 1, '', item.quantity, item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }), item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })]);
   });
 
   pdfDoc.autoTable({
@@ -148,6 +158,21 @@ async function generateInvoicePDF(
     headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
     styles: { fontSize: 7.5, cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
     columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 9, halign: 'right' }, 3: { cellWidth: 22, halign: 'right' }, 4: { cellWidth: 22, halign: 'right' } },
+    didParseCell: (data: any) => {
+      if (data.section === 'body' && data.column.index === 1) {
+        const block = itemBlocks[data.row.index];
+        if (block) {
+          data.cell.text = [];
+          data.cell.styles.minCellHeight = itemCellHeight(pdfDoc, block, descColWidth);
+        }
+      }
+    },
+    didDrawCell: (data: any) => {
+      if (data.section === 'body' && data.column.index === 1) {
+        const block = itemBlocks[data.row.index];
+        if (block) drawItemCell(pdfDoc, block, data.cell, descColWidth);
+      }
+    },
     didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
       if (data.pageNumber > 1) { pdfDoc.setPage(data.pageNumber); data.settings.startY = 28; }
       drawHeader(data.pageNumber);
