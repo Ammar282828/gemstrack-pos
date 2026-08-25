@@ -31,7 +31,7 @@ export const STORE_CONFIG = {
   whatsappUrl:     process.env.NEXT_PUBLIC_STORE_WHATSAPP_URL     ?? 'https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H',
 
   // Auth — comma-separated list of allowed Google accounts
-  allowedEmails:   (process.env.NEXT_PUBLIC_STORE_ALLOWED_EMAILS ?? 'potatomasta501@gmail.com,minakhalid00@gmail.com')
+  allowedEmails:   (process.env.NEXT_PUBLIC_STORE_ALLOWED_EMAILS ?? 'potatomasta501@gmail.com,minakhalid00@gmail.com,hmurtaza55@gmail.com')
                      .split(',').map(e => e.trim()),
 
   // POS defaults
