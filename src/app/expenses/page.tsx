@@ -295,6 +295,7 @@ export default function ExpensesPage() {
         value={searchTerm}
         onChange={setSearchTerm}
         placeholder="Search by description, category, or karigar…"
+        activeCount={(categoryFilter !== 'All' ? 1 : 0) + (customRange?.from ? 1 : 0)}
         actions={
           <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Group by">
             {GRADUATIONS.map(g => (

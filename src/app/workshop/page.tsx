@@ -969,6 +969,7 @@ export default function WorkshopPage() {
         value={search}
         onChange={setSearch}
         placeholder="Search item, karigar, customer, order…"
+        activeCount={(statusFilter !== 'active' ? 1 : 0) + (typeFilter !== 'all' ? 1 : 0)}
       >
         <Select value={typeFilter} onValueChange={v => setTypeFilter(v as 'all' | 'order' | 'stock')}>
           <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>

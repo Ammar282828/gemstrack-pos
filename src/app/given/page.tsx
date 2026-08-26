@@ -327,6 +327,7 @@ export default function GivenItemsPage() {
         value={search}
         onChange={setSearch}
         placeholder="Search by item or recipient…"
+        activeCount={statusFilter !== 'all' ? 1 : 0}
         actions={(['all', 'out', 'returned'] as const).map(st => (
           <Button key={st} size="sm" className="h-10 capitalize flex-1 sm:flex-none"
             variant={statusFilter === st ? 'default' : 'outline'}

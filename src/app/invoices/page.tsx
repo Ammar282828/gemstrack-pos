@@ -1081,6 +1081,7 @@ export default function DocumentsPage() {
         value={searchTerm}
         onChange={setSearchTerm}
         placeholder="Search by ID or customer name…"
+        activeCount={(monthFilter !== 'All' ? 1 : 0) + (dateRange?.from ? 1 : 0)}
         actions={
           <>
             <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Group by">

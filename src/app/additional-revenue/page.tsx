@@ -255,6 +255,7 @@ export default function AdditionalRevenuePage() {
             value={searchTerm}
             onChange={setSearchTerm}
             placeholder="Search by description…"
+            activeCount={dateRange?.from ? 1 : 0}
             className="mb-0 border-0 shadow-none [&>div]:px-0 [&>div]:py-0"
             actions={<DateRangePicker date={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />}
           />

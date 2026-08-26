@@ -415,6 +415,7 @@ export default function OrdersPage() {
         value={searchTerm}
         onChange={setSearchTerm}
         placeholder="Search by order ID, customer, or contact…"
+        activeCount={[monthFilter, statusFilter, paymentFilter].filter(v => v !== 'All').length}
         actions={
           <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Group by">
             {([['status', 'Status'], ...GRADUATIONS.map(g => [g.id, g.label] as const)] as const).map(([id, label]) => (
