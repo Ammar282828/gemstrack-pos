@@ -46,6 +46,7 @@ fi
 echo "  got secret (${#SECRET} chars)"
 
 BODY='{"task":"daily-report"}'
+HEADERS="Content-Type=application/json,Authorization=Bearer ${SECRET}"
 COMMON_ARGS=(
   --project "$PROJECT"
   --location "$REGION"
@@ -53,17 +54,25 @@ COMMON_ARGS=(
   --time-zone "$TZ_NAME"
   --uri "$URL"
   --http-method POST
-  --headers "Content-Type=application/json,Authorization=Bearer ${SECRET}"
   --message-body "$BODY"
   --attempt-deadline 120s
 )
 
+# gcloud echoes the arguments it did not understand, headers included, so a
+# wrong flag here prints the bearer token to the terminal. It did exactly that:
+# `jobs update http` takes --update-headers, not --headers, and the resulting
+# error put CRON_SECRET on screen. stderr is filtered as a second line of
+# defence, because the right flag today is not a guarantee for every gcloud.
+redact() { sed -E 's/(Authorization=Bearer )[A-Za-z0-9._-]+/\1<redacted>/g'; }
+
 if gcloud scheduler jobs describe "$JOB" --project "$PROJECT" --location "$REGION" >/dev/null 2>&1; then
   echo "▸ Job '$JOB' exists — updating…"
-  gcloud scheduler jobs update http "$JOB" "${COMMON_ARGS[@]}"
+  gcloud scheduler jobs update http "$JOB" "${COMMON_ARGS[@]}" \
+    --update-headers "$HEADERS" 2>&1 | redact
 else
   echo "▸ Creating job '$JOB'…"
-  gcloud scheduler jobs create http "$JOB" "${COMMON_ARGS[@]}"
+  gcloud scheduler jobs create http "$JOB" "${COMMON_ARGS[@]}" \
+    --headers "$HEADERS" 2>&1 | redact
 fi
 
 echo
