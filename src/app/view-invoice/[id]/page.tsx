@@ -325,7 +325,7 @@ export default function ViewInvoicePage() {
         if (invoice.exchangeAmount2) totalRows.push({ label: '', value: `- ${money(invoice.exchangeAmount2)}` });
     }
       drawTotals(pdfDoc, {
-      pageWidth, margin, startY: currentY,
+      pageWidth, pageHeight, margin, startY: currentY, onNewPage: drawHeader,
       rows: totalRows,
       total: { label: 'Grand Total', value: money(invoice.grandTotal) },
       after: invoice.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${money(invoice.amountPaid)}` }] : [],

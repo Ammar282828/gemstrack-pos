@@ -82,9 +82,9 @@ export function buildOrderItemBlocks(order: Order): ItemBlock[] {
 export function drawOrderTotals(
   doc: jsPDF,
   order: Order,
-  opts: { pageWidth: number; margin: number; startY: number },
+  opts: { pageWidth: number; pageHeight: number; margin: number; startY: number; onNewPage?: (n: number) => void },
 ): number {
-  const { pageWidth, margin, startY } = opts;
+  const { pageWidth, pageHeight, margin, startY, onNewPage } = opts;
   const cash = order.advancePayment || 0;
   const inKind = order.advanceInExchangeValue || 0;
   const discount = order.discountAmount || 0;
@@ -98,7 +98,7 @@ export function drawOrderTotals(
   if (inKind > 0) after.push({ label: what ? `Advance in exchange (${what})` : 'Advance in exchange', value: `- ${money(inKind)}` });
 
   return drawTotals(doc, {
-    pageWidth, margin, startY,
+    pageWidth, pageHeight, margin, startY, onNewPage,
     rows,
     total: { label: 'Estimated Total', value: money(order.grandTotal || 0) },
     after,

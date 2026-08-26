@@ -896,7 +896,7 @@ export default function CartPage() {
         if (invoiceToPrint.exchangeAmount2) totalRows.push({ label: '', value: `- ${money(invoiceToPrint.exchangeAmount2)}` });
     }
       drawTotals(doc, {
-      pageWidth, margin, startY: currentY,
+      pageWidth, pageHeight, margin, startY: currentY, onNewPage: drawHeader,
       rows: totalRows,
       total: { label: 'Grand Total', value: money(invoiceToPrint.grandTotal) },
       after: invoiceToPrint.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${money(invoiceToPrint.amountPaid)}` }] : [],

@@ -806,7 +806,7 @@ export default function OrderDetailPage() {
     finalY = doc.lastAutoTable.finalY || finalY;
 
     // The money, laid out the way the invoice lays it out.
-    drawOrderTotals(doc, order, { pageWidth, margin, startY: finalY + 8 });
+    drawOrderTotals(doc, order, { pageWidth, pageHeight, margin, onNewPage: drawHeader, startY: finalY + 8 });
 
     drawDocFooter(doc, {
       pageWidth, pageHeight, margin,

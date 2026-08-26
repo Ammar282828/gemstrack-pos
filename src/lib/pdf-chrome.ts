@@ -217,8 +217,11 @@ export interface TotalRow {
 
 export interface TotalsOpts {
   pageWidth: number;
+  pageHeight: number;
   margin: number;
   startY: number;
+  /** Redraw the caller's header after a page is added. */
+  onNewPage?: (pageNumber: number) => void;
   /** Runs above the rule: subtotal, discount, adjustments, exchange. */
   rows: TotalRow[];
   /** The bold line under the rule. */
@@ -235,12 +238,28 @@ export interface TotalsOpts {
  *
  * Returns the y after the last line.
  */
+/** Where drawDocFooter starts. Kept next to it so the two cannot disagree. */
+export const FOOTER_HEIGHT = 34;
+
 export function drawTotals(doc: jsPDF, o: TotalsOpts): number {
-  const { pageWidth, margin, startY, rows, total, after = [], closing } = o;
+  const { pageWidth, pageHeight, margin, startY, rows, total, after = [], closing, onNewPage } = o;
   const totalsX = pageWidth - margin;
   const labelX = totalsX - 44;
   const labelW = Math.max(0, labelX - margin);
+
+  // Measured, because nothing was checking: a five-item estimate put the
+  // totals at 233mm on a 210mm page, so the balance due — the one figure the
+  // customer is looking for — was drawn off the bottom and simply not there.
+  // Two of the four builders guarded against this and two did not; doing it
+  // here means none of them can forget.
+  const height =
+    rows.length * 5 + 6 + 5.5 + after.length * 5 + (closing ? 11 : 0) + 2;
   let y = startY;
+  if (y + height > pageHeight - FOOTER_HEIGHT) {
+    doc.addPage();
+    onNewPage?.(doc.getNumberOfPages());
+    y = 30;
+  }
 
   const line = (r: TotalRow, bold: boolean, size: number, colour: RGB) => {
     doc.setFont('helvetica', bold ? 'bold' : 'normal').setFontSize(size);
@@ -300,7 +319,7 @@ export function drawDocFooter(doc: jsPDF, o: FooterOpts): void {
   const qrX = pageWidth - margin - qrBlock;
   const textW = pageWidth - margin * 2 - qrBlock - 6;
 
-  const top = pageHeight - 34;
+  const top = pageHeight - FOOTER_HEIGHT;
   hairline(doc, margin, top, pageWidth - margin, 'rule');
 
   label(doc, 'Orders & enquiries', margin, top + 4.5, { size: 5.5, spacing: 0.9 });

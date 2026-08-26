@@ -228,7 +228,7 @@ async function generateInvoicePDF(
     if (invoice.exchangeAmount2) totalRows.push({ label: '', value: `- ${money(invoice.exchangeAmount2)}` });
   }
   drawTotals(pdfDoc, {
-    pageWidth, margin, startY: currentY,
+    pageWidth, pageHeight, margin, startY: currentY, onNewPage: drawHeader,
     rows: totalRows,
     total: { label: 'Grand Total', value: money(invoice.grandTotal) },
     after: invoice.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${money(invoice.amountPaid)}` }] : [],
@@ -343,7 +343,7 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   });
 
   // The money, laid out the way the invoice lays it out.
-  drawOrderTotals(pdfDoc, order, { pageWidth, margin, startY: (pdfDoc.lastAutoTable.finalY || infoBottom) + 8 });
+  drawOrderTotals(pdfDoc, order, { pageWidth, pageHeight, margin, onNewPage: drawHeader, startY: (pdfDoc.lastAutoTable.finalY || infoBottom) + 8 });
 
   drawDocFooter(pdfDoc, {
     pageWidth, pageHeight, margin,
