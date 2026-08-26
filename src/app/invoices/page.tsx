@@ -12,10 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Loader2, FileText, ClipboardList, AlertTriangle, User, Calendar, DollarSign, Eye, Upload, CheckCircle2, ShoppingBag, Printer, ChevronDown, Link2, Copy, Send } from 'lucide-react';
+import { Search, Loader2, FileText, ClipboardList, AlertTriangle, Calendar, Upload, CheckCircle2, ShoppingBag, Printer, ChevronDown, Link2, Copy, Send } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { cn, openPDFWindowForIOS, savePDF, settledRowClass, shopifyRowClass } from '@/lib/utils';
+import { cn, openPDFWindowForIOS, savePDF, settledRowClass, shopifyRowClass, shopifyCardClass } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
@@ -392,9 +392,9 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
     };
 
     return (
-        <Card className={cn('mb-4', status === 'Completed' && settledRowClass,
-          isShopifyDoc(doc) && shopifyRowClass)}>
-            <CardContent className="p-4 space-y-3" onClick={handleCardClick}>
+        <Card className={cn('mb-3', status === 'Completed' && settledRowClass,
+          isShopifyDoc(doc) && shopifyCardClass)}>
+            <CardContent className="p-3.5 space-y-2.5" onClick={handleCardClick}>
                 <div className="flex justify-between items-start">
                     <div>
                         <div className="font-bold text-primary hover:underline text-lg">{doc.id}</div>
@@ -438,35 +438,30 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
                         )}>{status}</span>
                     )}
                 </div>
-                 <div className="text-sm text-foreground space-y-2 pt-2 border-t mt-2">
-                    <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-muted-foreground"/>
-                        <span>{doc.customerName || 'Walk-in Customer'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground"/>
-                        <span>{format(parseISO(doc.createdAt), 'MMM dd, yyyy')}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-muted-foreground"/>
-                        <span>Total: <span className="font-bold text-primary">PKR {doc.grandTotal.toLocaleString()}</span></span>
+                {/* Three icon rows became two lines. The icons were labelling
+                    facts that read as themselves — a name is a name, a date is
+                    a date — and each row cost a full line on a phone. */}
+                <div className="pt-2 border-t mt-2 space-y-0.5">
+                    <p className="text-sm truncate">{doc.customerName || 'Walk-in Customer'}</p>
+                    <div className="flex items-baseline justify-between gap-3">
+                        <span className="text-xs text-muted-foreground">{format(parseISO(doc.createdAt), 'd MMM yyyy')}</span>
+                        <span className="font-bold text-primary tabular-nums">PKR {doc.grandTotal.toLocaleString()}</span>
                     </div>
                 </div>
             </CardContent>
-             <CardFooter className="p-2 border-t bg-muted/30 flex gap-2 flex-wrap">
-                <Button variant="ghost" className="flex-1 justify-center" onClick={handleCardClick}>
-                    <Eye className="w-4 h-4 mr-2" /> View Details
-                </Button>
-                <Button variant="ghost" className="flex-1 justify-center" onClick={(e) => { e.stopPropagation(); onPrint(); }}>
+             {/* "View Details" is gone: the card body already opens it, and on
+                 a phone four ghost buttons wrapped onto a second 44px row. */}
+             <CardFooter className="p-1.5 border-t bg-muted/30 flex gap-1.5">
+                <Button variant="ghost" size="sm" className="flex-1 justify-center" onClick={(e) => { e.stopPropagation(); onPrint(); }}>
                     <Printer className="w-4 h-4 mr-2" /> Print
                 </Button>
                 {status === 'Unpaid' && onMarkPaid && (
-                    <Button variant="ghost" className="flex-1 justify-center text-success hover:text-success hover:bg-success/10" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
+                    <Button variant="ghost" size="sm" className="flex-1 justify-center text-success hover:text-success hover:bg-success/10" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
                         <CheckCircle2 className="w-4 h-4 mr-2" /> Mark Paid
                     </Button>
                 )}
                 {doc.docType === 'invoice' && status === 'Unpaid' && onSendPaymentLink && (
-                    <Button variant="ghost" className="flex-1 justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-50" disabled={isSendingLink} onClick={(e) => { e.stopPropagation(); onSendPaymentLink(); }}>
+                    <Button variant="ghost" size="sm" className="flex-1 justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-50" disabled={isSendingLink} onClick={(e) => { e.stopPropagation(); onSendPaymentLink(); }}>
                         {isSendingLink ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Link2 className="w-4 h-4 mr-2" />}
                         {(doc as Invoice).shopifyCheckoutUrl ? 'Copy Link' : 'Payment Link'}
                     </Button>

@@ -9,10 +9,10 @@ import { useAppStore, Order, ORDER_STATUSES, OrderStatus, OrderItem } from '@/li
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Eye, ClipboardList, Loader2, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, CalendarClock, DollarSign, CreditCard  } from 'lucide-react';
+import { Search, PlusCircle, Eye, ClipboardList, Loader2, MessageSquareQuote, CheckCircle2, Circle, Phone, CreditCard } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn, settledRowClass } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
 import { PromiseLine } from '@/components/shared/promise-line';
+import { useRouter } from 'next/navigation';
 
 type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
 
@@ -65,6 +66,7 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
   const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
+  const router = useRouter();
   const safeItems = Array.isArray(order.items) ? order.items : [];
   const completedItems = safeItems.filter(item => item.isCompleted).length;
   const totalItems = safeItems.length;
@@ -76,8 +78,10 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
 
   return (
-    <Card className={cn('mb-4 md:hidden', order.status === 'Completed' && settledRowClass)}>
-        <CardContent className="p-4 space-y-3">
+    <Card className={cn('mb-3 md:hidden', order.status === 'Completed' && settledRowClass)}>
+        {/* The whole card opens the order, so the footer button that used to
+            say so as well is gone. */}
+        <CardContent className="p-3.5 space-y-2.5 cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
             <div className="flex justify-between items-start">
                 <Link href={`/orders/${order.id}`} className="font-bold text-primary hover:underline text-lg">
                     {order.id}
@@ -95,23 +99,21 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
               </p>
             )}
 
-            <div className="text-sm text-foreground space-y-2 pt-2">
-                <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-muted-foreground"/> 
-                    <span>{order.customerName || 'Walk-in Customer'} {order.customerContact && `(${order.customerContact})`}</span>
+            {/* Four icon rows became two lines. The icons were labelling facts
+                that read as themselves, and each row cost a full line on a
+                phone — four of them, before the progress bar and a footer. */}
+            <div className="pt-2 space-y-0.5">
+                <p className="text-sm truncate">
+                    {order.customerName || 'Walk-in Customer'}
+                    {order.customerContact && <span className="text-muted-foreground"> · {order.customerContact}</span>}
+                </p>
+                <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {format(parseISO(order.createdAt), 'd MMM')}
+                    </span>
+                    <span className="font-bold text-primary tabular-nums">PKR {grandTotal.toLocaleString()}</span>
                 </div>
-                 <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-muted-foreground"/> 
-                    <span>{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</span>
-                </div>
-                 <div className="flex items-center gap-2">
-                    <CalendarClock className="w-4 h-4 text-muted-foreground"/> 
-                    <PromiseLine order={order} className="text-sm" />
-                </div>
-                 <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-muted-foreground"/> 
-                    <span>Balance Due: <span className="font-bold text-primary">PKR {grandTotal.toLocaleString()}</span></span>
-                </div>
+                <PromiseLine order={order} />
             </div>
 
             <div className="pt-1">
@@ -125,13 +127,6 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
             </div>
 
         </CardContent>
-        <CardFooter className="p-2 border-t bg-muted/30">
-            <Button asChild size="sm" variant="ghost" className="w-full justify-center">
-                <Link href={`/orders/${order.id}`}>
-                <Eye className="w-4 h-4 mr-2" /> View Details
-                </Link>
-            </Button>
-        </CardFooter>
     </Card>
   );
 };

@@ -108,3 +108,13 @@ export const shopifyRowClass =
   // `[&_tr:last-child]:border-0`, which zeroes every side, so the last row in
   // each section silently lost its edge.
   'bg-success/[0.07] hover:bg-success/[0.12] shadow-[inset_2px_0_0_0_hsl(var(--success))]';
+
+/**
+ * The same marker on a phone card.
+ *
+ * No left edge here. On a row among rows an edge is a useful marker; on a card
+ * standing on its own it is just a green stripe down one side, and the card is
+ * already carrying a Shopify badge two lines below it saying the same thing.
+ * The tint alone is enough, and it is the part that survives a glance.
+ */
+export const shopifyCardClass = 'bg-success/[0.06]';
