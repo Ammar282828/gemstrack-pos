@@ -17,10 +17,25 @@ import { Upload, Camera, X, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-/** Longest edge, in pixels, after downscaling. Plenty for a reference photo. */
-const MAX_EDGE = 1400;
-/** Stay well under Firestore's 1 MB document cap — other fields need room too. */
-const MAX_BYTES = 500 * 1024;
+/**
+ * Longest edge, in pixels, after downscaling.
+ *
+ * The photo renders at 96px on the order page and smaller on the bench, so
+ * 1000px is already generous — it is there so a design detail survives being
+ * zoomed into.
+ */
+const MAX_EDGE = 1000;
+/**
+ * A budget, not a document limit.
+ *
+ * This used to be 500KB, which is technically under Firestore's 1MB cap but
+ * far too much to carry: the photo lives inside the order document, so every
+ * page that reads orders — Orders, Invoices, Workshop, the dashboard,
+ * analytics — downloads it. One 273KB photo was 56% of the entire orders
+ * collection. Re-encoded at these settings it came to 54KB with no visible
+ * loss.
+ */
+const MAX_BYTES = 120 * 1024;
 
 async function compressToDataUri(source: HTMLImageElement | HTMLVideoElement, width: number, height: number): Promise<string> {
   const scale = Math.min(1, MAX_EDGE / Math.max(width, height));

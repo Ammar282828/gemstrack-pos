@@ -1249,37 +1249,52 @@ export default function OrderDetailPage() {
                       {order.items.map((item, index) => {
                           return (
                           <div key={index} className="p-4 border rounded-lg flex flex-col md:flex-row gap-4 bg-muted/30">
-                              <div className="flex items-start gap-4 flex-grow">
+                              <div className="flex items-start gap-4 flex-grow min-w-0">
                                   {item.sampleImageDataUri && (
                                       <div className="relative w-24 h-24 flex-shrink-0">
                                           <Image src={item.sampleImageDataUri} alt={`Sample for ${item.description}`} fill className="object-contain rounded-md border bg-muted" />
                                       </div>
                                   )}
-                                  <div className="flex-grow">
+                                  <div className="flex-grow min-w-0">
                                       {item.itemCategory && (
-                                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory}</span>
+                                          <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory}</span>
                                       )}
                                       <p className="font-bold">{item.description}</p>
-                                      <div className="text-sm text-muted-foreground space-y-1 mt-1">
-                                          {(() => {
-                                            const mName = describeMetal(item.metalType, item.karat);
-                                            return item.isManualPrice ? (
-                                              <>
-                                                <p className="font-medium">{mName}</p>
-                                                <p>Price: PKR {(item.manualPrice || item.totalEstimate || 0).toLocaleString()}</p>
-                                              </>
-                                            ) : (
-                                              <p>
-                                                {mName} | Est. Wt: {item.estimatedWeightG}g
-                                                {item.metalType !== 'silver' && item.wastagePercentage > 0 && ` | Wastage: ${item.wastagePercentage}%`}
-                                              </p>
-                                            );
-                                          })()}
-                                          {item.referenceSku && <p>Ref SKU: {item.referenceSku}</p>}
-                                          {item.sampleGiven && <p>Sample Provided by Customer</p>}
-                                      </div>
+
+                                      {/* Every specification the order captured, as labelled pairs.
+                                          Size, plating and stone weight were recorded on the form and
+                                          then never shown here — the bench could not see the size it
+                                          was supposed to make. */}
+                                      <dl className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-sm">
+                                        {(() => {
+                                          const rows: [string, React.ReactNode][] = [];
+                                          rows.push(['Metal', describeMetal(item.metalType, item.karat)]);
+                                          if (!item.isManualPrice && item.estimatedWeightG > 0) {
+                                            rows.push(['Est. weight', `${item.estimatedWeightG}g`]);
+                                            if (item.metalType !== 'silver' && item.wastagePercentage > 0) {
+                                              rows.push(['Wastage', `${item.wastagePercentage}%`]);
+                                            }
+                                          }
+                                          if (item.size) rows.push(['Size', item.size]);
+                                          const finish = describePlating(item);
+                                          if (finish) rows.push(['Finish', finish]);
+                                          if ((item.stoneWeightG ?? 0) > 0) rows.push(['Stone weight', `${item.stoneWeightG}g`]);
+                                          if (item.referenceSku) rows.push(['Ref SKU', item.referenceSku]);
+                                          if (item.sampleGiven) rows.push(['Sample', 'Provided by customer']);
+                                          if (item.isManualPrice) {
+                                            rows.push(['Price', `PKR ${(item.manualPrice || item.totalEstimate || 0).toLocaleString()}`]);
+                                          }
+                                          return rows.map(([label, value]) => (
+                                            <div key={label} className="min-w-0">
+                                              <dt className="text-2xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+                                              <dd className="truncate" title={typeof value === 'string' ? value : undefined}>{value}</dd>
+                                            </div>
+                                          ));
+                                        })()}
+                                      </dl>
+
                                       {/* Inline karigar assignment — no need to reopen the order form */}
-                                      <div className="mt-2 flex items-center gap-2">
+                                      <div className="mt-3 flex items-center gap-2">
                                         <span className="text-xs text-muted-foreground flex items-center gap-1"><Briefcase className="w-3 h-3"/>Karigar:</span>
                                         <KarigarAssign
                                           orderId={order.id}
@@ -1288,33 +1303,43 @@ export default function OrderDetailPage() {
                                           size="compact"
                                         />
                                       </div>
-                                      {item.stoneDetails && (
-                                          <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
-                                              <p className="font-semibold flex items-center"><Gem className="w-3 h-3 mr-1.5"/>Stone Details:</p>
-                                              <p className="text-muted-foreground whitespace-pre-wrap">{item.stoneDetails}</p>
-                                          </div>
+
+                                      {(item.stoneDetails || item.diamondDetails) && (
+                                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                          {item.diamondDetails && (
+                                              <div className="text-xs p-2 bg-background/50 rounded-md border">
+                                                  <p className="font-semibold flex items-center"><Diamond className="w-3 h-3 mr-1.5"/>Diamonds</p>
+                                                  <p className="text-muted-foreground whitespace-pre-wrap">{item.diamondDetails}</p>
+                                              </div>
+                                          )}
+                                          {item.stoneDetails && (
+                                              <div className="text-xs p-2 bg-background/50 rounded-md border">
+                                                  <p className="font-semibold flex items-center"><Gem className="w-3 h-3 mr-1.5"/>Stones</p>
+                                                  <p className="text-muted-foreground whitespace-pre-wrap">{item.stoneDetails}</p>
+                                              </div>
+                                          )}
+                                        </div>
                                       )}
-                                      {item.diamondDetails && (
-                                          <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
-                                              <p className="font-semibold flex items-center"><Diamond className="w-3 h-3 mr-1.5"/>Diamond Details:</p>
-                                              <p className="text-muted-foreground whitespace-pre-wrap">{item.diamondDetails}</p>
-                                          </div>
-                                      )}
+
                                       {item.adminNote && (
                                           <div className="mt-2 text-xs p-2 rounded-md border border-warning/40 bg-warning/10">
-                                              <p className="font-semibold flex items-center text-warning"><Lock className="w-3 h-3 mr-1.5"/>Admin-Only Note <span className="ml-1.5 font-normal text-warning">(not printed)</span></p>
+                                              <p className="font-semibold flex items-center text-warning"><Lock className="w-3 h-3 mr-1.5"/>Instructions for the karigar <span className="ml-1.5 font-normal">(never printed)</span></p>
                                               <p className="text-warning whitespace-pre-wrap">{item.adminNote}</p>
                                           </div>
                                       )}
-                                      <div className="text-sm mt-2 p-2 bg-background rounded-md">
-                                          <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {(item.metalCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                                          {(item.wastageCost ?? 0) > 0 && <div className="flex justify-between"><span>+ Wastage Cost:</span> <span className="font-semibold">PKR {(item.wastageCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                          {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                          {item.diamondCharges > 0 && <div className="flex justify-between"><span>+ Diamond Charges:</span> <span className="font-semibold">PKR {item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                          {item.stoneCharges > 0 && <div className="flex justify-between"><span>+ Other Stone Charges:</span> <span className="font-semibold">PKR {item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                          <Separator className="my-1"/>
-                                          <div className="flex justify-between font-bold"><span>Item Total:</span> <span>PKR {(item.totalEstimate ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                                      </div>
+
+                                      {/* Costs last: subordinate to what the piece actually is. */}
+                                      {!item.isManualPrice && (
+                                        <div className="text-sm mt-3 p-2 bg-background rounded-md">
+                                            <div className="flex justify-between"><span className="text-muted-foreground">Metal</span> <span className="font-medium tabular-nums">PKR {(item.metalCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                            {(item.wastageCost ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Wastage</span> <span className="font-medium tabular-nums">PKR {(item.wastageCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                            {item.makingCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Making</span> <span className="font-medium tabular-nums">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                            {item.diamondCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Diamonds</span> <span className="font-medium tabular-nums">PKR {item.diamondCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                            {item.stoneCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Stones</span> <span className="font-medium tabular-nums">PKR {item.stoneCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                            <Separator className="my-1"/>
+                                            <div className="flex justify-between font-bold"><span>Item total</span> <span className="tabular-nums">PKR {(item.totalEstimate ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                        </div>
+                                      )}
                                   </div>
                               </div>
                               <div className="flex items-center gap-3 flex-shrink-0">
