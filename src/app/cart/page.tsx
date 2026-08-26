@@ -10,7 +10,7 @@ import { EditCartItemDialog, blankCartItem } from '@/components/cart/edit-cart-i
 import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/shared/delivery-fields';
 import { useRouter } from 'next/navigation';
 import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories , DeliveryInfo , PAYMENT_TYPES, PaymentType } from '@/lib/store';
-import { metalLabel, describeMetal, describeSettings, describeDelivery } from '@/lib/materials';
+import { metalLabel, describeMetal, describeSettings, describeDelivery, describePlating } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
@@ -1069,9 +1069,27 @@ export default function CartPage() {
         <Card className="max-w-4xl mx-auto shadow-lg">
            <CardHeader>
             <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                <div>
-                    <CardTitle className="text-2xl font-bold">Estimate Finalized</CardTitle>
-                    <CardDescription>Estimate <span className="font-mono">{generatedInvoice.id}</span> created successfully.</CardDescription>
+                <div className="min-w-0">
+                    {/* You reach this page by opening an existing invoice, so
+                        "created successfully" was announcing something that had
+                        not just happened. The identifier leads, and the line
+                        under it says what is actually owed. */}
+                    <CardTitle className="text-2xl font-bold font-mono">{generatedInvoice.id}</CardTitle>
+                    <CardDescription className="mt-1">
+                      {generatedInvoice.customerName || 'Walk-in Customer'}
+                      {' · '}
+                      {new Date(generatedInvoice.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </CardDescription>
+                    <div className="flex items-center gap-2 mt-2">
+                      {(generatedInvoice.balanceDue || 0) > 0 ? (
+                        <Badge variant="outline" className="text-destructive border-destructive/40 bg-destructive/5">
+                          PKR {(generatedInvoice.balanceDue || 0).toLocaleString()} due
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-success border-success/40 bg-success/5">Paid in full</Badge>
+                      )}
+                      {generatedInvoice.status === 'Refunded' && <Badge variant="destructive">Refunded</Badge>}
+                    </div>
                 </div>
                  <div className="flex gap-2 flex-col sm:flex-row">
                     <Button variant="outline" onClick={handleEditEstimate}>
@@ -1088,32 +1106,86 @@ export default function CartPage() {
            </CardHeader>
            <CardContent className="space-y-6">
                 <div className="p-4 border rounded-md bg-background">
-                    <div className="flex justify-between items-center mb-4">
-                        <div>
-                            <p className="text-sm text-muted-foreground">Billed to</p>
-                            <p className="font-semibold">{generatedInvoice.customerName || 'Walk-in Customer'}</p>
-                        </div>
-                         <div>
-                            <p className="text-sm text-muted-foreground text-right">Estimate Date</p>
-                            <p className="font-semibold text-right">{new Date(generatedInvoice.createdAt).toLocaleDateString()}</p>
-                        </div>
-                    </div>
-                    <Separator/>
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {generatedInvoice.items.map((item, index) => (
-                                <TableRow key={item.sku ?? index}>
-                                    <TableCell>
-                                        <div className="font-medium">{item.name}</div>
-                                        {item.size && <div className="text-xs text-muted-foreground">Size: {item.size}</div>}
-                                        <div className="text-xs text-muted-foreground">{item.sku}</div>
-                                    </TableCell>
-                                    <TableCell className="text-right font-medium">PKR {item.itemTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                </TableRow>
+                    {(() => {
+                      const shipTo = describeDelivery(generatedInvoice.delivery);
+                      if (!shipTo.length) return null;
+                      return (
+                        <>
+                          <div className="mb-4">
+                            <p className="text-2xs uppercase tracking-wide text-muted-foreground">Deliver to</p>
+                            {shipTo.map(l => <p key={l} className="text-sm">{l}</p>)}
+                          </div>
+                          <Separator/>
+                        </>
+                      );
+                    })()}
+                    {/* Item cards, not a two-column table. The screen was
+                        showing less than the printed invoice: name, size, SKU
+                        and a total, while the PDF carried the metal, the
+                        weight, the stones and the cost breakdown. */}
+                    <div className="space-y-3 mt-4">
+                      {generatedInvoice.items.map((item, index) => {
+                        const spec: [string, string][] = [];
+                        spec.push(['Metal', describeMetal(item.metalType, item.karat)]);
+                        if ((item.metalWeightG ?? 0) > 0) spec.push(['Weight', `${item.metalWeightG}g`]);
+                        if (item.size) spec.push(['Size', item.size]);
+                        const finish = describePlating(item);
+                        if (finish) spec.push(['Finish', finish]);
+                        if ((item.stoneWeightG ?? 0) > 0) spec.push(['Stone weight', `${item.stoneWeightG}g`]);
+                        if (item.sku) spec.push(['SKU', item.sku]);
+
+                        const costs: [string, number][] = [];
+                        if ((item.metalCost ?? 0) > 0) costs.push(['Metal', item.metalCost]);
+                        if ((item.wastageCost ?? 0) > 0) costs.push([`Wastage (${item.wastagePercentage}%)`, item.wastageCost]);
+                        if ((item.makingCharges ?? 0) > 0) costs.push(['Making', item.makingCharges]);
+                        if ((item.diamondChargesIfAny ?? 0) > 0) costs.push(['Diamonds', item.diamondChargesIfAny]);
+                        if ((item.stoneChargesIfAny ?? 0) > 0) costs.push(['Stones', item.stoneChargesIfAny]);
+                        if ((item.miscChargesIfAny ?? 0) > 0) costs.push(['Misc', item.miscChargesIfAny]);
+
+                        return (
+                          <div key={item.sku ?? index} className="rounded-lg border p-3">
+                            <div className="flex items-baseline justify-between gap-3">
+                              <div className="min-w-0">
+                                {item.itemCategory && (
+                                  <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    {staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory}
+                                  </span>
+                                )}
+                                <p className="font-semibold truncate">{item.name}</p>
+                              </div>
+                              <span className="font-semibold tabular-nums flex-shrink-0">
+                                PKR {item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+
+                            <dl className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-sm">
+                              {spec.map(([label, value]) => (
+                                <div key={label} className="min-w-0">
+                                  <dt className="text-2xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+                                  <dd className="truncate" title={value}>{value}</dd>
+                                </div>
+                              ))}
+                            </dl>
+
+                            {/* The same lines the printed invoice carries, so
+                                the screen and the paper agree. */}
+                            {describeSettings(item).filter(l => !l.startsWith('Finish:') && !l.startsWith('Stone weight:')).map(line => (
+                              <p key={line} className="text-xs mt-1.5 text-muted-foreground">{line}</p>
                             ))}
-                        </TableBody>
-                    </Table>
+
+                            {costs.length > 0 && (
+                              <div className="mt-2 pt-2 border-t flex flex-wrap gap-x-4 gap-y-1 text-2xs text-muted-foreground">
+                                {costs.map(([label, amount]) => (
+                                  <span key={label} className="tabular-nums">
+                                    {label} {amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                      <Separator className="mt-4"/>
                      <div className="pt-4 space-y-2 text-right">
                         <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Subtotal:</span> <span className="w-32 font-medium">PKR {generatedInvoice.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
@@ -1121,11 +1193,11 @@ export default function CartPage() {
                           <span className="text-muted-foreground">Discount:</span>
                           {isEditingDiscount ? (
                             <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
+                              <AmountInput
                                 value={editDiscountInput}
-                                onChange={(e) => setEditDiscountInput(e.target.value)}
+                                onValueChange={v => setEditDiscountInput(v === undefined ? '' : String(v))}
                                 className="w-32 text-right h-8"
+                                aria-label="Discount"
                                 autoFocus
                                 onKeyDown={(e) => { if (e.key === 'Enter') handleSaveDiscount(); if (e.key === 'Escape') setIsEditingDiscount(false); }}
                               />
@@ -1581,7 +1653,9 @@ export default function CartPage() {
                         <div className="flex justify-between"><span>Subtotal</span><span>PKR {estimatedInvoice?.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
                         <div className="flex items-center justify-between">
                             <Label htmlFor="discount" className="flex items-center"><Percent className="mr-2 h-4 w-4"/>Discount</Label>
-                            <Input id="discount" type="number" value={discountAmountInput} onChange={(e) => setDiscountAmountInput(e.target.value)} className="w-32 text-right" placeholder="0"/>
+                            <AmountInput id="discount" value={discountAmountInput}
+                              onValueChange={v => setDiscountAmountInput(v === undefined ? '' : String(v))}
+                              className="w-32 text-right" placeholder="0" aria-label="Discount" />
                         </div>
                         <div className="space-y-2 p-3 border rounded-md bg-muted/40">
                             <Label className="text-sm font-medium">Exchange / Trade-in</Label>
