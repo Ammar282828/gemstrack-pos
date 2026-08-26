@@ -24,7 +24,10 @@ set -euo pipefail
 PROJECT="hom-pos-52710474-ceeea"
 REGION="us-central1"                       # match the App Hosting backend region
 JOB="mina-daily-report"
-URL="https://studio--hom-pos-52710474-ceeea.us-central1.hosted.app/api/notifications/run"
+# Override when the app moves to a custom domain:
+#   APP_URL=https://pos.houseofmina.store ./scripts/setup-cloud-scheduler.sh
+APP_URL="${APP_URL:-https://studio--hom-pos-52710474-ceeea.us-central1.hosted.app}"
+URL="${APP_URL%/}/api/notifications/run"
 SCHEDULE="0 21 * * *"                       # 21:00 every day
 TZ_NAME="Asia/Karachi"
 

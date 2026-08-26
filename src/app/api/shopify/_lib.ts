@@ -3,7 +3,23 @@ import crypto from 'crypto';
 export const FIRESTORE_PROJECT_ID = 'hom-pos-52710474-ceeea';
 export const FIRESTORE_API_KEY = 'AIzaSyBJsDVAI_b7RvnSf-cpnSNLXQ-R0OH0qU4';
 export const SHOPIFY_API_VERSION = '2026-01';
-export const APP_URL = 'https://studio--hom-pos-52710474-ceeea.us-central1.hosted.app';
+/**
+ * Where Shopify should send webhooks, and the base for anything else that has
+ * to be an absolute URL.
+ *
+ * Configurable rather than hardcoded so moving the app to a custom domain is a
+ * variable and a redeploy, not a code change. It matters more than it looks:
+ * every webhook is registered against this string, so if it stops matching
+ * where the app actually answers, Shopify keeps posting to the old address and
+ * orders quietly stop arriving — no error anywhere, just nothing.
+ *
+ * The fallback is the current App Hosting URL, so an unset variable leaves
+ * behaviour exactly as it was. Trailing slashes are stripped because every
+ * caller appends a path beginning with one.
+ */
+export const APP_URL = (
+  process.env.NEXT_PUBLIC_APP_URL || 'https://studio--hom-pos-52710474-ceeea.us-central1.hosted.app'
+).replace(/\/+$/, '');
 
 // --- Webhook HMAC validation ---
 export function validateWebhookHmac(rawBody: string, hmacHeader: string, secret: string): boolean {

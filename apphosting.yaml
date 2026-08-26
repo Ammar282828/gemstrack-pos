@@ -16,6 +16,16 @@ env:
       - BUILD
   # Not a secret: project ids are public. Needed by firebase-admin so
   # verifyIdToken can check a token's audience.
+  # Where the app actually answers. Every Shopify webhook is registered
+  # against this, so it has to match the domain in the browser bar — if it
+  # drifts, Shopify keeps posting to the old address and orders stop arriving
+  # with no error anywhere. Set this to the custom domain only once DNS
+  # resolves, then re-run /api/shopify/register-webhooks.
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://studio--hom-pos-52710474-ceeea.us-central1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
     value: hom-pos-52710474-ceeea
     availability:
