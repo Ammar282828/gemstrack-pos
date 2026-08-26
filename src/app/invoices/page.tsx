@@ -745,11 +745,23 @@ export default function DocumentsPage() {
     updateOrderStatus: state.updateOrderStatus,
   }));
 
-  const handlePrint = (document: DocumentType) => {
-    if (document.docType === 'invoice') {
-      generateInvoicePDF(document as Invoice, settings, customers);
-    } else {
-      generateOrderSlipPDF(document as Order, settings);
+  const handlePrint = async (document: DocumentType) => {
+    // Neither call was awaited or caught, so anything that went wrong while
+    // drawing became an unhandled rejection: the operator pressed Print, no
+    // file appeared, and nothing said why.
+    try {
+      if (document.docType === 'invoice') {
+        await generateInvoicePDF(document as Invoice, settings, customers);
+      } else {
+        await generateOrderSlipPDF(document as Order, settings);
+      }
+    } catch (e) {
+      console.error('[GemsTrack] PDF generation failed', e);
+      toast({
+        title: 'Could not create the PDF',
+        description: e instanceof Error ? e.message : 'Something went wrong while drawing the document.',
+        variant: 'destructive',
+      });
     }
   };
 

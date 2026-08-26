@@ -669,6 +669,21 @@ export default function OrderDetailPage() {
   };
   
   const handlePrintOrderSlip = async () => {
+    // Wrapped because it was not: anything that threw while drawing became an
+    // unhandled rejection, and the operator got no slip and no explanation.
+    try {
+      await buildOrderSlip();
+    } catch (e) {
+      console.error('[GemsTrack] order slip failed', e);
+      toast({
+        title: 'Could not create the slip',
+        description: e instanceof Error ? e.message : 'Something went wrong while drawing it.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const buildOrderSlip = async () => {
     if (!order || typeof window === 'undefined' || !settings) return;
     const iOSWin = openPDFWindowForIOS();
 

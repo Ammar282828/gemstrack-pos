@@ -913,6 +913,21 @@ export default function CartPage() {
   };
 
   const printInvoice = async (invoiceToPrint: InvoiceType) => {
+    // Anything that threw while drawing became an unhandled rejection: the
+    // button did nothing and said nothing.
+    try {
+      await printInvoiceInner(invoiceToPrint);
+    } catch (e) {
+      console.error('[GemsTrack] invoice PDF failed', e);
+      toast({
+        title: 'Could not create the PDF',
+        description: e instanceof Error ? e.message : 'Something went wrong while drawing it.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const printInvoiceInner = async (invoiceToPrint: InvoiceType) => {
     const iOSWin = openPDFWindowForIOS();
     const doc = await buildInvoicePDF(invoiceToPrint);
     if (!doc) {

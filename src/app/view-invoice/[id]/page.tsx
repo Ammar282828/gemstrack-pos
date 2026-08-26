@@ -21,6 +21,7 @@ import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { DetailSkeleton } from '@/components/shared/skeletons';
 import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
 import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
+import { useToast } from '@/hooks/use-toast';
 
 /** Shared by the table and by alignHeadCell, which needs the same object. */
 const INVOICE_COLUMNS = {
@@ -45,6 +46,7 @@ export default function ViewInvoicePage() {
   const params = useParams();
   const invoiceId = params.id as string;
 
+  const { toast } = useToast();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -95,6 +97,21 @@ export default function ViewInvoicePage() {
   }, [invoiceId]);
   
   const handlePrint = async () => {
+    // A customer opening their own estimate gets no console; a silent failure
+    // here is indistinguishable from a dead button.
+    try {
+      await buildEstimate();
+    } catch (e) {
+      console.error('[GemsTrack] estimate PDF failed', e);
+      toast({
+        title: 'Could not create the PDF',
+        description: e instanceof Error ? e.message : 'Something went wrong while drawing it.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const buildEstimate = async () => {
     if (!invoice || !settings) return;
 
     const iOSWin = openPDFWindowForIOS();
