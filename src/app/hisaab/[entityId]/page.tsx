@@ -42,6 +42,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PhoneField } from '@/components/ui/phone-field';
+import { fitText } from '@/lib/pdf-text';
 
 
 // Re-declare module for jsPDF in this file as well
@@ -268,7 +269,7 @@ export default function EntityHisaabPage() {
     doc.setFont("helvetica", "bold").setFontSize(18);
     doc.text(`Ledger Statement`, margin, 22);
     doc.setFontSize(12);
-    doc.text(entity.name, margin, 29);
+    fitText(doc, entity.name, margin, 29, pageWidth - margin * 2);
     doc.setFontSize(10);
     doc.text(`(${entityType})`, margin, 35);
     

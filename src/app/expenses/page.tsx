@@ -39,6 +39,7 @@ import { SwipeToDelete } from '@/components/ui/swipe-to-delete';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { SHAREHOLDERS } from '@/lib/shareholders';
+import { fitText } from '@/lib/pdf-text';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -161,7 +162,8 @@ export default function ExpensesPage() {
       `Category: ${categoryFilter}`,
       `Search: ${searchTerm || 'None'}`,
     ].join(' | ');
-    doc.text(`Filters: ${filterSummary}`, 14, 29);
+    // A long search term used to run straight off the page.
+    fitText(doc, `Filters: ${filterSummary}`, 14, 29, doc.internal.pageSize.getWidth() - 28);
 
     // The PDF follows the same graduation as the screen, subtotals included,
     // so a printed report matches what was on screen when it was asked for.

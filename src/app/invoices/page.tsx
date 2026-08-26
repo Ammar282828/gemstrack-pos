@@ -34,6 +34,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
+import { fitText, widthBeforeColumn } from '@/lib/pdf-text';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -239,7 +240,11 @@ async function generateInvoicePDF(
   }
   if (invoice.exchangeAmount1 || invoice.exchangeAmount2) {
     pdfDoc.setFont('helvetica', 'bold').setTextColor(30, 100, 180);
-    pdfDoc.text(invoice.exchangeDescription ? `Exchange (${invoice.exchangeDescription}):` : 'Exchange:', totalsX - 50, currentY, { align: 'right' });
+    // Right-aligned, so a long description grows leftwards out of the totals
+    // block and across the page. Capped at the clear space to its left.
+    fitText(pdfDoc,
+      invoice.exchangeDescription ? `Exchange (${invoice.exchangeDescription}):` : 'Exchange:',
+      totalsX - 50, currentY, Math.max(0, totalsX - 50 - margin), { align: 'right' });
     currentY += 5;
     if (invoice.exchangeAmount1) { pdfDoc.setFont('helvetica', 'normal'); pdfDoc.text(`- PKR ${invoice.exchangeAmount1.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' }); currentY += 5; }
     if (invoice.exchangeAmount2) { pdfDoc.setFont('helvetica', 'normal'); pdfDoc.text(`- PKR ${invoice.exchangeAmount2.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' }); currentY += 5; }
@@ -327,9 +332,22 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   pdfDoc.setLineWidth(0.2).line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
   infoY += 6;
   pdfDoc.setFont('helvetica', 'normal').setTextColor(0).setFontSize(8.5);
-  pdfDoc.text(`Order ID: ${order.id}`, margin, infoY);
-  pdfDoc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, infoY + 5);
-  pdfDoc.text(`Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10);
+  // The figures on the right are drawn on these same three lines, so the
+  // left column is capped at the space before them. Without this a long
+  // customer name ran straight through "Advance Paid:".
+  const rightCol = Math.max(
+    pdfDoc.getTextWidth(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`),
+    pdfDoc.getTextWidth('Advance Paid:'),
+    pdfDoc.getTextWidth(`- PKR ${((order.advancePayment || 0) + (order.advanceInExchangeValue || 0)).toLocaleString()}`),
+  );
+  const leftW = widthBeforeColumn(margin, pageWidth - margin, rightCol);
+  fitText(pdfDoc, `Order ID: ${order.id}`, margin, infoY, leftW);
+  fitText(pdfDoc, `Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, infoY + 5, leftW);
+  fitText(pdfDoc, `Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10, leftW);
+  // What the customer was told, printed so the slip can be held to it.
+  if (order.promisedDate) {
+    fitText(pdfDoc, `Promised: ${format(parseISO(order.promisedDate), 'PP')}`, margin, infoY + 15, leftW);
+  }
 
   const rates = order.ratesApplied as Record<string, number>;
   const usedKarats = new Set(order.items.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
@@ -338,14 +356,18 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
   if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
   if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
-  if (ratesApplied.length > 0) { pdfDoc.setFontSize(6.5).setTextColor(150); pdfDoc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, infoY + 15); }
+  if (ratesApplied.length > 0) { pdfDoc.setFontSize(6.5).setTextColor(150); pdfDoc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, infoY + (order.promisedDate ? 20 : 15), { maxWidth: leftW }); }
 
   pdfDoc.setTextColor(0).setFontSize(8.5).setFont('helvetica', 'bold');
   pdfDoc.text(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`, pageWidth - margin, infoY + 5, { align: 'right' });
   pdfDoc.text('Advance Paid:', pageWidth - margin, infoY + 10, { align: 'right' });
   const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
   pdfDoc.text(`- PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, infoY + 15, { align: 'right' });
-  pdfDoc.setLineWidth(0.3).line(margin, infoY + 20, pageWidth - margin, infoY + 20);
+
+    // The promised date adds a line on the left, so the rule under this block
+    // and everything after it move down with it rather than sitting on top.
+    const infoBottom = infoY + (order.promisedDate ? 25 : 20);
+  pdfDoc.setLineWidth(0.3).line(margin, infoBottom, pageWidth - margin, infoBottom);
 
   const tableRows: any[][] = order.items.map((item, i) => {
     const metalName = describeMetal(item.metalType, item.karat);
@@ -366,7 +388,7 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   pdfDoc.autoTable({
     head: [['#', 'Item Details', 'Est. Price']],
     body: tableRows,
-    startY: infoY + 27,
+    startY: infoBottom + 7,
     theme: 'grid',
     headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
     styles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },

@@ -6,7 +6,9 @@ import React, { useState, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
 import { mergeInstructions } from '@/lib/workshop';
-import { describePlating } from '@/lib/materials';
+import { describePlating, describeSettings } from '@/lib/materials';
+import { itemCellHeight, drawItemCell, type ItemBlock } from '@/lib/invoice-item-cell';
+import { fitText, widthBeforeColumn } from '@/lib/pdf-text';
 import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { METAL_TYPES as metalTypeValues, describeMetal } from '@/lib/materials';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
@@ -58,6 +60,7 @@ import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
+import { PromiseLine } from '@/components/shared/promise-line';
 import { PhoneField } from '@/components/ui/phone-field';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -721,9 +724,22 @@ export default function OrderDetailPage() {
     infoY += 6;
 
     doc.setFont("helvetica", "normal").setTextColor(0).setFontSize(8.5);
-    doc.text(`Order ID: ${order.id}`, margin, infoY);
-    doc.text(`Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, infoY + 5);
-    doc.text(`Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10);
+    // The figures on the right are drawn on these same three lines, so the
+    // left column is capped at the space before them. Without this a long
+    // customer name ran straight through "Advance Paid:".
+    const rightCol = Math.max(
+      doc.getTextWidth(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`),
+      doc.getTextWidth('Advance Paid:'),
+      doc.getTextWidth(`- PKR ${((order.advancePayment || 0) + (order.advanceInExchangeValue || 0)).toLocaleString()}`),
+    );
+    const leftW = widthBeforeColumn(margin, pageWidth - margin, rightCol);
+    fitText(doc, `Order ID: ${order.id}`, margin, infoY, leftW);
+    fitText(doc, `Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, infoY + 5, leftW);
+    fitText(doc, `Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10, leftW);
+    // What the customer was told, printed so the slip can be held to it.
+    if (order.promisedDate) {
+      fitText(doc, `Promised: ${format(parseISO(order.promisedDate), 'PP')}`, margin, infoY + 15, leftW);
+    }
 
     const rates = order.ratesApplied;
     const usedKarats = new Set(order.items.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
@@ -736,7 +752,7 @@ export default function OrderDetailPage() {
     }
     if (ratesApplied.length > 0) {
         doc.setFontSize(6.5).setTextColor(150);
-        doc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, infoY + 15);
+        doc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, infoY + (order.promisedDate ? 20 : 15), { maxWidth: leftW });
     }
 
     doc.setTextColor(0).setFontSize(8.5).setFont('helvetica', 'bold');
@@ -745,40 +761,57 @@ export default function OrderDetailPage() {
     const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
     doc.text(`- PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, infoY + 15, { align: 'right' });
 
+    // The promised date adds a line on the left, so the rule under this block
+    // and everything after it move down with it rather than sitting on top.
+    const infoBottom = infoY + (order.promisedDate ? 25 : 20);
+
     doc.setLineWidth(0.3);
-    doc.line(margin, infoY + 20, pageWidth - margin, infoY + 20);
+    doc.line(margin, infoBottom, pageWidth - margin, infoBottom);
 
-    let finalY = infoY + 27;
+    let finalY = infoBottom + 7;
 
-    // Build items table (autoTable)
+    // Items, drawn the way the invoice draws them.
+    //
+    // This was a flat `detailLines.join('\n')` dropped into one autoTable
+    // cell, so the category, the piece, the metal and the bench instructions
+    // all came out at the same size and weight — with the category shouting in
+    // caps above the thing being made. The same hand-drawn cell the invoice
+    // uses gives it a hierarchy: the piece leads, its specification sits under
+    // it in grey, and what has to be set into it is darker because that is
+    // what the karigar is actually reading.
+    const itemBlocks: ItemBlock[] = [];
     const tableRows: any[][] = [];
     for (let i = 0; i < order.items.length; i++) {
         const item = order.items[i];
         const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
         const metalName = describeMetal(item.metalType, item.karat);
-        const metalLine = item.isManualPrice
+        const metalPart = item.isManualPrice
             ? metalName
-            : `${metalName}  |  Est. Wt: ${item.estimatedWeightG}g${item.metalType !== 'silver' && item.wastagePercentage > 0 ? `  |  Wastage: ${item.wastagePercentage}%` : ''}`;
+            : `${metalName}${item.estimatedWeightG ? ` · Est. ${item.estimatedWeightG}g` : ''}${item.metalType !== 'silver' && item.wastagePercentage > 0 ? ` · Wastage ${item.wastagePercentage}%` : ''}`;
 
-        let detailLines = [];
-        if (categoryTitle) detailLines.push(categoryTitle.toUpperCase());
-        detailLines.push(item.description);
-        detailLines.push(metalLine);
-        if (item.referenceSku) detailLines.push(`Ref SKU: ${item.referenceSku}`);
+        // Darker than the spec line: settings and bench instructions are the
+        // part the workshop works from.
+        const notes: string[] = [...describeSettings(item)];
         const plating = describePlating(item);
-        if (plating) detailLines.push(`Finish: ${plating}`);
+        if (plating) notes.push(`Finish: ${plating}`);
         const instructions = mergeInstructions(item);
-        if (instructions) instructions.split('\n').forEach(l => detailLines.push(`Instructions: ${l}`));
+        if (instructions) instructions.split('\n').filter(Boolean).forEach(l => notes.push(l));
 
-        tableRows.push([
-            i + 1,
-            detailLines.join('\n'),
-            `PKR ${(item.totalEstimate || 0).toLocaleString()}`,
-        ]);
+        itemBlocks.push({
+            name: item.description || '—',
+            spec: [categoryTitle, metalPart, item.size ? `Size ${item.size}` : '', item.referenceSku ? `Ref ${item.referenceSku}` : '']
+                .filter(Boolean).join('  ·  '),
+            settings: notes,
+            breakdown: [],
+        });
+        tableRows.push([i + 1, '', `PKR ${(item.totalEstimate || 0).toLocaleString()}`]);
     }
+    // Must match columnStyles below; see itemCellHeight on why this cannot be
+    // read from the cell at parse time.
+    const slipDescWidth = pageWidth - margin * 2 - 7 - 28;
 
     doc.autoTable({
-        head: [['#', 'Item Details', 'Est. Price']],
+        head: [['#', 'Piece & Instructions', 'Est. Price']],
         body: tableRows,
         startY: finalY,
         theme: 'grid',
@@ -790,9 +823,18 @@ export default function OrderDetailPage() {
             2: { cellWidth: 28, halign: 'right' },
         },
         didParseCell: (data: any) => {
-            // Make category row bold, description normal, metal gray
-            if (data.column.index === 1 && data.cell.raw) {
-                data.cell.styles.fontStyle = 'normal';
+            if (data.section === 'body' && data.column.index === 1) {
+                const block = itemBlocks[data.row.index];
+                if (block) {
+                    data.cell.text = [];
+                    data.cell.styles.minCellHeight = itemCellHeight(doc, block, slipDescWidth);
+                }
+            }
+        },
+        didDrawCell: (data: any) => {
+            if (data.section === 'body' && data.column.index === 1) {
+                const block = itemBlocks[data.row.index];
+                if (block) drawItemCell(doc, block, data.cell, slipDescWidth);
             }
         },
         didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
@@ -1014,6 +1056,10 @@ export default function OrderDetailPage() {
                             {format(parseISO(order.createdAt), 'd MMM yyyy')}
                             {getRateDisplay() !== 'N/A' && <> · {getRateDisplay()}</>}
                           </p>
+                          {/* Its own line rather than another item in the run
+                              above: when this one has gone red it is the thing
+                              you opened the order to find out. */}
+                          <PromiseLine order={order} className="mt-0.5 text-sm" />
                         </div>
 
                         {/* Three controls, not seven. Status was being said
