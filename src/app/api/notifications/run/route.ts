@@ -5,6 +5,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { generateGoldDailyUpdate, checkGoldBreakingNews } from '@/lib/gold-update';
 import { isBusinessCost } from '@/lib/partnership';
+import { lateOrders, orderTiming, timingLabel } from '@/lib/order-timing';
 
 function daysSince(isoDate: string) {
   return Math.floor((Date.now() - new Date(isoDate).getTime()) / 86400000);
@@ -33,9 +34,14 @@ async function sendDailyChecklist(phone: string) {
   const pending    = orders.filter(o => o.status === 'Pending');
   const inProgress = orders.filter(o => o.status === 'In Progress');
   const active     = [...pending, ...inProgress];
-  const overdue7   = active.filter(o => daysSince(o.createdAt) >= 7).sort((a, b) => daysSince(b.createdAt) - daysSince(a.createdAt));
-  const overdue14  = active.filter(o => daysSince(o.createdAt) >= 14);
-  const fresh      = active.filter(o => daysSince(o.createdAt) < 7);
+  // Late now means past the date the customer was promised, not simply old.
+  // Orders taken before promisedDate existed keep the old age rule; see
+  // orderTiming(). `estimated` marks which of the two produced the verdict so
+  // the message can be honest about it.
+  const now       = new Date();
+  const late      = lateOrders(active as unknown as Parameters<typeof lateOrders>[0], now);
+  const lateBad   = late.filter(x => x.timing.daysLate >= 7);
+  const onTrack   = active.filter(o => !late.some(x => x.order === o));
 
   const unreturnedAll = given.filter((g: Record<string, string>) => g.status === 'out');
   const unreturnedOld = unreturnedAll.filter((g: Record<string, string>) => daysSince(g.createdAt) >= 7);
@@ -54,25 +60,28 @@ async function sendDailyChecklist(phone: string) {
     `  Total active: ${active.length}`,
     `  🟡 Pending: ${pending.length}`,
     `  🔵 In Progress: ${inProgress.length}`,
-    `  🆕 Added this week: ${fresh.length}`,
-    `  ⚠️  Overdue (7-14d): ${overdue7.length - overdue14.length}`,
-    `  🔴 Critical (14d+): ${overdue14.length}`,
+    `  🟢 On track: ${onTrack.length}`,
+    `  ⚠️  Late: ${late.length - lateBad.length}`,
+    `  🔴 A week or more late: ${lateBad.length}`,
   ];
 
-  if (overdue7.length > 0) {
-    lines.push(``, `⚠️ *OVERDUE ORDERS — Needs Attention*`);
-    overdue7.forEach(o => {
-      const days = daysSince(o.createdAt);
-      const flag = days >= 14 ? '🔴' : '⚠️';
-      lines.push(`${flag} ${o.id} | ${o.customerName || 'Walk-in'} | ${days}d old | PKR ${fmt(Number(o.grandTotal))}`);
+  if (late.length > 0) {
+    lines.push(``, `⚠️ *PAST THE PROMISED DATE*`);
+    late.forEach(({ order: o, timing }) => {
+      const flag = timing.daysLate >= 7 ? '🔴' : '⚠️';
+      lines.push(`${flag} ${o.id} | ${o.customerName || 'Walk-in'} | ${timingLabel(timing)} | PKR ${fmt(Number(o.grandTotal))}`);
       if (o.summary) lines.push(`   └ ${o.summary}`);
     });
+    if (late.some(x => x.timing.estimated)) {
+      lines.push(`   ("old" = no promised date on record, counted from when it was taken)`);
+    }
   }
 
-  if (fresh.length > 0) {
-    lines.push(``, `🆕 *ACTIVE ORDERS (< 7 days)*`);
-    fresh.slice(0, 8).forEach(o => {
-      lines.push(`• ${o.id} | ${o.customerName || 'Walk-in'} | ${daysSince(o.createdAt)}d | PKR ${fmt(Number(o.grandTotal))}`);
+  if (onTrack.length > 0) {
+    lines.push(``, `🆕 *ON TRACK*`);
+    onTrack.slice(0, 8).forEach(o => {
+      const t = orderTiming(o as unknown as Parameters<typeof orderTiming>[0], now);
+      lines.push(`• ${o.id} | ${o.customerName || 'Walk-in'} | ${timingLabel(t) || `${daysSince(o.createdAt)}d`} | PKR ${fmt(Number(o.grandTotal))}`);
     });
     if (fresh.length > 8) lines.push(`  … and ${fresh.length - 8} more`);
   }
@@ -380,36 +389,42 @@ async function sendWeeklyReport(phone: string) {
 async function checkOverdueOrders(phone: string) {
   const snap = await adminDb.collection('orders').get();
   const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  const overdue = orders
-    .filter(o => (o.status === 'Pending' || o.status === 'In Progress') && daysSince(o.createdAt) >= 7)
-    .sort((a, b) => daysSince(b.createdAt) - daysSince(a.createdAt));
+  const late = lateOrders(orders as unknown as Parameters<typeof lateOrders>[0], new Date());
 
-  if (overdue.length === 0) return;
+  if (late.length === 0) return;
 
-  const critical = overdue.filter(o => daysSince(o.createdAt) >= 14);
-  const warning  = overdue.filter(o => daysSince(o.createdAt) < 14);
+  // A week past what was promised is a different conversation from a day past.
+  const critical = late.filter(x => x.timing.daysLate >= 7);
+  const warning  = late.filter(x => x.timing.daysLate < 7);
+
+  const row = ({ order: o, timing }: (typeof late)[number]) =>
+    `• ${o.id} | ${o.customerName || 'Walk-in'} | ${timingLabel(timing)} | PKR ${fmt(Number(o.grandTotal))}`;
 
   const lines = [
     `━━━━━━━━━━━━━━━━━━`,
-    `⚠️ *OVERDUE ORDERS ALERT*`,
-    `${overdue.length} order(s) need attention`,
+    `⚠️ *ORDERS PAST THEIR DATE*`,
+    `${late.length} order(s) need attention`,
     `━━━━━━━━━━━━━━━━━━`,
   ];
 
   if (critical.length > 0) {
-    lines.push(``, `🔴 *CRITICAL (14+ days)*`);
-    critical.forEach(o => {
-      lines.push(`• ${o.id} | ${o.customerName || 'Walk-in'} | ${daysSince(o.createdAt)} days | PKR ${fmt(Number(o.grandTotal))}`);
-      if (o.summary) lines.push(`   └ ${o.summary}`);
+    lines.push(``, `🔴 *A WEEK OR MORE LATE*`);
+    critical.forEach(x => {
+      lines.push(row(x));
+      if (x.order.summary) lines.push(`   └ ${x.order.summary}`);
     });
   }
 
   if (warning.length > 0) {
-    lines.push(``, `⚠️ *WARNING (7-14 days)*`);
-    warning.forEach(o => {
-      lines.push(`• ${o.id} | ${o.customerName || 'Walk-in'} | ${daysSince(o.createdAt)} days | PKR ${fmt(Number(o.grandTotal))}`);
-      if (o.summary) lines.push(`   └ ${o.summary}`);
+    lines.push(``, `⚠️ *JUST LATE*`);
+    warning.forEach(x => {
+      lines.push(row(x));
+      if (x.order.summary) lines.push(`   └ ${x.order.summary}`);
     });
+  }
+
+  if (late.some(x => x.timing.estimated)) {
+    lines.push(``, `"old" means no promised date was recorded — counted from when the order was taken.`);
   }
 
   lines.push(``, `━━━━━━━━━━━━━━━━━━`);

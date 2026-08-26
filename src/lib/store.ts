@@ -643,6 +643,12 @@ export interface Order {
   delivery?: DeliveryInfo;
   id: string; // Firestore document ID, e.g., ORD-000001
   createdAt: string; // ISO string
+  /** The date the piece was promised to the customer, as a plain yyyy-MM-dd.
+   *  Deliberately separate from delivery.expectedDate, which only exists when
+   *  the order is being shipped — most pieces are collected from the shop and
+   *  had no promised date anywhere before this. Optional because every order
+   *  written before it existed has none; see promiseState() for the fallback. */
+  promisedDate?: string;
   status: OrderStatus;
   items: OrderItem[];
   ratesApplied: Partial<Settings>; // Store all rates at time of order

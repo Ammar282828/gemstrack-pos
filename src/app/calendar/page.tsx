@@ -8,8 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO, startOfDay, isSameDay, isSameMonth } from 'date-fns';
-import { ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X } from 'lucide-react';
+import { format, parseISO, startOfDay, isSameDay, isSameMonth, isValid } from 'date-fns';
+import { ClipboardList, FileText, Calendar as CalendarIcon, ArrowRight, X, CalendarClock } from 'lucide-react';
+import { isActiveOrder } from '@/lib/order-timing';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -136,6 +137,25 @@ export default function CalendarPage() {
     return eventsMap;
   }, [generatedInvoices, orders]);
 
+  /**
+   * Pieces promised on each day. Deliberately a separate map from
+   * eventsByDate: that one places a sale on the day its order was TAKEN, for
+   * revenue recognition, and folding a due date into it would make the money
+   * on screen wrong. This layer only answers "what did I say I would hand over
+   * that day".
+   */
+  const dueByDate = useMemo(() => {
+    const map: Record<string, number> = {};
+    orders.forEach(order => {
+      if (!order.promisedDate || !isActiveOrder(order)) return;
+      const d = parseISO(order.promisedDate);
+      if (!isValid(d)) return;
+      const key = format(startOfDay(d), 'yyyy-MM-dd');
+      map[key] = (map[key] || 0) + 1;
+    });
+    return map;
+  }, [orders]);
+
   /** Totals for the month on screen. */
   const monthSummary = useMemo(() => {
     let sales = 0, orderCount = 0, total = 0, days = 0;
@@ -161,24 +181,31 @@ export default function CalendarPage() {
     const dateKey = format(date, 'yyyy-MM-dd');
     const dayData = eventsByDate[dateKey];
     
-    if (!dayData) return null;
+    const due = dueByDate[dateKey] || 0;
+    // A day with nothing sold can still have a piece promised on it.
+    if (!dayData && !due) return null;
 
     return (
       <div className="flex flex-col gap-0.5 mt-0.5 w-full">
-        {dayData.total > 0 && (
+        {dayData && dayData.total > 0 && (
           <span className="w-full text-2xs font-semibold leading-tight tabular-nums truncate">
             {dayMoney(dayData.total)}
           </span>
         )}
         <span className="flex items-center gap-1 leading-none">
-          {dayData.invoices > 0 && (
+          {dayData && dayData.invoices > 0 && (
             <span className="flex items-center gap-0.5 text-2xs text-success">
               <span className="h-1.5 w-1.5 rounded-full bg-success" />{dayData.invoices}
             </span>
           )}
-          {dayData.orders > 0 && (
+          {dayData && dayData.orders > 0 && (
             <span className="flex items-center gap-0.5 text-2xs text-blue-600 dark:text-blue-300">
               <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />{dayData.orders}
+            </span>
+          )}
+          {due > 0 && (
+            <span className="flex items-center gap-0.5 text-2xs text-warning" title={`${due} promised for this day`}>
+              <CalendarClock className="h-2.5 w-2.5" />{due}
             </span>
           )}
         </span>

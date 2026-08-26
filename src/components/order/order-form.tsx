@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock , ChevronRight, TicketPercent, Truck } from 'lucide-react';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock , ChevronRight, TicketPercent, Truck, CalendarClock } from 'lucide-react';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
@@ -130,6 +130,7 @@ const orderFormSchema = z.object({
     customerName: z.string().optional(),
     customerContact: z.string().optional(),
     source: z.enum(CUSTOMER_SOURCES).optional(),
+    promisedDate: z.string().optional(),
 }).refine(data => {
     const goldItems = data.items.filter(item => item.metalType === 'gold');
     if (goldItems.length === 0) return true; // No gold items, so no gold rate needed
@@ -347,6 +348,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
       customerName: '',
       customerContact: '',
       source: undefined,
+      promisedDate: '',
     },
   });
   
@@ -384,6 +386,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         customerName: order.customerName || '',
         customerContact: normalizePhoneNumber(order.customerContact) || '',
         source: order.source,
+        promisedDate: order.promisedDate || '',
       });
     } else if (!isEditMode && settings.goldRatePerGram21k > 0) {
       form.reset({
@@ -575,6 +578,9 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
             customerName: finalCustomerName,
             customerContact: data.customerContact,
             source: data.source,
+            // Absent rather than '' when blank, so orderTiming falls through to
+            // the age rule instead of trying to parse an empty date.
+            ...(data.promisedDate ? { promisedDate: data.promisedDate } : {}),
             // Only recorded when actually being delivered, so an unticked box
             // does not litter every order with an empty delivery object.
             ...(delivery.required && delivery.address.trim() ? { delivery } : {}),
@@ -1052,6 +1058,20 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                         </FormItem>
                         )}
                     />
+                    </PanelSection>
+
+                    <PanelSection title="Promised for" icon={<CalendarClock className="h-3.5 w-3.5" />}>
+                    <FormField control={form.control} name="promisedDate" render={({ field }) => (
+                       <FormItem>
+                            <FormLabel className="text-xs">Date promised to the customer</FormLabel>
+                            <FormControl><Input type="date" {...field} value={field.value || ''} /></FormControl>
+                            <FormDescription className="text-xs">
+                              What the piece is chased against. Leave blank and the order is only
+                              flagged once it is a week old, which is rarely what was agreed.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
                     </PanelSection>
 
                     {(formValues.items || []).some(item => item.metalType === 'gold') && (

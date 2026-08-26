@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Eye, ClipboardList, Loader2, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, DollarSign, CreditCard  } from 'lucide-react';
+import { Search, PlusCircle, Eye, ClipboardList, Loader2, MessageSquareQuote, CheckCircle2, Circle, User, Phone, Calendar, CalendarClock, DollarSign, CreditCard  } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn, settledRowClass } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
+import { PromiseLine } from '@/components/shared/promise-line';
 
 type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
 
@@ -104,6 +105,10 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
                     <span>{format(parseISO(order.createdAt), 'MMM dd, yyyy')}</span>
                 </div>
                  <div className="flex items-center gap-2">
+                    <CalendarClock className="w-4 h-4 text-muted-foreground"/> 
+                    <PromiseLine order={order} className="text-sm" />
+                </div>
+                 <div className="flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-muted-foreground"/> 
                     <span>Balance Due: <span className="font-bold text-primary">PKR {grandTotal.toLocaleString()}</span></span>
                 </div>
@@ -184,9 +189,11 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
           </p>
         </TableCell>
         <TableCell className="hidden lg:table-cell align-top">
+            {/* Taken on top, promised underneath — the promise is the one you
+                chase against, so it gets the colour when it has passed. */}
             <div className="whitespace-nowrap leading-tight">
                 <p className="text-sm">{format(parseISO(order.createdAt), 'd MMM yyyy')}</p>
-                <p className="text-xs text-muted-foreground">{format(parseISO(order.createdAt), 'EEEE')}</p>
+                <PromiseLine order={order} />
             </div>
         </TableCell>
         <TableCell className="align-top">
