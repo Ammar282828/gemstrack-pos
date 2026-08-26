@@ -3373,6 +3373,11 @@ export const useAppStore = create<AppState>()(
             customerContact: order.customerContact,
             ...(order.source && { acquisitionSource: order.source }),
             sourceOrderId: order.id,
+            // The address the customer gave when ordering is the address it
+            // ships to. Without this the invoice was raised with no delivery
+            // details at all and they had to be typed in again.
+            ...(order.delivery?.required && order.delivery.address?.trim()
+              ? { delivery: order.delivery } : {}),
             // Carry forward: if this order had previously been linked to a Shopify
             // order (and was reverted to be re-finalized), preserve the link so the
             // upsert handler reuses the same Shopify order instead of creating a new one.

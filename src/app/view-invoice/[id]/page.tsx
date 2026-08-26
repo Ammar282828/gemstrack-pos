@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { metalLabel, describeMetal, describeSettings } from '@/lib/materials';
+import { metalLabel, describeMetal, describeSettings, describeDelivery } from '@/lib/materials';
 import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
 import { useParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
@@ -182,6 +182,18 @@ export default function ViewInvoicePage() {
     if (email) customerInfo += `Email: ${email}`;
     pdfDoc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.4 });
 
+    // Where it is going, when it is being delivered. The address the customer
+    // gave was never printed, so whoever packed the piece had to go and find
+    // it in the order.
+    const deliveryLines: string[] = describeDelivery(invoice.delivery);
+    if (deliveryLines.length) {
+      const dy = infoY + (customerInfo.split('\n').length * 4) + 2;
+      pdfDoc.setFontSize(7).setTextColor(100).setFont('helvetica', 'bold');
+      pdfDoc.text('DELIVER TO:', margin, dy);
+      pdfDoc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(0);
+      pdfDoc.text(deliveryLines.join('\n'), margin, dy + 4, { lineHeightFactor: 1.4 });
+    }
+
     let invoiceDetails = `Estimate #: ${invoice.id}\n`;
     invoiceDetails += `Date: ${new Date(invoice.createdAt).toLocaleDateString()}`;
     pdfDoc.text(invoiceDetails, pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
@@ -203,7 +215,13 @@ export default function ViewInvoicePage() {
         pdfDoc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, infoY + 10, { lineHeightFactor: 1.4 });
     }
     
-    const tableStartY = infoY + (ratesApplied.length > 0 ? 18 : 13);
+    // The delivery block sits under BILL TO and grows with the address, so
+    // the table has to start below whatever it actually took. Without this
+    // the items table was drawn straight over it.
+    const deliveryBlockHeight = deliveryLines.length
+      ? 6 + deliveryLines.length * 4
+      : 0;
+    const tableStartY = infoY + (ratesApplied.length > 0 ? 18 : 13) + deliveryBlockHeight;
     const tableColumn = ["#", "Product & Breakdown", "Qty", "Unit", "Total"];
     const tableRows: any[][] = [];
     const itemBlocks: ItemBlock[] = [];

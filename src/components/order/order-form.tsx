@@ -539,6 +539,12 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
             subtotal,
             discountAmount: discount,
             grandTotal,
+            // Written either way, unlike the create path. Omitting it here
+            // meant delivery details added to an existing order were dropped
+            // on save without a word — and unticking the box has to clear what
+            // is stored, not leave the old address behind. null rather than
+            // undefined, which cleanObject strips before the write.
+            delivery: (delivery.required && delivery.address.trim() ? delivery : null) as unknown as undefined,
         };
         try {
             await updateOrder(order.id, updatedOrderData);

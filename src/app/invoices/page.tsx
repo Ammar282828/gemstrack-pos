@@ -24,7 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { metalLabel, describeMetal, describeSettings } from '@/lib/materials';
+import { metalLabel, describeMetal, describeSettings, describeDelivery } from '@/lib/materials';
 import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
@@ -108,6 +108,18 @@ async function generateInvoicePDF(
   if (phone)  customerInfo += `\nPhone: ${phone}`;
   if (email)  customerInfo += `\nEmail: ${email}`;
   pdfDoc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.4 });
+
+    // Where it is going, when it is being delivered. The address the customer
+    // gave was never printed, so whoever packed the piece had to go and find
+    // it in the order.
+    const deliveryLines: string[] = describeDelivery(invoice.delivery);
+    if (deliveryLines.length) {
+      const dy = infoY + (customerInfo.split('\n').length * 4) + 2;
+      pdfDoc.setFontSize(7).setTextColor(100).setFont('helvetica', 'bold');
+      pdfDoc.text('DELIVER TO:', margin, dy);
+      pdfDoc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(0);
+      pdfDoc.text(deliveryLines.join('\n'), margin, dy + 4, { lineHeightFactor: 1.4 });
+    }
   pdfDoc.text(`Estimate #: ${invoice.id}\nDate: ${new Date(invoice.createdAt).toLocaleDateString()}`, pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
 
   const rates = (invoice.ratesApplied || {}) as Record<string, number>;
@@ -123,7 +135,13 @@ async function generateInvoicePDF(
     pdfDoc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, infoY + 10, { lineHeightFactor: 1.4 });
   }
 
-  const tableStartY = infoY + (ratesApplied.length > 0 ? 18 : 13);
+  // The delivery block sits under BILL TO and grows with the address, so
+    // the table has to start below whatever it actually took. Without this
+    // the items table was drawn straight over it.
+    const deliveryBlockHeight = deliveryLines.length
+      ? 6 + deliveryLines.length * 4
+      : 0;
+    const tableStartY = infoY + (ratesApplied.length > 0 ? 18 : 13) + deliveryBlockHeight;
   const tableRows: any[][] = [];
   const itemBlocks: ItemBlock[] = [];
   // Same measure for the height and the drawing — see lib/invoice-item-cell.

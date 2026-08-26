@@ -93,3 +93,33 @@ export function describeSettings(item: {
 
   return lines;
 }
+
+/**
+ * The delivery block for a printed invoice, as lines.
+ *
+ * Empty when the sale is not being delivered, so the caller can leave the
+ * whole section off rather than printing an empty heading.
+ */
+export function describeDelivery(d?: {
+  required?: boolean; address?: string; city?: string;
+  contactName?: string; contactPhone?: string; notes?: string;
+  expectedDate?: string; charge?: number;
+} | null): string[] {
+  if (!d?.required || !d.address?.trim()) return [];
+  const lines: string[] = [];
+  // The recipient only earns a line when it is not the person on the bill.
+  if (d.contactName?.trim()) {
+    lines.push(d.contactPhone?.trim() ? `${d.contactName.trim()} · ${d.contactPhone.trim()}` : d.contactName.trim());
+  } else if (d.contactPhone?.trim()) {
+    lines.push(d.contactPhone.trim());
+  }
+  lines.push([d.address.trim(), d.city?.trim()].filter(Boolean).join(', '));
+  if (d.expectedDate) {
+    const t = new Date(d.expectedDate);
+    if (!Number.isNaN(t.getTime())) {
+      lines.push(`Expected ${t.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`);
+    }
+  }
+  if (d.notes?.trim()) lines.push(d.notes.trim());
+  return lines;
+}
