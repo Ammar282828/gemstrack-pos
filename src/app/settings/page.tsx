@@ -21,7 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ShopifyPullPanel } from '@/components/settings/shopify-pull-panel';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Building, Phone, Mail, Image as ImageIcon, MapPin, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Upload, Trash2, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, ShoppingBag, RefreshCw, CheckCircle2, Lock, ChevronRight } from 'lucide-react';
+import { Save, Building, Phone, Image as ImageIcon, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, ShoppingBag, RefreshCw, CheckCircle2, Lock, SlidersHorizontal, Printer, Tag, ArchiveRestore, Landmark } from 'lucide-react';
 import { STORE_LOGO_URL } from '@/lib/store-config';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
@@ -29,10 +29,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Image from 'next/image';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { Progress } from '@/components/ui/progress';
 import 'react-phone-number-input/style.css';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PhoneField } from '@/components/ui/phone-field';
@@ -60,6 +58,26 @@ const settingsSchema = z.object({
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
+
+const SECTIONS = [
+  { value: 'shop',          label: 'Shop',         icon: Building },
+  { value: 'rates',         label: 'Rates',        icon: DollarSign },
+  { value: 'notifications', label: 'Alerts',       icon: Bell },
+  { value: 'integrations',  label: 'Integrations', icon: ShoppingBag },
+  { value: 'data',          label: 'Data',         icon: Database },
+  { value: 'security',      label: 'Security',     icon: Shield },
+] as const;
+
+/** Only two tabs hold form fields. Radix keeps the inactive panels unmounted,
+ *  so a validation failure on a tab you cannot see would otherwise just make
+ *  the save button do nothing — this is used to jump to the offending tab. */
+const FIELD_TAB: Partial<Record<keyof SettingsFormData, string>> = {
+  shopName: 'shop', shopAddress: 'shop', shopContact: 'shop', theme: 'shop',
+  lastInvoiceNumber: 'shop', lastOrderNumber: 'shop',
+  goldRatePerGram24k: 'rates', goldRatePerGram22k: 'rates',
+  goldRatePerGram21k: 'rates', goldRatePerGram18k: 'rates',
+  silverRatePerGram: 'rates', platinumRatePerGram: 'rates', palladiumRatePerGram: 'rates',
+};
 
 const EmergencyLock: React.FC = () => {
     const { settings, updateSettings } = useAppStore();
@@ -217,11 +235,6 @@ function NotificationsCard() {
     } finally { setTesting(false); }
   };
 
-  // Drafts live in this browser, so the count is read on mount rather than
-  // coming from the store.
-  const [draftCount, setDraftCount] = useState(0);
-  useEffect(() => { setDraftCount(listDrafts().length); }, []);
-
   const handleToggle = async (key: keyof Settings, value: boolean) => {
     await updateSettings({ [key]: value } as Partial<Settings>);
   };
@@ -287,28 +300,6 @@ function NotificationsCard() {
             {testing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}Send test
           </Button>
         </div>
-        <div className="flex items-center justify-between rounded-lg border p-4">
-          <div className="min-w-0 pr-3">
-            <p className="font-medium">Keep unfinished orders and invoices</p>
-            <p className="text-sm text-muted-foreground">
-              Saves what you have entered on this device and offers it back if you leave the page
-              before saving. {draftCount > 0 && `${draftCount} kept right now.`}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {draftCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => { clearAllDrafts(); setDraftCount(0); }}>
-                Clear
-              </Button>
-            )}
-            <Switch
-              checked={settings.autoDraftForms !== false}
-              onCheckedChange={v => handleToggle('autoDraftForms', v)}
-              aria-label="Keep unfinished orders and invoices"
-            />
-          </div>
-        </div>
-
         {/* Master toggle */}
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div>
@@ -419,6 +410,56 @@ function NotificationsCard() {
   );
 }
 
+/** Label + explanation on the left, control on the right. The page repeated
+ *  this shape a dozen times with slightly different spacing each time. */
+const SettingRow: React.FC<{ title: string; description?: React.ReactNode; children: React.ReactNode }> = ({ title, description, children }) => (
+  <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+    <div className="min-w-0">
+      <p className="font-medium">{title}</p>
+      {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
+    </div>
+    <div className="flex items-center gap-2 flex-shrink-0">{children}</div>
+  </div>
+);
+
+/** A link out to one of the settings sub-pages. */
+const SettingsLink: React.FC<{ href: string; icon: React.ElementType; title: string; description: string }> = ({ href, icon: Icon, title, description }) => (
+  <Button asChild variant="outline" className="w-full justify-start text-left h-auto py-3">
+    <Link href={href}>
+      <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+      <span className="block min-w-0">
+        <span className="block font-semibold">{title}</span>
+        <span className="block text-xs text-muted-foreground font-normal">{description}</span>
+      </span>
+    </Link>
+  </Button>
+);
+
+/** Was filed under "WhatsApp Notifications", which it has nothing to do with. */
+function DraftsRow() {
+  const { settings, updateSettings } = useAppStore();
+  // Drafts live in this browser, so the count is read on mount rather than
+  // coming from the store.
+  const [draftCount, setDraftCount] = useState(0);
+  useEffect(() => { setDraftCount(listDrafts().length); }, []);
+
+  return (
+    <SettingRow
+      title="Keep unfinished orders and invoices"
+      description={<>Saves what you have entered on this device and offers it back if you leave the page before saving.{draftCount > 0 && ` ${draftCount} kept right now.`}</>}
+    >
+      {draftCount > 0 && (
+        <Button variant="ghost" size="sm" onClick={() => { clearAllDrafts(); setDraftCount(0); }}>Clear</Button>
+      )}
+      <Switch
+        checked={settings.autoDraftForms !== false}
+        onCheckedChange={v => updateSettings({ autoDraftForms: v })}
+        aria-label="Keep unfinished orders and invoices"
+      />
+    </SettingRow>
+  );
+}
+
 const REQUIRED_SHOPIFY_SCOPES = 'read_orders,write_orders,read_customers,write_customers,read_products,write_products,read_draft_orders,write_draft_orders';
 
 const ShopifyCard: React.FC = () => {
@@ -503,9 +544,8 @@ export default function SettingsPage() {
   const updateSettingsAction = useAppStore(state => state.updateSettings);
   const isSettingsLoading = useAppStore(state => state.isSettingsLoading);
   
-  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number | null }>({});
-  const [isUploading, setIsUploading] = useState<{ [key: string]: boolean }>({});
   const [isFetchingRates, setIsFetchingRates] = useState(false);
+  const [tab, setTab] = useState<string>('shop');
 
   const fetchGoldRates = async () => {
     setIsFetchingRates(true);
@@ -587,45 +627,6 @@ export default function SettingsPage() {
   }, [currentSettings, form, appReady]);
 
 
- const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>, fieldName: 'shopLogoUrl' | 'shopLogoUrlBlack') => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) { // 2MB limit
-      toast({ title: "Image too large", description: "Please upload an image smaller than 2MB.", variant: "destructive" });
-      return;
-    }
-    
-    const storage = getStorage();
-    const storageRef = ref(storage, `app_assets/${Date.now()}-${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
-    setIsUploading(prev => ({...prev, [fieldName]: true}));
-    setUploadProgress(prev => ({...prev, [fieldName]: 0}));
-
-    uploadTask.on('state_changed',
-        (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(prev => ({...prev, [fieldName]: progress}));
-        },
-        (error) => {
-            console.error("Upload error:", error);
-            toast({ title: "Upload Failed", description: "There was an error uploading the image.", variant: "destructive" });
-            setIsUploading(prev => ({...prev, [fieldName]: false}));
-            setUploadProgress(prev => ({...prev, [fieldName]: null}));
-        },
-        () => {
-            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                form.setValue(fieldName, downloadURL, { shouldValidate: true, shouldDirty: true });
-                setIsUploading(prev => ({...prev, [fieldName]: false}));
-                setUploadProgress(prev => ({...prev, [fieldName]: 100}));
-                toast({ title: "Upload Complete", description: "Image has been successfully uploaded." });
-            });
-        }
-    );
-  };
-
-
   const onSubmit = async (data: SettingsFormData) => {
     try {
         const settingsToSave: Partial<Settings> = { ...data };
@@ -633,10 +634,26 @@ export default function SettingsPage() {
         if (!settingsToSave.shopLogoUrl) delete settingsToSave.shopLogoUrl;
         if (!settingsToSave.shopLogoUrlBlack) delete settingsToSave.shopLogoUrlBlack;
         await updateSettingsAction(settingsToSave);
-        toast({ title: "Settings Updated", description: "Your shop settings have been saved." });
+        // Re-baseline so isDirty clears — otherwise the save bar stays up for
+        // good once you have edited anything.
+        form.reset(data);
+        toast({ title: "Settings saved", description: "Your shop settings have been updated." });
     } catch (error) {
         toast({ title: "Error", description: "Failed to update settings.", variant: "destructive" });
     }
+  };
+
+  /** Send the user to the tab holding the first bad field, otherwise the save
+   *  button appears to do nothing when the error is on a hidden panel. */
+  const onInvalid = (errors: Record<string, unknown>) => {
+    const first = Object.keys(errors)[0] as keyof SettingsFormData | undefined;
+    const target = first && FIELD_TAB[first];
+    if (target) setTab(target);
+    toast({
+      title: 'Could not save',
+      description: 'Some values need fixing — the highlighted field is showing why.',
+      variant: 'destructive',
+    });
   };
 
   const [isRestoring, setIsRestoring] = useState(false);
@@ -681,57 +698,134 @@ export default function SettingsPage() {
     );
   }
 
-  const mainLogoUrl = form.watch('shopLogoUrl');
-  const blackLogoUrl = form.watch('shopLogoUrlBlack');
-
+  const isDirty = form.formState.isDirty;
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-8">
-      <Card className="border-orange-400 bg-orange-50 dark:bg-orange-900/10">
-        <CardHeader className="py-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <CardTitle className="text-base flex items-center text-orange-700 dark:text-orange-400">
-                <RotateCcw className="mr-2 h-4 w-4" /> Restore Settings
-              </CardTitle>
-              <CardDescription className="text-orange-600/80 dark:text-orange-300/70 text-xs mt-0.5">
-                Resets gold rates (live from gold.pk) and shop details to House of Mina defaults.
-              </CardDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={handleRestoreSettings} disabled={isRestoring} className="border-orange-400 text-orange-700 hover:bg-orange-100 dark:text-orange-300">
-              {isRestoring ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
-              Restore Now
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
-      <EmergencyLock />
+    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl space-y-4">
+      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
+            <SlidersHorizontal className="w-7 h-7 flex-shrink-0" />Settings
+          </h1>
+          {/* Was a full-width Alert box for one line of text. */}
+          <p className="text-sm text-muted-foreground mt-0.5 truncate">
+            {currentSettings.shopName || STORE_CONFIG.name}
+            {currentSettings.firebaseConfig?.projectId && (
+              <> · <span className="font-mono text-xs">{currentSettings.firebaseConfig.projectId}</span></>
+            )}
+          </p>
+        </div>
+      </header>
+
+      {/* FormProvider only — deliberately no <form> element. The Integrations,
+          Alerts and Security panels are full of their own buttons, and a bare
+          <button> inside a form defaults to type="submit", so any of them would
+          have saved the settings form as a side effect. The save bar calls
+          handleSubmit directly instead. */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Shop &amp; Security Settings</CardTitle>
-              <CardDescription>Manage global settings for your shop, including metal rates, invoice numbering, and device access.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertTitle>Firebase Project ID</AlertTitle>
-                <AlertDescription>
-                  This app is currently connected to the Firebase project: <strong className="font-mono">{currentSettings.firebaseConfig?.projectId || 'Not available'}</strong>. If this is incorrect, please check your `.env.local` file and restart the server.
-                </AlertDescription>
-              </Alert>
-              <FormField
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="w-full md:w-fit justify-start mb-4 overflow-x-auto">
+            {SECTIONS.map(({ value, label, icon: Icon }) => (
+              <TabsTrigger key={value} value={value}>
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+                  {label}
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {/* ─────────────────────────── Shop ─────────────────────────── */}
+          <TabsContent value="shop" className="space-y-4 mt-0">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Shop details</CardTitle>
+                <CardDescription>Printed at the top of every invoice, estimate and order slip.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="shopName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Shop name</FormLabel>
+                      <FormControl><Input placeholder="Your boutique name" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="shopAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address</FormLabel>
+                      <FormControl><Textarea placeholder="272-B, Shabbirabad, Block B, Karachi" rows={2} {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="shopContact"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact</FormLabel>
+                      <FormControl><Input placeholder="0316 1930960 | contact@example.com" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Document numbering</CardTitle>
+                <CardDescription>The next invoice or order continues from these. Change them only when migrating from another system.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="lastInvoiceNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground" />Last invoice number</FormLabel>
+                      <FormControl><Input type="number" step="1" inputMode="numeric" {...field} /></FormControl>
+                      <FormDescription>Next invoice: INV-{String((form.watch('lastInvoiceNumber') || 0) + 1).padStart(6, '0')}</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lastOrderNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2"><FileText className="h-4 w-4 text-muted-foreground" />Last order number</FormLabel>
+                      <FormControl><Input type="number" step="1" inputMode="numeric" {...field} /></FormControl>
+                      <FormDescription>Next order: ORD-{String((form.watch('lastOrderNumber') || 0) + 1).padStart(6, '0')}</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Appearance</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <FormField
                   control={form.control}
                   name="theme"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-base flex items-center"><Palette className="h-5 w-5 mr-2 text-muted-foreground" /> Color Theme</FormLabel>
-                       <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                      <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4 text-muted-foreground" />Colour theme</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a color theme" />
-                          </SelectTrigger>
+                          <SelectTrigger className="sm:max-w-xs"><SelectValue placeholder="Select a colour theme" /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {AVAILABLE_THEMES.map(theme => (
@@ -744,271 +838,208 @@ export default function SettingsPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormDescription>
-                        Choose the color palette for the application interface.
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
-              />
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base flex items-center"><DollarSign className="h-5 w-5 mr-2 text-muted-foreground" /> Current Gold Rates (PKR per gram)</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={fetchGoldRates} disabled={isFetchingRates}>
-                    {isFetchingRates ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Globe className="h-4 w-4 mr-2" />}
-                    Fetch from gold.pk
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border rounded-lg">
-                     <FormField control={form.control} name="goldRatePerGram24k" render={({ field }) => (<FormItem><FormLabel className="text-sm">24k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                     <FormField control={form.control} name="goldRatePerGram22k" render={({ field }) => (<FormItem><FormLabel className="text-sm">22k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                     <FormField control={form.control} name="goldRatePerGram21k" render={({ field }) => (<FormItem><FormLabel className="text-sm">21k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                     <FormField control={form.control} name="goldRatePerGram18k" render={({ field }) => (<FormItem><FormLabel className="text-sm">18k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                </div>
-              </div>
-               <FormField
-                control={form.control}
-                name="palladiumRatePerGram"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base flex items-center">
-                        <Shield className="h-5 w-5 mr-2 text-muted-foreground" /> Current Palladium Rate (PKR per gram)
-                    </FormLabel>
-                    <FormControl>
-                      <AmountInput placeholder="e.g., 22000.00" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="platinumRatePerGram"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base flex items-center">
-                        <Shield className="h-5 w-5 mr-2 text-muted-foreground" /> Current Platinum Rate (PKR per gram)
-                    </FormLabel>
-                    <FormControl>
-                      <AmountInput placeholder="e.g., 25000.00" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="silverRatePerGram"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base flex items-center">
-                        <Shield className="h-5 w-5 mr-2 text-muted-foreground" /> Current Silver Rate (PKR per gram)
-                    </FormLabel>
-                    <FormControl>
-                      <AmountInput placeholder="e.g., 250.00" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="shopName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base">Shop Name</FormLabel>
-                    <div className="flex items-center">
-                       <Building className="h-5 w-5 mr-2 text-muted-foreground" />
-                       <FormControl>
-                         <Input placeholder="Your Boutique Name" {...field} />
-                       </FormControl>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="shopAddress"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base">Shop Address</FormLabel>
-                     <div className="flex items-start">
-                       <MapPin className="h-5 w-5 mr-2 mt-2 text-muted-foreground" />
-                        <FormControl>
-                          <Textarea placeholder="123 Jewel Street, Sparkle City, SC 12345" {...field} rows={3}/>
-                        </FormControl>
-                     </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="shopContact"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base">Shop Contact Info</FormLabel>
-                     <div className="flex items-center">
-                       <Phone className="h-5 w-5 mr-2 text-muted-foreground" />
-                        <FormControl>
-                          <Input placeholder="contact@taheri.com | (021) 123-4567" {...field} />
-                        </FormControl>
-                     </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormItem>
-                <FormLabel className="text-base flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5" /> Brand Logo
-                  <span className="text-xs font-normal text-muted-foreground inline-flex items-center gap-1 ml-1">
-                    <Lock className="h-3 w-3" /> locked
-                  </span>
-                </FormLabel>
-                <div className="p-3 border rounded-md w-fit bg-muted">
-                  <Image
-                    src={STORE_LOGO_URL}
-                    alt="House of Mina brand logo"
-                    width={240}
-                    height={60}
-                    className="object-contain max-h-16"
-                    unoptimized
-                  />
-                </div>
-                <FormDescription>
-                  The official House of Mina wordmark (sourced from houseofmina.store). Ships with the app and is used on every generated invoice / estimate PDF. To change this, edit <code className="text-xs px-1 py-0.5 rounded bg-muted">STORE_LOGO_URL</code> in <code className="text-xs px-1 py-0.5 rounded bg-muted">src/lib/store-config.ts</code> and redeploy.
-                </FormDescription>
-              </FormItem>
-              <FormField
-                control={form.control}
-                name="lastInvoiceNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base flex items-center">
-                        <FileText className="h-5 w-5 mr-2 text-muted-foreground" /> Last Invoice Number (Sequence)
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="number" step="1" placeholder="e.g., 100" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                        The system will increment this number for the next invoice. Set this if you are migrating or need to adjust the sequence.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="lastOrderNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base flex items-center">
-                        <FileText className="h-5 w-5 mr-2 text-muted-foreground" /> Last Order Number (Sequence)
-                    </FormLabel>
-                    <FormControl>
-                      <Input type="number" step="1" placeholder="e.g., 100" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                        The system will increment this number for the next custom order.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-            </CardContent>
-            <CardFooter>
-              <Button type="submit" size="lg" disabled={form.formState.isSubmitting || isSettingsLoading}>
-                {form.formState.isSubmitting || (isSettingsLoading && !appReady) ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" /> }
-                Save Settings
-              </Button>
-            </CardFooter>
-          </Card>
-        </form>
-      </Form>
-
-      {/* WhatsApp Notifications */}
-      <NotificationsCard />
-
-      {/* Shopify */}
-      <ShopifyCard />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center"><Database className="mr-2 h-5 w-5" /> Data & API Management</CardTitle>
-          <CardDescription>Tools for managing your data and integrations.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Link href="/settings/contact-import" passHref>
-              <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
-                 <div className="flex items-center">
-                    <Users className="mr-3 h-5 w-5" />
-                    <div>
-                      <p className="font-semibold">Import Customers</p>
-                      <p className="text-xs text-muted-foreground">Bulk import customers from a CSV file.</p>
+                />
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4 text-muted-foreground" />Brand logo
+                    <span className="text-xs font-normal text-muted-foreground inline-flex items-center gap-1"><Lock className="h-3 w-3" />locked</span>
+                  </Label>
+                  <div className="p-3 border rounded-md w-fit bg-muted">
+                    <Image src={STORE_LOGO_URL} alt={`${STORE_CONFIG.name} brand logo`} width={240} height={60} className="object-contain max-h-16" unoptimized />
                   </div>
-                </div>
-              </Button>
-            </Link>
-            <Link href="/settings/hisaab-import" passHref>
-              <Button variant="outline" className="w-full justify-start text-left h-auto py-3">
-                <div className="flex items-center">
-                  <Import className="mr-3 h-5 w-5" />
-                  <div>
-                      <p className="font-semibold">Import Hisaab from CSV</p>
-                      <p className="text-xs text-muted-foreground">Import historical ledgers from other apps.</p>
-                  </div>
-                </div>
-              </Button>
-            </Link>
-        </CardContent>
-      </Card>
-
-      {/* Sign-in Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center">
-            <Clock className="mr-2 h-5 w-5" />
-            Sign-in Activity
-          </CardTitle>
-          <CardDescription>Recent sign-ins to this app, including browser and OS details.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {logsLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground py-4">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading logs...
-            </div>
-          ) : signInLogs.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">No sign-in activity recorded yet. Activity will appear after the next sign-in.</p>
-          ) : (
-            <div className="space-y-3">
-              {signInLogs.map(log => (
-                <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
-                  {log.photoURL && log.photoURL.length > 0 ? (
-                    <img src={log.photoURL} alt={log.displayName || ''} className="h-9 w-9 rounded-full flex-shrink-0 object-cover" loading="lazy" decoding="async" />
-                  ) : (
-                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-semibold text-primary">{(log.displayName || log.email || '?')[0].toUpperCase()}</span>
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{log.displayName || log.email}</p>
-                    <p className="text-xs text-muted-foreground truncate">{log.email}</p>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1"><Monitor className="h-3 w-3" />{log.os}</span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1"><Globe className="h-3 w-3" />{log.browser}</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground flex-shrink-0">
-                    {log.timestamp ? log.timestamp.toDate().toLocaleString() : '—'}
+                  <p className="text-sm text-muted-foreground">
+                    Ships with the app and appears on every generated PDF. Changing it needs a code change to{' '}
+                    <code className="text-xs px-1 py-0.5 rounded bg-muted">STORE_LOGO_URL</code>.
                   </p>
                 </div>
-              ))}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ─────────────────────────── Rates ────────────────────────── */}
+          <TabsContent value="rates" className="space-y-4 mt-0">
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <CardTitle className="text-lg">Metal rates</CardTitle>
+                    <CardDescription>PKR per gram. Used to price items where the rate is not entered by hand.</CardDescription>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={fetchGoldRates} disabled={isFetchingRates} className="flex-shrink-0">
+                    {isFetchingRates ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Globe className="h-4 w-4 mr-2" />}
+                    Fetch gold from gold.pk
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Gold</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {(['24k', '22k', '21k', '18k'] as const).map(k => (
+                      <FormField
+                        key={k}
+                        control={form.control}
+                        name={`goldRatePerGram${k}` as 'goldRatePerGram24k'}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-normal text-muted-foreground">{k}</FormLabel>
+                            <FormControl><AmountInput {...field} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Other metals</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {([
+                      { name: 'silverRatePerGram', label: 'Silver', placeholder: 'e.g. 250' },
+                      { name: 'platinumRatePerGram', label: 'Platinum', placeholder: 'e.g. 25,000' },
+                      { name: 'palladiumRatePerGram', label: 'Palladium', placeholder: 'e.g. 22,000' },
+                    ] as const).map(m => (
+                      <FormField
+                        key={m.name}
+                        control={form.control}
+                        name={m.name}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-normal text-muted-foreground">{m.label}</FormLabel>
+                            <FormControl><AmountInput placeholder={m.placeholder} {...field} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ────────────────────────── Alerts ────────────────────────── */}
+          <TabsContent value="notifications" className="mt-0">
+            <NotificationsCard />
+          </TabsContent>
+
+          {/* ─────────────────────── Integrations ─────────────────────── */}
+          <TabsContent value="integrations" className="space-y-4 mt-0">
+            <ShopifyCard />
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2"><Printer className="h-5 w-5" />Printing</CardTitle>
+                <CardDescription>Tag and label printing.</CardDescription>
+              </CardHeader>
+              {/* Both of these pages existed with nothing linking to them —
+                  reachable only by typing the URL. */}
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <SettingsLink href="/settings/printer" icon={Tag} title="Label designer" description="Build and export jewellery tags." />
+                <SettingsLink href="/settings/weprint-api" icon={Printer} title="WEPrint API" description="Manage the label printing service." />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ─────────────────────────── Data ─────────────────────────── */}
+          <TabsContent value="data" className="space-y-4 mt-0">
+            <DraftsRow />
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2"><Database className="h-5 w-5" />Import &amp; backup</CardTitle>
+                <CardDescription>Bring records in from a spreadsheet, or take a copy out.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <SettingsLink href="/settings/contact-import" icon={Users} title="Import customers" description="Bulk import from a CSV file." />
+                <SettingsLink href="/settings/hisaab-import" icon={Import} title="Import hisaab" description="Historical ledgers from other apps." />
+                <SettingsLink href="/settings/backups" icon={ArchiveRestore} title="Backups" description="Snapshot and restore your data." />
+                <SettingsLink href="/settings/payment-methods" icon={Landmark} title="Payment methods" description="Accounts money is received into." />
+              </CardContent>
+            </Card>
+            <SettingRow
+              title="Restore shop defaults"
+              description="Refetches gold rates from gold.pk and resets the shop name, address and contact. Rates and shop details only — no orders or invoices are touched."
+            >
+              <Button type="button" variant="outline" size="sm" onClick={handleRestoreSettings} disabled={isRestoring}>
+                {isRestoring ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                Restore
+              </Button>
+            </SettingRow>
+          </TabsContent>
+
+          {/* ───────────────────────── Security ───────────────────────── */}
+          <TabsContent value="security" className="space-y-4 mt-0">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2"><Clock className="h-5 w-5" />Sign-in activity</CardTitle>
+                <CardDescription>The last 30 sign-ins to this app.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {logsLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                  </div>
+                ) : signInLogs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">No sign-in activity recorded yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {signInLogs.map(log => (
+                      <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg border">
+                        {log.photoURL && log.photoURL.length > 0 ? (
+                          <img src={log.photoURL} alt="" className="h-9 w-9 rounded-full flex-shrink-0 object-cover" loading="lazy" decoding="async" />
+                        ) : (
+                          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <span className="text-sm font-semibold text-primary">{(log.displayName || log.email || '?')[0].toUpperCase()}</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{log.displayName || log.email}</p>
+                          <p className="text-xs text-muted-foreground truncate">{log.email}</p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1"><Monitor className="h-3 w-3" />{log.os}</span>
+                            <span className="text-xs text-muted-foreground flex items-center gap-1"><Globe className="h-3 w-3" />{log.browser}</span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground flex-shrink-0">
+                          {log.timestamp ? log.timestamp.toDate().toLocaleString() : '—'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            {/* Last thing on the last tab. It used to be the second thing on the
+                page, above every routine setting. */}
+            <EmergencyLock />
+          </TabsContent>
+        </Tabs>
+      </Form>
+
+      {/* Save bar — only when there is something to save, so it never covers
+          content on the tabs that have no form fields. */}
+      {isDirty && (
+        <>
+          <div className="h-20" aria-hidden />
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <div className="container mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground truncate">Unsaved changes</p>
+              <div className="flex gap-2 flex-shrink-0">
+                <Button type="button" variant="ghost" onClick={() => form.reset()} disabled={form.formState.isSubmitting}>
+                  Discard
+                </Button>
+                <Button type="button" onClick={form.handleSubmit(onSubmit, onInvalid)} disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save changes
+                </Button>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }
