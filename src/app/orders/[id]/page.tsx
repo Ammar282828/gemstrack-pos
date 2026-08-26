@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2, Lock, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2, Lock, ShoppingBag, MoreHorizontal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
@@ -60,6 +60,7 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
 import { auth as firebaseAuth } from '@/lib/firebase';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -92,15 +93,6 @@ const getPaymentBadgeClass = (status: PaymentStatus) => {
   }
 };
 
-const DetailItem: React.FC<{ label: string; value?: string | number; children?: React.ReactNode; icon?: React.ReactNode }> = ({ label, value, children, icon }) => (
-    <div className="flex items-start justify-between py-2">
-      <div className="flex items-center text-sm text-muted-foreground">
-        {icon && <div className="mr-2">{icon}</div>}
-        <p>{label}</p>
-      </div>
-      {children || <p className="font-medium text-foreground">{value}</p>}
-    </div>
-);
 
 type PhoneForm = {
     phone: string;
@@ -1009,75 +1001,107 @@ export default function OrderDetailPage() {
         <div className="md:col-span-3 space-y-6">
           <Card>
               <CardHeader>
-                  <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
-                      <div>
-                          <CardTitle className="text-2xl">Order {order.id}</CardTitle>
-                          <CardDescription>Details of the custom order.</CardDescription>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                           <Button variant="outline" onClick={handlePrintOrderSlip}><Printer className="mr-2 h-4 w-4"/>Print Slip</Button>
-                           <Button variant="outline" onClick={() => { setNotificationType('summary'); setIsNotificationDialogOpen(true); }}><MessageSquare className="mr-2 h-4 w-4"/>Send to Customer</Button>
-                           {order.tcsConsignmentNo ? (
-                             <Button variant="outline" onClick={handleTcsTrack} disabled={isTracking}>
-                               {isTracking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackageSearch className="mr-2 h-4 w-4" />}
-                               TCS: {order.tcsConsignmentNo}
-                             </Button>
-                           ) : (
-                             <Button variant="outline" onClick={() => setIsBookCourierOpen(true)}>
-                               <Truck className="mr-2 h-4 w-4" /> Book Courier
-                             </Button>
-                           )}
-                           {order.invoiceId ? (
-                             <Button variant="outline" asChild>
-                               <Link href={`/cart?invoice_id=${order.invoiceId}`}>
-                                 <FileText className="mr-2 h-4 w-4" /> View Invoice ({order.invoiceId})
-                               </Link>
-                             </Button>
-                           ) : (
-                             <>
-                               <Button asChild variant="outline">
-                                 <Link href={`/orders/${order.id}/edit`}>
-                                   <Edit className="mr-2 h-4 w-4" /> Edit Order
-                                 </Link>
-                               </Button>
-                               {order.status === 'Completed' && (
-                                 <Button onClick={() => setIsFinalizeDialogOpen(true)}>
-                                   <FileText className="mr-2 h-4 w-4" /> Finalize & Generate Invoice
-                                 </Button>
-                               )}
-                             </>
-                           )}
-                           {order.status !== 'Cancelled' && order.status !== 'Refunded' && (
-                             <Button variant="outline" onClick={() => setIsRefundDialogOpen(true)} className="border-destructive text-destructive hover:bg-destructive/10">
-                               <RotateCcw className="mr-2 h-4 w-4" /> Refund Order
-                             </Button>
-                           )}
-                          <Badge className={cn("text-base border-transparent", getPaymentBadgeClass(getPaymentStatus(order)))}>
-                              <CreditCard className="w-3.5 h-3.5 mr-1.5" />{getPaymentStatus(order)}
+                  <div className="flex flex-col gap-4">
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                        <div className="min-w-0">
+                          {/* The id no longer wraps mid-word, and the line that
+                              said "Details of the custom order" now carries the
+                              two facts you actually came for. */}
+                          <CardTitle className="text-2xl whitespace-nowrap">{order.id}</CardTitle>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {order.customerName || 'Walk-in'}
+                            {' · '}
+                            {format(parseISO(order.createdAt), 'd MMM yyyy')}
+                            {getRateDisplay() !== 'N/A' && <> · {getRateDisplay()}</>}
+                          </p>
+                        </div>
+
+                        {/* Three controls, not seven. Status was being said
+                            three times over — a payment pill, a status pill and
+                            an "Update Status" box that showed nothing. The
+                            select is the status; payment sits beside it as a
+                            badge; one action leads and the rest are one click
+                            away rather than all competing at once. */}
+                        <div className="flex items-center gap-2 flex-wrap lg:justify-end flex-shrink-0">
+                          <Badge variant="outline" className={cn('h-8 px-2.5 gap-1.5 font-medium',
+                            getPaymentStatus(order) === 'Unpaid' && 'text-destructive border-destructive/40 bg-destructive/5')}>
+                            <CreditCard className="w-3.5 h-3.5" />{getPaymentStatus(order)}
                           </Badge>
-                          <Badge className={cn("text-base border-transparent", getStatusBadgeVariant(order.status))}>
-                              {order.status}
-                          </Badge>
-                          <Select onValueChange={(val) => handleStatusChange(val as OrderStatus)} disabled={isUpdatingStatus}>
-                              <SelectTrigger className="w-[180px] h-9" id="status-update">
-                                  <SelectValue placeholder="Update Status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  {ORDER_STATUSES.map(status => (
-                                      <SelectItem key={status} value={status}>{status}</SelectItem>
-                                  ))}
-                              </SelectContent>
+
+                          <Select value={order.status} onValueChange={(val) => handleStatusChange(val as OrderStatus)} disabled={isUpdatingStatus}>
+                            <SelectTrigger
+                              id="status-update"
+                              aria-label={`Status: ${order.status}`}
+                              className={cn('h-8 w-fit gap-1 rounded-full border-transparent px-3 text-xs font-medium',
+                                'focus:ring-0 focus:ring-offset-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:opacity-80',
+                                getStatusBadgeVariant(order.status))}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ORDER_STATUSES.map(status => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+                            </SelectContent>
                           </Select>
+
+                          {order.invoiceId ? (
+                            <Button asChild size="sm">
+                              <Link href={`/cart?invoice_id=${order.invoiceId}`}>
+                                <FileText className="mr-2 h-4 w-4" />Invoice {order.invoiceId}
+                              </Link>
+                            </Button>
+                          ) : order.status === 'Completed' ? (
+                            <Button size="sm" onClick={() => setIsFinalizeDialogOpen(true)}>
+                              <FileText className="mr-2 h-4 w-4" />Finalize &amp; invoice
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="outline" onClick={() => setIsBookCourierOpen(true)}>
+                              <Truck className="mr-2 h-4 w-4" />Book courier
+                            </Button>
+                          )}
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="px-2" aria-label="More actions">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                              <DropdownMenuItem onClick={handlePrintOrderSlip}>
+                                <Printer className="mr-2 h-4 w-4" />Print slip
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setNotificationType('summary'); setIsNotificationDialogOpen(true); }}>
+                                <MessageSquare className="mr-2 h-4 w-4" />Send to customer
+                              </DropdownMenuItem>
+                              {order.tcsConsignmentNo ? (
+                                <DropdownMenuItem onClick={handleTcsTrack} disabled={isTracking}>
+                                  <PackageSearch className="mr-2 h-4 w-4" />Track {order.tcsConsignmentNo}
+                                </DropdownMenuItem>
+                              ) : order.invoiceId || order.status === 'Completed' ? (
+                                <DropdownMenuItem onClick={() => setIsBookCourierOpen(true)}>
+                                  <Truck className="mr-2 h-4 w-4" />Book courier
+                                </DropdownMenuItem>
+                              ) : null}
+                              {!order.invoiceId && (
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/orders/${order.id}/edit`}>
+                                    <Edit className="mr-2 h-4 w-4" />Edit order
+                                  </Link>
+                                </DropdownMenuItem>
+                              )}
+                              {order.status !== 'Cancelled' && order.status !== 'Refunded' && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => setIsRefundDialogOpen(true)} className="text-destructive focus:text-destructive">
+                                    <RotateCcw className="mr-2 h-4 w-4" />Refund order
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
                   </div>
               </CardHeader>
               <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                      <DetailItem label="Order Date" value={format(parseISO(order.createdAt), 'PPpp')} icon={<Calendar className="w-4 h-4"/>}/>
-                      <DetailItem label="Customer" value={order.customerName || 'Walk-in'} icon={<User className="w-4 h-4"/>} />
-                      <DetailItem label="Gold Rate(s) Applied" value={getRateDisplay()} icon={<DollarSign className="w-4 h-4"/>}/>
-                  </div>
-
                   <Separator className="my-6" />
 
                   {/* ── Finalized Invoice View (greyed-out locked state) ──── */}
