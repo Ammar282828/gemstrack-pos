@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2, Lock } from 'lucide-react';
+import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2, Lock, ShoppingBag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
@@ -60,6 +60,7 @@ import { SearchablePicker } from '@/components/shared/searchable-picker';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
+import { auth as firebaseAuth } from '@/lib/firebase';
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -138,6 +139,83 @@ const tcsBookingSchema = z.object({
   description: z.string().optional(),
 });
 type TcsBookingFormData = z.infer<typeof tcsBookingSchema>;
+
+/**
+ * Booking a courier the way the shop already does it.
+ *
+ * TCS is booked by fulfilling the order in Shopify: the Universal Courier app
+ * watches for the fulfilment and raises the Envio consignment, then writes the
+ * tracking number back onto the Shopify order. So there is nothing here that
+ * talks to a courier — this performs the one action that starts the chain.
+ *
+ * It needs a Shopify order to fulfil. Custom orders taken in the shop do not
+ * have one, and creating one would publish a private order to the storefront,
+ * so the option explains itself rather than appearing broken.
+ */
+const ShopifyCourierOption: React.FC<{ order: Order; onDone: () => void }> = ({ order, onDone }) => {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  const [notify, setNotify] = useState(false);
+  const shopifyOrderId = order.shopifyOrderId;
+
+  if (!shopifyOrderId) {
+    return (
+      <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
+        <p className="font-medium text-foreground flex items-center gap-1.5">
+          <ShoppingBag className="h-3.5 w-3.5" />Booking through Shopify is not available for this order
+        </p>
+        <p className="mt-1">
+          {order.id} was taken in the shop, so there is no Shopify order for Universal Courier to pick up.
+          Book it with TCS directly below.
+        </p>
+      </div>
+    );
+  }
+
+  const book = async () => {
+    setBusy(true);
+    try {
+      const idToken = await firebaseAuth?.currentUser?.getIdToken();
+      const res = await fetch('/api/shopify/fulfill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+        body: JSON.stringify({ shopifyOrderId, notifyCustomer: notify }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Shopify refused the fulfilment');
+      toast({ title: 'Sent to Shopify', description: json.message });
+      onDone();
+    } catch (e: unknown) {
+      toast({ title: 'Could not fulfil', description: (e as Error).message, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2.5">
+      <div>
+        <p className="font-medium text-sm flex items-center gap-1.5">
+          <ShoppingBag className="h-4 w-4 text-primary" />Book through Shopify
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Fulfils the Shopify order so Universal Courier raises the Envio consignment. The tracking
+          number arrives on the Shopify order once it has been booked, not immediately.
+        </p>
+      </div>
+      <label className="flex items-center gap-2 text-xs cursor-pointer">
+        <Checkbox checked={notify} onCheckedChange={v => setNotify(!!v)} />
+        {/* Off by default: the useful email is the one carrying a tracking
+            number, and that does not exist yet at this point. */}
+        Email the customer now — before there is a tracking number
+      </label>
+      <Button size="sm" onClick={book} disabled={busy} className="w-full">
+        {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />}
+        {busy ? 'Fulfilling…' : 'Fulfil in Shopify'}
+      </Button>
+    </div>
+  );
+};
 
 const BookCourierDialog: React.FC<{
     order: Order;
@@ -221,12 +299,25 @@ const BookCourierDialog: React.FC<{
             <DialogContent className="max-w-lg">
                 <DialogHeader>
                     <DialogTitle className="flex items-center">
-                        <Truck className="mr-2 h-5 w-5" /> Book TCS Courier
+                        <Truck className="mr-2 h-5 w-5" /> Book courier
                     </DialogTitle>
                     <DialogDescription>
-                        Create a TCS Envio shipment for order {order.id}. The consignment number will be saved to this order.
+                        Two routes, both ending in an Envio consignment.
                     </DialogDescription>
                 </DialogHeader>
+
+                {/* How the shop actually books TCS: fulfil the order in
+                    Shopify and let Universal Courier raise the Envio
+                    consignment. Only possible where a Shopify order exists — a
+                    custom order has none, and creating one would put it on the
+                    public storefront. */}
+                <ShopifyCourierOption order={order} onDone={() => onOpenChange(false)} />
+
+                <div className="flex items-center gap-3">
+                  <Separator className="flex-1" />
+                  <span className="text-2xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">or book TCS directly</span>
+                  <Separator className="flex-1" />
+                </div>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 pt-2">
                         <div className="grid grid-cols-2 gap-4">
