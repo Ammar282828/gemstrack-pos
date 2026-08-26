@@ -11,7 +11,7 @@ import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAppStore, Settings, ThemeKey, AVAILABLE_THEMES } from '@/lib/store';
+import { useAppStore, Settings, ThemeKey, AVAILABLE_THEMES, normalizeTheme } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -620,7 +620,7 @@ export default function SettingsPage() {
         shopLogoUrlBlack: currentSettings.shopLogoUrlBlack || "",
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
         lastOrderNumber: currentSettings.lastOrderNumber || 0,
-        theme: currentSettings.theme || 'default',
+        theme: normalizeTheme(currentSettings.theme),
         databaseLocked: currentSettings.databaseLocked || false,
       });
     }
@@ -822,10 +822,10 @@ export default function SettingsPage() {
                   name="theme"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4 text-muted-foreground" />Colour theme</FormLabel>
+                      <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4 text-muted-foreground" />Mode</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className="sm:max-w-xs"><SelectValue placeholder="Select a colour theme" /></SelectTrigger>
+                          <SelectTrigger className="sm:max-w-xs"><SelectValue placeholder="Select a mode" /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {AVAILABLE_THEMES.map(theme => (

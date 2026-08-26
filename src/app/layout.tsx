@@ -87,7 +87,7 @@ export default function RootLayout({
         <meta name="description" content="Jewellery Inventory & Point-of-Sale System" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/* Dynamic theme-color will be handled by the theme logic, but we can set a default */}
-        <meta name="theme-color" content="#0d1a16" />
+        <meta name="theme-color" content="#1a0e0e" />
         {/*
           Paint the right background before anything else runs.
 

@@ -344,7 +344,10 @@ export function calculateProductPrice(product: {
 // --- Type Definitions ---
 export type { MetalType, KaratValue } from './materials';
 export { METAL_TYPES, KARAT_VALUES, metalLabel, karatLabel, describeMetal } from './materials';
-export type ThemeKey = 'default' | 'forest' | 'ocean' | 'sunset' | 'amethyst' | 'quartz' | 'slate' | 'latte' | 'mint' | 'gold';
+/** Retired colour options are kept in the union so settings documents written
+ *  before they were removed still typecheck; only AVAILABLE_THEMES is offered. */
+export type RetiredThemeKey = 'forest' | 'ocean' | 'sunset' | 'amethyst' | 'quartz' | 'slate' | 'latte' | 'mint' | 'gold';
+export type ThemeKey = 'default' | 'red' | RetiredThemeKey;
 
 export interface Theme {
   key: ThemeKey;
@@ -353,17 +356,14 @@ export interface Theme {
 }
 
 export const AVAILABLE_THEMES: Theme[] = [
-    { key: 'default', name: 'Default Dark', primaryColorHsl: '210 40% 98%' },
-    { key: 'slate', name: 'Slate', primaryColorHsl: '210 90% 75%' },
-    { key: 'forest', name: 'Forest', primaryColorHsl: '130 65% 60%' },
-    { key: 'ocean', name: 'Ocean', primaryColorHsl: '185 70% 55%' },
-    { key: 'sunset', name: 'Sunset', primaryColorHsl: '30 90% 60%' },
-    { key: 'amethyst', name: 'Amethyst', primaryColorHsl: '260 80% 70%' },
-    { key: 'quartz', name: 'Quartz', primaryColorHsl: '340 85% 70%' },
-    { key: 'latte', name: 'Latte', primaryColorHsl: '40 80% 70%' },
-    { key: 'mint', name: 'Mint', primaryColorHsl: '155 80% 65%' },
-    { key: 'gold', name: 'Gold', primaryColorHsl: '45 90% 65%' },
+    { key: 'default', name: 'Light', primaryColorHsl: '220.9 39.3% 11%' },
+    { key: 'red', name: 'Red (dark)', primaryColorHsl: '0 74% 64%' },
 ];
+
+/** Anything stored outside this set is a retired colour option; it renders as
+ *  the red dark palette, so the picker shows it as that rather than as blank. */
+export const normalizeTheme = (t: string | undefined | null): 'default' | 'red' =>
+    t === 'default' ? 'default' : 'red';
 
 export interface FirebaseConfigStub {
   apiKey?: string;

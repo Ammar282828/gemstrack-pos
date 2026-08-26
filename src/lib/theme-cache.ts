@@ -15,9 +15,10 @@
 const KEY = 'gemstrack:theme';
 
 /**
- * The only theme that renders light. Every named theme is defined solely
- * under `.dark .theme-x` in globals.css, while `:root, .theme-default` holds
- * the light palette and has no dark counterpart.
+ * The only theme that renders light. <html> always carries `.dark`; the light
+ * palette is applied by `.theme-default` on <body> overriding it. Any other
+ * value — 'red', or one of the retired colour options — is simply the absence
+ * of that override, so the `.dark` palette shows through.
  */
 export const LIGHT_THEME = 'default';
 

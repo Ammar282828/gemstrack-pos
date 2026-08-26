@@ -102,57 +102,56 @@ body {
     --sidebar-ring: var(--ring);
   }
 
+  /* The one dark palette, built on the wordmark.
+
+     public/house-of-mina-logo.png is a single ink colour, #380000 — hsl(0 100% 11%).
+     That is a background-weight colour, so the surfaces below carry it directly
+     (a deep maroon-black rather than a neutral one) while --primary lifts the
+     same hue to a lightness that can actually be read on top of them.
+
+     There used to be nine of these, one per colour option. They shared nothing:
+     backgrounds sat at 4-5% lightness with cards two or three points above, and
+     in the base block --card and --background were the same value, so a card was
+     invisible except for its border. The ramp here is the one the light palette
+     already uses — the page sits below the cards so a card lifts off the surface. */
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    /* Lifted for dark surfaces; every .theme-* block inherits these. */
-    --success: 142 69% 58%;
-    --success-foreground: 145 60% 6%;
-    --warning: 43 96% 60%;
-    --warning-foreground: 40 60% 8%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 215 20.2% 65.1%;
+    --background: 0 30% 8%;
+    --foreground: 0 12% 97%;
+    --card: 0 26% 12.5%;
+    --card-foreground: 0 12% 97%;
+    --popover: 0 26% 12.5%;
+    --popover-foreground: 0 12% 97%;
+    --primary: 0 74% 64%;
+    --primary-foreground: 0 60% 12%;
+    --secondary: 0 20% 18%;
+    --secondary-foreground: 0 10% 93%;
+    --muted: 0 20% 18%;
+    --muted-foreground: 0 9% 70%;
+    --accent: 0 28% 24%;
+    --accent-foreground: 0 12% 97%;
+    /* Primary is now red, so destructive cannot also be a mid red or Save and
+       Refund read as the same button. It sits well below primary in lightness
+       and a little off its hue.
+
+       --primary-foreground is a deep maroon rather than white on purpose:
+       --primary is also the heading colour (`text-primary`), so it has to stay
+       light enough to read on the page, and at that lightness a white label on
+       a filled button falls under 4.5:1. Dark-on-bright clears both. */
+    --destructive: 12 58% 34%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 62% 52%;
+    --success-foreground: 145 60% 8%;
+    --warning: 40 92% 60%;
+    --warning-foreground: 40 60% 10%;
+    --border: 0 17% 24%;
+    --input: 0 17% 24%;
+    --ring: 0 74% 64%;
     --radius: 0.75rem;
-  }
-
-  /* Theme: Forest */
-  .dark .theme-forest {
-    --background: 140 20% 4%;      /* Very dark green */
-    --foreground: 120 10% 95%;     /* Off-white */
-    --card: 140 20% 6%;           /* Slightly lighter dark green */
-    --card-foreground: 120 10% 95%;
-    --popover: 140 20% 4%;
-    --popover-foreground: 120 10% 95%;
-    --primary: 130 65% 60%;         /* Vibrant green for actions */
-    --primary-foreground: 140 25% 5%; /* Dark text on buttons */
-    --secondary: 140 15% 12%;      /* Muted green-gray */
-    --secondary-foreground: 120 10% 85%;
-    --muted: 140 15% 12%;
-    --muted-foreground: 130 10% 60%;
-    --accent: 130 30% 20%;         /* Highlight green */
-    --accent-foreground: 120 10% 95%;
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 140 15% 15%;
-    --input: 140 15% 15%;
-    --ring: 130 65% 60%;
-    --chart-1: 130 65% 60%;
-    --chart-2: 150 50% 50%;
+    --chart-1: 0 74% 64%;
+    --chart-2: 22 78% 60%;
+    --chart-3: 40 88% 62%;
+    --chart-4: 340 65% 62%;
+    --chart-5: 190 60% 58%;
 
     --sidebar-background: var(--background);
     --sidebar-foreground: var(--foreground);
@@ -164,277 +163,11 @@ body {
     --sidebar-ring: var(--ring);
   }
 
-  /* Theme: Ocean */
-  .dark .theme-ocean {
-    --background: 210 30% 5%;      /* Deep blue */
-    --foreground: 190 15% 95%;
-    --card: 210 30% 8%;
-    --card-foreground: 190 15% 95%;
-    --popover: 210 30% 5%;
-    --popover-foreground: 190 15% 95%;
-    --primary: 185 70% 55%;         /* Bright cyan */
-    --primary-foreground: 210 40% 5%;
-    --secondary: 205 25% 15%;
-    --secondary-foreground: 190 15% 85%;
-    --muted: 205 25% 15%;
-    --muted-foreground: 200 10% 60%;
-    --accent: 190 40% 25%;
-    --accent-foreground: 190 15% 95%;
-    --destructive: 350 75% 60%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 205 25% 18%;
-    --input: 205 25% 18%;
-    --ring: 185 70% 55%;
-    --chart-1: 185 70% 55%;
-    --chart-2: 210 60% 65%;
-    
-    --sidebar-background: var(--background);
-    --sidebar-foreground: var(--foreground);
-    --sidebar-primary: var(--primary);
-    --sidebar-primary-foreground: var(--primary-foreground);
-    --sidebar-accent: var(--accent);
-    --sidebar-accent-foreground: var(--accent-foreground);
-    --sidebar-border: var(--border);
-    --sidebar-ring: var(--ring);
-  }
-  
-  /* Theme: Sunset */
-  .dark .theme-sunset {
-    --background: 25 30% 5%;       /* Deep orange-brown */
-    --foreground: 35 20% 95%;
-    --card: 25 30% 8%;
-    --card-foreground: 35 20% 95%;
-    --popover: 25 30% 5%;
-    --popover-foreground: 35 20% 95%;
-    --primary: 30 90% 60%;          /* Bright orange */
-    --primary-foreground: 25 40% 10%;
-    --secondary: 30 15% 15%;
-    --secondary-foreground: 35 20% 85%;
-    --muted: 30 15% 15%;
-    --muted-foreground: 35 10% 60%;
-    --accent: 15 60% 30%;          /* Muted red */
-    --accent-foreground: 35 20% 95%;
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 30 15% 20%;
-    --input: 30 15% 20%;
-    --ring: 30 90% 60%;
-    --chart-1: 30 90% 60%;
-    --chart-2: 50 85% 65%;
-
-    --sidebar-background: var(--background);
-    --sidebar-foreground: var(--foreground);
-    --sidebar-primary: var(--primary);
-    --sidebar-primary-foreground: var(--primary-foreground);
-    --sidebar-accent: var(--accent);
-    --sidebar-accent-foreground: var(--accent-foreground);
-    --sidebar-border: var(--border);
-    --sidebar-ring: var(--ring);
-  }
-
-  /* Theme: Amethyst */
-  .dark .theme-amethyst {
-    --background: 270 25% 5%;      /* Deep purple */
-    --foreground: 270 15% 95%;
-    --card: 270 25% 9%;
-    --card-foreground: 270 15% 95%;
-    --popover: 270 25% 5%;
-    --popover-foreground: 270 15% 95%;
-    --primary: 260 80% 70%;         /* Bright lavender */
-    --primary-foreground: 270 50% 10%;
-    --secondary: 265 20% 18%;
-    --secondary-foreground: 270 15% 85%;
-    --muted: 265 20% 18%;
-    --muted-foreground: 270 10% 60%;
-    --accent: 250 50% 30%;
-    --accent-foreground: 270 15% 95%;
-    --destructive: 350 75% 60%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 265 20% 22%;
-    --input: 265 20% 22%;
-    --ring: 260 80% 70%;
-    --chart-1: 260 80% 70%;
-    --chart-2: 280 60% 75%;
-
-    --sidebar-background: var(--background);
-    --sidebar-foreground: var(--foreground);
-    --sidebar-primary: var(--primary);
-    --sidebar-primary-foreground: var(--primary-foreground);
-    --sidebar-accent: var(--accent);
-    --sidebar-accent-foreground: var(--accent-foreground);
-    --sidebar-border: var(--border);
-    --sidebar-ring: var(--ring);
-  }
-
-  /* Theme: Quartz */
-  .dark .theme-quartz {
-    --background: 330 20% 5%;      /* Deep pink-rose */
-    --foreground: 330 10% 95%;
-    --card: 330 20% 8%;
-    --card-foreground: 330 10% 95%;
-    --popover: 330 20% 5%;
-    --popover-foreground: 330 10% 95%;
-    --primary: 340 85% 70%;         /* Bright pink */
-    --primary-foreground: 330 50% 10%;
-    --secondary: 335 15% 16%;
-    --secondary-foreground: 330 10% 85%;
-    --muted: 335 15% 16%;
-    --muted-foreground: 330 10% 60%;
-    --accent: 320 50% 30%;
-    --accent-foreground: 330 10% 95%;
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 335 15% 20%;
-    --input: 335 15% 20%;
-    --ring: 340 85% 70%;
-    --chart-1: 340 85% 70%;
-    --chart-2: 5 70% 65%;
-
-    --sidebar-background: var(--background);
-    --sidebar-foreground: var(--foreground);
-    --sidebar-primary: var(--primary);
-    --sidebar-primary-foreground: var(--primary-foreground);
-    --sidebar-accent: var(--accent);
-    --sidebar-accent-foreground: var(--accent-foreground);
-    --sidebar-border: var(--border);
-    --sidebar-ring: var(--ring);
-  }
-  
-  /* Theme: Slate */
-  .dark .theme-slate {
-    --background: 220 15% 8%;      /* Dark slate blue */
-    --foreground: 215 20% 95%;
-    --card: 220 15% 12%;
-    --card-foreground: 215 20% 95%;
-    --popover: 220 15% 8%;
-    --popover-foreground: 215 20% 95%;
-    --primary: 210 90% 75%;         /* Bright, almost electric blue */
-    --primary-foreground: 220 30% 10%;
-    --secondary: 215 18% 20%;
-    --secondary-foreground: 215 20% 85%;
-    --muted: 215 18% 20%;
-    --muted-foreground: 215 15% 60%;
-    --accent: 210 30% 30%;
-    --accent-foreground: 215 20% 95%;
-    --destructive: 0 70% 60%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 215 18% 25%;
-    --input: 215 18% 25%;
-    --ring: 210 90% 75%;
-    --chart-1: 210 90% 75%;
-    --chart-2: 200 80% 70%;
-
-    --sidebar-background: var(--background);
-    --sidebar-foreground: var(--foreground);
-    --sidebar-primary: var(--primary);
-    --sidebar-primary-foreground: var(--primary-foreground);
-    --sidebar-accent: var(--accent);
-    --sidebar-accent-foreground: var(--accent-foreground);
-    --sidebar-border: var(--border);
-    --sidebar-ring: var(--ring);
-  }
-  
-  /* Theme: Latte */
-  .dark .theme-latte {
-    --background: 35 25% 8%;      /* Warm brown */
-    --foreground: 40 30% 95%;
-    --card: 35 25% 12%;
-    --card-foreground: 40 30% 95%;
-    --popover: 35 25% 8%;
-    --popover-foreground: 40 30% 95%;
-    --primary: 40 80% 70%;         /* Creamy beige */
-    --primary-foreground: 35 40% 10%;
-    --secondary: 35 20% 20%;
-    --secondary-foreground: 40 30% 85%;
-    --muted: 35 20% 20%;
-    --muted-foreground: 40 15% 60%;
-    --accent: 30 40% 30%;
-    --accent-foreground: 40 30% 95%;
-    --destructive: 0 70% 60%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 35 20% 25%;
-    --input: 35 20% 25%;
-    --ring: 40 80% 70%;
-    --chart-1: 40 80% 70%;
-    --chart-2: 25 70% 65%;
-
-    --sidebar-background: var(--background);
-    --sidebar-foreground: var(--foreground);
-    --sidebar-primary: var(--primary);
-    --sidebar-primary-foreground: var(--primary-foreground);
-    --sidebar-accent: var(--accent);
-    --sidebar-accent-foreground: var(--accent-foreground);
-    --sidebar-border: var(--border);
-    --sidebar-ring: var(--ring);
-  }
-  
-  /* Theme: Mint */
-  .dark .theme-mint {
-    --background: 160 20% 5%;      /* Dark mint-green */
-    --foreground: 150 15% 95%;
-    --card: 160 20% 8%;
-    --card-foreground: 150 15% 95%;
-    --popover: 160 20% 5%;
-    --popover-foreground: 150 15% 95%;
-    --primary: 155 80% 65%;         /* Bright mint */
-    --primary-foreground: 160 40% 10%;
-    --secondary: 155 15% 15%;
-    --secondary-foreground: 150 15% 85%;
-    --muted: 155 15% 15%;
-    --muted-foreground: 150 10% 60%;
-    --accent: 145 40% 25%;
-    --accent-foreground: 150 15% 95%;
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 155 15% 18%;
-    --input: 155 15% 18%;
-    --ring: 155 80% 65%;
-    --chart-1: 155 80% 65%;
-    --chart-2: 175 60% 60%;
-
-    --sidebar-background: var(--background);
-    --sidebar-foreground: var(--foreground);
-    --sidebar-primary: var(--primary);
-    --sidebar-primary-foreground: var(--primary-foreground);
-    --sidebar-accent: var(--accent);
-    --sidebar-accent-foreground: var(--accent-foreground);
-    --sidebar-border: var(--border);
-    --sidebar-ring: var(--ring);
-  }
-  
-  /* Theme: Gold */
-  .dark .theme-gold {
-    --background: 40 25% 5%;       /* Dark brown-gold */
-    --foreground: 45 40% 95%;
-    --card: 40 25% 9%;
-    --card-foreground: 45 40% 95%;
-    --popover: 40 25% 5%;
-    --popover-foreground: 45 40% 95%;
-    --primary: 45 90% 65%;          /* Bright, rich gold */
-    --primary-foreground: 40 60% 10%;
-    --secondary: 40 20% 15%;
-    --secondary-foreground: 45 40% 85%;
-    --muted: 40 20% 15%;
-    --muted-foreground: 45 20% 60%;
-    --accent: 35 50% 28%;
-    --accent-foreground: 45 40% 95%;
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 95%;
-    --border: 40 20% 20%;
-    --input: 40 20% 20%;
-    --ring: 45 90% 65%;
-    --chart-1: 45 90% 65%;
-    --chart-2: 50 80% 60%;
-
-    --sidebar-background: var(--background);
-    --sidebar-foreground: var(--foreground);
-    --sidebar-primary: var(--primary);
-    --sidebar-primary-foreground: var(--primary-foreground);
-    --sidebar-accent: var(--accent);
-    --sidebar-accent-foreground: var(--accent-foreground);
-    --sidebar-border: var(--border);
-    --sidebar-ring: var(--ring);
-  }
+  /* `theme-red` deliberately has no block of its own. <html> always carries
+     `.dark`, and the light palette is applied by `.theme-default` on <body>
+     overriding it; `theme-red` is simply the absence of that override, so the
+     palette above shows through. Any retired theme key (theme-forest and the
+     rest) now lands here too, which is what should happen. */
 
 }
 
@@ -515,4 +248,4 @@ body {
  * these are overridden the moment the body's theme lands.
  */
 html.boot-light { background-color: hsl(220 30% 99.4%); }
-html.boot-dark  { background-color: hsl(220 15% 8%); }
+html.boot-dark  { background-color: hsl(0 30% 8%); }
