@@ -91,8 +91,10 @@ const OngoingOrderRow: React.FC<{ order: Order }> = ({ order }) => {
         </span>
       </div>
       <div className="flex items-baseline justify-between gap-3 mt-1 pl-3.5">
-        <span className="text-xs text-muted-foreground truncate">
-          {order.status} · {order.customerName || 'Walk-in'}
+        {/* The dot carries the status. Spelling it out on every row put
+            "In Progress ·" twenty times down a narrow column. */}
+        <span className="text-xs text-muted-foreground truncate" title={order.status}>
+          {order.customerName || 'Walk-in'}
         </span>
         <span className="text-xs text-muted-foreground tabular-nums flex-shrink-0">
           {format(parseISO(order.createdAt), 'd MMM')}
@@ -106,15 +108,21 @@ const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => (
   <Link href={`/view-invoice?invoiceId=${invoice.id}`} className="block py-2.5 px-1.5 hover:bg-muted/50 rounded-md transition-colors group">
     <div className="flex items-baseline justify-between gap-3 min-w-0">
       <span className="font-semibold text-sm truncate">{invoice.customerName || 'Walk-in'}</span>
-      <span className="text-sm font-semibold tabular-nums flex-shrink-0">
-        PKR {(invoice.grandTotal || 0).toLocaleString()}
+      <span className={cn('text-sm font-semibold tabular-nums flex-shrink-0',
+        (invoice.balanceDue || 0) > 0 && 'text-warning')}>
+        {compactPKR(invoice.grandTotal || 0)}
       </span>
     </div>
     <div className="flex items-baseline justify-between gap-3 mt-1">
-      <span className="text-xs text-muted-foreground truncate">{format(parseISO(invoice.createdAt), 'd MMM, h:mm a')}</span>
+      {/* The clock time is never the question on a dashboard. */}
+      <span className="text-xs text-muted-foreground truncate">{format(parseISO(invoice.createdAt), 'd MMM')}</span>
+      {/* A part-paid invoice needs both figures. A wholly unpaid one was
+          printing the same number twice, once in each colour. */}
       {(invoice.balanceDue || 0) > 0 && (
         <span className="text-xs text-warning tabular-nums flex-shrink-0">
-          PKR {invoice.balanceDue.toLocaleString()} due
+          {invoice.balanceDue >= (invoice.grandTotal || 0)
+            ? 'unpaid'
+            : `${compactPKR(invoice.balanceDue)} due`}
         </span>
       )}
     </div>
@@ -231,29 +239,64 @@ export default function HomePage() {
     };
   }, [orders, generatedInvoices, additionalRevenues, expenses, karigars, karigarJobs]);
 
-  /** Everything actually waiting on a decision, worst first. */
+  /**
+   * Everything actually waiting on a decision, worst first.
+   *
+   * Grouped, not enumerated. Listing every overdue piece produced six rows
+   * that read "Uzair Naseem · N days in progress" one after another — the same
+   * fact six times, and the one genuinely different row lost among them. One
+   * row per karigar says the same thing, and the unpaid invoices stop after
+   * three with the remainder summed rather than continuing down the column.
+   */
   const tasks = useMemo(() => {
     const out: React.ComponentProps<typeof TaskRow>[] = [];
-    for (const j of stats.criticalJobs.slice(0, 6)) {
+
+    const byKarigar = new Map<string, { name: string; count: number; oldest: number }>();
+    for (const j of stats.criticalJobs) {
+      // Work with nobody on it gets its own row below; counting it here too
+      // would list the same piece twice, once under a karigar called
+      // "Unassigned" and once in the unassigned tally.
+      if (j.karigarId === UNASSIGNED_ID) continue;
+      const key = j.karigarId || j.karigarName;
+      const cur = byKarigar.get(key) || { name: j.karigarName, count: 0, oldest: 0 };
+      cur.count += 1;
+      cur.oldest = Math.max(cur.oldest, j.ageDays);
+      byKarigar.set(key, cur);
+    }
+    for (const k of [...byKarigar.values()].sort((a, b) => b.oldest - a.oldest).slice(0, 4)) {
       out.push({
         href: '/workshop', tone: 'danger',
-        title: j.description,
-        detail: `${j.karigarName} · ${j.ageDays} days in progress`,
+        title: k.name,
+        detail: k.count === 1
+          ? `1 piece, ${k.oldest} days on the bench`
+          : `${k.count} pieces overdue · longest ${k.oldest} days`,
       });
     }
+
     if (stats.unassignedJobs.length) {
       out.push({
         href: '/workshop', tone: 'danger',
         title: `${stats.unassignedJobs.length} unassigned piece${stats.unassignedJobs.length === 1 ? '' : 's'}`,
-        detail: 'Not assigned to any karigar',
+        detail: 'Nobody is making these yet',
       });
     }
-    for (const inv of stats.unpaid.slice(0, 6)) {
+
+    const unpaid = [...stats.unpaid].sort((a, b) => (b.balanceDue || 0) - (a.balanceDue || 0));
+    for (const inv of unpaid.slice(0, 3)) {
       out.push({
         href: `/view-invoice?invoiceId=${inv.id}`, tone: 'warn',
         title: inv.customerName || 'Walk-in',
-        detail: `${inv.id} · unpaid since ${format(parseISO(inv.createdAt), 'd MMM')}`,
-        amount: `PKR ${(inv.balanceDue || 0).toLocaleString()}`,
+        detail: `Unpaid since ${format(parseISO(inv.createdAt), 'd MMM')}`,
+        amount: compactPKR(inv.balanceDue || 0),
+      });
+    }
+    const rest = unpaid.slice(3);
+    if (rest.length) {
+      out.push({
+        href: '/invoices', tone: 'warn',
+        title: `${rest.length} more unpaid`,
+        detail: 'Smaller balances',
+        amount: compactPKR(rest.reduce((s, i) => s + (i.balanceDue || 0), 0)),
       });
     }
     return out;
