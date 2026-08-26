@@ -56,7 +56,6 @@ import * as z from 'zod';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
-import { SearchablePicker } from '@/components/shared/searchable-picker';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
@@ -109,36 +108,7 @@ type PhoneForm = {
 
 type NotificationType = 'inProgress' | 'completed' | 'summary';
 
-// ─── TCS Courier ─────────────────────────────────────────────────────────────
-const TCS_CITIES = [
-  { code: 'KHI', name: 'Karachi' },
-  { code: 'LHE', name: 'Lahore' },
-  { code: 'ISB', name: 'Islamabad' },
-  { code: 'RWP', name: 'Rawalpindi' },
-  { code: 'MUL', name: 'Multan' },
-  { code: 'FSD', name: 'Faisalabad' },
-  { code: 'HYD', name: 'Hyderabad' },
-  { code: 'PEW', name: 'Peshawar' },
-  { code: 'QTA', name: 'Quetta' },
-  { code: 'SKT', name: 'Sialkot' },
-  { code: 'GUJ', name: 'Gujranwala' },
-  { code: 'SWL', name: 'Sahiwal' },
-  { code: 'BTN', name: 'Bahawalpur' },
-  { code: 'SRG', name: 'Sargodha' },
-  { code: 'ABT', name: 'Abbottabad' },
-] as const;
-
-const tcsBookingSchema = z.object({
-  consigneeName: z.string().min(2, 'Name is required (min 2 chars)'),
-  consigneeMobile: z.string().regex(/^03\d{9}$/, 'Enter a valid Pakistani mobile (03XXXXXXXXX)'),
-  consigneeAddress: z.string().min(5, 'Full address is required'),
-  cityCode: z.string().min(2, 'City code is required (e.g. KHI)').max(5),
-  cityName: z.string().min(2, 'City name is required'),
-  weightKg: z.coerce.number().min(0.5, 'Minimum weight is 0.5 kg'),
-  codAmount: z.coerce.number().min(0, 'COD cannot be negative').max(250000),
-  description: z.string().optional(),
-});
-type TcsBookingFormData = z.infer<typeof tcsBookingSchema>;
+// ─── Courier ─────────────────────────────────────────────────────────────────
 
 /**
  * Booking a courier the way the shop already does it.
@@ -154,267 +124,124 @@ type TcsBookingFormData = z.infer<typeof tcsBookingSchema>;
  */
 const ShopifyCourierOption: React.FC<{ order: Order; onDone: () => void }> = ({ order, onDone }) => {
   const { toast } = useToast();
-  const [busy, setBusy] = useState(false);
+  const updateOrder = useAppStore(s => s.updateOrder);
+  const [busy, setBusy] = useState<null | 'creating' | 'fulfilling'>(null);
   const [notify, setNotify] = useState(false);
-  const shopifyOrderId = order.shopifyOrderId;
+  const linked = order.shopifyOrderId;
+  const delivering = !!order.delivery?.required && !!order.delivery.address?.trim();
 
-  if (!shopifyOrderId) {
-    return (
-      <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
-        <p className="font-medium text-foreground flex items-center gap-1.5">
-          <ShoppingBag className="h-3.5 w-3.5" />Booking through Shopify is not available for this order
-        </p>
-        <p className="mt-1">
-          {order.id} was taken in the shop, so there is no Shopify order for Universal Courier to pick up.
-          Book it with TCS directly below.
-        </p>
-      </div>
-    );
-  }
-
-  const book = async () => {
-    setBusy(true);
+  const authHeader = async (): Promise<Record<string, string>> => {
     try {
-      const idToken = await firebaseAuth?.currentUser?.getIdToken();
+      const tk = await firebaseAuth?.currentUser?.getIdToken();
+      return tk ? { Authorization: `Bearer ${tk}` } : {};
+    } catch { return {}; }
+  };
+
+  const run = async () => {
+    try {
+      let shopifyOrderId = linked;
+
+      // A custom order has no Shopify order behind it, so one is made first —
+      // with custom line items, never variants, so nothing joins the product
+      // catalogue.
+      if (!shopifyOrderId) {
+        setBusy('creating');
+        const res = await fetch('/api/shopify/push/from-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+          body: JSON.stringify({ orderId: order.id }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Could not create the Shopify order');
+        shopifyOrderId = json.shopifyOrderId;
+        await updateOrder(order.id, {
+          shopifyOrderId: json.shopifyOrderId,
+          shopifyOrderNumber: json.shopifyOrderNumber,
+        });
+        toast({
+          title: `Shopify order #${json.shopifyOrderNumber} created`,
+          description: json.hasShippingAddress
+            ? 'Delivery address attached.'
+            : 'No delivery address on this order — add one so the courier has somewhere to send it.',
+        });
+      }
+
+      setBusy('fulfilling');
       const res = await fetch('/api/shopify/fulfill', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+        headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
         body: JSON.stringify({ shopifyOrderId, notifyCustomer: notify }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Shopify refused the fulfilment');
-      toast({ title: 'Sent to Shopify', description: json.message });
+      toast({ title: 'Sent for booking', description: json.message });
       onDone();
     } catch (e: unknown) {
-      toast({ title: 'Could not fulfil', description: (e as Error).message, variant: 'destructive' });
+      toast({ title: 'Could not book', description: (e as Error).message, variant: 'destructive' });
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
   return (
-    <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2.5">
-      <div>
-        <p className="font-medium text-sm flex items-center gap-1.5">
-          <ShoppingBag className="h-4 w-4 text-primary" />Book through Shopify
-        </p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Fulfils the Shopify order so Universal Courier raises the Envio consignment. The tracking
-          number arrives on the Shopify order once it has been booked, not immediately.
-        </p>
-      </div>
+    <div className="space-y-3">
+      {!delivering && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 p-2.5 text-xs text-warning">
+          This order has no delivery address. It can still be booked, but the courier will have
+          nowhere to send it — add one on the order first.
+        </div>
+      )}
+
+      <ol className="text-xs text-muted-foreground space-y-1.5">
+        <li className="flex gap-2">
+          <span className={cn('font-mono', linked && 'line-through opacity-60')}>1.</span>
+          <span className={cn(linked && 'line-through opacity-60')}>
+            {linked
+              ? `Shopify order #${order.shopifyOrderNumber ?? linked} already exists`
+              : 'Create a matching Shopify order — custom lines only, nothing added to your catalogue'}
+          </span>
+        </li>
+        <li className="flex gap-2"><span className="font-mono">2.</span><span>Fulfil it in Shopify</span></li>
+        <li className="flex gap-2"><span className="font-mono">3.</span><span>Universal Courier raises the Envio consignment and returns the tracking number</span></li>
+      </ol>
+
       <label className="flex items-center gap-2 text-xs cursor-pointer">
         <Checkbox checked={notify} onCheckedChange={v => setNotify(!!v)} />
-        {/* Off by default: the useful email is the one carrying a tracking
-            number, and that does not exist yet at this point. */}
+        {/* Off by default: the email worth sending is the one with a tracking
+            number, and that does not exist until Envio has booked it. */}
         Email the customer now — before there is a tracking number
       </label>
-      <Button size="sm" onClick={book} disabled={busy} className="w-full">
+
+      <Button size="sm" onClick={run} disabled={!!busy} className="w-full">
         {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Truck className="mr-2 h-4 w-4" />}
-        {busy ? 'Fulfilling…' : 'Fulfil in Shopify'}
+        {busy === 'creating' ? 'Creating the Shopify order…'
+          : busy === 'fulfilling' ? 'Fulfilling…'
+          : linked ? 'Fulfil in Shopify' : 'Create and book'}
       </Button>
     </div>
   );
 };
 
 const BookCourierDialog: React.FC<{
-    order: Order;
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    onBooked: (consignmentNo: string) => void;
-}> = ({ order, open, onOpenChange, onBooked }) => {
-    const { toast } = useToast();
-
-    const defaultName = order.customerName || '';
-    const rawPhone = order.customerContact?.replace(/\D/g, '') || '';
-    const defaultPhone = rawPhone.startsWith('0') ? rawPhone : rawPhone ? `0${rawPhone}` : '';
-
-    const form = useForm<TcsBookingFormData>({
-        resolver: zodResolver(tcsBookingSchema),
-        defaultValues: {
-            consigneeName: defaultName,
-            consigneeMobile: defaultPhone.slice(0, 11),
-            consigneeAddress: '',
-            cityCode: '',
-            cityName: '',
-            weightKg: 0.5,
-            codAmount: Math.max(0, order.grandTotal || 0),
-            description: order.items.map(i => i.description).join(', ').slice(0, 200),
-        },
-    });
-
-    const watchCityCode = form.watch('cityCode');
-    React.useEffect(() => {
-        const city = TCS_CITIES.find(c => c.code === watchCityCode);
-        if (city) form.setValue('cityName', city.name);
-    }, [watchCityCode, form]);
-
-    const handleSubmit = async (data: TcsBookingFormData) => {
-        try {
-            const res = await fetch('/api/tcs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'book',
-                    consignee: {
-                        name: data.consigneeName,
-                        mobile: data.consigneeMobile,
-                        address: data.consigneeAddress,
-                        cityCode: data.cityCode,
-                        cityName: data.cityName,
-                    },
-                    shipment: {
-                        referenceNo: order.id,
-                        description: data.description || 'Jewellery',
-                        weightKg: data.weightKg,
-                        codAmount: data.codAmount,
-                    },
-                }),
-            });
-
-            const result = await res.json();
-
-            if (result.status === true && result.consignmentNo) {
-                toast({
-                    title: 'Shipment booked',
-                    description: `TCS Consignment No: ${result.consignmentNo}`,
-                });
-                onBooked(result.consignmentNo);
-                onOpenChange(false);
-            } else {
-                const errMsg = result.message || result.error || JSON.stringify(result);
-                toast({
-                    title: 'Booking Failed',
-                    description: errMsg,
-                    variant: 'destructive',
-                });
-            }
-        } catch {
-            toast({ title: 'Network Error', description: 'Could not reach TCS API.', variant: 'destructive' });
-        }
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-lg">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center">
-                        <Truck className="mr-2 h-5 w-5" /> Book courier
-                    </DialogTitle>
-                    <DialogDescription>
-                        Two routes, both ending in an Envio consignment.
-                    </DialogDescription>
-                </DialogHeader>
-
-                {/* How the shop actually books TCS: fulfil the order in
-                    Shopify and let Universal Courier raise the Envio
-                    consignment. Only possible where a Shopify order exists — a
-                    custom order has none, and creating one would put it on the
-                    public storefront. */}
-                <ShopifyCourierOption order={order} onDone={() => onOpenChange(false)} />
-
-                <div className="flex items-center gap-3">
-                  <Separator className="flex-1" />
-                  <span className="text-2xs uppercase tracking-wide text-muted-foreground whitespace-nowrap">or book TCS directly</span>
-                  <Separator className="flex-1" />
-                </div>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 pt-2">
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField control={form.control} name="consigneeName" render={({ field }) => (
-                                <FormItem className="col-span-2">
-                                    <FormLabel>Recipient Name</FormLabel>
-                                    <FormControl><Input placeholder="Customer full name" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                            <FormField control={form.control} name="consigneeMobile" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Mobile (03XXXXXXXXX)</FormLabel>
-                                    <FormControl><Input placeholder="03001234567" maxLength={11} {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                            <FormField control={form.control} name="cityCode" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>City</FormLabel>
-                                    <SearchablePicker
-                                        value={field.value || ''}
-                                        onChange={field.onChange}
-                                        options={[
-                                          ...TCS_CITIES.map(c => ({ value: c.code, label: c.name, hint: c.code })),
-                                          { value: 'OTHER', label: 'Other (type below)' },
-                                        ]}
-                                        placeholder="Select city"
-                                        searchPlaceholder="Type a city…"
-                                        aria-label="Delivery city"
-                                    />
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                        </div>
-                        {watchCityCode === 'OTHER' && (
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField control={form.control} name="cityCode" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>TCS City Code</FormLabel>
-                                        <FormControl><Input placeholder="e.g. SWB" maxLength={5} {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="cityName" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>City Name</FormLabel>
-                                        <FormControl><Input placeholder="e.g. Swabi" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                            </div>
-                        )}
-                        <FormField control={form.control} name="consigneeAddress" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Delivery Address</FormLabel>
-                                <FormControl><Input placeholder="House/Shop #, Street, Area" {...field} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField control={form.control} name="weightKg" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Parcel Weight (kg)</FormLabel>
-                                    <FormControl><AmountInput {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                            <FormField control={form.control} name="codAmount" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>COD Amount (PKR)</FormLabel>
-                                    <FormControl><AmountInput placeholder="0 if prepaid" {...field} /></FormControl>
-                                    <FormDescription className="text-xs">Cash on delivery. 0 if already paid.</FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                        </div>
-                        <FormField control={form.control} name="description" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Parcel Contents</FormLabel>
-                                <FormControl><Input placeholder="Brief description of contents" {...field} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                        <DialogFooter>
-                            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                            <Button type="submit" disabled={form.formState.isSubmitting}>
-                                {form.formState.isSubmitting ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Truck className="mr-2 h-4 w-4" />}
-                                Book Shipment
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
-            </DialogContent>
-        </Dialog>
-    );
-};
+  order: Order;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}> = ({ order, open, onOpenChange }) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="max-w-lg">
+      <DialogHeader>
+        <DialogTitle className="flex items-center">
+          <Truck className="mr-2 h-5 w-5" /> Book courier
+        </DialogTitle>
+        <DialogDescription>
+          Booking happens in Shopify: Universal Courier watches for the fulfilment and raises the
+          Envio consignment.
+        </DialogDescription>
+      </DialogHeader>
+      <ShopifyCourierOption order={order} onDone={() => onOpenChange(false)} />
+    </DialogContent>
+  </Dialog>
+);
 
 // --- Finalize Order Dialog Components ---
 const finalizeOrderItemSchema = z.object({
@@ -738,10 +565,6 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleTcsBooked = async (consignmentNo: string) => {
-    if (!order) return;
-    await updateOrder(order.id, { tcsConsignmentNo: consignmentNo });
-  };
 
   const handleRefund = async () => {
     if (!order) return;
@@ -1119,7 +942,7 @@ export default function OrderDetailPage() {
       
       {order && <FinalizeOrderDialog order={order} open={isFinalizeDialogOpen} onOpenChange={setIsFinalizeDialogOpen} />}
       {order && <RecordAdvanceDialog order={order} open={isAdvanceDialogOpen} onOpenChange={setIsAdvanceDialogOpen} />}
-      {order && <BookCourierDialog order={order} open={isBookCourierOpen} onOpenChange={setIsBookCourierOpen} onBooked={handleTcsBooked} />}
+      {order && <BookCourierDialog order={order} open={isBookCourierOpen} onOpenChange={setIsBookCourierOpen} />}
 
       <AlertDialog open={isRevertDialogOpen} onOpenChange={setIsRevertDialogOpen}>
         <AlertDialogContent>
