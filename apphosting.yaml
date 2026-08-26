@@ -22,7 +22,7 @@ env:
   # with no error anywhere. Set this to the custom domain only once DNS
   # resolves, then re-run /api/shopify/register-webhooks.
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://studio--hom-pos-52710474-ceeea.us-central1.hosted.app
+    value: https://pos.houseofmina.store
     availability:
       - BUILD
       - RUNTIME
