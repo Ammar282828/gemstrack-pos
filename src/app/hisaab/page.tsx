@@ -253,6 +253,7 @@ export default function HisaabPage() {
         head: [tableColumns],
         body: tableRows,
         startY: 40,
+        margin: { left: 14, right: 14 },
         theme: 'grid',
         headStyles: { fillColor: [41, 128, 185], textColor: 255 },
     });

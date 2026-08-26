@@ -780,6 +780,10 @@ export default function CartPage() {
     // The description column is 'auto', so its width is whatever the fixed
     // columns leave. Computed here so the height and the drawing wrap at the
     // same measure.
+    // autoTable is given this same margin, so the arithmetic below matches the
+    // width it actually hands the cell. It did not: autoTable defaults to its
+    // own ~14.11mm margin and these pages use 10, so the description column was
+    // assumed 8.2mm wider than it was and the spec line ran into the Qty column.
     const descColWidth = (pageWidth - margin * 2) - (7 + 9 + 22 + 22);
 
     itemsToPrint.forEach((item: InvoiceItem, index) => {
@@ -826,6 +830,7 @@ export default function CartPage() {
         head: [tableColumn],
         body: tableRows,
         startY: tableStartY,
+        margin: { left: margin, right: margin },
         theme: 'grid',
         headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
         styles: { fontSize: 7.5, cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
@@ -879,6 +884,7 @@ export default function CartPage() {
             head: [['Date', 'Amount', 'Notes']],
             body: paymentRows,
             startY: finalY,
+            margin: { left: margin, right: margin },
             theme: 'striped',
             headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 8 },
             styles: { fontSize: 7 },

@@ -174,6 +174,7 @@ async function generateInvoicePDF(
     head: [['#', 'Product & Breakdown', 'Qty', 'Unit', 'Total']],
     body: tableRows,
     startY: tableStartY,
+    margin: { left: margin, right: margin },
     theme: 'grid',
     headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
     styles: { fontSize: 7.5, cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
@@ -210,6 +211,7 @@ async function generateInvoicePDF(
       head: [['Date', 'Amount', 'Notes']],
       body: invoice.paymentHistory.map(p => [format(new Date(p.date), 'PP'), `PKR ${p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, p.notes || 'Payment received']),
       startY: finalY, theme: 'striped',
+      margin: { left: margin, right: margin },
       headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 8 },
       styles: { fontSize: 7 },
     });
@@ -373,6 +375,7 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
     head: [['#', 'Piece & Instructions', 'Est. Price']],
     body: tableRows,
     startY: infoBottom + 7,
+    margin: { left: margin, right: margin },
     theme: 'grid',
     headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
     styles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },

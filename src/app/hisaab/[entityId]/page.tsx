@@ -311,6 +311,7 @@ export default function EntityHisaabPage() {
         head: [tableColumns],
         body: tableRows,
         startY: tableStartY,
+        margin: { left: margin, right: margin },
         theme: 'grid',
         headStyles: { fillColor: [240, 240, 240], textColor: 50, fontStyle: 'bold', fontSize: 9, },
         styles: { fontSize: 8, cellPadding: 2, valign: 'middle' },

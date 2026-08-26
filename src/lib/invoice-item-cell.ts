@@ -80,11 +80,18 @@ export function itemCellHeight(doc: jsPDF, b: ItemBlock, cellWidth: number, padd
 export function drawItemCell(
   doc: jsPDF,
   b: ItemBlock,
-  cell: { x: number; y: number },
+  cell: { x: number; y: number; width?: number },
   cellWidth: number,
   padding = 2,
 ): void {
-  const width = cellWidth - padding * 2;
+  // Draw to whichever is narrower: the width the caller measured with, or the
+  // width the cell actually turned out to be. They are supposed to agree, and
+  // when they did not — autoTable defaults to its own ~14.11mm page margin, so
+  // a caller using 10 computed a column 8.2mm wider than it got — the spec line
+  // ran out of the column and into the Qty figure beside it. Getting this wrong
+  // in the safe direction only costs a slightly tall row; the other direction
+  // is unreadable.
+  const width = Math.min(cellWidth, cell.width ?? cellWidth) - padding * 2;
   const w = wrap(doc, b, width);
   const x = cell.x + padding;
   let y = cell.y + padding;

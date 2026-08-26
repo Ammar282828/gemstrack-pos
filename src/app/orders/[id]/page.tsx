@@ -782,6 +782,7 @@ export default function OrderDetailPage() {
         head: [['#', 'Piece & Instructions', 'Est. Price']],
         body: tableRows,
         startY: finalY,
+        margin: { left: margin, right: margin },
         theme: 'grid',
         headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
         styles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },

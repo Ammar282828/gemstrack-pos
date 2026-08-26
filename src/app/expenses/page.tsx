@@ -185,6 +185,7 @@ export default function ExpensesPage() {
       head: [["Date", "Category", "Description", "Amount (PKR)"]],
       body,
       startY: 40,
+      margin: { left: 14, right: 14 },
       theme: 'grid',
       headStyles: { fillColor: [41, 128, 185], textColor: 255 },
       columnStyles: { 3: { halign: 'right' } },
