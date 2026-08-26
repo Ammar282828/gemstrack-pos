@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
+import { STORE_CONFIG } from '@/lib/store-config';
 
 
 // Schema for the form data
@@ -113,7 +114,9 @@ const getSafeDefaultValues = (p?: Product): ProductFormData => {
       platingType: p?.platingType || '',
       platingNote: p?.platingNote || '',
       nickelFree: !!p?.nickelFree,
-      metalType: p?.metalType || 'silver',
+      // The shop's own default, so the silver store starts on silver and the
+      // gold store on gold rather than both starting on silver.
+      metalType: p?.metalType || STORE_CONFIG.defaultMetal,
       karat: p?.karat || undefined,
       metalWeightG: p?.metalWeightG || 0,
       silverRatePerGram: p?.silverRatePerGram || 0,

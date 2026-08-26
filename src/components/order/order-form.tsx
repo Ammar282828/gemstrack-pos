@@ -39,6 +39,7 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
+import { STORE_CONFIG } from '@/lib/store-config';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -91,10 +92,9 @@ const orderItemSchema = z.object({
   stoneWeightG: z.coerce.number().min(0).default(0),
   stoneDetails: z.string().optional(),
   diamondDetails: z.string().optional(),
-  // No default. Defaulting to silver meant an untouched dropdown recorded
-  // silver silently, and because manual pricing is also the default the price
-  // never depends on the metal — so nothing ever surfaced the mistake. Every
-  // one of the 188 order items entered since March came out silver.
+  // Still required — an item cannot be saved without one — but new rows are
+  // seeded with the store's default metal rather than left blank. See the
+  // blank-item factory below for why this was empty for a while.
   metalType: z.enum(metalTypeValues, { required_error: 'Choose the metal' }),
   isCompleted: z.boolean().default(false),
   karigarId: z.string().optional(),
@@ -270,7 +270,7 @@ function cartItemToOrderItem(p: Product) {
     stoneWeightG: p.stoneWeightG || 0,
     stoneDetails: p.stoneDetails || undefined,
     diamondDetails: p.diamondDetails || undefined,
-    metalType: (p.metalType || 'silver') as MetalType,
+    metalType: (p.metalType || STORE_CONFIG.defaultMetal) as MetalType,
     isCompleted: false,
     isManualPrice: true,
     manualPrice: p.isCustomPrice ? (p.customPrice || 0) : 0,
@@ -661,9 +661,15 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         hasDiamonds: false,
         stoneDetails: '',
         diamondDetails: '',
-        // Deliberately unset: the schema now requires a metal, so a new piece
-        // starts with the question unanswered rather than pre-answered wrongly.
-        metalType: undefined as unknown as MetalType,
+        // Pre-answered from the store's own default rather than hardcoded, so
+        // the silver shop starts on silver and the gold shop on gold.
+        //
+        // This was deliberately left unset for a while, because defaulting it
+        // is what let 188 order items record as silver without anyone noticing
+        // — manual pricing means the price never depends on the metal, so a
+        // wrong one surfaces nowhere. The dropdown is still required and still
+        // has to be changed for a gold piece; it just no longer starts empty.
+        metalType: STORE_CONFIG.defaultMetal as MetalType,
         isCompleted: false,
         hasStones: false,
         stoneWeightG: 0,

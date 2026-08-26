@@ -32,6 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Save } from 'lucide-react';
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
+import { STORE_CONFIG } from '@/lib/store-config';
 
 /** Everything the dialog edits, held as strings so inputs stay controlled. */
 interface Draft {
@@ -137,7 +138,7 @@ const Num: React.FC<{
 export function blankCartItem(): Product {
   return {
     sku: `NEW-${Date.now().toString(36).toUpperCase()}`,
-    name: '', categoryId: '', metalType: 'silver', metalWeightG: 0,
+    name: '', categoryId: '', metalType: STORE_CONFIG.defaultMetal, metalWeightG: 0,
     hasStones: false, stoneWeightG: 0, wastagePercentage: 0, makingCharges: 0,
     hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0,
     isCustomPrice: true, customPrice: 0,
