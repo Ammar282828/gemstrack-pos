@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { PageBack } from '@/components/shared/page-back';
 import { BoardSkeleton } from '@/components/shared/skeletons';
+import { UnfinishedWork } from '@/components/shared/unfinished-work';
 
 const Choice: React.FC<{
   href: string;
@@ -102,6 +103,8 @@ export default function NewSalePage() {
           </CardContent>
         </Card>
       )}
+
+      <UnfinishedWork />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Choice

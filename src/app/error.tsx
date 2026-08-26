@@ -59,12 +59,17 @@ export default function PageError({
         </CardHeader>
         <CardContent className="space-y-4">
           {draftCount > 0 && (
-            <div className="flex items-start gap-2.5 rounded-lg border p-3">
-              <FileWarning className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                {draftCount === 1 ? 'One unfinished form is' : `${draftCount} unfinished forms are`}{' '}
-                still saved on this device. Reopening the order or invoice will offer it back.
-              </p>
+            <div className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                <FileWarning className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {draftCount === 1 ? 'One unfinished form is' : `${draftCount} unfinished forms are`}{' '}
+                  still saved on this device.
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="flex-shrink-0">
+                <Link href="/new">Pick it up</Link>
+              </Button>
             </div>
           )}
 

@@ -34,7 +34,7 @@ import Image from 'next/image';
 import 'react-phone-number-input/style.css';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PhoneField } from '@/components/ui/phone-field';
-import { listDrafts, clearAllDrafts } from '@/lib/form-drafts';
+import { listDrafts } from '@/lib/form-drafts';
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
@@ -435,7 +435,9 @@ const SettingsLink: React.FC<{ href: string; icon: React.ElementType; title: str
   </Button>
 );
 
-/** Was filed under "WhatsApp Notifications", which it has nothing to do with. */
+/** Was filed under "WhatsApp Notifications", which it has nothing to do with.
+ *  The list itself lives on the New sale screen, which is where you would be
+ *  standing when you want it back. This is only the switch and a count. */
 function DraftsRow() {
   const { settings, updateSettings } = useAppStore();
   // Drafts live in this browser, so the count is read on mount rather than
@@ -449,7 +451,9 @@ function DraftsRow() {
       description={<>Saves what you have entered on this device and offers it back if you leave the page before saving.{draftCount > 0 && ` ${draftCount} kept right now.`}</>}
     >
       {draftCount > 0 && (
-        <Button variant="ghost" size="sm" onClick={() => { clearAllDrafts(); setDraftCount(0); }}>Clear</Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/new">View</Link>
+        </Button>
       )}
       <Switch
         checked={settings.autoDraftForms !== false}

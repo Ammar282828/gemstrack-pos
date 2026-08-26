@@ -105,3 +105,73 @@ export function isWorthSaving(data: unknown): boolean {
   };
   return meaningful(data);
 }
+
+/** A draft rendered for a list: where it goes and what is in it. */
+export interface DraftSummary {
+  kind: DraftKind;
+  id: string;
+  savedAt: string;
+  /** Where to go to pick it up. */
+  href: string;
+  /** What kind of thing it is, in the shop's words. */
+  noun: string;
+  /** Who it is for, when the form got that far. */
+  title: string;
+  /** What is in it. Empty when there is nothing worth saying. */
+  detail: string;
+}
+
+const str = (o: Record<string, unknown>, k: string): string => {
+  const v = o[k];
+  return typeof v === 'string' ? v.trim() : '';
+};
+const num = (o: Record<string, unknown>, k: string): number => {
+  const v = o[k];
+  const n = typeof v === 'string' ? parseFloat(v.replace(/,/g, '')) : v;
+  return typeof n === 'number' && Number.isFinite(n) ? n : 0;
+};
+
+/**
+ * Describe a draft without trusting its shape. The payload is whatever the
+ * form looked like when it was written, read back out of localStorage, so it
+ * may predate any field this reads — every accessor falls back rather than
+ * throwing. A drafts list that crashes on an old draft is worse than no list.
+ */
+export function summarizeDraft(draft: Draft): DraftSummary {
+  const data = (draft.data && typeof draft.data === 'object' ? draft.data : {}) as Record<string, unknown>;
+  const base = { kind: draft.kind, id: draft.id, savedAt: draft.savedAt };
+
+  if (draft.kind === 'order') {
+    const items = Array.isArray(data.items) ? data.items : [];
+    const advance = num(data, 'advancePayment');
+    const parts = [
+      items.length ? `${items.length} item${items.length === 1 ? '' : 's'}` : 'No items yet',
+      advance > 0 ? `advance PKR ${advance.toLocaleString()}` : '',
+    ].filter(Boolean);
+    return {
+      ...base,
+      // Only `new` is ever written today — both forms skip drafting while
+      // editing — but an older draft keyed to a record still resolves.
+      href: draft.id === 'new' ? '/orders/add' : `/orders/${draft.id}/edit`,
+      noun: 'Custom order',
+      title: str(data, 'customerName') || 'No customer entered',
+      detail: parts.join(' · '),
+    };
+  }
+
+  // The sale draft holds the customer and money fields only. The items live in
+  // the cart itself, which is why this says "details" rather than promising a
+  // basket that was never in here.
+  const parts = [
+    num(data, 'discountAmountInput') > 0 ? `discount PKR ${num(data, 'discountAmountInput').toLocaleString()}` : '',
+    str(data, 'exchangeDescription') ? 'exchange noted' : '',
+    str(data, 'walkInCustomerPhone') ? 'phone entered' : '',
+  ].filter(Boolean);
+  return {
+    ...base,
+    href: '/cart',
+    noun: 'Sale',
+    title: str(data, 'walkInCustomerName') || 'No customer entered',
+    detail: parts.length ? parts.join(' · ') : 'Customer details only',
+  };
+}
