@@ -24,7 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { metalLabel, describeMetal, describeSettings, describeDelivery } from '@/lib/materials';
+import { metalLabel, describeSettings, describeDelivery } from '@/lib/materials';
 import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
@@ -34,7 +34,8 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
-import { fitText, widthBeforeColumn } from '@/lib/pdf-text';
+import { fitText } from '@/lib/pdf-text';
+import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -332,21 +333,21 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   pdfDoc.setLineWidth(0.2).line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
   infoY += 6;
   pdfDoc.setFont('helvetica', 'normal').setTextColor(0).setFontSize(8.5);
-  // The figures on the right are drawn on these same three lines, so the
-  // left column is capped at the space before them. Without this a long
-  // customer name ran straight through "Advance Paid:".
-  const rightCol = Math.max(
-    pdfDoc.getTextWidth(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`),
-    pdfDoc.getTextWidth('Advance Paid:'),
-    pdfDoc.getTextWidth(`- PKR ${((order.advancePayment || 0) + (order.advanceInExchangeValue || 0)).toLocaleString()}`),
-  );
-  const leftW = widthBeforeColumn(margin, pageWidth - margin, rightCol);
+  // The money moved to a totals block under the table, the way the invoice
+  // does it, so the whole width is the left column now. Still capped: jsPDF
+  // will draw a long name straight off the page.
+  const leftW = pageWidth - margin * 2;
   fitText(pdfDoc, `Order ID: ${order.id}`, margin, infoY, leftW);
   fitText(pdfDoc, `Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, infoY + 5, leftW);
   fitText(pdfDoc, `Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10, leftW);
   // What the customer was told, printed so the slip can be held to it.
+  // The rule under this block follows whatever the last line turned out to
+  // be. A silver order has no gold-rate line and most have no promised date
+  // yet, and a fixed offset left a hand's width of blank above the table.
+  let lastLine = infoY + 10;
   if (order.promisedDate) {
-    fitText(pdfDoc, `Promised: ${format(parseISO(order.promisedDate), 'PP')}`, margin, infoY + 15, leftW);
+    lastLine += 5;
+    fitText(pdfDoc, `Promised: ${format(parseISO(order.promisedDate), 'PP')}`, margin, lastLine, leftW);
   }
 
   const rates = order.ratesApplied as Record<string, number>;
@@ -356,48 +357,46 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
   if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
   if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
-  if (ratesApplied.length > 0) { pdfDoc.setFontSize(6.5).setTextColor(150); pdfDoc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, infoY + (order.promisedDate ? 20 : 15), { maxWidth: leftW }); }
+  if (ratesApplied.length > 0) { pdfDoc.setFontSize(6.5).setTextColor(150); pdfDoc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, (lastLine += 5), { maxWidth: leftW }); }
 
-  pdfDoc.setTextColor(0).setFontSize(8.5).setFont('helvetica', 'bold');
-  pdfDoc.text(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`, pageWidth - margin, infoY + 5, { align: 'right' });
-  pdfDoc.text('Advance Paid:', pageWidth - margin, infoY + 10, { align: 'right' });
-  const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
-  pdfDoc.text(`- PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, infoY + 15, { align: 'right' });
 
-    // The promised date adds a line on the left, so the rule under this block
-    // and everything after it move down with it rather than sitting on top.
-    const infoBottom = infoY + (order.promisedDate ? 25 : 20);
+  const infoBottom = lastLine + 5;
   pdfDoc.setLineWidth(0.3).line(margin, infoBottom, pageWidth - margin, infoBottom);
 
-  const tableRows: any[][] = order.items.map((item, i) => {
-    const metalName = describeMetal(item.metalType, item.karat);
-    const metalLine = item.isManualPrice ? metalName : `${metalName}  |  Est. Wt: ${item.estimatedWeightG}g${item.metalType !== 'silver' && item.wastagePercentage > 0 ? `  |  Wastage: ${item.wastagePercentage}%` : ''}`;
-    const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
-    const detailLines: string[] = [];
-    if (categoryTitle) detailLines.push(categoryTitle.toUpperCase());
-    detailLines.push(item.description);
-    detailLines.push(metalLine);
-    if (item.referenceSku) detailLines.push(`Ref SKU: ${item.referenceSku}`);
-    const plating = describePlating(item);
-    if (plating) detailLines.push(`Finish: ${plating}`);
-    const instructions = mergeInstructions(item);
-    if (instructions) instructions.split('\n').forEach(l => detailLines.push(`Instructions: ${l}`));
-    return [i + 1, detailLines.join('\n'), `PKR ${(item.totalEstimate || 0).toLocaleString()}`];
-  });
+  const itemBlocks = buildOrderItemBlocks(order);
+  const tableRows: any[][] = order.items.map((item, i) => [i + 1, '', `PKR ${(item.totalEstimate || 0).toLocaleString()}`]);
+  // Must match columnStyles below; see itemCellHeight on why this cannot be
+  // read from the cell at parse time.
+  const slipDescWidth = pageWidth - margin * 2 - 7 - 28;
 
   pdfDoc.autoTable({
-    head: [['#', 'Item Details', 'Est. Price']],
+    head: [['#', 'Piece & Instructions', 'Est. Price']],
     body: tableRows,
     startY: infoBottom + 7,
     theme: 'grid',
     headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
     styles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
     columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 28, halign: 'right' } },
+    didParseCell: (data: any) => {
+      if (data.section === 'body' && data.column.index === 1) {
+        const block = itemBlocks[data.row.index];
+        if (block) { data.cell.text = []; data.cell.styles.minCellHeight = itemCellHeight(pdfDoc, block, slipDescWidth); }
+      }
+    },
+    didDrawCell: (data: any) => {
+      if (data.section === 'body' && data.column.index === 1) {
+        const block = itemBlocks[data.row.index];
+        if (block) drawItemCell(pdfDoc, block, data.cell, slipDescWidth);
+      }
+    },
     didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
       if (data.pageNumber > 1) { pdfDoc.setPage(data.pageNumber); data.settings.startY = 30; }
       drawHeader(data.pageNumber);
     },
   });
+
+  // The money, laid out the way the invoice lays it out.
+  drawOrderTotals(pdfDoc, order, { pageWidth, margin, startY: (pdfDoc.lastAutoTable.finalY || infoBottom) + 8 });
 
   const footerStartY = pageHeight - 36;
   const contacts = [

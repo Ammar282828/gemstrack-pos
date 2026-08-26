@@ -5,10 +5,10 @@
 import React, { useState, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
-import { mergeInstructions } from '@/lib/workshop';
-import { describePlating, describeSettings } from '@/lib/materials';
-import { itemCellHeight, drawItemCell, type ItemBlock } from '@/lib/invoice-item-cell';
-import { fitText, widthBeforeColumn } from '@/lib/pdf-text';
+import { describePlating } from '@/lib/materials';
+import { itemCellHeight, drawItemCell } from '@/lib/invoice-item-cell';
+import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
+import { fitText } from '@/lib/pdf-text';
 import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { METAL_TYPES as metalTypeValues, describeMetal } from '@/lib/materials';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
@@ -724,21 +724,21 @@ export default function OrderDetailPage() {
     infoY += 6;
 
     doc.setFont("helvetica", "normal").setTextColor(0).setFontSize(8.5);
-    // The figures on the right are drawn on these same three lines, so the
-    // left column is capped at the space before them. Without this a long
-    // customer name ran straight through "Advance Paid:".
-    const rightCol = Math.max(
-      doc.getTextWidth(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`),
-      doc.getTextWidth('Advance Paid:'),
-      doc.getTextWidth(`- PKR ${((order.advancePayment || 0) + (order.advanceInExchangeValue || 0)).toLocaleString()}`),
-    );
-    const leftW = widthBeforeColumn(margin, pageWidth - margin, rightCol);
+    // The money moved to a totals block under the table, the way the invoice
+    // does it, so the whole width is the left column now. Still capped: jsPDF
+    // will draw a long name straight off the page.
+    const leftW = pageWidth - margin * 2;
     fitText(doc, `Order ID: ${order.id}`, margin, infoY, leftW);
     fitText(doc, `Date: ${format(parseISO(order.createdAt), 'PP')}`, margin, infoY + 5, leftW);
     fitText(doc, `Customer: ${order.customerName || 'Walk-in'}`, margin, infoY + 10, leftW);
     // What the customer was told, printed so the slip can be held to it.
+    // The rule under this block follows whatever the last line turned out to
+    // be. A silver order has no gold-rate line and most have no promised date
+    // yet, and a fixed offset left a hand's width of blank above the table.
+    let lastLine = infoY + 10;
     if (order.promisedDate) {
-      fitText(doc, `Promised: ${format(parseISO(order.promisedDate), 'PP')}`, margin, infoY + 15, leftW);
+      lastLine += 5;
+      fitText(doc, `Promised: ${format(parseISO(order.promisedDate), 'PP')}`, margin, lastLine, leftW);
     }
 
     const rates = order.ratesApplied;
@@ -752,18 +752,11 @@ export default function OrderDetailPage() {
     }
     if (ratesApplied.length > 0) {
         doc.setFontSize(6.5).setTextColor(150);
-        doc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, infoY + (order.promisedDate ? 20 : 15), { maxWidth: leftW });
+        doc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, (lastLine += 5), { maxWidth: leftW });
     }
 
-    doc.setTextColor(0).setFontSize(8.5).setFont('helvetica', 'bold');
-    doc.text(`Est: PKR ${(order.subtotal || 0).toLocaleString()}`, pageWidth - margin, infoY + 5, { align: 'right' });
-    doc.text(`Advance Paid:`, pageWidth - margin, infoY + 10, { align: 'right' });
-    const totalAdvance = (order.advancePayment || 0) + (order.advanceInExchangeValue || 0);
-    doc.text(`- PKR ${totalAdvance.toLocaleString()}`, pageWidth - margin, infoY + 15, { align: 'right' });
 
-    // The promised date adds a line on the left, so the rule under this block
-    // and everything after it move down with it rather than sitting on top.
-    const infoBottom = infoY + (order.promisedDate ? 25 : 20);
+    const infoBottom = lastLine + 5;
 
     doc.setLineWidth(0.3);
     doc.line(margin, infoBottom, pageWidth - margin, infoBottom);
@@ -779,33 +772,8 @@ export default function OrderDetailPage() {
     // uses gives it a hierarchy: the piece leads, its specification sits under
     // it in grey, and what has to be set into it is darker because that is
     // what the karigar is actually reading.
-    const itemBlocks: ItemBlock[] = [];
-    const tableRows: any[][] = [];
-    for (let i = 0; i < order.items.length; i++) {
-        const item = order.items[i];
-        const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
-        const metalName = describeMetal(item.metalType, item.karat);
-        const metalPart = item.isManualPrice
-            ? metalName
-            : `${metalName}${item.estimatedWeightG ? ` · Est. ${item.estimatedWeightG}g` : ''}${item.metalType !== 'silver' && item.wastagePercentage > 0 ? ` · Wastage ${item.wastagePercentage}%` : ''}`;
-
-        // Darker than the spec line: settings and bench instructions are the
-        // part the workshop works from.
-        const notes: string[] = [...describeSettings(item)];
-        const plating = describePlating(item);
-        if (plating) notes.push(`Finish: ${plating}`);
-        const instructions = mergeInstructions(item);
-        if (instructions) instructions.split('\n').filter(Boolean).forEach(l => notes.push(l));
-
-        itemBlocks.push({
-            name: item.description || '—',
-            spec: [categoryTitle, metalPart, item.size ? `Size ${item.size}` : '', item.referenceSku ? `Ref ${item.referenceSku}` : '']
-                .filter(Boolean).join('  ·  '),
-            settings: notes,
-            breakdown: [],
-        });
-        tableRows.push([i + 1, '', `PKR ${(item.totalEstimate || 0).toLocaleString()}`]);
-    }
+    const itemBlocks = buildOrderItemBlocks(order);
+    const tableRows: any[][] = order.items.map((item, idx) => [idx + 1, '', `PKR ${(item.totalEstimate || 0).toLocaleString()}`]);
     // Must match columnStyles below; see itemCellHeight on why this cannot be
     // read from the cell at parse time.
     const slipDescWidth = pageWidth - margin * 2 - 7 - 28;
@@ -847,7 +815,10 @@ export default function OrderDetailPage() {
     });
 
     finalY = doc.lastAutoTable.finalY || finalY;
-    
+
+    // The money, laid out the way the invoice lays it out.
+    drawOrderTotals(doc, order, { pageWidth, margin, startY: finalY + 8 });
+
     const footerStartY = pageHeight - 36;
     const contacts = [
         { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
