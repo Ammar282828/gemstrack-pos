@@ -16,7 +16,7 @@ import type { Order } from '@/lib/store';
 import { staticCategories } from '@/lib/store';
 import { describeMetal, describeSettings } from '@/lib/materials';
 import type { ItemBlock } from '@/lib/invoice-item-cell';
-import { fitText } from '@/lib/pdf-text';
+import { drawTotals, type TotalRow } from '@/lib/pdf-chrome';
 
 const money = (n: number) => `PKR ${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
@@ -85,58 +85,25 @@ export function drawOrderTotals(
   opts: { pageWidth: number; margin: number; startY: number },
 ): number {
   const { pageWidth, margin, startY } = opts;
-  const totalsX = pageWidth - margin;
-  const labelX = totalsX - 50;
-  /** A long exchange description would otherwise grow leftwards off the page. */
-  const labelW = Math.max(0, labelX - margin);
-  let y = startY;
-
-  const row = (label: string, value: string) => {
-    fitText(doc, label, labelX, y, labelW, { align: 'right' });
-    doc.text(value, totalsX, y, { align: 'right' });
-  };
-
-  doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(0);
-  row('Subtotal:', money(order.subtotal || 0));
-  y += 6;
-
-  const discount = order.discountAmount || 0;
-  if (discount > 0) {
-    doc.setFont('helvetica', 'bold').setTextColor(220, 53, 69);
-    row('Discount:', `- ${money(discount)}`);
-    y += 6;
-  }
-
-  doc.setFont('helvetica', 'normal').setTextColor(0).setLineWidth(0.2).line(labelX, y, totalsX, y);
-  y += 6;
-
-  doc.setFontSize(10).setFont('helvetica', 'bold');
-  row('Estimated Total:', money(order.grandTotal || 0));
-  y += 7;
-
   const cash = order.advancePayment || 0;
   const inKind = order.advanceInExchangeValue || 0;
+  const discount = order.discountAmount || 0;
+  const what = order.advanceInExchangeDescription?.trim();
 
-  if (cash > 0) {
-    doc.setFontSize(9).setFont('helvetica', 'normal');
-    row('Advance paid:', `- ${money(cash)}`);
-    y += 6;
-  }
-  if (inKind > 0) {
-    doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(30, 100, 180);
-    const what = order.advanceInExchangeDescription?.trim();
-    row(what ? `Advance in exchange (${what}):` : 'Advance in exchange:', `- ${money(inKind)}`);
-    doc.setTextColor(0);
-    y += 6;
-  }
+  const rows: TotalRow[] = [{ label: 'Subtotal', value: money(order.subtotal || 0) }];
+  if (discount > 0) rows.push({ label: 'Discount', value: `- ${money(discount)}`, tone: 'ink' });
 
-  // Always shown, even when nothing has been paid: "what is still owed" is the
-  // question the slip exists to answer, and a blank is not an answer.
-  y += 1;
-  doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(0);
-  row('Balance Due:', money(Math.max(0, (order.grandTotal || 0) - cash - inKind)));
-  y += 7;
+  const after: TotalRow[] = [];
+  if (cash > 0) after.push({ label: 'Advance paid', value: `- ${money(cash)}` });
+  if (inKind > 0) after.push({ label: what ? `Advance in exchange (${what})` : 'Advance in exchange', value: `- ${money(inKind)}` });
 
-  doc.setFont('helvetica', 'normal').setFontSize(9);
-  return y;
+  return drawTotals(doc, {
+    pageWidth, margin, startY,
+    rows,
+    total: { label: 'Estimated Total', value: money(order.grandTotal || 0) },
+    after,
+    // Always shown, even at zero: "what is still owed" is the question the
+    // slip exists to answer, and a blank is not an answer.
+    closing: { label: 'Balance Due', value: money(Math.max(0, (order.grandTotal || 0) - cash - inKind)) },
+  });
 }

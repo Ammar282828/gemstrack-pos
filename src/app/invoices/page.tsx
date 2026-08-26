@@ -35,7 +35,14 @@ import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
 import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
 import { fitText } from '@/lib/pdf-text';
+import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
+
+/** Shared by the table and by alignHeadCell, which needs the same object. */
+const INVOICE_COLUMNS = { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 9, halign: 'right' }, 3: { cellWidth: 22, halign: 'right' }, 4: { cellWidth: 22, halign: 'right' } } as const;
 import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
+
+/** Shared by the table and by alignHeadCell, which needs the same object. */
+const SLIP_COLUMNS = { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 28, halign: 'right' } } as const;
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -75,28 +82,17 @@ async function generateInvoicePDF(
     } catch (e) { console.error('Logo load error:', e); }
   }
 
-  function drawHeader(pageNum: number) {
-    if (logoDataUrl) {
-      try { const h = 8; const w = h * STORE_LOGO_ASPECT; pdfDoc.addImage(logoDataUrl, logoFormat, margin, 9, w, h, undefined, 'FAST'); } catch (e) {}
-    }
-    pdfDoc.setFont('helvetica', 'bold').setFontSize(14);
-    pdfDoc.text('ESTIMATE', pageWidth - margin, 14, { align: 'right' });
-    pdfDoc.setLineWidth(0.4).line(margin, 22, pageWidth - margin, 22);
-    if (pageNum > 1) {
-      pdfDoc.setFontSize(8).setTextColor(150);
-      pdfDoc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
-      pdfDoc.setTextColor(0);
-    }
-  }
+  const drawHeader = (pageNum: number) => drawDocHeader(pdfDoc, {
+    pageWidth, pageHeight, margin, title: 'Estimate',
+    logoDataUrl, logoFormat, logoAspect: STORE_LOGO_ASPECT, pageNum,
+  });
   drawHeader(1);
 
   let infoY = 28;
-  pdfDoc.setFontSize(7).setTextColor(100).setFont('helvetica', 'bold');
-  pdfDoc.text('BILL TO:', margin, infoY);
-  pdfDoc.text('INVOICE DETAILS:', pageWidth / 2, infoY);
-  pdfDoc.setLineWidth(0.2).line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
-  infoY += 6;
-  pdfDoc.setFont('helvetica', 'normal').setTextColor(0).setFontSize(8);
+  label(pdfDoc, 'Bill to', margin, infoY);
+  label(pdfDoc, 'Estimate details', pageWidth / 2, infoY);
+  infoY += 5;
+  pdfDoc.setFont('helvetica', 'normal').setFontSize(8);
 
   let customerInfo = 'Walk-in Customer';
   const customer = invoice.customerId ? customers.find(c => c.id === invoice.customerId) : null;
@@ -117,9 +113,8 @@ async function generateInvoicePDF(
     const deliveryLines: string[] = describeDelivery(invoice.delivery);
     if (deliveryLines.length) {
       const dy = infoY + (customerInfo.split('\n').length * 4) + 2;
-      pdfDoc.setFontSize(7).setTextColor(100).setFont('helvetica', 'bold');
-      pdfDoc.text('DELIVER TO:', margin, dy);
-      pdfDoc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(0);
+      label(pdfDoc, 'Deliver to', margin, dy);
+      pdfDoc.setFont('helvetica', 'normal').setFontSize(8);
       pdfDoc.text(deliveryLines.join('\n'), margin, dy + 4, { lineHeightFactor: 1.4 });
     }
   pdfDoc.text(`Estimate #: ${invoice.id}\nDate: ${new Date(invoice.createdAt).toLocaleDateString()}`, pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
@@ -171,15 +166,13 @@ async function generateInvoicePDF(
   });
 
   pdfDoc.autoTable({
+    ...tableStyles(margin),
     head: [['#', 'Product & Breakdown', 'Qty', 'Unit', 'Total']],
     body: tableRows,
     startY: tableStartY,
-    margin: { left: margin, right: margin },
-    theme: 'grid',
-    headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
-    styles: { fontSize: 7.5, cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
-    columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 9, halign: 'right' }, 3: { cellWidth: 22, halign: 'right' }, 4: { cellWidth: 22, halign: 'right' } },
+    columnStyles: INVOICE_COLUMNS,
     didParseCell: (data: any) => {
+      alignHeadCell(data, INVOICE_COLUMNS);
       if (data.section === 'body' && data.column.index === 1) {
         const block = itemBlocks[data.row.index];
         if (block) {
@@ -193,6 +186,7 @@ async function generateInvoicePDF(
         const block = itemBlocks[data.row.index];
         if (block) drawItemCell(pdfDoc, block, data.cell, descColWidth);
       }
+      drawRowRule(pdfDoc, data, 4, { margin, pageWidth });
     },
     didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
       if (data.pageNumber > 1) { pdfDoc.setPage(data.pageNumber); data.settings.startY = 28; }
@@ -222,76 +216,30 @@ async function generateInvoicePDF(
     pdfDoc.addPage(); drawHeader(pdfDoc.getNumberOfPages()); finalY = 28;
   }
 
-  let currentY = finalY + 8;
-  const totalsX = pageWidth - margin;
+  const currentY = finalY + 10;
   const adjustmentsAmount = getInvoiceAdjustmentsAmount(invoice);
-  pdfDoc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(0);
-  pdfDoc.text('Subtotal:', totalsX - 50, currentY, { align: 'right' });
-  pdfDoc.text(`PKR ${invoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-  currentY += 6;
-  if (invoice.discountAmount > 0) {
-    pdfDoc.setFont('helvetica', 'bold').setTextColor(220, 53, 69);
-    pdfDoc.text('Discount:', totalsX - 50, currentY, { align: 'right' });
-    pdfDoc.text(`- PKR ${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    currentY += 6;
-  }
-  if (adjustmentsAmount !== 0) {
-    pdfDoc.setFont('helvetica', 'normal').setTextColor(0);
-    pdfDoc.text('Adjustments:', totalsX - 50, currentY, { align: 'right' });
-    pdfDoc.text(`PKR ${adjustmentsAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    currentY += 6;
-  }
+  const money = (n: number) => `PKR ${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+  const totalRows: TotalRow[] = [{ label: 'Subtotal', value: money(invoice.subtotal) }];
+  if (invoice.discountAmount > 0) totalRows.push({ label: 'Discount', value: `- ${money(invoice.discountAmount)}`, tone: 'ink' });
+  if (adjustmentsAmount !== 0) totalRows.push({ label: 'Adjustments', value: money(adjustmentsAmount) });
   if (invoice.exchangeAmount1 || invoice.exchangeAmount2) {
-    pdfDoc.setFont('helvetica', 'bold').setTextColor(30, 100, 180);
-    // Right-aligned, so a long description grows leftwards out of the totals
-    // block and across the page. Capped at the clear space to its left.
-    fitText(pdfDoc,
-      invoice.exchangeDescription ? `Exchange (${invoice.exchangeDescription}):` : 'Exchange:',
-      totalsX - 50, currentY, Math.max(0, totalsX - 50 - margin), { align: 'right' });
-    currentY += 5;
-    if (invoice.exchangeAmount1) { pdfDoc.setFont('helvetica', 'normal'); pdfDoc.text(`- PKR ${invoice.exchangeAmount1.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' }); currentY += 5; }
-    if (invoice.exchangeAmount2) { pdfDoc.setFont('helvetica', 'normal'); pdfDoc.text(`- PKR ${invoice.exchangeAmount2.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' }); currentY += 5; }
+    totalRows.push({ label: invoice.exchangeDescription ? `Exchange (${invoice.exchangeDescription})` : 'Exchange', value: '', tone: 'ink' });
+    if (invoice.exchangeAmount1) totalRows.push({ label: '', value: `- ${money(invoice.exchangeAmount1)}` });
+    if (invoice.exchangeAmount2) totalRows.push({ label: '', value: `- ${money(invoice.exchangeAmount2)}` });
   }
-  pdfDoc.setFont('helvetica', 'normal').setTextColor(0).setLineWidth(0.2).line(totalsX - 50, currentY, totalsX, currentY);
-  currentY += 6;
-  pdfDoc.setFontSize(10).setFont('helvetica', 'bold');
-  pdfDoc.text('Grand Total:', totalsX - 50, currentY, { align: 'right' });
-  pdfDoc.text(`PKR ${invoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-  currentY += 7;
-  if (invoice.amountPaid > 0) {
-    pdfDoc.setFontSize(9).setFont('helvetica', 'normal');
-    pdfDoc.text('Amount Paid:', totalsX - 50, currentY, { align: 'right' });
-    pdfDoc.text(`- PKR ${invoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    currentY += 7;
-    pdfDoc.setFontSize(12).setFont('helvetica', 'bold');
-    pdfDoc.text('Balance Due:', totalsX - 50, currentY, { align: 'right' });
-    pdfDoc.text(`PKR ${invoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-  }
+  drawTotals(pdfDoc, {
+    pageWidth, margin, startY: currentY,
+    rows: totalRows,
+    total: { label: 'Grand Total', value: money(invoice.grandTotal) },
+    after: invoice.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${money(invoice.amountPaid)}` }] : [],
+    closing: invoice.amountPaid > 0 ? { label: 'Balance Due', value: money(invoice.balanceDue) } : undefined,
+  });
 
-  const footerStartY = pageHeight - 36;
-  const contacts = [
-    { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
-    { name: STORE_CONFIG.contact2Name, number: STORE_CONFIG.contact2Number },
-    { name: STORE_CONFIG.contact3Name, number: STORE_CONFIG.contact3Number },
-    { name: STORE_CONFIG.contact4Name, number: STORE_CONFIG.contact4Number },
-  ].filter(c => c.name && c.number);
-  const qrCodeSize = 16, qrGap = 3;
-  const qrSectionWidth = qrCodeSize * 2 + qrGap;
-  const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
-  const qrStartX = pageWidth - margin - qrSectionWidth;
-  pdfDoc.setLineWidth(0.2).line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
-  pdfDoc.setFontSize(6).setFont('helvetica', 'bold').setTextColor(70);
-  pdfDoc.text('For Orders & Inquiries:', margin, footerStartY + 2, { maxWidth: textBlockWidth });
-  pdfDoc.setFontSize(7.5).setFont('helvetica', 'normal').setTextColor(30);
-  contacts.forEach((c, i) => pdfDoc.text(`${c.name}: ${c.number}`, margin, footerStartY + 6 + i * 4, { maxWidth: textBlockWidth }));
-  const afterContacts = footerStartY + 6 + contacts.length * 4;
-  pdfDoc.setFontSize(6).setFont('helvetica', 'bold').setTextColor(80);
-  pdfDoc.text(STORE_CONFIG.bankLine, margin, afterContacts + 2, { maxWidth: textBlockWidth });
-  if (STORE_CONFIG.iban) { pdfDoc.setFontSize(6).setFont('helvetica', 'normal').setTextColor(100); pdfDoc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, afterContacts + 6, { maxWidth: textBlockWidth }); }
-  const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
-  const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
-  if (waQrCanvas) { pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Join us on Whatsapp', qrStartX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 4, qrCodeSize, qrCodeSize); }
-  if (instaQrCanvas) { const secondQrX = qrStartX + qrCodeSize + qrGap; pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Follow us on Instagram', secondQrX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize); }
+  drawDocFooter(pdfDoc, {
+    pageWidth, pageHeight, margin,
+    whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
+    instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
+  });
   await savePDF(pdfDoc, `Invoice-${invoice.id}.pdf`, iOSWin);
 }
 
@@ -320,13 +268,10 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
     } catch (e) { console.error('Logo load error:', e); }
   }
 
-  function drawHeader(pageNum: number) {
-    if (logoDataUrl) { try { const h = 8; const w = h * STORE_LOGO_ASPECT; pdfDoc.addImage(logoDataUrl, logoFormat, margin, 8, w, h, undefined, 'FAST'); } catch (e) {} }
-    pdfDoc.setFont('helvetica', 'bold').setFontSize(14);
-    pdfDoc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 14, { align: 'right' });
-    pdfDoc.setLineWidth(0.4).line(margin, 22, pageWidth - margin, 22);
-    if (pageNum > 1) { pdfDoc.setFontSize(7).setTextColor(150); pdfDoc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, { align: 'right' }); pdfDoc.setTextColor(0); }
-  }
+    const drawHeader = (pageNum: number) => drawDocHeader(pdfDoc, {
+    pageWidth, pageHeight, margin, title: 'Workshop order slip',
+    logoDataUrl, logoFormat, logoAspect: STORE_LOGO_ASPECT, pageNum,
+  });
   drawHeader(1);
 
   let infoY = 28;
@@ -375,12 +320,10 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
     head: [['#', 'Piece & Instructions', 'Est. Price']],
     body: tableRows,
     startY: infoBottom + 7,
-    margin: { left: margin, right: margin },
-    theme: 'grid',
-    headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
-    styles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
-    columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 28, halign: 'right' } },
+    ...tableStyles(margin),
+    columnStyles: SLIP_COLUMNS,
     didParseCell: (data: any) => {
+      alignHeadCell(data, SLIP_COLUMNS);
       if (data.section === 'body' && data.column.index === 1) {
         const block = itemBlocks[data.row.index];
         if (block) { data.cell.text = []; data.cell.styles.minCellHeight = itemCellHeight(pdfDoc, block, slipDescWidth); }
@@ -391,6 +334,7 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
         const block = itemBlocks[data.row.index];
         if (block) drawItemCell(pdfDoc, block, data.cell, slipDescWidth);
       }
+      drawRowRule(pdfDoc, data, 2, { margin, pageWidth });
     },
     didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
       if (data.pageNumber > 1) { pdfDoc.setPage(data.pageNumber); data.settings.startY = 30; }
@@ -401,30 +345,12 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   // The money, laid out the way the invoice lays it out.
   drawOrderTotals(pdfDoc, order, { pageWidth, margin, startY: (pdfDoc.lastAutoTable.finalY || infoBottom) + 8 });
 
-  const footerStartY = pageHeight - 36;
-  const contacts = [
-    { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
-    { name: STORE_CONFIG.contact2Name, number: STORE_CONFIG.contact2Number },
-    { name: STORE_CONFIG.contact3Name, number: STORE_CONFIG.contact3Number },
-    { name: STORE_CONFIG.contact4Name, number: STORE_CONFIG.contact4Number },
-  ].filter(c => c.name && c.number);
-  const qrCodeSize = 16, qrGap = 3;
-  const qrSectionWidth = qrCodeSize * 2 + qrGap;
-  const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
-  const qrStartX = pageWidth - margin - qrSectionWidth;
-  pdfDoc.setLineWidth(0.2).line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
-  pdfDoc.setFontSize(6).setFont('helvetica', 'bold').setTextColor(70);
-  pdfDoc.text('For Orders & Inquiries:', margin, footerStartY + 2, { maxWidth: textBlockWidth });
-  pdfDoc.setFontSize(7.5).setFont('helvetica', 'normal').setTextColor(30);
-  contacts.forEach((c, i) => pdfDoc.text(`${c.name}: ${c.number}`, margin, footerStartY + 6 + i * 4, { maxWidth: textBlockWidth }));
-  const afterContacts = footerStartY + 6 + contacts.length * 4;
-  pdfDoc.setFontSize(6).setFont('helvetica', 'bold').setTextColor(80);
-  pdfDoc.text(STORE_CONFIG.bankLine, margin, afterContacts + 2, { maxWidth: textBlockWidth });
-  if (STORE_CONFIG.iban) { pdfDoc.setFontSize(6).setFont('helvetica', 'normal').setTextColor(100); pdfDoc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, afterContacts + 6, { maxWidth: textBlockWidth }); }
-  const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
-  const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
-  if (waQrCanvas) { pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Join us on Whatsapp', qrStartX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 4, qrCodeSize, qrCodeSize); }
-  if (instaQrCanvas) { const secondQrX = qrStartX + qrCodeSize + qrGap; pdfDoc.setFontSize(5).setFont('helvetica', 'bold').setTextColor(60); pdfDoc.text('Follow us on Instagram', secondQrX + qrCodeSize / 2, footerStartY + 2, { align: 'center' }); pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize); }
+  drawDocFooter(pdfDoc, {
+    pageWidth, pageHeight, margin,
+    whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
+    instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
+  });
+
   await savePDF(pdfDoc, `OrderSlip-${order.id}.pdf`, iOSWin);
 }
 

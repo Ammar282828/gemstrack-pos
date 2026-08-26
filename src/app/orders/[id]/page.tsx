@@ -64,6 +64,14 @@ import { PromiseLine } from '@/components/shared/promise-line';
 import { PhoneField } from '@/components/ui/phone-field';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
+
+/** Shared by the table and by alignHeadCell, which needs the same object. */
+const SLIP_COLUMNS = {
+  0: { cellWidth: 7, halign: 'center' },
+  1: { cellWidth: 'auto' },
+  2: { cellWidth: 28, halign: 'right' },
+} as const;
 
 
 const getStatusBadgeVariant = (status: OrderStatus) => {
@@ -693,25 +701,10 @@ export default function OrderDetailPage() {
         }
     }
 
-    function drawHeader(pageNum: number) {
-        if (logoDataUrl) {
-            try {
-                const h = 8; const w = h * STORE_LOGO_ASPECT;
-                doc.addImage(logoDataUrl, logoFormat, margin, 8, w, h, undefined, 'FAST');
-            } catch (e) {
-                console.error("Error adding logo to Order Slip PDF:", e);
-            }
-        }
-        doc.setFont("helvetica", "bold").setFontSize(14);
-        doc.text('WORKSHOP ORDER SLIP', pageWidth - margin, 14, { align: 'right' });
-        doc.setLineWidth(0.4);
-        doc.line(margin, 22, pageWidth - margin, 22);
-        if (pageNum > 1) {
-            doc.setFontSize(7).setTextColor(150);
-            doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
-            doc.setTextColor(0);
-        }
-    }
+        const drawHeader = (pageNum: number) => drawDocHeader(doc, {
+      pageWidth, pageHeight, margin, title: 'Workshop order slip',
+      logoDataUrl, logoFormat, logoAspect: STORE_LOGO_ASPECT, pageNum,
+    });
 
     drawHeader(1);
 
@@ -782,16 +775,10 @@ export default function OrderDetailPage() {
         head: [['#', 'Piece & Instructions', 'Est. Price']],
         body: tableRows,
         startY: finalY,
-        margin: { left: margin, right: margin },
-        theme: 'grid',
-        headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
-        styles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
-        columnStyles: {
-            0: { cellWidth: 7, halign: 'center' },
-            1: { cellWidth: 'auto' },
-            2: { cellWidth: 28, halign: 'right' },
-        },
+        ...tableStyles(margin),
+        columnStyles: SLIP_COLUMNS,
         didParseCell: (data: any) => {
+            alignHeadCell(data, SLIP_COLUMNS);
             if (data.section === 'body' && data.column.index === 1) {
                 const block = itemBlocks[data.row.index];
                 if (block) {
@@ -805,6 +792,7 @@ export default function OrderDetailPage() {
                 const block = itemBlocks[data.row.index];
                 if (block) drawItemCell(doc, block, data.cell, slipDescWidth);
             }
+            drawRowRule(doc, data, 2, { margin, pageWidth });
         },
         didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
             if (data.pageNumber > 1) {
@@ -820,51 +808,11 @@ export default function OrderDetailPage() {
     // The money, laid out the way the invoice lays it out.
     drawOrderTotals(doc, order, { pageWidth, margin, startY: finalY + 8 });
 
-    const footerStartY = pageHeight - 36;
-    const contacts = [
-        { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
-        { name: STORE_CONFIG.contact2Name, number: STORE_CONFIG.contact2Number },
-        { name: STORE_CONFIG.contact3Name, number: STORE_CONFIG.contact3Number },
-        { name: STORE_CONFIG.contact4Name, number: STORE_CONFIG.contact4Number },
-    ].filter(c => c.name && c.number);
-    const qrCodeSize = 16;
-    const qrGap = 3;
-    const qrSectionWidth = (qrCodeSize * 2) + qrGap;
-    const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
-    const qrStartX = pageWidth - margin - qrSectionWidth;
-
-    doc.setLineWidth(0.2);
-    doc.line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
-
-    doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
-    doc.text("For Orders & Inquiries:", margin, footerStartY + 2, { maxWidth: textBlockWidth });
-    doc.setFontSize(7.5).setFont("helvetica", "normal").setTextColor(30);
-    contacts.forEach((c, i) => {
-      doc.text(`${c.name}: ${c.number}`, margin, footerStartY + 6 + i * 4, { maxWidth: textBlockWidth });
+    drawDocFooter(doc, {
+      pageWidth, pageHeight, margin,
+      whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
+      instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
     });
-    const afterContacts = footerStartY + 6 + contacts.length * 4;
-    doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(80);
-    doc.text(STORE_CONFIG.bankLine, margin, afterContacts + 2, { maxWidth: textBlockWidth });
-    if (STORE_CONFIG.iban) {
-      doc.setFontSize(6).setFont("helvetica", "normal").setTextColor(100);
-      doc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, afterContacts + 6, { maxWidth: textBlockWidth });
-    }
-
-    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
-    const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
-
-    if (waQrCanvas) {
-        doc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
-        doc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY + 2, { align: 'center' });
-        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 4, qrCodeSize, qrCodeSize);
-    }
-    if (instaQrCanvas) {
-        const secondQrX = qrStartX + qrCodeSize + qrGap;
-        doc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
-        doc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY + 2, { align: 'center' });
-        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize);
-    }
-
 
     await savePDF(doc, `OrderSlip-${order.id}.pdf`, iOSWin);
   };

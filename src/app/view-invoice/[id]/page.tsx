@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { metalLabel, describeMetal, describeSettings, describeDelivery } from '@/lib/materials';
-import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { useParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -20,6 +20,16 @@ import { format } from 'date-fns';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { DetailSkeleton } from '@/components/shared/skeletons';
 import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
+import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
+
+/** Shared by the table and by alignHeadCell, which needs the same object. */
+const INVOICE_COLUMNS = {
+  0: { cellWidth: 7, halign: 'center' },
+  1: { cellWidth: 'auto' },
+  2: { cellWidth: 9, halign: 'right' },
+  3: { cellWidth: 22, halign: 'right' },
+  4: { cellWidth: 22, halign: 'right' },
+} as const;
 
 // Re-declare module for jsPDF in this file as well
 declare module 'jspdf' {
@@ -126,31 +136,10 @@ export default function ViewInvoicePage() {
       }
     }
 
-    function drawHeader(pageNum: number) {
-        if (logoDataUrl) {
-            try {
-                const maxLogoH = 8;
-                const logoH = maxLogoH;
-                const logoW = logoNaturalH > 0 ? maxLogoH * (logoNaturalW / logoNaturalH) : 40;
-                pdfDoc.addImage(logoDataUrl, logoFormat, margin, 7, logoW, logoH, undefined, 'FAST');
-            } catch (e) {
-                console.error("Error adding logo to PDF:", e);
-            }
-        }
-        
-        pdfDoc.setFont("helvetica", "bold");
-        pdfDoc.setFontSize(14);
-        pdfDoc.text('ESTIMATE', pageWidth - margin, 14, { align: 'right' });
-        
-        pdfDoc.setLineWidth(0.4);
-        pdfDoc.line(margin, 22, pageWidth - margin, 22);
-
-        if (pageNum > 1) {
-            pdfDoc.setFontSize(7);
-            pdfDoc.setTextColor(150);
-            pdfDoc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, {align: 'right'});
-        }
-    }
+        const drawHeader = (pageNum: number) => drawDocHeader(pdfDoc, {
+      pageWidth, pageHeight, margin, title: 'Estimate',
+      logoDataUrl, logoFormat, logoAspect: STORE_LOGO_ASPECT, pageNum,
+    });
     
     drawHeader(1);
     
@@ -281,18 +270,10 @@ export default function ViewInvoicePage() {
         head: [tableColumn],
         body: tableRows,
         startY: tableStartY,
-        margin: { left: margin, right: margin },
-        theme: 'grid',
-        headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
-        styles: { fontSize: 7.5, cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
-        columnStyles: {
-            0: { cellWidth: 7, halign: 'center' },
-            1: { cellWidth: 'auto' },
-            2: { cellWidth: 9, halign: 'right' },
-            3: { cellWidth: 22, halign: 'right' },
-            4: { cellWidth: 22, halign: 'right' },
-        },
+        ...tableStyles(margin),
+        columnStyles: INVOICE_COLUMNS,
         didParseCell: (data: any) => {
+            alignHeadCell(data, INVOICE_COLUMNS);
             // Tell autoTable how tall the hand-drawn cell will be, and stop it
             // laying out text of its own there.
             if (data.section === 'body' && data.column.index === 1) {
@@ -308,6 +289,7 @@ export default function ViewInvoicePage() {
                 const block = itemBlocks[data.row.index];
                 if (block) drawItemCell(pdfDoc, block, data.cell, descColWidth);
             }
+            drawRowRule(pdfDoc, data, 4, { margin, pageWidth });
         },
         didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
             if (data.pageNumber > 1) {
@@ -333,90 +315,29 @@ export default function ViewInvoicePage() {
     const totalsX = pageWidth - margin;
     const adjustmentsAmount = getInvoiceAdjustmentsAmount(invoice);
 
-    pdfDoc.setFontSize(9).setFont("helvetica", "normal").setTextColor(0);
-    pdfDoc.text(`Subtotal:`, totalsX - 50, currentY, { align: 'right' });
-    pdfDoc.text(`PKR ${invoice.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    currentY += 6;
-
-    if (invoice.discountAmount > 0) {
-        pdfDoc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
-        pdfDoc.text(`Discount:`, totalsX - 50, currentY, { align: 'right' });
-        pdfDoc.text(`- PKR ${invoice.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-        currentY += 6;
+    const money = (n: number) => `PKR ${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+      const totalRows: TotalRow[] = [{ label: 'Subtotal', value: money(invoice.subtotal) }];
+      if (invoice.discountAmount > 0) totalRows.push({ label: 'Discount', value: `- ${money(invoice.discountAmount)}`, tone: 'ink' });
+      if (adjustmentsAmount !== 0) totalRows.push({ label: 'Adjustments', value: money(adjustmentsAmount) });
+      if (invoice.exchangeAmount1 || invoice.exchangeAmount2) {
+      totalRows.push({ label: invoice.exchangeDescription ? `Exchange (${invoice.exchangeDescription})` : 'Exchange', value: '', tone: 'ink' });
+        if (invoice.exchangeAmount1) totalRows.push({ label: '', value: `- ${money(invoice.exchangeAmount1)}` });
+        if (invoice.exchangeAmount2) totalRows.push({ label: '', value: `- ${money(invoice.exchangeAmount2)}` });
     }
-    if (adjustmentsAmount !== 0) {
-        pdfDoc.setFont("helvetica", "normal").setTextColor(0);
-        pdfDoc.text(`Adjustments:`, totalsX - 50, currentY, { align: 'right' });
-        pdfDoc.text(`PKR ${adjustmentsAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-        currentY += 6;
-    }
-    
-    pdfDoc.setFont("helvetica", "normal").setTextColor(0);
-    pdfDoc.setLineWidth(0.2);
-    pdfDoc.line(totalsX - 50, currentY, totalsX, currentY);
-    currentY += 6;
-    
-    pdfDoc.setFontSize(10).setFont("helvetica", "bold");
-    pdfDoc.text(`Grand Total:`, totalsX - 50, currentY, { align: 'right' });
-    pdfDoc.text(`PKR ${invoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    currentY += 7;
-    
-    if (invoice.amountPaid > 0) {
-        pdfDoc.setFontSize(9).setFont("helvetica", "normal");
-        pdfDoc.text(`Amount Paid:`, totalsX - 50, currentY, { align: 'right' });
-        pdfDoc.text(`- PKR ${invoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-        currentY += 7;
-        
-        pdfDoc.setFontSize(12).setFont("helvetica", "bold");
-        pdfDoc.text(`Balance Due:`, totalsX - 50, currentY, { align: 'right' });
-        pdfDoc.text(`PKR ${invoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    }
-
-    const footerStartY = pageHeight - 36;
-    const contacts = [
-        { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
-        { name: STORE_CONFIG.contact2Name, number: STORE_CONFIG.contact2Number },
-        { name: STORE_CONFIG.contact3Name, number: STORE_CONFIG.contact3Number },
-        { name: STORE_CONFIG.contact4Name, number: STORE_CONFIG.contact4Number },
-    ].filter(c => c.name && c.number);
-    const qrCodeSize = 16;
-    const qrGap = 3;
-    const qrSectionWidth = (qrCodeSize * 2) + qrGap;
-    const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
-    const qrStartX = pageWidth - margin - qrSectionWidth;
-
-    pdfDoc.setLineWidth(0.2);
-    pdfDoc.line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
-
-    pdfDoc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
-    pdfDoc.text("For Orders & Inquiries:", margin, footerStartY + 2, { maxWidth: textBlockWidth });
-    pdfDoc.setFontSize(7.5).setFont("helvetica", "normal").setTextColor(30);
-    contacts.forEach((c, i) => {
-      pdfDoc.text(`${c.name}: ${c.number}`, margin, footerStartY + 6 + i * 4, { maxWidth: textBlockWidth });
+      drawTotals(pdfDoc, {
+      pageWidth, margin, startY: currentY,
+      rows: totalRows,
+      total: { label: 'Grand Total', value: money(invoice.grandTotal) },
+      after: invoice.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${money(invoice.amountPaid)}` }] : [],
+      closing: invoice.amountPaid > 0 ? { label: 'Balance Due', value: money(invoice.balanceDue) } : undefined,
     });
-    const afterContacts = footerStartY + 6 + contacts.length * 4;
-    pdfDoc.setFontSize(6).setFont("helvetica", "bold").setTextColor(80);
-    pdfDoc.text(STORE_CONFIG.bankLine, margin, afterContacts + 2, { maxWidth: textBlockWidth });
-    if (STORE_CONFIG.iban) {
-      pdfDoc.setFontSize(6).setFont("helvetica", "normal").setTextColor(100);
-      pdfDoc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, afterContacts + 6, { maxWidth: textBlockWidth });
-    }
 
-    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
-    const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
+    drawDocFooter(pdfDoc, {
+      pageWidth, pageHeight, margin,
+      whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
+      instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
+    });
 
-    if (waQrCanvas) {
-        pdfDoc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
-        pdfDoc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY + 2, { align: 'center' });
-        pdfDoc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 4, qrCodeSize, qrCodeSize);
-    }
-    if (instaQrCanvas) {
-        const secondQrX = qrStartX + qrCodeSize + qrGap;
-        pdfDoc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
-        pdfDoc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY + 2, { align: 'center' });
-        pdfDoc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize);
-    }
-    
     await savePDF(pdfDoc, `Estimate-${invoice.id}.pdf`, iOSWin);
   }
 

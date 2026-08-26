@@ -11,7 +11,7 @@ import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/
 import { useRouter } from 'next/navigation';
 import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories , DeliveryInfo , PAYMENT_TYPES, PaymentType } from '@/lib/store';
 import { metalLabel, describeMetal, describeSettings, describeDelivery, describePlating } from '@/lib/materials';
-import { STORE_CONFIG, STORE_LOGO_URL } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Trash2, Plus, Minus, ShoppingCart, FileText, ClipboardList, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
+
+/** Shared by the table and by alignHeadCell, which needs the same object. */
+const INVOICE_COLUMNS = {
+  0: { cellWidth: 7, halign: 'center' },
+  1: { cellWidth: 'auto' },
+  2: { cellWidth: 9, halign: 'right' },
+  3: { cellWidth: 22, halign: 'right' },
+  4: { cellWidth: 22, halign: 'right' },
+} as const;
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import QRCode from 'qrcode.react';
@@ -680,40 +690,18 @@ export default function CartPage() {
       }
     }
 
-    function drawHeader(pageNum: number) {
-      if (logoDataUrl) {
-        try {
-          const maxLogoH = 8;
-          const logoH = maxLogoH;
-          const logoW = logoNaturalH > 0 ? maxLogoH * (logoNaturalW / logoNaturalH) : 40;
-          doc.addImage(logoDataUrl, logoFormat, margin, 8, logoW, logoH, undefined, 'FAST');
-        } catch (e) {
-          console.error("Error adding logo image to PDF:", e);
-        }
-      }
+    const drawHeader = (pageNum: number) => drawDocHeader(doc, {
+      pageWidth, pageHeight, margin, title: 'Estimate',
+      logoDataUrl, logoFormat,
+      logoAspect: logoNaturalH > 0 ? logoNaturalW / logoNaturalH : STORE_LOGO_ASPECT,
+      pageNum,
+    });
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text('ESTIMATE', pageWidth - margin, 14, { align: 'right' });
-      
-      doc.setLineWidth(0.4);
-      doc.line(margin, 22, pageWidth - margin, 22);
-
-      if (pageNum > 1) {
-          doc.setFontSize(8);
-          doc.setTextColor(150);
-          doc.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, {align: 'right'});
-      }
-    }
-    
     drawHeader(1);
     
     let infoY = 28;
-    doc.setFontSize(7);
-    doc.setTextColor(100);
-    doc.setFont("helvetica", "bold");
-    doc.text('BILL TO:', margin, infoY);
-    doc.text('INVOICE DETAILS:', pageWidth / 2, infoY);
+    label(doc, 'Bill to', margin, infoY);
+    label(doc, 'Estimate details', pageWidth / 2, infoY);
 
     doc.setLineWidth(0.2);
     doc.line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
@@ -740,9 +728,8 @@ export default function CartPage() {
     const deliveryLines: string[] = describeDelivery(invoiceToPrint.delivery);
     if (deliveryLines.length) {
       const dy = infoY + (customerInfo.split('\n').length * 4) + 2;
-      doc.setFontSize(7).setTextColor(100).setFont('helvetica', 'bold');
-      doc.text('DELIVER TO:', margin, dy);
-      doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(0);
+      label(doc, 'Deliver to', margin, dy);
+      doc.setFont('helvetica', 'normal').setFontSize(8);
       doc.text(deliveryLines.join('\n'), margin, dy + 4, { lineHeightFactor: 1.4 });
     }
 
@@ -830,18 +817,10 @@ export default function CartPage() {
         head: [tableColumn],
         body: tableRows,
         startY: tableStartY,
-        margin: { left: margin, right: margin },
-        theme: 'grid',
-        headStyles: { fillColor: [230, 230, 230], textColor: 40, fontStyle: 'bold', fontSize: 7, cellPadding: 2 },
-        styles: { fontSize: 7.5, cellPadding: { top: 2, bottom: 2, left: 2, right: 2 }, valign: 'top', lineColor: [200, 200, 200], lineWidth: 0.1 },
-        columnStyles: {
-            0: { cellWidth: 7, halign: 'center' },
-            1: { cellWidth: 'auto' },
-            2: { cellWidth: 9, halign: 'right' },
-            3: { cellWidth: 22, halign: 'right' },
-            4: { cellWidth: 22, halign: 'right' },
-        },
+        ...tableStyles(margin),
+        columnStyles: INVOICE_COLUMNS,
         didParseCell: (data: any) => {
+            alignHeadCell(data, INVOICE_COLUMNS);
             // Tell autoTable how tall the hand-drawn cell will be, and stop it
             // laying out text of its own there.
             if (data.section === 'body' && data.column.index === 1) {
@@ -857,6 +836,7 @@ export default function CartPage() {
                 const block = itemBlocks[data.row.index];
                 if (block) drawItemCell(doc, block, data.cell, descColWidth);
             }
+            drawRowRule(doc, data, 4, { margin, pageWidth });
         },
         didDrawPage: (data: { pageNumber: number, settings: { startY: number } }) => {
             if (data.pageNumber > 1) {
@@ -906,107 +886,28 @@ export default function CartPage() {
     const totalsX = pageWidth - margin;
     const adjustmentsAmount = getInvoiceAdjustmentsAmount(invoiceToPrint);
 
-    doc.setFontSize(9).setFont("helvetica", "normal").setTextColor(0);
-    doc.text(`Subtotal:`, totalsX - 50, currentY, { align: 'right' });
-    doc.text(`PKR ${invoiceToPrint.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    currentY += 6;
-
-    if (invoiceToPrint.discountAmount > 0) {
-        doc.setFont("helvetica", "bold").setTextColor(220, 53, 69);
-        doc.text(`Discount:`, totalsX - 50, currentY, { align: 'right' });
-        doc.text(`- PKR ${invoiceToPrint.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-        currentY += 6;
+    const money = (n: number) => `PKR ${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+      const totalRows: TotalRow[] = [{ label: 'Subtotal', value: money(invoiceToPrint.subtotal) }];
+      if (invoiceToPrint.discountAmount > 0) totalRows.push({ label: 'Discount', value: `- ${money(invoiceToPrint.discountAmount)}`, tone: 'ink' });
+      if (adjustmentsAmount !== 0) totalRows.push({ label: 'Adjustments', value: money(adjustmentsAmount) });
+      if (invoiceToPrint.exchangeAmount1 || invoiceToPrint.exchangeAmount2) {
+      totalRows.push({ label: invoiceToPrint.exchangeDescription ? `Exchange (${invoiceToPrint.exchangeDescription})` : 'Exchange', value: '', tone: 'ink' });
+        if (invoiceToPrint.exchangeAmount1) totalRows.push({ label: '', value: `- ${money(invoiceToPrint.exchangeAmount1)}` });
+        if (invoiceToPrint.exchangeAmount2) totalRows.push({ label: '', value: `- ${money(invoiceToPrint.exchangeAmount2)}` });
     }
-
-    if (adjustmentsAmount !== 0) {
-        doc.setFont("helvetica", "normal").setTextColor(0);
-        doc.text(`Adjustments:`, totalsX - 50, currentY, { align: 'right' });
-        doc.text(`PKR ${adjustmentsAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-        currentY += 6;
-    }
-
-    if (invoiceToPrint.exchangeAmount1 || invoiceToPrint.exchangeAmount2) {
-        doc.setFont("helvetica", "bold").setTextColor(30, 100, 180);
-        const exchLabel = invoiceToPrint.exchangeDescription ? `Exchange (${invoiceToPrint.exchangeDescription}):` : `Exchange:`;
-        doc.text(exchLabel, totalsX - 50, currentY, { align: 'right' });
-        currentY += 5;
-        if (invoiceToPrint.exchangeAmount1) {
-            doc.setFont("helvetica", "normal");
-            doc.text(`- PKR ${invoiceToPrint.exchangeAmount1.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-            currentY += 5;
-        }
-        if (invoiceToPrint.exchangeAmount2) {
-            doc.setFont("helvetica", "normal");
-            doc.text(`- PKR ${invoiceToPrint.exchangeAmount2.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-            currentY += 5;
-        }
-    }
-    
-    doc.setFont("helvetica", "normal").setTextColor(0);
-    doc.setLineWidth(0.2);
-    doc.line(totalsX - 50, currentY, totalsX, currentY);
-    currentY += 6;
-    
-    doc.setFontSize(10).setFont("helvetica", "bold");
-    doc.text(`Grand Total:`, totalsX - 50, currentY, { align: 'right' });
-    doc.text(`PKR ${invoiceToPrint.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    currentY += 7;
-
-    if (invoiceToPrint.amountPaid > 0) {
-        doc.setFontSize(9).setFont("helvetica", "normal");
-        doc.text(`Amount Paid:`, totalsX - 50, currentY, { align: 'right' });
-        doc.text(`- PKR ${invoiceToPrint.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-        currentY += 7;
-        
-        doc.setFontSize(12).setFont("helvetica", "bold");
-        doc.text(`Balance Due:`, totalsX - 50, currentY, { align: 'right' });
-        doc.text(`PKR ${invoiceToPrint.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, totalsX, currentY, { align: 'right' });
-    }
-
-    const footerStartY = pageHeight - 36;
-    const contacts = [
-        { name: STORE_CONFIG.contact1Name, number: STORE_CONFIG.contact1Number },
-        { name: STORE_CONFIG.contact2Name, number: STORE_CONFIG.contact2Number },
-        { name: STORE_CONFIG.contact3Name, number: STORE_CONFIG.contact3Number },
-        { name: STORE_CONFIG.contact4Name, number: STORE_CONFIG.contact4Number },
-    ].filter(c => c.name && c.number);
-    const qrCodeSize = 16;
-    const qrGap = 3;
-    const qrSectionWidth = (qrCodeSize * 2) + qrGap;
-    const textBlockWidth = pageWidth - margin * 2 - qrSectionWidth - 6;
-    const qrStartX = pageWidth - margin - qrSectionWidth;
-
-    doc.setLineWidth(0.2);
-    doc.line(margin, footerStartY - 2, pageWidth - margin, footerStartY - 2);
-
-    doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(70);
-    doc.text("For Orders & Inquiries:", margin, footerStartY + 2, { maxWidth: textBlockWidth });
-    doc.setFontSize(7.5).setFont("helvetica", "normal").setTextColor(30);
-    contacts.forEach((c, i) => {
-      doc.text(`${c.name}: ${c.number}`, margin, footerStartY + 6 + i * 4, { maxWidth: textBlockWidth });
+      drawTotals(doc, {
+      pageWidth, margin, startY: currentY,
+      rows: totalRows,
+      total: { label: 'Grand Total', value: money(invoiceToPrint.grandTotal) },
+      after: invoiceToPrint.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${money(invoiceToPrint.amountPaid)}` }] : [],
+      closing: invoiceToPrint.amountPaid > 0 ? { label: 'Balance Due', value: money(invoiceToPrint.balanceDue) } : undefined,
     });
-    const afterContacts = footerStartY + 6 + contacts.length * 4;
-    doc.setFontSize(6).setFont("helvetica", "bold").setTextColor(80);
-    doc.text(STORE_CONFIG.bankLine, margin, afterContacts + 2, { maxWidth: textBlockWidth });
-    if (STORE_CONFIG.iban) {
-      doc.setFontSize(6).setFont("helvetica", "normal").setTextColor(100);
-      doc.text(`IBAN: ${STORE_CONFIG.iban}`, margin, afterContacts + 6, { maxWidth: textBlockWidth });
-    }
 
-    const waQrCanvas = document.getElementById('wa-qr-code') as HTMLCanvasElement;
-    const instaQrCanvas = document.getElementById('insta-qr-code') as HTMLCanvasElement;
-
-    if (waQrCanvas) {
-        doc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
-        doc.text("Join us on Whatsapp", qrStartX + qrCodeSize / 2, footerStartY + 2, { align: 'center' });
-        doc.addImage(waQrCanvas.toDataURL('image/png'), 'PNG', qrStartX, footerStartY + 4, qrCodeSize, qrCodeSize);
-    }
-    if (instaQrCanvas) {
-        const secondQrX = qrStartX + qrCodeSize + qrGap;
-        doc.setFontSize(5).setFont("helvetica", "bold").setTextColor(60);
-        doc.text("Follow us on Instagram", secondQrX + qrCodeSize / 2, footerStartY + 2, { align: 'center' });
-        doc.addImage(instaQrCanvas.toDataURL('image/png'), 'PNG', secondQrX, footerStartY + 4, qrCodeSize, qrCodeSize);
-    }
+    drawDocFooter(doc, {
+      pageWidth, pageHeight, margin,
+      whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
+      instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
+    });
 
     return doc;
   };
