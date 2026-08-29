@@ -16,6 +16,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar, staticCategories } from '@/lib/store';
+import { getOrderPaymentStatus, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -85,17 +86,8 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
     }
 };
 
-type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
-const getPaymentStatus = (order: Order): PaymentStatus => {
-  const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
-  const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
-  const advanceInExchangeValue = typeof order.advanceInExchangeValue === 'number' ? order.advanceInExchangeValue : 0;
-  const totalAdvance = advancePayment + advanceInExchangeValue;
-  if (grandTotal <= 0) return 'Paid';
-  if (totalAdvance >= grandTotal) return 'Paid';
-  if (totalAdvance > 0) return 'Partial';
-  return 'Unpaid';
-};
+type PaymentStatus = OrderPaymentStatus;
+const getPaymentStatus = getOrderPaymentStatus;
 const getPaymentBadgeClass = (status: PaymentStatus) => {
   switch (status) {
     case 'Paid': return 'bg-success text-success-foreground';
@@ -856,8 +848,13 @@ export default function OrderDetailPage() {
   const subtotal = order.items.reduce((sum, item) => sum + (Number(item.totalEstimate) || 0), 0);
   const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
   const advanceInExchangeValue = typeof order.advanceInExchangeValue === 'number' ? order.advanceInExchangeValue : 0;
-  const grandTotal = subtotal - advancePayment - advanceInExchangeValue;
-  
+  // The discount was missing here, so this figure — the big "Balance Due" on the
+  // page — overstated what was owed by exactly the discount, and disagreed with
+  // both the slip and the stored grandTotal. Same shape as order-form and the
+  // slip: price after discount, then less anything already paid.
+  const discountAmount = typeof order.discountAmount === 'number' ? order.discountAmount : 0;
+  const grandTotal = subtotal - discountAmount - advancePayment - advanceInExchangeValue;
+
   const ratesApplied = order.ratesApplied || {};
   
   const getRateDisplay = () => {
@@ -1322,6 +1319,9 @@ export default function OrderDetailPage() {
                      <Button variant="outline" onClick={() => setIsAdvanceDialogOpen(true)}>Record Additional Advance</Button>
                       <div className="w-full max-w-sm space-y-2 p-4 text-base bg-muted/30 rounded-lg">
                           <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          {discountAmount > 0 && (
+                            <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          )}
                           <div className="flex justify-between text-destructive"><span>Advance Payment (Cash):</span> <span className="font-semibold">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           {advanceInExchangeValue > 0 && (
                             <div className="flex justify-between text-destructive"><span>Advance (In-Exchange):</span> <span className="font-semibold">- PKR {advanceInExchangeValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>

@@ -6,6 +6,7 @@ import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Order, ORDER_STATUSES, OrderStatus, OrderItem } from '@/lib/store';
+import { getOrderPaymentStatus, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,18 +24,8 @@ import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
 import { PromiseLine } from '@/components/shared/promise-line';
 import { useRouter } from 'next/navigation';
 
-type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
-
-const getPaymentStatus = (order: Order): PaymentStatus => {
-  const grandTotal = typeof order.grandTotal === 'number' ? order.grandTotal : 0;
-  const advancePayment = typeof order.advancePayment === 'number' ? order.advancePayment : 0;
-  const advanceInExchangeValue = typeof order.advanceInExchangeValue === 'number' ? order.advanceInExchangeValue : 0;
-  const totalAdvance = advancePayment + advanceInExchangeValue;
-  if (grandTotal <= 0) return 'Paid';
-  if (totalAdvance >= grandTotal) return 'Paid';
-  if (totalAdvance > 0) return 'Partial';
-  return 'Unpaid';
-};
+type PaymentStatus = OrderPaymentStatus;
+const getPaymentStatus = getOrderPaymentStatus;
 
 const getPaymentBadgeClass = (status: PaymentStatus) => {
   switch (status) {

@@ -90,6 +90,16 @@ export function drawOrderTotals(
   const discount = order.discountAmount || 0;
   const what = order.advanceInExchangeDescription?.trim();
 
+  // order.grandTotal is stored NET of both discount and advance
+  // (order-form: `subtotal - discount - totalAdvance`), i.e. it is already the
+  // balance. This block used to print it as "Estimated Total" and then subtract
+  // the advance a second time for Balance Due, so the slip understated what was
+  // owed by exactly the advance — and Math.max clamped the result, so a decent
+  // advance printed "PKR 0.00" on an order that was not paid off. Derive both
+  // figures from the parts instead, and never show grandTotal as a gross total.
+  const agreed = (order.subtotal || 0) - discount;   // the price, before anything paid
+  const balance = agreed - cash - inKind;            // what is still owed
+
   const rows: TotalRow[] = [{ label: 'Subtotal', value: money(order.subtotal || 0) }];
   if (discount > 0) rows.push({ label: 'Discount', value: `- ${money(discount)}`, tone: 'ink' });
 
@@ -100,10 +110,14 @@ export function drawOrderTotals(
   return drawTotals(doc, {
     pageWidth, pageHeight, margin, startY, onNewPage,
     rows,
-    total: { label: 'Estimated Total', value: money(order.grandTotal || 0) },
+    total: { label: 'Estimated Total', value: money(agreed) },
     after,
     // Always shown, even at zero: "what is still owed" is the question the
-    // slip exists to answer, and a blank is not an answer.
-    closing: { label: 'Balance Due', value: money(Math.max(0, (order.grandTotal || 0) - cash - inKind)) },
+    // slip exists to answer, and a blank is not an answer. An overpayment is
+    // shown as a credit rather than clamped away, because money owed back to
+    // the customer is not the same thing as nothing being owed.
+    closing: balance >= 0
+      ? { label: 'Balance Due', value: money(balance) }
+      : { label: 'Credit (overpaid)', value: money(Math.abs(balance)) },
   });
 }
