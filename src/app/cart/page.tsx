@@ -395,8 +395,48 @@ export default function CartPage() {
   }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, exchangeAmount1Input, exchangeAmount2Input, cartMetalInfo]);
 
 
+  /**
+   * Why the Create Invoice button is disabled, in words.
+   *
+   * The button is gated on `estimatedInvoice`, which silently becomes null when
+   * a gold rate is missing — and rates initialise from settings as
+   * `(rate || 0).toFixed(2)`, so an unset rate arrives as "0.00" and fails the
+   * `rate <= 0` check. The explanation for that used to live inside
+   * handleGenerateInvoice, which can never run while the button is disabled, so
+   * nobody ever saw it. Surface it next to the button instead.
+   */
+  const invoiceBlockedReason = useMemo((): string | null => {
+    if (!appReady || !settings) return null;
+    if (settings.databaseLocked) return 'The database is locked. Unlock it in Settings to create invoices.';
+    if (cartItemsFromStore.length === 0) return 'Add an item to the cart first.';
+
+    const missing: string[] = [];
+    cartMetalInfo.karats.forEach(k => {
+      const rate = parseFloat(rateInputs[`gold${k}` as keyof RateInputs]);
+      if (isNaN(rate) || rate <= 0) missing.push(k.toUpperCase());
+    });
+    if (missing.length > 0) {
+      return `Enter a ${missing.join(' and ')} gold rate above — it is currently zero, so the total cannot be worked out.`;
+    }
+    return null;
+  }, [appReady, settings, cartItemsFromStore, rateInputs, cartMetalInfo]);
+
   const handleGenerateInvoice = async () => {
     if (isGeneratingEstimate) return; // Prevent double-submit
+
+    // The database lock is a deliberate admin switch, but every write path below
+    // it just returns null. Without this the button looks broken rather than
+    // locked: no toast, and nothing in the console either, because
+    // generateInvoice bails before its first log line.
+    if (settings?.databaseLocked) {
+      toast({
+        title: "Database is locked",
+        description: "Invoicing is turned off while the database is locked. Unlock it in Settings to create invoices.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (cartItemsFromStore.length === 0) {
       toast({ title: "Cart Empty", description: "Cannot generate estimate for an empty cart.", variant: "destructive" });
       return;
@@ -452,10 +492,6 @@ export default function CartPage() {
         ...(cartMetalInfo.metals.has('silver') && { silverRatePerGram: parseFloat(rateInputs.silver) || settings.silverRatePerGram }),
     };
 
-    // Persist rate changes to settings
-    await updateSettings(ratesForInvoice);
-    toast({ title: "Rates Updated", description: "Store metal rates have been updated with the values from this estimate."});
-
     const customerForInvoice = isWalkIn
         ? { name: finalWalkInName, phone: walkInCustomerPhone }
         : { id: selectedCustomerId, name: customers.find(c => c.id === selectedCustomerId)?.name || '', phone: customers.find(c => c.id === selectedCustomerId)?.phone || '' };
@@ -472,8 +508,22 @@ export default function CartPage() {
     setIsGeneratingEstimate(true);
     let invoice;
     try {
+      // Persist rate changes to settings. This lives inside the try: it talks to
+      // Firestore, and if it throws the click used to die here silently — no
+      // toast, no spinner, nothing to tell you the button had done anything.
+      await updateSettings(ratesForInvoice);
+      toast({ title: "Rates Updated", description: "Store metal rates have been updated with the values from this estimate."});
+
       invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery);
       if (invoice) invoiceDraftDone();
+    } catch (error) {
+      console.error("[Cart handleGenerateInvoice] Failed:", error);
+      toast({
+        title: "Could not create the invoice",
+        description: error instanceof Error ? error.message : "Something went wrong while saving. Please try again.",
+        variant: "destructive",
+      });
+      return;
     } finally {
       setIsGeneratingEstimate(false);
     }
@@ -1609,6 +1659,10 @@ export default function CartPage() {
                             {isGeneratingEstimate ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <FileText className="mr-2 h-5 w-5"/>}
                             {isEditingEstimate ? 'Update Estimate' : 'Create Invoice'}
                         </Button>
+                        {/* A disabled button with no explanation reads as broken. */}
+                        {invoiceBlockedReason && (
+                          <p className="text-xs text-destructive text-center">{invoiceBlockedReason}</p>
+                        )}
                         {/* The same basket has two destinations: bill it now, or
                             send it to the bench as an order. Both continue on the
                             paths that already exist. */}
