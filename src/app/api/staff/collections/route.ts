@@ -19,6 +19,19 @@ import { staffViewAll, staffSettingsView } from '@/lib/staff-view';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * A dev-only preview: an owner may ask to be treated as staff so the shop-floor
+ * experience can be inspected without a second Google account. Refused in any
+ * deployed build, and refused for anyone who is not already an owner — so it
+ * can only ever REDUCE what the caller receives.
+ */
+function previewAsStaff(req: NextRequest, role: string): boolean {
+  return process.env.NODE_ENV !== 'production'
+    && role === 'owner'
+    && req.headers.get('x-dev-role') === 'staff';
+}
+
+
 export async function GET(req: NextRequest) {
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -27,6 +40,9 @@ export async function GET(req: NextRequest) {
   if (role !== 'staff' && role !== 'owner') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+  // Only logged, not branched on: this endpoint already returns the staff view
+  // to everyone, so a preview needs no special case here.
+  if (previewAsStaff(req, role)) console.log('[staff/collections] owner previewing as staff');
 
   // One collection per call, so a slow collection cannot hold up the rest and
   // the client can keep its existing per-collection loading states.

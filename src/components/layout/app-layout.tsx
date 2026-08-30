@@ -21,6 +21,7 @@ import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { roleForEmail } from '@/lib/roles';
+import { devRole, captureDevRole } from '@/lib/dev-role';
 
 interface NavItem {
   href: string;
@@ -111,6 +112,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return m ? m[1] !== 'false' : true;
   });
 
+  // `?as=staff` is remembered for the tab, so it survives navigation.
+  useEffect(() => { captureDevRole(); }, []);
+
   useEffect(() => {
     setIsOnline(navigator.onLine);
     const handleOnline  = () => setIsOnline(true);
@@ -128,7 +132,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Staff see only what they can actually reach. This is presentation, not
   // protection — the boundary is firestore.rules — but a menu full of doors
   // that error on opening is its own kind of broken.
-  const role = roleForEmail(user?.email);
+  const role = devRole() ?? roleForEmail(user?.email);
   const visibleGroups = role === 'staff'
     ? navGroups
         .map(g => ({ ...g, items: g.items.filter(i => i.staff) }))

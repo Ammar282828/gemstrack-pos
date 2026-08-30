@@ -172,6 +172,12 @@ import { _calculateProductCostsInternal, GOLD_COIN_CATEGORY_ID_INTERNAL, DEFAULT
 export type { MetalType, KaratValue } from './materials';
 import type { OverheadItem, OverheadPlan } from '@/lib/overheads';
 import { roleForEmail, isStaffCollection } from '@/lib/roles';
+import { devRole, DEV_ROLE_HEADER } from '@/lib/dev-role';
+
+/** The role the app should behave as: a dev preview wins over the real one. */
+function effectiveRole(): 'owner' | 'staff' | 'none' {
+  return devRole() ?? roleForEmail(auth?.currentUser?.email);
+}
 import { clientPort } from '@/lib/db-client-port';
 import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 import { createOrder } from '@/lib/writes/create-order';
@@ -1200,7 +1206,7 @@ const createDataLoader = <T, K extends keyof AppState>(
     // for them this collection is filled from /api/staff/*, which strips the
     // cost side server-side. Polled rather than live: losing realtime is the
     // price of the filter, and a shop needs minutes-fresh, not seconds-fresh.
-    if (roleForEmail(auth?.currentUser?.email) === 'staff') {
+    if (effectiveRole() === 'staff') {
       attachStaffPoll(collectionName, stateKey, loadingKey, errorKey, loadedKey, orderByField, orderByDirection, set);
       return;
     }
@@ -1257,7 +1263,7 @@ async function staffWriteJson(op: string, payload: Record<string, unknown>): Pro
   const token = await auth?.currentUser?.getIdToken();
   const res = await fetch('/api/staff/write', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+    headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }), ...(devRole() && { [DEV_ROLE_HEADER]: 'staff' }) },
     body: JSON.stringify({ op, ...payload }),
   });
   if (!res.ok) {
@@ -1268,11 +1274,11 @@ async function staffWriteJson(op: string, payload: Record<string, unknown>): Pro
 }
 
 async function staffWrite(op: string, payload: Record<string, unknown>): Promise<boolean> {
-  if (roleForEmail(auth?.currentUser?.email) !== 'staff') return false;
+  if (effectiveRole() !== 'staff') return false;
   const token = await auth?.currentUser?.getIdToken();
   const res = await fetch('/api/staff/write', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+    headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }), ...(devRole() && { [DEV_ROLE_HEADER]: 'staff' }) },
     body: JSON.stringify({ op, ...payload }),
   });
   if (!res.ok) {
@@ -1328,7 +1334,7 @@ function attachStaffPoll(
       const token = await auth?.currentUser?.getIdToken();
       if (!token) return;                       // signed out mid-flight
       const res = await fetch(`/api/staff/collections?name=${encodeURIComponent(collectionName)}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, ...(devRole() && { [DEV_ROLE_HEADER]: 'staff' }) },
         cache: 'no-store',
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1472,13 +1478,13 @@ export const useAppStore = create<AppState>()(
         // Staff cannot read this document either, and the whole app gates on
         // it — appReady never turns true without settings, so without this
         // branch a staff sign-in lands on a spinner that never resolves.
-        if (roleForEmail(auth?.currentUser?.email) === 'staff') {
+        if (effectiveRole() === 'staff') {
           const pull = async () => {
             try {
               const token = await auth?.currentUser?.getIdToken();
               if (!token) return;
               const res = await fetch('/api/staff/collections?name=settings', {
-                headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
+                headers: { Authorization: `Bearer ${token}`, ...(devRole() && { [DEV_ROLE_HEADER]: 'staff' }) }, cache: 'no-store',
               });
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
               const { doc: fields } = await res.json();
@@ -2350,7 +2356,7 @@ export const useAppStore = create<AppState>()(
         // Staff have no database access, so their payment goes through the
         // server — which runs THIS SAME function against the Admin SDK. The
         // logic is not mirrored; only the driver differs.
-        if (roleForEmail(auth?.currentUser?.email) === 'staff') {
+        if (effectiveRole() === 'staff') {
           try {
             const res = await staffWriteJson('recordPayment', {
               invoiceId, amount: paymentAmount, date: paymentDate, method, reference,
@@ -2802,7 +2808,7 @@ export const useAppStore = create<AppState>()(
 
         // Staff post to the server, which runs THIS SAME createOrder against
         // the Admin SDK. One copy of the numbering and the rate snapshot.
-        if (roleForEmail(auth?.currentUser?.email) === 'staff') {
+        if (effectiveRole() === 'staff') {
           try {
             const res = await staffWriteJson('createOrder', { order: orderData });
             const created = res.order as Order;

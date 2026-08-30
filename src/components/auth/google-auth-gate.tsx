@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Loader2, LogIn } from 'lucide-react';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { roleForEmail } from '@/lib/roles';
+import { captureDevRole } from '@/lib/dev-role';
 import dynamic from 'next/dynamic';
 
 // Loaded lazily so the store app's bundle is not pulled in for karigars.
@@ -43,6 +44,12 @@ const isAllowed = (user: User | null) => roleForEmail(user?.email) !== 'none';
  * Firestore rules and the /api/karigar server checks are untouched, so no
  * data is exposed that a signed-out browser could not already request.
  */
+/** `?as=staff` is captured here, not in the layout: the layout only mounts
+ *  after sign-in, so the parameter was gone by the time anything read it. */
+function useCaptureDevRole(): void {
+  React.useEffect(() => { captureDevRole(); }, []);
+}
+
 function useDevBypass(): boolean {
   const [on, setOn] = React.useState(false);
   React.useEffect(() => {
@@ -110,6 +117,7 @@ const GoogleIcon = () => (
 );
 
 export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
+  useCaptureDevRole();
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<'owner' | 'karigar' | null>(null);
   const [isLoading, setIsLoading] = useState(true);
