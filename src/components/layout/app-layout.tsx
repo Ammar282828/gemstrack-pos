@@ -20,11 +20,14 @@ import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { roleForEmail } from '@/lib/roles';
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
+  /** Reachable by shop-floor staff. Absent means owners only. */
+  staff?: true;
 }
 
 interface NavGroup {
@@ -47,8 +50,8 @@ const navGroups: NavGroup[] = [
   {
     label: 'Overview',
     items: [
-      { href: '/', label: 'Home', icon: <Home /> },
-      { href: '/calendar', label: 'Calendar', icon: <Calendar /> },
+      { staff: true, href: '/', label: 'Home', icon: <Home /> },
+      { staff: true, href: '/calendar', label: 'Calendar', icon: <Calendar /> },
     ],
   },
   {
@@ -56,18 +59,18 @@ const navGroups: NavGroup[] = [
     items: [
       // One way in: pick invoice or order first, then add the pieces.
       // /scan and /cart are still reachable, just not decisions of their own.
-      { href: '/new', label: 'New Sale', icon: <PlusCircle /> },
-      { href: '/orders', label: 'Orders', icon: <ClipboardList /> },
-      { href: '/invoices', label: 'Invoices', icon: <Receipt /> },
-      { href: '/customers', label: 'Customers', icon: <Users /> },
+      { staff: true, href: '/new', label: 'New Sale', icon: <PlusCircle /> },
+      { staff: true, href: '/orders', label: 'Orders', icon: <ClipboardList /> },
+      { staff: true, href: '/invoices', label: 'Invoices', icon: <Receipt /> },
+      { staff: true, href: '/customers', label: 'Customers', icon: <Users /> },
     ],
   },
   {
     label: 'Workshop',
     items: [
-      { href: '/workshop', label: 'Workshop', icon: <Hammer /> },
-      { href: '/karigars', label: 'Karigars', icon: <Briefcase /> },
-      { href: '/given', label: 'Given Items', icon: <Package /> },
+      { staff: true, href: '/workshop', label: 'Workshop', icon: <Hammer /> },
+      { staff: true, href: '/karigars', label: 'Karigars', icon: <Briefcase /> },
+      { staff: true, href: '/given', label: 'Given Items', icon: <Package /> },
     ],
   },
   {
@@ -122,6 +125,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (!isStoreHydrated) return null;
 
+  // Staff see only what they can actually reach. This is presentation, not
+  // protection — the boundary is firestore.rules — but a menu full of doors
+  // that error on opening is its own kind of broken.
+  const role = roleForEmail(user?.email);
+  const visibleGroups = role === 'staff'
+    ? navGroups
+        .map(g => ({ ...g, items: g.items.filter(i => i.staff) }))
+        .filter(g => g.items.length > 0)
+    : navGroups;
+
   const logoToUse = STORE_LOGO_URL;
 
   return (
@@ -148,7 +161,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           <SidebarContent asChild>
             <ScrollArea className="h-full">
-              {navGroups.map((group, gi) => (
+              {visibleGroups.map((group, gi) => (
                 <SidebarGroup key={group.label} className={gi === 0 ? 'pt-2' : 'pt-0'}>
                   <SidebarGroupLabel className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 px-3 pb-1 group-data-[collapsible=icon]:hidden">
                     {group.label}

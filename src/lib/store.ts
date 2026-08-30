@@ -344,6 +344,7 @@ export function calculateProductPrice(product: {
 // --- Type Definitions ---
 export type { MetalType, KaratValue } from './materials';
 import type { OverheadItem, OverheadPlan } from '@/lib/overheads';
+import { roleForEmail, isStaffCollection } from '@/lib/roles';
 export type { OverheadItem, OverheadPlan };
 
 export { METAL_TYPES, KARAT_VALUES, metalLabel, karatLabel, describeMetal } from './materials';
@@ -1365,6 +1366,15 @@ const createDataLoader = <T, K extends keyof AppState>(
 
     set({ [loadingKey]: true, [errorKey]: null } as unknown as Partial<AppState>);
 
+    // Shop-floor staff have no Firestore access at all (firestore.rules), so
+    // for them this collection is filled from /api/staff/*, which strips the
+    // cost side server-side. Polled rather than live: losing realtime is the
+    // price of the filter, and a shop needs minutes-fresh, not seconds-fresh.
+    if (roleForEmail(auth?.currentUser?.email) === 'staff') {
+      attachStaffPoll(collectionName, stateKey, loadingKey, errorKey, loadedKey, orderByField, orderByDirection, set);
+      return;
+    }
+
     const q = query(collection(db, collectionName), orderBy(orderByField, orderByDirection));
 
     const attachListener = (retryCount = 0) => {
@@ -1405,6 +1415,76 @@ const createDataLoader = <T, K extends keyof AppState>(
     attachListener();
   };
 };
+
+/**
+ * The staff read path: poll /api/staff/collections instead of listening.
+ *
+ * A collection staff are not allowed settles as an empty list rather than
+ * erroring or spinning — the pages that use it are not reachable for them
+ * anyway, and a permanent spinner in the corner of an app is worse than an
+ * empty one.
+ *
+ * `onData` is deliberately NOT run here. Those callbacks write back to
+ * Firestore (the customer phone normalisation, for one), which staff cannot do
+ * and should not trigger.
+ */
+function attachStaffPoll(
+  collectionName: string,
+  stateKey: string,
+  loadingKey: string,
+  errorKey: string,
+  loadedKey: string,
+  orderByField: string,
+  orderByDirection: 'asc' | 'desc',
+  set: (fn: Partial<AppState> | ((state: AppState) => void)) => void,
+) {
+  const settle = (list: unknown[], error: string | null = null) =>
+    set({
+      [stateKey]: list, [loadingKey]: false, [loadedKey]: true, [errorKey]: error,
+    } as unknown as Partial<AppState>);
+
+  if (!isStaffCollection(collectionName)) { settle([]); return; }
+
+  const dir = orderByDirection === 'desc' ? -1 : 1;
+  const sortByField = (list: Record<string, unknown>[]) =>
+    [...list].sort((a, b) => {
+      const x = a?.[orderByField], y = b?.[orderByField];
+      if (x === y) return 0;
+      if (x === undefined || x === null) return 1;
+      if (y === undefined || y === null) return -1;
+      return (x < y ? -1 : 1) * dir;
+    });
+
+  let stopped = false;
+  const tick = async () => {
+    if (stopped) return;
+    try {
+      const token = await auth?.currentUser?.getIdToken();
+      if (!token) return;                       // signed out mid-flight
+      const res = await fetch(`/api/staff/collections?name=${encodeURIComponent(collectionName)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { docs } = await res.json();
+      settle(sortByField(Array.isArray(docs) ? docs : []));
+    } catch (e) {
+      // Keep whatever is already on screen; a dropped poll is not a reason to
+      // blank the order the operator is reading.
+      console.error(`[GemsTrack Store] staff poll failed for ${collectionName}`, e);
+      set({ [loadingKey]: false, [loadedKey]: true } as unknown as Partial<AppState>);
+    }
+  };
+
+  void tick();
+  const id = setInterval(tick, STAFF_POLL_MS);
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', () => { stopped = true; clearInterval(id); });
+  }
+}
+
+/** Slow enough not to hammer the API, fast enough for a shop counter. */
+const STAFF_POLL_MS = 25_000;
 
 const loadProducts = createDataLoader<Product, 'products'>('products', 'products', 'isProductsLoading', 'productsError', 'hasProductsLoaded', 'sku', 'asc');
 // Runs once per session, the first time customers are loaded: silently rewrites any
@@ -1522,6 +1602,39 @@ export const useAppStore = create<AppState>()(
       loadSettings: async () => {
         if (get().hasSettingsLoaded) return;
         set({ isSettingsLoading: true, settingsError: null });
+
+        // Staff cannot read this document either, and the whole app gates on
+        // it — appReady never turns true without settings, so without this
+        // branch a staff sign-in lands on a spinner that never resolves.
+        if (roleForEmail(auth?.currentUser?.email) === 'staff') {
+          const pull = async () => {
+            try {
+              const token = await auth?.currentUser?.getIdToken();
+              if (!token) return;
+              const res = await fetch('/api/staff/collections?name=settings', {
+                headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
+              });
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const { doc: fields } = await res.json();
+              set({
+                settings: { ...initialSettingsData, ...(fields || {}) } as Settings,
+                isSettingsLoading: false, hasSettingsLoaded: true, settingsError: null,
+              });
+            } catch (e) {
+              console.error('[GemsTrack Store] staff settings fetch failed', e);
+              // Fall back to defaults rather than stranding the app: wrong
+              // rates are visible and correctable, a permanent spinner is not.
+              set({
+                settings: initialSettingsData as Settings,
+                isSettingsLoading: false, hasSettingsLoaded: true,
+                settingsError: 'Could not load shop settings.',
+              });
+            }
+          };
+          void pull();
+          setInterval(pull, STAFF_POLL_MS);
+          return;
+        }
 
         const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
         

@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail, isStaffCollection, STAFF_COLLECTIONS } from '@/lib/roles';
-import { staffViewAll } from '@/lib/staff-view';
+import { staffViewAll, staffSettingsView } from '@/lib/staff-view';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +31,23 @@ export async function GET(req: NextRequest) {
   // One collection per call, so a slow collection cannot hold up the rest and
   // the client can keep its existing per-collection loading states.
   const name = req.nextUrl.searchParams.get('name') || '';
+
+  // Settings is a single document, not a collection, and needs the rates and
+  // the shop details to price and print anything at all.
+  if (name === 'settings') {
+    try {
+      // Ids must match store.ts: FIRESTORE_COLLECTIONS.SETTINGS / GLOBAL_SETTINGS_DOC_ID.
+      const doc = await adminDb.collection('app_settings').doc('global').get();
+      return NextResponse.json(
+        { collection: 'settings', doc: doc.exists ? staffSettingsView(doc.data() || {}) : {} },
+        { headers: { 'Cache-Control': 'no-store' } },
+      );
+    } catch (e) {
+      console.error('[/api/staff/collections] settings', e);
+      return NextResponse.json({ error: 'Could not read' }, { status: 500 });
+    }
+  }
+
   if (!isStaffCollection(name)) {
     return NextResponse.json(
       { error: 'Not available', allowed: STAFF_COLLECTIONS },

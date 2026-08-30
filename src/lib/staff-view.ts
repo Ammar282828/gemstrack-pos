@@ -6,7 +6,7 @@
  * against is a boundary nobody can trust.
  */
 
-import { STAFF_HIDDEN_FIELDS, STAFF_HIDDEN_ITEM_FIELDS } from './roles';
+import { STAFF_HIDDEN_FIELDS, STAFF_HIDDEN_ITEM_FIELDS, STAFF_SETTINGS_FIELDS } from './roles';
 
 type Doc = Record<string, unknown>;
 
@@ -43,3 +43,10 @@ export function staffView(collection: string, doc: Doc): Doc {
 
 export const staffViewAll = (collection: string, docs: Doc[]): Doc[] =>
   docs.map(d => staffView(collection, d));
+
+/** Settings, reduced to the allow-list. */
+export function staffSettingsView(doc: Doc): Doc {
+  const out: Doc = {};
+  for (const k of STAFF_SETTINGS_FIELDS) if (k in doc) out[k] = doc[k];
+  return out;
+}

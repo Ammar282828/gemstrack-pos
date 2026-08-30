@@ -115,3 +115,20 @@ export const STAFF_HIDDEN_ITEM_FIELDS: readonly string[] = [
   'wastageCost',
   'adminNote',
 ];
+
+/**
+ * Settings staff receive. An allow-list, not a deny-list: settings is the one
+ * document where a field added later is likely to be something they should not
+ * have — the notification recipients, the overhead benchmark, the device
+ * allowlist — so anything new is withheld until someone decides otherwise.
+ *
+ * The rates are here because pricing an item needs them, and the shop details
+ * because they are printed on the estimate the customer walks out with.
+ */
+export const STAFF_SETTINGS_FIELDS = [
+  'shopName', 'shopAddress', 'shopContact', 'shopLogoUrl', 'shopLogoUrlBlack',
+  'goldRatePerGram24k', 'goldRatePerGram22k', 'goldRatePerGram21k', 'goldRatePerGram18k',
+  'silverRatePerGram', 'platinumRatePerGram', 'palladiumRatePerGram',
+  'theme', 'autoDraftForms', 'databaseLocked',
+  'lastInvoiceNumber', 'lastOrderNumber',
+] as const;
