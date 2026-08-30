@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, LogIn } from 'lucide-react';
 import { STORE_CONFIG } from '@/lib/store-config';
+import { roleForEmail } from '@/lib/roles';
 import dynamic from 'next/dynamic';
 
 // Loaded lazily so the store app's bundle is not pulled in for karigars.
@@ -28,10 +29,11 @@ const KarigarPortal = dynamic(() => import('@/app/my-work/page'), {
 
 const googleProvider = new GoogleAuthProvider();
 
-const ALLOWED_EMAILS = STORE_CONFIG.allowedEmails;
-
-const isAllowed = (user: User | null) =>
-  !!user?.email && ALLOWED_EMAILS.includes(user.email.toLowerCase());
+// Owners and shop-floor staff both sign in here. What they can then reach is
+// decided by their role, not by this gate — staff are denied Firestore
+// directly (firestore.rules) and read through /api/staff/*, so getting past
+// this screen grants nothing on its own.
+const isAllowed = (user: User | null) => roleForEmail(user?.email) !== 'none';
 
 /**
  * Local UI inspection without signing in. Requires BOTH a development build

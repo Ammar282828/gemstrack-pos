@@ -11,6 +11,13 @@ service cloud.firestore {
         ];
     }
 
+    // Shop-floor staff are in the same position as karigars below: they are not
+    // on this list, so every client-side read and write is denied, and their
+    // app reads through /api/staff/* instead. That is deliberate and it is the
+    // real boundary — the app queries Firestore straight from the browser, so
+    // anything the database will return is readable in devtools whatever the
+    // UI chooses to draw. Hiding a page hides nothing; denying it here does.
+
     // Karigars sign in with Google too, but they get NO direct database access.
     // Their portal reads and writes exclusively through /api/karigar/*, which
     // runs server-side with the Admin SDK and hand-picks the fields they may
