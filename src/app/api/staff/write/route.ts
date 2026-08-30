@@ -17,6 +17,8 @@ import admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase-admin';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
+import { adminPort } from '@/lib/db-admin-port';
+import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,6 +104,30 @@ export async function POST(req: NextRequest) {
         const ref = await adminDb.collection('customers').add(doc);
         await log('customer.create', `Customer ${name} added`, 'Added from the shop floor', ref.id);
         return NextResponse.json({ ok: true, id: ref.id, customer: { id: ref.id, ...doc } });
+      }
+
+      // ── payment ───────────────────────────────────────────────────────────
+      // Not reimplemented here: this calls the same recordInvoicePayment the
+      // browser calls, driven by the Admin SDK instead of the client one. One
+      // copy of the till, two ways in.
+      case 'recordPayment': {
+        const invoiceId = String(body.invoiceId || '');
+        const amount = Number(body.amount);
+        const date = String(body.date || '') || new Date().toISOString();
+        if (!invoiceId || !Number.isFinite(amount) || amount <= 0) {
+          return NextResponse.json({ error: 'A positive amount is required' }, { status: 400 });
+        }
+
+        const invoice = await recordInvoicePayment(
+          adminPort,
+          {
+            invoiceId, amount, date,
+            method: body.method ? String(body.method) : undefined,
+            reference: body.reference ? String(body.reference) : undefined,
+          },
+          { log: (action, title, detail, ref) => log(action, title, detail, ref) },
+        );
+        return NextResponse.json({ ok: true, invoice });
       }
 
       default:

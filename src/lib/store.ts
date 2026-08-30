@@ -345,6 +345,8 @@ export function calculateProductPrice(product: {
 export type { MetalType, KaratValue } from './materials';
 import type { OverheadItem, OverheadPlan } from '@/lib/overheads';
 import { roleForEmail, isStaffCollection } from '@/lib/roles';
+import { clientPort } from '@/lib/db-client-port';
+import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 export type { OverheadItem, OverheadPlan };
 
 export { METAL_TYPES, KARAT_VALUES, metalLabel, karatLabel, describeMetal } from './materials';
@@ -1423,6 +1425,20 @@ const createDataLoader = <T, K extends keyof AppState>(
  * with `if (await staffWrite(...)) return;` and leave the owner path below
  * completely untouched.
  */
+async function staffWriteJson(op: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const token = await auth?.currentUser?.getIdToken();
+  const res = await fetch('/api/staff/write', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+    body: JSON.stringify({ op, ...payload }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Could not save (HTTP ${res.status})`);
+  }
+  return res.json();
+}
+
 async function staffWrite(op: string, payload: Record<string, unknown>): Promise<boolean> {
   if (roleForEmail(auth?.currentUser?.email) !== 'staff') return false;
   const token = await auth?.currentUser?.getIdToken();
@@ -2502,102 +2518,42 @@ export const useAppStore = create<AppState>()(
       },
       updateInvoicePayment: async (invoiceId, paymentAmount, paymentDate, method, reference) => {
         if(get().settings.databaseLocked) return null;
-        
-        const invoiceRef = doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId);
 
-        try {
-            const updatedInvoice = await runTransaction(db, async (transaction) => {
-                const invoiceDoc = await transaction.get(invoiceRef);
-                if (!invoiceDoc.exists()) {
-                    throw new Error("Invoice not found!");
-                }
-
-                const invoiceData = invoiceDoc.data() as Invoice;
-                
-                const newPayment: Payment = {
-                  amount: paymentAmount, date: paymentDate,
-                  notes: method ? `Payment received (${method})` : 'Payment received',
-                  ...(method && { method }),
-                  ...(reference?.trim() && { reference: reference.trim() }),
-                };
-                const newPaymentHistory = [...(invoiceData.paymentHistory || []), newPayment];
-                
-                const newAmountPaid = newPaymentHistory.reduce((acc, p) => acc + p.amount, 0);
-                const newBalanceDue = invoiceData.grandTotal - newAmountPaid;
-
-                const updatedFields = {
-                    paymentHistory: newPaymentHistory,
-                    amountPaid: newAmountPaid,
-                    balanceDue: newBalanceDue,
-                };
-                
-                transaction.update(invoiceRef, updatedFields);
-                
-                return { ...invoiceData, ...updatedFields, id: invoiceId };
+        // Staff have no database access, so their payment goes through the
+        // server — which runs THIS SAME function against the Admin SDK. The
+        // logic is not mirrored; only the driver differs.
+        if (roleForEmail(auth?.currentUser?.email) === 'staff') {
+          try {
+            const res = await staffWriteJson('recordPayment', {
+              invoiceId, amount: paymentAmount, date: paymentDate, method, reference,
             });
-            if (updatedInvoice) {
-                addActivityLog('invoice.payment', `Payment received for invoice ${invoiceId}`,
-                  `Amount: ${paymentAmount.toLocaleString()} | Customer: ${updatedInvoice.customerName}`, invoiceId);
-
-                // Find all hisaab entries linked to this invoice and update to reflect new balanceDue.
-                // Single-field query to avoid composite index requirement; filter cashDebit in JS.
-                const hisaabSnap = await getDocs(query(
-                    collection(db, FIRESTORE_COLLECTIONS.HISAAB),
-                    where('linkedInvoiceId', '==', invoiceId)
-                ));
-                const debitDocs = hisaabSnap.docs.filter(d => (d.data().cashDebit ?? 0) > 0);
-
-                const hisaabBatch = writeBatch(db);
-                if (updatedInvoice.balanceDue <= 0) {
-                    // Fully paid — remove all linked debit entries
-                    debitDocs.forEach(d => hisaabBatch.delete(d.ref));
-                } else {
-                    // Partially paid — update first entry to remaining balance, delete any duplicates
-                    if (debitDocs.length > 0) {
-                        hisaabBatch.update(debitDocs[0].ref, { cashDebit: updatedInvoice.balanceDue });
-                        debitDocs.slice(1).forEach(d => hisaabBatch.delete(d.ref));
-                    } else {
-                        // No linked entry found (edge case) — create one for the outstanding amount
-                        if (updatedInvoice.customerId && updatedInvoice.customerId !== 'walk-in') {
-                            const newRef = doc(collection(db, FIRESTORE_COLLECTIONS.HISAAB));
-                            hisaabBatch.set(newRef, {
-                                entityId: updatedInvoice.customerId,
-                                entityType: 'customer',
-                                entityName: updatedInvoice.customerName || 'Customer',
-                                date: updatedInvoice.createdAt,
-                                description: `Outstanding balance for Invoice ${invoiceId}`,
-                                cashDebit: updatedInvoice.balanceDue,
-                                cashCredit: 0,
-                                goldDebitGrams: 0,
-                                goldCreditGrams: 0,
-                                linkedInvoiceId: invoiceId,
-                            });
-                        }
-                    }
-                }
-                await hisaabBatch.commit();
-
-                // Sync the source order's grandTotal if this invoice came from an order
-                if (updatedInvoice.sourceOrderId) {
-                    await updateDoc(
-                        doc(db, FIRESTORE_COLLECTIONS.ORDERS, updatedInvoice.sourceOrderId),
-                        { grandTotal: updatedInvoice.balanceDue }
-                    );
-                }
-                syncInvoiceShopify(invoiceId, 'upsert');
-
-                // WhatsApp notification: payment received
-                const balLine = updatedInvoice.balanceDue > 0
-                    ? `Balance remaining: PKR ${updatedInvoice.balanceDue.toLocaleString()}`
-                    : `✅ Fully paid`;
-                const msg = `💰 *Payment Received* ${invoiceId}\nCustomer: ${updatedInvoice.customerName || 'Walk-in'}\nAmount: PKR ${paymentAmount.toLocaleString()}\n${balLine}`;
-                notifyWhatsApp(get().settings, msg, get().settings.notifPaymentReceived);
-            }
-
-            return updatedInvoice;
-        } catch (error) {
+            const updated = res.invoice as Invoice;
+            set(state => ({
+              generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId ? { ...i, ...updated } : i),
+            }) as Partial<AppState>);
+            return updated;
+          } catch (error) {
             console.error(`Error updating invoice payment for ${invoiceId}:`, error);
             return null;
+          }
+        }
+
+        try {
+          const updated = await recordInvoicePayment(
+            clientPort,
+            { invoiceId, amount: paymentAmount, date: paymentDate, method, reference },
+            {
+              // The port keeps its action as a plain string; the store's own log
+              // is typed, and the value is one of its members.
+              log: (action, title, detail, ref) => { addActivityLog(action as LogEventType, title, detail, ref ?? ''); },
+              syncInvoiceShopify: (id, mode) => { syncInvoiceShopify(id, mode); },
+              notify: (msg) => { notifyWhatsApp(get().settings, msg, get().settings.notifPaymentReceived); },
+            },
+          );
+          return updated as unknown as Invoice;
+        } catch (error) {
+          console.error(`Error updating invoice payment for ${invoiceId}:`, error);
+          return null;
         }
       },
 
