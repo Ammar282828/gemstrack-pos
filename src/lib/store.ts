@@ -343,6 +343,9 @@ export function calculateProductPrice(product: {
 
 // --- Type Definitions ---
 export type { MetalType, KaratValue } from './materials';
+import type { OverheadItem } from '@/lib/overheads';
+export type { OverheadItem };
+
 export { METAL_TYPES, KARAT_VALUES, metalLabel, karatLabel, describeMetal } from './materials';
 /** Retired colour options are kept in the union so settings documents written
  *  before they were removed still typecheck; only AVAILABLE_THEMES is offered. */
@@ -411,6 +414,9 @@ export interface Settings extends GoldRates {
   /** Keep unfinished orders and invoices on this device and offer them back.
    *  Defaults on — losing a half-entered order is worse than an occasional prompt. */
   autoDraftForms?: boolean;
+  /** The monthly overhead benchmark. A target, never an expense — see
+   *  lib/overheads.ts. Absent until the shop first saves the sheet. */
+  monthlyOverheads?: OverheadItem[];
   // WhatsApp Notifications
   notifEnabled?: boolean;
   notifPhones?: string[]; // recipient numbers in international format, no +, e.g. ["923262275554"]

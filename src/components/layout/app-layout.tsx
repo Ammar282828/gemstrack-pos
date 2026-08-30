@@ -11,7 +11,7 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, PieChart } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, PieChart, Target } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -77,6 +77,7 @@ const navGroups: NavGroup[] = [
       { href: '/additional-revenue', label: 'Extra Revenue', icon: <Coins /> },
       { href: '/hisaab', label: 'Hisaab / Ledger', icon: <BookUser /> },
       { href: '/shareholders', label: 'Shareholder Finances', icon: <PieChart /> },
+      { href: '/overheads', label: 'Monthly Overheads', icon: <Target /> },
       { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
     ],
   },
