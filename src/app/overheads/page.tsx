@@ -94,13 +94,25 @@ export default function OverheadsPage() {
     }
   };
 
-  /** Billed this month, by the same rule Analytics uses so the two agree. */
+  /**
+   * Revenue this month, by the same rule Analytics uses so the two agree.
+   *
+   * Both halves matter. Counting only invoices left out every order taken but
+   * not yet billed — in August that was 18 orders and 1,166,300, against
+   * 1,224,790 of invoices, so the page reported barely half the month and the
+   * two screens disagreed by more than the benchmark itself.
+   *
+   * An invoice is dated to the day its ORDER was taken, not the day it was
+   * finally billed; an uninvoiced order counts at subtotal, and is dropped once
+   * it has an invoice so it is never counted twice.
+   */
   const earned = React.useMemo(() => {
     const span = { start: startOfMonth(now), end: endOfMonth(now) };
     const ordersById = new Map<string, Pick<Order, 'createdAt'>>(
       (orders || []).map(o => [o.id, o]),
     );
-    return (invoices || []).reduce((sum, inv) => {
+
+    const invoiced = (invoices || []).reduce((sum, inv) => {
       if (!inv?.createdAt || inv.status === 'Refunded') return sum;
       try {
         const d = parseISO(getInvoiceRevenueDate(inv, ordersById));
@@ -109,6 +121,19 @@ export default function OverheadsPage() {
         return sum;
       }
     }, 0);
+
+    const uninvoiced = (orders || []).reduce((sum, o) => {
+      if (!o?.createdAt) return sum;
+      if (o.status === 'Cancelled' || o.status === 'Refunded') return sum;
+      if (o.invoiceId) return sum; // already counted above, via its invoice
+      try {
+        return isWithinInterval(parseISO(o.createdAt), span) ? sum + (o.subtotal || 0) : sum;
+      } catch {
+        return sum;
+      }
+    }, 0);
+
+    return invoiced + uninvoiced;
   }, [invoices, orders, now]);
 
   const target = overheadTotal(items);
@@ -145,7 +170,7 @@ export default function OverheadsPage() {
               <p className="text-2xl sm:text-3xl font-bold text-primary tabular-nums">{PKR(target)}</p>
             </div>
             <div className="text-right min-w-0">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Billed so far</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Revenue so far</p>
               <p className="text-2xl sm:text-3xl font-bold tabular-nums">{PKR(earned)}</p>
             </div>
           </div>
@@ -161,7 +186,7 @@ export default function OverheadsPage() {
             ) : (
               <span className="flex items-center gap-1.5">
                 <span className="font-semibold text-primary tabular-nums">{PKR(p.shortfall)}</span>
-                <span className="text-muted-foreground">still to bill</span>
+                <span className="text-muted-foreground">still to earn</span>
               </span>
             )}
             <span className="flex items-center gap-1.5 text-muted-foreground">
