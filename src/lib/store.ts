@@ -1417,6 +1417,28 @@ const createDataLoader = <T, K extends keyof AppState>(
 };
 
 /**
+ * Post one named operation to the staff write path.
+ *
+ * Returns false when the caller is not staff, so a write function can branch
+ * with `if (await staffWrite(...)) return;` and leave the owner path below
+ * completely untouched.
+ */
+async function staffWrite(op: string, payload: Record<string, unknown>): Promise<boolean> {
+  if (roleForEmail(auth?.currentUser?.email) !== 'staff') return false;
+  const token = await auth?.currentUser?.getIdToken();
+  const res = await fetch('/api/staff/write', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+    body: JSON.stringify({ op, ...payload }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Could not save (HTTP ${res.status})`);
+  }
+  return true;
+}
+
+/**
  * The staff read path: poll /api/staff/collections instead of listening.
  *
  * A collection staff are not allowed settles as an empty list rather than
@@ -3135,6 +3157,16 @@ export const useAppStore = create<AppState>()(
       },
       updateOrderStatus: async (orderId, status) => {
         if(get().settings.databaseLocked) return;
+        // Staff cannot touch Firestore; the same rules are applied server-side.
+        if (await staffWrite('updateOrderStatus', { orderId, status })) {
+          set(state => ({
+            orders: state.orders.map(o => o.id === orderId
+              ? { ...o, status, items: status === 'Completed'
+                  ? (o.items || []).map(i => ({ ...i, isCompleted: true })) : o.items }
+              : o),
+          }) as Partial<AppState>);
+          return;
+        }
         console.log(`[GemsTrack Store updateOrderStatus] Updating order ${orderId} to status: ${status}`);
         try {
           const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
