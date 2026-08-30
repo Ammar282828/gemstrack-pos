@@ -347,6 +347,7 @@ import type { OverheadItem, OverheadPlan } from '@/lib/overheads';
 import { roleForEmail, isStaffCollection } from '@/lib/roles';
 import { clientPort } from '@/lib/db-client-port';
 import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
+import { createOrder } from '@/lib/writes/create-order';
 export type { OverheadItem, OverheadPlan };
 
 export { METAL_TYPES, KARAT_VALUES, metalLabel, karatLabel, describeMetal } from './materials';
@@ -2971,114 +2972,40 @@ export const useAppStore = create<AppState>()(
 
       addOrder: async (orderData) => {
         if(get().settings.databaseLocked) return null;
-        const { settings, addCustomer, customers } = get();
 
-        // Pre-transaction: resolve customer (writes to Firestore, must happen before the transaction)
-        let finalCustomerId = orderData.customerId;
-        let finalCustomerName = orderData.customerName;
-
-        if (!finalCustomerId && orderData.customerName) {
-            const newCustomer = await addCustomer({
-                name: orderData.customerName,
-                phone: orderData.customerContact,
-                email: '',
-                address: '',
-            });
-            if (newCustomer) {
-                finalCustomerId = newCustomer.id;
-                finalCustomerName = newCustomer.name;
-            }
-        } else if (finalCustomerId) {
-             const customer = customers.find(c => c.id === finalCustomerId);
-             if (customer) finalCustomerName = customer.name;
-        } else if (!finalCustomerName && orderData.customerContact) {
-            finalCustomerName = `Customer - ${orderData.customerContact}`;
+        // Staff post to the server, which runs THIS SAME createOrder against
+        // the Admin SDK. One copy of the numbering and the rate snapshot.
+        if (roleForEmail(auth?.currentUser?.email) === 'staff') {
+          try {
+            const res = await staffWriteJson('createOrder', { order: orderData });
+            const created = res.order as Order;
+            set(state => ({ orders: [created, ...state.orders] }) as Partial<AppState>);
+            return created;
+          } catch (error) {
+            console.error('[GemsTrack Store addOrder] staff write failed:', error);
+            return null;
+          }
         }
-
-        // Resolve acquisition source: per-order override wins, otherwise inherit
-        // from the linked customer's saved source.
-        let finalSource = orderData.source;
-        if (!finalSource && finalCustomerId) {
-            const linkedCustomer = customers.find(c => c.id === finalCustomerId);
-            if (linkedCustomer?.source) finalSource = linkedCustomer.source;
-        }
-
-        const finalSubtotal = Number(orderData.subtotal) || 0;
-        const finalGrandTotal = Number(orderData.grandTotal) || 0;
-
-        // Generate a simple summary from item descriptions
-        const summaryResult = {
-            summary: orderData.items.length === 1
-                ? (orderData.items[0].description || 'Custom order')
-                : orderData.items.map(i => i.description).filter(Boolean).join(', ') || 'Custom order',
-        };
-
-        const ratesApplied = {
-            goldRatePerGram18k: settings.goldRatePerGram18k,
-            goldRatePerGram21k: settings.goldRatePerGram21k,
-            goldRatePerGram22k: settings.goldRatePerGram22k,
-            goldRatePerGram24k: settings.goldRatePerGram24k,
-            palladiumRatePerGram: settings.palladiumRatePerGram,
-            platinumRatePerGram: settings.platinumRatePerGram,
-            silverRatePerGram: settings.silverRatePerGram
-        };
-
-        const createdAt = new Date().toISOString();
 
         try {
-          const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
-
-          const finalOrder = await runTransaction(db, async (transaction) => {
-            const settingsDoc = await transaction.get(settingsDocRef);
-            if (!settingsDoc.exists()) throw new Error("Global settings not found.");
-            const currentSettings = settingsDoc.data() as Settings;
-
-            const nextOrderNumber = (currentSettings.lastOrderNumber || 0) + 1;
-            const newOrderId = `ORD-${nextOrderNumber.toString().padStart(6, '0')}`;
-
-            const orderDocRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, newOrderId);
-            const existingOrder = await transaction.get(orderDocRef);
-            if (existingOrder.exists()) throw new Error(`Order ID ${newOrderId} already exists. lastOrderNumber may be out of sync.`);
-
-            const order: Order = {
-              ...orderData,
-              id: newOrderId,
-              customerId: finalCustomerId,
-              customerName: finalCustomerName,
-              customerContact: orderData.customerContact ? normalizePhoneNumber(orderData.customerContact) : orderData.customerContact,
-              source: finalSource,
-              subtotal: finalSubtotal,
-              grandTotal: finalGrandTotal,
-              createdAt,
-              status: 'Pending',
-              summary: summaryResult.summary,
-              ratesApplied: ratesApplied,
-            };
-
-            // Strip undefined fields — Firestore rejects them and would abort the
-            // transaction, which previously caused orders to silently fail to save
-            // (e.g. walk-in orders with no customerId/contact).
-            transaction.set(orderDocRef, cleanObject(order));
-            transaction.update(settingsDocRef, { lastOrderNumber: nextOrderNumber });
-            return order;
-          });
-
-          await addActivityLog('order.create', `Created order: ${finalOrder.id}`, `Customer: ${finalCustomerName || 'Walk-in'} | Total: ${finalGrandTotal.toLocaleString()}`, finalOrder.id);
-          console.log(`[GemsTrack Store addOrder] Order ${finalOrder.id} saved successfully.`);
-          syncOrderShopify(finalOrder.id, 'upsert');
-
-          // WhatsApp notification: new order
-          // Through notifyWhatsApp, not a hand-rolled fetch: this used to
-          // duplicate it, which is how it missed the auth header when /send
-          // was locked down and started failing silently into a console warn.
-          {
-            const s = get().settings;
-            const items = finalOrder.items.map(i => i.description || 'Item').join(', ');
-            const msg = `*New Order* ${finalOrder.id}\nCustomer: ${finalCustomerName || 'Walk-in'}\nItems: ${items}\nTotal: PKR ${finalGrandTotal.toLocaleString()}`;
-            notifyWhatsApp(s, msg, !!s.notifNewOrder);
-          }
-
-          return finalOrder;
+          const created = await createOrder(
+            clientPort,
+            orderData as unknown as Parameters<typeof createOrder>[1],
+            {
+              createCustomer: async (c) => {
+                const made = await get().addCustomer({ name: c.name, phone: c.phone, email: '', address: '' });
+                return made ? { id: made.id, name: made.name } : null;
+              },
+              normalizePhone: (v) => normalizePhoneNumber(v),
+              clean: cleanObject,
+            },
+            {
+              log: (action, title, detail, ref) => { addActivityLog(action as LogEventType, title, detail, ref ?? ''); },
+              notify: (msg) => { const st = get().settings; notifyWhatsApp(st, msg, !!st.notifNewOrder); },
+            },
+          );
+          syncOrderShopify(created.id, 'upsert');
+          return created as unknown as Order;
         } catch (error) {
           console.error(`[GemsTrack Store addOrder] Error saving order to Firestore:`, error);
           return null;

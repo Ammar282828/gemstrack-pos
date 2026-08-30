@@ -19,6 +19,18 @@ import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
 import { adminPort } from '@/lib/db-admin-port';
 import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
+import { createOrder } from '@/lib/writes/create-order';
+
+/** Firestore rejects undefined; the client has cleanObject, this is its twin. */
+function stripUndefined<T extends object>(o: T): T {
+  if (Array.isArray(o)) return o.map(v => (v && typeof v === 'object' ? stripUndefined(v as object) : v)) as unknown as T;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(o)) {
+    if (v === undefined) continue;
+    out[k] = v && typeof v === 'object' ? stripUndefined(v as object) : v;
+  }
+  return out as T;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -128,6 +140,33 @@ export async function POST(req: NextRequest) {
           { log: (action, title, detail, ref) => log(action, title, detail, ref) },
         );
         return NextResponse.json({ ok: true, invoice });
+      }
+
+      // ── new order ─────────────────────────────────────────────────────────
+      // Same createOrder the browser runs, on the Admin SDK. The order number
+      // and the rate snapshot therefore come out identical either way.
+      case 'createOrder': {
+        const order = body.order as Record<string, unknown> | undefined;
+        if (!order || !Array.isArray(order.items) || order.items.length === 0) {
+          return NextResponse.json({ error: 'An order needs at least one item' }, { status: 400 });
+        }
+
+        const created = await createOrder(
+          adminPort,
+          order as never,
+          {
+            createCustomer: async c => {
+              const ref = await adminDb.collection('customers').add({
+                name: c.name, phone: c.phone || null, email: null, address: null,
+                createdAt: new Date().toISOString(), createdBy: email,
+              });
+              return { id: ref.id, name: c.name };
+            },
+            clean: stripUndefined,
+          },
+          { log: (action, title, detail, ref) => log(action, title, detail, ref) },
+        );
+        return NextResponse.json({ ok: true, order: created });
       }
 
       default:
