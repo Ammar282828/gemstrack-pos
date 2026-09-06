@@ -28,6 +28,7 @@ import {
 import { format, parseISO, subDays, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { isBusinessCost } from '@/lib/partnership';
+import { upcomingOccasions, occasionWhen } from '@/lib/occasions';
 
 /** PKR at a glance. Exact value stays available on hover. */
 function compactPKR(n: number): string {
@@ -163,6 +164,7 @@ export default function HomePage() {
     additionalRevenues, loadAdditionalRevenues,
     expenses, loadExpenses,
     karigars, loadKarigars, karigarJobs, loadKarigarJobs,
+    customers, loadCustomers,
     settings,
   } = useAppStore(state => ({
     loadProducts: state.loadProducts,
@@ -178,6 +180,8 @@ export default function HomePage() {
     loadKarigars: state.loadKarigars,
     karigarJobs: state.karigarJobs,
     loadKarigarJobs: state.loadKarigarJobs,
+    customers: state.customers,
+    loadCustomers: state.loadCustomers,
     settings: state.settings,
   }));
   const cartItems = useAppStore(selectCartDetails);
@@ -186,8 +190,9 @@ export default function HomePage() {
     if (!appReady) return;
     loadProducts(); loadOrders(); loadGeneratedInvoices();
     loadAdditionalRevenues(); loadExpenses(); loadKarigars(); loadKarigarJobs();
+    loadCustomers();
   }, [appReady, loadProducts, loadOrders, loadGeneratedInvoices,
-      loadAdditionalRevenues, loadExpenses, loadKarigars, loadKarigarJobs]);
+      loadAdditionalRevenues, loadExpenses, loadKarigars, loadKarigarJobs, loadCustomers]);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -299,8 +304,22 @@ export default function HomePage() {
         amount: compactPKR(rest.reduce((s, i) => s + (i.balanceDue || 0), 0)),
       });
     }
+    /**
+     * Birthdays and anniversaries belong here rather than in a card of their own. They are
+     * the same shape as everything else on this panel — a thing waiting on a decision — and
+     * the dashboard says each thing once.
+     */
+    for (const o of upcomingOccasions(customers).slice(0, 4)) {
+      out.push({
+        href: `/customers/${o.customerId}`,
+        tone: o.inDays <= 1 ? 'warn' : 'plain',
+        title: o.customerName,
+        detail: `${o.kind === 'birthday' ? 'Birthday' : 'Anniversary'} ${occasionWhen(o.inDays)}`,
+      });
+    }
+
     return out;
-  }, [stats]);
+  }, [stats, customers]);
 
   if (!appReady) {
     return (

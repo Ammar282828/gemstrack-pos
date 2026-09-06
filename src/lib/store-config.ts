@@ -10,7 +10,7 @@
 
 export const STORE_CONFIG = {
   // App / branding
-  name:            process.env.NEXT_PUBLIC_STORE_NAME            ?? 'MINA',
+  name:            process.env.NEXT_PUBLIC_STORE_NAME            ?? 'TAHERI',
 
   // PDF footer — contacts (contact3/4 are optional, leave blank to omit)
   contact1Name:    process.env.NEXT_PUBLIC_STORE_CONTACT1_NAME   ?? 'Mina Khalid',
@@ -39,11 +39,16 @@ export const STORE_CONFIG = {
 } as const;
 
 /**
- * Official House of Mina logo. Lives in public/ so it ships with the build
- * and cannot be changed at runtime via settings — this is the canonical
- * brand mark, sourced from houseofmina.store. Used on all generated PDFs.
+ * The shop's wordmark. Lives in public/ so it ships with the build rather than
+ * depending on anything remote.
+ *
+ * Taheri's is a high-contrast Didone in near-black — the same treatment as the
+ * MINA mark it replaces, dark artwork on transparent, so it sits on the light
+ * chrome without a plate behind it. The light-on-dark cut is kept beside it for
+ * anywhere the ground goes dark.
  */
-export const STORE_LOGO_URL = '/house-of-mina-logo.png';
+export const STORE_LOGO_URL = '/taheri-logo.png';
+export const STORE_LOGO_LIGHT_URL = '/taheri-logo-light.png';
 
 /**
  * Aspect ratio (width / height) of the locked brand logo.

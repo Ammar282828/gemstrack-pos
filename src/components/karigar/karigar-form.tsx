@@ -22,6 +22,12 @@ import { PhoneField } from '@/components/ui/phone-field';
 const karigarSchema = z.object({
   name: z.string().min(1, "Name is required"),
   contact: z.string().optional(),
+  altPhone: z.string().optional(),
+  specialty: z.string().optional(),
+  workshop: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
   notes: z.string().optional(),
   email: z.string().email('Enter a valid email').optional().or(z.literal('')),
 });
@@ -46,13 +52,17 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
     defaultValues: karigar ? {
       name: karigar.name,
       contact: normalizePhoneNumber(karigar.contact) || "",
+      altPhone: normalizePhoneNumber(karigar.altPhone) || "",
+      specialty: karigar.specialty || "",
+      workshop: karigar.workshop || "",
+      address: karigar.address || "",
+      city: karigar.city || "",
+      country: karigar.country || "",
       notes: karigar.notes || "",
       email: karigar.email || "",
     } : {
-      name: '',
-      contact: '',
-      notes: '',
-      email: '',
+      name: '', contact: '', altPhone: '', specialty: '', workshop: '',
+      address: '', city: '', country: '', notes: '', email: '',
     },
   });
 
@@ -155,6 +165,43 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
                 </FormItem>
               )}
             />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField control={form.control} name="specialty" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-base">Specialty (Optional)</FormLabel>
+                  <FormControl><Input placeholder="What he makes — setting, polish, chain, meena" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="altPhone" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-base">Second Number (Optional)</FormLabel>
+                  <FormControl><Input placeholder="Workshop line, or a son's phone" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="workshop" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-base">Workshop (Optional)</FormLabel>
+                  <FormControl><Input placeholder="Where the bench is" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="city" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-base">City (Optional)</FormLabel>
+                  <FormControl><Input placeholder="e.g., Karachi" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+            <FormField control={form.control} name="address" render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base">Address (Optional)</FormLabel>
+                <FormControl><Input placeholder="Street address" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
             <FormField
               control={form.control}
               name="notes"

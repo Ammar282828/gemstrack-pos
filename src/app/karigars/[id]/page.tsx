@@ -394,12 +394,15 @@ export default function KarigarDetailPage() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete {karigar.name}?</AlertDialogTitle>
-                    <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+                    <AlertDialogTitle>Remove {karigar.name}?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This hides him from the book. His hisaab and work history stay exactly
+                      where they are, and Settings &rarr; Recently removed puts him back.
+                    </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteKarigar}>Delete</AlertDialogAction>
+                    <AlertDialogAction onClick={handleDeleteKarigar}>Remove</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>

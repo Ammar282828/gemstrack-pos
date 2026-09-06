@@ -11,10 +11,12 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, PieChart, Target } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, Target, Mic } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
+import { CommandPalette } from '@/components/search/command-palette';
+import { VoiceBubble } from '@/components/voice/voice-bubble';
 import { STORE_LOGO_URL } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
@@ -80,7 +82,6 @@ const navGroups: NavGroup[] = [
       { href: '/expenses', label: 'Expenses', icon: <CreditCard /> },
       { href: '/additional-revenue', label: 'Extra Revenue', icon: <Coins /> },
       { href: '/hisaab', label: 'Hisaab / Ledger', icon: <BookUser /> },
-      { href: '/shareholders', label: 'Shareholder Finances', icon: <PieChart /> },
       { href: '/overheads', label: 'Monthly Overheads', icon: <Target /> },
       { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
     ],
@@ -91,6 +92,7 @@ const navGroups: NavGroup[] = [
       { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
       { href: '/settings/payment-methods', label: 'Payment Methods', icon: <Landmark /> },
       { href: '/settings/backups', label: 'Backups', icon: <ArchiveRestore /> },
+      { href: '/settings/voice', label: 'Voice', icon: <Mic /> },
       { href: '/activity-log', label: 'Activity Log', icon: <History /> },
     ],
   },
@@ -143,6 +145,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
       <SidebarProvider defaultOpen={sidebarDefaultOpen}>
+        {/* Ctrl+K from anywhere. Listens on document, renders nothing until opened. */}
+        <CommandPalette />
+        {/* The microphone floats over every screen. */}
+        <VoiceBubble />
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4 pb-3">
             <Link href="/" className="flex items-center justify-start text-primary h-[26px]">

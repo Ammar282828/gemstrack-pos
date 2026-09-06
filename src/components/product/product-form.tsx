@@ -117,7 +117,9 @@ const getSafeDefaultValues = (p?: Product): ProductFormData => {
       // The shop's own default, so the silver store starts on silver and the
       // gold store on gold rather than both starting on silver.
       metalType: p?.metalType || STORE_CONFIG.defaultMetal,
-      karat: p?.karat || undefined,
+      // A new piece opens on 21k, the karat this shop actually sells. An existing product
+      // keeps whatever it was saved as.
+      karat: p?.karat || (p ? undefined : '21k'),
       metalWeightG: p?.metalWeightG || 0,
       silverRatePerGram: p?.silverRatePerGram || 0,
       secondaryMetalType: p?.secondaryMetalType || '',
@@ -126,7 +128,9 @@ const getSafeDefaultValues = (p?: Product): ProductFormData => {
       wastagePercentage: p?.wastagePercentage === undefined ? 10 : p.wastagePercentage,
       makingCharges: p?.makingCharges || 0,
       hasDiamonds: p?.hasDiamonds || false,
-      hasStones: p?.hasStones || false,
+      // New pieces open with the stone fields in play and priced from the rate — see the
+      // matching note in the order form. Every other option is still one control away.
+      hasStones: p ? (p.hasStones || false) : true,
       stoneWeightG: p?.stoneWeightG || 0,
       diamondCharges: p?.diamondCharges || 0,
       stoneCharges: p?.stoneCharges || 0,
@@ -134,7 +138,7 @@ const getSafeDefaultValues = (p?: Product): ProductFormData => {
       imageUrl: p?.imageUrl || "",
       stoneDetails: p?.stoneDetails || "",
       diamondDetails: p?.diamondDetails || "",
-      isCustomPrice: p ? (p.isCustomPrice ?? false) : true,
+      isCustomPrice: p ? (p.isCustomPrice ?? false) : false,
       customPrice: p?.customPrice || 0,
       description: p?.description || '',
       size: p?.size || '',

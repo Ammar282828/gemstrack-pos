@@ -6,6 +6,7 @@ import type { MetalType, KaratValue } from './materials';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc, deleteField, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { phoneticKey } from '@/lib/voice/phonetics';
 import { db, auth, firebaseConfig } from '@/lib/firebase';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { normalizePhoneNumber } from '@/lib/utils';
@@ -32,6 +33,7 @@ const FIRESTORE_COLLECTIONS = {
   ACTIVITY_LOG: "activity_log",
   GIVEN_ITEMS: "given_items",
   SILVER_TRANSACTIONS: "silver_transactions",
+  VOICE_ALIASES: "voice_aliases",
   KARIGAR_JOBS: "karigar_jobs",
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
@@ -291,10 +293,47 @@ export interface Customer {
   id: string; // Firestore document ID
   name: string;
   phone?: string;
+  /**
+   * A second number, for the customer who answers on one phone and sends photos from
+   * another. Never overwritten by an import — it is the spare slot a half-matched contact
+   * lands in, so the number already in the book keeps its place.
+   */
+  altPhone?: string;
   email?: string;
   address?: string;
+  city?: string;
+  country?: string;
   source?: CustomerSource; // Acquisition channel (Taheri spillover, referral, walk-in, other)
   shopifyCustomerId?: string;
+
+  /**
+   * What the shop needs to know about a body before it can make anything for it.
+   *
+   * Kept as free text rather than numbers on purpose: a ring size is quoted as "12",
+   * "12.5", "US 6" or "Fatema's usual" depending on who is asking, and forcing that into a
+   * number loses the only version anyone at the counter recognises.
+   */
+  ringSize?: string;
+  bangleSize?: string;
+  braceletSize?: string;
+  chainLength?: string;
+
+  /** ISO yyyy-mm-dd. */
+  birthday?: string;
+  anniversary?: string;
+
+  /** What they like, in the shop's own words — "no rose gold", "prefers heavier sets". */
+  preference?: string;
+  /** Free tags carried over from the phone book: tj, hom, tc. */
+  tags?: string[];
+  notes?: string;
+
+  /**
+   * Removal hides a customer; it does not destroy them. Their ledger, orders and invoices
+   * stay exactly where they are, and Settings > Recently removed puts them back.
+   * Undefined means present.
+   */
+  deletedAt?: string;
 }
 
 export interface Product {
@@ -443,11 +482,42 @@ export interface Karigar {
   id: string; // Firestore document ID
   name: string;
   contact?: string;
+  altPhone?: string;
+  /** What he actually makes — setting, polish, chain, meena. */
+  specialty?: string;
+  workshop?: string;
+  address?: string;
+  city?: string;
+  country?: string;
   notes?: string;
   /** Google account this karigar signs in with. Grants access to their own
    *  work list + hisaab ONLY, served through /api/karigar/* (never direct
    *  Firestore access — see firestore.rules). */
   email?: string;
+  /** See Customer.deletedAt — removal hides, it does not destroy. */
+  deletedAt?: string;
+}
+
+/**
+ * What a speaker's pronunciation actually sounded like, once corrected.
+ *
+ * This is how the software learns one household's accents rather than guessing forever.
+ * When the assistant picks the wrong Alifya and is told which one was meant, the sound of
+ * what was said is written down against the right row — and from then on that sound is the
+ * one signal in the matcher that is not a guess.
+ */
+export interface VoiceAlias {
+  id: string;
+  /** The name as it was heard, kept for display so the shop can see what it learned. */
+  heard: string;
+  /** phoneticKey(heard).join(' ') — what the matcher actually looks up. */
+  heardKey: string;
+  kind: HisaabEntityType;
+  refId: string;
+  /** The name it now resolves to, denormalised so the list reads without a join. */
+  refName: string;
+  uses: number;
+  createdAt: string;
 }
 
 export const ORDER_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Refunded'] as const;
@@ -968,9 +1038,13 @@ export interface AppState {
   categories: Category[]; // Still local for now
   products: Product[];
   customers: Customer[];
+  /** Removed but recoverable — Settings > Recently removed. */
+  removedCustomers: Customer[];
   cart: CartItem[]; // This will be persisted
   generatedInvoices: Invoice[];
   karigars: Karigar[];
+  removedKarigars: Karigar[];
+  voiceAliases: VoiceAlias[];
   karigarBatches: KarigarBatch[];
   silverTransactions: SilverTransaction[];
   orders: Order[];
@@ -1059,7 +1133,9 @@ export interface AppState {
   loadCustomers: () => void;
   addCustomer: (customerData: Omit<Customer, 'id'>) => Promise<Customer | null>;
   updateCustomer: (id: string, updatedCustomerData: Partial<Omit<Customer, 'id'>>) => Promise<void>;
+  /** Hides the customer. Their history is untouched. */
   deleteCustomer: (id: string) => Promise<void>;
+  restoreCustomer: (id: string) => Promise<void>;
   mergeCustomers: (keepId: string, deleteId: string) => Promise<{ updatedDocs: number }>;
   normalizeCustomerPhones: () => Promise<number>;
 
@@ -1068,6 +1144,17 @@ export interface AppState {
   addKarigar: (karigarData: Omit<Karigar, 'id'>) => Promise<Karigar | null>;
   updateKarigar: (id: string, updatedKarigarData: Partial<Omit<Karigar, 'id'>>) => Promise<void>;
   deleteKarigar: (id: string) => Promise<void>;
+  restoreKarigar: (id: string) => Promise<void>;
+  /**
+   * The only thing in the app that actually destroys a record. Removes every soft-deleted
+   * customer and karigar for good; their ledger entries and orders are orphaned.
+   */
+  purgeRemoved: () => Promise<{ customers: number; karigars: number }>;
+
+  loadVoiceAliases: () => void;
+  /** Write down that `heard` means this person. Being told once should be enough. */
+  teachVoiceAlias: (heard: string, kind: HisaabEntityType, refId: string, refName: string) => Promise<void>;
+  forgetVoiceAlias: (id: string) => Promise<void>;
   loadKarigarBatches: () => void;
   createKarigarBatch: (data: Omit<KarigarBatch, 'id'>) => Promise<KarigarBatch | null>;
   closeKarigarBatch: (batchId: string, closedDate: string, totalPaid: number) => Promise<void>;
@@ -1195,7 +1282,13 @@ const createDataLoader = <T, K extends keyof AppState>(
   loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasKarigarBatchesLoaded' | 'hasSilverTransactionsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasAdditionalRevenueLoaded' | 'hasGivenItemsLoaded' | 'hasKarigarJobsLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
   orderByField: string = "name",
   orderByDirection: "asc" | "desc" = "asc",
-  onData?: (list: T[], get: () => AppState) => void
+  onData?: (list: T[], get: () => AppState) => void,
+  /**
+   * Derive extra state from the raw collection, and optionally narrow what lands in
+   * stateKey. Used by customers and karigars to keep removed rows out of every list in the
+   * app without each list having to remember to filter them.
+   */
+  transform?: (list: T[]) => Partial<AppState>
 ) => {
   return (set: (fn: Partial<AppState> | ((state: AppState) => void)) => void, get: () => AppState) => {
     if (get()[loadedKey]) return;
@@ -1220,6 +1313,7 @@ const createDataLoader = <T, K extends keyof AppState>(
           
           set({
             [stateKey]: list,
+            ...(transform ? transform(list) : {}),
             [loadingKey]: false,
             [loadedKey]: true,
             [errorKey]: null,
@@ -1363,6 +1457,19 @@ const loadProducts = createDataLoader<Product, 'products'>('products', 'products
 // legacy phone numbers that lack a country code to E.164 (+92 default). Idempotent —
 // after the first pass every stored number already matches, so it never writes again.
 let hasNormalizedCustomerPhones = false;
+let voiceAliasesAttached = false;
+/**
+ * Removal hides a person; it does not destroy them.
+ *
+ * Split here, at the one place the collection arrives, rather than in each list that shows
+ * it. Every screen that reads `customers` gets the live book for free, and a screen added
+ * later cannot forget to exclude somebody who was removed last week.
+ */
+const splitRemoved = <T extends { deletedAt?: string }>(list: T[]) => ({
+  live: list.filter((r) => !r.deletedAt),
+  removed: list.filter((r) => Boolean(r.deletedAt)),
+});
+
 const loadCustomers = createDataLoader<Customer, 'customers'>(
   'customers', 'customers', 'isCustomersLoading', 'customersError', 'hasCustomersLoaded', 'name', 'asc',
   (list, get) => {
@@ -1378,9 +1485,20 @@ const loadCustomers = createDataLoader<Customer, 'customers'>(
       console.error('[GemsTrack Store] Auto phone normalization failed:', err);
       hasNormalizedCustomerPhones = false; // allow a retry on the next load
     });
+  },
+  (list) => {
+    const { live, removed } = splitRemoved(list);
+    return { customers: live, removedCustomers: removed };
   }
 );
-const loadKarigars = createDataLoader<Karigar, 'karigars'>('karigars', 'karigars', 'isKarigarsLoading', 'karigarsError', 'hasKarigarsLoaded', 'name', 'asc');
+const loadKarigars = createDataLoader<Karigar, 'karigars'>(
+  'karigars', 'karigars', 'isKarigarsLoading', 'karigarsError', 'hasKarigarsLoaded', 'name', 'asc',
+  undefined,
+  (list) => {
+    const { live, removed } = splitRemoved(list);
+    return { karigars: live, removedKarigars: removed };
+  }
+);
 const loadKarigarBatches = createDataLoader<KarigarBatch, 'karigarBatches'>('karigar_batches', 'karigarBatches', 'isKarigarBatchesLoading', 'karigarBatchesError', 'hasKarigarBatchesLoaded', 'startDate', 'asc');
 const loadSilverTransactions = createDataLoader<SilverTransaction, 'silverTransactions'>('silver_transactions', 'silverTransactions', 'isSilverTransactionsLoading', 'silverTransactionsError', 'hasSilverTransactionsLoaded', 'date', 'desc');
 const loadInvoices = createDataLoader<Invoice, 'generatedInvoices'>('invoices', 'generatedInvoices', 'isInvoicesLoading', 'invoicesError', 'hasInvoicesLoaded', 'createdAt', 'desc');
@@ -1408,9 +1526,12 @@ export const useAppStore = create<AppState>()(
       products: [],
       soldProducts: [],
       customers: [],
+      removedCustomers: [],
       cart: [], // This will be persisted
       generatedInvoices: [],
       karigars: [],
+      removedKarigars: [],
+      voiceAliases: [],
       karigarBatches: [],
       silverTransactions: [],
       orders: [],
@@ -1919,16 +2040,35 @@ export const useAppStore = create<AppState>()(
         }
         return fixed;
       },
+      /**
+       * Removing a customer hides them; it does not destroy anything.
+       *
+       * Their ledger, orders and invoices stay exactly where they are, still pointing at
+       * this id, so putting them back restores a complete account rather than a bare name.
+       * Settings > Recently removed is the way back, and emptying that list is the only
+       * thing in the app that genuinely deletes.
+       */
       deleteCustomer: async (id) => {
         if(get().settings.databaseLocked) return;
         const customerName = get().customers.find(c => c.id === id)?.name || id;
-        console.log(`[GemsTrack Store deleteCustomer] Attempting to delete customer ID ${id}.`);
         try {
-          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id));
-          await addActivityLog('customer.delete', `Deleted customer: ${customerName}`, `ID: ${id}`, id);
-          console.log(`[GemsTrack Store deleteCustomer] Customer ID ${id} deleted successfully.`);
+          await updateDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), { deletedAt: new Date().toISOString() });
+          await addActivityLog('customer.delete', `Removed customer: ${customerName}`, `ID: ${id}`, id);
         } catch (error) {
-          console.error(`[GemsTrack Store deleteCustomer] Error deleting customer ID ${id} from Firestore:`, error);
+          console.error(`[GemsTrack Store deleteCustomer] Error removing customer ID ${id}:`, error);
+          throw error;
+        }
+      },
+
+      restoreCustomer: async (id) => {
+        if(get().settings.databaseLocked) return;
+        const customerName = get().removedCustomers.find(c => c.id === id)?.name || id;
+        try {
+          await updateDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), { deletedAt: deleteField() });
+          await addActivityLog('customer.update', `Restored customer: ${customerName}`, `ID: ${id}`, id);
+        } catch (error) {
+          console.error(`[GemsTrack Store restoreCustomer] Error restoring customer ID ${id}:`, error);
+          throw error;
         }
       },
 
@@ -2023,16 +2163,120 @@ export const useAppStore = create<AppState>()(
           console.error(`[GemsTrack Store updateKarigar] Error updating karigar ID ${id} in Firestore:`, error);
         }
       },
+      /** See deleteCustomer — this hides, it does not destroy. */
       deleteKarigar: async (id) => {
         if(get().settings.databaseLocked) return;
         const karigarName = get().karigars.find(k => k.id === id)?.name || id;
-        console.log(`[GemsTrack Store deleteKarigar] Attempting to delete karigar ID ${id}.`);
         try {
-          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id));
-          await addActivityLog('karigar.delete', `Deleted karigar: ${karigarName}`, `ID: ${id}`, id);
-          console.log(`[GemsTrack Store deleteKarigar] Karigar ID ${id} deleted successfully.`);
+          await updateDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id), { deletedAt: new Date().toISOString() });
+          await addActivityLog('karigar.delete', `Removed karigar: ${karigarName}`, `ID: ${id}`, id);
         } catch (error) {
-          console.error(`[GemsTrack Store deleteKarigar] Error deleting karigar ID ${id} from Firestore:`, error);
+          console.error(`[GemsTrack Store deleteKarigar] Error removing karigar ID ${id}:`, error);
+          throw error;
+        }
+      },
+
+      restoreKarigar: async (id) => {
+        if(get().settings.databaseLocked) return;
+        const karigarName = get().removedKarigars.find(k => k.id === id)?.name || id;
+        try {
+          await updateDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, id), { deletedAt: deleteField() });
+          await addActivityLog('karigar.update', `Restored karigar: ${karigarName}`, `ID: ${id}`, id);
+        } catch (error) {
+          console.error(`[GemsTrack Store restoreKarigar] Error restoring karigar ID ${id}:`, error);
+          throw error;
+        }
+      },
+
+      /**
+       * Empty the Recently removed list for good.
+       *
+       * This is the one place a record actually leaves the database. Everything else in the
+       * app that says "delete" only sets deletedAt, which is why this is worth confirming
+       * loudly and counting out loud before it runs.
+       */
+      purgeRemoved: async () => {
+        if(get().settings.databaseLocked) return { customers: 0, karigars: 0 };
+        const customers = get().removedCustomers;
+        const karigars = get().removedKarigars;
+        for (const c of customers) await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, c.id));
+        for (const k of karigars) await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGARS, k.id));
+        if (customers.length || karigars.length) {
+          await addActivityLog(
+            'customer.delete',
+            `Permanently deleted ${customers.length} customer(s) and ${karigars.length} karigar(s)`,
+            'Emptied Recently removed',
+            'recently-removed',
+          );
+        }
+        return { customers: customers.length, karigars: karigars.length };
+      },
+
+      /**
+       * The names this shop has already corrected once.
+       *
+       * Small, read on every voice turn, and worth having in memory rather than fetched
+       * mid-sentence — so it rides the same real-time listener as everything else.
+       */
+      loadVoiceAliases: () => {
+        if (voiceAliasesAttached) return;
+        voiceAliasesAttached = true;
+        try {
+          onSnapshot(
+            query(collection(db, FIRESTORE_COLLECTIONS.VOICE_ALIASES), orderBy('createdAt', 'desc')),
+            (snap) => set({ voiceAliases: snap.docs.map((d) => ({ ...d.data(), id: d.id } as VoiceAlias)) }),
+            (error) => {
+              console.error('[GemsTrack Store] voice_aliases listener:', error);
+              voiceAliasesAttached = false; // allow a retry
+            },
+          );
+        } catch (error) {
+          console.error('[GemsTrack Store loadVoiceAliases]', error);
+          voiceAliasesAttached = false;
+        }
+      },
+
+      /**
+       * Being told once should be enough, and it is only enough if it is written down.
+       *
+       * Keyed on the SOUND of what was heard rather than its spelling, so the correction
+       * survives the transcriber spelling it differently the next time — which it will.
+       */
+      teachVoiceAlias: async (heard, kind, refId, refName) => {
+        if (get().settings.databaseLocked) return;
+        const key = phoneticKey(heard).join(' ');
+        if (!key) return;
+        const existing = get().voiceAliases.find(
+          (a) => a.heardKey === key && a.kind === kind && a.refId === refId,
+        );
+        try {
+          if (existing) {
+            // Same correction again — count it rather than filling the list with duplicates.
+            await updateDoc(doc(db, FIRESTORE_COLLECTIONS.VOICE_ALIASES, existing.id), {
+              uses: (existing.uses ?? 1) + 1,
+            });
+            return;
+          }
+          await addDoc(collection(db, FIRESTORE_COLLECTIONS.VOICE_ALIASES), cleanObject({
+            heard: String(heard).slice(0, 120),
+            heardKey: key,
+            kind,
+            refId,
+            refName,
+            uses: 1,
+            createdAt: new Date().toISOString(),
+          }));
+        } catch (error) {
+          console.error('[GemsTrack Store teachVoiceAlias]', error);
+        }
+      },
+
+      forgetVoiceAlias: async (id) => {
+        if (get().settings.databaseLocked) return;
+        try {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.VOICE_ALIASES, id));
+        } catch (error) {
+          console.error('[GemsTrack Store forgetVoiceAlias]', error);
           throw error;
         }
       },

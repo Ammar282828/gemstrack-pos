@@ -27,9 +27,22 @@ const NO_SOURCE_VALUE = '__none__';
 const customerSchema = z.object({
   name: z.string().optional(),
   phone: z.string().optional(),
+  altPhone: z.string().optional(),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
   address: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
   source: z.enum(CUSTOMER_SOURCES).optional(),
+  // Sizes stay free text: a ring size is quoted as "12", "12.5" or "US 6" depending on who
+  // is asking, and a number field loses the only version the counter recognises.
+  ringSize: z.string().optional(),
+  bangleSize: z.string().optional(),
+  braceletSize: z.string().optional(),
+  chainLength: z.string().optional(),
+  birthday: z.string().optional(),
+  anniversary: z.string().optional(),
+  preference: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 type CustomerFormData = z.infer<typeof customerSchema>;
@@ -52,15 +65,25 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
     defaultValues: customer ? {
       name: customer.name || '',
       phone: normalizePhoneNumber(customer.phone) || "",
+      altPhone: normalizePhoneNumber(customer.altPhone) || "",
       email: customer.email || "",
       address: customer.address || "",
+      city: customer.city || "",
+      country: customer.country || "",
       source: customer.source,
+      ringSize: customer.ringSize || "",
+      bangleSize: customer.bangleSize || "",
+      braceletSize: customer.braceletSize || "",
+      chainLength: customer.chainLength || "",
+      birthday: customer.birthday || "",
+      anniversary: customer.anniversary || "",
+      preference: customer.preference || "",
+      notes: customer.notes || "",
     } : {
-      name: '',
-      phone: '',
-      email: '',
-      address: '',
+      name: '', phone: '', altPhone: '', email: '', address: '', city: '', country: '',
       source: undefined,
+      ringSize: '', bangleSize: '', braceletSize: '', chainLength: '',
+      birthday: '', anniversary: '', preference: '', notes: '',
     },
   });
 
@@ -138,6 +161,24 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
                 )}
             />
             <FormField
+                control={form.control}
+                name="altPhone"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Second Number (Optional)</FormLabel>
+                    <FormControl>
+                        <PhoneField
+                              value={field.value || undefined}
+                              onChange={v => field.onChange(v || '')}
+                              onBlur={field.onBlur}
+                              aria-label="Second phone number" />
+                    </FormControl>
+                    <FormDescription>The spare slot. A contact import fills this rather than overwriting the number above.</FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
@@ -163,6 +204,91 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmitSu
                 </FormItem>
               )}
             />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField control={form.control} name="city" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City (Optional)</FormLabel>
+                  <FormControl><Input placeholder="e.g., Karachi" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="country" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Country (Optional)</FormLabel>
+                  <FormControl><Input placeholder="e.g., Pakistan" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            <div className="space-y-4 rounded-lg border p-4">
+              <div>
+                <h3 className="text-sm font-medium">Sizes</h3>
+                <p className="text-sm text-muted-foreground">
+                  What the shop needs before it can make anything. Written the way it is
+                  quoted at the counter, not forced into a number.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <FormField control={form.control} name="ringSize" render={({ field }) => (
+                  <FormItem><FormLabel>Ring</FormLabel>
+                    <FormControl><Input placeholder="e.g., 12.5" {...field} /></FormControl>
+                    <FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="bangleSize" render={({ field }) => (
+                  <FormItem><FormLabel>Bangle</FormLabel>
+                    <FormControl><Input placeholder="e.g., 2.6" {...field} /></FormControl>
+                    <FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="braceletSize" render={({ field }) => (
+                  <FormItem><FormLabel>Bracelet</FormLabel>
+                    <FormControl><Input placeholder="e.g., 7 in" {...field} /></FormControl>
+                    <FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="chainLength" render={({ field }) => (
+                  <FormItem><FormLabel>Chain</FormLabel>
+                    <FormControl><Input placeholder="e.g., 18 in" {...field} /></FormControl>
+                    <FormMessage /></FormItem>
+                )} />
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-lg border p-4">
+              <div>
+                <h3 className="text-sm font-medium">Dates</h3>
+                <p className="text-sm text-muted-foreground">
+                  What the dashboard watches for, so a regular gets a message before the day
+                  rather than after it.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField control={form.control} name="birthday" render={({ field }) => (
+                  <FormItem><FormLabel>Birthday</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="anniversary" render={({ field }) => (
+                  <FormItem><FormLabel>Anniversary</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormMessage /></FormItem>
+                )} />
+              </div>
+            </div>
+
+            <FormField control={form.control} name="preference" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Preferences (Optional)</FormLabel>
+                <FormControl><Input placeholder="e.g., no rose gold, prefers heavier sets" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="notes" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notes (Optional)</FormLabel>
+                <FormControl><Textarea placeholder="Anything worth remembering" {...field} rows={3} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
             <FormField
               control={form.control}
               name="source"

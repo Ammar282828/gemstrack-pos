@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock , ChevronRight, TicketPercent, Truck, CalendarClock } from 'lucide-react';
+import { Loader2, DollarSign, Weight, Zap, Diamond, Gem as GemIcon, FileText, Printer, PencilRuler, PlusCircle, Trash2, Camera, Link as LinkIcon, Hand, List, Upload, X, User, Phone, MessageSquare, Percent, Save, Ban, Search, Briefcase, Lock , ChevronRight, TicketPercent, Truck, CalendarClock, ScanLine } from 'lucide-react';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
@@ -40,6 +40,8 @@ import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
 import { STORE_CONFIG } from '@/lib/store-config';
+import { OrderScanner } from '@/components/order/order-scanner';
+import type { OrderDraft } from '@/lib/vision/order-draft';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -644,6 +646,70 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         });
     };
 
+  const [scannerOpen, setScannerOpen] = React.useState(false);
+
+  /**
+   * Take what was read off a photo and put it in the form.
+   *
+   * Everything lands as a normal, editable field — there is no "scanned" state a piece can
+   * be in. Lines are APPENDED rather than replacing what is already there, because the
+   * usual second photo is the other half of the same set, not a correction of the first.
+   *
+   * Prices are deliberately not computed here. The slip's making charge goes in, the metal
+   * rate is whatever the form already holds, and the total is the form's own arithmetic —
+   * a figure read off handwriting must never quietly become a price nobody checked.
+   */
+  const applyScan = (scan: OrderDraft, photoDataUri: string) => {
+    if (scan.customer?.pinned) {
+      form.setValue('customerId', scan.customer.pinned.id);
+      form.setValue('customerName', scan.customer.pinned.name);
+    } else if (scan.customer?.heard) {
+      // Nobody pinned: carry the name through as a walk-in rather than losing it.
+      form.setValue('customerId', WALK_IN_CUSTOMER_VALUE);
+      form.setValue('customerName', scan.customer.heard);
+    }
+    if (scan.customerPhone) form.setValue('customerContact', normalizePhoneNumber(scan.customerPhone) || scan.customerPhone);
+    if (scan.advancePayment != null) form.setValue('advancePayment', scan.advancePayment);
+
+    const karigarId = scan.karigar?.pinned?.id ?? '';
+    const lines = scan.items?.length ? scan.items : [{}];
+    lines.forEach((it, i) => {
+      setOpenItem(fields.length + i);
+      append({
+        itemCategory: it.itemCategory || '',
+        description: it.description || '',
+        karat: it.karat ? (`${Math.round(it.karat)}k` as KaratValue) : '21k',
+        estimatedWeightG: it.weightG ?? 0,
+        wastagePercentage: 10,
+        makingCharges: it.makingCharges ?? 0,
+        diamondCharges: 0,
+        stoneCharges: 0,
+        // The slip itself, kept on the first piece as the reference picture.
+        sampleImageDataUri: i === 0 ? photoDataUri : '',
+        referenceSku: '',
+        sampleGiven: false,
+        hasDiamonds: false,
+        stoneDetails: it.stoneDetails || '',
+        diamondDetails: '',
+        metalType: STORE_CONFIG.defaultMetal as MetalType,
+        isCompleted: false,
+        hasStones: Boolean(it.stoneWeightG),
+        stoneWeightG: it.stoneWeightG ?? 0,
+        karigarId,
+        isManualPrice: true,
+        manualPrice: 0,
+        platingType: '', platingNote: '', nickelFree: false,
+        size: it.size || '',
+        adminNote: [
+          it.note,
+          it.weightWasTola ? 'Weight converted from tola on the slip.' : null,
+          scan.unreadable ? `Unread on the slip: ${scan.unreadable}` : null,
+          scan.expectedDate ? `Slip says wanted by ${scan.expectedDate}.` : null,
+        ].filter(Boolean).join(' ') || '',
+      });
+    });
+  };
+
   const handleAddNewItem = () => {
     setOpenItem(fields.length);
     append({
@@ -671,10 +737,19 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         // has to be changed for a gold piece; it just no longer starts empty.
         metalType: STORE_CONFIG.defaultMetal as MetalType,
         isCompleted: false,
-        hasStones: false,
+        /**
+         * A new piece starts on the shop's own metal at 21k, priced FROM THE RATE with
+         * stones counted — because that is what almost every piece here is, and starting
+         * on a manual price meant the weight, the karat and the stone charge were all
+         * typed and then quietly ignored.
+         *
+         * Nothing is removed by this. Manual pricing, the other karats and the other
+         * metals are all still one control away; this only decides where the form opens.
+         */
+        hasStones: true,
         stoneWeightG: 0,
         karigarId: '',
-        isManualPrice: true,
+        isManualPrice: false,
         manualPrice: 0,
         platingType: '', platingNote: '', nickelFree: false,
         adminNote: '',
@@ -993,6 +1068,10 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                     <PlusCircle className="mr-2 h-4 w-4"/> Add piece
                 </Button>
                 <ProductSearchDialog onAddProduct={handleAddInventoryProduct} />
+                <Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>
+                    <ScanLine className="mr-2 h-4 w-4"/> Scan a parchi
+                </Button>
+                <OrderScanner open={scannerOpen} onOpenChange={setScannerOpen} onAccept={applyScan} />
                 <span className="text-xs text-muted-foreground ml-auto self-center">
                   {fields.length} piece{fields.length === 1 ? '' : 's'} on this order
                 </span>

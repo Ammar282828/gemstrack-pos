@@ -957,10 +957,12 @@ export default function SettingsPage() {
                 <CardDescription>Bring records in from a spreadsheet, or take a copy out.</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <SettingsLink href="/settings/contact-import" icon={Users} title="Import customers" description="Bulk import from a CSV file." />
+                <SettingsLink href="/settings/contact-import" icon={Users} title="Import contacts" description="From a phone's address book, marked TJ, HOM, TC or Karigar." />
                 <SettingsLink href="/settings/hisaab-import" icon={Import} title="Import hisaab" description="Historical ledgers from other apps." />
                 <SettingsLink href="/settings/backups" icon={ArchiveRestore} title="Backups" description="Snapshot and restore your data." />
                 <SettingsLink href="/settings/payment-methods" icon={Landmark} title="Payment methods" description="Accounts money is received into." />
+                <SettingsLink href="/settings/recently-removed" icon={RotateCcw} title="Recently removed" description="Customers and karigars you hid. Nothing is destroyed until you empty it." />
+                <SettingsLink href="/settings/import-taheri" icon={Database} title="Import Taheri Software book" description="One-off: 377 customers and 46 karigars from the shop's previous app." />
               </CardContent>
             </Card>
             <SettingRow

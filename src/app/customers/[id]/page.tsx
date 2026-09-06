@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, BookUser, ClipboardList, FileText } from 'lucide-react';
+import { Edit3, Trash2, ArrowLeft, User, Phone, Mail, MapPin, BookUser, ClipboardList, FileText, Ruler, Cake, CalendarHeart, Heart, StickyNote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -125,6 +125,14 @@ export default function CustomerDetailPage() {
     );
   }
 
+  /* One line rather than four empty rows — most customers have one size on file, not all four. */
+  const sizes = [
+    customer.ringSize && `Ring ${customer.ringSize}`,
+    customer.bangleSize && `Bangle ${customer.bangleSize}`,
+    customer.braceletSize && `Bracelet ${customer.braceletSize}`,
+    customer.chainLength && `Chain ${customer.chainLength}`,
+  ].filter(Boolean) as string[];
+
   return (
     <div className="container mx-auto py-8 px-4 space-y-6">
       <PageBack fallback="/customers" label="Back to customers" />
@@ -144,7 +152,19 @@ export default function CustomerDetailPage() {
               <Separator className="my-1" />
               <DetailItem label="Email" value={customer.email} icon={<Mail className="w-4 h-4" />} />
               <Separator className="my-1" />
-              <DetailItem label="Address" value={customer.address} icon={<MapPin className="w-4 h-4" />} />
+              <DetailItem label="Address" value={[customer.address, customer.city, customer.country].filter(Boolean).join(', ')} icon={<MapPin className="w-4 h-4" />} />
+              {customer.altPhone && (<><Separator className="my-1" />
+                <DetailItem label="Second number" value={customer.altPhone} icon={<Phone className="w-4 h-4" />} /></>)}
+              {sizes.length > 0 && (<><Separator className="my-1" />
+                <DetailItem label="Sizes" value={sizes.join(' · ')} icon={<Ruler className="w-4 h-4" />} /></>)}
+              {customer.birthday && (<><Separator className="my-1" />
+                <DetailItem label="Birthday" value={customer.birthday} icon={<Cake className="w-4 h-4" />} /></>)}
+              {customer.anniversary && (<><Separator className="my-1" />
+                <DetailItem label="Anniversary" value={customer.anniversary} icon={<CalendarHeart className="w-4 h-4" />} /></>)}
+              {customer.preference && (<><Separator className="my-1" />
+                <DetailItem label="Prefers" value={customer.preference} icon={<Heart className="w-4 h-4" />} /></>)}
+              {customer.notes && (<><Separator className="my-1" />
+                <DetailItem label="Notes" value={customer.notes} icon={<StickyNote className="w-4 h-4" />} /></>)}
             </CardContent>
             <CardFooter className="flex-col gap-2">
                <Button asChild className="w-full">
@@ -160,10 +180,10 @@ export default function CustomerDetailPage() {
                 </Button>
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="w-full"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+                    <Button variant="destructive" className="w-full"><Trash2 className="mr-2 h-4 w-4" /> Remove</Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Delete this customer?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone. This will permanently delete the customer and unassign them from any products.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogHeader><AlertDialogTitle>Remove {customer.name}?</AlertDialogTitle><AlertDialogDescription>This hides them from the book. Their hisaab, orders and invoices stay exactly where they are, and Settings &rarr; Recently removed puts them back.</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteCustomer}>Delete</AlertDialogAction></AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
