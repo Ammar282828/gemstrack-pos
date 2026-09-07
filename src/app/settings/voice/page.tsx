@@ -43,7 +43,12 @@ export default function VoiceSettingsPage() {
       .then((d) => {
         if (cancelled) return;
         setReady(Boolean(d?.ready));
-        setReason(d?.reason ?? null);
+        /**
+         * A reply with neither `ready` nor `reason` is not Google failing to answer — it
+         * is this app refusing the request, almost always a 401 with no signed-in user.
+         * Reporting that as an outage sent me looking at Vertex for a sign-in problem.
+         */
+        setReason(d?.reason ?? (d?.error ? 'refused' : 'unreachable'));
       })
       .catch(() => { if (!cancelled) { setReady(false); setReason('unreachable'); } });
     return () => { cancelled = true; };
@@ -75,6 +80,7 @@ export default function VoiceSettingsPage() {
                 {reason === 'no_credit' ? 'The Google Cloud account is out of credit'
                   : reason === 'no_permission' ? 'This deployment cannot reach Gemini'
                   : reason === 'not_configured' ? 'Voice is not set up on this deployment'
+                  : reason === 'refused' ? 'This app would not let the request through'
                   : 'Could not reach Gemini'}
               </AlertTitle>
               <AlertDescription>
@@ -87,6 +93,9 @@ export default function VoiceSettingsPage() {
                   project. It needs the Vertex AI User role.</>
                 ) : reason === 'not_configured' ? (
                   <>No Google Cloud project is configured for this build.</>
+                ) : reason === 'refused' ? (
+                  <>The voice routes asked for a signed-in owner and got nobody. Google was
+                  never contacted, so this is not an outage — it is the gate in front of it.</>
                 ) : (
                   <>Google did not answer. This is usually the connection rather than the
                   setup; it will be rechecked shortly.</>

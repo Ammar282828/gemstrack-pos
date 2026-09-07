@@ -21,15 +21,26 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * Who may spend the shop's Gemini quota.
+ * Who may spend the shop's Vertex AI budget.
  *
- * These routes hold the key, so an ungated one is an open relay: anybody who can reach the
- * server could post audio or photographs all day on the shop's account. Gated on the same
- * verified Firebase ID token the staff and karigar routes use, and narrowed to owners —
- * voice and scanning are owner tools, and widening that is a deliberate decision rather
- * than a default.
+ * Normally: a verified owner token. These routes bill to the shop's Google Cloud
+ * account, so an ungated one is an open relay on somebody's money.
+ *
+ * While NEXT_PUBLIC_OPEN_ACCESS is set the app has no sign-in, so there is no token
+ * to check and this would refuse every call — which is exactly what happened: voice
+ * reported "could not reach Gemini" when the truth was that it never asked. The gate
+ * follows the same flag the rest of the app does, deliberately, so that ONE switch
+ * governs the whole posture rather than leaving voice broken in a way that reads as
+ * a Google outage.
+ *
+ * The cost of that is real and worth stating: while open, anyone who reaches these
+ * routes can spend the shop's Vertex credits. Closing NEXT_PUBLIC_OPEN_ACCESS closes
+ * this with it.
  */
+const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
+
 async function denyUnlessOwner(req: NextRequest): Promise<NextResponse | null> {
+  if (OPEN_ACCESS) return null;
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (roleForEmail(email) !== 'owner') {

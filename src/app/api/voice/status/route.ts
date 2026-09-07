@@ -23,9 +23,13 @@ const CACHE_MS = 5 * 60 * 1000;
 let cached: { at: number; ready: boolean; reason: string | null } | null = null;
 
 export async function GET(req: NextRequest) {
-  const email = await verifyRequestEmail(req);
-  if (!email || roleForEmail(email) !== 'owner') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // See the note in voice/listen: with the app open there is no token to check, and
+  // refusing here made a sign-in problem look like a Google outage.
+  if (process.env.NEXT_PUBLIC_OPEN_ACCESS !== '1') {
+    const email = await verifyRequestEmail(req);
+    if (!email || roleForEmail(email) !== 'owner') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   if (!geminiConfigured()) return NextResponse.json({ ready: false, reason: 'not_configured' });
