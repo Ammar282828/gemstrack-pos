@@ -28,6 +28,14 @@ export interface OrderInput {
   source?: string;
   subtotal?: number;
   grandTotal?: number;
+  /**
+   * The rates this order was priced at, when the counter set them itself.
+   *
+   * Optional: left out, the shop's current rates are stamped on instead. Supplied,
+   * they win — the rate showing on screen while the piece was being quoted is the
+   * rate the customer was told, and the settings may have moved since.
+   */
+  ratesApplied?: Partial<Record<typeof RATE_FIELDS[number], number>>;
   [k: string]: unknown;
 }
 
@@ -101,8 +109,21 @@ export async function createOrder(
     const clash = await tx.get(ORDERS, id);
     if (clash) throw new Error(`Order ID ${id} already exists. lastOrderNumber may be out of sync.`);
 
+    /**
+     * Stamp the rates onto the order, so it prices the same in June as it did in March.
+     *
+     * A rate sent with the order wins over the shop's current one. Without that, a rate
+     * typed at the counter was accepted by the form and then silently replaced by
+     * whatever Settings happened to hold at the instant of the write — the customer is
+     * quoted one figure and the book records another, and nothing anywhere says so.
+     * Each karat falls back on its own, so sending one does not blank the rest.
+     */
+    const supplied = input.ratesApplied ?? {};
     const ratesApplied: Record<string, number> = {};
-    for (const f of RATE_FIELDS) ratesApplied[f] = settings[f];
+    for (const f of RATE_FIELDS) {
+      const given = Number(supplied[f]);
+      ratesApplied[f] = Number.isFinite(given) && given > 0 ? given : settings[f];
+    }
 
     const doc = {
       ...input,

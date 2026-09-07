@@ -496,14 +496,25 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
 
   const onSubmit = async (data: OrderFormData) => {
     const { subtotal, discount, grandTotal } = liveEstimate;
+    /**
+     * The rates this order is priced at, stamped onto it so it reads the same later.
+     *
+     * The four gold rates come from the form, which is the whole point of showing them
+     * there: whatever is on screen when the piece is quoted is what the customer was
+     * told. The other metals have no field, so on an EDIT they must come from the order's
+     * own stamp rather than from Settings — re-reading Settings here quietly repriced
+     * every silver or platinum line in an old order at today's rate, months after it was
+     * agreed, with nothing on the screen to say so.
+     */
+    const prior = order?.ratesApplied;
     const ratesForOrder: Partial<Settings> = {
         goldRatePerGram18k: data.goldRate18k || 0,
         goldRatePerGram21k: data.goldRate21k || 0,
         goldRatePerGram22k: data.goldRate22k || 0,
         goldRatePerGram24k: data.goldRate24k || 0,
-        palladiumRatePerGram: settings.palladiumRatePerGram,
-        platinumRatePerGram: settings.platinumRatePerGram,
-        silverRatePerGram: settings.silverRatePerGram,
+        palladiumRatePerGram: prior?.palladiumRatePerGram ?? settings.palladiumRatePerGram,
+        platinumRatePerGram: prior?.platinumRatePerGram ?? settings.platinumRatePerGram,
+        silverRatePerGram: prior?.silverRatePerGram ?? settings.silverRatePerGram,
     };
 
     const enrichedItems: OrderItem[] = data.items.map((item) => {
