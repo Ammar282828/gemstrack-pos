@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { GEMINI_MODEL } from '@/lib/voice/model';
 import { systemPrompt } from '@/lib/voice/prompt';
 import { VOICE_ACTIONS } from '@/lib/voice/resolve';
 import type { RosterEntry } from '@/lib/voice/phonetics';
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest) {
 
   const genAI = new GoogleGenerativeAI(key);
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: GEMINI_MODEL,
     systemInstruction: systemPrompt({
       shopName,
       today: today || new Date().toISOString().slice(0, 10),

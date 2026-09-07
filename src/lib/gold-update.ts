@@ -9,6 +9,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GEMINI_MODEL } from '@/lib/voice/model';
 
 // ── Live data helpers ────────────────────────────────────────────────────────
 
@@ -220,8 +221,8 @@ STRICT RULES:
 
   const genAI = getGemini();
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    // google_search tool (not googleSearchRetrieval) for gemini-2.0-flash
+    model: GEMINI_MODEL,
+    // google_search (not googleSearchRetrieval) is the tool name on this model family
     tools: [{ googleSearch: {} } as any],
     generationConfig: { temperature: 0.4 },
   });
@@ -274,7 +275,7 @@ STRICT RULES:
 
   const genAI = getGemini();
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: GEMINI_MODEL,
     tools: [{ googleSearch: {} } as any],
     generationConfig: { temperature: 0.2 },
   });

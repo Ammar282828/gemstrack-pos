@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { GEMINI_MODEL } from '@/lib/voice/model';
 import { ORDER_CATEGORIES } from '@/lib/vision/order-draft';
 
 export const runtime = 'nodejs';
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
 
   const genAI = new GoogleGenerativeAI(key);
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: GEMINI_MODEL,
     generationConfig: {
       // Reading handwriting is transcription, not composition.
       temperature: 0,
