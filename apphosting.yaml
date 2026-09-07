@@ -85,11 +85,6 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_BANK_LINE
-    value: ""
-    availability:
-      - BUILD
-      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_WHATSAPP_URL
     value: "https://wa.me/923262275554"
     availability:
