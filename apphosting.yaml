@@ -24,9 +24,11 @@ env:
     availability:
       - BUILD
 
-  # Where this app actually answers.
+  # Where this app actually answers. The hosted.app address still works and still
+  # serves the same backend, but this is the one printed on documents and used to
+  # build links, so it should be the address the shop actually says out loud.
   - variable: NEXT_PUBLIC_APP_URL
-    value: "https://studio--gemstrack-pos.us-central1.hosted.app"
+    value: "https://pos.taheri.shop"
     availability:
       - BUILD
       - RUNTIME
