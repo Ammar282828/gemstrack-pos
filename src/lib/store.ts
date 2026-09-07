@@ -183,6 +183,7 @@ function effectiveRole(): 'owner' | 'staff' | 'none' {
 import { clientPort } from '@/lib/db-client-port';
 import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 import { createOrder } from '@/lib/writes/create-order';
+import { STORE_CONFIG } from '@/lib/store-config';
 export type { OverheadItem, OverheadPlan };
 
 export { METAL_TYPES, KARAT_VALUES, metalLabel, karatLabel, describeMetal } from './materials';
@@ -780,7 +781,10 @@ const CATEGORY_SKU_PREFIXES: Record<string, string> = {
 const initialSettingsData: Settings = {
   goldRatePerGram24k: 240000, goldRatePerGram22k: 220000, goldRatePerGram21k: 210000, goldRatePerGram18k: 180000,
   palladiumRatePerGram: 22000, platinumRatePerGram: 25000, silverRatePerGram: 250,
-  shopName: "MINA", shopAddress: "123 Jewel Street, Sparkle City",
+  // Falls back to this shop's own name, not the other one's. Settings normally come
+  // from Firestore; this is what shows in the moment before they arrive, or if the
+  // read is denied — and it read "MINA" on Taheri's dashboard for exactly that long.
+  shopName: STORE_CONFIG.name, shopAddress: "",
   shopContact: "contact@taheri.com | (021) 123-4567",
   shopLogoUrl: "", shopLogoUrlBlack: "", lastInvoiceNumber: 0,
   lastOrderNumber: 0,
