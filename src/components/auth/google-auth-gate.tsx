@@ -59,6 +59,25 @@ function useDevBypass(): boolean {
   return on;
 }
 
+/**
+ * ██ TEMPORARY: the deployed app is open to anyone with the URL ██
+ *
+ * Set NEXT_PUBLIC_OPEN_ACCESS=1 in apphosting.yaml on 2026-09-07 at Ammar's
+ * request, so the live app can be used without signing in. Unlike useDevBypass
+ * above, this one DOES survive a production build — that is the whole point of
+ * it, and the reason it is written to be found.
+ *
+ * On its own this only removes the sign-in screen. It was paired with opening
+ * firestore.rules, because the rules were the actual boundary and the app shows
+ * nothing without them; see firestore.rules.locked for what to restore. Together
+ * they mean anybody who reaches the hostname can read and write every customer,
+ * every phone number and the whole ledger.
+ *
+ * TO CLOSE IT AGAIN: drop NEXT_PUBLIC_OPEN_ACCESS from apphosting.yaml and
+ * restore firestore.rules.locked. Both are one change each.
+ */
+const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
+
 function parseUserAgent(ua: string): { browser: string; os: string } {
   let browser = 'Unknown Browser';
   let os = 'Unknown OS';
@@ -167,7 +186,7 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const devBypass = useDevBypass();
+  const devBypass = useDevBypass() || OPEN_ACCESS;
 
   const handleSignIn = async () => {
     setIsSigningIn(true);

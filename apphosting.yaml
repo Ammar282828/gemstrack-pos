@@ -103,3 +103,12 @@ env:
 # it already runs as. GOOGLE_GENAI_API_KEY is gone from here for that reason, not by
 # oversight -- the API-key endpoint bills to a separate AI Studio pool, which is what
 # was empty. The secret still exists in the project if anything ever wants it back.
+
+  # ██ TEMPORARY: removes the sign-in screen on the deployed app ██
+  # Set 2026-09-07 at Ammar's request, paired with open firestore.rules.
+  # Delete this block and restore firestore.rules.locked to close it again.
+  - variable: NEXT_PUBLIC_OPEN_ACCESS
+    value: "1"
+    availability:
+      - BUILD
+      - RUNTIME
