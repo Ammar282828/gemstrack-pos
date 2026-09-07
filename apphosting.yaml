@@ -92,10 +92,13 @@ env:
       - RUNTIME
 
   # Voice and the parchi scanner. Owner-gated at the route; see src/app/api/voice.
+  # RUNTIME only. Every reader of this key resolves it per request - the voice
+  # routes, the scanner, the gold-rate updater - so nothing needs it while the
+  # image is being built, and a build-time grant is a permission handed out for
+  # no reason.
   - variable: GOOGLE_GENAI_API_KEY
     secret: GOOGLE_GENAI_API_KEY
     availability:
-      - BUILD
       - RUNTIME
 
   # Gates the notification endpoints, which Cloud Scheduler calls without a user
