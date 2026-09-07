@@ -18,7 +18,13 @@ const auth = new GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/cloud-platform'],
 });
 
-const PROJECT = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || '';
+// VERTEX_PROJECT lets Vertex bill to a different Google Cloud project than the app's
+// own Firebase project. House of Mina runs on hom-pos, which has no funded Vertex, so
+// it points this at the Taheri project (gemstrack-pos) whose Vertex billing is funded.
+// The runtime identity (ADC locally, the App Hosting service account in production)
+// must have aiplatform.user on whatever project this names.
+const PROJECT = process.env.VERTEX_PROJECT?.trim()
+  || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || '';
 const LOCATION = process.env.VERTEX_LOCATION?.trim() || 'us-central1';
 
 /**

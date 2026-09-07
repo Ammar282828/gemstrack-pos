@@ -31,6 +31,15 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # The voice feature bills Vertex AI to this project, not hom-pos. The Taheri
+  # project (gemstrack-pos) has funded Vertex; hom-pos does not. Project ids are
+  # public, so this is not a secret. NOTE: the App Hosting runtime service
+  # account must be granted roles/aiplatform.user on gemstrack-pos, or Vertex
+  # answers 403. Remove this to bill Vertex to hom-pos once that project is funded.
+  - variable: VERTEX_PROJECT
+    value: gemstrack-pos
+    availability:
+      - RUNTIME
   - variable: SHOPIFY_API_KEY
     value: 1c2467806ff47ad68ffc2cd4b9720b26
     availability:
