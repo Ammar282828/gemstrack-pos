@@ -11,7 +11,7 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, PieChart, Target } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, PieChart, Target, Mic } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { roleForEmail } from '@/lib/roles';
 import { devRole, captureDevRole } from '@/lib/dev-role';
+import { VoiceBubble } from '@/components/voice/voice-bubble';
 
 interface NavItem {
   href: string;
@@ -91,6 +92,7 @@ const navGroups: NavGroup[] = [
       { href: '/settings', label: 'Settings', icon: <SettingsIcon /> },
       { href: '/settings/payment-methods', label: 'Payment Methods', icon: <Landmark /> },
       { href: '/settings/backups', label: 'Backups', icon: <ArchiveRestore /> },
+      { href: '/settings/voice', label: 'Voice', icon: <Mic /> },
       { href: '/activity-log', label: 'Activity Log', icon: <History /> },
     ],
   },
@@ -143,6 +145,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
       <SidebarProvider defaultOpen={sidebarDefaultOpen}>
+        {/* The microphone floats over every screen. */}
+        <VoiceBubble />
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4 pb-3">
             <Link href="/" className="flex items-center justify-start text-primary h-[26px]">

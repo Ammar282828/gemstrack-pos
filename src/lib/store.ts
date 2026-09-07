@@ -6,6 +6,7 @@ import type { MetalType, KaratValue } from './materials';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, deleteDoc, query, orderBy, where, onSnapshot, addDoc, runTransaction, getDocsFromCache, updateDoc, deleteField, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { phoneticKey } from '@/lib/voice/phonetics';
 import { db, auth, firebaseConfig } from '@/lib/firebase';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { normalizePhoneNumber } from '@/lib/utils';
@@ -33,6 +34,7 @@ const FIRESTORE_COLLECTIONS = {
   GIVEN_ITEMS: "given_items",
   SILVER_TRANSACTIONS: "silver_transactions",
   KARIGAR_JOBS: "karigar_jobs",
+  VOICE_ALIASES: "voice_aliases",
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
 
@@ -295,6 +297,15 @@ export interface Customer {
   address?: string;
   source?: CustomerSource; // Acquisition channel (Taheri spillover, referral, walk-in, other)
   shopifyCustomerId?: string;
+  birthday?: string;    // ISO date; month-day is what matters (used by voice "occasions")
+  anniversary?: string; // ISO date; month-day is what matters (used by voice "occasions")
+  // Free text on purpose — a ring size reads as "12", "US 6" or "Fatema's usual"
+  // depending on who is asking. Surfaced by voice "person detail".
+  ringSize?: string;
+  bangleSize?: string;
+  braceletSize?: string;
+  chainLength?: string;
+  preference?: string;  // What they like, in the shop's words — "no rose gold".
 }
 
 export interface Product {
@@ -448,6 +459,20 @@ export interface Karigar {
    *  work list + hisaab ONLY, served through /api/karigar/* (never direct
    *  Firestore access — see firestore.rules). */
   email?: string;
+}
+
+export interface VoiceAlias {
+  id: string;
+  /** The name as it was heard, kept for display so the shop can see what it learned. */
+  heard: string;
+  /** phoneticKey(heard).join(' ') — what the matcher actually looks up. */
+  heardKey: string;
+  kind: HisaabEntityType;
+  refId: string;
+  /** The name it now resolves to, denormalised so the list reads without a join. */
+  refName: string;
+  uses: number;
+  createdAt: string;
 }
 
 export const ORDER_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Refunded'] as const;
@@ -1068,6 +1093,11 @@ export interface AppState {
   addKarigar: (karigarData: Omit<Karigar, 'id'>) => Promise<Karigar | null>;
   updateKarigar: (id: string, updatedKarigarData: Partial<Omit<Karigar, 'id'>>) => Promise<void>;
   deleteKarigar: (id: string) => Promise<void>;
+  voiceAliases: VoiceAlias[];
+  loadVoiceAliases: () => void;
+  /** Write down that `heard` means this person. Being told once should be enough. */
+  teachVoiceAlias: (heard: string, kind: HisaabEntityType, refId: string, refName: string) => Promise<void>;
+  forgetVoiceAlias: (id: string) => Promise<void>;
   loadKarigarBatches: () => void;
   createKarigarBatch: (data: Omit<KarigarBatch, 'id'>) => Promise<KarigarBatch | null>;
   closeKarigarBatch: (batchId: string, closedDate: string, totalPaid: number) => Promise<void>;
@@ -1363,6 +1393,7 @@ const loadProducts = createDataLoader<Product, 'products'>('products', 'products
 // legacy phone numbers that lack a country code to E.164 (+92 default). Idempotent —
 // after the first pass every stored number already matches, so it never writes again.
 let hasNormalizedCustomerPhones = false;
+let voiceAliasesAttached = false;
 const loadCustomers = createDataLoader<Customer, 'customers'>(
   'customers', 'customers', 'isCustomersLoading', 'customersError', 'hasCustomersLoaded', 'name', 'asc',
   (list, get) => {
@@ -1412,6 +1443,7 @@ export const useAppStore = create<AppState>()(
       generatedInvoices: [],
       karigars: [],
       karigarBatches: [],
+      voiceAliases: [],
       silverTransactions: [],
       orders: [],
       hisaabEntries: [],
@@ -2033,6 +2065,69 @@ export const useAppStore = create<AppState>()(
           console.log(`[GemsTrack Store deleteKarigar] Karigar ID ${id} deleted successfully.`);
         } catch (error) {
           console.error(`[GemsTrack Store deleteKarigar] Error deleting karigar ID ${id} from Firestore:`, error);
+          throw error;
+        }
+      },
+
+      loadVoiceAliases: () => {
+        if (voiceAliasesAttached) return;
+        voiceAliasesAttached = true;
+        try {
+          onSnapshot(
+            query(collection(db, FIRESTORE_COLLECTIONS.VOICE_ALIASES), orderBy('createdAt', 'desc')),
+            (snap) => set({ voiceAliases: snap.docs.map((d) => ({ ...d.data(), id: d.id } as VoiceAlias)) }),
+            (error) => {
+              console.error('[GemsTrack Store] voice_aliases listener:', error);
+              voiceAliasesAttached = false; // allow a retry
+            },
+          );
+        } catch (error) {
+          console.error('[GemsTrack Store loadVoiceAliases]', error);
+          voiceAliasesAttached = false;
+        }
+      },
+
+      /**
+       * Being told once should be enough, and it is only enough if it is written down.
+       *
+       * Keyed on the SOUND of what was heard rather than its spelling, so the correction
+       * survives the transcriber spelling it differently the next time — which it will.
+       */
+      teachVoiceAlias: async (heard, kind, refId, refName) => {
+        if (get().settings.databaseLocked) return;
+        const key = phoneticKey(heard).join(' ');
+        if (!key) return;
+        const existing = get().voiceAliases.find(
+          (a) => a.heardKey === key && a.kind === kind && a.refId === refId,
+        );
+        try {
+          if (existing) {
+            // Same correction again — count it rather than filling the list with duplicates.
+            await updateDoc(doc(db, FIRESTORE_COLLECTIONS.VOICE_ALIASES, existing.id), {
+              uses: (existing.uses ?? 1) + 1,
+            });
+            return;
+          }
+          await addDoc(collection(db, FIRESTORE_COLLECTIONS.VOICE_ALIASES), cleanObject({
+            heard: String(heard).slice(0, 120),
+            heardKey: key,
+            kind,
+            refId,
+            refName,
+            uses: 1,
+            createdAt: new Date().toISOString(),
+          }));
+        } catch (error) {
+          console.error('[GemsTrack Store teachVoiceAlias]', error);
+        }
+      },
+
+      forgetVoiceAlias: async (id) => {
+        if (get().settings.databaseLocked) return;
+        try {
+          await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.VOICE_ALIASES, id));
+        } catch (error) {
+          console.error('[GemsTrack Store forgetVoiceAlias]', error);
           throw error;
         }
       },
