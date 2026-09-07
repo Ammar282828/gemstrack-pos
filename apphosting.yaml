@@ -1,67 +1,111 @@
 # Settings for Backend (on Cloud Run).
 # See https://firebase.google.com/docs/app-hosting/configure#cloud-run
+#
+# THIS IS TAHERI'S. It was forked from House of Mina's and every value in it had
+# to be turned over, because the defaults baked into src/lib/firebase.ts all point
+# at hom-pos-52710474-ceeea. Deployed unchanged, this app signs in against House
+# of Mina's project and reads and writes House of Mina's database while showing
+# Taheri's name on the door. Check the project id below before touching anything
+# else in this file.
+#
+# Shopify and the WhatsApp (GreenAPI) transport are deliberately absent: Taheri
+# does not use either, and its own env records SHOPIFY_API_KEY as "unused".
+# Adding House of Mina's credentials here would wire this shop to that shop's
+# storefront and phone number.
+
 runConfig:
   minInstances: 0
-  # maxInstances: 100
-  # concurrency: 80
-  # cpu: 1
-  # memoryMiB: 512
 
 env:
   # whatsapp-web.js (local-only dev tool) pulls puppeteer. Skip the Chromium
-  # download during the cloud build — it's never used in production.
+  # download during the cloud build - it is never used in production.
   - variable: PUPPETEER_SKIP_DOWNLOAD
     value: "true"
     availability:
       - BUILD
-  # Not a secret: project ids are public. Needed by firebase-admin so
-  # verifyIdToken can check a token's audience.
-  # Where the app actually answers. Every Shopify webhook is registered
-  # against this, so it has to match the domain in the browser bar — if it
-  # drifts, Shopify keeps posting to the old address and orders stop arriving
-  # with no error anywhere. Set this to the custom domain only once DNS
-  # resolves, then re-run /api/shopify/register-webhooks.
+
+  # Where this app actually answers.
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://pos.houseofmina.store
+    value: https://studio--gemstrack-pos.us-central1.hosted.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: gemstrack-pos.firebaseapp.com
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: hom-pos-52710474-ceeea
+    value: gemstrack-pos
     availability:
       - BUILD
       - RUNTIME
-  - variable: SHOPIFY_API_KEY
-    value: 1c2467806ff47ad68ffc2cd4b9720b26
-    availability:
-      - RUNTIME
-  - variable: SHOPIFY_API_SECRET
-    secret: SHOPIFY_API_SECRET
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: gemstrack-pos.firebasestorage.app
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: 948018742883
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:948018742883:web:a3a090dde378be96089a56
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_NAME
+    value: TAHERI
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_DEFAULT_METAL
+    value: gold
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_ALLOWED_EMAILS
+    value: potatomasta501@gmail.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT1_NAME
+    value: Ammar Mansa
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT1_NUMBER
+    value: 0326 2275554
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_BANK_LINE
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_WHATSAPP_URL
+    value: https://wa.me/923262275554
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Voice and the parchi scanner. Owner-gated at the route; see src/app/api/voice.
   - variable: GOOGLE_GENAI_API_KEY
     secret: GOOGLE_GENAI_API_KEY
     availability:
       - BUILD
       - RUNTIME
+
+  # Gates the notification endpoints, which Cloud Scheduler calls without a user
+  # session. Its own value, not shared with any other shop.
   - variable: CRON_SECRET
     secret: CRON_SECRET
-    availability:
-      - RUNTIME
-  - variable: GREENAPI_ID_INSTANCE
-    secret: GREENAPI_ID_INSTANCE
-    availability:
-      - RUNTIME
-  - variable: GREENAPI_API_TOKEN
-    secret: GREENAPI_API_TOKEN
-    availability:
-      - RUNTIME
-  - variable: SHOPIFY_STORE_DOMAIN
-    secret: SHOPIFY_STORE_DOMAIN
-    availability:
-      - RUNTIME
-  - variable: SHOPIFY_ACCESS_TOKEN
-    secret: SHOPIFY_ACCESS_TOKEN
     availability:
       - RUNTIME
