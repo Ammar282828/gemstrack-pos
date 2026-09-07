@@ -91,12 +91,6 @@ env:
       - BUILD
       - RUNTIME
 
-  # RUNTIME only. Every reader resolves this per request - the voice routes, the
-  # scanner, the gold-rate updater - so nothing needs it during the build.
-  - variable: GOOGLE_GENAI_API_KEY
-    secret: GOOGLE_GENAI_API_KEY
-    availability:
-      - RUNTIME
 
   # Gates the notification endpoints, which Cloud Scheduler calls without a user
   # session. Its own value in this project, not shared with the other shop.
@@ -104,3 +98,8 @@ env:
     secret: CRON_SECRET
     availability:
       - RUNTIME
+
+# Vertex AI needs no key: the backend signs its own requests with the service account
+# it already runs as. GOOGLE_GENAI_API_KEY is gone from here for that reason, not by
+# oversight -- the API-key endpoint bills to a separate AI Studio pool, which is what
+# was empty. The secret still exists in the project if anything ever wants it back.

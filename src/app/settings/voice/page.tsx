@@ -65,36 +65,34 @@ export default function VoiceSettingsPage() {
             {ready === null ? 'Checking…' : ready ? 'Voice is ready' : 'Voice is not set up'}
           </CardTitle>
           <CardDescription>
-            One key does all of it — listening, understanding and answering.
+            Billed to this shop's own Google Cloud account. There is no API key to keep.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           {ready === false && (
             <Alert>
               <AlertTitle>
-                {reason === 'bad_key' ? 'The Gemini key was rejected'
-                  : reason === 'unreachable' ? 'Could not reach Google'
-                  : 'No Gemini key on the server'}
+                {reason === 'no_credit' ? 'The Google Cloud account is out of credit'
+                  : reason === 'no_permission' ? 'This deployment cannot reach Gemini'
+                  : reason === 'not_configured' ? 'Voice is not set up on this deployment'
+                  : 'Could not reach Gemini'}
               </AlertTitle>
               <AlertDescription>
-                {reason === 'bad_key' ? (
-                  <>
-                    There is a key in <code className="rounded bg-muted px-1">GOOGLE_GENAI_API_KEY</code>,
-                    but Google will not accept it — usually expired, revoked, or copied short.
-                    Issue a fresh one from Google AI Studio and restart.
-                  </>
-                ) : reason === 'unreachable' ? (
-                  <>The key could not be checked because Google did not answer. This is usually
-                  the connection rather than the key; it will be rechecked shortly.</>
+                {reason === 'no_credit' ? (
+                  <>Voice and the scanner bill to this shop&apos;s Google Cloud account, and it
+                  has nothing left. Top it up and both start working again with no change
+                  here — there is no key to replace.</>
+                ) : reason === 'no_permission' ? (
+                  <>The app&apos;s own service account is not allowed to call Vertex AI on this
+                  project. It needs the Vertex AI User role.</>
+                ) : reason === 'not_configured' ? (
+                  <>No Google Cloud project is configured for this build.</>
                 ) : (
-                  <>
-                    Set <code className="rounded bg-muted px-1">GOOGLE_GENAI_API_KEY</code> in the
-                    environment and restart.
-                  </>
+                  <>Google did not answer. This is usually the connection rather than the
+                  setup; it will be rechecked shortly.</>
                 )}{' '}
-                Voice is the only thing that key affects — without it the microphone is
-                unavailable and every entry it could make can still be made from the ordinary
-                forms.
+                Everything else works meanwhile — every entry voice could make can still be
+                made from the ordinary forms.
               </AlertDescription>
             </Alert>
           )}

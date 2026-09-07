@@ -11,8 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-import { GEMINI_MODEL } from '@/lib/voice/model';
+import { generateJson, geminiConfigured, GeminiError } from '@/lib/voice/gemini';
 import { systemPrompt } from '@/lib/voice/prompt';
 import { VOICE_ACTIONS } from '@/lib/voice/resolve';
 import type { RosterEntry } from '@/lib/voice/phonetics';
@@ -44,61 +43,61 @@ async function denyUnlessOwner(req: NextRequest): Promise<NextResponse | null> {
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 
 const READING_SCHEMA = {
-  type: SchemaType.OBJECT,
+  type: 'OBJECT',
   properties: {
     transcript: {
-      type: SchemaType.STRING,
+      type: 'STRING',
       description: 'What was actually said, in the script it was said in. Never cleaned up.',
     },
     action: {
-      type: SchemaType.STRING,
+      type: 'STRING',
       enum: [...VOICE_ACTIONS],
       description: 'Which of the shop\'s actions this sentence is.',
     },
     summary: {
-      type: SchemaType.STRING,
+      type: 'STRING',
       description: 'One short English sentence: what was recorded, who for, the figure. Or the question to ask.',
     },
     person: {
-      type: SchemaType.OBJECT,
+      type: 'OBJECT',
       description: 'Who this entry belongs to. Omit only for expense and other_income.',
       properties: {
-        spoken_as: { type: SchemaType.STRING, description: 'The name exactly as it was heard, in Roman letters.' },
-        name: { type: SchemaType.STRING, description: 'The roster name you believe that to be.' },
-        kind: { type: SchemaType.STRING, enum: ['customer', 'karigar'] },
+        spoken_as: { type: 'STRING', description: 'The name exactly as it was heard, in Roman letters.' },
+        name: { type: 'STRING', description: 'The roster name you believe that to be.' },
+        kind: { type: 'STRING', enum: ['customer', 'karigar'] },
       },
     },
     for_customer: {
-      type: SchemaType.STRING,
+      type: 'STRING',
       description: 'A customer named as who the work is for, when that is somebody other than the person above.',
     },
-    amount: { type: SchemaType.NUMBER, description: 'Rupees. The remainder after any part-payment, never the total.' },
-    grams: { type: SchemaType.NUMBER, description: 'Weight in grams, for gold_received and gold_paid only.' },
-    karat: { type: SchemaType.NUMBER, description: 'Purity, only when it was actually said.' },
-    description: { type: SchemaType.STRING, description: 'What the entry was for, in his own words.' },
-    screen: { type: SchemaType.STRING, description: 'For navigate: dashboard, customers, karigars, orders, products, hisaab, expenses, analytics, calendar, settings.' },
-    query: { type: SchemaType.STRING, description: 'For ask: what is being asked about.' },
+    amount: { type: 'NUMBER', description: 'Rupees. The remainder after any part-payment, never the total.' },
+    grams: { type: 'NUMBER', description: 'Weight in grams, for gold_received and gold_paid only.' },
+    karat: { type: 'NUMBER', description: 'Purity, only when it was actually said.' },
+    description: { type: 'STRING', description: 'What the entry was for, in his own words.' },
+    screen: { type: 'STRING', description: 'For navigate: dashboard, customers, karigars, orders, products, hisaab, expenses, analytics, calendar, settings.' },
+    query: { type: 'STRING', description: 'For ask: what is being asked about.' },
     fields: {
-      type: SchemaType.OBJECT,
+      type: 'OBJECT',
       description: 'For new_/edit_ actions: the record fields being set, camelCase.',
       properties: {
-        name: { type: SchemaType.STRING },
-        phone: { type: SchemaType.STRING },
-        altPhone: { type: SchemaType.STRING },
-        city: { type: SchemaType.STRING },
-        address: { type: SchemaType.STRING },
-        country: { type: SchemaType.STRING },
-        ringSize: { type: SchemaType.STRING },
-        bangleSize: { type: SchemaType.STRING },
-        braceletSize: { type: SchemaType.STRING },
-        chainLength: { type: SchemaType.STRING },
-        birthday: { type: SchemaType.STRING },
-        anniversary: { type: SchemaType.STRING },
-        preference: { type: SchemaType.STRING },
-        specialty: { type: SchemaType.STRING },
-        workshop: { type: SchemaType.STRING },
-        contact: { type: SchemaType.STRING },
-        notes: { type: SchemaType.STRING },
+        name: { type: 'STRING' },
+        phone: { type: 'STRING' },
+        altPhone: { type: 'STRING' },
+        city: { type: 'STRING' },
+        address: { type: 'STRING' },
+        country: { type: 'STRING' },
+        ringSize: { type: 'STRING' },
+        bangleSize: { type: 'STRING' },
+        braceletSize: { type: 'STRING' },
+        chainLength: { type: 'STRING' },
+        birthday: { type: 'STRING' },
+        anniversary: { type: 'STRING' },
+        preference: { type: 'STRING' },
+        specialty: { type: 'STRING' },
+        workshop: { type: 'STRING' },
+        contact: { type: 'STRING' },
+        notes: { type: 'STRING' },
       },
     },
   },
@@ -109,12 +108,8 @@ export async function POST(req: NextRequest) {
   const denied = await denyUnlessOwner(req);
   if (denied) return denied;
 
-  const key = process.env.GOOGLE_GENAI_API_KEY;
-  if (!key) {
-    return NextResponse.json(
-      { error: 'Voice is not set up. GOOGLE_GENAI_API_KEY is missing.' },
-      { status: 503 },
-    );
+  if (!geminiConfigured()) {
+    return NextResponse.json({ error: 'Voice is not set up on this deployment.' }, { status: 503 });
   }
 
   let body: {
@@ -141,23 +136,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'That recording is too long.' }, { status: 413 });
   }
 
-  const genAI = new GoogleGenerativeAI(key);
-  const model = genAI.getGenerativeModel({
-    model: GEMINI_MODEL,
-    systemInstruction: systemPrompt({
-      shopName,
-      today: today || new Date().toISOString().slice(0, 10),
-      roster: roster.slice(0, 4000),
-      orderKarat,
-    }),
-    generationConfig: {
-      // Nothing here benefits from invention; the numbers especially do not.
-      temperature: 0,
-      responseMimeType: 'application/json',
-      responseSchema: READING_SCHEMA as never,
-    },
-  });
-
   try {
     const parts = audio
       ? [
@@ -166,20 +144,22 @@ export async function POST(req: NextRequest) {
         ]
       : [{ text: `Write down what is said here: ${text}` }];
 
-    const result = await model.generateContent(parts);
-    const raw = result.response.text();
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      // A schema was asked for, so this is rare; when it happens the honest answer is that
-      // nothing was understood rather than a half-parsed guess at an amount.
-      return NextResponse.json({ error: 'Could not read that back.', raw }, { status: 502 });
-    }
-
+    const parsed = await generateJson<unknown>({
+      system: systemPrompt({
+        shopName,
+        today: today || new Date().toISOString().slice(0, 10),
+        roster: roster.slice(0, 4000),
+        orderKarat,
+      }),
+      parts,
+      schema: READING_SCHEMA as unknown as Record<string, unknown>,
+    });
     return NextResponse.json(parsed);
   } catch (err) {
+    if (err instanceof GeminiError) {
+      console.error('[voice/listen]', err.status, err.message);
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     const message = err instanceof Error ? err.message : 'Voice failed.';
     console.error('[voice/listen]', message);
     return NextResponse.json({ error: message }, { status: 502 });

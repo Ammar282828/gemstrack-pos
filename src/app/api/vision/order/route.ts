@@ -16,8 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-import { GEMINI_MODEL } from '@/lib/voice/model';
+import { generateJson, geminiConfigured, GeminiError } from '@/lib/voice/gemini';
 import { ORDER_CATEGORIES } from '@/lib/vision/order-draft';
 
 export const runtime = 'nodejs';
@@ -46,34 +45,34 @@ async function denyUnlessOwner(req: NextRequest): Promise<NextResponse | null> {
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 const DRAFT_SCHEMA = {
-  type: SchemaType.OBJECT,
+  type: 'OBJECT',
   properties: {
     items: {
-      type: SchemaType.ARRAY,
+      type: 'ARRAY',
       description: 'One entry per piece written on the slip. A slip for a set lists several.',
       items: {
-        type: SchemaType.OBJECT,
+        type: 'OBJECT',
         properties: {
-          description: { type: SchemaType.STRING, description: 'What you would call the piece, e.g. "Ring with ruby".' },
-          itemCategory: { type: SchemaType.STRING, enum: [...ORDER_CATEGORIES] },
-          karat: { type: SchemaType.NUMBER, description: 'Only if a karat is actually written. 18, 21, 22 or 24.' },
-          weightG: { type: SchemaType.NUMBER, description: 'Weight in GRAMS. Convert from tola at 11.6638 g and set weightWasTola.' },
-          weightWasTola: { type: SchemaType.BOOLEAN },
-          stoneWeightG: { type: SchemaType.NUMBER },
-          makingCharges: { type: SchemaType.NUMBER, description: 'Labour / majoori in rupees, if written.' },
-          size: { type: SchemaType.STRING, description: 'Ring or bangle size as written, e.g. "12.5".' },
-          stoneDetails: { type: SchemaType.STRING },
-          note: { type: SchemaType.STRING, description: 'Anything else about this piece, in the words on the slip.' },
+          description: { type: 'STRING', description: 'What you would call the piece, e.g. "Ring with ruby".' },
+          itemCategory: { type: 'STRING', enum: [...ORDER_CATEGORIES] },
+          karat: { type: 'NUMBER', description: 'Only if a karat is actually written. 18, 21, 22 or 24.' },
+          weightG: { type: 'NUMBER', description: 'Weight in GRAMS. Convert from tola at 11.6638 g and set weightWasTola.' },
+          weightWasTola: { type: 'BOOLEAN' },
+          stoneWeightG: { type: 'NUMBER' },
+          makingCharges: { type: 'NUMBER', description: 'Labour / majoori in rupees, if written.' },
+          size: { type: 'STRING', description: 'Ring or bangle size as written, e.g. "12.5".' },
+          stoneDetails: { type: 'STRING' },
+          note: { type: 'STRING', description: 'Anything else about this piece, in the words on the slip.' },
         },
       },
     },
-    karigarNameHeard: { type: SchemaType.STRING, description: 'The craftsman\'s name EXACTLY as written, in Roman letters. Do not correct it.' },
-    customerNameHeard: { type: SchemaType.STRING, description: 'The customer\'s name EXACTLY as written, in Roman letters. Do not correct it.' },
-    customerPhone: { type: SchemaType.STRING },
-    advancePayment: { type: SchemaType.NUMBER, description: 'Baiyana / advance in rupees, if written.' },
-    expectedDate: { type: SchemaType.STRING, description: 'YYYY-MM-DD, only if a date is actually written.' },
-    notes: { type: SchemaType.STRING },
-    unreadable: { type: SchemaType.STRING, description: 'What you could not make out. Say so rather than guessing.' },
+    karigarNameHeard: { type: 'STRING', description: 'The craftsman\'s name EXACTLY as written, in Roman letters. Do not correct it.' },
+    customerNameHeard: { type: 'STRING', description: 'The customer\'s name EXACTLY as written, in Roman letters. Do not correct it.' },
+    customerPhone: { type: 'STRING' },
+    advancePayment: { type: 'NUMBER', description: 'Baiyana / advance in rupees, if written.' },
+    expectedDate: { type: 'STRING', description: 'YYYY-MM-DD, only if a date is actually written.' },
+    notes: { type: 'STRING' },
+    unreadable: { type: 'STRING', description: 'What you could not make out. Say so rather than guessing.' },
   },
 } as const;
 
@@ -106,9 +105,8 @@ export async function POST(req: NextRequest) {
   const denied = await denyUnlessOwner(req);
   if (denied) return denied;
 
-  const key = process.env.GOOGLE_GENAI_API_KEY;
-  if (!key) {
-    return NextResponse.json({ error: 'Scanning is not set up. GOOGLE_GENAI_API_KEY is missing.' }, { status: 503 });
+  if (!geminiConfigured()) {
+    return NextResponse.json({ error: 'Scanning is not set up on this deployment.' }, { status: 503 });
   }
 
   let body: { image?: string; mimeType?: string };
@@ -124,29 +122,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'That photo is too large.' }, { status: 413 });
   }
 
-  const genAI = new GoogleGenerativeAI(key);
-  const model = genAI.getGenerativeModel({
-    model: GEMINI_MODEL,
-    generationConfig: {
-      // Reading handwriting is transcription, not composition.
-      temperature: 0,
-      responseMimeType: 'application/json',
-      responseSchema: DRAFT_SCHEMA as never,
-    },
-  });
-
   try {
-    const result = await model.generateContent([
-      { text: PROMPT },
-      { inlineData: { mimeType: mimeType || 'image/jpeg', data: image } },
-    ]);
-    const raw = result.response.text();
-    try {
-      return NextResponse.json(JSON.parse(raw));
-    } catch {
-      return NextResponse.json({ error: 'Could not read that photo.', raw }, { status: 502 });
-    }
+    const parsed = await generateJson<unknown>({
+      system: PROMPT,
+      parts: [{ inlineData: { mimeType: mimeType || 'image/jpeg', data: image } }],
+      schema: DRAFT_SCHEMA as unknown as Record<string, unknown>,
+    });
+    return NextResponse.json(parsed);
   } catch (err) {
+    if (err instanceof GeminiError) {
+      console.error('[vision/order]', err.status, err.message);
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     const message = err instanceof Error ? err.message : 'Scanning failed.';
     console.error('[vision/order]', message);
     return NextResponse.json({ error: message }, { status: 502 });
