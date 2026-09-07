@@ -26,62 +26,62 @@ env:
 
   # Where this app actually answers.
   - variable: NEXT_PUBLIC_APP_URL
-    value: https://studio--gemstrack-pos.us-central1.hosted.app
+    value: "https://studio--gemstrack-pos.us-central1.hosted.app"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA
+    value: "AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: gemstrack-pos.firebaseapp.com
+    value: "gemstrack-pos.firebaseapp.com"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: gemstrack-pos
+    value: "gemstrack-pos"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    value: gemstrack-pos.firebasestorage.app
+    value: "gemstrack-pos.firebasestorage.app"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    value: 948018742883
+    value: "948018742883"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: 1:948018742883:web:a3a090dde378be96089a56
+    value: "1:948018742883:web:a3a090dde378be96089a56"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_STORE_NAME
-    value: TAHERI
+    value: "TAHERI"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_STORE_DEFAULT_METAL
-    value: gold
+    value: "gold"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_STORE_ALLOWED_EMAILS
-    value: potatomasta501@gmail.com
+    value: "potatomasta501@gmail.com"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_STORE_CONTACT1_NAME
-    value: Ammar Mansa
+    value: "Ammar Mansa"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_STORE_CONTACT1_NUMBER
-    value: 0326 2275554
+    value: "0326 2275554"
     availability:
       - BUILD
       - RUNTIME
@@ -91,7 +91,7 @@ env:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_STORE_WHATSAPP_URL
-    value: https://wa.me/923262275554
+    value: "https://wa.me/923262275554"
     availability:
       - BUILD
       - RUNTIME
