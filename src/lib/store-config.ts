@@ -47,6 +47,16 @@ export const STORE_CONFIG = {
  * chrome without a plate behind it. The light-on-dark cut is kept beside it for
  * anywhere the ground goes dark.
  */
+/**
+ * What this shop typically keeps on a sale, before expenses.
+ *
+ * Only ever an estimate, and only used where analytics says "Est. profit" -- nothing
+ * is priced from it. It matters because it was hardcoded to 0.40, which is a silver
+ * shop's margin: on Taheri's gold that overstated estimated profit roughly fourfold,
+ * on the one screen anybody would look at to judge how the year is going.
+ */
+export const STORE_EST_MARGIN = Number(process.env.NEXT_PUBLIC_STORE_EST_MARGIN ?? '0.10');
+
 export const STORE_LOGO_URL = '/taheri-logo.png';
 export const STORE_LOGO_LIGHT_URL = '/taheri-logo-light.png';
 

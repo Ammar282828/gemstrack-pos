@@ -42,6 +42,8 @@ import { format, parseISO } from 'date-fns';
 import { KarigarPicker } from '@/components/karigar/karigar-picker';
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
+import { TakenByPicker } from '@/components/shared/taken-by-picker';
+import type { TakenBy } from '@/lib/store';
 
 // ── small presentational helpers ────────────────────────────────────────────
 
@@ -831,6 +833,7 @@ export default function WorkshopPage() {
   const [view, setView] = useState<'list' | 'board' | 'karigar'>('list');
   const [boardMode, setBoardMode] = useState<'karigar' | 'status' | 'none'>('karigar');
   const [typeFilter, setTypeFilter] = useState<'all' | 'order' | 'stock'>('all');
+  const [takenByFilter, setTakenByFilter] = useState<TakenBy | undefined>(undefined);
   // Inside "By Karigar": the whole-bench summary, or the per-karigar cards.
   const [karigarView, setKarigarView] = useState<'glance' | 'cards'>('glance');
 
@@ -850,13 +853,14 @@ export default function WorkshopPage() {
     return allJobs.filter(j => {
       if (statusFilter === 'active' && j.status === 'completed') return false;
       if (statusFilter !== 'all' && statusFilter !== 'active' && j.status !== statusFilter) return false;
+      if (takenByFilter && j.takenBy !== takenByFilter) return false;
       if (typeFilter === 'order' && j.source !== 'order') return false;
       if (typeFilter === 'stock' && j.source !== 'manual') return false;
       if (!q) return true;
       return [j.description, j.karigarName, j.customerName, j.orderId, j.category]
         .filter(Boolean).some(v => String(v).toLowerCase().includes(q));
     });
-  }, [allJobs, search, statusFilter, typeFilter]);
+  }, [allJobs, search, statusFilter, typeFilter, takenByFilter]);
 
   const filtered = useMemo(
     () => karigarFilter === 'all' ? benchJobs : benchJobs.filter(j => j.karigarId === karigarFilter),
@@ -866,7 +870,7 @@ export default function WorkshopPage() {
   const benchLoads = useMemo(() => groupByKarigar(benchJobs), [benchJobs]);
   // While a search or type filter is narrowing the list, an idle karigar means
   // "no match", not "empty bench" — so don't pad the glance with all of them.
-  const narrowed = search.trim() !== '' || typeFilter !== 'all' || statusFilter !== 'active';
+  const narrowed = search.trim() !== '' || typeFilter !== 'all' || statusFilter !== 'active' || Boolean(takenByFilter);
 
   const stats = useMemo(() => {
     const active = allJobs.filter(j => j.status !== 'completed');
@@ -969,8 +973,10 @@ export default function WorkshopPage() {
         value={search}
         onChange={setSearch}
         placeholder="Search item, karigar, customer, order…"
-        activeCount={(statusFilter !== 'active' ? 1 : 0) + (typeFilter !== 'all' ? 1 : 0)}
+        activeCount={(statusFilter !== 'active' ? 1 : 0) + (typeFilter !== 'all' ? 1 : 0) + (takenByFilter ? 1 : 0)}
       >
+        <TakenByPicker value={takenByFilter} onChange={setTakenByFilter} allowAny anyLabel="Anyone"
+          aria-label="Taken by" className="w-full sm:w-[150px]" />
         <Select value={typeFilter} onValueChange={v => setTypeFilter(v as 'all' | 'order' | 'stock')}>
           <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
           <SelectContent>

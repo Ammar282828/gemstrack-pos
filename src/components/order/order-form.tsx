@@ -13,7 +13,7 @@ import { SizePicker } from '@/components/shared/size-picker';
 import { KarigarPicker } from '@/components/karigar/karigar-picker';
 import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/shared/delivery-fields';
 import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel } from '@/lib/materials';
-import { useAppStore, Settings, KaratValue, DeliveryInfo, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, DeliveryInfo, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, CUSTOMER_SOURCES, TAKEN_BY, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -42,6 +42,7 @@ import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-d
 import { STORE_CONFIG } from '@/lib/store-config';
 import { OrderScanner } from '@/components/order/order-scanner';
 import type { OrderDraft } from '@/lib/vision/order-draft';
+import { TakenByPicker } from '@/components/shared/taken-by-picker';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -132,6 +133,7 @@ const orderFormSchema = z.object({
     customerName: z.string().optional(),
     customerContact: z.string().optional(),
     source: z.enum(CUSTOMER_SOURCES).optional(),
+    takenBy: z.enum(TAKEN_BY).optional(),
     promisedDate: z.string().optional(),
 }).refine(data => {
     const goldItems = data.items.filter(item => item.metalType === 'gold');
@@ -350,6 +352,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
       customerName: '',
       customerContact: '',
       source: undefined,
+      takenBy: undefined,
       promisedDate: '',
     },
   });
@@ -388,6 +391,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         customerName: order.customerName || '',
         customerContact: normalizePhoneNumber(order.customerContact) || '',
         source: order.source,
+        takenBy: order.takenBy,
         promisedDate: order.promisedDate || '',
       });
     } else if (!isEditMode && settings.goldRatePerGram21k > 0) {
@@ -581,6 +585,9 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         const orderToSave: Omit<Order, 'id' | 'createdAt' | 'status'> = {
             items: enrichedItems,
             ratesApplied: ratesForOrder,
+            // Listed explicitly, unlike the edit path which spreads `data`. Leaving it out
+            // here is how a field ends up saving on edit and vanishing on create.
+            ...(data.takenBy ? { takenBy: data.takenBy } : {}),
             advancePayment: data.advancePayment,
             advanceInExchangeDescription: data.advanceInExchangeDescription,
             advanceInExchangeValue: data.advanceInExchangeValue,
@@ -1097,6 +1104,15 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                 </CardHeader>
                 <CardContent className="space-y-5">
                     <PanelSection title="Customer" icon={<User className="h-3.5 w-3.5" />}>
+                        <FormField control={form.control} name="takenBy" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Taken by</FormLabel>
+                            <FormControl>
+                              <TakenByPicker value={field.value} onChange={field.onChange} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
                     <FormItem>
                         <FormLabel className="text-xs">Name</FormLabel>
                         <CustomerAutocomplete

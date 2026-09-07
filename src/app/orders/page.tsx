@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
-import { useAppStore, Order, ORDER_STATUSES, OrderStatus, OrderItem } from '@/lib/store';
+import { useAppStore, Order, ORDER_STATUSES, OrderStatus, type TakenBy, OrderItem } from '@/lib/store';
 import { getOrderPaymentStatus, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import { Progress } from '@/components/ui/progress';
 import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
 import { PromiseLine } from '@/components/shared/promise-line';
 import { useRouter } from 'next/navigation';
+import { TakenByPicker } from '@/components/shared/taken-by-picker';
 
 type PaymentStatus = OrderPaymentStatus;
 const getPaymentStatus = getOrderPaymentStatus;
@@ -284,6 +285,7 @@ function monthLabel(key: string): string {
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
+  const [takenByFilter, setTakenByFilter] = useState<TakenBy | undefined>(undefined);
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'All'>('All');
   const [monthFilter, setMonthFilter] = useState<string>('All');
 
@@ -320,6 +322,7 @@ export default function OrdersPage() {
     if (!appReady) return [];
     return orders.filter(order =>
         (statusFilter === 'All' || order.status === statusFilter) &&
+        (!takenByFilter || order.takenBy === takenByFilter) &&
         (paymentFilter === 'All' || getPaymentStatus(order) === paymentFilter) &&
         (monthFilter === 'All' || monthKeyOf(order.createdAt) === monthFilter) &&
         (
@@ -328,7 +331,7 @@ export default function OrdersPage() {
             (order.customerContact && order.customerContact.includes(searchTerm))
         )
     ).sort((a,b) => parseISO(b.createdAt).getTime() - parseISO(a.createdAt).getTime());
-  }, [orders, searchTerm, appReady, statusFilter, paymentFilter, monthFilter]);
+  }, [orders, searchTerm, appReady, statusFilter, paymentFilter, monthFilter, takenByFilter]);
 
   /** Only the in-progress count is shown now; the tiles are gone. */
   const activeCount = useMemo(
@@ -406,7 +409,7 @@ export default function OrdersPage() {
         value={searchTerm}
         onChange={setSearchTerm}
         placeholder="Search by order ID, customer, or contact…"
-        activeCount={[monthFilter, statusFilter, paymentFilter].filter(v => v !== 'All').length}
+        activeCount={[monthFilter, statusFilter, paymentFilter].filter(v => v !== 'All').length + (takenByFilter ? 1 : 0)}
         actions={
           <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Group by">
             {([['status', 'Status'], ...GRADUATIONS.map(g => [g.id, g.label] as const)] as const).map(([id, label]) => (
@@ -429,6 +432,8 @@ export default function OrdersPage() {
             {monthOptions.map(m => <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>)}
           </SelectContent>
         </Select>
+
+        <TakenByPicker value={takenByFilter} onChange={setTakenByFilter} allowAny anyLabel="Anyone" aria-label="Taken by" />
 
         <Select value={statusFilter} onValueChange={v => setStatusFilter(v as typeof statusFilter)}>
           <SelectTrigger className="w-full sm:w-[145px]"><SelectValue /></SelectTrigger>

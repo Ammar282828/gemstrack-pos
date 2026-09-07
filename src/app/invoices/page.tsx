@@ -40,6 +40,8 @@ import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, 
 /** Shared by the table and by alignHeadCell, which needs the same object. */
 const INVOICE_COLUMNS = { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 9, halign: 'right' }, 3: { cellWidth: 22, halign: 'right' }, 4: { cellWidth: 22, halign: 'right' } } as const;
 import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
+import { TakenByPicker } from '@/components/shared/taken-by-picker';
+import type { TakenBy } from '@/lib/store';
 
 /** Shared by the table and by alignHeadCell, which needs the same object. */
 const SLIP_COLUMNS = { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 28, halign: 'right' } } as const;
@@ -710,6 +712,7 @@ export default function DocumentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [monthFilter, setMonthFilter] = useState<string>('All');
+  const [takenByFilter, setTakenByFilter] = useState<TakenBy | undefined>(undefined);
   /**
    * How the list is broken up. Day by default — the usual question is what
    * happened recently — with the same graduations Expenses offers, plus a
@@ -877,6 +880,10 @@ export default function DocumentsPage() {
   const filteredDocuments = useMemo(() => {
     let docs = combinedDocuments;
 
+    if (takenByFilter) {
+      // Orders appear in this list too; both carry takenBy, so one filter covers both.
+      docs = docs.filter(doc => (doc as { takenBy?: string }).takenBy === takenByFilter);
+    }
     if (monthFilter !== 'All') {
       docs = docs.filter(doc => monthKeyOf(doc.createdAt) === monthFilter);
     }
@@ -898,7 +905,7 @@ export default function DocumentsPage() {
     }
 
     return docs;
-  }, [combinedDocuments, dateRange, searchTerm, monthFilter]);
+  }, [combinedDocuments, dateRange, searchTerm, monthFilter, takenByFilter]);
 
   /** One section of the list, with what it is worth and what is still owed. */
   const buildSections = React.useCallback((docs: DocumentType[]) => {
@@ -1081,7 +1088,7 @@ export default function DocumentsPage() {
         value={searchTerm}
         onChange={setSearchTerm}
         placeholder="Search by ID or customer name…"
-        activeCount={(monthFilter !== 'All' ? 1 : 0) + (dateRange?.from ? 1 : 0)}
+        activeCount={(monthFilter !== 'All' ? 1 : 0) + (dateRange?.from ? 1 : 0) + (takenByFilter ? 1 : 0)}
         actions={
           <>
             <div className="inline-flex rounded-md border overflow-hidden flex-shrink-0" role="group" aria-label="Group by">
@@ -1100,6 +1107,8 @@ export default function DocumentsPage() {
           </>
         }
       >
+        <TakenByPicker value={takenByFilter} onChange={setTakenByFilter} allowAny anyLabel="Anyone"
+          aria-label="Taken by" className="w-full sm:w-[150px]" />
         <Select value={monthFilter} onValueChange={setMonthFilter}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <Calendar className="w-4 h-4 mr-2 text-muted-foreground flex-shrink-0" />

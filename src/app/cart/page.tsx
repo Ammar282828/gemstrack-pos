@@ -53,6 +53,8 @@ import { FormSkeleton } from '@/components/shared/skeletons';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
 import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
+import { TakenByPicker } from '@/components/shared/taken-by-picker';
+import type { TakenBy } from '@/lib/store';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -141,6 +143,8 @@ export default function CartPage() {
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
 
   const [exchangeDescription, setExchangeDescription] = useState('');
+
+  const [takenBy, setTakenBy] = useState<TakenBy | undefined>(undefined);
   const [exchangeAmount1Input, setExchangeAmount1Input] = useState<string>('');
   const [exchangeAmount2Input, setExchangeAmount2Input] = useState<string>('');
   // Everything typed around the cart — who it is for, the discount, anything
@@ -514,7 +518,7 @@ export default function CartPage() {
       await updateSettings(ratesForInvoice);
       toast({ title: "Rates Updated", description: "Store metal rates have been updated with the values from this estimate."});
 
-      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery);
+      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy);
       if (invoice) invoiceDraftDone();
     } catch (error) {
       console.error("[Cart handleGenerateInvoice] Failed:", error);
@@ -1623,6 +1627,10 @@ export default function CartPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="flex justify-between"><span>Subtotal</span><span>PKR {estimatedInvoice?.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
+                        <div className="flex items-center justify-between">
+                            <Label className="flex items-center"><User className="mr-2 h-4 w-4"/>Taken by</Label>
+                            <TakenByPicker value={takenBy} onChange={setTakenBy} className="w-32" />
+                        </div>
                         <div className="flex items-center justify-between">
                             <Label htmlFor="discount" className="flex items-center"><Percent className="mr-2 h-4 w-4"/>Discount</Label>
                             <AmountInput id="discount" value={discountAmountInput}

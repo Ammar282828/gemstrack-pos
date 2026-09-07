@@ -38,6 +38,9 @@ export interface WorkshopJob {
   // context
   orderId?: string;
   invoiceId?: string;
+  /** Who took the order or wrote the invoice this piece came off. Carried so the
+   *  Workshop can be filtered the same way Orders and Invoices are. */
+  takenBy?: string;
   /** Sold online — surfaced in the Workshop so it can be assigned, and
    *  highlighted so it is distinguishable from bench work off an order. */
   isOnline?: boolean;
@@ -126,6 +129,7 @@ export function buildWorkshopJobs(
         ageDays,
         urgency: urgencyOf(status, ageDays),
         orderId: order.id,
+        takenBy: order.takenBy,
         itemIndex: idx,
         customerName: order.customerName || 'Walk-in',
         category: categoryTitle(item.itemCategory),
@@ -208,6 +212,7 @@ export function buildWorkshopJobs(
         ageDays,
         urgency: urgencyOf('pending', ageDays),
         invoiceId: inv.id,
+        takenBy: inv.takenBy,
         isOnline,
         itemIndex: idx,
         customerName: inv.customerName || 'Walk-in',

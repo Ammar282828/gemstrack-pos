@@ -463,6 +463,8 @@ export interface Invoice {
   balanceDue: number;
   createdAt: string; // ISO string
   ratesApplied: Partial<Settings>;
+  /** Who wrote it. See TAKEN_BY. */
+  takenBy?: TakenBy;
   paymentHistory: Payment[];
   sourceOrderId?: string; // Set when invoice is created from an order
   source?: string; // 'shopify_import' | 'shopify' for imported/synced orders
@@ -521,6 +523,17 @@ export interface VoiceAlias {
   createdAt: string;
 }
 
+/**
+ * Who took the order or wrote the invoice.
+ *
+ * A name off a fixed list rather than free text, because this is a filter as much as a
+ * record: five people at one counter, and "Ammar" typed three ways cannot be counted.
+ * Kept separate from the app's sign-in accounts on purpose — whoever is standing at the
+ * screen is often not whose Google session it is.
+ */
+export const TAKEN_BY = ['Ammar', 'Murtaza', 'Huzaifa', 'Mansoor', 'Mohammad'] as const;
+export type TakenBy = typeof TAKEN_BY[number];
+
 export const ORDER_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Refunded'] as const;
 export type OrderStatus = typeof ORDER_STATUSES[number];
 
@@ -569,6 +582,8 @@ export interface Order {
   status: OrderStatus;
   items: OrderItem[];
   ratesApplied: Partial<Settings>; // Store all rates at time of order
+  /** Who took it at the counter. See TAKEN_BY. */
+  takenBy?: TakenBy;
   subtotal: number;
   /** Agreed at order time and carried into the invoice when it is finalised,
    *  so a price settled with the customer does not have to be re-entered. */
@@ -1183,7 +1198,8 @@ export interface AppState {
     discountAmount: number,
     exchangeInfo?: { description: string; amount1: number; amount2: number },
     existingInvoiceId?: string,
-    delivery?: DeliveryInfo
+    delivery?: DeliveryInfo,
+    takenBy?: TakenBy
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string, method?: PaymentType, reference?: string) => Promise<Invoice | null>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
@@ -2384,7 +2400,7 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?) => {
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?, takenBy?) => {
         if(get().settings.databaseLocked) return null;
         const { cart } = get();
         if (cart.length === 0) return null;
@@ -2509,6 +2525,8 @@ export const useAppStore = create<AppState>()(
                     balanceDue: grandTotal - existingAmountPaid,
                     createdAt: existingCreatedAt || new Date().toISOString(),
                     ratesApplied: ratesForInvoice,
+                    // Only set when the counter chose someone; undefined stays out of Firestore.
+                    ...(takenBy ? { takenBy } : {}),
                     paymentHistory: existingPaymentHistory,
                     customerName: finalCustomerName || 'Walk-in Customer',
                     customerId: finalCustomerId,

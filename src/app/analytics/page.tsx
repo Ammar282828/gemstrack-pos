@@ -20,6 +20,7 @@ import { Alert, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { isBusinessCost } from '@/lib/partnership';
+import { STORE_EST_MARGIN } from '@/lib/store-config';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -718,7 +719,7 @@ export default function AnalyticsPage() {
               at the same volume is the same problem as nine full Cards. */}
           {(() => {
             const netProfit = analyticsData.totalSales - analyticsData.totalExpenses;
-            const estProfit = analyticsData.totalSales * 0.40;
+            const estProfit = analyticsData.totalSales * STORE_EST_MARGIN;
             const margin = analyticsData.totalSales > 0 ? (netProfit / analyticsData.totalSales) * 100 : 0;
             const money = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
@@ -733,7 +734,7 @@ export default function AnalyticsPage() {
                 ].filter(Boolean).join(' · '),
               },
               { label: 'Expenses', value: money(analyticsData.totalExpenses), tone: 'text-destructive', icon: <CreditCard className="h-4 w-4" />, sub: 'paid out in this period' },
-              { label: 'Est. profit', value: money(estProfit), tone: 'text-blue-600', icon: <TrendingUp className="h-4 w-4" />, sub: 'revenue × 40%, before expenses' },
+              { label: 'Est. profit', value: money(estProfit), tone: 'text-blue-600', icon: <TrendingUp className="h-4 w-4" />, sub: `revenue × ${Math.round(STORE_EST_MARGIN * 100)}%, before expenses` },
               {
                 label: 'Net profit', value: money(netProfit),
                 tone: netProfit >= 0 ? 'text-success' : 'text-destructive',
@@ -867,7 +868,7 @@ export default function AnalyticsPage() {
                       <TableHead className="text-right">Revenue</TableHead>
                       <TableHead className="text-right text-warning hidden sm:table-cell">Unpaid</TableHead>
                       <TableHead className="text-right hidden sm:table-cell">Expenses</TableHead>
-                      <TableHead className="text-right text-blue-600 hidden md:table-cell">Est. Profit (40%)</TableHead>
+                      <TableHead className="text-right text-blue-600 hidden md:table-cell">{`Est. Profit (${Math.round(STORE_EST_MARGIN * 100)}%)`}</TableHead>
                       <TableHead className="text-right">Net Profit</TableHead>
                       <TableHead className="text-right hidden sm:table-cell">Margin</TableHead>
                     </TableRow>
@@ -886,7 +887,7 @@ export default function AnalyticsPage() {
                         </TableCell>
                         <TableCell className="text-right text-destructive hidden sm:table-cell">{row.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
                         <TableCell className="text-right font-medium text-blue-600 hidden md:table-cell">
-                          {(row.revenue * 0.40).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          {(row.revenue * STORE_EST_MARGIN).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </TableCell>
                         <TableCell className={`text-right font-semibold ${row.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
                           {row.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
