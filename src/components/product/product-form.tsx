@@ -13,7 +13,7 @@ import { SizePicker } from '@/components/shared/size-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
-import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel } from '@/lib/materials';
+import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel, karatsFor } from '@/lib/materials';
 import { PLATING_TYPES } from '@/lib/store';
 import { useAppStore, Product, Category, KaratValue, MetalType, GOLD_COIN_CATEGORY_ID, MENS_RING_CATEGORY_ID, legacyPartKeyFor } from '@/lib/store';
 import { useRouter } from 'next/navigation';
@@ -482,7 +482,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                 <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4" /> Karat</FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                   <FormControl><SelectTrigger><SelectValue placeholder="Select Karat" /></SelectTrigger></FormControl>
-                                  <SelectContent>{karatValues.map((kVal) => (<SelectItem key={kVal} value={kVal}>{kVal.toUpperCase()}</SelectItem>))}</SelectContent>
+                                  <SelectContent>{karatsFor(selectedMetalType).map((kVal) => (<SelectItem key={kVal} value={kVal}>{kVal.toUpperCase()}</SelectItem>))}</SelectContent>
                                 </Select>
                                 <FormMessage />
                               </FormItem>
@@ -544,7 +544,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                     <FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4" /> Karat</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select Karat" /></SelectTrigger></FormControl>
-                                    <SelectContent>{karatValues.map((kVal) => (<SelectItem key={kVal} value={kVal}>{kVal.toUpperCase()}</SelectItem>))}</SelectContent>
+                                    <SelectContent>{karatsFor(selectedSecondaryMetalType).map((kVal) => (<SelectItem key={kVal} value={kVal}>{kVal.toUpperCase()}</SelectItem>))}</SelectContent>
                                     </Select>
                                     <FormMessage />
                                 </FormItem>

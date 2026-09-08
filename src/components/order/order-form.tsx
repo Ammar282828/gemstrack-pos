@@ -12,7 +12,7 @@ import { describeMetal } from '@/lib/materials';
 import { SizePicker } from '@/components/shared/size-picker';
 import { KarigarPicker } from '@/components/karigar/karigar-picker';
 import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/shared/delivery-fields';
-import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel } from '@/lib/materials';
+import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel, karatsFor, metalHasKarat } from '@/lib/materials';
 import { useAppStore, Settings, KaratValue, DeliveryInfo, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, CUSTOMER_SOURCES, TAKEN_BY, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -122,6 +122,8 @@ const orderItemSchema = z.object({
 const orderFormSchema = z.object({
     items: z.array(orderItemSchema).min(1, "You must add at least one item to the estimate."),
     goldRate18k: z.coerce.number().min(0),
+    palladiumRate18k: z.coerce.number().min(0).default(0),
+    palladiumRate12k: z.coerce.number().min(0).default(0),
     goldRate21k: z.coerce.number().min(0),
     goldRate22k: z.coerce.number().min(0),
     goldRate24k: z.coerce.number().min(0),
@@ -344,6 +346,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
     defaultValues: {
       items: seededItems,
       goldRate18k: 0, goldRate21k: 0, goldRate22k: 0, goldRate24k: 0,
+      palladiumRate18k: 0, palladiumRate12k: 0,
       discountAmount: 0,
       advancePayment: 0,
       advanceInExchangeDescription: '',
@@ -380,6 +383,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
             adminNote: item.adminNote || '',
         })),
         goldRate18k: rates.goldRatePerGram18k || 0,
+        palladiumRate18k: rates.palladiumRatePerGram18k || 0,
+        palladiumRate12k: rates.palladiumRatePerGram12k || 0,
         goldRate21k: rates.goldRatePerGram21k || 0,
         goldRate22k: rates.goldRatePerGram22k || 0,
         goldRate24k: rates.goldRatePerGram24k || 0,
@@ -398,6 +403,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
       form.reset({
         ...form.getValues(),
         goldRate18k: settings.goldRatePerGram18k,
+        palladiumRate18k: settings.palladiumRatePerGram18k,
+        palladiumRate12k: settings.palladiumRatePerGram12k,
         goldRate21k: settings.goldRatePerGram21k,
         goldRate22k: settings.goldRatePerGram22k,
         goldRate24k: settings.goldRatePerGram24k,
@@ -459,6 +466,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
     const ratesForCalc = { 
         goldRatePerGram18k: formValues.goldRate18k || 0,
         goldRatePerGram21k: formValues.goldRate21k || 0,
+        palladiumRatePerGram18k: formValues.palladiumRate18k || 0,
+        palladiumRatePerGram12k: formValues.palladiumRate12k || 0,
         goldRatePerGram22k: formValues.goldRate22k || 0,
         goldRatePerGram24k: formValues.goldRate24k || 0,
         palladiumRatePerGram: settings.palladiumRatePerGram,
@@ -517,6 +526,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         goldRatePerGram22k: data.goldRate22k || 0,
         goldRatePerGram24k: data.goldRate24k || 0,
         palladiumRatePerGram: prior?.palladiumRatePerGram ?? settings.palladiumRatePerGram,
+        palladiumRatePerGram18k: data.palladiumRate18k || 0,
+        palladiumRatePerGram12k: data.palladiumRate12k || 0,
         platinumRatePerGram: prior?.platinumRatePerGram ?? settings.platinumRatePerGram,
         silverRatePerGram: prior?.silverRatePerGram ?? settings.silverRatePerGram,
     };
@@ -928,11 +939,14 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                         <SelectContent>{metalTypeValues.map(m => <SelectItem key={m} value={m}>{metalLabel(m)}</SelectItem>)}</SelectContent>
                                     </Select><FormMessage /></FormItem>
                                 )}/>
-                                {form.watch(`items.${index}.metalType`) === 'gold' &&
+                                {/* Shown for any metal that carries a karat -- gold, and now
+                                    palladium at 12k/18k -- and offering only that metal's own
+                                    karats, so 24k palladium cannot be chosen. */}
+                                {metalHasKarat(form.watch(`items.${index}.metalType`)) &&
                                     <FormField control={form.control} name={`items.${index}.karat`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4"/>Karat</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                            <SelectContent>{karatValues.map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
+                                        <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                            <SelectContent>{karatsFor(form.watch(`items.${index}.metalType`)).map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
                                         </Select><FormMessage /></FormItem>
                                     )}/>
                                 }
@@ -1187,14 +1201,18 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                     </PanelSection>
 
                     {(formValues.items || []).some(item => item.metalType === 'gold') && (
-                    <PanelSection title="Gold rates (PKR / gram)" icon={<DollarSign className="h-3.5 w-3.5" />}>
+                    <PanelSection title="Metal rates (PKR / gram)" icon={<DollarSign className="h-3.5 w-3.5" />}>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 border rounded-md">
                             <FormField control={form.control} name="goldRate24k" render={({ field }) => (<FormItem><FormLabel className="text-xs">24k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
                             <FormField control={form.control} name="goldRate22k" render={({ field }) => (<FormItem><FormLabel className="text-xs">22k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
                             <FormField control={form.control} name="goldRate21k" render={({ field }) => (<FormItem><FormLabel className="text-xs">21k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
                             <FormField control={form.control} name="goldRate18k" render={({ field }) => (<FormItem><FormLabel className="text-xs">18k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
                         </div>
-                        <FormDescription className="text-xs">Applies to every item in this estimate.</FormDescription>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 border rounded-md mt-2">
+                            <FormField control={form.control} name="palladiumRate18k" render={({ field }) => (<FormItem><FormLabel className="text-xs">Palladium 18k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="palladiumRate12k" render={({ field }) => (<FormItem><FormLabel className="text-xs">Palladium 12k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                        </div>
+                        <FormDescription className="text-xs">Applies to every item in this estimate. A palladium rate left at zero falls back to the shop&apos;s flat palladium rate.</FormDescription>
                     </PanelSection>
                     )}
 

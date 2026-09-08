@@ -230,7 +230,14 @@ export interface PaymentMethod {
 }
 
 export interface Settings extends GoldRates {
+  /**
+   * Palladium, flat. Kept because every existing product, order and invoice was priced
+   * from it, and it remains the fallback when a piece carries no karat.
+   */
   palladiumRatePerGram: number;
+  /** Palladium is sold at 12k and 18k here, each at its own rate. */
+  palladiumRatePerGram18k: number;
+  palladiumRatePerGram12k: number;
   platinumRatePerGram: number;
   silverRatePerGram: number;
   shopName: string;
@@ -795,7 +802,8 @@ const CATEGORY_SKU_PREFIXES: Record<string, string> = {
 // --- Initial Data Definitions (For reference or one-time seeding, not for store initial state) ---
 const initialSettingsData: Settings = {
   goldRatePerGram24k: 240000, goldRatePerGram22k: 220000, goldRatePerGram21k: 210000, goldRatePerGram18k: 180000,
-  palladiumRatePerGram: 22000, platinumRatePerGram: 25000, silverRatePerGram: 250,
+  palladiumRatePerGram: 22000, palladiumRatePerGram18k: 0, palladiumRatePerGram12k: 0,
+  platinumRatePerGram: 25000, silverRatePerGram: 250,
   // Falls back to this shop's own name, not the other one's. Settings normally come
   // from Firestore; this is what shows in the moment before they arrive, or if the
   // read is denied — and it read "MINA" on Taheri's dashboard for exactly that long.

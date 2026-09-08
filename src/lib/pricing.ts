@@ -36,7 +36,8 @@ function _calculateSingleMetalCost(
     weightG: number,
     rates: { 
         goldRatePerGram24k: number; goldRatePerGram22k: number; goldRatePerGram21k: number; goldRatePerGram18k: number;
-        palladiumRatePerGram: number; platinumRatePerGram: number; silverRatePerGram: number; 
+        palladiumRatePerGram: number; palladiumRatePerGram18k?: number; palladiumRatePerGram12k?: number;
+        platinumRatePerGram: number; silverRatePerGram: number; 
     }
 ): number {
     let cost = 0;
@@ -48,8 +49,18 @@ function _calculateSingleMetalCost(
         if (rate > 0) {
             cost = validWeightG * rate;
         }
-    } else if (metalType === 'palladium' && palladiumRatePerGram > 0) {
-        cost = validWeightG * palladiumRatePerGram;
+    } else if (metalType === 'palladium') {
+        /**
+         * Per-karat first, flat rate second. The flat rate is what every palladium piece
+         * before this was priced from, so it has to keep working -- and a shop that has
+         * not filled in the two new figures yet must not silently price palladium at zero.
+         */
+        const k = String(karat || '');
+        const perKarat = (k === '18k' ? rates.palladiumRatePerGram18k
+            : k === '12k' ? rates.palladiumRatePerGram12k
+            : 0) ?? 0;
+        const rate = perKarat > 0 ? perKarat : palladiumRatePerGram;
+        if (rate > 0) cost = validWeightG * rate;
     } else if (metalType === 'platinum' && platinumRatePerGram > 0) {
         cost = validWeightG * platinumRatePerGram;
     } else if (metalType === 'silver' && silverRatePerGram > 0) {

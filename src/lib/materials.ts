@@ -12,10 +12,33 @@
  */
 
 export type MetalType = 'gold' | 'palladium' | 'platinum' | 'silver';
-export type KaratValue = '18k' | '21k' | '22k' | '24k';
+export type KaratValue = '12k' | '18k' | '21k' | '22k' | '24k';
 
 export const METAL_TYPES: [MetalType, ...MetalType[]] = ['gold', 'palladium', 'platinum', 'silver'];
-export const KARAT_VALUES: [KaratValue, ...KaratValue[]] = ['18k', '21k', '22k', '24k'];
+export const KARAT_VALUES: [KaratValue, ...KaratValue[]] = ['12k', '18k', '21k', '22k', '24k'];
+
+/**
+ * Which karats each metal is actually sold in here.
+ *
+ * A flat list offered 24k palladium and 22k platinum, neither of which this shop has
+ * ever made, while palladium's real 12k and 18k were missing entirely. Platinum and
+ * silver carry no karat at all -- silver is 925 by assay, and saying "21k silver" is
+ * how a wrong rate gets picked.
+ */
+export const KARATS_BY_METAL: Record<MetalType, KaratValue[]> = {
+  gold: ['18k', '21k', '22k', '24k'],
+  palladium: ['12k', '18k'],
+  platinum: [],
+  silver: [],
+};
+
+/** The karats to offer for a metal; empty means the field should not be shown. */
+export const karatsFor = (metalType: string | undefined | null): KaratValue[] =>
+  KARATS_BY_METAL[(metalType as MetalType)] ?? [];
+
+/** Does this metal carry a karat at all? */
+export const metalHasKarat = (metalType: string | undefined | null): boolean =>
+  karatsFor(metalType).length > 0;
 
 /** How a metal is named to a human. Silver is always the full assay name. */
 export function metalLabel(metalType: string | undefined | null): string {
@@ -24,19 +47,21 @@ export function metalLabel(metalType: string | undefined | null): string {
   return metalType.charAt(0).toUpperCase() + metalType.slice(1);
 }
 
-/** Karat only means something for gold — see displayKarat in ./categories. */
+/** Karat means something for gold and palladium — see displayKarat in ./categories. */
 export function karatLabel(karat: string | undefined | null): string {
   return karat ? String(karat).toUpperCase() : '';
 }
 
 /**
  * Full description of an item's material, e.g.
- *   describeMetal('gold', '21k')  → "Gold (21K)"
- *   describeMetal('silver', '21k') → "925 Sterling Silver"   (karat ignored)
+ *   describeMetal('gold', '21k')       → "Gold (21K)"
+ *   describeMetal('palladium', '18k')  → "Palladium (18K)"
+ *   describeMetal('silver', '21k')     → "925 Sterling Silver"   (karat ignored)
  */
 export function describeMetal(metalType: string | undefined | null, karat?: string | null): string {
   const base = metalLabel(metalType);
-  if (metalType !== 'gold' || !karat) return base;
+  // Palladium is sold at 12k and 18k here, so it reads its karat the same as gold does.
+  if (!karat || !metalHasKarat(metalType)) return base;
   return `${base} (${karatLabel(karat)})`;
 }
 

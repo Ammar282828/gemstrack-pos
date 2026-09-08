@@ -67,6 +67,8 @@ declare module 'jspdf' {
 
 type RateInputs = {
     gold18k: string;
+    palladium18k: string;
+    palladium12k: string;
     gold21k: string;
     gold22k: string;
     gold24k: string;
@@ -137,7 +139,7 @@ export default function CartPage() {
   const [generatedInvoice, setGeneratedInvoice] = useState<InvoiceType | null>(null);
   
   const [rateInputs, setRateInputs] = useState<RateInputs>({
-    gold18k: '', gold21k: '', gold22k: '', gold24k: '', palladium: '', platinum: '', silver: ''
+    gold18k: '', gold21k: '', gold22k: '', gold24k: '', palladium: '', palladium18k: '', palladium12k: '', platinum: '', silver: ''
   });
   
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
@@ -309,6 +311,8 @@ export default function CartPage() {
         gold22k: (settings.goldRatePerGram22k || 0).toFixed(2),
         gold24k: (settings.goldRatePerGram24k || 0).toFixed(2),
         palladium: (settings.palladiumRatePerGram || 0).toFixed(2),
+        palladium18k: (settings.palladiumRatePerGram18k || 0).toFixed(2),
+        palladium12k: (settings.palladiumRatePerGram12k || 0).toFixed(2),
         platinum: (settings.platinumRatePerGram || 0).toFixed(2),
         silver: (settings.silverRatePerGram || 0).toFixed(2),
       });
@@ -318,13 +322,16 @@ export default function CartPage() {
   const cartMetalInfo = useMemo(() => {
     const metals = new Set<MetalType>();
     const karats = new Set<KaratValue>();
+    // Palladium karats separately: both metals use 18k, and one shared set cannot say
+    // whether an 18k in the cart is gold, palladium, or both.
+    const palladiumKarats = new Set<KaratValue>();
     cartItemsFromStore.forEach(item => {
         metals.add(item.metalType);
-        if (item.metalType === 'gold' && item.karat) {
-            karats.add(item.karat);
-        }
+        if (!item.karat) return;
+        if (item.metalType === 'gold') karats.add(item.karat);
+        else if (item.metalType === 'palladium') palladiumKarats.add(item.karat);
     });
-    return { metals, karats };
+    return { metals, karats, palladiumKarats };
   }, [cartItemsFromStore]);
 
   const handleRateChange = (metal: keyof RateInputs, value: string) => {
@@ -347,6 +354,8 @@ export default function CartPage() {
     if (hasInvalidRate) return null;
 
     const ratesForCalc = {
+        palladiumRatePerGram18k: parseFloat(rateInputs.palladium18k) || settings.palladiumRatePerGram18k,
+        palladiumRatePerGram12k: parseFloat(rateInputs.palladium12k) || settings.palladiumRatePerGram12k,
         goldRatePerGram18k: parseFloat(rateInputs.gold18k) || settings.goldRatePerGram18k,
         goldRatePerGram21k: parseFloat(rateInputs.gold21k) || settings.goldRatePerGram21k,
         goldRatePerGram22k: parseFloat(rateInputs.gold22k) || settings.goldRatePerGram22k,
@@ -486,7 +495,9 @@ export default function CartPage() {
     
     const ratesForInvoice: Partial<Settings> = {
         ...(cartMetalInfo.metals.has('gold') && {
-            goldRatePerGram18k: parseFloat(rateInputs.gold18k) || settings.goldRatePerGram18k,
+            palladiumRatePerGram18k: parseFloat(rateInputs.palladium18k) || settings.palladiumRatePerGram18k,
+        palladiumRatePerGram12k: parseFloat(rateInputs.palladium12k) || settings.palladiumRatePerGram12k,
+        goldRatePerGram18k: parseFloat(rateInputs.gold18k) || settings.goldRatePerGram18k,
             goldRatePerGram21k: parseFloat(rateInputs.gold21k) || settings.goldRatePerGram21k,
             goldRatePerGram22k: parseFloat(rateInputs.gold22k) || settings.goldRatePerGram22k,
             goldRatePerGram24k: parseFloat(rateInputs.gold24k) || settings.goldRatePerGram24k,
@@ -577,6 +588,10 @@ export default function CartPage() {
         gold22k: (generatedInvoice.ratesApplied.goldRatePerGram22k || settings.goldRatePerGram22k || 0).toFixed(2),
         gold24k: (generatedInvoice.ratesApplied.goldRatePerGram24k || settings.goldRatePerGram24k || 0).toFixed(2),
         palladium: (generatedInvoice.ratesApplied.palladiumRatePerGram || settings.palladiumRatePerGram || 0).toFixed(2),
+        // The invoice's own stamp first, so reopening an old estimate reprices it at the
+        // rates it was written with rather than today's.
+        palladium18k: (generatedInvoice.ratesApplied.palladiumRatePerGram18k || settings.palladiumRatePerGram18k || 0).toFixed(2),
+        palladium12k: (generatedInvoice.ratesApplied.palladiumRatePerGram12k || settings.palladiumRatePerGram12k || 0).toFixed(2),
         platinum: (generatedInvoice.ratesApplied.platinumRatePerGram || settings.platinumRatePerGram || 0).toFixed(2),
         silver: (generatedInvoice.ratesApplied.silverRatePerGram || settings.silverRatePerGram || 0).toFixed(2),
     });
@@ -1477,7 +1492,12 @@ export default function CartPage() {
                 <Button variant="secondary" onClick={() => handleAddBySku()}>
                   <PlusCircle className="h-4 w-4 mr-1"/> Add
                 </Button>
-                <Button variant="outline" onClick={() => setIsNewProductDialogOpen(true)}>
+                {/* Same form as the "New item" button above. It used to open the
+                    stock-it dialog instead -- so two controls a few pixels apart, both
+                    reading as "new item", gave you two different forms depending on
+                    which you happened to press. Stocking has its own button, labelled
+                    for what it does. */}
+                <Button variant="outline" onClick={() => setNewItem(blankCartItem())}>
                   New
                 </Button>
               </div>
@@ -1618,6 +1638,16 @@ export default function CartPage() {
                                 {cartMetalInfo.karats.has('24k') && <div><Label className="text-xs">24k/gram</Label><Input value={rateInputs.gold24k} onChange={e => handleRateChange('gold24k', e.target.value)}  aria-label="24k/gram"/></div>}
                              </div>
                         </div>
+                        {cartMetalInfo.metals.has('palladium') && (
+                          <div className="space-y-2">
+                             <Label>Palladium Rates (PKR)</Label>
+                             <div className="grid grid-cols-2 gap-2">
+                                {cartMetalInfo.palladiumKarats.has('18k') && <div><Label className="text-xs">18k/gram</Label><Input value={rateInputs.palladium18k} onChange={e => handleRateChange('palladium18k', e.target.value)} aria-label="Palladium 18k/gram"/></div>}
+                                {cartMetalInfo.palladiumKarats.has('12k') && <div><Label className="text-xs">12k/gram</Label><Input value={rateInputs.palladium12k} onChange={e => handleRateChange('palladium12k', e.target.value)} aria-label="Palladium 12k/gram"/></div>}
+                                {cartMetalInfo.palladiumKarats.size === 0 && <div><Label className="text-xs">flat /gram</Label><Input value={rateInputs.palladium} onChange={e => handleRateChange('palladium', e.target.value)} aria-label="Palladium rate per gram"/></div>}
+                             </div>
+                          </div>
+                        )}
 
                     </CardContent>
                 </Card>

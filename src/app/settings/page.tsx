@@ -44,6 +44,8 @@ const settingsSchema = z.object({
   goldRatePerGram21k: z.coerce.number().min(0, "Rate must be a positive number"),
   goldRatePerGram18k: z.coerce.number().min(0, "Rate must be a positive number"),
   palladiumRatePerGram: z.coerce.number().min(0, "Palladium rate must be a positive number"),
+  palladiumRatePerGram18k: z.coerce.number().min(0, "Rate must be a positive number").default(0),
+  palladiumRatePerGram12k: z.coerce.number().min(0, "Rate must be a positive number").default(0),
   platinumRatePerGram: z.coerce.number().min(0, "Platinum rate must be a positive number"),
   silverRatePerGram: z.coerce.number().min(0, "Silver rate must be a positive number"),
   shopName: z.string().min(1, "Shop name is required"),
@@ -77,6 +79,7 @@ const FIELD_TAB: Partial<Record<keyof SettingsFormData, string>> = {
   goldRatePerGram24k: 'rates', goldRatePerGram22k: 'rates',
   goldRatePerGram21k: 'rates', goldRatePerGram18k: 'rates',
   silverRatePerGram: 'rates', platinumRatePerGram: 'rates', palladiumRatePerGram: 'rates',
+  palladiumRatePerGram18k: 'rates', palladiumRatePerGram12k: 'rates',
 };
 
 const EmergencyLock: React.FC = () => {
@@ -586,6 +589,8 @@ export default function SettingsPage() {
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       goldRatePerGram18k: 0,
+      palladiumRatePerGram18k: 0,
+      palladiumRatePerGram12k: 0,
       goldRatePerGram21k: 0,
       goldRatePerGram22k: 0,
       goldRatePerGram24k: 0,
@@ -897,6 +902,30 @@ export default function SettingsPage() {
                       />
                     ))}
                   </div>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Palladium</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {(['18k', '12k'] as const).map(k => (
+                      <FormField
+                        key={k}
+                        control={form.control}
+                        name={`palladiumRatePerGram${k}` as 'palladiumRatePerGram18k'}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-normal text-muted-foreground">{k}</FormLabel>
+                            <FormControl><AmountInput {...field} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Left at zero, palladium is priced from the flat rate below — which is how
+                    every palladium piece was priced before these two existed.
+                  </p>
                 </div>
                 <Separator />
                 <div className="space-y-2">

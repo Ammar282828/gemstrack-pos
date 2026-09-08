@@ -61,8 +61,13 @@ export const STORE_LOGO_URL = '/taheri-logo.png';
 export const STORE_LOGO_LIGHT_URL = '/taheri-logo-light.png';
 
 /**
- * Aspect ratio (width / height) of the locked brand logo.
- * Source PNG is 3195×646. Use this to compute a draw width from a chosen
- * max height in PDF generators so the logo never gets squashed.
+ * The wordmark's true width ÷ height, used to size it on PDFs.
+ *
+ * It was 3195/646 — House of Mina's artwork, left behind when the logo was swapped.
+ * Taheri's file is 1528×383, so every invoice and workshop slip drew the wordmark
+ * about 24% too wide. Nothing errors when this is wrong; the mark just comes out
+ * stretched, which is the kind of thing that is only ever noticed on paper.
+ *
+ * Measured from public/taheri-logo.png. If the artwork is replaced, remeasure it.
  */
-export const STORE_LOGO_ASPECT = 3195 / 646;
+export const STORE_LOGO_ASPECT = 1528 / 383;
