@@ -114,3 +114,18 @@ env:
     availability:
       - BUILD
       - RUNTIME
+
+  # WhatsApp, through Green API. Deliberately the SAME instance House of Mina uses --
+  # the shop runs one bot across both stores and its own env says so ("same as Mina --
+  # shared bot"), so messages from either shop go out from the one number. That is the
+  # arrangement, not an accident of copying: change it only if Taheri gets its own line.
+  #
+  # RUNTIME only. Read per request in src/lib/whatsapp.ts, never at build.
+  - variable: GREENAPI_ID_INSTANCE
+    secret: GREENAPI_ID_INSTANCE
+    availability:
+      - RUNTIME
+  - variable: GREENAPI_API_TOKEN
+    secret: GREENAPI_API_TOKEN
+    availability:
+      - RUNTIME
