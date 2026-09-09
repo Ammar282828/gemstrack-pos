@@ -32,16 +32,9 @@ function AppBody({ children }: { children: React.ReactNode }) {
    * Two are for customers: a shared invoice, and the link page the QR on every printed
    * document points at — somebody scanning a code off a receipt must not meet a login.
    *
-   * /unlock is here for a harder reason. It is the screen that GETS you an identity, so
-   * it cannot sit behind the thing that requires one. Wrapped in the gate it deadlocks:
-   * the gate finds no session, asks /api/unlock for a token, is refused because there is
-   * no cookie yet, and sends the browser to /unlock — which mounts the gate again. The
-   * keypad never draws and the loop never ends. A lock has to be reachable from outside
-   * itself.
    */
   const isPublicPath = pathname.startsWith('/view-invoice')
-    || pathname.startsWith('/links')
-    || pathname.startsWith('/unlock');
+    || pathname.startsWith('/links');
 
   /**
    * The link hostname is customer-facing and may show one page and nothing else.

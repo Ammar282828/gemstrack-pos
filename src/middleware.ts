@@ -1,11 +1,10 @@
 /**
- * Two jobs, in order: keep the link page and the POS on separate hostnames, and keep
- * the POS behind the counter passcode.
+ * links.taheri.shop serves the link page, and nothing else.
  *
- * links.taheri.shop serves the link page at its root. The same App Hosting backend
- * answers on both hostnames, so without this the page would only exist at
- * links.taheri.shop/links — and a customer who types the domain off a receipt, or whose
- * scanner strips the path, lands on the POS instead of the shop's links.
+ * The same App Hosting backend answers on both hostnames, so without this the page
+ * would only exist at links.taheri.shop/links — and a customer who types the domain
+ * off a receipt, or whose scanner strips the path, lands on the POS instead of the
+ * shop's links.
  *
  * A REDIRECT, not a rewrite. A rewrite was the obvious choice — it keeps the bare
  * domain in the address bar — and it does not work here. The rewrite produces correct
@@ -22,36 +21,19 @@
  * `x-forwarded-host`, so all three sources are checked and any of them matching counts.
  * The header is spoofable, but the worst a forged one does is show a stranger the
  * public link page, which is public.
+ *
+ * There is no passcode here. One was built and removed at Ammar's request: the POS is
+ * open, as it has been since sign-in was turned off. See firestore.rules.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { PASSCODE, UNLOCK_COOKIE, unlockToken } from '@/lib/unlock';
 
 const LINKS_HOSTS = new Set(['links.taheri.shop', 'www.links.taheri.shop']);
 
 const bare = (v: string | null | undefined) =>
   (v || '').split(',')[0].trim().split(':')[0].toLowerCase();
 
-/**
- * Left open deliberately.
- *
- * /links is the page the QR on every invoice prints, and it is meant for customers —
- * asking one of them for the counter passcode would be absurd. It carries nothing out
- * of the book. While links.taheri.shop is unpointed that QR resolves here, by path, so
- * this exemption is load-bearing rather than tidy.
- *
- * /view-invoice/<id> is what a customer opens from the WhatsApp link to see their own
- * bill, and /my-work is the karigar portal, which has its own sign-in — a karigar is
- * not counter staff and is never given the counter code. /~offline is the PWA's
- * fallback and has to render precisely when nothing else can.
- *
- * The API routes carry their own auth — a cron secret, an owner token, the karigar's
- * own link — and gating them on a browser cookie would break the scheduler and the
- * karigar pages, which have no browser to carry one.
- */
-const UNGATED = ['/unlock', '/links', '/view-invoice', '/my-work', '/~offline', '/api', '/_next'];
-
-export async function middleware(req: NextRequest) {
+export function middleware(req: NextRequest) {
   const candidates = [
     bare(req.headers.get('x-forwarded-host')),
     bare(req.headers.get('host')),
@@ -60,42 +42,18 @@ export async function middleware(req: NextRequest) {
   const isLinks = candidates.some((h) => LINKS_HOSTS.has(h));
   const url = req.nextUrl.clone();
 
-  const res = await (async () => {
-    if (isLinks) {
-      // Everything on this hostname is the link page. Nothing else there is meant for
-      // customers, and the POS must not be reachable by a second name.
-      //
-      // /api is NOT let through here, unlike on the shop's own hostname. The link page
-      // is a list of addresses out of STORE_CONFIG and calls nothing, so allowing the
-      // routes only widened what a customer-facing name could reach. They are still
-      // there on pos.taheri.shop, with the checks they have always had.
-      if (url.pathname === '/links' || url.pathname.startsWith('/_next')) {
-        return NextResponse.next();
-      }
-      url.pathname = '/links';
-      url.search = '';
-      return NextResponse.redirect(url, 307);
-    }
+  const res = (() => {
+    if (!isLinks) return NextResponse.next();
 
-    if (UNGATED.some((p) => url.pathname === p || url.pathname.startsWith(p + '/'))) {
+    // /api is NOT let through on this hostname. The link page is a list of addresses
+    // out of STORE_CONFIG and calls nothing, so allowing the routes only widened what
+    // a customer-facing name could reach.
+    if (url.pathname === '/links' || url.pathname.startsWith('/_next')) {
       return NextResponse.next();
     }
-
-    if (req.cookies.get(UNLOCK_COOKIE)?.value === await unlockToken(PASSCODE)) {
-      return NextResponse.next();
-    }
-
-    // Redirect, for the same reason as the links host above, and it is worth being
-    // blunt about it: a rewrite here does not gate anything. It serves the keypad's
-    // markup, then the App Router hydrates from the address the browser still holds,
-    // decides it is on /orders, and draws the POS over the top. The lock looked real
-    // in the response and was absent on the screen. The destination it was asked for
-    // is carried in ?next so unlocking still lands there rather than on the home page.
-    const to = req.nextUrl.clone();
-    to.pathname = '/unlock';
-    to.search = '';
-    to.searchParams.set('next', url.pathname + url.search);
-    return NextResponse.redirect(to, 307);
+    url.pathname = '/links';
+    url.search = '';
+    return NextResponse.redirect(url, 307);
   })();
 
   // So this is checkable from a terminal instead of inferred from what rendered.

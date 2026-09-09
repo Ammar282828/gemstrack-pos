@@ -16,7 +16,7 @@
  */
 
 import type { jsPDF } from 'jspdf';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, storeLinksUrl } from '@/lib/store-config';
 
 type RGB = readonly [number, number, number];
 
@@ -336,6 +336,18 @@ export function drawDocFooter(doc: jsPDF, o: FooterOpts): void {
     doc.text(`${n}  ${v}`, margin, top + 9 + i * 3.6, { maxWidth: textW }),
   );
 
+  /* The code, written out.
+     A QR is useless to anyone whose camera will not focus, whose phone is across
+     the room, or who is reading a photocopy -- and this slip is kept. Printing the
+     address as well costs one line and makes the corner legible without a phone. */
+  const linksText = storeLinksUrl().replace(/^https?:\/\//, '');
+  if (linksQr && linksText) {
+    doc.setFont('helvetica', 'normal').setFontSize(6.2);
+    setInk(doc, MUTED);
+    doc.text(linksText, margin, top + 9 + contacts.length * 3.6 + 1.4, { maxWidth: textW });
+    setInk(doc, INK);
+  }
+
   /* No bank block. Account details do not belong on a document that gets
      photographed and forwarded, and for this shop the fields were empty anyway --
      so every slip printed a "BANK" heading with nothing underneath it. */
@@ -351,7 +363,9 @@ export function drawDocFooter(doc: jsPDF, o: FooterOpts): void {
     } catch { /* a missing code must not stop the document */ }
   };
   if (linksQr) {
-    code(linksQr, qrX, 'Find us');
+    // Short enough to stay inside the 15mm code it sits under -- the caption is
+    // centred by hand against that width, so a longer word runs past the margin.
+    code(linksQr, qrX, 'Our links');
   } else {
     // Nothing configured a link page: fall back to whatever socials exist.
     code(whatsappQr, qrX, 'WhatsApp');
