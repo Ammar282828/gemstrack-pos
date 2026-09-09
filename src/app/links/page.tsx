@@ -3,52 +3,72 @@
 /**
  * The link page — what the QR on every invoice and workshop slip opens.
  *
- * Dressed as taheri.shop, not as a generic link page, and matched to it by
- * measurement rather than memory: ground #0A1111, Inter throughout at light weights,
- * micro-type set uppercase at 0.2em, gold #BE9F76, and rules at white 10%. The
- * storefront uses the Didone only as wordmark artwork, so this does too.
+ * Dressed as taheri.shop, and matched to it by measurement rather than memory: ground
+ * #0A1111, gold #BE9F76, rules at white 10%, micro-type set uppercase at 0.2em.
  *
- * Buttons rather than ruled lines: a customer meets this seconds after scanning a
- * code off a receipt, and it has to look pressable at a glance. Gold stays an edge
- * and a word — it is never a fill on the storefront and it is not one here.
+ * ON THE HIERARCHY. Everything here used to sit between 9px and 14px — the channel
+ * names, the thing a customer actually came to choose between, were 14px against 12.5px
+ * body copy, so colour was carrying the load that size should carry and the page had no
+ * focal point below the wordmark. There are four rungs now and they are far apart:
+ *
+ *   21px  Didone     the category — Diamonds, Gemstones, Watches
+ *   15px  Inter      the shop's utility links, which are verbs, not departments
+ *   13px  Inter      the welcome and the invitation to visit
+ *   11.5px Inter     what each channel actually carries
+ *   9px   micro-caps section labels, actions, the address — furniture, and quiet
+ *
+ * The quiet tiers are quiet by SIZE and letterspacing, not by opacity. They were set at
+ * white/25 and white/40, which measure 2.2:1 and 3.8:1 on this ground and fail AA — a
+ * page read by customers in daylight, some of them older, on whatever phone they have.
+ * Nothing here is below white/50 (5.3:1) any more, and it still reads as furniture,
+ * because 8.5px letterspaced caps whisper on their own without being faint too.
+ *
+ * ON THE SERIF. Five of the six channels are "X by Taheri". This page is already
+ * Taheri, so the repeated half is the one part carrying no information, and it was
+ * printed six times in the loudest position available. The distinguishing noun is now
+ * set large in the wordmark's own Didone and the shared half whispers beside it, which
+ * turns six brand names back into what they are — a jeweller's list of departments.
+ *
+ * The serif is the one liberty taken. My earlier note here said the storefront uses the
+ * Didone only as wordmark artwork so this page would too; that was the right instinct
+ * for decoration and the wrong one for hierarchy, because a second voice separates two
+ * kinds of thing in a way that another two pixels never will. It is spent on six words
+ * and nothing else. The utility rows below stay in Inter deliberately: "Talk to us" is
+ * an action, not a department, and setting it in the same face as "Diamonds" would say
+ * they are the same kind of thing.
  *
  * Public: no sign-in, no data, nothing out of the book.
  */
 
 import React from 'react';
 import Image from 'next/image';
+import { Bodoni_Moda } from 'next/font/google';
 import { STORE_CONFIG, STORE_COMMUNITIES, STORE_LINKS, STORE_LOGO_LIGHT_URL } from '@/lib/store-config';
+
+// Self-hosted by next/font, so it is one same-origin file rather than a round-trip to
+// Google — this page is often the first thing a customer loads on a slow phone.
+const didone = Bodoni_Moda({ subsets: ['latin'], weight: ['400'], display: 'swap' });
 
 type IconName = 'whatsapp' | 'instagram' | 'globe' | 'star';
 
-interface Entry { href: string; label: string; sub: string; action: string; icon: IconName }
+interface Channel { href: string; label: string; lead: string; tail: string; sub: string }
+interface Utility { href: string; label: string; sub: string; action: string; icon: IconName }
 
 export default function LinksPage() {
-  // Every channel is a WhatsApp community, so every channel carries the WhatsApp mark.
-  // Six identical glyphs would be decoration if the rows were otherwise the same — they
-  // are not: the mark answers "what opens when I press this", which is the one thing the
-  // label cannot say and the one thing somebody hesitating wants to know.
-  const channels: Entry[] = STORE_COMMUNITIES.map((c) => ({ ...c, action: 'Join', icon: 'whatsapp' as const }));
-
-  const shop: Entry[] = ([
+  const utilities: Utility[] = ([
     { href: STORE_LINKS.instagram || STORE_CONFIG.instagramUrl,
       label: 'Instagram', sub: 'The work, up close', action: 'Follow', icon: 'instagram' },
     { href: STORE_LINKS.whatsapp || STORE_CONFIG.whatsappUrl,
-      label: 'Talk to us', sub: 'Ask anything \u2014 a price, a repair, an idea', action: 'Chat', icon: 'whatsapp' },
+      label: 'Talk to us', sub: 'Ask anything — a price, a repair, an idea', action: 'Chat', icon: 'whatsapp' },
     { href: STORE_LINKS.website,
       label: 'taheri.shop', sub: 'Browse the whole house at your own pace', action: 'Visit', icon: 'globe' },
     { href: STORE_LINKS.googleReview,
       label: 'Leave a review', sub: 'Tell Karachi what you thought', action: 'Review', icon: 'star' },
-  ] as Entry[]).filter((e) => Boolean(e.href));
+  ] as Utility[]).filter((e) => Boolean(e.href));
 
   return (
     <main className="min-h-screen bg-[#0A1111] px-6 pb-16 pt-14 text-white antialiased">
       <style>{`
-        /* The ground has to be on the document, not just on <main>.
-           The POS body carries the app's own palette, which is near-white, so a phone
-           rubber-banding at the top or bottom of this page flashed white behind it —
-           and the browser's own chrome tinted to match. Scoped to this page: React
-           removes the tag when it unmounts. */
         /* !important because globals.css paints <html> through .boot-light /
            .boot-dark, whose class selector outranks a bare html rule. Those exist to
            get the POS's first paint right and know nothing about this page. */
@@ -61,49 +81,49 @@ export default function LinksPage() {
           border-color: rgba(190,159,118,.9);
           background-color: rgba(255,255,255,.03);
         }
+        .btn:focus-visible { outline: 1px solid #BE9F76; outline-offset: 3px; }
         /* The icon warms with the hairline rather than on its own, so one gesture
            happens per card instead of two. */
-        .btn .ico { color: rgba(255,255,255,.3); transition: color .3s ease; }
+        .btn .ico { color: rgba(255,255,255,.42); transition: color .3s ease; }
         .btn:hover .ico, .btn:focus-visible .ico { color: #BE9F76; }
-        .btn:focus-visible { outline: 1px solid #BE9F76; outline-offset: 3px; }
-        @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+        @media (prefers-reduced-motion: reduce) { .btn, .btn .ico { transition: none; } }
       `}</style>
 
       <div className="mx-auto w-full max-w-[27rem]">
 
-        <header className="mb-12 text-center">
+        <header className="mb-14 text-center">
           <Image src={STORE_LOGO_LIGHT_URL} alt={STORE_CONFIG.name} width={240} height={60}
                  priority className="mx-auto h-auto w-40" />
           {/* The storefront's own line, set the way the storefront sets it. */}
-          <p className="mt-5 text-[11px] font-light uppercase tracking-[0.2em] text-white/60">
+          <p className="mt-5 text-[9px] font-light uppercase tracking-[0.24em] text-white/55">
             Gold born from dust.
           </p>
           {/* One line of welcome. A customer arrives here from a paper receipt with no
               idea what they have opened, and a page of unexplained buttons is a page
               they close. */}
-          <p className="mx-auto mt-5 max-w-[19rem] text-[12.5px] font-light leading-relaxed text-white/50">
+          <p className="mx-auto mt-6 max-w-[19rem] text-[13px] font-light leading-relaxed text-white/55">
             Everything Taheri, in one place — new pieces as they are finished,
             the day&rsquo;s rate, and a way to reach us that is not a queue.
           </p>
         </header>
 
-        <Block heading="Channels" note="Join the ones you care about">
-          {channels.map((c) => <Row key={c.href} {...c} />)}
+        <Block heading="Channels" note="Join any of them">
+          {STORE_COMMUNITIES.map((c) => <ChannelRow key={c.href} {...c} />)}
         </Block>
 
-        {shop.length > 0 && (
+        {utilities.length > 0 && (
           <Block heading="Find us">
-            {shop.map((e) => <Row key={e.href} {...e} />)}
+            {utilities.map((e) => <UtilityRow key={e.href} {...e} />)}
           </Block>
         )}
 
         {/* The strip along the bottom of taheri.shop, kept. */}
         <footer className="mt-14 border-t border-white/10 pt-7 text-center">
-          <p className="text-[12.5px] font-light text-white/70">Or come and see us</p>
-          <p className="mt-2 text-[9px] uppercase tracking-[0.2em] text-white/40">
+          <p className="text-[13px] font-light text-white/70">Or come and see us</p>
+          <p className="mt-2.5 text-[9px] uppercase tracking-[0.2em] text-white/50">
             Najmi Market, Shop #40 &amp; #16, Saddar, Karachi
           </p>
-          <p className="mt-1.5 text-[9px] uppercase tracking-[0.2em] text-white/40">
+          <p className="mt-1.5 text-[9px] uppercase tracking-[0.2em] text-white/50">
             0335 2275553 &nbsp;·&nbsp; 0326 2275554
           </p>
         </footer>
@@ -114,17 +134,54 @@ export default function LinksPage() {
 
 function Block({ heading, note, children }: { heading: string; note?: string; children: React.ReactNode }) {
   return (
-    <section className="mb-10">
-      <div className="mb-4 flex items-baseline justify-between gap-4">
-        <h2 className="text-[9px] uppercase tracking-[0.2em] text-white/40">{heading}</h2>
-        {note && <span className="text-[10px] font-light text-white/30">{note}</span>}
+    <section className="mb-12">
+      <div className="mb-5 flex items-baseline justify-between gap-4">
+        <h2 className="text-[9px] uppercase tracking-[0.2em] text-white/50">{heading}</h2>
+        {note && <span className="text-[9px] uppercase tracking-[0.16em] text-white/50">{note}</span>}
       </div>
       {children}
     </section>
   );
 }
 
-function Row({ href, label, sub, action, icon }: Entry) {
+/**
+ * A department. The lead carries the weight; the shared half stands down.
+ *
+ * aria-label gives the channel's real name, so what a screen reader announces matches
+ * what WhatsApp shows on arrival — the split is a way of setting the words, not a
+ * renaming.
+ */
+function ChannelRow({ href, label, lead, tail, sub }: Channel) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`${label} — ${sub}`}
+      className="btn mb-2.5 flex items-start gap-4 rounded-lg border border-white/10 px-5 py-[18px]"
+    >
+      {/* Pinned to the name rather than floated to the middle of the card. The name is
+          what the mark belongs to — centring it against a two-line block left it
+          hovering between the two, attached to neither. */}
+      <span className="mt-[3px] flex"><Icon name="whatsapp" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-baseline gap-x-2.5">
+          <span className={`${didone.className} text-[21px] leading-none tracking-[0.005em] text-white`}>
+            {lead}
+          </span>
+          <span className="text-[8.5px] uppercase tracking-[0.18em] text-white/50">{tail}</span>
+        </span>
+        <span className="mt-2 block text-[11.5px] font-light leading-snug text-white/55">{sub}</span>
+      </span>
+      <span className="shrink-0 self-center text-[9px] uppercase tracking-[0.2em] text-[#BE9F76]">
+        Join
+      </span>
+    </a>
+  );
+}
+
+/** A thing to do, rather than a thing to browse — hence Inter, and hence smaller. */
+function UtilityRow({ href, label, sub, action, icon }: Utility) {
   return (
     <a
       href={href}
@@ -134,8 +191,8 @@ function Row({ href, label, sub, action, icon }: Entry) {
     >
       <Icon name={icon} />
       <span className="min-w-0 flex-1">
-        <span className="block text-[14px] font-light leading-tight text-white">{label}</span>
-        <span className="mt-1 block text-[11px] font-light leading-tight text-white/40">{sub}</span>
+        <span className="block text-[15px] font-light leading-tight text-white">{label}</span>
+        <span className="mt-1.5 block text-[11.5px] font-light leading-snug text-white/55">{sub}</span>
       </span>
       <span className="shrink-0 text-[9px] uppercase tracking-[0.2em] text-[#BE9F76]">
         {action}

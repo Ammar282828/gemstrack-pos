@@ -105,18 +105,26 @@ export const STORE_LINKS = {
  * The 925 silver community is House of Mina's, deliberately. That shop is the silver
  * side of the business; it is the one place these two are meant to meet.
  */
-export const STORE_COMMUNITIES: { label: string; sub: string; href: string }[] = [
-  { label: 'Taheri Collections',      sub: 'The first look at every new piece',
+/**
+ * `lead` is the word that distinguishes the channel; `tail` is what every channel
+ * shares. The link page sets the lead large and the tail as a whisper beside it — this
+ * is a jeweller's list of departments, and "by Taheri" said six times in the loudest
+ * position on Taheri's own page is noise. `label` keeps the channel's real name for the
+ * accessible name, which is what a screen reader announces and what WhatsApp shows on
+ * arrival.
+ */
+export const STORE_COMMUNITIES: { label: string; lead: string; tail: string; sub: string; href: string }[] = [
+  { label: 'Taheri Collections', lead: 'Collections', tail: 'by Taheri',      sub: 'The first look at every new piece',
     href: 'https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl' },
-  { label: 'Diamonds by Taheri',      sub: 'Solitaires, studs and full sets',
+  { label: 'Diamonds by Taheri', lead: 'Diamonds', tail: 'by Taheri',      sub: 'Solitaires, studs and full sets',
     href: 'https://chat.whatsapp.com/CYu06FaabSA9QR3khJbsqK?mode=gi_t' },
-  { label: 'Gemstones by Taheri',     sub: 'Emerald, ruby and sapphire, chosen by hand',
+  { label: 'Gemstones by Taheri', lead: 'Gemstones', tail: 'by Taheri',     sub: 'Emerald, ruby and sapphire, hand-picked',
     href: 'https://chat.whatsapp.com/Ik4lxzfnVaE3ll9VLh4qbg?mode=gi_t' },
-  { label: 'Watches by Taheri',       sub: 'What has just reached the counter',
+  { label: 'Watches by Taheri', lead: 'Watches', tail: 'by Taheri',       sub: 'What has just reached the counter',
     href: 'https://chat.whatsapp.com/KxWdhie753wBrxw7YpgNSR?mode=gi_t' },
-  { label: 'Investments by Taheri',   sub: 'Bars, coins and the day\u2019s rate',
+  { label: 'Investments by Taheri', lead: 'Investments', tail: 'by Taheri',   sub: 'Bars, coins and the day\u2019s rate',
     href: 'https://chat.whatsapp.com/FITzh2W8W9eH9Fs2LUWkeA?mode=gi_t' },
-  { label: 'Exclusive Sterling Silver', sub: '925 for every day, from House of Mina',
+  { label: 'Exclusive Sterling Silver', lead: 'Sterling Silver', tail: 'exclusive', sub: '925 for every day, from House of Mina',
     href: 'https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H' },
 ];
 
