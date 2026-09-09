@@ -73,13 +73,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-
     await sendWhatsAppMessage(to, message);
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     const notConfigured = err instanceof WhatsAppNotConfiguredError;
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[/api/notifications/send]', message);
-    return NextResponse.json({ error: message }, { status: notConfigured ? 503 : 500 });
+    const detail = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[/api/notifications/send]', detail);
+    return NextResponse.json({ error: detail }, { status: notConfigured ? 503 : 500 });
   }
 }
