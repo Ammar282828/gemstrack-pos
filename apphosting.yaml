@@ -151,3 +151,8 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_LINKS_URL
+    value: "https://links.taheri.shop"
+    availability:
+      - BUILD
+      - RUNTIME
