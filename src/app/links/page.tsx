@@ -165,7 +165,7 @@ function ChannelRow({ href, label, lead, tail, sub }: Channel) {
           hovering between the two, attached to neither. */}
       <span className="mt-[3px] flex"><Icon name="whatsapp" /></span>
       <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-baseline gap-x-2.5">
+        <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
           <span className={`${didone.className} text-[21px] leading-none tracking-[0.005em] text-white`}>
             {lead}
           </span>
