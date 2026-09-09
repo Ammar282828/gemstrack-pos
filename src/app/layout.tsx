@@ -26,13 +26,40 @@ function AppBody({ children }: { children: React.ReactNode }) {
   const hasSettingsLoaded = useAppStore(state => state.hasSettingsLoaded);
   const pathname = usePathname();
 
-  // Determine if the current page is the public invoice view
   /**
    * Pages a customer reaches without an account: a shared invoice, and the link page
    * the QR on every printed document points at. Both skip the app shell and the
    * sign-in gate — a customer scanning a code off a receipt must not meet a login.
    */
-  const isPublicInvoicePage = pathname.startsWith('/view-invoice') || pathname.startsWith('/links');
+  const isPublicPath = pathname.startsWith('/view-invoice') || pathname.startsWith('/links');
+
+  /**
+   * The link hostname is customer-facing and may show one page and nothing else.
+   *
+   * The middleware already redirects every path on it to /links, and this asks the
+   * question a second way on purpose. When that redirect was a rewrite, the server
+   * sent the link page's markup and the browser's address stayed "/", so the check
+   * above answered "not public" at hydration and drew the entire shop around it —
+   * sidebar, Orders, Invoices, Customers, Hisaab, Analytics, the voice button, all of
+   * it, on a page printed on customers' receipts. It looked right in the response and
+   * was wrong on the screen.
+   *
+   * Reading the hostname cannot be fooled by a path, so a mistake in the routing can
+   * no longer put the shop's book in front of a customer. Belt and braces, because the
+   * cost of being wrong here is not a broken page.
+   */
+  const isLinksHost = typeof window !== 'undefined'
+    && /^(?:www\.)?links\.taheri\.shop$/i.test(window.location.hostname);
+
+  // If anything ever lands on another path here, it goes to the link page and stays
+  // there. Nothing else on this hostname is meant for the person looking at it.
+  useEffect(() => {
+    if (isLinksHost && !pathname.startsWith('/links')) {
+      window.location.replace('/links');
+    }
+  }, [isLinksHost, pathname]);
+
+  const isPublicInvoicePage = isPublicPath || isLinksHost;
 
   // Settings come from Firestore and are not persisted into the store, so on a
   // cold load nothing knows the theme until the network answers. The cached

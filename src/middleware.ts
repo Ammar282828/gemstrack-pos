@@ -64,7 +64,12 @@ export async function middleware(req: NextRequest) {
     if (isLinks) {
       // Everything on this hostname is the link page. Nothing else there is meant for
       // customers, and the POS must not be reachable by a second name.
-      if (url.pathname === '/links' || url.pathname.startsWith('/_next') || url.pathname.startsWith('/api')) {
+      //
+      // /api is NOT let through here, unlike on the shop's own hostname. The link page
+      // is a list of addresses out of STORE_CONFIG and calls nothing, so allowing the
+      // routes only widened what a customer-facing name could reach. They are still
+      // there on pos.taheri.shop, with the checks they have always had.
+      if (url.pathname === '/links' || url.pathname.startsWith('/_next')) {
         return NextResponse.next();
       }
       url.pathname = '/links';
