@@ -36,7 +36,7 @@ export default function LinksPage() {
     { href: STORE_LINKS.website,
       label: 'taheri.shop', sub: 'The full house', action: 'Visit' },
     { href: STORE_LINKS.googleReview,
-      label: 'Leave a review', sub: 'It genuinely helps us', action: 'Write' },
+      label: 'Review us on Google', sub: 'A minute of your time, and it carries', action: 'Open' },
   ].filter((e) => Boolean(e.href));
 
   return (

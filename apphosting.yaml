@@ -188,3 +188,12 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Currently a share.google link, which lands on a Google *search* for the shop
+  # rather than opening the review box. Swap for the g.page/r/.../review link from
+  # Business Profile > Ask for reviews when there is one, and the row goes straight
+  # to the star rating instead of a results page.
+  - variable: NEXT_PUBLIC_STORE_GOOGLE_REVIEW_URL
+    value: "https://share.google/8GyIgMvDzpf7aXEWZ"
+    availability:
+      - BUILD
+      - RUNTIME
