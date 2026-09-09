@@ -95,6 +95,25 @@ export const STORE_LINKS = {
   googleReview: process.env.NEXT_PUBLIC_STORE_GOOGLE_REVIEW_URL ?? '',
 };
 
+/**
+ * The shop's WhatsApp communities, one per line of business.
+ *
+ * A constant rather than env vars: six labelled links do not fit an environment
+ * variable legibly, and NEXT_PUBLIC_* is baked at build time anyway — so a change
+ * needs a deploy either way, and this at least reads like a list.
+ *
+ * The 925 silver community is House of Mina's, deliberately. That shop is the silver
+ * side of the business; it is the one place these two are meant to meet.
+ */
+export const STORE_COMMUNITIES: { label: string; href: string }[] = [
+  { label: 'Taheri Collections',   href: 'https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl' },
+  { label: 'Diamonds by Taheri',   href: 'https://chat.whatsapp.com/CYu06FaabSA9QR3khJbsqK?mode=gi_t' },
+  { label: 'Gemstones by Taheri',  href: 'https://chat.whatsapp.com/Ik4lxzfnVaE3ll9VLh4qbg?mode=gi_t' },
+  { label: 'Watches by Taheri',    href: 'https://chat.whatsapp.com/KxWdhie753wBrxw7YpgNSR?mode=gi_t' },
+  { label: 'Investments by Taheri', href: 'https://chat.whatsapp.com/FITzh2W8W9eH9Fs2LUWkeA?mode=gi_t' },
+  { label: '925 Silver',           href: 'https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H' },
+];
+
 /** The address a printed QR should point at. */
 export const storeLinksUrl = (): string =>
   STORE_LINKS.url || (STORE_CONFIG.appUrl ? `${STORE_CONFIG.appUrl.replace(/\/$/, '')}/links` : '');

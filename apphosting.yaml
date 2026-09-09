@@ -146,3 +146,8 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_INSTAGRAM_URL
+    value: "https://www.instagram.com/collectionstaheri"
+    availability:
+      - BUILD
+      - RUNTIME
