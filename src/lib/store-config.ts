@@ -105,13 +105,19 @@ export const STORE_LINKS = {
  * The 925 silver community is House of Mina's, deliberately. That shop is the silver
  * side of the business; it is the one place these two are meant to meet.
  */
-export const STORE_COMMUNITIES: { label: string; href: string }[] = [
-  { label: 'Taheri Collections',   href: 'https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl' },
-  { label: 'Diamonds by Taheri',   href: 'https://chat.whatsapp.com/CYu06FaabSA9QR3khJbsqK?mode=gi_t' },
-  { label: 'Gemstones by Taheri',  href: 'https://chat.whatsapp.com/Ik4lxzfnVaE3ll9VLh4qbg?mode=gi_t' },
-  { label: 'Watches by Taheri',    href: 'https://chat.whatsapp.com/KxWdhie753wBrxw7YpgNSR?mode=gi_t' },
-  { label: 'Investments by Taheri', href: 'https://chat.whatsapp.com/FITzh2W8W9eH9Fs2LUWkeA?mode=gi_t' },
-  { label: '925 Silver',           href: 'https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H' },
+export const STORE_COMMUNITIES: { label: string; sub: string; href: string }[] = [
+  { label: 'Taheri Collections',      sub: 'New pieces first',
+    href: 'https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl' },
+  { label: 'Diamonds by Taheri',      sub: 'Loose and set',
+    href: 'https://chat.whatsapp.com/CYu06FaabSA9QR3khJbsqK?mode=gi_t' },
+  { label: 'Gemstones by Taheri',     sub: 'Emerald, ruby, sapphire',
+    href: 'https://chat.whatsapp.com/Ik4lxzfnVaE3ll9VLh4qbg?mode=gi_t' },
+  { label: 'Watches by Taheri',       sub: 'Timepieces',
+    href: 'https://chat.whatsapp.com/KxWdhie753wBrxw7YpgNSR?mode=gi_t' },
+  { label: 'Investments by Taheri',   sub: 'Gold as an investment',
+    href: 'https://chat.whatsapp.com/FITzh2W8W9eH9Fs2LUWkeA?mode=gi_t' },
+  { label: 'Exclusive Sterling Silver', sub: '925, from House of Mina',
+    href: 'https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H' },
 ];
 
 /** The address a printed QR should point at. */

@@ -1,125 +1,125 @@
 "use client";
 
 /**
- * The shop's link page — what the QR on every invoice and workshop slip points at.
+ * The link page — what the QR on every invoice and workshop slip opens.
  *
- * Public on purpose: no sign-in, no data, nothing from the book. It is the one page
- * here meant for customers rather than the counter, which is why it carries the
- * wordmark and none of the app's chrome.
+ * Built as the shop's own khata: the bound ledger kept at the counter. Each channel is
+ * a ruled entry, name in the left column and the action out at the right margin, the
+ * way a line in that book actually reads. The headings are stamped small caps.
  *
- * A link left unset is not rendered. Better three rows that work than a fourth that
- * goes nowhere — and a Google review row pointing at a guess would send customers to
- * review the wrong business.
+ * Gold is a rule, not a fill — the house rule, and the one worth stating plainly. It
+ * appears only as a hairline: never a button colour, never a wash. The single moment
+ * of movement is that hairline drawing itself along a row under the finger, like a pen
+ * run down a ledger line, and it is the only animation on the page.
+ *
+ * Public: no sign-in, no data, nothing from the book itself.
  */
 
 import React from 'react';
 import Image from 'next/image';
+import { Bodoni_Moda } from 'next/font/google';
 import { STORE_CONFIG, STORE_COMMUNITIES, STORE_LINKS, STORE_LOGO_URL } from '@/lib/store-config';
-import { Instagram, Globe, Star, MessageCircle, Users } from 'lucide-react';
 
-interface Row {
-  href: string;
-  label: string;
-  sub: string;
-  icon: React.ReactNode;
-}
+/** A true Didone, to sit with the wordmark's own high contrast. */
+const didone = Bodoni_Moda({ subsets: ['latin'], weight: ['400', '500'], display: 'swap' });
+
+interface Entry { href: string; label: string; sub: string; action: string }
 
 export default function LinksPage() {
-  const rows: Row[] = [
-    {
-      href: STORE_LINKS.whatsapp || STORE_CONFIG.whatsappUrl,
-      label: 'Message us',
-      sub: 'Straight to the counter',
-      icon: <MessageCircle className="h-5 w-5" />,
-    },
-    {
-      href: STORE_LINKS.instagram || STORE_CONFIG.instagramUrl,
-      label: 'Instagram',
-      sub: 'See the work',
-      icon: <Instagram className="h-5 w-5" />,
-    },
-    {
-      href: STORE_LINKS.website,
-      label: 'Our website',
-      sub: 'taheri.shop',
-      icon: <Globe className="h-5 w-5" />,
-    },
-    {
-      href: STORE_LINKS.googleReview,
-      label: 'Leave a review',
-      sub: 'It genuinely helps',
-      icon: <Star className="h-5 w-5" />,
-    },
-  ].filter((r) => Boolean(r.href));
+  const channels = STORE_COMMUNITIES.map((c) => ({ ...c, action: 'Join' }));
+
+  const shop: Entry[] = [
+    { href: STORE_LINKS.instagram || STORE_CONFIG.instagramUrl,
+      label: 'Instagram', sub: 'See the work', action: 'Follow' },
+    { href: STORE_LINKS.whatsapp || STORE_CONFIG.whatsappUrl,
+      label: 'Message the counter', sub: 'We answer through the day', action: 'Open' },
+    { href: STORE_LINKS.website,
+      label: 'taheri.shop', sub: 'The full house', action: 'Visit' },
+    { href: STORE_LINKS.googleReview,
+      label: 'Leave a review', sub: 'It genuinely helps us', action: 'Write' },
+  ].filter((e) => Boolean(e.href));
 
   return (
-    <main className="min-h-screen bg-[#faf9f7] px-5 py-14 text-[#1a1a1a]">
-      <div className="mx-auto w-full max-w-sm">
-        <div className="mb-10 flex justify-center">
-          {/* Sized by the wordmark's true ratio, not a guessed box. */}
-          <Image src={STORE_LOGO_URL} alt={STORE_CONFIG.name} width={200} height={50}
-                 priority className="h-auto w-44" />
-        </div>
+    <main className="min-h-screen bg-[#FBF9F5] px-6 pb-20 pt-16 text-[#14110D] antialiased">
+      <style>{`
+        /* The signature: a gold hairline drawn along the entry, left to right. */
+        .entry { position: relative; }
+        .entry::after {
+          content: ''; position: absolute; left: 0; bottom: -1px; height: 1px; width: 100%;
+          background: #A98341; transform: scaleX(0); transform-origin: left;
+          transition: transform .45s cubic-bezier(.22,.61,.36,1);
+        }
+        .entry:hover::after, .entry:focus-visible::after { transform: scaleX(1); }
+        .entry:focus-visible { outline: none; }
+        .entry:focus-visible .entry-label { text-decoration: underline; text-underline-offset: 3px; }
+        @media (prefers-reduced-motion: reduce) {
+          .entry::after { transition: none; }
+        }
+      `}</style>
 
-        <p className="mb-8 text-center text-sm text-[#6b6b6b]">
-          Gold &amp; diamond jewellery, Karachi
-        </p>
+      <div className="mx-auto w-full max-w-[30rem]">
 
-        {/* The communities first: they are what the code on a receipt is really for,
-            and there are six of them, so they get their own block rather than being
-            one row lost among the socials. */}
-        {STORE_COMMUNITIES.length > 0 && (
-          <div className="mb-8">
-            <p className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-[#8a8a8a]">
-              <Users className="h-3.5 w-3.5" /> WhatsApp channels
-            </p>
-            <div className="space-y-2">
-              {STORE_COMMUNITIES.map((c) => (
-                <a
-                  key={c.href}
-                  href={c.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between rounded-2xl border border-[#e6e2dc] bg-white
-                             px-5 py-3.5 transition-colors hover:border-[#1a1a1a]"
-                >
-                  <span className="text-sm font-medium">{c.label}</span>
-                  <span className="text-xs text-[#a8a8a8]">Join</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          {rows.map((r) => (
-            <a
-              key={r.label}
-              href={r.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-4 rounded-2xl border border-[#e6e2dc] bg-white px-5 py-4
-                         transition-colors hover:border-[#1a1a1a]"
-            >
-              <span className="text-[#1a1a1a]">{r.icon}</span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">{r.label}</span>
-                <span className="block text-xs text-[#8a8a8a]">{r.sub}</span>
-              </span>
-            </a>
-          ))}
-        </div>
-
-        {rows.length === 0 && STORE_COMMUNITIES.length === 0 && (
-          <p className="text-center text-sm text-[#8a8a8a]">
-            No links have been set up yet.
+        {/* Letterhead */}
+        <header className="mb-14 text-center">
+          <Image src={STORE_LOGO_URL} alt={STORE_CONFIG.name} width={240} height={60}
+                 priority className="mx-auto h-auto w-40" />
+          <p className={`${didone.className} mt-5 text-[13px] italic tracking-wide text-[#6E675C]`}>
+            Gold, diamonds &amp; gemstones
           </p>
+          <p className="mt-1 text-[10px] uppercase tracking-[0.28em] text-[#A98341]">Karachi</p>
+        </header>
+
+        <Ledger heading="Channels" note="Pick the one you care about">
+          {channels.map((c) => <Row key={c.href} {...c} />)}
+        </Ledger>
+
+        {shop.length > 0 && (
+          <Ledger heading="The shop">
+            {shop.map((e) => <Row key={e.href} {...e} />)}
+          </Ledger>
         )}
 
-        <p className="mt-12 text-center text-[11px] tracking-wide text-[#a8a8a8]">
-          {STORE_CONFIG.name}
-        </p>
+        <footer className="mt-16 text-center">
+          <span className="text-[10px] uppercase tracking-[0.28em] text-[#B4AC9E]">
+            {STORE_CONFIG.name}
+          </span>
+        </footer>
       </div>
     </main>
+  );
+}
+
+/** A stamped small-cap heading over a ruled block, as the book has. */
+function Ledger({ heading, note, children }: {
+  heading: string; note?: string; children: React.ReactNode;
+}) {
+  return (
+    <section className="mb-12">
+      <div className="mb-1 flex items-baseline justify-between border-b border-[#14110D] pb-2">
+        <h2 className="text-[10px] uppercase tracking-[0.28em] text-[#14110D]">{heading}</h2>
+        {note && <span className="text-[10px] tracking-wide text-[#B4AC9E]">{note}</span>}
+      </div>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+function Row({ href, label, sub, action }: Entry) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="entry group flex items-baseline gap-4 border-b border-[#E3DDD1] py-4"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="entry-label block text-[15px] leading-tight text-[#14110D]">{label}</span>
+        <span className="mt-0.5 block text-[12px] leading-tight text-[#6E675C]">{sub}</span>
+      </span>
+      {/* The action sits out at the right margin, where a figure would be totalled. */}
+      <span className={`${didone.className} shrink-0 text-[13px] italic text-[#A98341]`}>
+        {action}
+      </span>
+    </a>
   );
 }
