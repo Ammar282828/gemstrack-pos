@@ -188,12 +188,11 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  # Currently a share.google link, which lands on a Google *search* for the shop
-  # rather than opening the review box. Swap for the g.page/r/.../review link from
-  # Business Profile > Ask for reviews when there is one, and the row goes straight
-  # to the star rating instead of a results page.
+  # The direct review link from Business Profile: it opens the star rating on the
+  # Taheri Collections listing (Najmi Market, Saddar) rather than a search results
+  # page, so the row does exactly what it says.
   - variable: NEXT_PUBLIC_STORE_GOOGLE_REVIEW_URL
-    value: "https://share.google/8GyIgMvDzpf7aXEWZ"
+    value: "https://g.page/r/Carl6vAff1U9EBM/review"
     availability:
       - BUILD
       - RUNTIME
