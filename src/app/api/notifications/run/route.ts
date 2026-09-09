@@ -6,6 +6,10 @@ import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { generateGoldDailyUpdate, checkGoldBreakingNews } from '@/lib/gold-update';
 import { isBusinessCost } from '@/lib/partnership';
 import { lateOrders, orderTiming, timingLabel } from '@/lib/order-timing';
+// These reports go to the shop's own staff, so they must carry the shop's own name.
+// They were hardcoded to MINA from the repo this was based on.
+import { STORE_CONFIG } from '@/lib/store-config';
+const SHOP = STORE_CONFIG.name.toUpperCase();
 
 function daysSince(isoDate: string) {
   return Math.floor((Date.now() - new Date(isoDate).getTime()) / 86400000);
@@ -52,7 +56,7 @@ async function sendDailyChecklist(phone: string) {
 
   const lines = [
     `━━━━━━━━━━━━━━━━━━`,
-    `💎 *MINA — Daily Checklist*`,
+    `💎 *${SHOP} — Daily Checklist*`,
     `📅 ${date}`,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
@@ -127,7 +131,7 @@ async function sendEndOfDaySummary(phone: string) {
 
   const lines = [
     `━━━━━━━━━━━━━━━━━━`,
-    `🌙 *MINA — End of Day*`,
+    `🌙 *${SHOP} — End of Day*`,
     `📅 ${date}`,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
@@ -214,7 +218,7 @@ async function sendDailyReport(phone: string) {
 
   const lines = [
     `━━━━━━━━━━━━━━━━━━`,
-    `💎 *MINA — Daily Report*`,
+    `💎 *${SHOP} — Daily Report*`,
     `📅 ${date}`,
     `━━━━━━━━━━━━━━━━━━`,
     ``,
@@ -313,7 +317,7 @@ async function sendWeeklyReport(phone: string) {
 
   const lines = [
     `━━━━━━━━━━━━━━━━━━`,
-    `📊 *MINA — Weekly Report*`,
+    `📊 *${SHOP} — Weekly Report*`,
     `📅 ${weekStart} – ${weekEnd}`,
     `━━━━━━━━━━━━━━━━━━`,
     ``,

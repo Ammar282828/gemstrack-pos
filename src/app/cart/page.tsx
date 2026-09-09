@@ -21,7 +21,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, ClipboardList, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban, CheckCircle } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, ClipboardList, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban, CheckCircle, Camera, TriangleAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
 
@@ -54,6 +54,8 @@ import { PhoneField } from '@/components/ui/phone-field';
 import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
 import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
+import { BillScanner, type ScannedBill } from '@/components/cart/bill-scanner';
+import { reconcile } from '@/lib/vision/bill-draft';
 import type { TakenBy } from '@/lib/store';
 
 declare module 'jspdf' {
@@ -253,11 +255,34 @@ export default function CartPage() {
     setSkuInput('');
   };
 
+  /**
+   * A photographed bill, landed in the cart.
+   *
+   * The lines arrive already sorted into priced and as-written by the scanner; from
+   * here they are ordinary cart items and every control on this page works on them.
+   * The bill's own total is kept aside rather than applied — the cart prices the
+   * broken-down lines at today's rate, so the two figures are allowed to disagree and
+   * the point is to show it when they do.
+   */
+  const acceptScannedBill = (bill: ScannedBill) => {
+    bill.items.forEach(addProductToCart);
+    if (bill.customerId) setSelectedCustomerId(bill.customerId);
+    setScannedBillTotal(bill.writtenTotal);
+    toast({
+      title: `${bill.items.length} line${bill.items.length === 1 ? '' : 's'} added`,
+      description: 'Check them against the bill before invoicing.',
+    });
+  };
+
   // Line-item editor — every attribute of the line, any metal.
   const [editItem, setEditItem] = useState<Product | null>(null);
   // Most pieces here are made to order and never existed in inventory, so
   // billing starts by describing the piece rather than looking one up.
   const [newItem, setNewItem] = useState<Product | null>(null);
+  const [billScanOpen, setBillScanOpen] = useState(false);
+  // What the scanned bill said it came to. Kept so the cart can check its own
+  // arithmetic against the paper's, which is how a missed line gets caught.
+  const [scannedBillTotal, setScannedBillTotal] = useState<number | null>(null);
   // Most sales are handed over at the counter, so this stays off until ticked.
   const [delivery, setDelivery] = useState<DeliveryInfo>(EMPTY_DELIVERY);
   // Cash by default — most of the counter trade is cash, and the alternatives
@@ -1464,6 +1489,9 @@ export default function CartPage() {
                   <Link href="/scan">Scan</Link>
                 </Button>
               </div>
+              <Button className="w-full" variant="outline" onClick={() => setBillScanOpen(true)}>
+                <Camera className="mr-2 h-4 w-4" />Photograph a written bill
+              </Button>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -1596,6 +1624,10 @@ export default function CartPage() {
                                 title="Also saves the piece to your product inventory">
                                 + Stock
                             </Button>
+                            <Button variant="outline" onClick={() => setBillScanOpen(true)}
+                                title="Read a handwritten bill into the cart">
+                                <Camera className="h-4 w-4" />
+                            </Button>
                         </div>
                         <Button variant="outline" onClick={clearCart} className="w-full">Clear All Items</Button>
                     </CardFooter>
@@ -1693,6 +1725,27 @@ export default function CartPage() {
 
                         <Separator />
                         <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
+                        {/* The scanned bill's own total against this one. A gap is
+                            usually a line missed on a crowded slip -- obvious to
+                            whoever is holding the paper, invisible to everything else. */}
+                        {scannedBillTotal !== null && estimatedInvoice && (() => {
+                          const check = reconcile({ customer: null, grandTotal: scannedBillTotal }, estimatedInvoice.grandTotal);
+                          if (!check.differs) return (
+                            <p className="text-xs text-muted-foreground text-right">Matches the written bill.</p>
+                          );
+                          const gap = estimatedInvoice.grandTotal - scannedBillTotal;
+                          return (
+                            <Alert variant="destructive">
+                              <TriangleAlert className="h-4 w-4" />
+                              <AlertTitle>This does not match the bill</AlertTitle>
+                              <AlertDescription>
+                                The bill says PKR {scannedBillTotal.toLocaleString()}, this comes to{' '}
+                                PKR {estimatedInvoice.grandTotal.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                                {' '}({gap > 0 ? '+' : ''}{Math.round(gap).toLocaleString()}). Check for a line that was missed.
+                              </AlertDescription>
+                            </Alert>
+                          );
+                        })()}
                     </CardContent>
                     <CardFooter className="flex flex-col gap-2">
                          <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate}>
@@ -1768,6 +1821,8 @@ export default function CartPage() {
         onClose={() => setEditItem(null)}
         onSave={(sku, patch) => updateCartItem(sku, patch)}
       />
+
+      <BillScanner open={billScanOpen} onOpenChange={setBillScanOpen} onAccept={acceptScannedBill} />
     </div>
   );
 }
