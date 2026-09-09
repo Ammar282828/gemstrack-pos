@@ -27,11 +27,23 @@ const bare = (v: string | null | undefined) =>
   (v || '').split(',')[0].trim().split(':')[0].toLowerCase();
 
 /**
- * Left open deliberately. The API routes carry their own auth — a cron secret, an owner
- * token, the karigar's own link — and gating them on a browser cookie would break the
- * scheduler and the karigar pages, which have no browser to carry one.
+ * Left open deliberately.
+ *
+ * /links is the page the QR on every invoice prints, and it is meant for customers —
+ * asking one of them for the counter passcode would be absurd. It carries nothing out
+ * of the book. While links.taheri.shop is unpointed that QR resolves here, by path, so
+ * this exemption is load-bearing rather than tidy.
+ *
+ * /view-invoice/<id> is what a customer opens from the WhatsApp link to see their own
+ * bill, and /my-work is the karigar portal, which has its own sign-in — a karigar is
+ * not counter staff and is never given the counter code. /~offline is the PWA's
+ * fallback and has to render precisely when nothing else can.
+ *
+ * The API routes carry their own auth — a cron secret, an owner token, the karigar's
+ * own link — and gating them on a browser cookie would break the scheduler and the
+ * karigar pages, which have no browser to carry one.
  */
-const UNGATED = ['/unlock', '/api', '/_next'];
+const UNGATED = ['/unlock', '/links', '/view-invoice', '/my-work', '/~offline', '/api', '/_next'];
 
 export async function middleware(req: NextRequest) {
   const candidates = [
