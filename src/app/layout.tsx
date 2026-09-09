@@ -27,7 +27,12 @@ function AppBody({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   // Determine if the current page is the public invoice view
-  const isPublicInvoicePage = pathname.startsWith('/view-invoice');
+  /**
+   * Pages a customer reaches without an account: a shared invoice, and the link page
+   * the QR on every printed document points at. Both skip the app shell and the
+   * sign-in gate — a customer scanning a code off a receipt must not meet a login.
+   */
+  const isPublicInvoicePage = pathname.startsWith('/view-invoice') || pathname.startsWith('/links');
 
   // Settings come from Firestore and are not persisted into the store, so on a
   // cold load nothing knows the theme until the network answers. The cached

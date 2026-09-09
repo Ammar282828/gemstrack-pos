@@ -9,7 +9,7 @@ import { describePlating } from '@/lib/materials';
 import { itemCellHeight, drawItemCell } from '@/lib/invoice-item-cell';
 import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
 import { fitText } from '@/lib/pdf-text';
-import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
+import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { METAL_TYPES as metalTypeValues, describeMetal } from '@/lib/materials';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
 import { useParams, useRouter } from 'next/navigation';
@@ -817,7 +817,8 @@ export default function OrderDetailPage() {
 
     drawDocFooter(doc, {
       pageWidth, pageHeight, margin,
-      whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
+      linksQr: document.getElementById('links-qr-code') as HTMLCanvasElement | null,
+    whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
       instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
     });
 
@@ -873,6 +874,7 @@ export default function OrderDetailPage() {
       <div style={{ display: 'none' }}>
         <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" loading="lazy" decoding="async" />
         <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
+          <QRCode id="links-qr-code" value={storeLinksUrl()} size={128} />
         <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
       </div>
       <Dialog open={isNotificationDialogOpen} onOpenChange={setIsNotificationDialogOpen}>

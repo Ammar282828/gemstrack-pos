@@ -28,7 +28,7 @@ import { metalLabel, describeSettings, describeDelivery } from '@/lib/materials'
 import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
-import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
+import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -239,6 +239,7 @@ async function generateInvoicePDF(
 
   drawDocFooter(pdfDoc, {
     pageWidth, pageHeight, margin,
+    linksQr: document.getElementById('links-qr-code') as HTMLCanvasElement | null,
     whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
     instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
   });
@@ -349,6 +350,7 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
 
   drawDocFooter(pdfDoc, {
     pageWidth, pageHeight, margin,
+    linksQr: document.getElementById('links-qr-code') as HTMLCanvasElement | null,
     whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
     instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
   });
@@ -1186,6 +1188,7 @@ export default function DocumentsPage() {
       {/* Hidden QR code elements needed for PDF generation */}
       <div style={{ display: 'none' }}>
         <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
+          <QRCode id="links-qr-code" value={storeLinksUrl()} size={128} />
         <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
       </div>
 

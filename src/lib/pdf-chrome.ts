@@ -301,21 +301,28 @@ export interface FooterOpts {
   /** Canvas elements rendered elsewhere on the page; absent in tests. */
   whatsappQr?: HTMLCanvasElement | null;
   instagramQr?: HTMLCanvasElement | null;
+  /** One code to the shop's link page — WhatsApp, Instagram, site, reviews. */
+  linksQr?: HTMLCanvasElement | null;
 }
 
-/** Contacts and bank on the left, the two codes on the right. */
+/** Contacts on the left, one code to everything on the right. */
 export function drawDocFooter(doc: jsPDF, o: FooterOpts): void {
-  const { pageWidth, pageHeight, margin, whatsappQr, instagramQr } = o;
+  const { pageWidth, pageHeight, margin, whatsappQr, instagramQr, linksQr } = o;
   const contacts = [
     [STORE_CONFIG.contact1Name, STORE_CONFIG.contact1Number],
     [STORE_CONFIG.contact2Name, STORE_CONFIG.contact2Number],
     [STORE_CONFIG.contact3Name, STORE_CONFIG.contact3Number],
     [STORE_CONFIG.contact4Name, STORE_CONFIG.contact4Number],
+    [STORE_CONFIG.contact5Name, STORE_CONFIG.contact5Number],
   ].filter(([n, v]) => n && v);
 
   const qrSize = 15;
   const qrGap = 3;
-  const qrBlock = qrSize * 2 + qrGap;
+  // One code where there were two. A single link page carries WhatsApp, Instagram,
+  // the site and reviews, so printing two codes was asking the customer to choose
+  // between them with a phone already raised.
+  const single = Boolean(linksQr);
+  const qrBlock = single ? qrSize : qrSize * 2 + qrGap;
   const qrX = pageWidth - margin - qrBlock;
   const textW = pageWidth - margin * 2 - qrBlock - 6;
 
@@ -329,13 +336,9 @@ export function drawDocFooter(doc: jsPDF, o: FooterOpts): void {
     doc.text(`${n}  ${v}`, margin, top + 9 + i * 3.6, { maxWidth: textW }),
   );
 
-  const afterContacts = top + 9 + contacts.length * 3.6;
-  label(doc, 'Bank', margin, afterContacts + 2.5, { size: 5.5, spacing: 0.9 });
-  doc.setFont('helvetica', 'normal').setFontSize(6.5);
-  setInk(doc, MUTED);
-  doc.text(STORE_CONFIG.bankLine, margin, afterContacts + 6.5, { maxWidth: textW });
-  if (STORE_CONFIG.iban) doc.text(STORE_CONFIG.iban, margin, afterContacts + 10, { maxWidth: textW });
-  setInk(doc, INK);
+  /* No bank block. Account details do not belong on a document that gets
+     photographed and forwarded, and for this shop the fields were empty anyway --
+     so every slip printed a "BANK" heading with nothing underneath it. */
 
   const code = (canvas: HTMLCanvasElement | null | undefined, x: number, caption: string) => {
     if (!canvas) return;
@@ -347,6 +350,11 @@ export function drawDocFooter(doc: jsPDF, o: FooterOpts): void {
       label(doc, caption, x + qrSize / 2 - w / 2, top + qrSize + 7, { size: 4.8, spacing: 0.6 });
     } catch { /* a missing code must not stop the document */ }
   };
-  code(whatsappQr, qrX, 'WhatsApp');
-  code(instagramQr, qrX + qrSize + qrGap, 'Instagram');
+  if (linksQr) {
+    code(linksQr, qrX, 'Find us');
+  } else {
+    // Nothing configured a link page: fall back to whatever socials exist.
+    code(whatsappQr, qrX, 'WhatsApp');
+    code(instagramQr, qrX + qrSize + qrGap, 'Instagram');
+  }
 }

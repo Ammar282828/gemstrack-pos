@@ -8,34 +8,50 @@
  * works even if no env vars are set.
  */
 
+/**
+ * Every default here is EMPTY, on purpose.
+ *
+ * They used to be House of Mina's — its bank, its IBAN, its Instagram, its people.
+ * That is fine in the repo those values came from and dangerous in this one: a
+ * variable merely left out of apphosting.yaml silently resolved to the other shop,
+ * and Taheri's live invoices were printing "Bank Al Habib | House of Mina" with that
+ * shop's IBAN under it. A customer reading one would have paid the wrong business.
+ *
+ * A missing setting must print nothing. Blank is a gap somebody notices; another
+ * firm's account number is a gap nobody notices until the money has gone.
+ */
 export const STORE_CONFIG = {
   // App / branding
   name:            process.env.NEXT_PUBLIC_STORE_NAME            ?? 'TAHERI',
 
-  // PDF footer — contacts (contact3/4 are optional, leave blank to omit)
-  contact1Name:    process.env.NEXT_PUBLIC_STORE_CONTACT1_NAME   ?? 'Mina Khalid',
-  contact1Number:  process.env.NEXT_PUBLIC_STORE_CONTACT1_NUMBER ?? '0316 1930960',
-  contact2Name:    process.env.NEXT_PUBLIC_STORE_CONTACT2_NAME   ?? 'Ammar Mansa',
-  contact2Number:  process.env.NEXT_PUBLIC_STORE_CONTACT2_NUMBER ?? '0326 2275554',
+  // PDF footer — contacts (all optional, leave blank to omit)
+  contact1Name:    process.env.NEXT_PUBLIC_STORE_CONTACT1_NAME   ?? '',
+  contact1Number:  process.env.NEXT_PUBLIC_STORE_CONTACT1_NUMBER ?? '',
+  contact2Name:    process.env.NEXT_PUBLIC_STORE_CONTACT2_NAME   ?? '',
+  contact2Number:  process.env.NEXT_PUBLIC_STORE_CONTACT2_NUMBER ?? '',
   contact3Name:    process.env.NEXT_PUBLIC_STORE_CONTACT3_NAME   ?? '',
   contact3Number:  process.env.NEXT_PUBLIC_STORE_CONTACT3_NUMBER ?? '',
   contact4Name:    process.env.NEXT_PUBLIC_STORE_CONTACT4_NAME   ?? '',
   contact4Number:  process.env.NEXT_PUBLIC_STORE_CONTACT4_NUMBER ?? '',
+  contact5Name:    process.env.NEXT_PUBLIC_STORE_CONTACT5_NAME   ?? '',
+  contact5Number:  process.env.NEXT_PUBLIC_STORE_CONTACT5_NUMBER ?? '',
 
-  // PDF footer — bank
-  bankLine:        process.env.NEXT_PUBLIC_STORE_BANK_LINE        ?? 'Bank Al Habib  |  House of Mina',
-  iban:            process.env.NEXT_PUBLIC_STORE_IBAN             ?? 'PK42 BAHL 1227 0981 0022 7801',
+  // PDF footer — bank. No longer printed at all; kept so nothing referencing it breaks.
+  bankLine:        process.env.NEXT_PUBLIC_STORE_BANK_LINE        ?? '',
+  iban:            process.env.NEXT_PUBLIC_STORE_IBAN             ?? '',
 
   // PDF footer — QR codes
-  instagramUrl:    process.env.NEXT_PUBLIC_STORE_INSTAGRAM_URL    ?? 'https://www.instagram.com/houseofmina__?igsh=aTAyZWQycWVudm43&utm_source=qr',
-  whatsappUrl:     process.env.NEXT_PUBLIC_STORE_WHATSAPP_URL     ?? 'https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H',
+  instagramUrl:    process.env.NEXT_PUBLIC_STORE_INSTAGRAM_URL    ?? '',
+  whatsappUrl:     process.env.NEXT_PUBLIC_STORE_WHATSAPP_URL     ?? '',
 
   // Auth — comma-separated list of allowed Google accounts
-  allowedEmails:   (process.env.NEXT_PUBLIC_STORE_ALLOWED_EMAILS ?? 'potatomasta501@gmail.com,minakhalid00@gmail.com,hmurtaza55@gmail.com')
+  allowedEmails:   (process.env.NEXT_PUBLIC_STORE_ALLOWED_EMAILS ?? 'potatomasta501@gmail.com')
                      .split(',').map(e => e.trim()),
 
+  appUrl:          process.env.NEXT_PUBLIC_APP_URL                ?? '',
+
   // POS defaults
-  defaultMetal:    (process.env.NEXT_PUBLIC_STORE_DEFAULT_METAL ?? 'silver') as 'silver' | 'gold',
+  defaultMetal:    (process.env.NEXT_PUBLIC_STORE_DEFAULT_METAL ?? 'gold') as 'silver' | 'gold',
 } as const;
 
 /**
@@ -56,6 +72,32 @@ export const STORE_CONFIG = {
  * on the one screen anybody would look at to judge how the year is going.
  */
 export const STORE_EST_MARGIN = Number(process.env.NEXT_PUBLIC_STORE_EST_MARGIN ?? '0.10');
+
+/**
+ * The shop's link page, and what is on it.
+ *
+ * One QR on an invoice instead of two: a customer with a phone already raised should
+ * not have to choose between a WhatsApp code and an Instagram code. Everything lives
+ * behind one address.
+ *
+ * Each link is optional and an empty one is simply not shown -- better a page with
+ * three rows than a fourth that goes nowhere. The Google review link especially:
+ * pointing that at a guess sends customers to review the wrong business.
+ */
+export const STORE_LINKS = {
+  /** Where the page itself answers. Defaults to /links on this deployment. */
+  url:        process.env.NEXT_PUBLIC_STORE_LINKS_URL       ?? '',
+  whatsapp:   process.env.NEXT_PUBLIC_STORE_WHATSAPP_URL    ?? '',
+  /** The WhatsApp *community* invite, which is not the same as a wa.me chat link. */
+  waCommunity: process.env.NEXT_PUBLIC_STORE_WA_COMMUNITY_URL ?? '',
+  instagram:  process.env.NEXT_PUBLIC_STORE_INSTAGRAM_URL   ?? '',
+  website:    process.env.NEXT_PUBLIC_STORE_WEBSITE_URL     ?? '',
+  googleReview: process.env.NEXT_PUBLIC_STORE_GOOGLE_REVIEW_URL ?? '',
+};
+
+/** The address a printed QR should point at. */
+export const storeLinksUrl = (): string =>
+  STORE_LINKS.url || (STORE_CONFIG.appUrl ? `${STORE_CONFIG.appUrl.replace(/\/$/, '')}/links` : '');
 
 export const STORE_LOGO_URL = '/taheri-logo.png';
 export const STORE_LOGO_LIGHT_URL = '/taheri-logo-light.png';

@@ -11,7 +11,7 @@ import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/
 import { useRouter } from 'next/navigation';
 import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories , DeliveryInfo , PAYMENT_TYPES, PaymentType } from '@/lib/store';
 import { metalLabel, describeMetal, describeSettings, describeDelivery, describePlating } from '@/lib/materials';
-import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
+import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -974,7 +974,8 @@ export default function CartPage() {
 
     drawDocFooter(doc, {
       pageWidth, pageHeight, margin,
-      whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
+      linksQr: document.getElementById('links-qr-code') as HTMLCanvasElement | null,
+    whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
       instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
     });
 
@@ -1055,6 +1056,7 @@ export default function CartPage() {
         <div style={{ display: 'none' }}>
           <img id="shop-logo" src={STORE_LOGO_URL} crossOrigin="anonymous" alt="" loading="lazy" decoding="async" />
           <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl} size={128} />
+          <QRCode id="links-qr-code" value={storeLinksUrl()} size={128} />
           <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl} size={128} />
         </div>
         <Card className="max-w-4xl mx-auto shadow-lg">

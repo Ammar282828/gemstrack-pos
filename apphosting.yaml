@@ -87,6 +87,16 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT5_NAME
+    value: "Mansoor"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT5_NUMBER
+    value: "0339 4006890"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_WHATSAPP_URL
     value: "https://wa.me/923262275554"
     availability:
@@ -128,4 +138,11 @@ env:
   - variable: GREENAPI_API_TOKEN
     secret: GREENAPI_API_TOKEN
     availability:
+      - RUNTIME
+  # The link page the printed QR points at, and what it lists. Anything left empty is
+  # simply not shown on the page -- a row that goes nowhere is worse than no row.
+  - variable: NEXT_PUBLIC_STORE_WEBSITE_URL
+    value: "https://taheri.shop"
+    availability:
+      - BUILD
       - RUNTIME
