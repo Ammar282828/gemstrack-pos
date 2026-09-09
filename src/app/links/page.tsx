@@ -3,25 +3,21 @@
 /**
  * The link page — what the QR on every invoice and workshop slip opens.
  *
- * Built as the shop's own khata: the bound ledger kept at the counter. Each channel is
- * a ruled entry, name in the left column and the action out at the right margin, the
- * way a line in that book actually reads. The headings are stamped small caps.
+ * Dressed as taheri.shop, not as a generic link page, and matched to it by
+ * measurement rather than memory: ground #0A1111, Inter throughout at light weights,
+ * micro-type set uppercase at 0.2em, gold #BE9F76, and rules at white 10%. The
+ * storefront uses the Didone only as wordmark artwork, so this does too.
  *
- * Each entry is a button, because this is what a customer meets seconds after scanning
- * a code and it should look pressable at a glance — but on the house rule: gold is an
- * edge and a word, never a fill. A card's border warms to gold under the finger and
- * the whole thing lifts a hair. That is the only movement on the page.
+ * Buttons rather than ruled lines: a customer meets this seconds after scanning a
+ * code off a receipt, and it has to look pressable at a glance. Gold stays an edge
+ * and a word — it is never a fill on the storefront and it is not one here.
  *
- * Public: no sign-in, no data, nothing from the book itself.
+ * Public: no sign-in, no data, nothing out of the book.
  */
 
 import React from 'react';
 import Image from 'next/image';
-import { Bodoni_Moda } from 'next/font/google';
-import { STORE_CONFIG, STORE_COMMUNITIES, STORE_LINKS, STORE_LOGO_URL } from '@/lib/store-config';
-
-/** A true Didone, to sit with the wordmark's own high contrast. */
-const didone = Bodoni_Moda({ subsets: ['latin'], weight: ['400', '500'], display: 'swap' });
+import { STORE_CONFIG, STORE_COMMUNITIES, STORE_LINKS, STORE_LOGO_LIGHT_URL } from '@/lib/store-config';
 
 interface Entry { href: string; label: string; sub: string; action: string }
 
@@ -40,67 +36,59 @@ export default function LinksPage() {
   ].filter((e) => Boolean(e.href));
 
   return (
-    <main className="min-h-screen bg-[#FBF9F5] px-6 pb-20 pt-16 text-[#14110D] antialiased">
+    <main className="min-h-screen bg-[#0A1111] px-6 pb-16 pt-14 text-white antialiased">
       <style>{`
-        /* Buttons, but on the house rule: gold is an edge and a word, never a fill.
-           The border warms to gold and the card lifts a hair — enough to feel pressed
-           on a phone, quiet enough that six of them do not shout. */
-        .btn { transition: border-color .25s ease, transform .25s ease, box-shadow .25s ease; }
+        /* The storefront's own restraint: gold is a line and a word, never a fill.
+           A card's hairline warms to gold under the finger; nothing else moves. */
+        .btn { transition: border-color .3s ease, background-color .3s ease; }
         .btn:hover, .btn:focus-visible {
-          border-color: #A98341;
-          transform: translateY(-1px);
-          box-shadow: 0 2px 14px rgba(20,17,13,.06);
+          border-color: rgba(190,159,118,.9);
+          background-color: rgba(255,255,255,.03);
         }
-        .btn:active { transform: translateY(0); box-shadow: none; }
-        .btn:focus-visible { outline: 1px solid #A98341; outline-offset: 3px; }
-        @media (prefers-reduced-motion: reduce) {
-          .btn, .btn:hover, .btn:focus-visible { transition: none; transform: none; }
-        }
+        .btn:focus-visible { outline: 1px solid #BE9F76; outline-offset: 3px; }
+        @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
       `}</style>
 
-      <div className="mx-auto w-full max-w-[30rem]">
+      <div className="mx-auto w-full max-w-[27rem]">
 
-        {/* Letterhead */}
-        <header className="mb-14 text-center">
-          <Image src={STORE_LOGO_URL} alt={STORE_CONFIG.name} width={240} height={60}
+        <header className="mb-12 text-center">
+          <Image src={STORE_LOGO_LIGHT_URL} alt={STORE_CONFIG.name} width={240} height={60}
                  priority className="mx-auto h-auto w-40" />
-          <p className={`${didone.className} mt-5 text-[13px] italic tracking-wide text-[#6E675C]`}>
-            Gold, diamonds &amp; gemstones
+          {/* The storefront's own line, set the way the storefront sets it. */}
+          <p className="mt-5 text-[11px] font-light uppercase tracking-[0.2em] text-white/60">
+            Gold born from dust.
           </p>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.28em] text-[#A98341]">Karachi</p>
         </header>
 
-        <Ledger heading="Channels" note="Pick the one you care about">
+        <Block heading="Channels">
           {channels.map((c) => <Row key={c.href} {...c} />)}
-        </Ledger>
+        </Block>
 
         {shop.length > 0 && (
-          <Ledger heading="The shop">
+          <Block heading="The shop">
             {shop.map((e) => <Row key={e.href} {...e} />)}
-          </Ledger>
+          </Block>
         )}
 
-        <footer className="mt-16 text-center">
-          <span className="text-[10px] uppercase tracking-[0.28em] text-[#B4AC9E]">
-            {STORE_CONFIG.name}
-          </span>
+        {/* The strip along the bottom of taheri.shop, kept. */}
+        <footer className="mt-14 space-y-2 border-t border-white/10 pt-6 text-center">
+          <p className="text-[9px] uppercase tracking-[0.2em] text-white/40">
+            Najmi Market, Shop #40 &amp; #16, Saddar, Karachi
+          </p>
+          <p className="text-[9px] uppercase tracking-[0.2em] text-white/40">
+            0335 2275553 &nbsp;·&nbsp; 0326 2275554
+          </p>
         </footer>
       </div>
     </main>
   );
 }
 
-/** A stamped small-cap heading over a ruled block, as the book has. */
-function Ledger({ heading, note, children }: {
-  heading: string; note?: string; children: React.ReactNode;
-}) {
+function Block({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (
-    <section className="mb-12">
-      <div className="mb-4 flex items-baseline justify-between border-b border-[#14110D] pb-2">
-        <h2 className="text-[10px] uppercase tracking-[0.28em] text-[#14110D]">{heading}</h2>
-        {note && <span className="text-[10px] tracking-wide text-[#B4AC9E]">{note}</span>}
-      </div>
-      <div>{children}</div>
+    <section className="mb-10">
+      <h2 className="mb-4 text-[9px] uppercase tracking-[0.2em] text-white/40">{heading}</h2>
+      {children}
     </section>
   );
 }
@@ -111,14 +99,13 @@ function Row({ href, label, sub, action }: Entry) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="btn mb-2.5 flex items-center gap-4 rounded-xl border border-[#E3DDD1] bg-white px-5 py-4"
+      className="btn mb-2.5 flex items-center gap-4 rounded-lg border border-white/10 px-5 py-4"
     >
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] leading-tight text-[#14110D]">{label}</span>
-        <span className="mt-1 block text-[12px] leading-tight text-[#6E675C]">{sub}</span>
+        <span className="block text-[14px] font-light leading-tight text-white">{label}</span>
+        <span className="mt-1 block text-[11px] font-light leading-tight text-white/40">{sub}</span>
       </span>
-      {/* The action stays gold lettering on transparent — the one place gold is allowed. */}
-      <span className={`${didone.className} shrink-0 text-[13px] italic text-[#A98341]`}>
+      <span className="shrink-0 text-[9px] uppercase tracking-[0.2em] text-[#BE9F76]">
         {action}
       </span>
     </a>
