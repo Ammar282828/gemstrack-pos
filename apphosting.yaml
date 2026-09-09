@@ -131,11 +131,8 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  # Points at the path, not the subdomain, while links.taheri.shop is unpointed --
-  # every invoice and workshop slip prints a QR of this, and a dead QR on paper
-  # outlives the outage that caused it.
   - variable: NEXT_PUBLIC_STORE_LINKS_URL
-    value: "https://pos.taheri.shop/links"
+    value: "https://links.taheri.shop"
     availability:
       - BUILD
       - RUNTIME

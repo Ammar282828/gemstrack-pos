@@ -1,25 +1,72 @@
 rules_version = '2';
 
-// ██ TEMPORARY: THIS DATABASE IS OPEN TO ANYONE WHO KNOWS THE URL ██
+// Closed again on 2026-09-09. The database is no longer readable by anyone with
+// the URL.
 //
-// Opened deliberately on 2026-09-07 at Ammar's request, to use the live app
-// without signing in. While this is deployed, anybody who finds
-// studio--gemstrack-pos.us-central1.hosted.app -- or simply the project id,
-// which ships in the browser bundle -- can read and write every customer name,
-// phone number, address and the entire karigar ledger. No password, no account.
+// What changed since the locked-down version kept in firestore.rules.locked: the
+// shop asked for a counter code rather than Google sign-in, so there is now a
+// second way to be somebody here. Entering the code at /unlock mints a Firebase
+// custom token carrying a `pos` claim, and that claim is what these rules trust.
+// The code therefore gates the data and not merely the screens -- which was the
+// whole point, since the browser talks to Firestore directly and a gate in the
+// app is no gate at all.
 //
-// TO PUT IT BACK: the previous rules are kept verbatim in firestore.rules.locked
-// in this repo. Restore that file over this one and redeploy the ruleset.
-//
-// Nothing else in the app depends on this being open. The staff and karigar
-// portals were already reading through /api/* with server-side checks, and those
-// checks still stand -- this only removes the client-side boundary, which was
-// the only thing protecting the book.
+// The owner list is kept beside it so a Google sign-in still works and nobody is
+// locked out of their own shop if the counter flow breaks.
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Shop owners — full access to everything.
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email in [
+          'potatomasta501@gmail.com',
+          'minakhalid00@gmail.com'
+        ];
+    }
+
+    // Anyone who entered the counter code. The claim can only come from
+    // /api/unlock, which mints it server-side after checking the code against
+    // POS_PASSCODE, so it cannot be self-issued from a browser.
+    function isCounter() {
+      return request.auth != null && request.auth.token.pos == true;
+    }
+
+    // Shop-floor staff are in the same position as karigars below: they are not
+    // on this list, so every client-side read and write is denied, and their
+    // app reads through /api/staff/* instead. That is deliberate and it is the
+    // real boundary — the app queries Firestore straight from the browser, so
+    // anything the database will return is readable in devtools whatever the
+    // UI chooses to draw. Hiding a page hides nothing; denying it here does.
+
+    // Karigars sign in with Google too, but they get NO direct database access.
+    // Their portal reads and writes exclusively through /api/karigar/*, which
+    // runs server-side with the Admin SDK and hand-picks the fields they may
+    // see. This matters because Firestore rules are per-document, not
+    // per-field: allowing a karigar to read an `orders` doc so they could see
+    // their own item would also expose the customer's name, phone number and
+    // the full pricing of that order. Denying them here keeps that impossible
+    // even if they bypass the UI and query Firestore directly.
+
+    // The passcode attempt counter. Written only by the Admin SDK, which does
+    // not pass through these rules at all, so nothing legitimate reads it from a
+    // browser. Denied outright rather than left to the catch-all below, where a
+    // counter session could have cleared its own rate limit.
+    match /unlock_attempts/{key} {
+      allow read, write: if false;
+    }
+
+    // Sign-in audit trail: any authenticated account may record its own
+    // sign-in, but only owners can read the log back.
+    match /signInLogs/{logId} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if isOwner();
+    }
+
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if isOwner() || isCounter();
     }
   }
 }

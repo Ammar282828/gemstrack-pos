@@ -5,6 +5,7 @@ import { auth, db } from '@/lib/firebase';
 import {
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithCustomToken,
   onAuthStateChanged,
   signOut as firebaseSignOut,
   type User,
@@ -29,6 +30,58 @@ const KarigarPortal = dynamic(() => import('@/app/my-work/page'), {
 });
 
 const googleProvider = new GoogleAuthProvider();
+
+/**
+ * Turns the counter code into the Firebase session Firestore will accept.
+ *
+ * Getting here at all means the middleware saw a valid unlock cookie, so this asks
+ * /api/unlock for a token and signs in with it. Nothing renders until that lands:
+ * mounting the app first would start every Firestore listener as an anonymous caller,
+ * and closed rules would answer all of them with permission-denied — a screen full of
+ * empty tables that looks like lost data rather than a missing sign-in.
+ *
+ * If the token is refused, the cookie has expired underneath us. Back to the keypad.
+ */
+function CounterSession({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        if (!cancelled) setReady(true);
+        return;
+      }
+      try {
+        const res = await fetch('/api/unlock');
+        if (!res.ok) throw new Error('locked');
+        const { token } = await res.json();
+        // Deliberately not setting ready here — onAuthStateChanged fires again
+        // with the signed-in user, and that is the state the app depends on.
+        await signInWithCustomToken(auth, token);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    });
+    return () => { cancelled = true; unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    if (failed) window.location.href = '/unlock';
+  }, [failed]);
+
+  if (!ready) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
+
 
 // Owners and shop-floor staff both sign in here. What they can then reach is
 // decided by their role, not by this gate — staff are denied Firestore
@@ -205,6 +258,16 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     await firebaseSignOut(auth);
   };
+
+  // The counter code, not a sign-in screen — but still a real Firebase identity,
+  // because the rules need somebody to authorise. See CounterSession.
+  if (OPEN_ACCESS) {
+    return (
+      <AuthContext.Provider value={{ user: null, signOut: handleSignOut }}>
+        <CounterSession>{children}</CounterSession>
+      </AuthContext.Provider>
+    );
+  }
 
   // Dev-only, and only with ?dev=1 — see useDevBypass.
   if (devBypass) {

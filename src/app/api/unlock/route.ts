@@ -2,12 +2,22 @@
  * Check the counter passcode and set the cookie the middleware looks for.
  *
  * The code is compared here, on the server, and never sent to the browser — the cookie
- * carries a peppered hash. See src/lib/unlock.ts for what this does and does not
- * protect.
+ * carries a peppered hash.
+ *
+ * It also mints the Firebase identity that Firestore trusts. That is what stops this
+ * being a gate on the screens alone: the app queries Firestore straight from the
+ * browser, so a check that lives in the app is no check at all, and the rules need
+ * somebody to authorise. Entering the code produces a custom token carrying a `pos`
+ * claim, the claim can only be issued here, and firestore.rules trusts nothing else
+ * except the two owner accounts.
+ *
+ * GET does the same without the code, for a browser that still holds a valid cookie but
+ * has lost its Firebase session — a cleared tab, or a session outliving its hour. The
+ * cookie is the proof in that case; it was itself only obtainable by entering the code.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { PASSCODE, UNLOCK_COOKIE, UNLOCK_MAX_AGE, unlockToken } from '@/lib/unlock';
 
 export const runtime = 'nodejs';
@@ -73,6 +83,18 @@ async function clearAttempts(key: string): Promise<void> {
   } catch { /* best effort — a stale counter expires on its own within the hour */ }
 }
 
+/**
+ * One identity for the counter rather than one per device.
+ *
+ * The code is the shop's, not a person's — five people share it and there is nothing
+ * here to tell them apart, so inventing a uid per device would only put a fiction in
+ * the audit trail. Who did what is recorded by the "taken by" picker on the work
+ * itself, which asks the question directly.
+ */
+const COUNTER_UID = 'pos-counter';
+
+const counterToken = () => adminAuth.createCustomToken(COUNTER_UID, { pos: true });
+
 /** Length-independent compare, so the answer does not describe the code. */
 function matches(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -104,7 +126,7 @@ export async function POST(req: NextRequest) {
 
   await clearAttempts(key);
 
-  const res = NextResponse.json({ ok: true });
+  const res = NextResponse.json({ ok: true, token: await counterToken() });
   res.cookies.set(UNLOCK_COOKIE, await unlockToken(PASSCODE), {
     httpOnly: true,
     sameSite: 'lax',
@@ -113,4 +135,17 @@ export async function POST(req: NextRequest) {
     maxAge: UNLOCK_MAX_AGE,
   });
   return res;
+}
+
+/**
+ * A fresh Firebase token for a browser that already proved it knows the code.
+ *
+ * No attempt is spent here: this path checks the cookie, not a guess, and the cookie
+ * cannot be forged without the pepper. Rate-limiting it would only lock out a shop
+ * phone that reloaded too often.
+ */
+export async function GET(req: NextRequest) {
+  const ok = req.cookies.get(UNLOCK_COOKIE)?.value === await unlockToken(PASSCODE);
+  if (!ok) return NextResponse.json({ error: 'Locked.' }, { status: 401 });
+  return NextResponse.json({ token: await counterToken() });
 }
