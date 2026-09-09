@@ -27,11 +27,21 @@ function AppBody({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   /**
-   * Pages a customer reaches without an account: a shared invoice, and the link page
-   * the QR on every printed document points at. Both skip the app shell and the
-   * sign-in gate — a customer scanning a code off a receipt must not meet a login.
+   * Pages that render without the app shell or the auth gate.
+   *
+   * Two are for customers: a shared invoice, and the link page the QR on every printed
+   * document points at — somebody scanning a code off a receipt must not meet a login.
+   *
+   * /unlock is here for a harder reason. It is the screen that GETS you an identity, so
+   * it cannot sit behind the thing that requires one. Wrapped in the gate it deadlocks:
+   * the gate finds no session, asks /api/unlock for a token, is refused because there is
+   * no cookie yet, and sends the browser to /unlock — which mounts the gate again. The
+   * keypad never draws and the loop never ends. A lock has to be reachable from outside
+   * itself.
    */
-  const isPublicPath = pathname.startsWith('/view-invoice') || pathname.startsWith('/links');
+  const isPublicPath = pathname.startsWith('/view-invoice')
+    || pathname.startsWith('/links')
+    || pathname.startsWith('/unlock');
 
   /**
    * The link hostname is customer-facing and may show one page and nothing else.
@@ -118,8 +128,9 @@ export default function RootLayout({
         <title>{STORE_CONFIG.name}</title>
         <meta name="description" content="Jewellery Inventory & Point-of-Sale System" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* Dynamic theme-color will be handled by the theme logic, but we can set a default */}
-        <meta name="theme-color" content="#1a0e0e" />
+        {/* The browser chrome around the app. #0A1111 is taheri.shop's ground —
+            this was the other shop's maroon. */}
+        <meta name="theme-color" content="#0A1111" />
         {/*
           Paint the right background before anything else runs.
 

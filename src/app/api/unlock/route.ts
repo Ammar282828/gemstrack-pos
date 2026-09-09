@@ -38,6 +38,8 @@ export const dynamic = 'force-dynamic';
  * fingers it repeatedly.
  */
 const MAX_ATTEMPTS = 10;
+/** Distinct from null (locked out) and from any number of attempts left. */
+const SLOW = Symbol('counter-timeout');
 const WINDOW_MS = 60 * 60 * 1000;
 
 /**
@@ -54,11 +56,23 @@ function callerKey(req: NextRequest): string {
   return ip.replace(/[^a-zA-Z0-9.:-]/g, '').replace(/[:.]/g, '_').slice(0, 120) || 'unknown';
 }
 
+/**
+ * How long the counter gets to answer before the door opens without it.
+ *
+ * Discovered by running the thing: a hanging Firestore left POST /api/unlock with no
+ * response at all, and the catch below never fired because nothing threw. The shop
+ * would have been left looking at a full set of dots and a spinner, with no error, no
+ * way in, and nothing on screen to suggest what to do. A rate limiter is a precaution;
+ * being able to open the shop is the point. When the two disagree the limiter loses.
+ */
+const COUNTER_TIMEOUT_MS = 2000;
+
 /** Returns the attempts left, or null when this caller is locked out. */
 async function spendAttempt(key: string): Promise<number | null> {
   const ref = adminDb.collection('unlock_attempts').doc(key);
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await adminDb.runTransaction(async (tx) => {
+    const counted = adminDb.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       const now = Date.now();
       const data = snap.exists ? snap.data() : undefined;
@@ -69,11 +83,27 @@ async function spendAttempt(key: string): Promise<number | null> {
       tx.set(ref, { count: count + 1, windowStart: fresh ? now : started }, { merge: true });
       return MAX_ATTEMPTS - (count + 1);
     });
+
+    // Whichever answers first. The sentinel is distinguishable from a real lockout,
+    // which is null, so a timeout can never be mistaken for "too many attempts".
+    const timeout = new Promise<typeof SLOW>((resolve) => {
+      timer = setTimeout(() => resolve(SLOW), COUNTER_TIMEOUT_MS);
+    });
+    const result = await Promise.race([counted, timeout]);
+    if (result === SLOW) {
+      console.error('[/api/unlock] attempt counter timed out — allowing the attempt');
+      return MAX_ATTEMPTS;
+    }
+    return result;
   } catch (e) {
     // A counter that cannot be read must not become a lockout of the whole shop; the
     // passcode check below still has to pass either way.
     console.error('[/api/unlock] attempt counter unavailable', e);
     return MAX_ATTEMPTS;
+  } finally {
+    // Otherwise the pending timer holds the lambda open for its full two seconds on
+    // every successful unlock.
+    if (timer) clearTimeout(timer);
   }
 }
 

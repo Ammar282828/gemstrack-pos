@@ -102,56 +102,65 @@ body {
     --sidebar-ring: var(--ring);
   }
 
-  /* The one dark palette, built on the wordmark.
+  /* The one dark palette, taken off taheri.shop.
 
-     public/house-of-mina-logo.png is a single ink colour, #380000 — hsl(0 100% 11%).
-     That is a background-weight colour, so the surfaces below carry it directly
-     (a deep maroon-black rather than a neutral one) while --primary lifts the
-     same hue to a lightness that can actually be read on top of them.
+     Two colours carry that storefront and they are both here exactly: the ground
+     #0A1111 — hsl(180 26% 5%), a black with just enough green in it to stop reading
+     as neutral — and the gold #BE9F76 — hsl(34 36% 60%). Everything else is those
+     two, spaced.
 
-     There used to be nine of these, one per colour option. They shared nothing:
-     backgrounds sat at 4-5% lightness with cards two or three points above, and
-     in the base block --card and --background were the same value, so a card was
-     invisible except for its border. The ramp here is the one the light palette
-     already uses — the page sits below the cards so a card lifts off the surface. */
+     It replaces a maroon palette derived from public/house-of-mina-logo.png, whose
+     single ink colour is #380000. That was the other shop's wordmark, and every dark
+     screen in Taheri's POS was still wearing it.
+
+     Two things worth knowing before editing:
+
+     The gold is DUSTY — 36% saturation. That is what makes it read as metal rather
+     than as yellow, and it is why --warning below sits at 96% saturation: on a dark
+     ground a vivid signal yellow and a dusty gold are plainly different objects,
+     where two similar ambers would not be. Raising the gold's saturation collapses
+     that distinction and the "late" flags stop reading as flags.
+
+     --primary-foreground is the ground colour, not white. --primary is also the
+     heading colour (`text-primary`), so it has to stay light enough to read on the
+     page, and at that lightness white on a filled gold button falls under 4.5:1.
+     Dark-on-gold clears it comfortably in both directions.
+
+     The ramp is the one the light palette uses: the page sits below the cards, so a
+     card lifts off the surface instead of relying on its border. */
   .dark {
-    --background: 0 30% 8%;
-    --foreground: 0 12% 97%;
-    --card: 0 26% 12.5%;
-    --card-foreground: 0 12% 97%;
-    --popover: 0 26% 12.5%;
-    --popover-foreground: 0 12% 97%;
-    --primary: 0 74% 64%;
-    --primary-foreground: 0 60% 12%;
-    --secondary: 0 20% 18%;
-    --secondary-foreground: 0 10% 93%;
-    --muted: 0 20% 18%;
-    --muted-foreground: 0 9% 70%;
-    --accent: 0 28% 24%;
-    --accent-foreground: 0 12% 97%;
-    /* Primary is now red, so destructive cannot also be a mid red or Save and
-       Refund read as the same button. It sits well below primary in lightness
-       and a little off its hue.
-
-       --primary-foreground is a deep maroon rather than white on purpose:
-       --primary is also the heading colour (`text-primary`), so it has to stay
-       light enough to read on the page, and at that lightness a white label on
-       a filled button falls under 4.5:1. Dark-on-bright clears both. */
-    --destructive: 12 58% 34%;
+    --background: 180 24% 5%;
+    --foreground: 40 14% 96%;
+    --card: 185 15% 9%;
+    --card-foreground: 40 14% 96%;
+    --popover: 185 15% 9%;
+    --popover-foreground: 40 14% 96%;
+    --primary: 34 36% 60%;
+    --primary-foreground: 180 30% 6%;
+    --secondary: 185 12% 15%;
+    --secondary-foreground: 40 10% 92%;
+    --muted: 185 12% 15%;
+    --muted-foreground: 40 8% 66%;
+    --accent: 185 14% 21%;
+    --accent-foreground: 40 14% 96%;
+    /* Red, and unmistakably not the gold: Save and Refund must never look alike. */
+    --destructive: 4 62% 52%;
     --destructive-foreground: 0 0% 100%;
-    --success: 142 62% 52%;
-    --success-foreground: 145 60% 8%;
-    --warning: 40 92% 60%;
-    --warning-foreground: 40 60% 10%;
-    --border: 0 17% 24%;
-    --input: 0 17% 24%;
-    --ring: 0 74% 64%;
+    /* Paid / done / on-track, and late / at-risk. See the note on saturation above. */
+    --success: 152 48% 46%;
+    --success-foreground: 155 60% 7%;
+    --warning: 48 96% 56%;
+    --warning-foreground: 45 60% 10%;
+    /* The storefront rules its sections with white at 10%; this is that, opaque. */
+    --border: 185 10% 19%;
+    --input: 185 10% 19%;
+    --ring: 34 36% 60%;
     --radius: 0.75rem;
-    --chart-1: 0 74% 64%;
-    --chart-2: 22 78% 60%;
-    --chart-3: 40 88% 62%;
-    --chart-4: 340 65% 62%;
-    --chart-5: 190 60% 58%;
+    --chart-1: 34 36% 60%;
+    --chart-2: 178 40% 46%;
+    --chart-3: 28 48% 68%;
+    --chart-4: 340 42% 62%;
+    --chart-5: 205 38% 58%;
 
     --sidebar-background: var(--background);
     --sidebar-foreground: var(--foreground);
@@ -163,11 +172,12 @@ body {
     --sidebar-ring: var(--ring);
   }
 
-  /* `theme-red` deliberately has no block of its own. <html> always carries
+  /* `theme-taheri` deliberately has no block of its own. <html> always carries
      `.dark`, and the light palette is applied by `.theme-default` on <body>
-     overriding it; `theme-red` is simply the absence of that override, so the
-     palette above shows through. Any retired theme key (theme-forest and the
-     rest) now lands here too, which is what should happen. */
+     overriding it; `theme-taheri` is simply the absence of that override, so the
+     palette above shows through. Any retired theme key — `theme-red` among them,
+     which is what shops already have stored — now lands here too, which is exactly
+     what should happen: they get the new palette without a migration. */
 
 }
 
@@ -248,4 +258,4 @@ body {
  * these are overridden the moment the body's theme lands.
  */
 html.boot-light { background-color: hsl(220 30% 99.4%); }
-html.boot-dark  { background-color: hsl(0 30% 8%); }
+html.boot-dark  { background-color: hsl(180 24% 5%); }

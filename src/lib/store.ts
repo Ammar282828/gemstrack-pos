@@ -189,8 +189,8 @@ export type { OverheadItem, OverheadPlan };
 export { METAL_TYPES, KARAT_VALUES, metalLabel, karatLabel, describeMetal } from './materials';
 /** Retired colour options are kept in the union so settings documents written
  *  before they were removed still typecheck; only AVAILABLE_THEMES is offered. */
-export type RetiredThemeKey = 'forest' | 'ocean' | 'sunset' | 'amethyst' | 'quartz' | 'slate' | 'latte' | 'mint' | 'gold';
-export type ThemeKey = 'default' | 'red' | RetiredThemeKey;
+export type RetiredThemeKey = 'forest' | 'ocean' | 'sunset' | 'amethyst' | 'quartz' | 'slate' | 'latte' | 'mint' | 'gold' | 'red';
+export type ThemeKey = 'default' | 'taheri' | RetiredThemeKey;
 
 export interface Theme {
   key: ThemeKey;
@@ -200,13 +200,15 @@ export interface Theme {
 
 export const AVAILABLE_THEMES: Theme[] = [
     { key: 'default', name: 'Light', primaryColorHsl: '220.9 39.3% 11%' },
-    { key: 'red', name: 'Red (dark)', primaryColorHsl: '0 74% 64%' },
+    { key: 'taheri', name: 'Taheri (dark)', primaryColorHsl: '34 36% 60%' },
 ];
 
-/** Anything stored outside this set is a retired colour option; it renders as
- *  the red dark palette, so the picker shows it as that rather than as blank. */
-export const normalizeTheme = (t: string | undefined | null): 'default' | 'red' =>
-    t === 'default' ? 'default' : 'red';
+/** Anything stored outside this set is a retired colour option — 'red' included,
+ *  which is what shops already have written in Firestore. They all render as the
+ *  Taheri dark palette, so the picker shows that rather than a blank, and nobody
+ *  needs a settings migration to stop wearing the other shop's maroon. */
+export const normalizeTheme = (t: string | undefined | null): 'default' | 'taheri' =>
+    t === 'default' ? 'default' : 'taheri';
 
 export interface FirebaseConfigStub {
   apiKey?: string;

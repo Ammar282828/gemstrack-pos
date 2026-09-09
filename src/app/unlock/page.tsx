@@ -48,11 +48,11 @@ function Keypad() {
 
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
-  const [wrong, setWrong] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
   const submit = useCallback(async (value: string) => {
     setBusy(true);
-    setWrong(false);
+    setProblem(null);
     try {
       const res = await fetch('/api/unlock', {
         method: 'POST',
@@ -60,7 +60,14 @@ function Keypad() {
         body: JSON.stringify({ code: value }),
       });
       if (!res.ok) {
-        setWrong(true);
+        // Say which of the three it was. Telling somebody their code is wrong when the
+        // server broke, or when they are locked out, sends them back to the keypad to
+        // do the one thing that cannot help -- and the correct code was already typed.
+        setProblem(
+          res.status === 401 ? 'That code didn’t work.'
+          : res.status === 429 ? 'Too many tries. Wait a while, then try again.'
+          : 'The shop’s server did not answer. The code may be fine — try once more.',
+        );
         setCode('');
         return;
       }
@@ -69,7 +76,7 @@ function Keypad() {
       // where there is no window to resolve an origin against.
       window.location.href = sameOrigin(nextParam);
     } catch {
-      setWrong(true);
+      setProblem('Could not reach the shop’s server.');
       setCode('');
     } finally {
       setBusy(false);
@@ -80,7 +87,7 @@ function Keypad() {
     if (busy || code.length >= LENGTH) return;
     const value = code + d;
     setCode(value);
-    setWrong(false);
+    setProblem(null);
     if (value.length === LENGTH) void submit(value);
   };
 
@@ -112,7 +119,7 @@ function Keypad() {
           <span
             key={i}
             className={`h-3 w-3 rounded-full border transition-colors ${
-              wrong ? 'border-red-400/60'
+              problem ? 'border-red-400/60'
                 : i < code.length ? 'border-[#BE9F76] bg-[#BE9F76]'
                 : 'border-white/25'
             }`}
@@ -120,8 +127,8 @@ function Keypad() {
         ))}
       </div>
 
-      <p className={`-mt-6 h-5 text-xs ${wrong ? 'text-red-400/80' : 'text-transparent'}`}>
-        That code didn’t work.
+      <p className={`-mt-6 h-8 max-w-[17rem] text-center text-xs ${problem ? 'text-red-400/80' : 'text-transparent'}`}>
+        {problem ?? '\u00A0'}
       </p>
 
       <div className="grid w-full max-w-[17rem] grid-cols-3 gap-3">
