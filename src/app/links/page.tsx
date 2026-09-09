@@ -7,10 +7,10 @@
  * a ruled entry, name in the left column and the action out at the right margin, the
  * way a line in that book actually reads. The headings are stamped small caps.
  *
- * Gold is a rule, not a fill — the house rule, and the one worth stating plainly. It
- * appears only as a hairline: never a button colour, never a wash. The single moment
- * of movement is that hairline drawing itself along a row under the finger, like a pen
- * run down a ledger line, and it is the only animation on the page.
+ * Each entry is a button, because this is what a customer meets seconds after scanning
+ * a code and it should look pressable at a glance — but on the house rule: gold is an
+ * edge and a word, never a fill. A card's border warms to gold under the finger and
+ * the whole thing lifts a hair. That is the only movement on the page.
  *
  * Public: no sign-in, no data, nothing from the book itself.
  */
@@ -42,18 +42,19 @@ export default function LinksPage() {
   return (
     <main className="min-h-screen bg-[#FBF9F5] px-6 pb-20 pt-16 text-[#14110D] antialiased">
       <style>{`
-        /* The signature: a gold hairline drawn along the entry, left to right. */
-        .entry { position: relative; }
-        .entry::after {
-          content: ''; position: absolute; left: 0; bottom: -1px; height: 1px; width: 100%;
-          background: #A98341; transform: scaleX(0); transform-origin: left;
-          transition: transform .45s cubic-bezier(.22,.61,.36,1);
+        /* Buttons, but on the house rule: gold is an edge and a word, never a fill.
+           The border warms to gold and the card lifts a hair — enough to feel pressed
+           on a phone, quiet enough that six of them do not shout. */
+        .btn { transition: border-color .25s ease, transform .25s ease, box-shadow .25s ease; }
+        .btn:hover, .btn:focus-visible {
+          border-color: #A98341;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 14px rgba(20,17,13,.06);
         }
-        .entry:hover::after, .entry:focus-visible::after { transform: scaleX(1); }
-        .entry:focus-visible { outline: none; }
-        .entry:focus-visible .entry-label { text-decoration: underline; text-underline-offset: 3px; }
+        .btn:active { transform: translateY(0); box-shadow: none; }
+        .btn:focus-visible { outline: 1px solid #A98341; outline-offset: 3px; }
         @media (prefers-reduced-motion: reduce) {
-          .entry::after { transition: none; }
+          .btn, .btn:hover, .btn:focus-visible { transition: none; transform: none; }
         }
       `}</style>
 
@@ -95,7 +96,7 @@ function Ledger({ heading, note, children }: {
 }) {
   return (
     <section className="mb-12">
-      <div className="mb-1 flex items-baseline justify-between border-b border-[#14110D] pb-2">
+      <div className="mb-4 flex items-baseline justify-between border-b border-[#14110D] pb-2">
         <h2 className="text-[10px] uppercase tracking-[0.28em] text-[#14110D]">{heading}</h2>
         {note && <span className="text-[10px] tracking-wide text-[#B4AC9E]">{note}</span>}
       </div>
@@ -110,13 +111,13 @@ function Row({ href, label, sub, action }: Entry) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="entry group flex items-baseline gap-4 border-b border-[#E3DDD1] py-4"
+      className="btn mb-2.5 flex items-center gap-4 rounded-xl border border-[#E3DDD1] bg-white px-5 py-4"
     >
       <span className="min-w-0 flex-1">
-        <span className="entry-label block text-[15px] leading-tight text-[#14110D]">{label}</span>
-        <span className="mt-0.5 block text-[12px] leading-tight text-[#6E675C]">{sub}</span>
+        <span className="block text-[15px] leading-tight text-[#14110D]">{label}</span>
+        <span className="mt-1 block text-[12px] leading-tight text-[#6E675C]">{sub}</span>
       </span>
-      {/* The action sits out at the right margin, where a figure would be totalled. */}
+      {/* The action stays gold lettering on transparent — the one place gold is allowed. */}
       <span className={`${didone.className} shrink-0 text-[13px] italic text-[#A98341]`}>
         {action}
       </span>
