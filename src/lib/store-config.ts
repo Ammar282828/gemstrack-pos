@@ -106,17 +106,17 @@ export const STORE_LINKS = {
  * side of the business; it is the one place these two are meant to meet.
  */
 export const STORE_COMMUNITIES: { label: string; sub: string; href: string }[] = [
-  { label: 'Taheri Collections',      sub: 'New pieces first',
+  { label: 'Taheri Collections',      sub: 'The first look at every new piece',
     href: 'https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl' },
-  { label: 'Diamonds by Taheri',      sub: 'Loose and set',
+  { label: 'Diamonds by Taheri',      sub: 'Solitaires, studs and full sets',
     href: 'https://chat.whatsapp.com/CYu06FaabSA9QR3khJbsqK?mode=gi_t' },
-  { label: 'Gemstones by Taheri',     sub: 'Emerald, ruby, sapphire',
+  { label: 'Gemstones by Taheri',     sub: 'Emerald, ruby and sapphire, chosen by hand',
     href: 'https://chat.whatsapp.com/Ik4lxzfnVaE3ll9VLh4qbg?mode=gi_t' },
-  { label: 'Watches by Taheri',       sub: 'Timepieces',
+  { label: 'Watches by Taheri',       sub: 'What has just reached the counter',
     href: 'https://chat.whatsapp.com/KxWdhie753wBrxw7YpgNSR?mode=gi_t' },
-  { label: 'Investments by Taheri',   sub: 'Gold as an investment',
+  { label: 'Investments by Taheri',   sub: 'Bars, coins and the day\u2019s rate',
     href: 'https://chat.whatsapp.com/FITzh2W8W9eH9Fs2LUWkeA?mode=gi_t' },
-  { label: 'Exclusive Sterling Silver', sub: '925, from House of Mina',
+  { label: 'Exclusive Sterling Silver', sub: '925 for every day, from House of Mina',
     href: 'https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H' },
 ];
 
