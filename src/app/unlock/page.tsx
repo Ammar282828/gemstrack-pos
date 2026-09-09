@@ -14,15 +14,37 @@
 
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { STORE_LOGO_LIGHT_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 
 const LENGTH = 4;
 
+/**
+ * Where to land after unlocking — this shop's own pages only.
+ *
+ * `next` normally comes from the middleware, but anyone can put it in a URL and send
+ * that URL to the counter. A leading slash is not enough of a check: "//evil.com" is
+ * protocol-relative and "/\\evil.com" is normalised to the same thing, so both send the
+ * browser off-site. That is worth care out of proportion to its size, because the
+ * moment it fires is the moment somebody has just typed the shop's code into a screen
+ * that asked for it — precisely when a strange site looks trustworthy.
+ *
+ * Resolving against the real origin and insisting the result still matches settles
+ * every encoding of the trick at once, rather than one at a time.
+ */
+function sameOrigin(next: string | null): string {
+  if (!next) return '/';
+  try {
+    const url = new URL(next, window.location.origin);
+    return url.origin === window.location.origin ? url.pathname + url.search : '/';
+  } catch {
+    return '/';
+  }
+}
+
 function Keypad() {
-  const router = useRouter();
   const params = useSearchParams();
-  const next = params.get('next') || '/';
+  const nextParam = params.get('next');
 
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -43,14 +65,16 @@ function Keypad() {
         return;
       }
       // A full load, not a client push: the middleware has to see the new cookie.
-      window.location.href = next.startsWith('/') ? next : '/';
+      // Resolved here rather than at render: this component is server-rendered first,
+      // where there is no window to resolve an origin against.
+      window.location.href = sameOrigin(nextParam);
     } catch {
       setWrong(true);
       setCode('');
     } finally {
       setBusy(false);
     }
-  }, [next]);
+  }, [nextParam]);
 
   const push = (d: string) => {
     if (busy || code.length >= LENGTH) return;
