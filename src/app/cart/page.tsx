@@ -548,12 +548,6 @@ export default function CartPage() {
     setIsGeneratingEstimate(true);
     let invoice;
     try {
-      // Persist rate changes to settings. This lives inside the try: it talks to
-      // Firestore, and if it throws the click used to die here silently — no
-      // toast, no spinner, nothing to tell you the button had done anything.
-      await updateSettings(ratesForInvoice);
-      toast({ title: "Rates Updated", description: "Store metal rates have been updated with the values from this estimate."});
-
       invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy);
       if (invoice) invoiceDraftDone();
     } catch (error) {
@@ -567,6 +561,23 @@ export default function CartPage() {
     } finally {
       setIsGeneratingEstimate(false);
     }
+
+    // Keep the rates for next time — after the invoice, not before it.
+    //
+    // This used to be awaited first, which put a whole round-trip between the click and
+    // anything happening, for a write nobody was waiting on: updateSettings merges into
+    // local state immediately, so the screen is already right, and the invoice is priced
+    // from ratesForInvoice in hand rather than from what is stored. It also writes the
+    // same settings document the invoice transaction touches, so running the two at once
+    // would trade the delay for a retry. After is both faster and safer.
+    void updateSettings(ratesForInvoice).catch((err) => {
+      console.error('[Cart handleGenerateInvoice] rates not persisted:', err);
+      toast({
+        title: "Rates not saved",
+        description: "The invoice is saved. The new rates were not kept for next time — set them in Settings.",
+        variant: "destructive",
+      });
+    });
 
     if (invoice) {
       setGeneratedInvoice(invoice);

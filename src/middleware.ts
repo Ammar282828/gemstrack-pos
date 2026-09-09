@@ -5,9 +5,15 @@
  * links.taheri.shop serves the link page at its root. The same App Hosting backend
  * answers on both hostnames, so without this the page would only exist at
  * links.taheri.shop/links — and a customer who types the domain off a receipt, or whose
- * scanner strips the path, lands on the POS instead of the shop's links. A rewrite
- * rather than a redirect: the address bar keeps saying links.taheri.shop, which is the
- * whole reason for having the subdomain.
+ * scanner strips the path, lands on the POS instead of the shop's links.
+ *
+ * A REDIRECT, not a rewrite. A rewrite was the obvious choice — it keeps the bare
+ * domain in the address bar — and it does not work here. The rewrite produces correct
+ * HTML for /links, then the App Router hydrates from the URL the browser actually has,
+ * which is still "/", decides it is on the dashboard route, and replaces the page with
+ * the POS. The markup served was right and the screen was wrong: x-taheri-links read 1
+ * on exactly the responses that looked broken, which is what finally gave it away.
+ * Redirecting costs one hop and a visible /links in the bar, and survives hydration.
  *
  * ON READING THE HOSTNAME: App Hosting puts a proxy in front of Cloud Run, and by the
  * time the request reaches here `host` can be the backend's own address rather than the
@@ -62,7 +68,8 @@ export async function middleware(req: NextRequest) {
         return NextResponse.next();
       }
       url.pathname = '/links';
-      return NextResponse.rewrite(url);
+      url.search = '';
+      return NextResponse.redirect(url, 307);
     }
 
     if (UNGATED.some((p) => url.pathname === p || url.pathname.startsWith(p + '/'))) {

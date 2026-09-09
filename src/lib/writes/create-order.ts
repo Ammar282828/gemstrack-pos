@@ -73,22 +73,26 @@ export async function createOrder(
   // taken outside it, and both SDKs abort the whole thing if you try.
   let customerId = input.customerId;
   let customerName = input.customerName;
+  // A per-order source wins; otherwise inherit whatever brought the customer in.
+  let source = input.source;
+  const namedCustomer = Boolean(input.customerId);
 
   if (!customerId && input.customerName) {
     const made = await createCustomer({ name: input.customerName, phone: input.customerContact });
     if (made) { customerId = made.id; customerName = made.name; }
-  } else if (customerId) {
-    const existing = await db.get<{ name?: string }>(CUSTOMERS, customerId);
-    if (existing?.name) customerName = existing.name;
-  } else if (!customerName && input.customerContact) {
+  } else if (!customerId && !customerName && input.customerContact) {
     customerName = `Customer - ${input.customerContact}`;
   }
 
-  // A per-order source wins; otherwise inherit whatever brought the customer in.
-  let source = input.source;
-  if (!source && customerId) {
-    const c = await db.get<{ source?: string }>(CUSTOMERS, customerId);
-    if (c?.source) source = c.source;
+  // One read of the customer where there were two.
+  //
+  // The name and the source sit on the same document and were fetched separately, a
+  // full round-trip apart, so every order for an existing customer paid twice for the
+  // same row before the transaction even opened.
+  if (customerId && (namedCustomer || !source)) {
+    const c = await db.get<{ name?: string; source?: string }>(CUSTOMERS, customerId);
+    if (namedCustomer && c?.name) customerName = c.name;
+    if (!source && c?.source) source = c.source;
   }
 
   const subtotal = Number(input.subtotal) || 0;

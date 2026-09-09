@@ -2417,32 +2417,42 @@ export const useAppStore = create<AppState>()(
         try {
             const result = await runTransaction(db, async (transaction) => {
                 const settingsDocRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
-                const settingsDoc = await transaction.get(settingsDocRef);
+
+                // --- READS FIRST, AND TOGETHER ---
+                // These used to run one await after another, which cost a full network
+                // round-trip each on a counter phone -- the whole reason "Create
+                // Invoice" sat there before anything happened. Only the invoice-number
+                // check below actually depends on another read; everything else was
+                // sequential by habit rather than by need.
+                //
+                // The cart's product documents were read here too, in parallel, and the
+                // result was never looked at -- a round-trip and one billed read per
+                // line of the bill, for nothing. Nothing downstream consults the stored
+                // product: the invoice is priced from the cart item in hand and
+                // sold_products is written from that same object.
+                const [settingsDoc, customerDoc, existingInvoiceDoc] = await Promise.all([
+                    transaction.get(settingsDocRef),
+                    customerInfo.id
+                        ? transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerInfo.id))
+                        : Promise.resolve(null),
+                    existingInvoiceId
+                        ? transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, existingInvoiceId))
+                        : Promise.resolve(null),
+                ]);
+
                 if (!settingsDoc.exists()) throw new Error("Global settings not found.");
                 const currentSettings = settingsDoc.data() as Settings;
 
-                // --- READS FIRST ---
-                const productDocsPromises = cart.map(cartItem => transaction.get(doc(db, FIRESTORE_COLLECTIONS.PRODUCTS, cartItem.sku)));
-                await Promise.all(productDocsPromises);
-
-                let customerDoc = null;
-                if (customerInfo.id) {
-                    customerDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, customerInfo.id));
-                }
-
-                // Read existing invoice to preserve payment history and creation date
+                // Existing invoice: payment history and creation date must survive a re-save.
                 let existingAmountPaid = 0;
                 let existingPaymentHistory: Payment[] = [];
                 let existingCreatedAt: string | undefined;
                 let existingInvoiceData: Omit<Invoice, 'id'> | null = null;
-                if (existingInvoiceId) {
-                    const existingInvoiceDoc = await transaction.get(doc(db, FIRESTORE_COLLECTIONS.INVOICES, existingInvoiceId));
-                    if (existingInvoiceDoc.exists()) {
-                        existingInvoiceData = existingInvoiceDoc.data() as Omit<Invoice, 'id'>;
-                        existingAmountPaid = existingInvoiceData.amountPaid || 0;
-                        existingPaymentHistory = existingInvoiceData.paymentHistory || [];
-                        existingCreatedAt = existingInvoiceData.createdAt;
-                    }
+                if (existingInvoiceDoc?.exists()) {
+                    existingInvoiceData = existingInvoiceDoc.data() as Omit<Invoice, 'id'>;
+                    existingAmountPaid = existingInvoiceData.amountPaid || 0;
+                    existingPaymentHistory = existingInvoiceData.paymentHistory || [];
+                    existingCreatedAt = existingInvoiceData.createdAt;
                 }
 
                 // Guard: for new invoices, pre-read the target doc to confirm the counter is not stale.
