@@ -80,12 +80,17 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
-    // Rewrite, not redirect: the address the shop typed stays in the bar, so unlocking
-    // lands them on the screen they asked for instead of the home page.
+    // Redirect, for the same reason as the links host above, and it is worth being
+    // blunt about it: a rewrite here does not gate anything. It serves the keypad's
+    // markup, then the App Router hydrates from the address the browser still holds,
+    // decides it is on /orders, and draws the POS over the top. The lock looked real
+    // in the response and was absent on the screen. The destination it was asked for
+    // is carried in ?next so unlocking still lands there rather than on the home page.
     const to = req.nextUrl.clone();
     to.pathname = '/unlock';
+    to.search = '';
     to.searchParams.set('next', url.pathname + url.search);
-    return NextResponse.rewrite(to);
+    return NextResponse.redirect(to, 307);
   })();
 
   // So this is checkable from a terminal instead of inferred from what rendered.
