@@ -8,7 +8,7 @@ import { FilterBar } from '@/components/shared/filter-bar';
 import { useAppStore, Customer, Karigar, Invoice } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { BookUser, ArrowRight, User, Briefcase, ArrowDown, ArrowUp, Search, PlusCircle, FileText } from 'lucide-react';
+import { BookUser, ArrowRight, User, Briefcase, ArrowDown, ArrowUp, Search, PlusCircle, FileText, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,7 +47,10 @@ const AddNewHisaabDialog: React.FC<{
     karigars: Karigar[];
 }> = ({ open, onOpenChange, customers, karigars }) => {
     const router = useRouter();
+    const addKarigar = useAppStore(s => s.addKarigar);
+    const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
+    const [creating, setCreating] = useState(false);
 
     const combinedContacts: CombinedContact[] = useMemo(() => {
         const allContacts: CombinedContact[] = [
@@ -69,6 +72,35 @@ const AddNewHisaabDialog: React.FC<{
         onOpenChange(false);
     };
 
+    /**
+     * A typed name that is on nobody's file becomes a karigar and opens his ledger,
+     * from this box. The New Karigar button below still leads to the full form for
+     * anyone who has the contact and specialty to hand; this is for when they do not,
+     * and the alternative was leaving to add him and coming back to find the search.
+     * Only karigars are made this way — a customer record carries a phone number the
+     * ledger genuinely needs, so that one keeps its form.
+     */
+    const typed = searchTerm.trim();
+    const exactOnFile = !!typed && combinedContacts.some(c => (c.name || '').trim().toLowerCase() === typed.toLowerCase());
+    const canCreateKarigar = !!typed && !exactOnFile && !creating;
+
+    const createKarigar = async () => {
+        if (!canCreateKarigar) return;
+        setCreating(true);
+        try {
+            const made = await addKarigar({ name: typed });
+            if (!made) {
+                toast({ title: 'Could not add karigar', description: 'Nothing was saved. Try again.', variant: 'destructive' });
+                return;
+            }
+            toast({ title: `${made.name} added`, description: 'Contact and specialty can be filled in on the Karigars page.' });
+            router.push(`/hisaab/${made.id}?type=karigar`);
+            onOpenChange(false);
+        } finally {
+            setCreating(false);
+        }
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-lg">
@@ -82,11 +114,17 @@ const AddNewHisaabDialog: React.FC<{
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                         <Input
-                            placeholder="Search by name..."
+                            placeholder="Search by name, or type a new karigar…"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key !== 'Enter') return;
+                                e.preventDefault();
+                                if (filteredContacts.length === 1) handleSelectContact(filteredContacts[0]);
+                                else if (canCreateKarigar) void createKarigar();
+                            }}
                             className="pl-10"
-                         aria-label="Search by name"/>
+                         aria-label="Search by name, or type a new karigar"/>
                     </div>
                     <ScrollArea className="h-[300px] border rounded-md">
                          {filteredContacts.length > 0 ? (
@@ -108,8 +146,26 @@ const AddNewHisaabDialog: React.FC<{
                                     </button>
                                 ))}
                             </div>
-                         ) : (
+                         ) : !canCreateKarigar && !creating ? (
                             <p className="p-4 text-center text-sm text-muted-foreground">No contacts found. Create a new one below.</p>
+                         ) : null}
+                         {(canCreateKarigar || creating) && (
+                            <div className="p-2 pt-0">
+                                <button
+                                    type="button"
+                                    onClick={() => void createKarigar()}
+                                    disabled={creating}
+                                    className="w-full text-left p-2 rounded-md hover:bg-muted flex items-center gap-3 disabled:opacity-60"
+                                >
+                                    {creating
+                                        ? <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                                        : <PlusCircle className="h-5 w-5 text-muted-foreground" />}
+                                    <div>
+                                        <p className="font-medium">{creating ? 'Adding' : 'Add karigar'} &ldquo;{typed}&rdquo;</p>
+                                        <p className="text-xs text-muted-foreground">Opens a new ledger for him</p>
+                                    </div>
+                                </button>
+                            </div>
                          )}
                     </ScrollArea>
                 </div>

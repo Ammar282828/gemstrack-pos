@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Briefcase, UserPlus, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Briefcase, UserPlus, Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -30,7 +30,9 @@ export const KarigarAssign: React.FC<{
 }> = ({ orderId, invoiceId, itemIndex, currentKarigarId, size = 'default', className }) => {
   const updateOrderItemKarigar = useAppStore(s => s.updateOrderItemKarigar);
   const updateInvoiceItemKarigar = useAppStore(s => s.updateInvoiceItemKarigar);
+  const addKarigar = useAppStore(s => s.addKarigar);
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [bump, setBump] = useState(0);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -40,7 +42,7 @@ export const KarigarAssign: React.FC<{
   const assigned = !!currentKarigarId && currentKarigarId !== UNASSIGNED_VALUE;
   const currentName = all.find(k => k.id === currentKarigarId)?.name;
 
-  const commit = useCallback(async (value: string) => {
+  const commit = useCallback(async (value: string, knownName?: string) => {
     setOpen(false);
     setSaving(true);
     try {
@@ -49,7 +51,8 @@ export const KarigarAssign: React.FC<{
       else return;
       rememberRecent(value);
       setBump(b => b + 1);
-      const name = value === UNASSIGNED_VALUE ? null : all.find(k => k.id === value)?.name;
+      // A karigar made a moment ago is not in `all` yet; the caller passes his name.
+      const name = value === UNASSIGNED_VALUE ? null : (knownName || all.find(k => k.id === value)?.name);
       toast({
         title: name ? `Assigned to ${name}` : 'Karigar cleared',
         description: `${invoiceId || orderId} · item ${itemIndex + 1}`,
@@ -74,6 +77,34 @@ export const KarigarAssign: React.FC<{
       others: hits.filter(k => !busy.has(k.id)),
     };
   }, [all, busy, query]);
+
+  /**
+   * Add a karigar from the search box and assign him in one go.
+   *
+   * The list is where the counter is when it discovers the name is not on file —
+   * mid-assignment, order open, karigar standing there. Sending them to the Karigars
+   * page and back loses the place. The name is enough to open a record; the rest is
+   * filled in later on his page. Offered only when nothing on file matches exactly,
+   * case aside, because "ahmed" against "Ahmed" is the same man.
+   */
+  const typed = query.trim();
+  const exactOnFile = !!typed && all.some(k => (k.name || '').trim().toLowerCase() === typed.toLowerCase());
+  const canCreate = !!typed && !exactOnFile && !creating && !saving;
+
+  const createAndAssign = useCallback(async () => {
+    if (!typed || creating) return;
+    setCreating(true);
+    try {
+      const made = await addKarigar({ name: typed });
+      if (!made) {
+        toast({ title: 'Could not add karigar', description: 'Nothing was saved. Try again.', variant: 'destructive' });
+        return;
+      }
+      await commit(made.id, made.name);
+    } finally {
+      setCreating(false);
+    }
+  }, [typed, creating, addKarigar, commit, toast]);
 
   const compact = size === 'compact';
 
@@ -125,9 +156,16 @@ export const KarigarAssign: React.FC<{
             autoFocus
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search karigars…"
-            aria-label="Search karigars"
+            placeholder="Search or add a karigar…"
+            aria-label="Search or add a karigar"
             className="h-8 text-sm"
+            onKeyDown={e => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              const hits = [...working, ...others];
+              if (hits.length === 1) void commit(hits[0].id);
+              else if (canCreate) void createAndAssign();
+            }}
           />
         </div>
 
@@ -146,8 +184,25 @@ export const KarigarAssign: React.FC<{
               {others.map(k => <Row key={k.id} k={k} />)}
             </>
           )}
-          {working.length === 0 && others.length === 0 && (
+          {working.length === 0 && others.length === 0 && !canCreate && !creating && (
             <p className="px-2.5 py-6 text-sm text-muted-foreground text-center">No karigar matches.</p>
+          )}
+
+          {(canCreate || creating) && (
+            <button
+              type="button"
+              onClick={() => void createAndAssign()}
+              disabled={creating}
+              className="w-full mt-1 flex items-center gap-2 px-2.5 py-2 rounded-md text-left text-sm hover:bg-accent disabled:opacity-60"
+            >
+              {creating
+                ? <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+                : <Plus className="h-3.5 w-3.5 flex-shrink-0" />}
+              <span className="min-w-0 flex-1 truncate">
+                {creating ? 'Adding' : 'Add karigar'} <span className="font-medium">&ldquo;{typed}&rdquo;</span>
+                {!creating && <span className="text-muted-foreground"> and assign</span>}
+              </span>
+            </button>
           )}
         </div>
 
