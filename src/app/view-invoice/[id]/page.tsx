@@ -11,6 +11,7 @@ import { db } from '@/lib/firebase';
 import { Invoice, Settings, Customer, InvoiceItem, staticCategories } from '@/lib/store';
 import { Loader2, Download, CheckCircle } from 'lucide-react';
 import { openPDFWindowForIOS, savePDF } from '@/lib/utils';
+import { loadPdfLogo } from '@/lib/pdf-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
@@ -124,34 +125,12 @@ export default function ViewInvoicePage() {
     const pageWidth = pdfDoc.internal.pageSize.getWidth();
     const margin = 10;
 
-    let logoDataUrl: string | null = null;
-    let logoFormat: string = 'PNG';
-    let logoNaturalW = 0;
-    let logoNaturalH = 0;
-    const logoUrl = STORE_LOGO_URL;
-    if (logoUrl) {
-      try {
-        const proxyUrl = logoUrl.startsWith('/') ? logoUrl : `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`;
-        const res = await fetch(proxyUrl);
-        const blob = await res.blob();
-        logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
-        logoDataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        // Get natural dimensions to preserve aspect ratio
-        await new Promise<void>((resolve) => {
-          const img = new Image();
-          img.onload = () => { logoNaturalW = img.naturalWidth; logoNaturalH = img.naturalHeight; resolve(); };
-          img.onerror = () => resolve();
-          img.src = logoDataUrl!;
-        });
-      } catch (e) {
-        console.error("Error loading logo:", e);
-      }
-    }
+    // Once per session, not once per print — see pdf-logo.ts.
+    const pdfLogo = await loadPdfLogo();
+    const logoDataUrl: string | null = pdfLogo?.dataUrl ?? null;
+    const logoFormat: string = pdfLogo?.format ?? 'PNG';
+    const logoNaturalW = pdfLogo?.width ?? 0;
+    const logoNaturalH = pdfLogo?.height ?? 0;
 
         const drawHeader = (pageNum: number) => drawDocHeader(pdfDoc, {
       pageWidth, pageHeight, margin, title: 'Estimate',

@@ -41,6 +41,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import 'react-phone-number-input/style.css';
 import { normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
+import { loadPdfLogo } from '@/lib/pdf-logo';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
@@ -766,34 +767,12 @@ export default function CartPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 10;
 
-    let logoDataUrl: string | null = null;
-    let logoFormat: string = 'PNG';
-    let logoNaturalW = 0;
-    let logoNaturalH = 0;
-    const logoUrl = STORE_LOGO_URL;
-    if (logoUrl) {
-      try {
-        const proxyUrl = logoUrl.startsWith('/') ? logoUrl : `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`;
-        const res = await fetch(proxyUrl);
-        const blob = await res.blob();
-        logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
-        logoDataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        // Get natural dimensions to preserve aspect ratio
-        await new Promise<void>((resolve) => {
-          const img = new window.Image();
-          img.onload = () => { logoNaturalW = img.naturalWidth; logoNaturalH = img.naturalHeight; resolve(); };
-          img.onerror = () => resolve();
-          img.src = logoDataUrl!;
-        });
-      } catch (e) {
-        console.error("Error loading logo:", e);
-      }
-    }
+    // Once per session, not once per print — see pdf-logo.ts.
+    const pdfLogo = await loadPdfLogo();
+    const logoDataUrl: string | null = pdfLogo?.dataUrl ?? null;
+    const logoFormat: string = pdfLogo?.format ?? 'PNG';
+    const logoNaturalW = pdfLogo?.width ?? 0;
+    const logoNaturalH = pdfLogo?.height ?? 0;
 
     const drawHeader = (pageNum: number) => drawDocHeader(doc, {
       pageWidth, pageHeight, margin, title: 'Estimate',

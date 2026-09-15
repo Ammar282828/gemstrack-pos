@@ -11,20 +11,65 @@ export function cn(...inputs: ClassValue[]) {
  * Strips leading 0 when a country code is inferred.
  */
 /**
- * iOS Safari ignores the `download` attribute on blob/data URLs, so jsPDF's .save()
- * silently does nothing. Pre-open a blank window before any async work, then redirect
- * it to the blob URL on iOS. On other platforms fall back to .save() as normal.
+ * Getting a PDF off the page on iOS.
  *
- * Usage:
- *   const iOSWin = openPDFWindowForIOS();
- *   // ... build pdf async ...
+ * Safari on iOS ignores the `download` attribute on blob URLs, so jsPDF's .save() does
+ * nothing there. Two exits exist instead, and which one a tap gets is decided BEFORE any
+ * async work, because both depend on the tap's user activation and that is the whole
+ * difficulty:
+ *
+ *   share   navigator.share({ files }) — the native sheet: AirDrop, Print, WhatsApp,
+ *           Files. What the counter is used to. Needs transient activation, which iOS
+ *           grants for a few seconds after the tap and REVOKES the moment another
+ *           activation-consuming call spends it.
+ *
+ *   window  a blank tab opened synchronously in the tap and later pointed at the PDF.
+ *           Needs activation too, but only at the instant it opens, which is why it is
+ *           opened first and filled last.
+ *
+ * The old version did both: opened the window, then tried to share, then used the
+ * window if sharing failed. That worked until it did not — window.open is itself an
+ * activation-consuming call, and once Safari began treating it as one, the share that
+ * followed was refused every time, silently, and every print landed in the fallback tab
+ * instead of the sheet. A belt-and-braces that spends the belt buying the braces.
+ *
+ * So the two are exclusive now. If the device can share files, no window is opened and
+ * nothing touches the activation until navigator.share does. If it cannot, the window
+ * is opened in the tap as before. Both functions ask the same question so they cannot
+ * disagree about which exit a tap is on.
+ *
+ * Usage, unchanged:
+ *   const iOSWin = openPDFWindowForIOS();   // synchronously, in the click handler
+ *   // ... build pdf async, and keep it short — see pdf-logo.ts ...
  *   savePDF(doc, 'name.pdf', iOSWin);
  */
-export function openPDFWindowForIOS(): Window | null {
-  const isIOS =
+
+const isIOS = (): boolean =>
+  typeof navigator !== 'undefined' && (
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  return isIOS ? window.open('', '_blank') : null;
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+
+/** Can this device put a PDF on the native share sheet? Asked with a stand-in file. */
+function iosCanShareFiles(): boolean {
+  if (!isIOS() || typeof File === 'undefined' || !navigator.canShare) return false;
+  try {
+    const probe = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], 'probe.pdf', { type: 'application/pdf' });
+    return navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Returns a pre-opened window ONLY when the share sheet is not available. When it is,
+ * returns null on purpose: opening a window here would spend the activation the share
+ * needs. savePDF makes the same determination and takes the share path.
+ */
+export function openPDFWindowForIOS(): Window | null {
+  if (!isIOS()) return null;
+  if (iosCanShareFiles()) return null;
+  return window.open('', '_blank');
 }
 
 export async function savePDF(
@@ -33,28 +78,31 @@ export async function savePDF(
   iOSWin: Window | null,
   shareData?: { title?: string; text?: string }
 ) {
-  if (iOSWin) {
-    // Try Web Share API with file support first (iOS 15+, Android Chrome 86+).
-    // This gives the native share sheet — user can pick WhatsApp, Print, Files, etc.
-    // The PDF page size is preserved properly (fixes A4 whitespace issue when printing).
+  if (isIOS() && iosCanShareFiles()) {
+    const blob = doc.output('blob') as Blob;
+    const file = new File([blob], filename, { type: 'application/pdf' });
     try {
-      const blob = doc.output('blob') as Blob;
-      const file = new File([blob], filename, { type: 'application/pdf' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        iOSWin.close();
-        await navigator.share({
-          files: [file],
-          title: shareData?.title ?? filename,
-          ...(shareData?.text ? { text: shareData.text } : {}),
-        });
-        return;
-      }
+      await navigator.share({
+        files: [file],
+        title: shareData?.title ?? filename,
+        ...(shareData?.text ? { text: shareData.text } : {}),
+      });
+      return;
     } catch (e) {
-      // AbortError = user dismissed share sheet — close window and stop
-      if ((e as Error)?.name === 'AbortError') { iOSWin.close(); return; }
-      console.warn('Web Share API failed, falling back to iframe:', e);
+      // The person closed the sheet. Nothing to recover from.
+      if ((e as Error)?.name === 'AbortError') return;
+      // Anything else means the activation was gone by the time we asked — the PDF took
+      // too long, or something spent it first. There is no window to fall back to and
+      // window.open would be refused for the same reason, so hand the file to the
+      // browser's own download path, which on iOS opens it in the viewer.
+      console.warn('[savePDF] share refused; handing the file to the browser instead', e);
+      doc.save(filename);
+      return;
     }
-    // Fallback: embed PDF in an iframe in the pre-opened window
+  }
+
+  if (iOSWin) {
+    // No share sheet on this device: the tab opened in the tap gets the PDF.
     const blobUrl = doc.output('bloburl') as string;
     iOSWin.document.open();
     iOSWin.document.write(
@@ -65,9 +113,10 @@ export async function savePDF(
       + '</head><body><iframe src="' + blobUrl + '"></iframe></body></html>'
     );
     iOSWin.document.close();
-  } else {
-    doc.save(filename);
+    return;
   }
+
+  doc.save(filename);
 }
 
 export function normalizePhoneNumber(phone: string | undefined | null): string {

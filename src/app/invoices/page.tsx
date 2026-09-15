@@ -16,6 +16,7 @@ import { Search, Loader2, FileText, ClipboardList, AlertTriangle, Calendar, Uplo
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn, openPDFWindowForIOS, savePDF, settledRowClass, shopifyRowClass, shopifyCardClass } from '@/lib/utils';
+import { loadPdfLogo } from '@/lib/pdf-logo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
@@ -67,22 +68,10 @@ async function generateInvoicePDF(
   const pageWidth = pdfDoc.internal.pageSize.getWidth();
   const margin = 10;
 
-  let logoDataUrl: string | null = null;
-  let logoFormat = 'PNG';
-  const logoUrl = STORE_LOGO_URL;
-  if (logoUrl) {
-    try {
-      const res = await fetch(logoUrl.startsWith('/') ? logoUrl : `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`);
-      const blob = await res.blob();
-      logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
-      logoDataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } catch (e) { console.error('Logo load error:', e); }
-  }
+  // Once per session, not once per print — see pdf-logo.ts.
+  const pdfLogo = await loadPdfLogo();
+  const logoDataUrl: string | null = pdfLogo?.dataUrl ?? null;
+  const logoFormat: string = pdfLogo?.format ?? 'PNG';
 
   const drawHeader = (pageNum: number) => drawDocHeader(pdfDoc, {
     pageWidth, pageHeight, margin, title: 'Estimate',
@@ -254,22 +243,10 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   const pageWidth = pdfDoc.internal.pageSize.getWidth();
   const margin = 10;
 
-  let logoDataUrl: string | null = null;
-  let logoFormat = 'PNG';
-  const logoUrl = STORE_LOGO_URL;
-  if (logoUrl) {
-    try {
-      const res = await fetch(logoUrl.startsWith('/') ? logoUrl : `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`);
-      const blob = await res.blob();
-      logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
-      logoDataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } catch (e) { console.error('Logo load error:', e); }
-  }
+  // Once per session, not once per print — see pdf-logo.ts.
+  const pdfLogo = await loadPdfLogo();
+  const logoDataUrl: string | null = pdfLogo?.dataUrl ?? null;
+  const logoFormat: string = pdfLogo?.format ?? 'PNG';
 
     const drawHeader = (pageNum: number) => drawDocHeader(pdfDoc, {
     pageWidth, pageHeight, margin, title: 'Workshop order slip',
