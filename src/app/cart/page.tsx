@@ -866,11 +866,14 @@ export default function CartPage() {
     const descColWidth = (pageWidth - margin * 2) - (7 + 9 + 22 + 22);
 
     itemsToPrint.forEach((item: InvoiceItem, index) => {
-        // No cost breakdown on the customer's bill. It used to itemise Metal, Wastage (x%),
-        // Making, Diamonds, Stones and Misc under every piece -- the shop's own arithmetic,
-        // printed for the customer. The bill states the gold rate once, in the header, and
-        // each line carries its description and its total. What the shop paid for wastage
-        // and making is the shop's business; the on-screen order page still shows it.
+        let breakdownLines = [];
+        if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        if (item.makingCharges > 0) breakdownLines.push(`  + Making: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: PKR ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: PKR ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
 
         const metalTypeName = metalLabel(item.metalType);
         const karat = item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : '';
@@ -889,7 +892,7 @@ export default function CartPage() {
                 item.sku ? `SKU ${item.sku}` : '',
             ].filter(Boolean).join('  ·  '),
             settings: describeSettings(item),
-            breakdown: [],
+            breakdown: breakdownLines.map(l => l.trim().replace(/^\+\s*/, '')),
         };
         itemBlocks.push(block);
         const itemData = [
