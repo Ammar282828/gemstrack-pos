@@ -54,6 +54,7 @@ import { FormSkeleton } from '@/components/shared/skeletons';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
 import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
+import { Switch } from '@/components/ui/switch';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -142,6 +143,9 @@ export default function CartPage() {
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
 
   const [exchangeDescription, setExchangeDescription] = useState('');
+
+  // Print the bill without the per-gram rates. Pricing is unaffected; see Invoice.hideRates.
+  const [hideRates, setHideRates] = useState(false);
   const [exchangeAmount1Input, setExchangeAmount1Input] = useState<string>('');
   const [exchangeAmount2Input, setExchangeAmount2Input] = useState<string>('');
   // Everything typed around the cart — who it is for, the discount, anything
@@ -515,7 +519,7 @@ export default function CartPage() {
       await updateSettings(ratesForInvoice);
       toast({ title: "Rates Updated", description: "Store metal rates have been updated with the values from this estimate."});
 
-      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery);
+      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery, hideRates);
       if (invoice) invoiceDraftDone();
     } catch (error) {
       console.error("[Cart handleGenerateInvoice] Failed:", error);
@@ -563,6 +567,7 @@ export default function CartPage() {
     clearCart(); // Ensure no stale items linger before loading invoice items
     loadCartFromInvoice(generatedInvoice);
     setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
+    setHideRates(!!generatedInvoice.hideRates);
     // Always restore customer name and phone regardless of walk-in vs registered customer
     setWalkInCustomerName(generatedInvoice.customerName || '');
     if (generatedInvoice.customerContact) {
@@ -770,7 +775,8 @@ export default function CartPage() {
     const itemsToPrint = Array.isArray(invoiceToPrint.items) ? invoiceToPrint.items : Object.values(invoiceToPrint.items as {[key: string]: InvoiceItem});
     const hasGoldItems = itemsToPrint.some((i: InvoiceItem) => i.metalType === 'gold');
     let ratesApplied: string[] = [];
-    if (hasGoldItems) {
+    // hideRates: the bill is priced at these rates and just does not say so.
+    if (hasGoldItems && !invoiceToPrint.hideRates) {
       if (rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
       if (rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
       if (rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
@@ -1585,7 +1591,15 @@ export default function CartPage() {
                         </div>
                         <Separator />
                         <div className="space-y-2">
-                             <Label>Gold Rates (PKR)</Label>
+                             <div className="flex items-center justify-between gap-3">
+                                <Label>Gold Rates (PKR)</Label>
+                                {/* The rates still price the bill; this only decides whether
+                                    the paper says what they were. */}
+                                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer" title="Prices stay the same. The invoice just won't show the per-gram rate.">
+                                    <span>Off the bill</span>
+                                    <Switch checked={hideRates} onCheckedChange={setHideRates} aria-label="Leave rates off the printed bill" />
+                                </label>
+                             </div>
                              <div className="grid grid-cols-2 gap-2">
                                 {cartMetalInfo.karats.has('18k') && <div><Label className="text-xs">18k/gram</Label><Input value={rateInputs.gold18k} onChange={e => handleRateChange('gold18k', e.target.value)}  aria-label="18k/gram"/></div>}
                                 {cartMetalInfo.karats.has('21k') && <div><Label className="text-xs">21k/gram</Label><Input value={rateInputs.gold21k} onChange={e => handleRateChange('gold21k', e.target.value)}  aria-label="21k/gram"/></div>}

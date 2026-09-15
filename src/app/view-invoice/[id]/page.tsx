@@ -187,7 +187,8 @@ export default function ViewInvoicePage() {
     const itemsList = invoice.items as InvoiceItem[];
     const usedKarats = new Set(itemsList.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
     let ratesApplied: string[] = [];
-    if (usedKarats.size > 0) {
+    // hideRates: the bill is priced at these rates and just does not say so.
+    if (usedKarats.size > 0 && !invoice.hideRates) {
       if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
       if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
       if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);

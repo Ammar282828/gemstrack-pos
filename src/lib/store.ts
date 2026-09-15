@@ -436,6 +436,13 @@ export interface Invoice {
   balanceDue: number;
   createdAt: string; // ISO string
   ratesApplied: Partial<Settings>;
+  /**
+   * Print the bill without the per-gram rates. The rates are still applied and still
+   * stored -- the arithmetic is unchanged -- they are just not written on the paper.
+   * Some customers are quoted a piece, not a gold price, and a rate line on the slip
+   * invites a conversation the counter has already had.
+   */
+  hideRates?: boolean;
   paymentHistory: Payment[];
   sourceOrderId?: string; // Set when invoice is created from an order
   source?: string; // 'shopify_import' | 'shopify' for imported/synced orders
@@ -532,6 +539,8 @@ export interface Order {
   status: OrderStatus;
   items: OrderItem[];
   ratesApplied: Partial<Settings>; // Store all rates at time of order
+  /** See Invoice.hideRates. Carried onto the invoice when the order is finalised. */
+  hideRates?: boolean;
   subtotal: number;
   /** Agreed at order time and carried into the invoice when it is finalised,
    *  so a price settled with the customer does not have to be re-entered. */
@@ -1133,7 +1142,8 @@ export interface AppState {
     discountAmount: number,
     exchangeInfo?: { description: string; amount1: number; amount2: number },
     existingInvoiceId?: string,
-    delivery?: DeliveryInfo
+    delivery?: DeliveryInfo,
+    hideRates?: boolean
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string, method?: PaymentType, reference?: string) => Promise<Invoice | null>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
@@ -2246,7 +2256,7 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?) => {
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?, hideRates?) => {
         if(get().settings.databaseLocked) return null;
         const { cart } = get();
         if (cart.length === 0) return null;
@@ -2371,6 +2381,7 @@ export const useAppStore = create<AppState>()(
                     balanceDue: grandTotal - existingAmountPaid,
                     createdAt: existingCreatedAt || new Date().toISOString(),
                     ratesApplied: ratesForInvoice,
+                    ...(hideRates ? { hideRates: true } : {}),
                     paymentHistory: existingPaymentHistory,
                     customerName: finalCustomerName || 'Walk-in Customer',
                     customerId: finalCustomerId,
@@ -3412,6 +3423,7 @@ export const useAppStore = create<AppState>()(
             customerContact: order.customerContact,
             ...(order.source && { acquisitionSource: order.source }),
             sourceOrderId: order.id,
+            ...(order.hideRates ? { hideRates: true } : {}),
             // The address the customer gave when ordering is the address it
             // ships to. Without this the invoice was raised with no delivery
             // details at all and they had to be typed in again.
