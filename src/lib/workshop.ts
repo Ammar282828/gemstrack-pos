@@ -55,6 +55,8 @@ export interface WorkshopJob {
   referenceSku?: string;
   sampleGiven?: boolean;
   sampleImage?: string;
+  /** When the piece physically went to the karigar. Unset until the Given box is ticked. */
+  givenAt?: string;
   plating?: string;
   value?: number;             // order item estimate, or agreed cost on a manual job
   notes?: string;             // merged instructions — see mergeInstructions
@@ -141,6 +143,7 @@ export function buildWorkshopJobs(
         referenceSku: item.referenceSku || undefined,
         sampleGiven: !!item.sampleGiven,
         sampleImage: item.sampleImageDataUri || undefined,
+        givenAt: item.givenAt || undefined,
         plating: describePlating(item),
         value: item.totalEstimate ?? 0,
         notes: mergeInstructions(item),
@@ -160,6 +163,7 @@ export function buildWorkshopJobs(
       description: job.description,
       status: job.status,
       assignedDate: job.assignedDate,
+      givenAt: job.givenAt || undefined,
       completedDate: job.completedDate,
       ageDays,
       urgency: urgencyOf(job.status, ageDays),
@@ -209,6 +213,7 @@ export function buildWorkshopJobs(
         description: item.name || 'Item',
         status: 'pending',
         assignedDate: inv.createdAt,
+        givenAt: item.givenAt || undefined,
         ageDays,
         urgency: urgencyOf('pending', ageDays),
         invoiceId: inv.id,
