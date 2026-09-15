@@ -9,7 +9,8 @@
  * because it saves on selection and has to show that.
  */
 
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { useAppStore, Karigar } from '@/lib/store';
 import { SearchablePicker } from '@/components/shared/searchable-picker';
 
@@ -90,12 +91,24 @@ export const KarigarPicker: React.FC<{
   'aria-label'?: string;
 }> = ({ value, onChange, placeholder = 'Choose a karigar', clearLabel, disabled, icon, className, 'aria-label': ariaLabel }) => {
   const { all, busy } = useKarigarsByRecency();
+  const addKarigar = useAppStore(s => s.addKarigar);
+  const { toast } = useToast();
+
+  /**
+   * A karigar made from this very dropdown, held here until the live listener
+   * delivers him. Firestore's local write lands in `karigars` within a frame or two,
+   * but the picker selects the new id the instant it comes back, and for that frame
+   * the id has no name on file — the trigger would flash "karigar-1726…" where the
+   * name should be. Keeping the pair here covers the gap without a second lookup.
+   */
+  const [justMade, setJustMade] = useState<Karigar | null>(null);
 
   const options = useMemo(() => {
+    const pool = justMade && !all.some(k => k.id === justMade.id) ? [justMade, ...all] : all;
     // With nobody mid-job the divider says nothing, so it is left off.
-    const anyBusy = all.some(k => busy.has(k.id));
+    const anyBusy = pool.some(k => busy.has(k.id));
     const label = (k: Karigar) => (anyBusy ? (busy.has(k.id) ? 'Currently assigned' : 'Other karigars') : '');
-    return [...all]
+    return [...pool]
       .sort((a, b) => Number(busy.has(b.id)) - Number(busy.has(a.id)))
       .map(k => ({
         value: k.id,
@@ -103,15 +116,36 @@ export const KarigarPicker: React.FC<{
         hint: busy.has(k.id) ? 'Currently has assigned work' : undefined,
         group: label(k),
       }));
-  }, [all, busy]);
+  }, [all, busy, justMade]);
+
+  /**
+   * Make a karigar from a typed name, right here.
+   *
+   * The name alone is enough to open a record; contact, specialty and the rest are
+   * filled in on his page when someone has them. Asking for those now, in the middle
+   * of writing up an order, is how a new karigar ends up assigned as "Other" instead.
+   */
+  const create = useCallback(async (name: string): Promise<string | null> => {
+    const made = await addKarigar({ name: name.trim() });
+    if (!made) {
+      toast({ title: 'Could not add karigar', description: 'Nothing was saved. Try again.', variant: 'destructive' });
+      return null;
+    }
+    setJustMade(made);
+    rememberRecent(made.id);
+    toast({ title: `${made.name} added`, description: 'Contact and specialty can be filled in on the Karigars page.' });
+    return made.id;
+  }, [addKarigar, toast]);
 
   return (
     <SearchablePicker
       value={value === UNASSIGNED_VALUE ? '' : value}
       onChange={v => { if (v) rememberRecent(v); onChange(v || UNASSIGNED_VALUE); }}
       options={options}
+      onCreate={create}
+      createNoun="karigar"
       placeholder={placeholder}
-      searchPlaceholder="Search karigars…"
+      searchPlaceholder="Search or add a karigar…"
       clearLabel={clearLabel}
       disabled={disabled}
       icon={icon}

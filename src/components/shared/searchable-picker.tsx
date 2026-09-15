@@ -17,7 +17,7 @@ import React, { useMemo, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Check, ChevronsUpDown, X } from 'lucide-react';
+import { Check, ChevronsUpDown, Loader2, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface PickerOption {
@@ -41,6 +41,15 @@ export const SearchablePicker: React.FC<{
   clearLabel?: string;
   /** Lets a value outside the list be typed and kept. */
   allowCustom?: boolean;
+  /**
+   * Lets a value outside the list be MADE. Given the typed name, creates the thing and
+   * resolves to its id (or null on failure); the picker then selects that id. Distinct
+   * from allowCustom, which keeps the typed text as the value — a karigar is a record
+   * with an id, not a string, and the difference is the whole point of the prop.
+   */
+  onCreate?: (name: string) => Promise<string | null>;
+  /** The noun in "Create X" — "karigar", so the row says what it will make. */
+  createNoun?: string;
   disabled?: boolean;
   /** Sits before the label. For triggers that read as an action, not a field. */
   icon?: React.ReactNode;
@@ -49,11 +58,12 @@ export const SearchablePicker: React.FC<{
   'aria-label'?: string;
 }> = ({
   value, onChange, options, placeholder = 'Select…', searchPlaceholder = 'Search…',
-  layout = 'list', clearLabel, allowCustom, disabled, icon, className, triggerClassName,
+  layout = 'list', clearLabel, allowCustom, onCreate, createNoun, disabled, icon, className, triggerClassName,
   'aria-label': ariaLabel,
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [creating, setCreating] = useState(false);
 
   const selected = options.find(o => o.value === value);
   // A value that is not on the list is still a real value — a custom size
@@ -78,7 +88,23 @@ export const SearchablePicker: React.FC<{
   }, [hits]);
 
   const pick = (v: string) => { onChange(v); setOpen(false); setQuery(''); };
-  const typedIsNew = allowCustom && query.trim() && !hits.some(o => o.label === query.trim());
+  const typed = query.trim();
+  // Case-insensitive on purpose: "ahmed" typed against "Ahmed" on file is the same
+  // person, and offering to create him again is how duplicates get made.
+  const exactOnFile = !!typed && hits.some(o => o.label.trim().toLowerCase() === typed.toLowerCase());
+  const typedIsNew = allowCustom && typed && !exactOnFile;
+  const canCreate = !!onCreate && !!typed && !exactOnFile && !creating;
+
+  const create = async () => {
+    if (!onCreate || !typed || creating) return;
+    setCreating(true);
+    try {
+      const id = await onCreate(typed);
+      if (id) pick(id);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <Popover open={open} onOpenChange={o => { setOpen(o); if (!o) setQuery(''); }}>
@@ -103,7 +129,8 @@ export const SearchablePicker: React.FC<{
               if (e.key !== 'Enter') return;
               e.preventDefault();
               if (hits.length === 1) pick(hits[0].value);
-              else if (typedIsNew) pick(query.trim());
+              else if (typedIsNew) pick(typed);
+              else if (canCreate) void create();
             }}
           />
         </div>
@@ -148,8 +175,23 @@ export const SearchablePicker: React.FC<{
             </div>
           ))}
 
-          {hits.length === 0 && !typedIsNew && (
+          {hits.length === 0 && !typedIsNew && !canCreate && !creating && (
             <p className="px-2 py-6 text-sm text-muted-foreground text-center">Nothing matches.</p>
+          )}
+
+          {(canCreate || creating) && (
+            <button
+              type="button" onClick={() => void create()} disabled={creating}
+              className="w-full mt-1 flex items-center gap-2 px-2 py-2 rounded-md text-left text-sm hover:bg-accent disabled:opacity-60"
+            >
+              {creating
+                ? <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+                : <Plus className="h-3.5 w-3.5 flex-shrink-0" />}
+              <span className="min-w-0 flex-1 truncate">
+                {creating ? 'Adding' : 'Add'}{createNoun ? ` ${createNoun}` : ''}{' '}
+                <span className="font-medium">&ldquo;{typed}&rdquo;</span>
+              </span>
+            </button>
           )}
 
           {typedIsNew && (
