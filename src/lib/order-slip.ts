@@ -32,10 +32,12 @@ export function buildOrderItemBlocks(order: Order): ItemBlock[] {
     const categoryTitle =
       staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
     const metalName = describeMetal(item.metalType, item.karat);
+    // Metal, karat and estimated weight -- and not the wastage percentage, which used
+    // to follow them. The customer's slip states the gold rate; how the shop prices
+    // its wastage on top of it is not something the slip needs to explain.
     const metalPart = item.isManualPrice
       ? metalName
-      : `${metalName}${item.estimatedWeightG ? ` · Est. ${item.estimatedWeightG}g` : ''}` +
-        `${item.metalType !== 'silver' && item.wastagePercentage > 0 ? ` · Wastage ${item.wastagePercentage}%` : ''}`;
+      : `${metalName}${item.estimatedWeightG ? ` · Est. ${item.estimatedWeightG}g` : ''}`;
 
     // Darker than the spec line: settings and bench notes are what the
     // workshop actually works from.

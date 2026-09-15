@@ -827,14 +827,17 @@ export default function CartPage() {
     
     const rates = (invoiceToPrint.ratesApplied || {}) as Record<string, number>;
     const itemsToPrint = Array.isArray(invoiceToPrint.items) ? invoiceToPrint.items : Object.values(invoiceToPrint.items as {[key: string]: InvoiceItem});
-    const hasGoldItems = itemsToPrint.some((i: InvoiceItem) => i.metalType === 'gold');
+    // Only the karats actually on this bill. This path printed every configured gold
+    // rate -- a 21k bill carried 24k, 22k and 18k prices the customer had no use for --
+    // while the other three print paths already restricted the line to what was sold.
+    const usedKarats = new Set(itemsToPrint.filter((i: InvoiceItem) => i.metalType === 'gold').map((i: InvoiceItem) => i.karat).filter(Boolean));
     let ratesApplied: string[] = [];
     // hideRates: the bill is priced at these rates and just does not say so.
-    if (hasGoldItems && !invoiceToPrint.hideRates) {
-      if (rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
-      if (rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
-      if (rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
-      if (rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+    if (usedKarats.size > 0 && !invoiceToPrint.hideRates) {
+      if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
+      if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
+      if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
+      if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
     }
 
     if (ratesApplied.length > 0) {
@@ -863,14 +866,11 @@ export default function CartPage() {
     const descColWidth = (pageWidth - margin * 2) - (7 + 9 + 22 + 22);
 
     itemsToPrint.forEach((item: InvoiceItem, index) => {
-        let breakdownLines = [];
-        if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        if (item.makingCharges > 0) breakdownLines.push(`  + Making: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: PKR ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: PKR ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
+        // No cost breakdown on the customer's bill. It used to itemise Metal, Wastage (x%),
+        // Making, Diamonds, Stones and Misc under every piece -- the shop's own arithmetic,
+        // printed for the customer. The bill states the gold rate once, in the header, and
+        // each line carries its description and its total. What the shop paid for wastage
+        // and making is the shop's business; the on-screen order page still shows it.
 
         const metalTypeName = metalLabel(item.metalType);
         const karat = item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : '';
@@ -889,7 +889,7 @@ export default function CartPage() {
                 item.sku ? `SKU ${item.sku}` : '',
             ].filter(Boolean).join('  ·  '),
             settings: describeSettings(item),
-            breakdown: breakdownLines.map(l => l.trim().replace(/^\+\s*/, '')),
+            breakdown: [],
         };
         itemBlocks.push(block);
         const itemData = [
