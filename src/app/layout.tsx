@@ -14,6 +14,7 @@ import Script from 'next/script';
 import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { readCachedTheme, writeCachedTheme } from '@/lib/theme-cache';
+import { warmPdfLogo } from '@/lib/pdf-logo';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -39,6 +40,11 @@ function AppBody({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (hasSettingsLoaded && theme) writeCachedTheme(theme);
   }, [hasSettingsLoaded, theme]);
+
+  // Have the wordmark ready for the first print before anyone has pressed anything.
+  // On iOS the share sheet is only offered for a few seconds after the tap, and the
+  // logo load was being paid inside that window. See pdf-logo.ts.
+  React.useEffect(() => { warmPdfLogo(); }, []);
 
   if (!isHydrated) {
     return (

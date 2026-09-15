@@ -10,48 +10,65 @@ export function cn(...inputs: ClassValue[]) {
  * Handles Pakistani local format (e.g. 03001234567 → +923001234567).
  * Strips leading 0 when a country code is inferred.
  */
-function isIOSDevice(): boolean {
-  return (
+/**
+ * Getting a PDF off the page on iOS.
+ *
+ * Safari on iOS ignores the `download` attribute on blob URLs, so jsPDF's .save() does
+ * nothing there. Two exits exist instead, and which one a tap gets is decided BEFORE any
+ * async work, because both depend on the tap's user activation and that is the whole
+ * difficulty:
+ *
+ *   share   navigator.share({ files }) — the native sheet: AirDrop, Print, WhatsApp,
+ *           Files. What the counter is used to. Needs transient activation, which iOS
+ *           grants for a few seconds after the tap and REVOKES the moment another
+ *           activation-consuming call spends it.
+ *
+ *   window  a blank tab opened synchronously in the tap and later pointed at the PDF.
+ *           Needs activation too, but only at the instant it opens, which is why it is
+ *           opened first and filled last.
+ *
+ * The old version did both: opened the window, then tried to share, then used the
+ * window if sharing failed. That worked until it did not — window.open is itself an
+ * activation-consuming call, and once Safari began treating it as one, the share that
+ * followed was refused every time, silently, and every print landed in the fallback tab
+ * instead of the sheet. A belt-and-braces that spends the belt buying the braces.
+ *
+ * So the two are exclusive now. If the device can share files, no window is opened and
+ * nothing touches the activation until navigator.share does. If it cannot, the window
+ * is opened in the tap as before. Both functions ask the same question so they cannot
+ * disagree about which exit a tap is on.
+ *
+ * Usage, unchanged:
+ *   const iOSWin = openPDFWindowForIOS();   // synchronously, in the click handler
+ *   // ... build pdf async, and keep it short — see pdf-logo.ts ...
+ *   savePDF(doc, 'name.pdf', iOSWin);
+ */
+
+const isIOS = (): boolean =>
+  typeof navigator !== 'undefined' && (
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   );
-}
 
-/** True when the browser can share a PDF file through the native share sheet. */
-function canSharePdf(): boolean {
+/** Can this device put a PDF on the native share sheet? Asked with a stand-in file. */
+function iosCanShareFiles(): boolean {
+  if (!isIOS() || typeof File === 'undefined' || !navigator.canShare) return false;
   try {
-    return (
-      typeof navigator !== 'undefined' &&
-      typeof navigator.canShare === 'function' &&
-      navigator.canShare({ files: [new File([new Blob()], 'x.pdf', { type: 'application/pdf' })] })
-    );
+    const probe = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], 'probe.pdf', { type: 'application/pdf' });
+    return navigator.canShare({ files: [probe] });
   } catch {
     return false;
   }
 }
 
 /**
- * iOS Safari ignores the `download` attribute on blob/data URLs, so jsPDF's .save()
- * silently does nothing. The share sheet (AirDrop / Print / Save to Files / WhatsApp)
- * is the way an iPhone prints — but it needs a live user activation.
- *
- * The subtlety that broke on iOS 26: `window.open()` CONSUMES the transient user
- * activation, and `navigator.share()` needs one too. Pre-opening a window here — as we
- * used to, always — stole the activation from the share call, so the sheet silently
- * stopped appearing and the PDF just opened in a tab instead. So we now pre-open the
- * fallback window ONLY when the browser can't share files; when it can (every modern
- * iPhone), we return null and let savePDF fire the share sheet with the activation intact.
- *
- * Usage:
- *   const iOSWin = openPDFWindowForIOS();
- *   // ... build pdf async ...
- *   savePDF(doc, 'name.pdf', iOSWin);
+ * Returns a pre-opened window ONLY when the share sheet is not available. When it is,
+ * returns null on purpose: opening a window here would spend the activation the share
+ * needs. savePDF makes the same determination and takes the share path.
  */
 export function openPDFWindowForIOS(): Window | null {
-  if (!isIOSDevice()) return null;
-  // Can share files natively → do NOT open a window (it would steal the activation).
-  if (canSharePdf()) return null;
-  // Older iOS without file sharing → pre-open the fallback window during the gesture.
+  if (!isIOS()) return null;
+  if (iosCanShareFiles()) return null;
   return window.open('', '_blank');
 }
 
@@ -61,28 +78,31 @@ export async function savePDF(
   iOSWin: Window | null,
   shareData?: { title?: string; text?: string }
 ) {
-  // Native share sheet first (iOS 15+, Android Chrome 86+) — WhatsApp, Print, Files, etc.
-  // The PDF page size is preserved properly (fixes the A4 whitespace issue when printing).
-  try {
+  if (isIOS() && iosCanShareFiles()) {
     const blob = doc.output('blob') as Blob;
     const file = new File([blob], filename, { type: 'application/pdf' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      iOSWin?.close();
+    try {
       await navigator.share({
         files: [file],
         title: shareData?.title ?? filename,
         ...(shareData?.text ? { text: shareData.text } : {}),
       });
       return;
+    } catch (e) {
+      // The person closed the sheet. Nothing to recover from.
+      if ((e as Error)?.name === 'AbortError') return;
+      // Anything else means the activation was gone by the time we asked — the PDF took
+      // too long, or something spent it first. There is no window to fall back to and
+      // window.open would be refused for the same reason, so hand the file to the
+      // browser's own download path, which on iOS opens it in the viewer.
+      console.warn('[savePDF] share refused; handing the file to the browser instead', e);
+      doc.save(filename);
+      return;
     }
-  } catch (e) {
-    // AbortError = user dismissed the share sheet — that is a completed action, not a failure.
-    if ((e as Error)?.name === 'AbortError') { iOSWin?.close(); return; }
-    console.warn('Web Share API failed, falling back:', e);
   }
 
   if (iOSWin) {
-    // Fallback: embed the PDF in an iframe in the pre-opened window.
+    // No share sheet on this device: the tab opened in the tap gets the PDF.
     const blobUrl = doc.output('bloburl') as string;
     iOSWin.document.open();
     iOSWin.document.write(
@@ -93,14 +113,10 @@ export async function savePDF(
       + '</head><body><iframe src="' + blobUrl + '"></iframe></body></html>'
     );
     iOSWin.document.close();
-  } else if (isIOSDevice()) {
-    // iOS, share unavailable/failed, no pre-opened window: doc.save() is a no-op here,
-    // so open the PDF in a tab — the viewer's own share button still reaches AirDrop/Print.
-    const blobUrl = doc.output('bloburl') as string;
-    window.open(blobUrl, '_blank');
-  } else {
-    doc.save(filename);
+    return;
   }
+
+  doc.save(filename);
 }
 
 export function normalizePhoneNumber(phone: string | undefined | null): string {

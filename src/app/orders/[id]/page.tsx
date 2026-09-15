@@ -26,6 +26,7 @@ import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, Mes
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
+import { loadPdfLogo } from '@/lib/pdf-logo';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -688,25 +689,10 @@ export default function OrderDetailPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 10;
     
-    let logoDataUrl: string | null = null;
-    let logoFormat: string = 'PNG';
-    const logoUrl = STORE_LOGO_URL;
-    if (logoUrl) {
-        try {
-            const proxyUrl = logoUrl.startsWith('/') ? logoUrl : `/api/proxy-image?url=${encodeURIComponent(logoUrl)}`;
-            const res = await fetch(proxyUrl);
-            const blob = await res.blob();
-            logoFormat = blob.type.toLowerCase().includes('jpeg') || blob.type.toLowerCase().includes('jpg') ? 'JPEG' : 'PNG';
-            logoDataUrl = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-        } catch (e) {
-            console.error("Error loading logo:", e);
-        }
-    }
+    // Once per session, not once per print — see pdf-logo.ts.
+    const pdfLogo = await loadPdfLogo();
+    const logoDataUrl: string | null = pdfLogo?.dataUrl ?? null;
+    const logoFormat: string = pdfLogo?.format ?? 'PNG';
 
         const drawHeader = (pageNum: number) => drawDocHeader(doc, {
       pageWidth, pageHeight, margin, title: 'Workshop order slip',
