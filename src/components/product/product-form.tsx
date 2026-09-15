@@ -356,7 +356,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           <FormField control={form.control} name="platingType" render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-xs">Plating</FormLabel>
-                              <Select value={field.value || '__none__'} onValueChange={v => field.onChange(v === '__none__' ? '' : v)}>
+                              <Select value={field.value || '__none__'} onValueChange={v => { if (v === '') return; field.onChange(v === '__none__' ? '' : v); }}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="No plating" /></SelectTrigger></FormControl>
                                 <SelectContent>
                                   <SelectItem value="__none__">No plating</SelectItem>

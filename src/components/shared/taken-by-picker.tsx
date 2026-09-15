@@ -19,6 +19,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 /** Select needs a non-empty value, and "" is how the form says nobody. */
 const NONE = '__none__';
 
+/*
+ * ON IGNORING "": Radix Select keeps a hidden native <select> so that a wrapping form
+ * sees changes, and when the CONTROLLED value changes it pushes the new value into that
+ * native element and dispatches a change event to bubble it. If the native select cannot
+ * represent the value at that instant, its value reads "" and Radix reports
+ * onValueChange("") -- for a change nobody made. On an edit form, where form.reset()
+ * sets this field after mount, that fired every time and cleared "Ammar" to nothing a
+ * few renders after it had been loaded. The order page then showed the field as never
+ * set, and the same thing emptied "How they found us" beside it.
+ *
+ * "" is never a real selection here: nobody clears this through anything but the
+ * "Not set" row, whose value is NONE. So "" is dropped on the floor. Every Select in the
+ * app that uses a sentinel for "none" carries the same one-line guard.
+ */
+
 export const TakenByPicker: React.FC<{
   value?: TakenBy | '';
   onChange: (v: TakenBy | undefined) => void;
@@ -30,7 +45,7 @@ export const TakenByPicker: React.FC<{
 }> = ({ value, onChange, allowAny, anyLabel = 'Anyone', className, 'aria-label': ariaLabel }) => (
   <Select
     value={value || NONE}
-    onValueChange={(v) => onChange(v === NONE ? undefined : (v as TakenBy))}
+    onValueChange={(v) => { if (v === '') return; onChange(v === NONE ? undefined : (v as TakenBy)); }}
   >
     <SelectTrigger className={className} aria-label={ariaLabel ?? 'Taken by'}>
       <SelectValue placeholder={allowAny ? anyLabel : 'Not set'} />

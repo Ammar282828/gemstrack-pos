@@ -16,7 +16,7 @@
 
 import React from 'react';
 import PhoneInput from 'react-phone-number-input';
-import { parsePhoneNumberFromString, getCountryCallingCode } from 'libphonenumber-js';
+import { parsePhoneNumberFromString, getCountryCallingCode, type CountryCode } from 'libphonenumber-js';
 import { AlertCircle, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -30,7 +30,7 @@ const FRAME =
  * return the canonical E.164 form. `+9203001234567` and `03001234567` both
  * become `+923001234567`.
  */
-export function toE164(raw: string | undefined, country: 'PK' = 'PK'): string {
+export function toE164(raw: string | undefined, country: CountryCode = 'PK'): string {
   if (!raw) return '';
   const compact = raw.replace(/[\s\-().]/g, '').replace(/^'+/, '');
 
@@ -59,7 +59,7 @@ export function toE164(raw: string | undefined, country: 'PK' = 'PK'): string {
 }
 
 /** How finished the number is, for the message under the field. */
-export function phoneState(raw: string | undefined, country: 'PK' = 'PK'):
+export function phoneState(raw: string | undefined, country: CountryCode = 'PK'):
   { state: 'empty' | 'incomplete' | 'invalid' | 'valid'; digits: number; expected?: number } {
   if (!raw || raw.replace(/\D/g, '') === '') return { state: 'empty', digits: 0 };
   const parsed = parsePhoneNumberFromString(raw, country);
@@ -87,12 +87,29 @@ export const PhoneField: React.FC<{
   // what is stored but leaves "+92 0300 …" sitting in the box. Remounting once
   // on blur makes the field show the number that was actually saved.
   const [nonce, setNonce] = React.useState(0);
-  const status = phoneState(value);
+
+  /**
+   * The country the flag is set to, remembered here so the remount above does not
+   * lose it.
+   *
+   * That remount was the whole reason the international picker looked broken. Change
+   * the flag to the UAE with nothing typed yet and the library reports an empty value;
+   * the picker then loses focus, the wrapper's blur remounts the input with a hard-coded
+   * defaultCountry of PK, and the flag snaps back to Pakistan. The selection worked for
+   * one frame and then undid itself, which from the counter is the same as not working.
+   *
+   * Remembering the choice and feeding it back as defaultCountry makes the remount
+   * invisible. The same country also drives normalisation and the hint, which were
+   * pinned to PK regardless of the flag -- an Emirati number was being trunk-stripped
+   * and length-checked as if it were Pakistani.
+   */
+  const [country, setCountry] = React.useState<CountryCode>('PK');
+  const status = phoneState(value, country);
   const tell = showHint && touched && status.state !== 'empty';
 
   const settle = () => {
     setTouched(true);
-    const canonical = toE164(value);
+    const canonical = toE164(value, country);
     if (canonical !== value) onChange(canonical);
     setNonce(n => n + 1);
     onBlur?.();
@@ -103,11 +120,12 @@ export const PhoneField: React.FC<{
       <PhoneInput
         key={nonce}
         international
-        defaultCountry="PK"
+        defaultCountry={country}
+        onCountryChange={c => { if (c) setCountry(c); }}
         countryCallingCodeEditable={false}
         value={value || undefined}
         disabled={disabled}
-        onChange={v => onChange(toE164(v as string | undefined))}
+        onChange={v => onChange(toE164(v as string | undefined, country))}
         aria-label={ariaLabel}
         className={cn(
           FRAME,
@@ -119,7 +137,9 @@ export const PhoneField: React.FC<{
       {tell && status.state === 'incomplete' && (
         <p className="text-xs text-destructive flex items-center gap-1.5">
           <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-          Incomplete — a Pakistani mobile is 10 digits after +92 (you have {Math.max(0, status.digits - 2)}).
+          {country === 'PK'
+            ? <>Incomplete — a Pakistani mobile is 10 digits after +92 (you have {Math.max(0, status.digits - 2)}).</>
+            : <>Incomplete — keep typing the rest of the number.</>}
         </p>
       )}
       {tell && status.state === 'invalid' && (
