@@ -62,11 +62,12 @@ const STATUS_LABEL: Record<KarigarJobStatus, string> = {
 const JobRow: React.FC<{
   job: WorkshopJob;
   onToggleDone: (job: WorkshopJob) => void;
+  onToggleGiven: (job: WorkshopJob) => void;
   onSetStatus: (job: WorkshopJob, s: KarigarJobStatus) => void;
   onDelete: (job: WorkshopJob) => void;
   onEdit?: (job: WorkshopJob) => void;
   showKarigar?: boolean;
-}> = ({ job, onToggleDone, onSetStatus, onDelete, onEdit, showKarigar }) => {
+}> = ({ job, onToggleDone, onToggleGiven, onSetStatus, onDelete, onEdit, showKarigar }) => {
   const meta = [
     job.category,
     job.size ? `Size ${job.size}` : null,
@@ -120,9 +121,19 @@ const JobRow: React.FC<{
           </div>
         )}
 
-        <div className="text-xs text-muted-foreground mt-0.5">
-          given {format(parseISO(job.assignedDate), 'dd MMM yy')}
-        </div>
+        {/* This line used to read "given <date>" and the date was the write-up, not the
+            handover -- the word was doing duty for both. Now it is a box that means what
+            it says, greyed while nobody is assigned because there is no one to give it to. */}
+        <label className={cn(
+          'mt-1.5 inline-flex items-center gap-2 text-xs',
+          job.karigarId === UNASSIGNED_ID ? 'opacity-50' : 'cursor-pointer',
+        )} title={job.karigarId === UNASSIGNED_ID ? 'Assign a karigar first' : undefined}>
+          <Checkbox className="h-4 w-4" checked={!!job.givenAt} disabled={job.karigarId === UNASSIGNED_ID}
+            onCheckedChange={() => onToggleGiven(job)} aria-label="Given to karigar" />
+          <span className={job.givenAt ? 'text-muted-foreground' : 'text-foreground'}>
+            {job.givenAt ? `Given ${format(parseISO(job.givenAt), 'dd MMM yy')}` : 'Given to karigar'}
+          </span>
+        </label>
 
         {/* Controls sit under the content and wrap — keeps narrow cards readable */}
         {(job.source === 'manual' || job.status !== 'completed') && (
@@ -327,11 +338,12 @@ const AddJobDialog: React.FC<{ open: boolean; onOpenChange: (v: boolean) => void
 const OrderGroupedJobs: React.FC<{
   jobs: WorkshopJob[];
   onToggleDone: (j: WorkshopJob) => void;
+  onToggleGiven: (j: WorkshopJob) => void;
   onSetStatus: (j: WorkshopJob, s: KarigarJobStatus) => void;
   onDelete: (j: WorkshopJob) => void;
   onEdit?: (j: WorkshopJob) => void;
   showKarigar?: boolean;
-}> = ({ jobs, onToggleDone, onSetStatus, onDelete, onEdit, showKarigar }) => (
+}> = ({ jobs, onToggleDone, onToggleGiven, onSetStatus, onDelete, onEdit, showKarigar }) => (
   <>
     {groupJobsByOrder(jobs).map(g => (
       <div key={g.key} className={cn(
@@ -365,7 +377,7 @@ const OrderGroupedJobs: React.FC<{
         <div className="rounded-md bg-background border px-3">
           {g.jobs.map(j => (
             <JobRow key={j.id} job={j} onEdit={onEdit}
-              onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} />
+              onToggleDone={onToggleDone} onToggleGiven={onToggleGiven} onSetStatus={onSetStatus} onDelete={onDelete} />
           ))}
         </div>
       </div>
@@ -506,11 +518,12 @@ const KarigarCard: React.FC<{
   load: KarigarWorkload;
   contact?: string;
   onToggleDone: (j: WorkshopJob) => void;
+  onToggleGiven: (j: WorkshopJob) => void;
   onSetStatus: (j: WorkshopJob, s: KarigarJobStatus) => void;
   onDelete: (j: WorkshopJob) => void;
   onEdit: (j: WorkshopJob) => void;
   onAssign: (karigarId: string) => void;
-}> = ({ load, contact, onToggleDone, onSetStatus, onDelete, onEdit, onAssign }) => {
+}> = ({ load, contact, onToggleDone, onToggleGiven, onSetStatus, onDelete, onEdit, onAssign }) => {
   const [showDone, setShowDone] = useState(false);
   const { toast } = useToast();
   const isUnassigned = load.karigarId === UNASSIGNED_ID;
@@ -588,7 +601,7 @@ const KarigarCard: React.FC<{
           // not reserve empty space.
           <ScrollArea className={visible.length > 5 ? 'h-[65vh] lg:h-[30rem]' : ''}>
             <div className="pr-2">
-              <OrderGroupedJobs jobs={visible} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
+              <OrderGroupedJobs jobs={visible} onToggleDone={onToggleDone} onToggleGiven={onToggleGiven} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
             </div>
           </ScrollArea>
         )}
@@ -603,13 +616,14 @@ const FocusedKarigarView: React.FC<{
   load: KarigarWorkload;
   contact?: string;
   onToggleDone: (j: WorkshopJob) => void;
+  onToggleGiven: (j: WorkshopJob) => void;
   onSetStatus: (j: WorkshopJob, s: KarigarJobStatus) => void;
   onDelete: (j: WorkshopJob) => void;
   onEdit: (j: WorkshopJob) => void;
   onAssign: (karigarId: string) => void;
   showCompleted: boolean;
   onBack?: () => void;
-}> = ({ load, contact, onToggleDone, onSetStatus, onDelete, onEdit, onAssign, showCompleted, onBack }) => {
+}> = ({ load, contact, onToggleDone, onToggleGiven, onSetStatus, onDelete, onEdit, onAssign, showCompleted, onBack }) => {
   const { toast } = useToast();
   const isUnassigned = load.karigarId === UNASSIGNED_ID;
 
@@ -647,7 +661,7 @@ const FocusedKarigarView: React.FC<{
           {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
         </div>
         <Card><CardContent className="p-2 sm:p-3">
-          <OrderGroupedJobs jobs={jobs} onToggleDone={onToggleDone} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
+          <OrderGroupedJobs jobs={jobs} onToggleDone={onToggleDone} onToggleGiven={onToggleGiven} onSetStatus={onSetStatus} onDelete={onDelete} onEdit={onEdit} />
         </CardContent></Card>
       </div>
     );
@@ -739,8 +753,9 @@ const FocusedKarigarView: React.FC<{
 const JobCardMobile: React.FC<{
   job: WorkshopJob;
   onToggleDone: (j: WorkshopJob) => void;
+  onToggleGiven: (j: WorkshopJob) => void;
   onEdit: (j: WorkshopJob) => void;
-}> = ({ job, onToggleDone, onEdit }) => {
+}> = ({ job, onToggleDone, onToggleGiven, onEdit }) => {
   const spec = [
     job.size ? `Size ${job.size}` : null,
     job.weightG ? `${job.weightG}g` : null,
@@ -779,6 +794,21 @@ const JobCardMobile: React.FC<{
               <span>· {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
             </div>
 
+            {/* Labelled, because the box on the left already means "done" and a second
+                unlabelled one beside it would be a coin toss. */}
+            {job.status !== 'completed' && (
+              <label className={cn(
+                'mt-2 inline-flex items-center gap-2 text-xs',
+                job.karigarId === UNASSIGNED_ID ? 'opacity-50' : 'cursor-pointer',
+              )}>
+                <Checkbox className="h-4 w-4" checked={!!job.givenAt} disabled={job.karigarId === UNASSIGNED_ID}
+                  onCheckedChange={() => onToggleGiven(job)} aria-label="Given to karigar" />
+                <span className={job.givenAt ? 'text-muted-foreground' : 'text-foreground'}>
+                  {job.givenAt ? `Given ${format(parseISO(job.givenAt), 'dd MMM')}` : 'Given to karigar'}
+                </span>
+              </label>
+            )}
+
             {job.notes && (
               <div className="mt-2 rounded-md border border-warning/25 bg-warning/[0.06] px-2.5 py-1.5">
                 <p className="text-xs text-foreground/80 whitespace-pre-wrap">{job.notes}</p>
@@ -809,7 +839,7 @@ export default function WorkshopPage() {
   const karigars = useAppStore(s => s.karigars);
   const karigarJobs = useAppStore(s => s.karigarJobs);
   const invoices = useAppStore(s => s.generatedInvoices);
-  const { loadOrders, loadKarigars, loadKarigarJobs, loadGeneratedInvoices, updateOrderItemStatus, updateInvoiceItemStatus, setKarigarJobStatus, deleteKarigarJob } = useAppStore();
+  const { loadOrders, loadKarigars, loadKarigarJobs, loadGeneratedInvoices, updateOrderItemStatus, updateInvoiceItemStatus, setKarigarJobStatus, deleteKarigarJob, updateOrderItemGiven, updateInvoiceItemGiven, setKarigarJobGiven } = useAppStore();
   const { toast } = useToast();
 
   const [addOpen, setAddOpen] = useState(false);
@@ -827,7 +857,7 @@ export default function WorkshopPage() {
    * and overdue work only ever as a list. Split apart, every combination
    * works: unassigned on the board, one karigar's overdue pieces, and so on.
    */
-  const [focus, setFocus] = useState<'all' | 'unassigned' | 'attention'>('all');
+  const [focus, setFocus] = useState<'all' | 'unassigned' | 'attention' | 'notgiven'>('all');
   const [view, setView] = useState<'list' | 'board' | 'karigar'>('list');
   const [boardMode, setBoardMode] = useState<'karigar' | 'status' | 'none'>('karigar');
   const [typeFilter, setTypeFilter] = useState<'all' | 'order' | 'stock'>('all');
@@ -895,6 +925,36 @@ export default function WorkshopPage() {
       await setKarigarJobStatus(job.id.replace(/^job:/, ''), job.status === 'completed' ? 'pending' : 'completed');
     }
   };
+  /**
+   * The piece has gone to the karigar — or it has not, after all.
+   *
+   * Assignment and handover are two different moments. A job is assigned the second
+   * somebody picks a name in the app; it is given when the gold actually leaves the
+   * shop, and that can be hours or days later, or never, if the karigar does not turn
+   * up. Until now the Workshop could only show the first, so "assigned" was doing duty
+   * for both and nobody could tell from the list what was still in the safe.
+   *
+   * Refused when nobody is assigned: there is no one to have given it to.
+   */
+  const handleToggleGiven = async (job: WorkshopJob) => {
+    if (job.karigarId === UNASSIGNED_ID) {
+      toast({ title: 'Assign a karigar first', description: 'Nobody is on this piece yet, so there is no one to have given it to.' });
+      return;
+    }
+    const givenAt = job.givenAt ? null : new Date().toISOString();
+    try {
+      if (job.source === 'order' && job.orderId && job.itemIndex !== undefined) {
+        await updateOrderItemGiven(job.orderId, job.itemIndex, givenAt);
+      } else if (job.source === 'invoice' && job.invoiceId && job.itemIndex !== undefined) {
+        await updateInvoiceItemGiven(job.invoiceId, job.itemIndex, givenAt);
+      } else if (job.source === 'manual') {
+        await setKarigarJobGiven(job.id.replace(/^job:/, ''), givenAt);
+      }
+    } catch {
+      toast({ title: 'Could not save', description: 'The given mark did not save. Try again.', variant: 'destructive' });
+    }
+  };
+
   const handleSetStatus = async (job: WorkshopJob, s: KarigarJobStatus) => {
     if (job.source === 'manual') await setKarigarJobStatus(job.id.replace(/^job:/, ''), s);
   };
@@ -929,8 +989,11 @@ export default function WorkshopPage() {
   // What the views actually render. Focusing unassigned work deliberately
   // drops the karigar filter, since "nobody is on it" and "Uzair is on it"
   // cannot both be true — narrowing by karigar would always empty the list.
+  // Assigned to somebody, not done, and not yet handed over -- still in the safe.
+  const notGiven = filtered.filter(j => j.status !== 'completed' && j.karigarId !== UNASSIGNED_ID && !j.givenAt);
   const focused = focus === 'unassigned' ? unassignedJobs
     : focus === 'attention' ? attention
+    : focus === 'notgiven' ? notGiven
     : filtered;
   const focusIgnoresKarigar = focus === 'unassigned' && karigarFilter !== 'all';
   // The By-karigar view groups whatever is in focus, not the raw filter.
@@ -1008,6 +1071,7 @@ export default function WorkshopPage() {
             { id: 'all', label: 'All work', n: filtered.filter(j => j.status !== 'completed').length, tone: '' },
             { id: 'unassigned', label: 'Unassigned', n: unassignedJobs.length, tone: 'text-destructive' },
             { id: 'attention', label: 'Requires attention', n: attention.length, tone: 'text-destructive' },
+            { id: 'notgiven', label: 'Not yet given', n: notGiven.length, tone: 'text-warning' },
           ] as const).map(f => (
             <button
               key={f.id} type="button" onClick={() => setFocus(f.id)}
@@ -1088,7 +1152,7 @@ export default function WorkshopPage() {
             <FocusedKarigarView
               load={focusedLoads[0]}
               contact={contactById.get(focusedLoads[0].karigarId)}
-              onToggleDone={handleToggleDone}
+              onToggleDone={handleToggleDone} onToggleGiven={handleToggleGiven}
               onSetStatus={handleSetStatus}
               onDelete={handleDelete}
               onEdit={openEdit}
@@ -1137,7 +1201,7 @@ export default function WorkshopPage() {
                       key={load.karigarId}
                       load={load}
                       contact={contactById.get(load.karigarId)}
-                      onToggleDone={handleToggleDone}
+                      onToggleDone={handleToggleDone} onToggleGiven={handleToggleGiven}
                       onSetStatus={handleSetStatus}
                       onDelete={handleDelete}
                       onEdit={openEdit}
@@ -1184,7 +1248,7 @@ export default function WorkshopPage() {
                 <div className={grid}>
                   {focused.map(j => (
                     <BoardJobCard key={j.id} job={j} showKarigar
-                      onToggleDone={handleToggleDone} onEdit={openEdit} />
+                      onToggleDone={handleToggleDone} onToggleGiven={handleToggleGiven} onEdit={openEdit} />
                   ))}
                 </div>
               );
@@ -1245,7 +1309,7 @@ export default function WorkshopPage() {
                     <div className={grid}>
                       {sec.jobs.map(j => (
                         <BoardJobCard key={j.id} job={j} showKarigar={boardMode === 'status'}
-                          onToggleDone={handleToggleDone} onEdit={openEdit} />
+                          onToggleDone={handleToggleDone} onToggleGiven={handleToggleGiven} onEdit={openEdit} />
                       ))}
                     </div>
                   </section>
@@ -1263,7 +1327,7 @@ export default function WorkshopPage() {
             {focused.length === 0
               ? <Card><CardContent className="py-10 text-center text-muted-foreground">No jobs match.</CardContent></Card>
               : focused.map(j => (
-                  <JobCardMobile key={j.id} job={j} onToggleDone={handleToggleDone} onEdit={openEdit} />
+                  <JobCardMobile key={j.id} job={j} onToggleDone={handleToggleDone} onToggleGiven={handleToggleGiven} onEdit={openEdit} />
                 ))}
           </div>
 
@@ -1274,7 +1338,7 @@ export default function WorkshopPage() {
                   <TableRow>
                     <TableHead className="w-10"></TableHead>
                     <TableHead>Job Details</TableHead>
-                    <TableHead className="hidden xl:table-cell">Given</TableHead>
+                    <TableHead className="hidden md:table-cell">Given</TableHead>
                     <TableHead>Order / Customer</TableHead>
                     <TableHead>Karigar</TableHead>
                     <TableHead className="text-right">Age</TableHead>
@@ -1323,11 +1387,20 @@ export default function WorkshopPage() {
                           )}
                         </TableCell>
 
-                        <TableCell className="hidden xl:table-cell align-middle">
-                          <div className="flex items-center gap-2 text-sm whitespace-nowrap">
-                            <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                            {format(parseISO(j.assignedDate), 'dd MMM yyyy')}
-                          </div>
+                        <TableCell className="hidden md:table-cell align-middle">
+                          {/* Ticked when the gold has actually left the shop. The date under
+                              it is the handover, not the write-up -- that one is on the
+                              order. Greyed with nobody assigned: there is no one to give it to. */}
+                          <label className={cn(
+                            'inline-flex items-center gap-2 text-sm whitespace-nowrap',
+                            j.karigarId === UNASSIGNED_ID ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+                          )} title={j.karigarId === UNASSIGNED_ID ? 'Assign a karigar first' : (j.givenAt ? 'Given to the karigar -- untick to take it back' : 'Tick when the piece has gone to the karigar')}>
+                            <Checkbox checked={!!j.givenAt} disabled={j.karigarId === UNASSIGNED_ID}
+                              onCheckedChange={() => handleToggleGiven(j)} aria-label="Given to karigar" />
+                            {j.givenAt
+                              ? <span className="text-xs text-muted-foreground tabular-nums">{format(parseISO(j.givenAt), 'dd MMM')}</span>
+                              : <span className="text-xs text-muted-foreground">Not yet</span>}
+                          </label>
                         </TableCell>
 
                         <TableCell className="align-middle">

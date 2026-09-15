@@ -379,6 +379,8 @@ export interface InvoiceItem {
   // than orders, so they need somewhere to be assigned from.
   karigarId?: string;
   isCompleted?: boolean;
+  /** See OrderItem.givenAt. */
+  givenAt?: string;
 }
 
 /** How the money actually arrived. Cash is the default because most of the
@@ -493,6 +495,13 @@ export interface OrderItem {
   referenceSku?: string;
   sampleGiven: boolean;
   isCompleted: boolean;
+  /**
+   * When the piece physically went to the karigar — ISO, set from the Workshop's
+   * "Given" box. Deliberately separate from karigarId: a job is assigned in the app
+   * the moment somebody picks a name, and handed over when the gold actually leaves
+   * the shop, and the gap between those two is exactly what the counter needs to see.
+   */
+  givenAt?: string;
   hasDiamonds: boolean;
   stoneDetails?: string;
   diamondDetails?: string;
@@ -644,6 +653,8 @@ export interface KarigarJob {
   size?: string;
   status: KarigarJobStatus;
   assignedDate: string;    // ISO — when the work was handed over
+  /** See OrderItem.givenAt. assignedDate is when it was written up; this is when it left. */
+  givenAt?: string;
   completedDate?: string;  // ISO — set when marked completed
   agreedCost?: number;     // making charges agreed with the karigar
   notes?: string;
@@ -1137,6 +1148,10 @@ export interface AppState {
   updateOrderItemKarigar: (orderId: string, itemIndex: number, karigarId: string) => Promise<void>;
   updateInvoiceItemKarigar: (invoiceId: string, itemIndex: number, karigarId: string) => Promise<void>;
   updateInvoiceItemStatus: (invoiceId: string, itemIndex: number, isCompleted: boolean) => Promise<void>;
+  /** Record (or take back) that the piece has physically gone to its karigar. null clears it. */
+  updateOrderItemGiven: (orderId: string, itemIndex: number, givenAt: string | null) => Promise<void>;
+  updateInvoiceItemGiven: (invoiceId: string, itemIndex: number, givenAt: string | null) => Promise<void>;
+  setKarigarJobGiven: (id: string, givenAt: string | null) => Promise<void>;
   updateOrderItemDetails: (orderId: string, itemIndex: number, patch: {
     description?: string; size?: string; stoneDetails?: string; diamondDetails?: string;
     adminNote?: string; referenceSku?: string; estimatedWeightG?: number; sampleImageDataUri?: string;
@@ -3174,6 +3189,59 @@ export const useAppStore = create<AppState>()(
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), { items: updated }, { merge: true });
         } catch (error) {
           console.error(`Error updating invoice item status on ${invoiceId}:`, error);
+          throw error;
+        }
+      },
+
+      /*
+       * "Given" is written the same way "done" is: the item array is rewritten with the
+       * one field changed and merged over the document. Clearing deletes the key rather
+       * than writing null, so an item that was never handed over and one whose handover
+       * was taken back look the same, which they are.
+       */
+      updateOrderItemGiven: async (orderId, itemIndex, givenAt) => {
+        if (get().settings.databaseLocked) return;
+        const order = get().orders.find(o => o.id === orderId);
+        if (!order) throw new Error('Order not found');
+        const updatedItems = order.items.map((item, i) => {
+          if (i !== itemIndex) return item;
+          const next: OrderItem = { ...item };
+          if (givenAt) next.givenAt = givenAt; else delete next.givenAt;
+          return next;
+        });
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId), { items: updatedItems }, { merge: true });
+        } catch (error) {
+          console.error(`Error updating given state for order ${orderId}:`, error);
+          throw error;
+        }
+      },
+      updateInvoiceItemGiven: async (invoiceId, itemIndex, givenAt) => {
+        if (get().settings.databaseLocked) return;
+        const inv = get().generatedInvoices.find(i => i.id === invoiceId);
+        if (!inv) throw new Error('Invoice not found');
+        const items = (Array.isArray(inv.items) ? inv.items : Object.values(inv.items || {})) as InvoiceItem[];
+        const updated = items.map((item, i) => {
+          if (i !== itemIndex) return item;
+          const next: InvoiceItem = { ...item };
+          if (givenAt) next.givenAt = givenAt; else delete next.givenAt;
+          return next;
+        });
+        try {
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), { items: updated }, { merge: true });
+        } catch (error) {
+          console.error(`Error updating given state for invoice ${invoiceId}:`, error);
+          throw error;
+        }
+      },
+      // Not through updateKarigarJob: that strips undefined, so it can set the field
+      // but never remove it, and un-ticking the box has to remove it.
+      setKarigarJobGiven: async (id, givenAt) => {
+        if (get().settings.databaseLocked) return;
+        try {
+          await updateDoc(doc(db, FIRESTORE_COLLECTIONS.KARIGAR_JOBS, id), { givenAt: givenAt ?? deleteField() });
+        } catch (error) {
+          console.error(`Error updating given state for job ${id}:`, error);
           throw error;
         }
       },

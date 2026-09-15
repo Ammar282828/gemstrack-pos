@@ -37,9 +37,10 @@ export /** One piece as a board card. The board is scanned, not read, so the car
 const BoardJobCard: React.FC<{
   job: WorkshopJob;
   onToggleDone: (j: WorkshopJob) => void;
+  onToggleGiven: (j: WorkshopJob) => void;
   onEdit: (j: WorkshopJob) => void;
   showKarigar?: boolean;
-}> = ({ job, onToggleDone, onEdit, showKarigar }) => {
+}> = ({ job, onToggleDone, onToggleGiven, onEdit, showKarigar }) => {
   const spec = [
     job.size ? `Size ${job.size}` : null,
     job.weightG ? `${job.weightG}g` : null,
@@ -118,9 +119,20 @@ const BoardJobCard: React.FC<{
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => onEdit(job)}>
             <Pencil className="h-3 w-3 mr-1.5" />Details
           </Button>
-          <span className="ml-auto text-2xs text-muted-foreground">
-            {format(parseISO(job.assignedDate), 'dd MMM')}
-          </span>
+          {/* Given, not written up: on a board scanned for what is still in the safe,
+              the handover is the date that matters, and the box is how it gets set. */}
+          {!done && (
+            <label className={cn(
+              'ml-auto inline-flex items-center gap-1.5 text-2xs',
+              job.karigarId === UNASSIGNED_ID ? 'opacity-50' : 'cursor-pointer',
+            )} title={job.karigarId === UNASSIGNED_ID ? 'Assign a karigar first' : undefined}>
+              <Checkbox className="h-3.5 w-3.5" checked={!!job.givenAt} disabled={job.karigarId === UNASSIGNED_ID}
+                onCheckedChange={() => onToggleGiven(job)} aria-label="Given to karigar" />
+              <span className="text-muted-foreground">
+                {job.givenAt ? `Given ${format(parseISO(job.givenAt), 'dd MMM')}` : 'Given'}
+              </span>
+            </label>
+          )}
         </div>
       </CardContent>
     </Card>
