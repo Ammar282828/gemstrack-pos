@@ -39,7 +39,7 @@ export const PlatingFields: React.FC<{
         <Label className="text-xs">Plating</Label>
         <Select
           value={value.platingType || NONE}
-          onValueChange={v => onChange({ ...value, platingType: v === NONE ? '' : v })}
+          onValueChange={v => { if (v === '') return; onChange({ ...value, platingType: v === NONE ? '' : v }); }}
         >
           <SelectTrigger><SelectValue placeholder="No plating" /></SelectTrigger>
           <SelectContent>

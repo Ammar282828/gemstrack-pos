@@ -1049,10 +1049,10 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                         name="source"
                         render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-xs">How they found us</FormLabel>
+                            <FormLabel className="text-xs">How they found us <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
                             <Select
                                 value={field.value ?? '__none__'}
-                                onValueChange={(v) => field.onChange(v === '__none__' ? undefined : v)}
+                                onValueChange={(v) => { if (v === '') return; field.onChange(v === '__none__' ? undefined : v); }}
                             >
                                 <FormControl>
                                     <SelectTrigger><SelectValue placeholder="Referral source" /></SelectTrigger>
