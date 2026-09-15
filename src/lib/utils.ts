@@ -10,10 +10,37 @@ export function cn(...inputs: ClassValue[]) {
  * Handles Pakistani local format (e.g. 03001234567 → +923001234567).
  * Strips leading 0 when a country code is inferred.
  */
+function isIOSDevice(): boolean {
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
+/** True when the browser can share a PDF file through the native share sheet. */
+function canSharePdf(): boolean {
+  try {
+    return (
+      typeof navigator !== 'undefined' &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [new File([new Blob()], 'x.pdf', { type: 'application/pdf' })] })
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * iOS Safari ignores the `download` attribute on blob/data URLs, so jsPDF's .save()
- * silently does nothing. Pre-open a blank window before any async work, then redirect
- * it to the blob URL on iOS. On other platforms fall back to .save() as normal.
+ * silently does nothing. The share sheet (AirDrop / Print / Save to Files / WhatsApp)
+ * is the way an iPhone prints — but it needs a live user activation.
+ *
+ * The subtlety that broke on iOS 26: `window.open()` CONSUMES the transient user
+ * activation, and `navigator.share()` needs one too. Pre-opening a window here — as we
+ * used to, always — stole the activation from the share call, so the sheet silently
+ * stopped appearing and the PDF just opened in a tab instead. So we now pre-open the
+ * fallback window ONLY when the browser can't share files; when it can (every modern
+ * iPhone), we return null and let savePDF fire the share sheet with the activation intact.
  *
  * Usage:
  *   const iOSWin = openPDFWindowForIOS();
@@ -21,10 +48,11 @@ export function cn(...inputs: ClassValue[]) {
  *   savePDF(doc, 'name.pdf', iOSWin);
  */
 export function openPDFWindowForIOS(): Window | null {
-  const isIOS =
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  return isIOS ? window.open('', '_blank') : null;
+  if (!isIOSDevice()) return null;
+  // Can share files natively → do NOT open a window (it would steal the activation).
+  if (canSharePdf()) return null;
+  // Older iOS without file sharing → pre-open the fallback window during the gesture.
+  return window.open('', '_blank');
 }
 
 export async function savePDF(
@@ -33,28 +61,28 @@ export async function savePDF(
   iOSWin: Window | null,
   shareData?: { title?: string; text?: string }
 ) {
-  if (iOSWin) {
-    // Try Web Share API with file support first (iOS 15+, Android Chrome 86+).
-    // This gives the native share sheet — user can pick WhatsApp, Print, Files, etc.
-    // The PDF page size is preserved properly (fixes A4 whitespace issue when printing).
-    try {
-      const blob = doc.output('blob') as Blob;
-      const file = new File([blob], filename, { type: 'application/pdf' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        iOSWin.close();
-        await navigator.share({
-          files: [file],
-          title: shareData?.title ?? filename,
-          ...(shareData?.text ? { text: shareData.text } : {}),
-        });
-        return;
-      }
-    } catch (e) {
-      // AbortError = user dismissed share sheet — close window and stop
-      if ((e as Error)?.name === 'AbortError') { iOSWin.close(); return; }
-      console.warn('Web Share API failed, falling back to iframe:', e);
+  // Native share sheet first (iOS 15+, Android Chrome 86+) — WhatsApp, Print, Files, etc.
+  // The PDF page size is preserved properly (fixes the A4 whitespace issue when printing).
+  try {
+    const blob = doc.output('blob') as Blob;
+    const file = new File([blob], filename, { type: 'application/pdf' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      iOSWin?.close();
+      await navigator.share({
+        files: [file],
+        title: shareData?.title ?? filename,
+        ...(shareData?.text ? { text: shareData.text } : {}),
+      });
+      return;
     }
-    // Fallback: embed PDF in an iframe in the pre-opened window
+  } catch (e) {
+    // AbortError = user dismissed the share sheet — that is a completed action, not a failure.
+    if ((e as Error)?.name === 'AbortError') { iOSWin?.close(); return; }
+    console.warn('Web Share API failed, falling back:', e);
+  }
+
+  if (iOSWin) {
+    // Fallback: embed the PDF in an iframe in the pre-opened window.
     const blobUrl = doc.output('bloburl') as string;
     iOSWin.document.open();
     iOSWin.document.write(
@@ -65,6 +93,11 @@ export async function savePDF(
       + '</head><body><iframe src="' + blobUrl + '"></iframe></body></html>'
     );
     iOSWin.document.close();
+  } else if (isIOSDevice()) {
+    // iOS, share unavailable/failed, no pre-opened window: doc.save() is a no-op here,
+    // so open the PDF in a tab — the viewer's own share button still reaches AirDrop/Print.
+    const blobUrl = doc.output('bloburl') as string;
+    window.open(blobUrl, '_blank');
   } else {
     doc.save(filename);
   }
