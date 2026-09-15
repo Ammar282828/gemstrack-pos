@@ -474,6 +474,13 @@ export interface Invoice {
   balanceDue: number;
   createdAt: string; // ISO string
   ratesApplied: Partial<Settings>;
+  /**
+   * Print the bill without the per-gram rates. The rates are still applied and still
+   * stored -- the arithmetic is unchanged -- they are just not written on the paper.
+   * Some customers are quoted a piece, not a gold price, and a rate line on the slip
+   * invites a conversation the counter has already had.
+   */
+  hideRates?: boolean;
   /** Who wrote it. See TAKEN_BY. */
   takenBy?: TakenBy;
   paymentHistory: Payment[];
@@ -600,6 +607,8 @@ export interface Order {
   status: OrderStatus;
   items: OrderItem[];
   ratesApplied: Partial<Settings>; // Store all rates at time of order
+  /** See Invoice.hideRates. Carried onto the invoice when the order is finalised. */
+  hideRates?: boolean;
   /** Who took it at the counter. See TAKEN_BY. */
   takenBy?: TakenBy;
   subtotal: number;
@@ -1220,7 +1229,8 @@ export interface AppState {
     exchangeInfo?: { description: string; amount1: number; amount2: number },
     existingInvoiceId?: string,
     delivery?: DeliveryInfo,
-    takenBy?: TakenBy
+    takenBy?: TakenBy,
+    hideRates?: boolean
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string, method?: PaymentType, reference?: string) => Promise<Invoice | null>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
@@ -2425,7 +2435,7 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?, takenBy?) => {
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?, takenBy?, hideRates?) => {
         if(get().settings.databaseLocked) return null;
         const { cart } = get();
         if (cart.length === 0) return null;
@@ -2562,6 +2572,7 @@ export const useAppStore = create<AppState>()(
                     ratesApplied: ratesForInvoice,
                     // Only set when the counter chose someone; undefined stays out of Firestore.
                     ...(takenBy ? { takenBy } : {}),
+                    ...(hideRates ? { hideRates: true } : {}),
                     paymentHistory: existingPaymentHistory,
                     customerName: finalCustomerName || 'Walk-in Customer',
                     customerId: finalCustomerId,
@@ -3603,6 +3614,7 @@ export const useAppStore = create<AppState>()(
             customerContact: order.customerContact,
             ...(order.source && { acquisitionSource: order.source }),
             sourceOrderId: order.id,
+            ...(order.hideRates ? { hideRates: true } : {}),
             // The address the customer gave when ordering is the address it
             // ships to. Without this the invoice was raised with no delivery
             // details at all and they had to be typed in again.

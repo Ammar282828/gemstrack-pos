@@ -114,10 +114,13 @@ async function generateInvoicePDF(
   const itemsToPrint = Array.isArray(invoice.items) ? invoice.items : Object.values(invoice.items as Record<string, InvoiceItem>);
   const usedKarats = new Set(itemsToPrint.filter((i: InvoiceItem) => i.metalType === 'gold').map((i: InvoiceItem) => i.karat).filter(Boolean));
   const ratesApplied: string[] = [];
+  // hideRates: the bill is priced at these rates and just does not say so.
+  if (!invoice.hideRates) {
   if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
   if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
   if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
   if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+  }
   if (ratesApplied.length > 0) {
     pdfDoc.setFontSize(6.5).setTextColor(150);
     pdfDoc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, infoY + 10, { lineHeightFactor: 1.4 });
@@ -280,10 +283,13 @@ async function generateOrderSlipPDF(order: Order, settings: Settings) {
   const rates = order.ratesApplied as Record<string, number>;
   const usedKarats = new Set(order.items.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
   const ratesApplied: string[] = [];
+  // hideRates: the slip is priced at these rates and just does not say so.
+  if (!order.hideRates) {
   if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
   if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
   if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
   if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
+  }
   if (ratesApplied.length > 0) { pdfDoc.setFontSize(6.5).setTextColor(150); pdfDoc.text(`Gold Rates (PKR): ${ratesApplied.join(' | ')}`, margin, (lastLine += 5), { maxWidth: leftW }); }
 
 

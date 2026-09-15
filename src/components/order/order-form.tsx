@@ -36,6 +36,7 @@ import { Label } from '@/components/ui/label';
 import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
+import { Switch } from '@/components/ui/switch';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
@@ -127,6 +128,7 @@ const orderFormSchema = z.object({
     goldRate21k: z.coerce.number().min(0),
     goldRate22k: z.coerce.number().min(0),
     goldRate24k: z.coerce.number().min(0),
+    hideRates: z.boolean().default(false),
     discountAmount: z.coerce.number().min(0).default(0),
     advancePayment: z.coerce.number().min(0).default(0),
     advanceInExchangeDescription: z.string().optional(),
@@ -388,6 +390,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         goldRate21k: rates.goldRatePerGram21k || 0,
         goldRate22k: rates.goldRatePerGram22k || 0,
         goldRate24k: rates.goldRatePerGram24k || 0,
+        hideRates: !!order.hideRates,
         discountAmount: Number(order.discountAmount) || 0,
         advancePayment: Number(order.advancePayment) || 0,
         advanceInExchangeDescription: order.advanceInExchangeDescription || '',
@@ -567,6 +570,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
             customerName: finalCustomerName || 'Walk-in Customer', // Ensure name is not undefined
             items: enrichedItems,
             ratesApplied: ratesForOrder,
+            ...(data.hideRates ? { hideRates: true } : {}),
             subtotal,
             discountAmount: discount,
             grandTotal,
@@ -596,6 +600,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         const orderToSave: Omit<Order, 'id' | 'createdAt' | 'status'> = {
             items: enrichedItems,
             ratesApplied: ratesForOrder,
+            ...(data.hideRates ? { hideRates: true } : {}),
             // Listed explicitly, unlike the edit path which spreads `data`. Leaving it out
             // here is how a field ends up saving on edit and vanishing on create.
             ...(data.takenBy ? { takenBy: data.takenBy } : {}),
@@ -1213,6 +1218,22 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             <FormField control={form.control} name="palladiumRate12k" render={({ field }) => (<FormItem><FormLabel className="text-xs">Palladium 12k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
                         </div>
                         <FormDescription className="text-xs">Applies to every item in this estimate. A palladium rate left at zero falls back to the shop&apos;s flat palladium rate.</FormDescription>
+
+                        {/* The rates still price the order; this only decides whether the
+                            paper says what they were. Some customers are quoted a piece and
+                            not a gold price, and a rate line on the slip reopens a
+                            conversation the counter has already closed. */}
+                        <FormField control={form.control} name="hideRates" render={({ field }) => (
+                            <FormItem className="mt-3 flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-xs font-medium cursor-pointer">Leave rates off the printed bill</FormLabel>
+                                    <FormDescription className="text-2xs">Prices stay the same. The slip and the invoice just won&apos;t show the per-gram rate.</FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch checked={!!field.value} onCheckedChange={field.onChange} aria-label="Leave rates off the printed bill" />
+                                </FormControl>
+                            </FormItem>
+                        )}/>
                     </PanelSection>
                     )}
 
