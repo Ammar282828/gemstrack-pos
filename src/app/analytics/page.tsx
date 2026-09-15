@@ -11,7 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval, startOfYear, endOfYear, getYear, eachMonthOfInterval, startOfMonth } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight, TrendingUp, TrendingDown, Clock, Coins } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { isBusinessCost } from '@/lib/partnership';
 import { STORE_EST_MARGIN } from '@/lib/store-config';
+import { splitAllCoinSales, summariseCoins } from '@/lib/analytics/coins';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -82,9 +83,18 @@ export default function AnalyticsPage() {
   // date (getInvoiceRevenueDate), keeping every revenue view on an order-date basis.
   const ordersById = useMemo(() => new Map(orders.map(o => [o.id, o])), [orders]);
 
+  /**
+   * Coins out, before anything is counted. Every figure below this line that used to
+   * read `generatedInvoices` now reads `jewelleryInvoices`; the coin side feeds one
+   * section of its own further down and nothing else. See lib/analytics/coins.ts for
+   * why, and for what happens to a bill that carries both.
+   */
+  const { jewellery: jewelleryInvoices, coins: coinInvoices } = useMemo(
+    () => splitAllCoinSales(generatedInvoices), [generatedInvoices]);
+
   const yearlySummary = useMemo(() => {
     const yearMap: Record<number, { revenue: number; expenses: number; unpaid: number }> = {};
-    generatedInvoices.forEach(inv => {
+    jewelleryInvoices.forEach(inv => {
       if (!inv?.createdAt || inv.status === 'Refunded') return;
       const yr = getYear(parseISO(getInvoiceRevenueDate(inv, ordersById)));
       if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
@@ -121,7 +131,7 @@ export default function AnalyticsPage() {
         netProfit: data.revenue - data.expenses,
       }))
       .sort((a, b) => b.year - a.year);
-  }, [generatedInvoices, orders, ordersById, expenses, additionalRevenues]);
+  }, [jewelleryInvoices, orders, ordersById, expenses, additionalRevenues]);
 
   /**
    * Revenue per calendar month across the whole history — deliberately not
@@ -141,7 +151,7 @@ export default function AnalyticsPage() {
       bucket[key].sales += 1;
     };
 
-    generatedInvoices.forEach(inv => {
+    jewelleryInvoices.forEach(inv => {
       if (!inv?.createdAt || inv.status === 'Refunded') return;
       add(getInvoiceRevenueDate(inv, ordersById), inv.grandTotal || 0);
     });
@@ -179,10 +189,10 @@ export default function AnalyticsPage() {
     const best = data.reduce((m, d) => (d.revenue > (m?.revenue ?? -1) ? d : m), data[0])?.key ?? null;
 
     return { data, average, best };
-  }, [generatedInvoices, orders, ordersById, additionalRevenues]);
+  }, [jewelleryInvoices, orders, ordersById, additionalRevenues]);
 
   const filteredInvoices = useMemo(() => {
-    const base = generatedInvoices.filter(invoice => invoice?.status !== 'Refunded');
+    const base = jewelleryInvoices.filter(invoice => invoice?.status !== 'Refunded');
     if (!dateRange || !dateRange.from) return base;
 
     return base.filter(invoice => {
@@ -191,7 +201,17 @@ export default function AnalyticsPage() {
       const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
       return isWithinInterval(invoiceDate, { start: startOfDay(dateRange.from!), end: toDate });
     });
-  }, [generatedInvoices, dateRange, ordersById]);
+  }, [jewelleryInvoices, dateRange, ordersById]);
+
+  // The coin side, over the same period.
+  const filteredCoinInvoices = useMemo(() => {
+    const base = coinInvoices.filter(invoice => invoice?.status !== 'Refunded');
+    if (!dateRange || !dateRange.from) return base;
+    const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(new Date());
+    return base.filter(invoice => invoice?.createdAt && isWithinInterval(
+      parseISO(getInvoiceRevenueDate(invoice, ordersById)), { start: startOfDay(dateRange.from!), end: toDate }));
+  }, [coinInvoices, dateRange, ordersById]);
+  const coinSummary = useMemo(() => summariseCoins(filteredCoinInvoices), [filteredCoinInvoices]);
 
   // Uninvoiced orders only (not Cancelled, no invoiceId — those are already counted in invoice revenue)
   const filteredOrders = useMemo(() => {
@@ -514,7 +534,7 @@ export default function AnalyticsPage() {
     let cashInFromInvoicePayments = 0;
     const rangeFrom = dateRange?.from ? startOfDay(dateRange.from) : null;
     const rangeTo = dateRange?.to ? endOfDay(dateRange.to) : (dateRange?.from ? endOfDay(new Date()) : null);
-    generatedInvoices.forEach(inv => {
+    jewelleryInvoices.forEach(inv => {
       if (!inv || inv.status === 'Refunded' || !Array.isArray(inv.paymentHistory)) return;
       inv.paymentHistory.forEach(p => {
         if (!p?.date) return;
@@ -538,7 +558,7 @@ export default function AnalyticsPage() {
 
     return calcData;
 
-  }, [filteredInvoices, filteredOrders, filteredExpenses, filteredAdditionalRevenues, products, categories, customers, generatedInvoices, dateRange, ordersById]);
+  }, [filteredInvoices, filteredOrders, filteredExpenses, filteredAdditionalRevenues, products, categories, customers, jewelleryInvoices, dateRange, ordersById]);
   
   const dailyBreakdown = useMemo(() => {
     if (!selectedDayData) return { invoices: [], products: [] };
@@ -779,6 +799,49 @@ export default function AnalyticsPage() {
                   ))}
                 </div>
               </div>
+            );
+          })()}
+
+          {/* ── Gold coins, on their own ──
+              A coin sells at the metal price plus a sliver; a ring carries making and
+              margin. Counted together, a good coin week read as a good jewellery week
+              and "estimated profit" applied the jewellery margin to money that earned
+              a fraction of it. Nothing in this box is in the figures above. */}
+          {coinInvoices.length > 0 && (() => {
+            const money = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+            const tiles = [
+              { label: 'Coin revenue', value: money(coinSummary.revenue), sub: `${coinSummary.invoices} bill${coinSummary.invoices === 1 ? '' : 's'} in this period` },
+              { label: 'Coins sold', value: String(coinSummary.coins), sub: coinSummary.grams > 0 ? `${coinSummary.grams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g` : 'no weight recorded' },
+              { label: 'Realised / gram', value: coinSummary.ratePerGram > 0 ? money(coinSummary.ratePerGram) : '—', sub: 'revenue over grams, all-in' },
+              ...(coinSummary.outstanding > 0 ? [{ label: 'Outstanding', value: money(coinSummary.outstanding), sub: 'still owed on coin bills' }] : []),
+            ];
+            return (
+              <Card className="border-amber-500/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Coins className="h-5 w-5 text-amber-600" /> Gold coins
+                  </CardTitle>
+                  <CardDescription>
+                    Kept apart from everything above. A coin sells at the metal price plus a sliver, so
+                    counting it with jewellery inflates revenue, drags the average order, and applies the
+                    jewellery margin to money that never earned it.
+                    {coinSummary.invoices === 0 && ' No coin bills in this period.'}
+                  </CardDescription>
+                </CardHeader>
+                {coinSummary.invoices > 0 && (
+                  <CardContent>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                      {tiles.map(t => (
+                        <div key={t.label} className="rounded-lg border bg-card/60 px-3 py-2.5 min-w-0">
+                          <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">{t.label}</p>
+                          <p className="text-lg font-semibold tabular-nums truncate">{t.value}</p>
+                          <p className="text-xs text-muted-foreground truncate">{t.sub}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
             );
           })()}
 
