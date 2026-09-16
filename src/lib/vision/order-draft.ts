@@ -20,7 +20,9 @@
 import { rankNames, type RankedName, type RosterEntry } from '@/lib/voice/phonetics';
 
 /** A tola is the unit an older slip is written in; the form wants grams. */
-export const TOLA_G = 11.6638;
+import { GRAMS_PER_TOLA } from '@/lib/units';
+/** Kept as a name the scanners already import; the value lives in lib/units. */
+export const TOLA_G = GRAMS_PER_TOLA;
 
 export const ORDER_CATEGORIES = [
   'Ring', 'Chain', 'Bangle', 'Kara', 'Bracelet', 'Earrings', 'Jhumka',

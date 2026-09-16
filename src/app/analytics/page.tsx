@@ -11,7 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval, startOfYear, endOfYear, getYear, eachMonthOfInterval, startOfMonth } from 'date-fns';
 import type { DateRange } from "react-day-picker";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight, TrendingUp, TrendingDown, Clock, Coins } from 'lucide-react';
+import { DollarSign, ShoppingBag, Package, BarChart3, Percent, Users, ListOrdered, CalendarDays, FileText, CreditCard, AlertTriangle, ArrowRight, TrendingUp, TrendingDown, Clock, Coins, Weight } from 'lucide-react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { isBusinessCost } from '@/lib/partnership';
 import { STORE_EST_MARGIN } from '@/lib/store-config';
 import { splitAllCoinSales, summariseCoins } from '@/lib/analytics/coins';
+import { toTola, formatWeight } from '@/lib/units';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -261,6 +262,12 @@ export default function AnalyticsPage() {
         totalItemsSold: 0,
         totalDiscounts: 0,
         averageItemsPerOrder: 0,
+        // ── Gold, by weight ─────────────────────────────────────────────────
+        // Grams of gold in the jewellery sold this period, and by karat. Coins are
+        // not in here; they have their own card and their own grams.
+        goldGrams: 0,
+        goldPieces: 0,
+        goldByKarat: [] as { karat: string; grams: number; pieces: number }[],
         salesOverTime: [] as SalesOverTimeData[],
         topProductsByRevenue: [] as TopProductData[],
         topProductsByQuantity: [] as TopProductData[],
@@ -311,6 +318,9 @@ export default function AnalyticsPage() {
     let totalSales = 0;
     let invoiceSalesAcc = 0;
     let totalItemsSold = 0;
+    let goldGrams = 0;
+    let goldPieces = 0;
+    const goldByKarat: Record<string, { grams: number; pieces: number }> = {};
     let totalDiscounts = 0;
     let totalUnpaid = 0;
     const salesByDate: Record<string, { sales: number; orders: number; itemsSold: number }> = {};
@@ -353,6 +363,20 @@ export default function AnalyticsPage() {
 
           totalItemsSold += quantity;
           salesByDate[dateKey].itemsSold += quantity;
+
+          // The metal actually sold. A piece with no recorded weight adds nothing
+          // rather than a guess, and the card says how many were weighed.
+          if (item.metalType === 'gold') {
+            const g = (Number(item.metalWeightG) || 0) * (quantity || 1);
+            if (g > 0) {
+              goldGrams += g;
+              goldPieces += quantity || 1;
+              const k = (item.karat || 'unknown').toString();
+              if (!goldByKarat[k]) goldByKarat[k] = { grams: 0, pieces: 0 };
+              goldByKarat[k].grams += g;
+              goldByKarat[k].pieces += quantity || 1;
+            }
+          }
 
           if (!productPerformance[item.sku]) {
             productPerformance[item.sku] = { quantity: 0, revenue: 0 };
@@ -488,6 +512,12 @@ export default function AnalyticsPage() {
     calcData.totalUnpaid = totalUnpaid;
     calcData.totalOrders = totalOrders;
     calcData.totalItemsSold = totalItemsSold;
+    calcData.goldGrams = goldGrams;
+    calcData.goldPieces = goldPieces;
+    // Heaviest karat first: what the shop mostly sells leads.
+    calcData.goldByKarat = Object.entries(goldByKarat)
+      .map(([karat, v]) => ({ karat, ...v }))
+      .sort((a, b) => b.grams - a.grams);
     calcData.totalDiscounts = totalDiscounts;
 
     // ── Acquisition source ────────────────────────────────────────────────
@@ -802,6 +832,50 @@ export default function AnalyticsPage() {
             );
           })()}
 
+          {/* ── Gold sold, by weight ──
+              Revenue is rupees and rupees move with the rate. Grams do not, and grams
+              are what the shop actually parted with. Both units, because the trade
+              quotes in tola and the scale reads in grams. */}
+          {analyticsData.goldGrams > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Weight className="h-5 w-5 text-amber-600" /> Gold sold
+                </CardTitle>
+                <CardDescription>
+                  The metal in the jewellery sold this period, by weight. Coins are counted separately below.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="rounded-lg border bg-card/60 px-3 py-2.5 min-w-0 sm:col-span-1">
+                    <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">Total</p>
+                    <p className="text-lg font-semibold tabular-nums truncate">
+                      {toTola(analyticsData.goldGrams).toLocaleString(undefined, { maximumFractionDigits: 3 })} tola
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {analyticsData.goldGrams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g · {analyticsData.goldPieces} piece{analyticsData.goldPieces === 1 ? '' : 's'} weighed
+                    </p>
+                  </div>
+                  <div className="sm:col-span-2 rounded-lg border bg-card/60 px-3 py-2.5 min-w-0">
+                    <p className="text-2xs uppercase tracking-wide text-muted-foreground truncate">By karat</p>
+                    <dl className="mt-1 space-y-1">
+                      {analyticsData.goldByKarat.map(k => (
+                        <div key={k.karat} className="flex items-baseline justify-between gap-3 text-sm">
+                          <dt className="font-medium tabular-nums">{k.karat.toUpperCase()}</dt>
+                          <dd className="text-right tabular-nums">
+                            <span className="font-medium">{toTola(k.grams).toLocaleString(undefined, { maximumFractionDigits: 3 })} tola</span>
+                            <span className="text-muted-foreground"> · {k.grams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g · {k.pieces}</span>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* ── Gold coins, on their own ──
               A coin sells at the metal price plus a sliver; a ring carries making and
               margin. Counted together, a good coin week read as a good jewellery week
@@ -811,7 +885,7 @@ export default function AnalyticsPage() {
             const money = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
             const tiles = [
               { label: 'Coin revenue', value: money(coinSummary.revenue), sub: `${coinSummary.invoices} bill${coinSummary.invoices === 1 ? '' : 's'} in this period` },
-              { label: 'Coins sold', value: String(coinSummary.coins), sub: coinSummary.grams > 0 ? `${coinSummary.grams.toLocaleString(undefined, { maximumFractionDigits: 2 })} g` : 'no weight recorded' },
+              { label: 'Coins sold', value: String(coinSummary.coins), sub: coinSummary.grams > 0 ? formatWeight(coinSummary.grams) : 'no weight recorded' },
               { label: 'Realised / gram', value: coinSummary.ratePerGram > 0 ? money(coinSummary.ratePerGram) : '—', sub: 'revenue over grams, all-in' },
               ...(coinSummary.outstanding > 0 ? [{ label: 'Outstanding', value: money(coinSummary.outstanding), sub: 'still owed on coin bills' }] : []),
             ];
