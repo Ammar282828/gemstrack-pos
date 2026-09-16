@@ -10,12 +10,13 @@ import { itemCellHeight, drawItemCell } from '@/lib/invoice-item-cell';
 import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
 import { fitText } from '@/lib/pdf-text';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
-import { METAL_TYPES as metalTypeValues, describeMetal } from '@/lib/materials';
+import { METAL_TYPES as metalTypeValues, describeMetal, describeDelivery } from '@/lib/materials';
+import { categorySingular } from '@/lib/categories';
 import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-assign';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar, staticCategories } from '@/lib/store';
+import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
 import { getOrderPaymentStatus, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -434,7 +435,7 @@ const RecordAdvanceDialog: React.FC<{
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Record Additional Advance</DialogTitle>
+                    <DialogTitle>Record an advance</DialogTitle>
                     <DialogDescription>
                         Add a subsequent advance payment received for order {order.id}. This will update the balance due.
                     </DialogDescription>
@@ -960,11 +961,8 @@ export default function OrderDetailPage() {
 
       <PageBack fallback="/orders" label="Back to orders" />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-3 space-y-6">
-          <Card>
+      <Card>
               <CardHeader>
-                  <div className="flex flex-col gap-4">
                       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
                         <div className="min-w-0">
                           {/* The id no longer wraps mid-word, and the line that
@@ -1066,57 +1064,90 @@ export default function OrderDetailPage() {
                           </DropdownMenu>
                         </div>
                       </div>
-                  </div>
               </CardHeader>
               <CardContent>
+                  {/* What the form captured and this page never showed: the
+                      contact, who took the order, how they found us, where it
+                      goes and any notes. The bench and the counter both need
+                      these without opening the edit form. */}
+                  {(() => {
+                    const facts: [string, React.ReactNode][] = [];
+                    if (order.customerContact) {
+                      facts.push(['Contact', <a key="contact" href={`tel:${order.customerContact}`} className="hover:underline">{order.customerContact}</a>]);
+                    }
+                    if (order.takenBy) facts.push(['Taken by', order.takenBy]);
+                    if (order.source) facts.push(['Found us via', CUSTOMER_SOURCE_LABELS[order.source] ?? order.source]);
+                    const shipTo = describeDelivery(order.delivery);
+                    if (shipTo.length) facts.push(['Deliver to', shipTo.map(l => <span key={l} className="block">{l}</span>)]);
+                    if (order.notes?.trim()) facts.push(['Notes', <span key="notes" className="whitespace-pre-wrap">{order.notes.trim()}</span>]);
+                    if (!facts.length) return null;
+                    return (
+                      <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 text-sm">
+                        {facts.map(([label, value]) => (
+                          <div key={label} className={cn('min-w-0', (label === 'Deliver to' || label === 'Notes') && 'col-span-2')}>
+                            <dt className="text-2xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+                            <dd className="break-words">{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    );
+                  })()}
                   <Separator className="my-6" />
 
                   {/* ── Finalized Invoice View (greyed-out locked state) ──── */}
                   {linkedInvoice ? (
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-background/50 z-10 rounded-lg flex items-start justify-center pt-8 pointer-events-none">
-                        <div className="bg-background border shadow-lg rounded-lg px-6 py-3 text-center pointer-events-auto">
-                          <p className="font-semibold text-lg">Invoice {linkedInvoice.id} — Finalized</p>
-                          <p className="text-sm text-muted-foreground mt-1">This order is locked. To make changes, revert the invoice first.</p>
-                          <Button variant="outline" className="mt-3" onClick={() => setIsRevertAndEditDialogOpen(true)}>
-                            <Edit className="mr-2 h-4 w-4" /> Unlock & Edit Order
-                          </Button>
+                    <div>
+                      {/* A banner, not a veil. The greyed-out overlay hid the
+                          one thing this state has to show — what was actually
+                          invoiced — and nothing below it is interactive anyway. */}
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 px-4 py-3">
+                        <div className="flex items-start gap-2 text-sm min-w-0">
+                          <Lock className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+                          <p>
+                            <span className="font-medium">Invoiced as {linkedInvoice.id}.</span>{' '}
+                            <span className="text-muted-foreground">The order is locked; to change it, revert the invoice first.</span>
+                          </p>
                         </div>
+                        <Button variant="outline" size="sm" onClick={() => setIsRevertAndEditDialogOpen(true)}>
+                          <Edit className="mr-2 h-4 w-4" /> Unlock &amp; edit
+                        </Button>
                       </div>
 
-                      <div className="opacity-40 pointer-events-none select-none">
-                        <h3 className="text-lg font-semibold mb-4">Finalized Items</h3>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-4">Invoiced pieces</h3>
                         <div className="space-y-4">
                           {linkedInvoice.items.map((item, index) => (
                             <div key={index} className="p-4 border rounded-lg bg-muted/30">
                               <div className="flex-grow">
                                 {item.itemCategory && (
-                                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory}</span>
+                                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{categorySingular(item.itemCategory) || item.itemCategory}</span>
                                 )}
                                 <p className="font-bold">{item.name}</p>
-                                <div className="text-sm text-muted-foreground mt-1">
-                                  <p>{describeMetal(item.metalType, item.karat)} | Final Wt: {item.metalWeightG}g</p>
-                                </div>
+                                <dl className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-sm">
+                                  <div className="min-w-0"><dt className="text-2xs uppercase tracking-wide text-muted-foreground">Metal</dt><dd>{describeMetal(item.metalType, item.karat)}</dd></div>
+                                  <div className="min-w-0"><dt className="text-2xs uppercase tracking-wide text-muted-foreground">Final weight</dt><dd>{item.metalWeightG}g</dd></div>
+                                  {item.size && <div className="min-w-0"><dt className="text-2xs uppercase tracking-wide text-muted-foreground">Size</dt><dd>{item.size}</dd></div>}
+                                </dl>
                                 {item.stoneDetails && (
                                   <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
-                                    <p className="font-semibold flex items-center"><Gem className="w-3 h-3 mr-1.5"/>Stone Details:</p>
+                                    <p className="font-semibold flex items-center"><Gem className="w-3 h-3 mr-1.5"/>Stones</p>
                                     <p className="text-muted-foreground whitespace-pre-wrap">{item.stoneDetails}</p>
                                   </div>
                                 )}
                                 {item.diamondDetails && (
                                   <div className="mt-2 text-xs p-2 bg-background/50 rounded-md border">
-                                    <p className="font-semibold flex items-center"><Diamond className="w-3 h-3 mr-1.5"/>Diamond Details:</p>
+                                    <p className="font-semibold flex items-center"><Diamond className="w-3 h-3 mr-1.5"/>Diamonds</p>
                                     <p className="text-muted-foreground whitespace-pre-wrap">{item.diamondDetails}</p>
                                   </div>
                                 )}
-                                <div className="text-sm mt-2 p-2 bg-background rounded-md">
-                                  <div className="flex justify-between"><span>Metal Cost:</span> <span className="font-semibold">PKR {(item.metalCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                                  {(item.wastageCost ?? 0) > 0 && <div className="flex justify-between"><span>+ Wastage Cost:</span> <span className="font-semibold">PKR {(item.wastageCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                  {item.makingCharges > 0 && <div className="flex justify-between"><span>+ Making Charges:</span> <span className="font-semibold">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                  {item.diamondChargesIfAny > 0 && <div className="flex justify-between"><span>+ Diamond Charges:</span> <span className="font-semibold">PKR {item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
-                                  {item.stoneChargesIfAny > 0 && <div className="flex justify-between"><span>+ Other Stone Charges:</span> <span className="font-semibold">PKR {item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                <div className="text-sm mt-3 p-2 bg-background rounded-md">
+                                  <div className="flex justify-between"><span className="text-muted-foreground">Metal</span> <span className="font-medium tabular-nums">PKR {(item.metalCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                  {(item.wastageCost ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Wastage</span> <span className="font-medium tabular-nums">PKR {(item.wastageCost ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                  {item.makingCharges > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Making</span> <span className="font-medium tabular-nums">PKR {item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                  {item.diamondChargesIfAny > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Diamonds</span> <span className="font-medium tabular-nums">PKR {item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
+                                  {item.stoneChargesIfAny > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Stones</span> <span className="font-medium tabular-nums">PKR {item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>}
                                   <Separator className="my-1"/>
-                                  <div className="flex justify-between font-bold"><span>Item Total:</span> <span>PKR {item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                                  <div className="flex justify-between font-bold"><span>Item total</span> <span className="tabular-nums">PKR {item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                                 </div>
                               </div>
                             </div>
@@ -1133,7 +1164,7 @@ export default function OrderDetailPage() {
                             )}
                             <div className="flex justify-between font-bold"><span>Grand Total:</span> <span>PKR {linkedInvoice.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                             {linkedInvoice.amountPaid > 0 && (
-                              <div className="flex justify-between text-success"><span>Amount Paid:</span> <span className="font-semibold">PKR {linkedInvoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                              <div className="flex justify-between text-success"><span>Paid:</span> <span className="font-semibold">PKR {linkedInvoice.amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                             )}
                             <Separator className="my-2 bg-muted-foreground/20"/>
                             <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {linkedInvoice.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
@@ -1144,7 +1175,7 @@ export default function OrderDetailPage() {
                   ) : (
                   <>
                   <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                    <h3 className="text-lg font-semibold">Order Items Checklist</h3>
+                    <h3 className="text-lg font-semibold">Pieces <span className="text-muted-foreground font-normal">({order.items.length})</span></h3>
                     <KarigarBulkAssign
                       orderId={order.id}
                       unassignedCount={order.items.filter(i => !i.karigarId || i.karigarId === 'none').length}
@@ -1162,7 +1193,7 @@ export default function OrderDetailPage() {
                                   )}
                                   <div className="flex-grow min-w-0">
                                       {item.itemCategory && (
-                                          <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory}</span>
+                                          <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{categorySingular(item.itemCategory) || item.itemCategory}</span>
                                       )}
                                       <p className="font-bold">{item.description}</p>
 
@@ -1305,19 +1336,19 @@ export default function OrderDetailPage() {
                   )}
 
                   <div className="flex flex-col md:flex-row justify-end items-start gap-4">
-                     <Button variant="outline" onClick={() => setIsAdvanceDialogOpen(true)}>Record Additional Advance</Button>
+                     <Button variant="outline" onClick={() => setIsAdvanceDialogOpen(true)}>Record an advance</Button>
                       <div className="w-full max-w-sm space-y-2 p-4 text-base bg-muted/30 rounded-lg">
                           <div className="flex justify-between"><span>Subtotal:</span> <span className="font-semibold">PKR {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           {discountAmount > 0 && (
                             <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           )}
-                          <div className="flex justify-between text-destructive"><span>Advance Payment (Cash):</span> <span className="font-semibold">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          <div className="flex justify-between text-destructive"><span>Advance paid:</span> <span className="font-semibold">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           {advanceInExchangeValue > 0 && (
-                            <div className="flex justify-between text-destructive"><span>Advance (In-Exchange):</span> <span className="font-semibold">- PKR {advanceInExchangeValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                            <div className="flex justify-between text-destructive"><span>Advance in exchange:</span> <span className="font-semibold">- PKR {advanceInExchangeValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           )}
                           {order.advanceInExchangeDescription && (
                               <div className="pt-2 text-sm text-muted-foreground">
-                                  <p className="font-semibold">In-Exchange Details:</p>
+                                  <p className="font-semibold">Given in exchange</p>
                                   <p className="whitespace-pre-wrap">{order.advanceInExchangeDescription}</p>
                               </div>
                           )}
@@ -1328,9 +1359,7 @@ export default function OrderDetailPage() {
                   </>
                   )}
               </CardContent>
-          </Card>
-        </div>
-      </div>
+      </Card>
     </div>
 
     <AlertDialog open={itemToDelete !== null} onOpenChange={(open) => !open && setItemToDelete(null)}>

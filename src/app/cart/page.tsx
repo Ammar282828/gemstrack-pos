@@ -21,7 +21,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Trash2, Plus, Minus, ShoppingCart, FileText, ClipboardList, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban, CheckCircle, Camera, TriangleAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
@@ -41,9 +40,9 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import 'react-phone-number-input/style.css';
-import { normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
+import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { loadPdfLogo } from '@/lib/pdf-logo';
-import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
+import { getInvoiceAdjustmentsAmount, getInvoiceExchangeTotal } from '@/lib/financials';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
 import { ProductForm } from '@/components/product/product-form';
@@ -481,12 +480,12 @@ export default function CartPage() {
     }
 
     if (cartItemsFromStore.length === 0) {
-      toast({ title: "Cart Empty", description: "Cannot generate estimate for an empty cart.", variant: "destructive" });
+      toast({ title: "Nothing to bill", description: "Add a piece before creating an invoice.", variant: "destructive" });
       return;
     }
     
     if (!estimatedInvoice) {
-        toast({ title: "Invalid Input", description: "Please ensure all rates and values are correct before generating the estimate.", variant: "destructive" });
+        toast({ title: "Check the figures", description: "A rate or amount is not a valid number.", variant: "destructive" });
         return;
     }
     
@@ -592,9 +591,9 @@ export default function CartPage() {
       setIsEditingEstimate(false);
       isEditingEstimateRef.current = false;
       setEditingInvoiceId(undefined);
-      toast({ title: "Estimate Generated", description: `Estimate ${invoice.id} created successfully.` });
+      toast({ title: "Invoice created", description: `${invoice.id} is ready to print or send.` });
     } else {
-      toast({ title: "Estimate Generation Failed", description: "Could not generate the estimate. Please check inputs and logs.", variant: "destructive" });
+      toast({ title: "Could not create the invoice", description: "Check the figures and try again.", variant: "destructive" });
     }
   };
 
@@ -1113,7 +1112,7 @@ export default function CartPage() {
                 </div>
                  <div className="flex gap-2 flex-col sm:flex-row">
                     <Button variant="outline" onClick={handleEditEstimate}>
-                      <Edit className="mr-2 h-4 w-4"/> Edit Estimate
+                      <Edit className="mr-2 h-4 w-4"/> Edit invoice
                     </Button>
                      <Button onClick={() => printInvoice(generatedInvoice)}>
                       <Printer className="mr-2 h-4 w-4"/> Print
@@ -1168,7 +1167,7 @@ export default function CartPage() {
                               <div className="min-w-0">
                                 {item.itemCategory && (
                                   <span className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    {staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory}
+                                    {categorySingular(item.itemCategory) || item.itemCategory}
                                   </span>
                                 )}
                                 <p className="font-semibold truncate">{item.name}</p>
@@ -1237,8 +1236,28 @@ export default function CartPage() {
                             </button>
                           )}
                         </div>
+                        {/* The trade-in the customer brought in. It was already taken
+                            off the total and printed on the bill, but never shown here,
+                            so the figures on screen did not add up. */}
+                        {getInvoiceExchangeTotal(generatedInvoice) > 0 && (
+                          <div className="flex justify-end items-start gap-4">
+                            <span className="text-muted-foreground text-right">
+                              Exchange{generatedInvoice.exchangeDescription ? ` (${generatedInvoice.exchangeDescription})` : ''}:
+                              {!!generatedInvoice.exchangeAmount1 && !!generatedInvoice.exchangeAmount2 && (
+                                <span className="block text-xs">
+                                  {generatedInvoice.exchangeAmount1.toLocaleString()} + {generatedInvoice.exchangeAmount2.toLocaleString()}
+                                </span>
+                              )}
+                            </span>
+                            <span className="w-32 font-medium flex-shrink-0">- PKR {getInvoiceExchangeTotal(generatedInvoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                          </div>
+                        )}
                         {getInvoiceAdjustmentsAmount(generatedInvoice) !== 0 && <div className="flex justify-end items-center gap-4"><span className="text-muted-foreground">Adjustments:</span> <span className="w-32 font-medium">PKR {getInvoiceAdjustmentsAmount(generatedInvoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>}
                         <div className="flex justify-end items-center gap-4 text-lg font-bold"><span className="text-muted-foreground">Grand Total:</span> <span className="w-32">PKR {generatedInvoice.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        {generatedInvoice.amountPaid > 0 && (
+                          <div className="flex justify-end items-center gap-4 text-success"><span>Paid:</span> <span className="w-32 font-medium">PKR {generatedInvoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+                        )}
+                        <div className={cn('flex justify-end items-center gap-4 font-semibold', generatedInvoice.balanceDue > 0 ? 'text-destructive' : 'text-muted-foreground')}><span>Balance due:</span> <span className="w-32">PKR {generatedInvoice.balanceDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
                      </div>
                 </div>
 
@@ -1246,9 +1265,9 @@ export default function CartPage() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
-                         <h3 className="font-semibold text-lg">Send to Customer</h3>
+                         <h3 className="font-semibold text-lg">Send to customer</h3>
                          <div className="space-y-2">
-                            <Label htmlFor="whatsapp-number">Customer WhatsApp Number</Label>
+                            <Label htmlFor="whatsapp-number">WhatsApp number</Label>
                              <PhoneField
                                 value={phoneForm.watch('phone') || undefined}
                                 onChange={(val) => phoneForm.setValue('phone', val || '')}
@@ -1261,9 +1280,13 @@ export default function CartPage() {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="font-semibold text-lg">Record a Payment</h3>
+                        <h3 className="font-semibold text-lg">Record a payment</h3>
+                        {generatedInvoice.balanceDue <= 0 ? (
+                          <p className="text-sm text-muted-foreground">Nothing outstanding on this invoice.</p>
+                        ) : (
+                        <>
                         <div className="space-y-2">
-                            <Label htmlFor="payment-amount">Payment Amount Received (PKR)</Label>
+                            <Label htmlFor="payment-amount">Amount received (PKR)</Label>
                             <AmountInput 
                                 id="payment-amount" 
                                 placeholder={`Balance due: ${generatedInvoice.balanceDue.toLocaleString()}`}
@@ -1299,7 +1322,7 @@ export default function CartPage() {
                             onClick={() => handleRecordPayment()}
                         >
                             {isSubmittingPayment ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Banknote className="mr-2 h-4 w-4"/>}
-                            Submit Payment
+                            Record payment
                         </Button>
 
                         {generatedInvoice.balanceDue > 0 && (
@@ -1312,14 +1335,16 @@ export default function CartPage() {
                             {isSubmittingPayment
                               ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
                               : <CheckCircle className="mr-2 h-4 w-4"/>}
-                            Mark Paid — PKR {generatedInvoice.balanceDue.toLocaleString()}
+                            Mark paid — PKR {generatedInvoice.balanceDue.toLocaleString()}
                           </Button>
+                        )}
+                        </>
                         )}
                     </div>
                 </div>
                  {generatedInvoice.paymentHistory && generatedInvoice.paymentHistory.length > 0 && (
                      <div>
-                        <h3 className="text-lg font-semibold flex items-center mb-2"><List className="mr-2 h-5 w-5"/>Payment History</h3>
+                        <h3 className="text-lg font-semibold flex items-center mb-2"><List className="mr-2 h-5 w-5"/>Payment history</h3>
                         <div className="rounded-lg border overflow-hidden">
                                 <Table>
                                     <TableHeader>
@@ -1348,14 +1373,6 @@ export default function CartPage() {
                                     </TableBody>
                                 </Table>
                         </div>
-                        <Alert variant="default" className="mt-4 bg-success/10 border-success/30 text-success">
-                            <Check className="h-4 w-4 text-success"/>
-                            <AlertTitle>Payment Summary</AlertTitle>
-                            <AlertDescription>
-                                A total of <strong className="font-semibold">PKR {generatedInvoice.amountPaid.toLocaleString(undefined, {minimumFractionDigits: 2})}</strong> has been paid. 
-                                The outstanding balance is <strong className="font-semibold">PKR {generatedInvoice.balanceDue.toLocaleString(undefined, {minimumFractionDigits: 2})}</strong>.
-                            </AlertDescription>
-                        </Alert>
                      </div>
                  )}
 
@@ -1366,7 +1383,7 @@ export default function CartPage() {
   }
   
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4 pb-28 lg:pb-8">
       {invoiceDraft && (
         <DraftRestoreBanner
           savedAt={invoiceDraft.savedAt}
@@ -1471,7 +1488,7 @@ export default function CartPage() {
               <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground" />
               <CardTitle className="text-2xl mt-4">Add the first piece</CardTitle>
               <CardDescription>
-                Add some products to the cart from the Products page or by using the QR scanner to create an estimate.
+                Describe a piece, pick one from stock, or scan its tag.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -1536,54 +1553,52 @@ export default function CartPage() {
             </CardContent>
           </Card>
       ) : (
+        <>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center"><Link href="/new" aria-label="Back"><ArrowLeft className="mr-4 h-5 w-5"/></Link> New Invoice</CardTitle>
-                        <CardDescription>Review items and apply discounts before generating the final estimate.</CardDescription>
+                        <CardTitle className="flex items-center">
+                          <Link href="/new" aria-label="Back"><ArrowLeft className="mr-4 h-5 w-5"/></Link>
+                          {isEditingEstimate && editingInvoiceOriginalRef.current ? `Editing ${editingInvoiceOriginalRef.current.id}` : 'New invoice'}
+                        </CardTitle>
+                        <CardDescription>{cartItemsFromStore.length} piece{cartItemsFromStore.length === 1 ? '' : 's'} on this bill.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ScrollArea className="h-[40vh] pr-2 -mr-2">
-                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead className="text-right">Price</TableHead>
-                                    <TableHead className="w-10"></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {cartItemsFromStore.map(item => (
-                                        <TableRow key={item.sku}>
-                                            <TableCell>
-                                                <p className="font-medium">{item.name}</p>
-                                                {item.size && <p className="text-xs text-muted-foreground">Size: {item.size}</p>}
-                                                <p className="text-xs text-muted-foreground">{item.sku}</p>
-                                                {item.metalType === 'silver' && item.isCustomPrice && (
-                                                    <p className="text-xs text-warning font-medium">Manual: PKR {item.customPrice?.toLocaleString()}</p>
-                                                )}
-                                                {item.metalType === 'silver' && !item.isCustomPrice && item.silverRatePerGram && (
-                                                    <p className="text-xs text-blue-500">Rate: {item.silverRatePerGram}/g · {item.metalWeightG}g</p>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right font-semibold">PKR {calculateProductCosts(item, settings).totalPrice.toLocaleString(undefined, {minimumFractionDigits: 2})}</TableCell>
-                                            <TableCell className="w-20">
-                                                <div className="flex items-center gap-1">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setEditItem(item)}>
-                                                        <Edit className="h-4 w-4"/>
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeFromCart(item.sku)}>
-                                                        <Trash2 className="h-4 w-4"/>
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
+                        <ul className="divide-y">
+                            {cartItemsFromStore.map(item => {
+                                const spec = [
+                                  describeMetal(item.metalType, item.karat),
+                                  (item.metalWeightG ?? 0) > 0 ? `${item.metalWeightG}g` : null,
+                                  item.size ? `Size ${item.size}` : null,
+                                ].filter(Boolean).join(' · ');
+                                return (
+                                <li key={item.sku} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="font-medium truncate">{item.name}</p>
+                                        <p className="text-xs text-muted-foreground">{spec}</p>
+                                        <p className="text-2xs font-mono text-muted-foreground">{item.sku}</p>
+                                        {item.isCustomPrice && (
+                                            <p className="text-xs text-warning font-medium">Fixed price: PKR {item.customPrice?.toLocaleString()}</p>
+                                        )}
+                                        {item.metalType === 'silver' && !item.isCustomPrice && item.silverRatePerGram && (
+                                            <p className="text-xs text-blue-500">Rate: {item.silverRatePerGram}/g</p>
+                                        )}
+                                    </div>
+                                    <span className="font-semibold tabular-nums whitespace-nowrap">PKR {calculateProductCosts(item, settings).totalPrice.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                    <div className="flex items-center -mr-2">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => setEditItem(item)} aria-label={`Edit ${item.name}`}>
+                                            <Edit className="h-4 w-4"/>
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeFromCart(item.sku)} aria-label={`Remove ${item.name}`}>
+                                            <Trash2 className="h-4 w-4"/>
+                                        </Button>
+                                    </div>
+                                </li>
+                                );
+                            })}
+                        </ul>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-3 items-stretch">
                         <div className="flex gap-2">
@@ -1616,6 +1631,8 @@ export default function CartPage() {
                             <Button variant="secondary" onClick={() => handleAddBySku()}>
                                 <PlusCircle className="h-4 w-4 mr-1"/> Add
                             </Button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
                             {/* Two different intents that used to share one "New"
                                 button: a one-off piece for this bill, versus a
                                 product you want to keep in the catalogue. */}
@@ -1628,10 +1645,12 @@ export default function CartPage() {
                             </Button>
                             <Button variant="outline" onClick={() => setBillScanOpen(true)}
                                 title="Read a handwritten bill into the cart">
-                                <Camera className="h-4 w-4" />
+                                <Camera className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">Scan bill</span>
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={clearCart} className="ml-auto text-muted-foreground hover:text-destructive">
+                                <Trash2 className="h-4 w-4 mr-1.5" />Clear all
                             </Button>
                         </div>
-                        <Button variant="outline" onClick={clearCart} className="w-full">Clear All Items</Button>
                     </CardFooter>
                 </Card>
             </div>
@@ -1640,11 +1659,15 @@ export default function CartPage() {
             <div className="lg:col-span-1 lg:sticky top-8 space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Customer & Rates</CardTitle>
+                        <CardTitle className="text-base">Customer</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <Label>Taken by <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                            <TakenByPicker value={takenBy} onChange={setTakenBy} className="w-32" />
+                        </div>
                         <div className="space-y-2">
-                            <Label>Customer Name</Label>
+                            <Label>Name</Label>
                             <CustomerAutocomplete
                                 customers={customers}
                                 value={walkInCustomerName}
@@ -1657,7 +1680,7 @@ export default function CartPage() {
                             />
                         </div>
                         <div>
-                            <Label>Contact <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                            <Label>Contact <span className="text-muted-foreground text-xs">(optional)</span></Label>
                             <PhoneField
                                 value={walkInCustomerPhone || undefined}
                                 onChange={(val) => setWalkInCustomerPhone(val || '')}
@@ -1665,26 +1688,52 @@ export default function CartPage() {
                             />
                         </div>
                         <Separator />
-                        <div className="space-y-2">
-                             <div className="flex items-center justify-between gap-3">
-                                <Label>Gold Rates (PKR)</Label>
-                                {/* The rates still price the bill; this only decides whether
-                                    the paper says what they were. */}
+                        {/* With the customer, as on the order form: the address
+                            is theirs, even if the charge is the bill's. */}
+                        <DeliveryFields
+                          value={delivery}
+                          onChange={setDelivery}
+                          knownAddresses={knownAddressesFor(
+                            selectedCustomerId || undefined,
+                            customers.find(c => c.id === selectedCustomerId)?.address,
+                            allInvoices,
+                          )}
+                        />
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Pricing</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        {/* Only the rates this bill actually uses. A silver-only
+                            bill prices per piece and has none. */}
+                        {(cartMetalInfo.karats.size > 0 || cartMetalInfo.metals.has('palladium')) && (
+                          <>
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                    <Label>Rates (PKR per gram)</Label>
+                                    {/* The rates still price the bill; this only decides whether
+                                        the paper says what they were. */}
                                 <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer" title="Prices stay the same. The invoice just won't show the per-gram rate.">
                                     <span>Off the bill</span>
                                     <Switch checked={hideRates} onCheckedChange={setHideRates} aria-label="Leave rates off the printed bill" />
                                 </label>
-                             </div>
+                                </div>
+                                {cartMetalInfo.karats.size > 0 && (
+                                  <div className="space-y-1">
+                                    <p className="text-2xs uppercase tracking-wide text-muted-foreground">Gold</p>
                              <div className="grid grid-cols-2 gap-2">
                                 {cartMetalInfo.karats.has('18k') && <div><Label className="text-xs">18k/gram</Label><Input value={rateInputs.gold18k} onChange={e => handleRateChange('gold18k', e.target.value)}  aria-label="18k/gram"/></div>}
                                 {cartMetalInfo.karats.has('21k') && <div><Label className="text-xs">21k/gram</Label><Input value={rateInputs.gold21k} onChange={e => handleRateChange('gold21k', e.target.value)}  aria-label="21k/gram"/></div>}
                                 {cartMetalInfo.karats.has('22k') && <div><Label className="text-xs">22k/gram</Label><Input value={rateInputs.gold22k} onChange={e => handleRateChange('gold22k', e.target.value)}  aria-label="22k/gram"/></div>}
                                 {cartMetalInfo.karats.has('24k') && <div><Label className="text-xs">24k/gram</Label><Input value={rateInputs.gold24k} onChange={e => handleRateChange('gold24k', e.target.value)}  aria-label="24k/gram"/></div>}
                              </div>
-                        </div>
+                                  </div>
+                                )}
                         {cartMetalInfo.metals.has('palladium') && (
                           <div className="space-y-2">
-                             <Label>Palladium Rates (PKR)</Label>
+                             <p className="text-2xs uppercase tracking-wide text-muted-foreground">Palladium</p>
                              <div className="grid grid-cols-2 gap-2">
                                 {cartMetalInfo.palladiumKarats.has('18k') && <div><Label className="text-xs">18k/gram</Label><Input value={rateInputs.palladium18k} onChange={e => handleRateChange('palladium18k', e.target.value)} aria-label="Palladium 18k/gram"/></div>}
                                 {cartMetalInfo.palladiumKarats.has('12k') && <div><Label className="text-xs">12k/gram</Label><Input value={rateInputs.palladium12k} onChange={e => handleRateChange('palladium12k', e.target.value)} aria-label="Palladium 12k/gram"/></div>}
@@ -1692,19 +1741,11 @@ export default function CartPage() {
                              </div>
                           </div>
                         )}
-
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Final Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div className="flex justify-between"><span>Subtotal</span><span>PKR {estimatedInvoice?.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
-                        <div className="flex items-center justify-between">
-                            <Label className="flex items-center"><User className="mr-2 h-4 w-4"/>Taken by</Label>
-                            <TakenByPicker value={takenBy} onChange={setTakenBy} className="w-32" />
-                        </div>
+                            </div>
+                            <Separator />
+                          </>
+                        )}
+                        <div className="flex justify-between gap-3"><span>Subtotal</span><span className="text-right tabular-nums">PKR {estimatedInvoice?.subtotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
                         <div className="flex items-center justify-between">
                             <Label htmlFor="discount" className="flex items-center"><Percent className="mr-2 h-4 w-4"/>Discount</Label>
                             <AmountInput id="discount" value={discountAmountInput}
@@ -1719,20 +1760,6 @@ export default function CartPage() {
                                 <AmountInput placeholder="Amount 2 (PKR)" value={exchangeAmount2Input} onValueChange={v => setExchangeAmount2Input(v === undefined ? '' : String(v))}  aria-label="Amount 2 (PKR)"/>
                             </div>
                         </div>
-                        <Separator />
-
-                        {/* Sits with the bill rather than the customer block:
-                            whether a piece is delivered is part of the sale. */}
-                        <DeliveryFields
-                          value={delivery}
-                          onChange={setDelivery}
-                          knownAddresses={knownAddressesFor(
-                            selectedCustomerId || undefined,
-                            customers.find(c => c.id === selectedCustomerId)?.address,
-                            allInvoices,
-                          )}
-                        />
-
                         <Separator />
                         <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>
                         {/* The scanned bill's own total against this one. A gap is
@@ -1760,7 +1787,7 @@ export default function CartPage() {
                     <CardFooter className="flex flex-col gap-2">
                          <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate}>
                             {isGeneratingEstimate ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <FileText className="mr-2 h-5 w-5"/>}
-                            {isEditingEstimate ? 'Update Estimate' : 'Create Invoice'}
+                            {isEditingEstimate ? 'Update invoice' : 'Create invoice'}
                         </Button>
                         {/* A disabled button with no explanation reads as broken. */}
                         {invoiceBlockedReason && (
@@ -1774,7 +1801,7 @@ export default function CartPage() {
                             <Button size="lg" variant="outline" className="w-full"
                               disabled={cartItemsFromStore.length === 0}
                               onClick={() => router.push('/orders/add?fromCart=1')}>
-                              <ClipboardList className="mr-2 h-5 w-5" />Create Order
+                              <ClipboardList className="mr-2 h-5 w-5" />Create order
                             </Button>
                             <p className="text-xs text-muted-foreground text-center">
                               Invoice bills it now. Order sends it to the workshop first, with an advance if taken.
@@ -1783,13 +1810,28 @@ export default function CartPage() {
                         )}
                         {isEditingEstimate && (
                             <Button size="lg" variant="outline" className="w-full" onClick={handleCancelEdit}>
-                                <Ban className="mr-2 h-5 w-5"/> Cancel Edit
+                                <Ban className="mr-2 h-5 w-5"/> Cancel editing
                             </Button>
                         )}
                     </CardFooter>
                 </Card>
             </div>
         </div>
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-2.5 pr-20 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
+            <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                    <p className="text-2xs uppercase tracking-wide text-muted-foreground leading-none">Total</p>
+                    <p className="text-base font-semibold tabular-nums truncate">
+                        PKR {estimatedInvoice ? estimatedInvoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '…'}
+                    </p>
+                </div>
+                <Button size="lg" className="shrink-0" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate}>
+                    {isGeneratingEstimate ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <FileText className="mr-2 h-5 w-5"/>}
+                    {isEditingEstimate ? 'Update invoice' : 'Create invoice'}
+                </Button>
+            </div>
+        </div>
+        </>
       )}
 
       {/* New Product Dialog */}
