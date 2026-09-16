@@ -17,7 +17,7 @@ import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
-import { STORE_LOGO_URL } from '@/lib/store-config';
+import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -154,11 +154,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Link href="/" className="flex items-center justify-start text-primary h-[26px]">
               {logoToUse ? (
                  <div className="relative w-full h-full group-data-[collapsible=icon]:hidden">
+                    {/* The wordmark is flat charcoal, drawn for a light ground. On the
+                        dark palette it sat two shades above the page — a grey smudge —
+                        while the white cut made for exactly that went unused. Both are
+                        here; the theme class on <body> shows one. (`dark:` cannot do
+                        this: <html> always carries `.dark`, see globals.css.) */}
                     <Image
                         src={logoToUse}
                         alt={settings.shopName || 'Shop Logo'}
                         fill
-                        className="object-contain object-left"
+                        className="object-contain object-left hidden [.theme-default_&]:block"
+                        unoptimized
+                    />
+                    <Image
+                        src={STORE_LOGO_LIGHT_URL}
+                        alt=""
+                        aria-hidden
+                        fill
+                        className="object-contain object-left [.theme-default_&]:hidden"
                         unoptimized
                     />
                  </div>

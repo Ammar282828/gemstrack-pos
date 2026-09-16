@@ -22,7 +22,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { ShopifyPullPanel } from '@/components/settings/shopify-pull-panel';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Building, Phone, Image as ImageIcon, DollarSign, Shield, FileText, Loader2, Database, AlertTriangle, Users, Palette, Info, Import, ShieldCheck, ShieldAlert, Monitor, Globe, Clock, RotateCcw, Bell, BellOff, Plus, X, ShoppingBag, RefreshCw, CheckCircle2, Lock, SlidersHorizontal, Printer, Tag, ArchiveRestore, Landmark } from 'lucide-react';
-import { STORE_LOGO_URL } from '@/lib/store-config';
+import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL } from '@/lib/store-config';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -857,7 +857,10 @@ export default function SettingsPage() {
                     <span className="text-xs font-normal text-muted-foreground inline-flex items-center gap-1"><Lock className="h-3 w-3" />locked</span>
                   </Label>
                   <div className="p-3 border rounded-md w-fit bg-muted">
-                    <Image src={STORE_LOGO_URL} alt={`${STORE_CONFIG.name} brand logo`} width={240} height={60} className="object-contain max-h-16" unoptimized />
+                    {/* Same swap as the sidebar: the charcoal cut on the light theme,
+                        the white cut on the dark one. The PDF always gets charcoal. */}
+                    <Image src={STORE_LOGO_URL} alt={`${STORE_CONFIG.name} brand logo`} width={240} height={60} className="object-contain max-h-16 hidden [.theme-default_&]:block" unoptimized />
+                    <Image src={STORE_LOGO_LIGHT_URL} alt="" aria-hidden width={240} height={60} className="object-contain max-h-16 [.theme-default_&]:hidden" unoptimized />
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Ships with the app and appears on every generated PDF. Changing it needs a code change to{' '}
