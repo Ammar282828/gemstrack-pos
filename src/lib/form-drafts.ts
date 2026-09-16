@@ -165,6 +165,7 @@ export function summarizeDraft(draft: Draft): DraftSummary {
   const parts = [
     num(data, 'discountAmountInput') > 0 ? `discount PKR ${num(data, 'discountAmountInput').toLocaleString()}` : '',
     str(data, 'exchangeDescription') ? 'exchange noted' : '',
+    str(data, 'internalNote') ? 'note for the shop' : '',
     str(data, 'walkInCustomerPhone') ? 'phone entered' : '',
   ].filter(Boolean);
   return {

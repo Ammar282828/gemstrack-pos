@@ -8,9 +8,9 @@
  * window in the tap, draws the slip, and hands it to savePDF, which shares or
  * downloads as the device allows.
  *
- * The footer's QR is read off a hidden <QRCode id="links-qr-code"> canvas that the
- * calling page renders; a page that has not rendered one gets a slip with no code
- * rather than an error -- see drawDocFooter.
+ * The footer's QR codes (WhatsApp, Instagram) are read off hidden <QRCode> canvases
+ * that the calling page renders; a page that has not rendered them gets a slip with
+ * no codes rather than an error -- see drawDocFooter.
  */
 
 import jsPDF from 'jspdf';

@@ -7,6 +7,7 @@ import { BoardSkeleton } from '@/components/shared/skeletons';
 import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem, AdditionalRevenue, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS, CustomerSource, getInvoiceRevenueDate } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { stockSku } from '@/lib/sku';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ReferenceLine, Cell } from 'recharts';
 import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval, startOfYear, endOfYear, getYear, eachMonthOfInterval, startOfMonth } from 'date-fns';
@@ -295,7 +296,7 @@ export default function AnalyticsPage() {
     let totalDiscounts = 0;
     let totalUnpaid = 0;
     const salesByDate: Record<string, { sales: number; orders: number; itemsSold: number }> = {};
-    const productPerformance: Record<string, { quantity: number; revenue: number }> = {};
+    const productPerformance: Record<string, { quantity: number; revenue: number; name?: string }> = {};
     const categoryPerformance: Record<string, number> = {};
     const customerPerformance: Record<string, { totalSpent: number; orderCount: number; resolvedName?: string }> = {};
     
@@ -336,7 +337,7 @@ export default function AnalyticsPage() {
           salesByDate[dateKey].itemsSold += quantity;
 
           if (!productPerformance[item.sku]) {
-            productPerformance[item.sku] = { quantity: 0, revenue: 0 };
+            productPerformance[item.sku] = { quantity: 0, revenue: 0, name: item.name };
           }
           productPerformance[item.sku].quantity += quantity;
           productPerformance[item.sku].revenue += itemTotal;
@@ -422,7 +423,7 @@ export default function AnalyticsPage() {
     calcData.topProductsByRevenue = Object.entries(productPerformance)
       .map(([sku, data]) => {
         const productDetails = products.find(p => p.sku === sku);
-        return { sku, name: productDetails?.name || 'Unknown Product', quantity: data.quantity, revenue: data.revenue };
+        return { sku, name: productDetails?.name || data.name || 'Unnamed piece', quantity: data.quantity, revenue: data.revenue };
       })
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
@@ -430,7 +431,7 @@ export default function AnalyticsPage() {
     calcData.topProductsByQuantity = Object.entries(productPerformance)
       .map(([sku, data]) => {
         const productDetails = products.find(p => p.sku === sku);
-        return { sku, name: productDetails?.name || 'Unknown Product', quantity: data.quantity, revenue: data.revenue };
+        return { sku, name: productDetails?.name || data.name || 'Unnamed piece', quantity: data.quantity, revenue: data.revenue };
       })
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 10);
@@ -1120,7 +1121,7 @@ export default function AnalyticsPage() {
                         <TableRow key={product.sku}>
                           <TableCell>
                             <div className="font-medium">{product.name}</div>
-                            <div className="text-xs text-muted-foreground">SKU: {product.sku}</div>
+                            <div className="text-xs text-muted-foreground">{stockSku(product.sku) ? `SKU: ${product.sku}` : 'Not in stock'}</div>
                           </TableCell>
                           <TableCell className="text-right">{product.quantity}</TableCell>
                           <TableCell className="text-right">{product.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>

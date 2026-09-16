@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormSection, PriceModeToggle } from '@/components/shared/piece-form';
+import { stockSku } from '@/lib/sku';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
@@ -272,13 +273,14 @@ function cartItemToOrderItem(p: Product) {
   return {
     itemCategory: p.categoryId || undefined,
     description: p.name || '',
-    karat: p.metalType === 'gold' ? p.karat : undefined,
+    karat: p.metalType === 'gold' ? (p.karat || '21k') : undefined,
     estimatedWeightG: p.metalWeightG || 0,
     wastagePercentage: p.wastagePercentage || 0,
     makingCharges: p.makingCharges || 0,
     diamondCharges: p.diamondCharges || 0,
     stoneCharges: p.stoneCharges || 0,
-    referenceSku: p.sku,
+    // A one-off key from the cart is not a reference anyone can look up.
+    referenceSku: stockSku(p.sku) || '',
     sampleGiven: false,
     hasDiamonds: !!p.hasDiamonds,
     hasStones: !!p.hasStones,
