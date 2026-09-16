@@ -854,14 +854,7 @@ export default function DocumentsPage() {
   }, [filteredDocuments]);
 
   const renderContent = (docs: DocumentType[]) => {
-      if (isLoading) {
-         return (
-            <div className="text-center py-12">
-                <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
-                <p className="text-muted-foreground">Fetching documents...</p>
-            </div>
-         );
-      }
+      if (isLoading) return <ListSkeleton rows={6} />;
       if (docs.length === 0) {
           return (
              <div className="text-center py-12 bg-card rounded-lg shadow">

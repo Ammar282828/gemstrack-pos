@@ -21,7 +21,7 @@ import { documentsFor, type DocEntry } from '@/lib/voice/documents';
 import { applyReading, type AppliedEntry } from '@/lib/voice/apply';
 import { answerQuestion } from '@/lib/voice/answers';
 import { speak, stopSpeaking, speechOutputSupported } from '@/lib/voice/speak';
-import { phoneticKey, type LearnedAlias, type RankedName, type RosterEntry } from '@/lib/voice/phonetics';
+import { phoneticKey, type LearnedAlias, type PersonKind, type RankedName, type RosterEntry } from '@/lib/voice/phonetics';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader2, Mic, Square } from 'lucide-react';
@@ -30,6 +30,29 @@ import { DEFAULT_KARAT_VALUE_FOR_CALCULATION } from '@/lib/store';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 
 type Phase = 'idle' | 'listening' | 'thinking' | 'confirming' | 'writing';
+
+/** Corrections already made, keyed by sound. Least-used first, so the one made most often wins. */
+function aliasMap(voiceAliases: { heardKey: string; kind: PersonKind; refId: string; uses?: number }[]): Map<string, LearnedAlias> {
+  const map = new Map<string, LearnedAlias>();
+  for (const a of [...voiceAliases].sort((x, y) => (x.uses ?? 1) - (y.uses ?? 1))) {
+    map.set(a.heardKey, { kind: a.kind, id: a.refId });
+  }
+  return map;
+}
+
+/** Resolves once the book is in memory, or after `ms` — whichever is first. */
+function untilLoaded(ms: number): Promise<void> {
+  const ready = () => {
+    const s = useAppStore.getState();
+    return s.hasCustomersLoaded && s.hasKarigarsLoaded && s.hasOrdersLoaded && s.hasInvoicesLoaded && s.hasHisaabLoaded;
+  };
+  if (ready()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => { clearTimeout(timer); unsub(); resolve(); };
+    const timer = setTimeout(done, ms);
+    const unsub = useAppStore.subscribe(() => { if (ready()) done(); });
+  });
+}
 
 /** Stops on its own, so a bubble left running in a pocket cannot record the whole day. */
 const MAX_RECORDING_MS = 30_000;
@@ -103,7 +126,16 @@ export function VoiceBubble() {
   /** The entry just written, so "undo" a moment later means that one and nothing else. */
   const lastWrite = useRef<AppliedEntry | null>(null);
 
-  useEffect(() => {
+  /**
+   * Loaded when the microphone is pressed, not when the page opens.
+   *
+   * This bubble floats on every screen, and on mount it used to open listeners on
+   * seven collections — the whole book, most of a megabyte — so the Settings page
+   * paid for the hisaab. The loaders are shared with the pages and guarded, so a
+   * page that already has its data costs nothing here; and a press gives the store
+   * the few seconds of speech to fill in, with send() waiting briefly for it.
+   */
+  const warm = useCallback(() => {
     loadCustomers();
     loadKarigars();
     loadVoiceAliases();
@@ -131,14 +163,7 @@ export function VoiceBubble() {
    * completing a half-heard "Alifya" to a full roster name is still a guess, and this is
    * the one signal that is not.
    */
-  const aliases = useMemo(() => {
-    const map = new Map<string, LearnedAlias>();
-    // Least-used first, so the correction made most often is the one left in the map.
-    for (const a of [...voiceAliases].sort((x, y) => (x.uses ?? 1) - (y.uses ?? 1))) {
-      map.set(a.heardKey, { kind: a.kind, id: a.refId });
-    }
-    return map;
-  }, [voiceAliases]);
+  const aliases = useMemo(() => aliasMap(voiceAliases), [voiceAliases]);
 
   const roster = useMemo<RosterEntry[]>(() => [
     ...customers.map((c) => ({ id: c.id, name: c.name, kind: 'customer' as const, phone: c.phone })),
@@ -172,6 +197,16 @@ export function VoiceBubble() {
   const send = useCallback(async (blob: Blob) => {
     setPhase('thinking');
     try {
+      // The book may still be arriving if the press was the first thing done on
+      // this screen. Give it a moment, then read whatever is there.
+      await untilLoaded(2500);
+      const st = useAppStore.getState();
+      const rosterNow: RosterEntry[] = [
+        ...st.customers.map((c) => ({ id: c.id, name: c.name, kind: 'customer' as const, phone: c.phone })),
+        ...st.karigars.map((k) => ({ id: k.id, name: k.name, kind: 'karigar' as const, phone: k.contact })),
+      ];
+      const documentsNow = documentsFor(st.orders, st.generatedInvoices);
+      const aliasesNow = aliasMap(st.voiceAliases);
       const base64 = await new Promise<string>((resolve, reject) => {
         const fr = new FileReader();
         fr.onerror = () => reject(new Error('Could not read the recording.'));
@@ -186,8 +221,8 @@ export function VoiceBubble() {
         body: JSON.stringify({
           audio: base64,
           mimeType: blob.type || 'audio/webm',
-          roster,
-          documents,
+          roster: rosterNow,
+          documents: documentsNow,
           shopName: settings.shopName,
           today: new Date().toISOString().slice(0, 10),
           // '21k' -> '21'; the prompt states a number, not a karat label.
@@ -204,7 +239,7 @@ export function VoiceBubble() {
       setHeardAs(raw.person?.spoken_as || raw.person?.name || '');
 
       /* The model's answer is a claim. This is where it becomes a pinned, checked reading. */
-      const resolved = resolveIntent(raw, { roster, aliases, documents });
+      const resolved = resolveIntent(raw, { roster: rosterNow, aliases: aliasesNow, documents: documentsNow });
       setReading(resolved);
 
       // Nothing to write and nothing to choose — act and get out of the way. Opening an
@@ -265,13 +300,14 @@ export function VoiceBubble() {
         variant: 'destructive',
       });
     }
-  }, [roster, aliases, documents, settings.shopName, router, toast, say,
+  }, [settings.shopName, router, toast, say,
       customers, karigars, hisaabEntries, karigarJobs, orders]);
 
   const start = useCallback(async () => {
     // The microphone must never open while the assistant is still speaking, or it records
     // its own voice and answers itself.
     stopSpeaking();
+    warm();
     /**
      * Wake the server while he is still talking.
      *
@@ -320,7 +356,7 @@ export function VoiceBubble() {
         variant: 'destructive',
       });
     }
-  }, [cleanup, send, toast]);
+  }, [cleanup, send, toast, warm]);
 
   const stop = useCallback(() => recorderRef.current?.stop(), []);
 

@@ -2,7 +2,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore, initializeFirestore, persistentLocalCache } from "firebase/firestore";
+import { getFirestore, type Firestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
 // --- Firebase configuration — set per-store via environment variables ---
 // Silver store values are the fallback defaults.
@@ -23,13 +23,27 @@ if (getApps().length === 0) {
   console.log('[GemsTrack Firebase] Initializing new Firebase App instance.');
   app = initializeApp(firebaseConfig);
   try {
-    // We are disabling persistent cache to avoid synchronization issues across devices.
-    // The previous implementation used persistentLocalCache({}) which could lead to stale data.
-    // db = initializeFirestore(app, {
-    //   localCache: persistentLocalCache({})
-    // });
-    db = getFirestore(app);
-    console.log('[GemsTrack Firebase] New Firestore instance (in-memory persistence) created.');
+    /**
+     * The book stays on the device between opens.
+     *
+     * Every collection in the store is read through onSnapshot, and with a persistent
+     * cache a listener answers first from disk and then from the server — so the
+     * second open of the day paints from what the device already has, and only the
+     * documents that changed travel. Without this, every open pulled the whole book
+     * (about a megabyte, most of it order photos stored inline) from Iowa to Karachi
+     * before a single list could show, and "load times are slow" was the result.
+     *
+     * The stale-data worry that had this switched off was about one-shot reads. A
+     * listener corrects itself the moment the server answers; nothing here is read
+     * once and trusted.
+     *
+     * The multi-tab manager is what lets a second tab share the cache instead of
+     * failing to open it.
+     */
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+    console.log('[GemsTrack Firebase] Firestore instance with on-device cache created.');
   } catch (e) {
     console.error('[GemsTrack Firebase] Failed to initialize Firestore:', e);
     db = getFirestore(app);

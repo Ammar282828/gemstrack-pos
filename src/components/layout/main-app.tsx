@@ -4,7 +4,7 @@
 import React, { useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
-import { Loader2 } from 'lucide-react';
+import { BoardSkeleton } from '@/components/shared/skeletons';
 
 export function MainApp({ children }: { children: React.ReactNode }) {
   const isStoreHydrated = useIsStoreHydrated();
@@ -39,13 +39,13 @@ export function MainApp({ children }: { children: React.ReactNode }) {
 
   // Show a loading screen until the persisted state is rehydrated AND settings have loaded.
   // Settings are required for authorization and basic app functionality.
+  // The sidebar is already on screen (AppLayout wraps this); what waits is the page.
+  // A placeholder in the page's own shape, rather than a spinner in the middle of
+  // nothing, so the layout does not jump when the data lands.
   if (!isStoreHydrated || isSettingsLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-        <div className="text-center">
-            <Loader2 className="h-12 w-12 mx-auto animate-spin text-primary mb-4" />
-            <p className="text-xl text-muted-foreground">Loading Application...</p>
-        </div>
+      <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+        <BoardSkeleton tiles={3} panels={3} />
       </div>
     );
   }

@@ -349,10 +349,7 @@ export default function ProductsPage() {
       </FilterBar>
 
       {isProductsLoading ? (
-        <div className="text-center py-12">
-          <Loader2 className="w-12 h-12 mx-auto text-primary animate-spin mb-4" />
-          <p className="text-muted-foreground">Refreshing products…</p>
-        </div>
+        <ListSkeleton rows={8} />
       ) : filteredProducts.length > 0 ? (
         viewMode === 'grid' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
