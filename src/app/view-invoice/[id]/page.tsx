@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { metalLabel, describeMetal, describeSettings, describeDelivery } from '@/lib/materials';
+import { categorySingular } from '@/lib/categories';
 import { STORE_CONFIG, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { useParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
@@ -240,10 +241,19 @@ export default function ViewInvoicePage() {
         // The cell is drawn by hand in didDrawCell — see lib/invoice-item-cell.
         // The name leads, the specification sits under it, what is set into
         // the piece gets its own line, and the costs are subordinate.
+        // The category leads -- "Ring", one of them, not the department -- and the
+        // piece's own name sits under it with the metal. It used to be the other way
+        // round, and the category was never found anyway: an InvoiceItem carries
+        // categoryId, and this looked it up by itemCategory, which it does not have.
+        const catId = (item as { categoryId?: string; itemCategory?: string }).categoryId
+          || (item as { itemCategory?: string }).itemCategory;
+        const catName = categorySingular(catId) || staticCategories.find(c => c.id === catId)?.title || '';
         const block: ItemBlock = {
-            name: item.name || '',
+            name: catName || item.name || '',
             spec: [
-                staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '',
+                // The name is the second line now. Dropped when it merely repeats the
+                // category, so "Ring" is not followed by "Ring".
+                item.name && item.name.trim().toLowerCase() !== catName.toLowerCase() ? item.name : '',
                 metalDisplay,
                 item.size ? `Size ${item.size}` : '',
                 item.sku ? `SKU ${item.sku}` : '',

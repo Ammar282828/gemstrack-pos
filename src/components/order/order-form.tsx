@@ -37,6 +37,8 @@ import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
 import { Switch } from '@/components/ui/switch';
+import { addDays, differenceInCalendarDays, format as formatDate, parseISO, startOfDay } from 'date-fns';
+import { DEFAULT_PROMISE_DAYS, URGENT_WINDOW_DAYS } from '@/lib/order-timing';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
@@ -117,6 +119,16 @@ const orderItemSchema = z.object({
 });
 
 // Schema for the main form which contains multiple items
+/** yyyy-MM-dd for N days from today -- what <input type="date"> wants. */
+const promiseIn = (days: number) => formatDate(addDays(startOfDay(new Date()), days), 'yyyy-MM-dd');
+
+/**
+ * The quick promises. Seven, ten and fourteen days are what the counter actually
+ * says to a customer; a date picker was making people work out which day of the
+ * month that landed on, every time, for an answer that is one of three numbers.
+ */
+const QUICK_PROMISES = [7, 10, 14] as const;
+
 const orderFormSchema = z.object({
     items: z.array(orderItemSchema).min(1, "You must add at least one item to the estimate."),
     goldRate18k: z.coerce.number().min(0),
@@ -350,7 +362,9 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
       customerName: '',
       customerContact: '',
       source: undefined,
-      promisedDate: '',
+      // Fourteen days unless something else is agreed. Blank meant the order was only
+      // chased once it was a week old, which is rarely what anyone said at the counter.
+      promisedDate: promiseIn(DEFAULT_PROMISE_DAYS),
     },
   });
   
@@ -697,8 +711,133 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
           onDiscard={discard}
         />
       )}
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
+      {/*
+        Three cards, placed twice.
+
+        On a phone they stack in the order the counter works: who it is for, what
+        they want, what it costs. On a desktop the pieces take the wide column and
+        the two smaller cards sit beside them, pricing pinned so the total and the
+        Save button stay in view while the list scrolls. That is one DOM order with
+        two placements -- grid coordinates on lg, natural flow below it -- rather
+        than the same fields rendered twice and kept in step by hand.
+
+        Before this the phone got the desktop's DOM: every piece first, the
+        customer's name at the bottom, Save after everything. Backwards for the
+        person typing it in.
+      */}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[auto_1fr] gap-5 lg:gap-8 pb-24 lg:pb-0">
+
+        {/* Who, and when. First on a phone. */}
+        <Card className="lg:col-start-3 lg:row-start-1">
+            <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-base"><User className="mr-2 h-5 w-5"/>Order for</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+                    <PanelSection title="Customer" icon={<User className="h-3.5 w-3.5" />}>
+                    <FormItem>
+                        <FormLabel className="text-xs">Name</FormLabel>
+                        <CustomerAutocomplete
+                            customers={customers}
+                            value={form.watch('customerName') || ''}
+                            placeholder="Type customer name..."
+                            onSelect={({ name, customerId, phone }) => {
+                                form.setValue('customerName', name);
+                                form.setValue('customerId', customerId || WALK_IN_CUSTOMER_VALUE);
+                                if (phone !== undefined) form.setValue('customerContact', normalizePhoneNumber(phone));
+                            }}
+                        />
+                        <FormMessage />
+                    </FormItem>
+                    <FormField
+                        control={form.control}
+                        name="customerContact"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs">Contact</FormLabel>
+                            <FormControl>
+                            <PhoneField
+                                value={field.value || undefined}
+                                onChange={v => field.onChange(v || '')}
+                                onBlur={field.onBlur}
+                                aria-label="Customer contact" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="source"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs">How they found us <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
+                            <Select
+                                value={field.value ?? '__none__'}
+                                onValueChange={(v) => { if (v === '') return; field.onChange(v === '__none__' ? undefined : v); }}
+                            >
+                                <FormControl>
+                                    <SelectTrigger><SelectValue placeholder="Referral source" /></SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="__none__">— Not specified —</SelectItem>
+                                    {CUSTOMER_SOURCES.map((s) => (
+                                        <SelectItem key={s} value={s}>{CUSTOMER_SOURCE_LABELS[s]}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormDescription>Taheri spillover, referral, walk-in, etc.</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    </PanelSection>
+
+                    <PanelSection title="Promised for" icon={<CalendarClock className="h-3.5 w-3.5" />}>
+                    <FormField control={form.control} name="promisedDate" render={({ field }) => {
+                      const chosen = field.value ? parseISO(field.value) : null;
+                      const daysAway = chosen ? differenceInCalendarDays(startOfDay(chosen), startOfDay(new Date())) : null;
+                      // Inside a bench week, or already behind. Shown here, at the moment of
+                      // choosing, so the counter sees what it is committing the workshop to.
+                      const urgent = daysAway !== null && daysAway <= URGENT_WINDOW_DAYS;
+                      return (
+                       <FormItem>
+                            <div className="flex items-center justify-between gap-2">
+                              <FormLabel className="text-xs">Date promised to the customer</FormLabel>
+                              {urgent && (
+                                <span className="inline-flex items-center rounded-sm bg-destructive px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-destructive-foreground leading-none">
+                                  Urgent{daysAway !== null && daysAway < 0 ? ' · past' : daysAway === 0 ? ' · today' : ` · ${daysAway}d`}
+                                </span>
+                              )}
+                            </div>
+                            {/* The three answers the counter actually gives, as buttons. The
+                                lit one is whichever the date currently matches, so choosing
+                                by hand and choosing by button read the same. */}
+                            <div className="flex gap-1.5">
+                              {QUICK_PROMISES.map(d => {
+                                const on = field.value === promiseIn(d);
+                                return (
+                                  <Button key={d} type="button" size="sm" variant={on ? 'default' : 'outline'}
+                                    className={cn('h-8 flex-1 tabular-nums', d <= URGENT_WINDOW_DAYS && !on && 'border-destructive/40 text-destructive')}
+                                    onClick={() => field.onChange(promiseIn(d))} aria-pressed={on}>
+                                    {d}d
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                            <FormControl><Input type="date" {...field} value={field.value || ''} className="mt-1.5" /></FormControl>
+                            <FormDescription className="text-xs">
+                              What the piece is chased against. Within {URGENT_WINDOW_DAYS} days is marked urgent.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                      );
+                    }}/>
+                    </PanelSection>
+            </CardContent>
+        </Card>
+
+        <div className="lg:col-start-1 lg:col-span-2 lg:row-start-1 lg:row-span-2">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -831,8 +970,9 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                               </FormItem>
                             )}/>
 
-                            {/* Metal + Karat — always visible so they are recorded even in manual price mode */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Metal + Karat — always visible so they are recorded even in manual price mode.
+                                Two short selects; side by side even on a phone. */}
+                            <div className="grid grid-cols-2 gap-3 md:gap-4">
                                 <FormField control={form.control} name={`items.${index}.metalType`} render={({ field }) => (
                                     <FormItem><FormLabel>Metal</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
@@ -908,7 +1048,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             {/* Auto-calculated mode (Secondary) */}
                             {!form.watch(`items.${index}.isManualPrice`) && (
                                 <>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Numbers, all short: two up on a phone, three on a desktop. */}
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                                     <FormField control={form.control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
                                         <FormItem>
                                             <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>
@@ -927,7 +1068,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 )}
                                 <Separator />
                                 <p className="font-medium text-sm">Additional Charges & Details</p>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                                     <FormField control={form.control} name={`items.${index}.makingCharges`} render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Making</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
@@ -1005,86 +1146,13 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
           </Card>
         </div>
         
-        <div className="lg:col-span-1">
-            <Card className="sticky top-8">
-                <CardHeader>
-                    <CardTitle className="flex items-center"><List className="mr-2 h-5 w-5"/>Order details</CardTitle>
+        {/* What it costs. Last on a phone; pinned beside the list on a desktop. */}
+        <div className="lg:col-start-3 lg:row-start-2 lg:sticky lg:top-8 lg:self-start">
+            <Card>
+                <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center text-base"><List className="mr-2 h-5 w-5"/>Pricing</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                    <PanelSection title="Customer" icon={<User className="h-3.5 w-3.5" />}>
-                    <FormItem>
-                        <FormLabel className="text-xs">Name</FormLabel>
-                        <CustomerAutocomplete
-                            customers={customers}
-                            value={form.watch('customerName') || ''}
-                            placeholder="Type customer name..."
-                            onSelect={({ name, customerId, phone }) => {
-                                form.setValue('customerName', name);
-                                form.setValue('customerId', customerId || WALK_IN_CUSTOMER_VALUE);
-                                if (phone !== undefined) form.setValue('customerContact', normalizePhoneNumber(phone));
-                            }}
-                        />
-                        <FormMessage />
-                    </FormItem>
-                    <FormField
-                        control={form.control}
-                        name="customerContact"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-xs">Contact</FormLabel>
-                            <FormControl>
-                            <PhoneField
-                                value={field.value || undefined}
-                                onChange={v => field.onChange(v || '')}
-                                onBlur={field.onBlur}
-                                aria-label="Customer contact" />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-
-                    <FormField
-                        control={form.control}
-                        name="source"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-xs">How they found us <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
-                            <Select
-                                value={field.value ?? '__none__'}
-                                onValueChange={(v) => { if (v === '') return; field.onChange(v === '__none__' ? undefined : v); }}
-                            >
-                                <FormControl>
-                                    <SelectTrigger><SelectValue placeholder="Referral source" /></SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="__none__">— Not specified —</SelectItem>
-                                    {CUSTOMER_SOURCES.map((s) => (
-                                        <SelectItem key={s} value={s}>{CUSTOMER_SOURCE_LABELS[s]}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormDescription>Taheri spillover, referral, walk-in, etc.</FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    </PanelSection>
-
-                    <PanelSection title="Promised for" icon={<CalendarClock className="h-3.5 w-3.5" />}>
-                    <FormField control={form.control} name="promisedDate" render={({ field }) => (
-                       <FormItem>
-                            <FormLabel className="text-xs">Date promised to the customer</FormLabel>
-                            <FormControl><Input type="date" {...field} value={field.value || ''} /></FormControl>
-                            <FormDescription className="text-xs">
-                              What the piece is chased against. Leave blank and the order is only
-                              flagged once it is a week old, which is rarely what was agreed.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}/>
-                    </PanelSection>
-
                     {(formValues.items || []).some(item => item.metalType === 'gold') && (
                     <PanelSection title="Gold rates (PKR / gram)" icon={<DollarSign className="h-3.5 w-3.5" />}>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 border rounded-md">
@@ -1213,6 +1281,25 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                     </Button>
                 </CardFooter>
             </Card>
+        </div>
+
+        {/* On a phone the Save button was the last thing on a long page. This keeps it
+            under the thumb with the running total beside it. Inside the <form>, so it
+            submits the same way; fixed, so it does not scroll away. Right padding leaves
+            the voice button its corner. */}
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-2.5 pr-20 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
+            <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                    <p className="text-2xs uppercase tracking-wide text-muted-foreground leading-none">Total</p>
+                    <p className="text-base font-semibold tabular-nums truncate">
+                        PKR {liveEstimate.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </p>
+                </div>
+                <Button type="submit" size="lg" className="shrink-0" disabled={form.formState.isSubmitting} aria-label="Save">
+                    {form.formState.isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Save className="mr-2 h-5 w-5" />}
+                    {form.formState.isSubmitting ? 'Saving…' : (isEditMode ? 'Save' : 'Create')}
+                </Button>
+            </div>
         </div>
       </form>
     </Form>

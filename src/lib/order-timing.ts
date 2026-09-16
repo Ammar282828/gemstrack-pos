@@ -22,6 +22,30 @@ export const isActiveOrder = (o: Pick<Order, 'status'>) => ACTIVE.includes(o.sta
 /** How long an order with no promised date may sit before it is called late. */
 export const LEGACY_OVERDUE_DAYS = 7;
 
+/**
+ * Promised within this many days, and it is urgent.
+ *
+ * Seven is a bench week: a piece promised inside it has to be started now, not
+ * queued. The same window feeds the quick dates on the order form, so a 7-day
+ * promise is marked urgent the moment it is chosen and the counter sees what it
+ * is committing the workshop to.
+ */
+export const URGENT_WINDOW_DAYS = 7;
+
+/** The default promise for a new order, when nothing else was agreed. */
+export const DEFAULT_PROMISE_DAYS = 14;
+
+/**
+ * Due within the urgent window, due today, or already late -- and actually promised.
+ * An order with no date is not urgent, it is undated, and that is a different problem
+ * with its own flag.
+ */
+export function isUrgent(t: OrderTiming): boolean {
+  if (!t.due) return false;
+  if (t.state === 'late' || t.state === 'today') return true;
+  return -t.daysLate <= URGENT_WINDOW_DAYS;
+}
+
 export type PromiseState =
   | 'none'      // no promised date, and not old enough for the fallback to fire
   | 'upcoming'  // promised, still ahead

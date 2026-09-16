@@ -13,7 +13,7 @@
 
 import type jsPDF from 'jspdf';
 import type { Order } from '@/lib/store';
-import { staticCategories } from '@/lib/store';
+import { staticCategories, categorySingular } from '@/lib/store';
 import { describeMetal, describeSettings } from '@/lib/materials';
 import type { ItemBlock } from '@/lib/invoice-item-cell';
 import { drawTotals, type TotalRow } from '@/lib/pdf-chrome';
@@ -29,8 +29,10 @@ const money = (n: number) => `PKR ${(n || 0).toLocaleString(undefined, { minimum
  */
 export function buildOrderItemBlocks(order: Order): ItemBlock[] {
   return order.items.map(item => {
-    const categoryTitle =
-      staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
+    // "Ring", one of them: the slip is for a piece, not a department. The customer's
+    // description of it moves to the line below.
+    const catName =
+      categorySingular(item.itemCategory) || staticCategories.find(c => c.id === item.itemCategory)?.title || '';
     const metalName = describeMetal(item.metalType, item.karat);
     const metalPart = item.isManualPrice
       ? metalName
@@ -55,9 +57,9 @@ export function buildOrderItemBlocks(order: Order): ItemBlock[] {
     bench.forEach(v => v.split('\n').filter(Boolean).forEach(l => notes.push(l)));
 
     return {
-      name: item.description || '—',
+      name: catName || item.description || '—',
       spec: [
-        categoryTitle,
+        item.description && item.description.trim().toLowerCase() !== catName.toLowerCase() ? item.description : '',
         metalPart,
         item.size ? `Size ${item.size}` : '',
         item.referenceSku ? `Ref ${item.referenceSku}` : '',
