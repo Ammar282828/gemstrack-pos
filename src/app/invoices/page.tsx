@@ -6,6 +6,7 @@ import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
 import { useAppStore, Order, Invoice, Settings, Customer, InvoiceItem, staticCategories, ORDER_STATUSES, OrderStatus } from '@/lib/store';
+import { categorySingular } from '@/lib/categories';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -148,11 +149,17 @@ async function generateInvoicePDF(
     const metalTypeName = metalLabel(item.metalType);
     const karat = item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : '';
     const weightPart = item.metalWeightG > 0 ? `, Wt: ${(item.metalWeightG || 0).toFixed(2)}g` : '';
-    const categoryTitle = staticCategories.find(c => c.id === item.itemCategory)?.title || item.itemCategory || '';
+    // Category first, singular; the piece's own name second. See the cart's copy of
+    // this block for why categoryId is consulted -- itemCategory is not on an InvoiceItem.
+    const catId = (item as { categoryId?: string; itemCategory?: string }).categoryId
+      || (item as { itemCategory?: string }).itemCategory;
+    const catName = categorySingular(catId) || staticCategories.find(c => c.id === catId)?.title || '';
     itemBlocks.push({
-      name: item.name || '',
-      spec: [categoryTitle, `${metalTypeName}${karat}${weightPart}`, item.size ? `Size ${item.size}` : '', item.sku ? `SKU ${item.sku}` : '']
-        .filter(Boolean).join('  ·  '),
+      name: catName || item.name || '',
+      spec: [
+        item.name && item.name.trim().toLowerCase() !== catName.toLowerCase() ? item.name : '',
+        `${metalTypeName}${karat}${weightPart}`, item.size ? `Size ${item.size}` : '', item.sku ? `SKU ${item.sku}` : '',
+      ].filter(Boolean).join('  ·  '),
       settings: describeSettings(item),
       breakdown: breakdownLines.map(l => l.trim().replace(/^\+\s*/, '')),
     });

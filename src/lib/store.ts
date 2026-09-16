@@ -1,7 +1,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { staticCategories, categoryTitle, type Category } from './categories';
+import { staticCategories, categoryTitle, categorySingular, type Category } from './categories';
 import type { MetalType, KaratValue } from './materials';
 import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import { formatISO, subDays } from 'date-fns';
@@ -14,7 +14,7 @@ import { auth as firebaseAuth } from '@/lib/firebase';
 
 
 // --- Firestore Collection Names ---
-export { staticCategories, categoryTitle };
+export { staticCategories, categoryTitle, categorySingular };
 export type { Category };
 
 const FIRESTORE_COLLECTIONS = {
@@ -1795,7 +1795,9 @@ export const useAppStore = create<AppState>()(
       },
 
       addCategory: (title) => set((state) => {
-          const newCategory: Category = { id: `cat-${Date.now()}`, title };
+          // A category typed in at runtime has no hand-written singular; a plain trailing s
+          // is the best guess available, and the bill falls back to the title if that is wrong.
+          const newCategory: Category = { id: `cat-${Date.now()}`, title, singular: title.replace(/s$/, '') };
           state.categories.push(newCategory);
           console.log("[GemsTrack Store addCategory] Added category:", newCategory);
       }),
