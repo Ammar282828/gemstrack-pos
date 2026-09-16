@@ -4,7 +4,6 @@
 import React, { useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
-import { useGoldRatesSync } from '@/hooks/use-gold-rates-sync';
 import { Loader2 } from 'lucide-react';
 
 export function MainApp({ children }: { children: React.ReactNode }) {
@@ -15,7 +14,12 @@ export function MainApp({ children }: { children: React.ReactNode }) {
   } = useAppStore();
 
   // Auto-fetch gold rates from gold.pk once per day
-  useGoldRatesSync();
+  // No automatic gold-rate fetch. A hook here used to scrape gold.pk once per
+  // device per day and overwrite the shop's rates in Settings, so the number
+  // somebody had set at the counter that morning could change under them by
+  // lunchtime, on whichever phone happened to open the app next. The rates are
+  // now whatever was last entered, and change only when somebody changes them.
+  // Settings still has a button to pull gold.pk's figures on purpose.
 
   useEffect(() => {
     // This effect runs once when the store is rehydrated.

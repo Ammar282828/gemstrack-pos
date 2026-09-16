@@ -13,7 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Eye, ClipboardList, Loader2, MessageSquareQuote, CheckCircle2, Circle, Phone, CreditCard } from 'lucide-react';
+import { Search, PlusCircle, Eye, ClipboardList, Loader2, MessageSquareQuote, CheckCircle2, Circle, Phone, CreditCard, Printer } from 'lucide-react';
+import { generateOrderSlipPDF } from '@/lib/order-slip-pdf';
 import { format, parseISO } from 'date-fns';
 import { cn, settledRowClass } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -52,7 +53,34 @@ const getStatusBadgeVariant = (status: OrderStatus) => {
     }
   };
 
+/**
+ * Print the slip from the list, without opening the order.
+ *
+ * generateOrderSlipPDF pre-opens the iOS window itself, synchronously, so this
+ * must be called straight from the tap with nothing awaited before it. The one
+ * await inside it is the logo, which is warmed on mount and answers from cache.
+ */
+function usePrintSlip(order: Order) {
+  const settings = useAppStore(state => state.settings);
+  const { toast } = useToast();
+  const [busy, setBusy] = React.useState(false);
+  const print = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await generateOrderSlipPDF(order, settings);
+    } catch (e) {
+      console.error('[GemsTrack] order slip failed', e);
+      toast({ title: 'Could not create the slip', description: e instanceof Error ? e.message : 'Something went wrong while drawing it.', variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return { print, busy };
+}
+
 const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
+  const { print, busy } = usePrintSlip(order);
   const { toast } = useToast();
   const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -107,14 +135,20 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
                 <PromiseLine order={order} />
             </div>
 
-            <div className="pt-1">
-                 {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items completed</span>}
-                 {unassignedItems > 0 && order.status !== 'Completed' && (
-                   <Badge variant="outline" className="ml-2 text-2xs text-destructive border-destructive/40 bg-destructive/5">
-                     {unassignedItems} unassigned
-                   </Badge>
-                 )}
-                 <Progress value={progressPercentage} className="h-1.5 mt-1" />
+            <div className="pt-1 flex items-end gap-3">
+                 <div className="min-w-0 flex-1">
+                   {totalItems > 0 && <span className="text-xs text-muted-foreground">{completedItems} of {totalItems} items completed</span>}
+                   {unassignedItems > 0 && order.status !== 'Completed' && (
+                     <Badge variant="outline" className="ml-2 text-2xs text-destructive border-destructive/40 bg-destructive/5">
+                       {unassignedItems} unassigned
+                     </Badge>
+                   )}
+                   <Progress value={progressPercentage} className="h-1.5 mt-1" />
+                 </div>
+                 <Button type="button" size="sm" variant="outline" className="h-8 flex-shrink-0" onClick={print} disabled={busy} aria-label="Print slip">
+                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                   <span className="ml-2">Print</span>
+                 </Button>
             </div>
 
         </CardContent>
@@ -123,6 +157,7 @@ const OrderRow: React.FC<{ order: Order }> = ({ order }) => {
 };
 
 const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
+  const { print, busy } = usePrintSlip(order);
     const { toast } = useToast();
     const updateOrderStatus = useAppStore(state => state.updateOrderStatus);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -246,12 +281,18 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
           </div>
         </TableCell>
         <TableCell className="text-right">
-          <Button asChild size="sm" variant="outline">
+          <div className="inline-flex items-center gap-1.5">
+            <Button type="button" size="sm" variant="outline" onClick={print} disabled={busy} aria-label="Print slip" title="Print the workshop slip">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+              <span className="sr-only lg:not-sr-only lg:ml-2">Print</span>
+            </Button>
+            <Button asChild size="sm" variant="outline">
               <Link href={`/orders/${order.id}`}>
                 <Eye className="w-4 h-4" />
-                <span className="sr-only md:not-sr-only md:ml-2">View</span>
+                <span className="sr-only lg:not-sr-only lg:ml-2">View</span>
               </Link>
             </Button>
+          </div>
         </TableCell>
       </TableRow>
       <AlertDialog open={!!pendingStatus} onOpenChange={(open) => !open && setPendingStatus(null)}>
@@ -523,6 +564,7 @@ export default function OrdersPage() {
           </Card>
         </div>
       )}
+
     </div>
   );
 }
