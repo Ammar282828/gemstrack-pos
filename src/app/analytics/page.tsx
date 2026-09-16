@@ -6,6 +6,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { BoardSkeleton } from '@/components/shared/skeletons';
 import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem, AdditionalRevenue, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS, CustomerSource, getInvoiceRevenueDate } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ReferenceLine, Cell } from 'recharts';
 import { format, parseISO, startOfDay, endOfDay, subDays, isWithinInterval, startOfYear, endOfYear, getYear, eachMonthOfInterval, startOfMonth } from 'date-fns';
@@ -72,6 +73,7 @@ export default function AnalyticsPage() {
   });
   
   const [activeQuickSelect, setActiveQuickSelect] = useState<string>('last-30');
+  const [tab, setTab] = useState<string>('overview');
   
   const [selectedDayData, setSelectedDayData] = useState<SalesOverTimeData | null>(null);
   const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
@@ -712,6 +714,27 @@ export default function AnalyticsPage() {
         </Card>
       ) : (
         <>
+          {/*
+            Four views instead of one scroll. Fifteen sections stacked end to end were
+            not an analytics page, they were a list; nothing had a place and everything
+            competed. Each tab is one question. "How is the shop doing" (Overview),
+            "when did the money come in" (Sales), "what sold" (Products), "who bought
+            and how they found us" (Customers).
+
+            Two things left rather than moved: the Top Products by Quantity table,
+            which was the by-Revenue table -- same three columns -- sorted the other
+            way, and a staggered slide-in on every card, which was motion for its own
+            sake and made switching tabs look like a page load.
+          */}
+          <Tabs value={tab} onValueChange={setTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4 sm:inline-flex sm:w-auto">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="sales">Sales</TabsTrigger>
+              <TabsTrigger value="products">Products</TabsTrigger>
+              <TabsTrigger value="customers">Customers</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6 mt-0">
           {/* Key metrics in two tiers rather than nine equal tiles. The four money
               figures get the room; the counts sit underneath at half the weight.
               One flat five-across strip read as cramped — everything shouting
@@ -849,62 +872,40 @@ export default function AnalyticsPage() {
             );
           })()}
 
-          {/* Yearly Performance Summary — not affected by date filter */}
-          {yearlySummary.length > 0 && (
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" /> Yearly Performance Overview
-                </CardTitle>
-                <CardDescription>All-time revenue, expenses &amp; profit by year. Click a row to filter analytics to that year.</CardDescription>
+                <CardTitle>Expenses by Category</CardTitle>
+                <CardDescription>Spending distribution for the selected period.</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Year</TableHead>
-                      <TableHead className="text-right">Revenue</TableHead>
-                      <TableHead className="text-right text-warning hidden sm:table-cell">Unpaid</TableHead>
-                      <TableHead className="text-right hidden sm:table-cell">Expenses</TableHead>
-                      <TableHead className="text-right text-blue-600 hidden md:table-cell">Est. Profit (40%)</TableHead>
-                      <TableHead className="text-right">Net Profit</TableHead>
-                      <TableHead className="text-right hidden sm:table-cell">Margin</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {yearlySummary.map(row => (
-                      <TableRow
-                        key={row.year}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => handleQuickSelect(`year-${row.year}`)}
-                      >
-                        <TableCell className="font-semibold">{row.year}</TableCell>
-                        <TableCell className="text-right">{row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                        <TableCell className="text-right font-medium text-warning hidden sm:table-cell">
-                          {row.unpaid > 0 ? row.unpaid.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}
-                        </TableCell>
-                        <TableCell className="text-right text-destructive hidden sm:table-cell">{row.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                        <TableCell className="text-right font-medium text-blue-600 hidden md:table-cell">
-                          {(row.revenue * 0.40).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        </TableCell>
-                        <TableCell className={`text-right font-semibold ${row.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          {row.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground text-sm hidden sm:table-cell">
-                          {row.revenue > 0 ? `${((row.netProfit / row.revenue) * 100).toFixed(1)}%` : '—'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                </div>
+              <CardContent className="pl-2">
+                {analyticsData.expensesByCategory.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={350}>
+                    <BarChart data={analyticsData.expensesByCategory} layout="vertical" margin={{ right: 10, left: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value/1000).toFixed(0)}k`} />
+                        <YAxis dataKey="category" type="category" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={85} interval={0} />
+                        <Tooltip
+                            contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
+                            labelStyle={{ color: 'hsl(var(--foreground))' }}
+                            itemStyle={{ color: 'hsl(var(--foreground))' }}
+                            formatter={(value: number) => [`PKR ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Amount"]}
+                        />
+                        <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
+                        <Bar dataKey="amount" name="Amount" fill="hsl(var(--chart-5))" radius={[0, 4, 4, 0]} barSize={20} />
+                    </BarChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <p className="text-muted-foreground text-center py-10">No expenses recorded for the selected period.</p>
+                )}
               </CardContent>
             </Card>
-          )}
+          </div>
+            </TabsContent>
 
+            <TabsContent value="sales" className="space-y-6 mt-0">
           {/* Charts Section */}
-          <Card className="lg:col-span-2 animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '300ms', animationFillMode: 'both' }}>
+          <Card>
               <CardHeader>
                 <CardTitle>Sales Over Time</CardTitle>
                 <CardDescription>Revenue and order count trend for the selected period.</CardDescription>
@@ -940,7 +941,7 @@ export default function AnalyticsPage() {
 
           {/* Month-by-month revenue — full history, independent of the filter */}
           {monthlyRevenue.data.length > 0 && (
-            <Card className="lg:col-span-2 animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '340ms', animationFillMode: 'both' }}>
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />Revenue by Month
@@ -1001,8 +1002,62 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
           )}
-            
-          <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '400ms', animationFillMode: 'both' }}>
+
+          {/* Yearly Performance Summary — not affected by date filter */}
+          {yearlySummary.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" /> Yearly Performance Overview
+                </CardTitle>
+                <CardDescription>All-time revenue, expenses &amp; profit by year. Click a row to filter analytics to that year.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Year</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right text-warning hidden sm:table-cell">Unpaid</TableHead>
+                      <TableHead className="text-right hidden sm:table-cell">Expenses</TableHead>
+                      <TableHead className="text-right text-blue-600 hidden md:table-cell">Est. Profit (40%)</TableHead>
+                      <TableHead className="text-right">Net Profit</TableHead>
+                      <TableHead className="text-right hidden sm:table-cell">Margin</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {yearlySummary.map(row => (
+                      <TableRow
+                        key={row.year}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleQuickSelect(`year-${row.year}`)}
+                      >
+                        <TableCell className="font-semibold">{row.year}</TableCell>
+                        <TableCell className="text-right">{row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                        <TableCell className="text-right font-medium text-warning hidden sm:table-cell">
+                          {row.unpaid > 0 ? row.unpaid.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}
+                        </TableCell>
+                        <TableCell className="text-right text-destructive hidden sm:table-cell">{row.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                        <TableCell className="text-right font-medium text-blue-600 hidden md:table-cell">
+                          {(row.revenue * 0.40).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </TableCell>
+                        <TableCell className={`text-right font-semibold ${row.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                          {row.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground text-sm hidden sm:table-cell">
+                          {row.revenue > 0 ? `${((row.netProfit / row.revenue) * 100).toFixed(1)}%` : '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center"><CalendarDays className="mr-2 h-5 w-5"/> Daily Summary</CardTitle>
               <CardDescription>A day-by-day breakdown of sales activity for the selected period. Click a row for details.</CardDescription>
@@ -1039,9 +1094,11 @@ export default function AnalyticsPage() {
               )}
             </CardContent>
           </Card>
+            </TabsContent>
 
+            <TabsContent value="products" className="space-y-6 mt-0">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
+            <Card>
               <CardHeader>
                  <CardTitleLink title="Top Selling Products (by Revenue)" href="/analytics/products">
                     <CardDescription>Top 10 for the selected period.</CardDescription>
@@ -1078,46 +1135,7 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
 
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
-              <CardHeader>
-                <CardTitleLink title="Top Selling Products (by Quantity)" href="/analytics/products">
-                    <CardDescription>Top 10 for the selected period.</CardDescription>
-                </CardTitleLink>
-              </CardHeader>
-              <CardContent>
-                {analyticsData.topProductsByQuantity.length > 0 ? (
-                <ScrollArea className="h-[350px] w-full" type="auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead className="text-right">Revenue</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {analyticsData.topProductsByQuantity.map((product) => (
-                        <TableRow key={product.sku}>
-                          <TableCell>
-                            <div className="font-medium">{product.name}</div>
-                            <div className="text-xs text-muted-foreground">SKU: {product.sku}</div>
-                          </TableCell>
-                          <TableCell className="text-right">{product.quantity}</TableCell>
-                          <TableCell className="text-right">{product.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
-                 ) : (
-                     <p className="text-muted-foreground text-center py-10">No product sales data available for the selected period.</p>
-                 )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
+            <Card>
               <CardHeader>
                 <CardTitleLink title="Sales by Category" href="/analytics/categories">
                     <CardDescription>Revenue distribution for the selected period.</CardDescription>
@@ -1145,38 +1163,12 @@ export default function AnalyticsPage() {
                 )}
               </CardContent>
             </Card>
-
-            <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
-              <CardHeader>
-                <CardTitle>Expenses by Category</CardTitle>
-                <CardDescription>Spending distribution for the selected period.</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                {analyticsData.expensesByCategory.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={350}>
-                    <BarChart data={analyticsData.expensesByCategory} layout="vertical" margin={{ right: 10, left: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value/1000).toFixed(0)}k`} />
-                        <YAxis dataKey="category" type="category" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={85} interval={0} />
-                        <Tooltip
-                            contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
-                            labelStyle={{ color: 'hsl(var(--foreground))' }}
-                            itemStyle={{ color: 'hsl(var(--foreground))' }}
-                            formatter={(value: number) => [`PKR ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Amount"]}
-                        />
-                        <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
-                        <Bar dataKey="amount" name="Amount" fill="hsl(var(--chart-5))" radius={[0, 4, 4, 0]} barSize={20} />
-                    </BarChart>
-                    </ResponsiveContainer>
-                ) : (
-                    <p className="text-muted-foreground text-center py-10">No expenses recorded for the selected period.</p>
-                )}
-              </CardContent>
-            </Card>
           </div>
-          
+            </TabsContent>
+
+            <TabsContent value="customers" className="space-y-6 mt-0">
            <div className="grid grid-cols-1">
-             <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '150ms', animationFillMode: 'both' }}>
+             <Card>
               <CardHeader>
                 <CardTitleLink title="Top Customers (by Sales)" href="/analytics/customers">
                     <CardDescription>Top 10 for the selected period.</CardDescription>
@@ -1215,7 +1207,7 @@ export default function AnalyticsPage() {
            </div>
 
           {/* ── Acquisition Source / Walk-in Insights ── */}
-          <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-700" style={{ animationDelay: '150ms', animationFillMode: 'both' }}>
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" /> Acquisition Source Insights
@@ -1307,6 +1299,8 @@ export default function AnalyticsPage() {
               )}
             </CardContent>
           </Card>
+            </TabsContent>
+          </Tabs>
         </>
       )}
     </div>
