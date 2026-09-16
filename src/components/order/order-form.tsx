@@ -313,6 +313,13 @@ const money = (n: number) =>
  * kinds of advance payment and the totals — everything the left column had no
  * room for. Nothing said where one concern ended and the next began.
  */
+/** A sub-heading inside a piece. One style for all four, where there used to be two. */
+const Section: React.FC<{ title: string; hint?: string }> = ({ title, hint }) => (
+  <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1 flex items-baseline gap-2">
+    {title}{hint && <span className="font-normal normal-case tracking-normal text-muted-foreground/60">{hint}</span>}
+  </p>
+);
+
 const PanelSection: React.FC<{
   title: string;
   icon?: React.ReactNode;
@@ -899,7 +906,6 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <FormDescription>Taheri spillover, referral, walk-in, etc.</FormDescription>
                             <FormMessage />
                         </FormItem>
                         )}
@@ -946,6 +952,19 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                         </FormItem>
                       );
                     }}/>
+                    </PanelSection>
+
+                    {/* Where it goes, beside when. Delivery sat in Pricing, which it is not. */}
+                    <PanelSection title="Delivery" icon={<Truck className="h-3.5 w-3.5" />}>
+                    <DeliveryFields
+                      value={delivery}
+                      onChange={setDelivery}
+                      knownAddresses={knownAddressesFor(
+                        selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE ? selectedCustomerId : undefined,
+                        customers.find(c => c.id === selectedCustomerId)?.address,
+                        orders,
+                      )}
+                    />
                     </PanelSection>
             </CardContent>
         </Card>
@@ -1021,15 +1040,30 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             </Button>
                           )}
                         </div>
-                        <div className={cn('space-y-4 px-4 pb-4', !open && 'hidden')}>
-                            <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">The piece</p>
-                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className={cn('space-y-5 px-4 pb-4', !open && 'hidden')}>
+                            {/*
+                              One order of things, top to bottom: what the piece is, what it
+                              costs, what the bench needs, and what it was copied from. Every
+                              field that was here is still here under the same name with the
+                              same rules; what changed is where it sits and what it is called.
+
+                              It used to split the price across the workshop section -- in rate
+                              mode the "Price" heading held one checkbox, then came the karigar
+                              and the instructions, and only after those did weight, wastage and
+                              making appear, under no heading at all. The Diamonds charge was
+                              disabled by a box that sat beneath it. And the price mode was a
+                              negated checkbox: ticked meant "not manual".
+                            */}
+
+                            {/* ── The piece ─────────────────────────────────────────── */}
+                            <Section title="The piece" />
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <FormField control={form.control} name={`items.${index}.itemCategory`} render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Category</FormLabel>
                                         <CategoryPicker
                                           categories={staticCategories}
-                                          value={field.value || '' || ''}
+                                          value={field.value || ''}
                                           onChange={field.onChange}
                                           placeholder="Select category"
                                         />
@@ -1038,18 +1072,40 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 )}/>
                                 <div className="md:col-span-2">
                                     <FormField control={form.control} name={`items.${index}.description`} render={({ field }) => (
-                                        <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g., Custom ring with ruby stone" {...field} rows={2}/></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea placeholder="e.g. Custom ring with ruby stone" {...field} rows={2}/></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </div>
                             </div>
 
+                            {/* Metal and karat directly under the name: after what it is, the
+                                second thing anyone asks about a piece is what it is made of. */}
+                            <div className="grid grid-cols-2 gap-3 md:gap-4">
+                                <FormField control={form.control} name={`items.${index}.metalType`} render={({ field }) => (
+                                    <FormItem><FormLabel>Metal</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Choose the metal" /></SelectTrigger></FormControl>
+                                        <SelectContent>{metalTypeValues.map(m => <SelectItem key={m} value={m}>{metalLabel(m)}</SelectItem>)}</SelectContent>
+                                    </Select><FormMessage /></FormItem>
+                                )}/>
+                                {/* Only for a metal that carries a karat, and only that metal's own
+                                    karats, so 24k palladium cannot be chosen. */}
+                                {metalHasKarat(form.watch(`items.${index}.metalType`)) &&
+                                    <FormField control={form.control} name={`items.${index}.karat`} render={({ field }) => (
+                                        <FormItem><FormLabel>Karat</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                            <SelectContent>{karatsFor(form.watch(`items.${index}.metalType`)).map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
+                                        </Select><FormMessage /></FormItem>
+                                    )}/>
+                                }
+                            </div>
+
                             {form.watch(`items.${index}.metalType`) === 'silver' && (
                               <div className="rounded-md border p-3 space-y-3">
-                                <p className="text-sm font-medium">925 Sterling Silver finish</p>
+                                <p className="text-sm font-medium">925 sterling silver finish</p>
                                 <FormField control={form.control} name={`items.${index}.platingType`} render={({ field }) => (
                                   <FormItem>
                                     <FormLabel className="text-xs">Plating</FormLabel>
-                                    <Select value={field.value || '__none__'} onValueChange={v => field.onChange(v === '__none__' ? '' : v)}>
+                                    <Select value={field.value || '__none__'} onValueChange={v => { if (v === '') return; field.onChange(v === '__none__' ? '' : v); }}>
                                       <FormControl><SelectTrigger><SelectValue placeholder="No plating" /></SelectTrigger></FormControl>
                                       <SelectContent>
                                         <SelectItem value="__none__">No plating</SelectItem>
@@ -1075,11 +1131,10 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                               </div>
                             )}
 
-                            {/* One SizePicker rather than seventy lines of
-                                inline Selects: the order form had its own copy
-                                of the scale logic, so a ring size here was a
-                                51-row dropdown while the same field elsewhere
-                                had already become a searchable grid. */}
+                            {/* One SizePicker rather than seventy lines of inline Selects: the
+                                order form had its own copy of the scale logic, so a ring size
+                                here was a 51-row dropdown while the same field elsewhere had
+                                already become a searchable grid. */}
                             <FormField control={form.control} name={`items.${index}.size`} render={({ field }) => (
                               <FormItem>
                                 <SizePicker
@@ -1091,58 +1146,102 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                               </FormItem>
                             )}/>
 
-                            {/* Metal + Karat — always visible so they are recorded even in manual price mode.
-                                Two short selects; side by side even on a phone. */}
-                            <div className="grid grid-cols-2 gap-3 md:gap-4">
-                                <FormField control={form.control} name={`items.${index}.metalType`} render={({ field }) => (
-                                    <FormItem><FormLabel>Metal</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Choose the metal" /></SelectTrigger></FormControl>
-                                        <SelectContent>{metalTypeValues.map(m => <SelectItem key={m} value={m}>{metalLabel(m)}</SelectItem>)}</SelectContent>
-                                    </Select><FormMessage /></FormItem>
-                                )}/>
-                                {/* Shown for any metal that carries a karat -- gold, and now
-                                    palladium at 12k/18k -- and offering only that metal's own
-                                    karats, so 24k palladium cannot be chosen. */}
-                                {metalHasKarat(form.watch(`items.${index}.metalType`)) &&
-                                    <FormField control={form.control} name={`items.${index}.karat`} render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center"><Zap className="mr-2 h-4 w-4"/>Karat</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                            <SelectContent>{karatsFor(form.watch(`items.${index}.metalType`)).map(k => <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>)}</SelectContent>
-                                        </Select><FormMessage /></FormItem>
-                                    )}/>
-                                }
-                            </div>
-
-                            <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">Price</p>
-                            {/* Manual price mode (Primary) */}
-                            {form.watch(`items.${index}.isManualPrice`) && (
-                                <div className="space-y-4 p-3 border rounded-md bg-muted/30">
-                                    <FormField control={form.control} name={`items.${index}.manualPrice`} render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4"/>Manual Price (PKR)</FormLabel><FormControl><AmountInput placeholder="Enter total price for this item" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <div>
-                                        <Label className="text-muted-foreground text-xs">Reference Rate per Gram (Optional)</Label>
-                                        <p className="text-xs text-muted-foreground mb-1">For internal reference only — does not affect the price.</p>
-                                        <AmountInput value="" placeholder="e.g., 275" className="mt-1" disabled aria-label="Reference Rate per Gram (Optional)"/>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Rate & stone calculation toggle */}
+                            {/* ── Price ─────────────────────────────────────────────── */}
+                            <Section title="Price" />
+                            {/* Two ways to price a piece, as two buttons rather than one
+                                negated checkbox. Same boolean underneath -- isManualPrice --
+                                so nothing about how the order is stored changes. */}
                             <FormField control={form.control} name={`items.${index}.isManualPrice`} render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3 bg-muted/30">
-                                    <FormControl><Checkbox checked={!field.value} onCheckedChange={(checked) => field.onChange(!checked)} /></FormControl>
-                                    <div className="space-y-0.5 leading-none">
-                                        <FormLabel className="flex items-center cursor-pointer text-sm text-muted-foreground">Use Rate &amp; Stone Calculation Instead</FormLabel>
-                                        <FormDescription className="text-xs">Calculate price from weight, rate, wastage, and charges.</FormDescription>
-                                    </div>
+                                <FormItem>
+                                  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="How this piece is priced">
+                                    <Button type="button" variant={!field.value ? 'default' : 'outline'} className="h-9" role="radio" aria-checked={!field.value}
+                                      onClick={() => field.onChange(false)}>
+                                      Weight × rate
+                                    </Button>
+                                    <Button type="button" variant={field.value ? 'default' : 'outline'} className="h-9" role="radio" aria-checked={!!field.value}
+                                      onClick={() => field.onChange(true)}>
+                                      Fixed price
+                                    </Button>
+                                  </div>
                                 </FormItem>
                             )}/>
 
-                            <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1">For the workshop</p>
-                            {/* Instructions belong with what the bench needs,
-                                not stranded between plating and size. */}
+                            {form.watch(`items.${index}.isManualPrice`) ? (
+                                <FormField control={form.control} name={`items.${index}.manualPrice`} render={({ field }) => (
+                                    <FormItem><FormLabel>Price (PKR)</FormLabel><FormControl><AmountInput placeholder="The agreed total for this piece" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                            ) : (
+                                <>
+                                {/* Weight and wastage together: the two numbers the metal price is
+                                    made from. Wastage does not apply to silver. */}
+                                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                                    <FormField control={form.control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Weight (g)</FormLabel>
+                                            <FormControl><AmountInput {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                    {form.watch(`items.${index}.metalType`) !== 'silver' && (
+                                        <FormField control={form.control} name={`items.${index}.wastagePercentage`} render={({ field }) => (
+                                            <FormItem><FormLabel>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                                    <FormField control={form.control} name={`items.${index}.makingCharges`} render={({ field }) => (
+                                        <FormItem><FormLabel>Making (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name={`items.${index}.stoneCharges`} render={({ field }) => (
+                                        <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                </div>
+
+                                {/* The box comes first and the fields it opens come under it. The
+                                    Diamonds charge used to sit disabled ABOVE the box that enabled
+                                    it, so the first thing you met was a field you could not type in. */}
+                                <FormField control={form.control} name={`items.${index}.hasDiamonds`} render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                      <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                      <FormLabel className="font-normal text-sm cursor-pointer">Has diamonds</FormLabel>
+                                    </FormItem>
+                                )}/>
+                                {form.watch(`items.${index}.hasDiamonds`) && (
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pl-6 border-l-2 border-muted">
+                                    <FormField control={form.control} name={`items.${index}.diamondCharges`} render={({ field }) => (
+                                        <FormItem><FormLabel>Diamonds (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <div className="md:col-span-2">
+                                      <FormField control={form.control} name={`items.${index}.diamondDetails`} render={({ field }) => (
+                                         <FormItem><FormLabel>Diamond details</FormLabel><FormControl><Textarea rows={2} placeholder="e.g. Centre 1ct VVS1, sides 12 × 0.05ct VS2" {...field} /></FormControl><FormMessage /></FormItem>
+                                      )}/>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <FormField control={form.control} name={`items.${index}.hasStones`} render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                      <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                      <FormLabel className="font-normal text-sm cursor-pointer">Has other stones</FormLabel>
+                                    </FormItem>
+                                )}/>
+                                {form.watch(`items.${index}.hasStones`) && (
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pl-6 border-l-2 border-muted">
+                                    <FormField control={form.control} name={`items.${index}.stoneWeightG`} render={({ field }) => (
+                                        <FormItem><FormLabel>Stone weight (g)</FormLabel><FormControl><AmountInput placeholder="e.g. 0.5" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <div className="md:col-span-2">
+                                      <FormField control={form.control} name={`items.${index}.stoneDetails`} render={({ field }) => (
+                                         <FormItem><FormLabel>Stone details</FormLabel><FormControl><Textarea rows={2} placeholder="e.g. 1 × ruby 2ct, 4 × sapphire 0.5ct" {...field} /></FormControl><FormMessage /></FormItem>
+                                      )}/>
+                                    </div>
+                                  </div>
+                                )}
+                                </>
+                            )}
+
+                            {/* ── For the workshop ──────────────────────────────────── */}
+                            <Section title="For the workshop" />
                             <FormField control={form.control} name={`items.${index}.adminNote`} render={({ field }) => (
                                <FormItem className="rounded-md border border-warning/40 bg-warning/10 p-3">
                                   <FormLabel className="flex items-center text-warning"><Lock className="mr-2 h-4 w-4"/>Instructions for the karigar</FormLabel>
@@ -1151,84 +1250,31 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                   <FormMessage />
                                </FormItem>
                             )}/>
-                            {/* Karigar always visible */}
-                            <FormField
-                                control={form.control}
-                                name={`items.${index}.karigarId`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel className="flex items-center"><Briefcase className="mr-2 h-4 w-4"/>Assign to Karigar</FormLabel>
-                                    <KarigarPicker
-                                      value={field.value || ''}
-                                      onChange={field.onChange}
-                                      clearLabel="No karigar yet"
-                                      aria-label="Assign to karigar"
-                                    />
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            <FormField control={form.control} name={`items.${index}.karigarId`} render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Karigar</FormLabel>
+                                  <KarigarPicker
+                                    value={field.value || ''}
+                                    onChange={field.onChange}
+                                    clearLabel="No karigar yet"
+                                    aria-label="Assign to karigar"
+                                  />
+                                  <FormMessage />
+                                </FormItem>
+                            )}/>
+                            {/* Completion is a workshop fact, so it lives here and not among the
+                                references it used to sit under. Edit mode only, as before. */}
+                            {isEditMode && <FormField control={form.control} name={`items.${index}.isCompleted`} render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                  <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                  <FormLabel className="font-normal text-sm cursor-pointer">Piece is finished</FormLabel>
+                                </FormItem>
+                            )}/>}
 
-                            {/* Auto-calculated mode (Secondary) */}
-                            {!form.watch(`items.${index}.isManualPrice`) && (
-                                <>
-                                {/* Numbers, all short: two up on a phone, three on a desktop. */}
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                                    <FormField control={form.control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className="flex items-center"><Weight className="mr-2 h-4 w-4"/>
-                                                {form.watch(`items.${index}.metalType`) === 'silver' ? 'Weight (g) × 925 Sterling Silver Rate/g' : 'Est. Weight (g)'}
-                                            </FormLabel>
-                                            <FormControl><AmountInput {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}/>
-                                </div>
-                                {/* Hide wastage for silver */}
-                                {form.watch(`items.${index}.metalType`) !== 'silver' && (
-                                    <FormField control={form.control} name={`items.${index}.wastagePercentage`} render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center"><Percent className="mr-2 h-4 w-4"/>Wastage (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                )}
-                                <Separator />
-                                <p className="font-medium text-sm">Additional Charges & Details</p>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                                    <FormField control={form.control} name={`items.${index}.makingCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Making</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name={`items.${index}.diamondCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamonds</FormLabel><FormControl><AmountInput {...field} disabled={!form.watch(`items.${index}.hasDiamonds`)} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name={`items.${index}.stoneCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel>Stones</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                </div>
-                                <div className="flex gap-4">
-                                    <FormField control={form.control} name={`items.${index}.hasDiamonds`} render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                        <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer">Item Contains Diamonds?</FormLabel></div></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name={`items.${index}.hasStones`} render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                        <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer">Item Contains Other Stones?</FormLabel></div></FormItem>
-                                    )}/>
-                                </div>
-                                {form.watch(`items.${index}.hasStones`) && <FormField control={form.control} name={`items.${index}.stoneWeightG`} render={({ field }) => (<FormItem><FormLabel>Stone Weight (grams)</FormLabel><FormControl><AmountInput placeholder="e.g., 0.5" {...field} /></FormControl><FormMessage /></FormItem>)}/>}
-                                {form.watch(`items.${index}.hasStones`) && <FormField control={form.control} name={`items.${index}.stoneDetails`} render={({ field }) => (
-                                   <FormItem><FormLabel className="flex items-center"><GemIcon className="mr-2 h-4 w-4"/>Stone Details</FormLabel><FormControl><Textarea placeholder="e.g., 1x Ruby (2ct), 4x Sapphire (0.5ct each)" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>}
-                                {form.watch(`items.${index}.hasDiamonds`) &&
-                                  <FormField control={form.control} name={`items.${index}.diamondDetails`} render={({ field }) => (
-                                     <FormItem><FormLabel className="flex items-center"><Diamond className="mr-2 h-4 w-4"/>Diamond Details</FormLabel><FormControl><Textarea placeholder="e.g., Center: 1ct VVS1, Side: 12x 0.05ct VS2" {...field} /></FormControl><FormMessage /></FormItem>
-                                  )}/>
-                                }
-                                </>
-                            )}
-
-                            <Separator />
-                            <p className="font-medium text-sm">Reference Details (Optional)</p>
-                             <div>
-                                <FormLabel className="flex items-center"><Camera className="mr-2 h-4 w-4"/>Sample Picture</FormLabel>
+                            {/* ── References ────────────────────────────────────────── */}
+                            <Section title="References" hint="optional" />
+                            <div>
+                                <FormLabel>Sample picture</FormLabel>
                                 <FormField control={form.control} name={`items.${index}.sampleImageDataUri`} render={({ field }) => (
                                     <SampleImageInput
                                         value={field.value}
@@ -1236,21 +1282,16 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                         onRemove={() => form.setValue(`items.${index}.sampleImageDataUri`, '', { shouldValidate: true, shouldDirty: true })}
                                     />
                                 )}/>
-                             </div>
-
+                            </div>
                             <FormField control={form.control} name={`items.${index}.referenceSku`} render={({ field }) => (
-                               <FormItem><FormLabel className="flex items-center"><LinkIcon className="mr-2 h-4 w-4"/>Reference SKU</FormLabel><FormControl><Input placeholder="e.g., RIN-123456" {...field} /></FormControl><FormMessage /></FormItem>
+                               <FormItem><FormLabel>Reference SKU</FormLabel><FormControl><Input placeholder="e.g. RIN-123456" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
-
                             <FormField control={form.control} name={`items.${index}.sampleGiven`} render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer"><Hand className="mr-2 h-4 w-4"/>Customer provided a physical sample</FormLabel></div></FormItem>
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                  <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                  <FormLabel className="font-normal text-sm cursor-pointer">Customer provided a physical sample</FormLabel>
+                                </FormItem>
                             )}/>
-
-                            {isEditMode && <FormField control={form.control} name={`items.${index}.isCompleted`} render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                <div className="space-y-1 leading-none"><FormLabel className="flex items-center cursor-pointer">Item is Completed</FormLabel></div></FormItem>
-                            )}/>}
                         </div>
                     </div>
                     );
@@ -1333,18 +1374,6 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                       );
                     })()}
 
-                    <PanelSection title="Delivery" icon={<Truck className="h-3.5 w-3.5" />}>
-                    <DeliveryFields
-                      value={delivery}
-                      onChange={setDelivery}
-                      knownAddresses={knownAddressesFor(
-                        selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE ? selectedCustomerId : undefined,
-                        customers.find(c => c.id === selectedCustomerId)?.address,
-                        orders,
-                      )}
-                    />
-                    </PanelSection>
-
                     <PanelSection title="Payment" icon={<TicketPercent className="h-3.5 w-3.5" />}>
                     <FormField control={form.control} name="discountAmount" render={({ field }) => (
                        <FormItem>
@@ -1368,10 +1397,10 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                         <p className="text-xs font-medium mb-2">Advance in exchange (gold / diamonds)</p>
                         <div className="space-y-2">
                             <FormField control={form.control} name="advanceInExchangeDescription" render={({ field }) => (
-                               <FormItem><FormLabel className="text-xs">Description of Items Received</FormLabel><FormControl><Textarea placeholder="e.g., Old gold ring (21k, ~5.2g)" {...field} rows={2} /></FormControl><FormMessage /></FormItem>
+                               <FormItem><FormLabel className="text-xs">What was received</FormLabel><FormControl><Textarea placeholder="e.g., Old gold ring (21k, ~5.2g)" {...field} rows={2} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="advanceInExchangeValue" render={({ field }) => (
-                               <FormItem><FormLabel className="text-xs">Estimated Value (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                               <FormItem><FormLabel className="text-xs">Its value (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                         </div>
                     </div>
