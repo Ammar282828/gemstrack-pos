@@ -17,7 +17,13 @@ import { listDrafts, clearDraft, summarizeDraft, type DraftSummary } from '@/lib
  * you had one half-typed. Drafts live in this browser, so the list is read on
  * mount and is per device.
  */
-export const UnfinishedWork: React.FC = () => {
+/**
+ * `title` and `hint` make this a section of its own on a page that is not the
+ * sale hub — the Invoices page carries it as "Drafts", because that is where
+ * people went looking for them. Both vanish with the list when there is nothing
+ * unfinished, so the page never shows an empty heading.
+ */
+export const UnfinishedWork: React.FC<{ title?: string; hint?: string }> = ({ title, hint }) => {
   const { toast } = useToast();
   const [drafts, setDrafts] = React.useState<DraftSummary[]>([]);
 
@@ -31,6 +37,12 @@ export const UnfinishedWork: React.FC = () => {
 
   return (
     <div className="space-y-2">
+      {title && (
+        <div className="pb-1">
+          <h2 className="text-lg font-semibold">{title}</h2>
+          {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+        </div>
+      )}
       {drafts.map(d => {
         let when = 'recently';
         try { when = formatDistanceToNow(new Date(d.savedAt), { addSuffix: true }); } catch { /* keep fallback */ }

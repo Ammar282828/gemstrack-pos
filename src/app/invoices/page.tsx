@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { stockSku } from '@/lib/sku';
+import { UnfinishedWork } from '@/components/shared/unfinished-work';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, FileText, ClipboardList, AlertTriangle, Calendar, Upload, CheckCircle2, ShoppingBag, Printer, ChevronDown, Link2, Copy, Send } from 'lucide-react';
@@ -972,7 +973,11 @@ export default function DocumentsPage() {
         </Button>
       </header>
 
-      
+      {/* Sales and orders started and not saved. They live in this browser, not in
+          the book, which is why they were never in the list below and why people
+          came here looking for them. */}
+      <UnfinishedWork title="Drafts" hint="Started but not saved. Kept on this device only — pick one up, or discard it." />
+
       <FilterBar
         value={searchTerm}
         onChange={setSearchTerm}
