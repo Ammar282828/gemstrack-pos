@@ -11,7 +11,7 @@
  * here is how the two would drift apart.
  */
 
-import type { AppState, HisaabEntityType } from '@/lib/store';
+import type { AppState, HisaabEntityType, OrderStatus, PaymentType } from '@/lib/store';
 import type { Reading } from './resolve';
 
 export interface AppliedEntry {
@@ -35,6 +35,7 @@ type Store = Pick<
   | 'addCustomer' | 'addKarigar' | 'updateCustomer' | 'updateKarigar'
   | 'deleteHisaabEntry' | 'deleteExpense' | 'deleteAdditionalRevenue'
   | 'deleteCustomer' | 'deleteKarigar'
+  | 'recordOrderAdvance' | 'updateOrderStatus' | 'updateOrder' | 'updateInvoicePayment'
 >;
 
 const money = (n: number) => `Rs ${n.toLocaleString('en-PK')}`;
@@ -176,6 +177,67 @@ export async function applyReading(reading: Reading, store: Store): Promise<Appl
       if (!person) throw new Error('No name matched anyone in the book.');
       await store.updateKarigar(person.id, reading.fields ?? {});
       return { said: `Updated ${person.name}.`, href: `/karigars/${person.id}` };
+    }
+
+    /*
+     * The work at the bench and the bills already raised. Each goes through the same
+     * store action the order page or the invoice page would call, so a spoken advance
+     * and a typed one are the same row with the same activity log behind it.
+     */
+    case 'order_advance': {
+      const doc = reading.doc;
+      const amount = reading.amount ?? 0;
+      if (!doc) throw new Error('No order to put that on.');
+      const updated = await store.recordOrderAdvance(doc.id, amount, reading.description || 'Spoken advance');
+      if (!updated) throw new Error('The advance was not recorded.');
+      const left = Math.max(0, updated.grandTotal);
+      return {
+        said: `Done — ${money(amount)} advance on ${doc.id} for ${doc.customerName}; ${left > 0 ? `${money(left)} to collect` : 'nothing left to collect'}.`,
+        href: doc.href,
+        // Put back what the order carried before, rather than recording a negative advance.
+        undo: () => store.updateOrder(doc.id, { advancePayment: doc.advancePayment ?? 0, grandTotal: doc.balance }),
+      };
+    }
+
+    case 'order_status': {
+      const doc = reading.doc;
+      const status = reading.status as OrderStatus | null;
+      if (!doc || !status) throw new Error('No order, or no status.');
+      await store.updateOrderStatus(doc.id, status);
+      const before = doc.status as OrderStatus | undefined;
+      return {
+        said: `Done — ${doc.id} for ${doc.customerName} is ${status.toLowerCase()}.`,
+        href: doc.href,
+        undo: before ? () => store.updateOrderStatus(doc.id, before) : undefined,
+      };
+    }
+
+    case 'order_promise': {
+      const doc = reading.doc;
+      const date = reading.date;
+      if (!doc || !date) throw new Error('No order, or no date.');
+      await store.updateOrder(doc.id, { promisedDate: date });
+      return {
+        said: `Done — ${doc.id} for ${doc.customerName} is now promised for ${date}.`,
+        href: doc.href,
+        undo: doc.promisedDate ? () => store.updateOrder(doc.id, { promisedDate: doc.promisedDate }) : undefined,
+      };
+    }
+
+    case 'invoice_payment': {
+      const doc = reading.doc;
+      const amount = reading.amount ?? 0;
+      if (!doc) throw new Error('No invoice to put that against.');
+      const updated = await store.updateInvoicePayment(doc.id, amount, date, (reading.method ?? 'Cash') as PaymentType);
+      if (!updated) throw new Error('The payment was not recorded.');
+      const left = Math.max(0, updated.balanceDue);
+      return {
+        said: `Done — ${money(amount)} against ${doc.id} for ${doc.customerName}; ${left > 0 ? `${money(left)} left` : 'paid in full'}.`,
+        href: doc.href,
+        // A payment on an invoice is reversed from the invoice page, as a refund, so it
+        // leaves a trace. Not by a word said a minute later.
+        undo: undefined,
+      };
     }
 
     default:

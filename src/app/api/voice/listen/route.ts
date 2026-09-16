@@ -15,6 +15,7 @@ import { generateJson, geminiConfigured, GeminiError } from '@/lib/voice/gemini'
 import { systemPrompt } from '@/lib/voice/prompt';
 import { VOICE_ACTIONS } from '@/lib/voice/resolve';
 import type { RosterEntry } from '@/lib/voice/phonetics';
+import { documentLines, type DocEntry } from '@/lib/voice/documents';
 
 export const runtime = 'nodejs';
 /** Audio in, a model call out — there is nothing here worth caching. */
@@ -88,6 +89,14 @@ const READING_SCHEMA = {
     description: { type: 'STRING', description: 'What the entry was for, in his own words.' },
     screen: { type: 'STRING', description: 'For navigate: dashboard, customers, karigars, orders, products, hisaab, expenses, analytics, calendar, settings.' },
     query: { type: 'STRING', description: 'For ask: what is being asked about.' },
+    doc: {
+      type: 'OBJECT',
+      description: 'The order or invoice, only when he said its number.',
+      properties: {
+        kind: { type: 'STRING', enum: ['order', 'invoice'] },
+        id: { type: 'STRING', description: 'The number he said, as digits: "16".' },
+      },
+    },
     fields: {
       type: 'OBJECT',
       description: 'For new_/edit_ actions: the record fields being set, camelCase.',
@@ -109,6 +118,9 @@ const READING_SCHEMA = {
         workshop: { type: 'STRING' },
         contact: { type: 'STRING' },
         notes: { type: 'STRING' },
+        status: { type: 'STRING', description: 'For order_status: his word for the state of the work.' },
+        date: { type: 'STRING', description: 'For order_promise: YYYY-MM-DD.' },
+        method: { type: 'STRING', description: 'For invoice_payment: cash, card, bank transfer or cheque, if said.' },
       },
     },
   },
@@ -128,6 +140,7 @@ export async function POST(req: NextRequest) {
     mimeType?: string;
     text?: string;
     roster?: RosterEntry[];
+    documents?: DocEntry[];
     shopName?: string;
     today?: string;
     orderKarat?: string | number;
@@ -138,7 +151,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Bad request body.' }, { status: 400 });
   }
 
-  const { audio, mimeType, text, roster = [], shopName = 'the shop', today, orderKarat } = body;
+  const { audio, mimeType, text, roster = [], documents = [], shopName = 'the shop', today, orderKarat } = body;
 
   if (!audio && !text) {
     return NextResponse.json({ error: 'Nothing to listen to.' }, { status: 400 });
@@ -161,6 +174,7 @@ export async function POST(req: NextRequest) {
         today: today || new Date().toISOString().slice(0, 10),
         roster: roster.slice(0, 4000),
         orderKarat,
+        documents: documentLines(documents.slice(0, 200)),
       }),
       parts,
       schema: READING_SCHEMA as unknown as Record<string, unknown>,

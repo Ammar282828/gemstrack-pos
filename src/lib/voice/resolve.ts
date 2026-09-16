@@ -15,6 +15,7 @@
  */
 
 import { matchShape, rankNames, type LearnedAlias, type PersonKind, type RankedName, type RosterEntry } from './phonetics';
+import { matchMethod, matchStatus, resolveDocument, type DocEntry, type DocKind } from './documents';
 
 export const VOICE_ACTIONS = [
   /* money against a person */
@@ -25,6 +26,8 @@ export const VOICE_ACTIONS = [
   'new_customer', 'new_karigar', 'edit_customer', 'edit_karigar',
   /* the gold hisaab, which is its own book */
   'gold_received', 'gold_paid',
+  /* the work at the bench and the bills already raised */
+  'order_advance', 'order_status', 'order_promise', 'invoice_payment', 'open_order', 'open_invoice',
   /* none of these write anything */
   'ask', 'query_balance', 'navigate', 'help', 'unknown',
   /* takes back the last entry rather than writing a new one */
@@ -73,6 +76,15 @@ export const KARIGAR_FIELDS = [
   'name', 'contact', 'altPhone', 'specialty', 'workshop', 'address', 'city', 'country', 'notes',
 ] as const;
 
+/** What may be said about an order or a bill. */
+export const DOC_FIELDS = ['status', 'date', 'method', 'note'] as const;
+
+const DOC_ACTIONS = new Set<string>([
+  'order_advance', 'order_status', 'order_promise', 'invoice_payment', 'open_order', 'open_invoice',
+]);
+const docKindOf = (action: string): DocKind =>
+  action === 'invoice_payment' || action === 'open_invoice' ? 'invoice' : 'order';
+
 /** What the model is asked to produce. Every field is optional — it often knows only some. */
 export interface RawIntent {
   action?: string;
@@ -86,6 +98,8 @@ export interface RawIntent {
   screen?: string;
   query?: string;
   fields?: Record<string, unknown> | null;
+  /** The order or bill the sentence was about, when a number was said. */
+  doc?: { kind?: string; id?: string } | null;
   /** Set by us, not the model, when the figure had to be recovered from the summary. */
   amount_recovered?: boolean;
 }
@@ -114,6 +128,17 @@ export interface Reading {
   screen: string | null;
   query: string | null;
   fields: Record<string, string> | null;
+  /** The order or invoice this acts on, pinned to a real row. */
+  doc: DocEntry | null;
+  /** Offered when the person has more than one — the shop picks. */
+  docCandidates: DocEntry[];
+  docAmbiguous: boolean;
+  /** For order_status: the word the book uses. */
+  status: string | null;
+  /** For order_promise: YYYY-MM-DD. */
+  date: string | null;
+  /** For invoice_payment: how it was paid. */
+  method: string | null;
   /** True when this reading is safe to write without asking anything further. */
   postable: boolean;
   /** Why it is not postable, in the shop's own words. */
@@ -252,14 +277,14 @@ const NEEDS_PERSON = new Set<VoiceAction>([
 /** Actions that must carry a rupee figure. */
 const NEEDS_AMOUNT = new Set<VoiceAction>([
   'record_owed', 'record_we_owe', 'record_payment', 'record_payout', 'write_off',
-  'expense', 'other_income',
+  'expense', 'other_income', 'order_advance', 'invoice_payment',
 ]);
 
 /** Actions that must carry a weight. */
 const NEEDS_GRAMS = new Set<VoiceAction>(['gold_received', 'gold_paid']);
 
 /** Actions that never write anything. */
-export const READ_ONLY_ACTIONS = new Set<VoiceAction>(['ask', 'query_balance', 'navigate', 'help', 'unknown', 'undo']);
+export const READ_ONLY_ACTIONS = new Set<VoiceAction>(['ask', 'query_balance', 'navigate', 'help', 'unknown', 'undo', 'open_order', 'open_invoice']);
 
 export interface ResolveOptions {
   roster: RosterEntry[];
@@ -267,6 +292,15 @@ export interface ResolveOptions {
   /** The shop's usual purity for each direction, used when a weight arrives without one. */
   receiveKarat?: number;
   payKarat?: number;
+  /** The orders and invoices that can be named. See documentsFor(). */
+  documents?: DocEntry[];
+  /**
+   * Answers the shop has already given. When "which Alifya?" has been answered, the
+   * reading is built again around that answer, and it may then have a second question
+   * to ask — which of her orders — that could not be asked before the first was settled.
+   */
+  pinPerson?: RankedName | null;
+  pinDoc?: DocEntry | null;
 }
 
 /**
@@ -306,7 +340,8 @@ export function resolveIntent(raw: RawIntent | null | undefined, opts: ResolveOp
   /* Only fields the record actually has survive the trip out of the model. */
   const fields = cleanFields(
     intent.fields,
-    action === 'new_karigar' || action === 'edit_karigar' ? KARIGAR_FIELDS : CUSTOMER_FIELDS,
+    DOC_ACTIONS.has(action) ? DOC_FIELDS
+      : action === 'new_karigar' || action === 'edit_karigar' ? KARIGAR_FIELDS : CUSTOMER_FIELDS,
   );
 
   /* A weight with no karat is the shop's usual purity for that direction, not a blank. */
@@ -314,7 +349,43 @@ export function resolveIntent(raw: RawIntent | null | undefined, opts: ResolveOp
   if (action === 'gold_received' && karat == null) karat = opts.receiveKarat ?? 21;
   if (action === 'gold_paid' && karat == null) karat = opts.payKarat ?? 24;
 
-  const { match, candidates, ambiguous } = resolvePerson(intent, roster, aliases);
+  const { match, candidates, ambiguous } = opts.pinPerson
+    ? { match: opts.pinPerson, candidates: [], ambiguous: false }
+    : resolvePerson(intent, roster, aliases);
+
+  /**
+   * A customer's payment lands on her open bill, not beside it.
+   *
+   * The khata entry for a sale is written from the invoice, and a payment recorded
+   * only in the khata leaves that invoice saying "unpaid" for ever. So when the
+   * person paying has an invoice with money owed, the payment goes against it — the
+   * invoice write settles the khata as well. The card says which bill, so a payment
+   * meant for something else is one Cancel away.
+   */
+  const documents = opts.documents ?? [];
+  if (action === 'record_payment' && match?.kind === 'customer'
+      && documents.some((d) => d.kind === 'invoice' && d.open && d.customerId === match.id)) {
+    action = 'invoice_payment';
+  }
+
+  let doc: DocEntry | null = null;
+  let docCandidates: DocEntry[] = [];
+  let docAmbiguous = false;
+  let docBlocked: string | null = null;
+  if (DOC_ACTIONS.has(action) && !ambiguous) {
+    const r = opts.pinDoc
+      ? { doc: opts.pinDoc, candidates: [], ambiguous: false, blocked: null }
+      : resolveDocument(
+          { kind: docKindOf(action), spokenId: intent.doc?.id, person: match, forWrite: !READ_ONLY_ACTIONS.has(action) },
+          documents,
+        );
+    doc = r.doc; docCandidates = r.candidates; docAmbiguous = r.ambiguous; docBlocked = r.blocked;
+  }
+
+  const status = action === 'order_status' ? matchStatus(fields?.status ?? intent.summary) : null;
+  const date = action === 'order_promise' && /^\d{4}-\d{2}-\d{2}$/.test(fields?.date ?? '') ? fields!.date : null;
+  // The model tends to put "by bank transfer" in its sentence rather than the field.
+  const method = action === 'invoice_payment' ? matchMethod(fields?.method ?? intent.summary) : null;
 
   /* "ring for Fatema Marvi" should attach the order to her record, not just mention her. */
   let forCustomer: RankedName | null = null;
@@ -353,6 +424,13 @@ export function resolveIntent(raw: RawIntent | null | undefined, opts: ResolveOp
   else if (action === 'edit_customer' || action === 'edit_karigar') {
     if (!fields) blockedBecause = 'Nothing to change.';
   }
+  else if (docAmbiguous) blockedBecause = docBlocked;
+  else if (DOC_ACTIONS.has(action) && !doc) blockedBecause = docBlocked ?? 'Which one?';
+  else if (action === 'order_status' && !status) blockedBecause = 'Which status — completed, in progress, pending or cancelled?';
+  else if (action === 'order_promise' && !date) blockedBecause = 'No date.';
+  else if (action === 'invoice_payment' && doc && amount != null && amount > doc.balance + 0.5) {
+    blockedBecause = `That is more than the Rs ${Math.round(doc.balance).toLocaleString('en-PK')} still owed on ${doc.id}.`;
+  }
 
   return {
     action,
@@ -366,9 +444,16 @@ export function resolveIntent(raw: RawIntent | null | undefined, opts: ResolveOp
     grams,
     karat,
     description: String(intent.description ?? '').slice(0, 300),
-    screen: action === 'navigate' ? (SCREENS[String(intent.screen ?? '').toLowerCase()] ?? null) : null,
+    screen: action === 'navigate' ? (SCREENS[String(intent.screen ?? '').toLowerCase()] ?? null)
+      : (action === 'open_order' || action === 'open_invoice') && doc ? doc.href : null,
     query,
     fields,
+    doc,
+    docCandidates,
+    docAmbiguous,
+    status,
+    date,
+    method,
     postable: !READ_ONLY_ACTIONS.has(action) && blockedBecause === null,
     blockedBecause,
   };

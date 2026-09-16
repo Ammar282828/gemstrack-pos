@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { resolveIntent, READ_ONLY_ACTIONS, type RawIntent, type Reading } from '@/lib/voice/resolve';
+import { documentsFor, type DocEntry } from '@/lib/voice/documents';
 import { applyReading, type AppliedEntry } from '@/lib/voice/apply';
 import { answerQuestion } from '@/lib/voice/answers';
 import { speak, stopSpeaking, speechOutputSupported } from '@/lib/voice/speak';
@@ -76,20 +77,28 @@ export function VoiceBubble() {
   const deleteAdditionalRevenue = useAppStore((s) => s.deleteAdditionalRevenue);
   const deleteCustomer = useAppStore((s) => s.deleteCustomer);
   const deleteKarigar = useAppStore((s) => s.deleteKarigar);
+  const recordOrderAdvance = useAppStore((s) => s.recordOrderAdvance);
+  const updateOrderStatus = useAppStore((s) => s.updateOrderStatus);
+  const updateOrder = useAppStore((s) => s.updateOrder);
+  const updateInvoicePayment = useAppStore((s) => s.updateInvoicePayment);
   const store = useMemo(() => ({
     addHisaabEntry, addExpense, addAdditionalRevenue,
     addCustomer, addKarigar, updateCustomer, updateKarigar,
     deleteHisaabEntry, deleteExpense, deleteAdditionalRevenue, deleteCustomer, deleteKarigar,
+    recordOrderAdvance, updateOrderStatus, updateOrder, updateInvoicePayment,
   }), [addHisaabEntry, addExpense, addAdditionalRevenue, addCustomer, addKarigar, updateCustomer,
-       updateKarigar, deleteHisaabEntry, deleteExpense, deleteAdditionalRevenue, deleteCustomer, deleteKarigar]);
+       updateKarigar, deleteHisaabEntry, deleteExpense, deleteAdditionalRevenue, deleteCustomer, deleteKarigar,
+       recordOrderAdvance, updateOrderStatus, updateOrder, updateInvoicePayment]);
 
   /** Everything the fixed queries read. Nothing here is written to. */
   const hisaabEntries = useAppStore((s) => s.hisaabEntries);
   const karigarJobs = useAppStore((s) => s.karigarJobs);
   const orders = useAppStore((s) => s.orders);
+  const invoices = useAppStore((s) => s.generatedInvoices);
   const loadHisaab = useAppStore((s) => s.loadHisaab);
   const loadKarigarJobs = useAppStore((s) => s.loadKarigarJobs);
   const loadOrders = useAppStore((s) => s.loadOrders);
+  const loadInvoices = useAppStore((s) => s.loadGeneratedInvoices);
 
   /** The entry just written, so "undo" a moment later means that one and nothing else. */
   const lastWrite = useRef<AppliedEntry | null>(null);
@@ -101,7 +110,19 @@ export function VoiceBubble() {
     loadHisaab();
     loadKarigarJobs();
     loadOrders();
-  }, [loadCustomers, loadKarigars, loadVoiceAliases, loadHisaab, loadKarigarJobs, loadOrders]);
+    loadInvoices();
+  }, [loadCustomers, loadKarigars, loadVoiceAliases, loadHisaab, loadKarigarJobs, loadOrders, loadInvoices]);
+
+  /** The orders and bills a sentence can name. Open ones first. */
+  const documents = useMemo(() => documentsFor(orders, invoices), [orders, invoices]);
+
+  /**
+   * The model's reply, kept as it arrived. When the shop answers "which Alifya?" the
+   * reading is built again from this with that answer pinned, because settling the
+   * person can raise the next question — which of her orders — that could not be
+   * asked until the first was settled.
+   */
+  const rawRef = useRef<RawIntent | null>(null);
 
   /**
    * Corrections already made, keyed by sound.
@@ -166,6 +187,7 @@ export function VoiceBubble() {
           audio: base64,
           mimeType: blob.type || 'audio/webm',
           roster,
+          documents,
           shopName: settings.shopName,
           today: new Date().toISOString().slice(0, 10),
           // '21k' -> '21'; the prompt states a number, not a karat label.
@@ -177,15 +199,17 @@ export function VoiceBubble() {
       if (!res.ok) throw new Error(data?.error || 'Voice failed.');
 
       const raw = data as RawIntent & { transcript?: string };
+      rawRef.current = raw;
       setTranscript(raw.transcript ?? '');
       setHeardAs(raw.person?.spoken_as || raw.person?.name || '');
 
       /* The model's answer is a claim. This is where it becomes a pinned, checked reading. */
-      const resolved = resolveIntent(raw, { roster, aliases });
+      const resolved = resolveIntent(raw, { roster, aliases, documents });
       setReading(resolved);
 
-      // Nothing to write and nothing to choose — act and get out of the way.
-      if (resolved.action === 'navigate' && resolved.screen) {
+      // Nothing to write and nothing to choose — act and get out of the way. Opening an
+      // order or a bill is the same: once it is pinned, it is a screen, not a question.
+      if ((resolved.action === 'navigate' || resolved.action === 'open_order' || resolved.action === 'open_invoice') && resolved.screen) {
         setPhase('idle');
         setReading(null);
         router.push(resolved.screen);
@@ -241,7 +265,7 @@ export function VoiceBubble() {
         variant: 'destructive',
       });
     }
-  }, [roster, aliases, settings.shopName, router, toast, say,
+  }, [roster, aliases, documents, settings.shopName, router, toast, say,
       customers, karigars, hisaabEntries, karigarJobs, orders]);
 
   const start = useCallback(async () => {
@@ -300,21 +324,45 @@ export function VoiceBubble() {
 
   const stop = useCallback(() => recorderRef.current?.stop(), []);
 
-  const write = useCallback(async (chosen?: RankedName) => {
+  const write = useCallback(async (chosen?: RankedName, chosenDoc?: DocEntry) => {
     if (!reading) return;
-    const finalReading: Reading = chosen
-      ? { ...reading, person: chosen, candidates: [], ambiguous: false, postable: true, blockedBecause: null }
-      : reading;
+    /**
+     * An answer to "which one?" is pinned and the reading built again around it, so a
+     * second question — which of her orders — can follow the first, and so a reading
+     * that still lacks a figure stays unwritten instead of being forced through.
+     */
+    let finalReading: Reading = reading;
+    if (chosen || chosenDoc) {
+      const raw = rawRef.current;
+      if (!raw) return;
+      finalReading = resolveIntent(raw, {
+        roster, aliases, documents,
+        pinPerson: chosen ?? reading.person,
+        pinDoc: chosenDoc ?? reading.doc,
+      });
+    }
+    /**
+     * Picking from the list is the shop answering "which one?", and that answer is the
+     * only evidence in the whole matcher that is not a guess. Write it down before the
+     * entry, so the correction survives even if the write itself fails.
+     */
+    if (chosen && heardAs && phoneticKey(heardAs).length) {
+      try { await teachVoiceAlias(heardAs, chosen.kind, chosen.id, chosen.name); } catch { /* the entry still goes through */ }
+    }
+    if (finalReading.docAmbiguous || (!finalReading.postable && !READ_ONLY_ACTIONS.has(finalReading.action))) {
+      setReading(finalReading);
+      setPhase('confirming');
+      if (finalReading.blockedBecause) void say(finalReading.blockedBecause);
+      return;
+    }
+    if ((finalReading.action === 'open_order' || finalReading.action === 'open_invoice') && finalReading.screen) {
+      setReading(null);
+      setPhase('idle');
+      router.push(finalReading.screen);
+      return;
+    }
     setPhase('writing');
     try {
-      /**
-       * Picking from the list is the shop answering "which one?", and that answer is the
-       * only evidence in the whole matcher that is not a guess. Write it down before the
-       * entry, so the correction survives even if the write itself fails.
-       */
-      if (chosen && heardAs && phoneticKey(heardAs).length) {
-        await teachVoiceAlias(heardAs, chosen.kind, chosen.id, chosen.name);
-      }
       const applied = await applyReading(finalReading, store);
       lastWrite.current = applied;
       void say(applied.said);
@@ -333,7 +381,7 @@ export function VoiceBubble() {
         variant: 'destructive',
       });
     }
-  }, [reading, store, router, toast, heardAs, teachVoiceAlias, say]);
+  }, [reading, store, router, toast, heardAs, teachVoiceAlias, say, roster, aliases, documents]);
 
   const dismiss = () => { setReading(null); setPhase('idle'); };
 
@@ -369,7 +417,7 @@ export function VoiceBubble() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {reading?.ambiguous ? 'Which one?'
+              {reading?.ambiguous || reading?.docAmbiguous ? 'Which one?'
                 : reading?.postable ? 'Write this down?'
                 : 'Nothing written'}
             </DialogTitle>
@@ -402,8 +450,35 @@ export function VoiceBubble() {
               </div>
             )}
 
-            {!reading?.ambiguous && reading?.blockedBecause && (
+            {/* The person is settled; the order or bill is not. */}
+            {!reading?.ambiguous && reading?.docAmbiguous && reading.docCandidates.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">{reading.blockedBecause}</p>
+                {reading.docCandidates.map((d) => (
+                  <Button
+                    key={d.id}
+                    variant="outline"
+                    className="w-full justify-between h-auto py-2 text-left"
+                    onClick={() => write(undefined, d)}
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-mono text-sm">{d.id}</span>
+                      <span className="block text-xs text-muted-foreground truncate">{d.customerName} · {d.label}</span>
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            {!reading?.ambiguous && !reading?.docAmbiguous && reading?.blockedBecause && (
               <p className="text-sm text-muted-foreground">{reading.blockedBecause}</p>
+            )}
+
+            {reading?.doc && !reading.docAmbiguous && (
+              <div className="rounded-md border p-3 text-sm">
+                <div className="font-medium font-mono">{reading.doc.id}</div>
+                <div className="text-muted-foreground">{reading.doc.customerName} · {reading.doc.label}</div>
+              </div>
             )}
 
             {reading?.postable && reading.person && (
