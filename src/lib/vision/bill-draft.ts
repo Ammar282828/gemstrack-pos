@@ -172,7 +172,8 @@ export function billLineToProduct<T extends Record<string, unknown>>(
     name: String(line.description || '').trim() || 'Item',
     categoryId: CATEGORY_BY_WORD[String(line.itemCategory || '')] ?? '',
     metalType: metal,
-    ...(karat ? { karat } : {}),
+    // A gold line with no karat written is 21k, the shop's default everywhere.
+    ...(karat ? { karat } : metal === 'gold' ? { karat: '21k' } : {}),
     description: line.note ? String(line.note) : undefined,
   };
 

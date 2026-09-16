@@ -143,6 +143,7 @@ export function blankCartItem(): Product {
   return {
     sku: `NEW-${Date.now().toString(36).toUpperCase()}`,
     name: '', categoryId: '', metalType: STORE_CONFIG.defaultMetal, metalWeightG: 0,
+    ...(STORE_CONFIG.defaultMetal === 'gold' ? { karat: '21k' as KaratValue } : {}),
     // The same opening wastage as the order and product forms: 10% on gold,
     // nothing on silver.
     hasStones: false, stoneWeightG: 0, wastagePercentage: STORE_CONFIG.defaultMetal === 'silver' ? 0 : 10, makingCharges: 0,
@@ -220,7 +221,7 @@ export const EditCartItemDialog: React.FC<{
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Metal</Label>
-              <Select value={d.metalType} onValueChange={v => set('metalType', v as MetalType)}>
+              <Select value={d.metalType} onValueChange={v => setD(prev => prev ? { ...prev, metalType: v as MetalType, karat: v === 'gold' && !prev.karat ? '21k' : prev.karat } : prev)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {METAL_TYPES.map(m => <SelectItem key={m} value={m}>{metalLabel(m)}</SelectItem>)}

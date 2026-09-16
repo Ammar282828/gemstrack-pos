@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, staticCategories , DeliveryInfo , PAYMENT_TYPES, PaymentType } from '@/lib/store';
 import { metalLabel, describeMetal, describeSettings, describeDelivery, describePlating } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
+import { Textarea } from '@/components/ui/textarea';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
@@ -21,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, ClipboardList, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban, CheckCircle, Camera, TriangleAlert } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, ClipboardList, Printer, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban, CheckCircle, Camera, TriangleAlert, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
 
@@ -43,6 +44,7 @@ import 'react-phone-number-input/style.css';
 import { cn, normalizePhoneNumber, openPDFWindowForIOS, savePDF } from '@/lib/utils';
 import { loadPdfLogo } from '@/lib/pdf-logo';
 import { getInvoiceAdjustmentsAmount, getInvoiceExchangeTotal } from '@/lib/financials';
+import { stockSku } from '@/lib/sku';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'next/navigation';
 import { ProductForm } from '@/components/product/product-form';
@@ -153,6 +155,8 @@ export default function CartPage() {
   const [takenBy, setTakenBy] = useState<TakenBy | undefined>(undefined);
   // Print the bill without the per-gram rates. Pricing is unaffected; see Invoice.hideRates.
   const [hideRates, setHideRates] = useState(false);
+  // See Invoice.internalNote: for the shop, never for the customer.
+  const [internalNote, setInternalNote] = useState('');
   const [exchangeAmount1Input, setExchangeAmount1Input] = useState<string>('');
   const [exchangeAmount2Input, setExchangeAmount2Input] = useState<string>('');
   // Everything typed around the cart — who it is for, the discount, anything
@@ -160,9 +164,9 @@ export default function CartPage() {
   // store; this is the rest of the sale.
   const invoiceDraftValue = useMemo(() => ({
     walkInCustomerName, walkInCustomerPhone, discountAmountInput,
-    exchangeDescription, exchangeAmount1Input, exchangeAmount2Input,
+    exchangeDescription, exchangeAmount1Input, exchangeAmount2Input, internalNote,
   }), [walkInCustomerName, walkInCustomerPhone, discountAmountInput,
-       exchangeDescription, exchangeAmount1Input, exchangeAmount2Input]);
+       exchangeDescription, exchangeAmount1Input, exchangeAmount2Input, internalNote]);
 
 
   
@@ -192,6 +196,7 @@ export default function CartPage() {
     setExchangeDescription(d.exchangeDescription || '');
     setExchangeAmount1Input(d.exchangeAmount1Input || '');
     setExchangeAmount2Input(d.exchangeAmount2Input || '');
+    setInternalNote(d.internalNote || '');
     discardInvoiceDraft();
     toast({ title: 'Draft restored', description: 'Picking up where you left off.' });
   };
@@ -552,7 +557,7 @@ export default function CartPage() {
     setIsGeneratingEstimate(true);
     let invoice;
     try {
-      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy, hideRates);
+      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy, hideRates, internalNote);
       if (invoice) invoiceDraftDone();
     } catch (error) {
       console.error("[Cart handleGenerateInvoice] Failed:", error);
@@ -618,6 +623,7 @@ export default function CartPage() {
     loadCartFromInvoice(generatedInvoice);
     setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
     setHideRates(!!generatedInvoice.hideRates);
+    setInternalNote(generatedInvoice.internalNote || '');
     // Always restore customer name and phone regardless of walk-in vs registered customer
     setWalkInCustomerName(generatedInvoice.customerName || '');
     if (generatedInvoice.customerContact) {
@@ -892,7 +898,7 @@ export default function CartPage() {
                 item.name && item.name.trim().toLowerCase() !== catName.toLowerCase() ? item.name : '',
                 metalDisplay,
                 item.size ? `Size ${item.size}` : '',
-                item.sku ? `SKU ${item.sku}` : '',
+                stockSku(item.sku) ? `SKU ${item.sku}` : '',
             ].filter(Boolean).join('  ·  '),
             settings: describeSettings(item),
             breakdown: breakdownLines.map(l => l.trim().replace(/^\+\s*/, '')),
@@ -1124,6 +1130,12 @@ export default function CartPage() {
             </div>
            </CardHeader>
            <CardContent className="space-y-6">
+                {generatedInvoice.internalNote && (
+                  <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+                    <p className="font-semibold flex items-center text-warning"><Lock className="w-3.5 h-3.5 mr-1.5"/>For the shop <span className="ml-1.5 font-normal">(never printed)</span></p>
+                    <p className="text-warning whitespace-pre-wrap mt-1">{generatedInvoice.internalNote}</p>
+                  </div>
+                )}
                 <div className="p-4 border rounded-md bg-background">
                     {(() => {
                       const shipTo = describeDelivery(generatedInvoice.delivery);
@@ -1151,7 +1163,7 @@ export default function CartPage() {
                         const finish = describePlating(item);
                         if (finish) spec.push(['Finish', finish]);
                         if ((item.stoneWeightG ?? 0) > 0) spec.push(['Stone weight', `${item.stoneWeightG}g`]);
-                        if (item.sku) spec.push(['SKU', item.sku]);
+                        if (stockSku(item.sku)) spec.push(['SKU', item.sku]);
 
                         const costs: [string, number][] = [];
                         if ((item.metalCost ?? 0) > 0) costs.push(['Metal', item.metalCost]);
@@ -1486,70 +1498,48 @@ export default function CartPage() {
           <Card className="max-w-2xl mx-auto">
             <CardHeader className="text-center">
               <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground" />
-              <CardTitle className="text-2xl mt-4">Add the first piece</CardTitle>
-              <CardDescription>
-                Describe a piece, pick one from stock, or scan its tag.
-              </CardDescription>
+              <CardTitle className="text-2xl mt-4">New sale</CardTitle>
+              <CardDescription>Describe the piece, or find it in stock.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* Describing the piece is the common case here; scanning an
-                  already-tagged product is the exception. */}
+              {/* One button and one search. Six controls used to share this card;
+                  the three used once a week are a line of links underneath. */}
               <Button className="w-full" size="lg" onClick={() => setNewItem(blankCartItem())}>
                 <PlusCircle className="mr-2 h-5 w-5" />New item
               </Button>
-              <p className="text-xs text-muted-foreground text-center -mt-1">
-                Bills the piece without touching your inventory.
+              <div className="relative">
+                <Input
+                  ref={skuInputRef}
+                  placeholder="Or search stock by SKU or name…"
+                  value={skuInput}
+                  onChange={e => handleSkuInputChange(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddBySku(); if (e.key === 'Escape') setSkuDropdownOpen(false); }}
+                  onBlur={() => setTimeout(() => setSkuDropdownOpen(false), 150)}
+                  onFocus={() => skuSuggestions.length > 0 && setSkuDropdownOpen(true)}
+                  aria-label="Search stock by SKU or product name"/>
+                {skuDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+                    {skuSuggestions.map(p => (
+                      <button
+                        key={p.sku}
+                        type="button"
+                        className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-accent text-sm"
+                        onMouseDown={() => handleAddBySku(p.sku)}
+                      >
+                        <span className="font-mono font-semibold text-xs text-muted-foreground shrink-0">{p.sku}</span>
+                        <span className="truncate">{p.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className="text-center text-xs text-muted-foreground pt-1">
+                <button type="button" className="hover:underline" onClick={() => setIsNewProductDialogOpen(true)}>New item + stock it</button>
+                <span className="mx-1.5">·</span>
+                <Link href="/scan" className="hover:underline">Scan a tag</Link>
+                <span className="mx-1.5">·</span>
+                <button type="button" className="hover:underline" onClick={() => setBillScanOpen(true)}>Photograph a bill</button>
               </p>
-              <div className="flex gap-2">
-                <Button className="flex-1" variant="outline" onClick={() => setIsNewProductDialogOpen(true)}>
-                  New item + stock it
-                </Button>
-                <Button className="flex-1" variant="outline" asChild>
-                  <Link href="/scan">Scan</Link>
-                </Button>
-              </div>
-              <Button className="w-full" variant="outline" onClick={() => setBillScanOpen(true)}>
-                <Camera className="mr-2 h-4 w-4" />Photograph a written bill
-              </Button>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    ref={skuInputRef}
-                    placeholder="Search by SKU or product name..."
-                    value={skuInput}
-                    onChange={e => handleSkuInputChange(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleAddBySku(); if (e.key === 'Escape') setSkuDropdownOpen(false); }}
-                    onBlur={() => setTimeout(() => setSkuDropdownOpen(false), 150)}
-                    onFocus={() => skuSuggestions.length > 0 && setSkuDropdownOpen(true)}
-                   aria-label="Search by SKU or product name"/>
-                  {skuDropdownOpen && (
-                    <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
-                      {skuSuggestions.map(p => (
-                        <button
-                          key={p.sku}
-                          type="button"
-                          className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-accent text-sm"
-                          onMouseDown={() => handleAddBySku(p.sku)}
-                        >
-                          <span className="font-mono font-semibold text-xs text-muted-foreground shrink-0">{p.sku}</span>
-                          <span className="truncate">{p.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <Button variant="secondary" onClick={() => handleAddBySku()}>
-                  <PlusCircle className="h-4 w-4 mr-1"/> Add
-                </Button>
-                {/* Same form as the "New item" button above. It used to open the
-                    stock-it dialog instead -- so two controls a few pixels apart, both
-                    reading as "new item", gave you two different forms depending on
-                    which you happened to press. Stocking has its own button, labelled
-                    for what it does. */}
-                <Button variant="outline" onClick={() => setNewItem(blankCartItem())}>
-                  New
-                </Button>
-              </div>
             </CardContent>
           </Card>
       ) : (
@@ -1578,7 +1568,7 @@ export default function CartPage() {
                                     <div className="min-w-0 flex-1">
                                         <p className="font-medium truncate">{item.name}</p>
                                         <p className="text-xs text-muted-foreground">{spec}</p>
-                                        <p className="text-2xs font-mono text-muted-foreground">{item.sku}</p>
+                                        {stockSku(item.sku) && <p className="text-2xs font-mono text-muted-foreground">{item.sku}</p>}
                                         {item.isCustomPrice && (
                                             <p className="text-xs text-warning font-medium">Fixed price: PKR {item.customPrice?.toLocaleString()}</p>
                                         )}
@@ -1652,6 +1642,21 @@ export default function CartPage() {
                             </Button>
                         </div>
                     </CardFooter>
+                </Card>
+
+                {/* The same non-printed box the order form gives every piece:
+                    a resize still owed, a stone to swap, how the balance will be
+                    settled. On the invoice, never on the paper. */}
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center"><Lock className="mr-2 h-4 w-4 text-warning"/>For the shop</CardTitle>
+                        <CardDescription>Never printed on the bill or sent to the customer.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Textarea value={internalNote} onChange={e => setInternalNote(e.target.value)} rows={2}
+                          placeholder="Changes still to make, promises given, anything to remember about this sale"
+                          aria-label="Notes for the shop" className="border-warning/40 bg-warning/10" />
+                    </CardContent>
                 </Card>
             </div>
 

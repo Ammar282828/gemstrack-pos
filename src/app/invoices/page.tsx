@@ -11,6 +11,7 @@ import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { stockSku } from '@/lib/sku';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, FileText, ClipboardList, AlertTriangle, Calendar, Upload, CheckCircle2, ShoppingBag, Printer, ChevronDown, Link2, Copy, Send } from 'lucide-react';
@@ -156,7 +157,7 @@ async function generateInvoicePDF(
       name: catName || item.name || '',
       spec: [
         item.name && item.name.trim().toLowerCase() !== catName.toLowerCase() ? item.name : '',
-        `${metalTypeName}${karat}${weightPart}`, item.size ? `Size ${item.size}` : '', item.sku ? `SKU ${item.sku}` : '',
+        `${metalTypeName}${karat}${weightPart}`, item.size ? `Size ${item.size}` : '', stockSku(item.sku) ? `SKU ${item.sku}` : '',
       ].filter(Boolean).join('  ·  '),
       settings: describeSettings(item),
       breakdown: breakdownLines.map(l => l.trim().replace(/^\+\s*/, '')),

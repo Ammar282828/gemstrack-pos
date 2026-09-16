@@ -483,6 +483,11 @@ export interface Invoice {
   hideRates?: boolean;
   /** Who wrote it. See TAKEN_BY. */
   takenBy?: TakenBy;
+  /**
+   * For the shop, about this sale — a resize still to do, a stone to swap, an
+   * arrangement about the balance. Never printed, never sent to the customer.
+   */
+  internalNote?: string;
   paymentHistory: Payment[];
   sourceOrderId?: string; // Set when invoice is created from an order
   source?: string; // 'shopify_import' | 'shopify' for imported/synced orders
@@ -1230,7 +1235,8 @@ export interface AppState {
     existingInvoiceId?: string,
     delivery?: DeliveryInfo,
     takenBy?: TakenBy,
-    hideRates?: boolean
+    hideRates?: boolean,
+    internalNote?: string
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string, method?: PaymentType, reference?: string) => Promise<Invoice | null>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
@@ -2437,7 +2443,7 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?, takenBy?, hideRates?) => {
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?, takenBy?, hideRates?, internalNote?) => {
         if(get().settings.databaseLocked) return null;
         const { cart } = get();
         if (cart.length === 0) return null;
@@ -2575,6 +2581,7 @@ export const useAppStore = create<AppState>()(
                     // Only set when the counter chose someone; undefined stays out of Firestore.
                     ...(takenBy ? { takenBy } : {}),
                     ...(hideRates ? { hideRates: true } : {}),
+                    ...(internalNote?.trim() ? { internalNote: internalNote.trim() } : {}),
                     paymentHistory: existingPaymentHistory,
                     customerName: finalCustomerName || 'Walk-in Customer',
                     customerId: finalCustomerId,
