@@ -27,7 +27,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
+import { FormSection, PriceModeToggle } from '@/components/shared/piece-form';
+import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save } from 'lucide-react';
 import { CategoryPicker } from '@/components/shared/category-picker';
@@ -71,11 +72,14 @@ function toDraft(p: Product): Draft {
     metalType: p.metalType,
     karat: p.karat || '',
     metalWeightG: p.metalWeightG != null ? String(p.metalWeightG) : '',
-    hasStones: !!p.hasStones,
+    // The reveal opens whenever there is stone or diamond data to show, so a
+    // figure that is in the price can never sit behind a closed box. Neither
+    // flag is read by calculateProductCosts.
+    hasStones: !!p.hasStones || (p.stoneWeightG ?? 0) > 0 || !!p.stoneDetails,
     stoneWeightG: p.stoneWeightG != null ? String(p.stoneWeightG) : '',
     wastagePercentage: p.wastagePercentage != null ? String(p.wastagePercentage) : '',
     makingCharges: p.makingCharges != null ? String(p.makingCharges) : '',
-    hasDiamonds: !!p.hasDiamonds,
+    hasDiamonds: !!p.hasDiamonds || (p.diamondCharges ?? 0) > 0 || !!p.diamondDetails,
     diamondCharges: p.diamondCharges != null ? String(p.diamondCharges) : '',
     stoneCharges: p.stoneCharges != null ? String(p.stoneCharges) : '',
     miscCharges: p.miscCharges != null ? String(p.miscCharges) : '',
@@ -139,9 +143,13 @@ export function blankCartItem(): Product {
   return {
     sku: `NEW-${Date.now().toString(36).toUpperCase()}`,
     name: '', categoryId: '', metalType: STORE_CONFIG.defaultMetal, metalWeightG: 0,
-    hasStones: false, stoneWeightG: 0, wastagePercentage: 0, makingCharges: 0,
+    // The same opening wastage as the order and product forms: 10% on gold,
+    // nothing on silver.
+    hasStones: false, stoneWeightG: 0, wastagePercentage: STORE_CONFIG.defaultMetal === 'silver' ? 0 : 10, makingCharges: 0,
     hasDiamonds: false, diamondCharges: 0, stoneCharges: 0, miscCharges: 0,
-    isCustomPrice: true, customPrice: 0,
+    // Priced from the weight and the rate unless somebody says otherwise -- the
+    // same default as the order form and the product form.
+    isCustomPrice: false, customPrice: 0,
   };
 }
 
@@ -179,43 +187,49 @@ export const EditCartItemDialog: React.FC<{
           <DialogTitle>{mode === 'create' ? 'New item' : 'Edit item'}</DialogTitle>
           <DialogDescription>
             {mode === 'create'
-              ? 'Describe the piece you are billing. It goes on this estimate only — your product inventory is untouched.'
-              : `${item.sku} — every detail on this line. Changes apply to this estimate only, not to the product in your inventory.`}
+              ? 'Describe the piece you are billing. It goes on this invoice only — your stock is untouched.'
+              : `${item.sku} — every detail on this line. Changes apply to this invoice only, not to the product in stock.`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* ── what it is ── */}
-          <div className="space-y-3">
+        <div className="space-y-5">
+          {/*
+            The same order as a piece on the order form: what it is, what it
+            costs, then what only a bill line carries. Every field is still here
+            with the same rules underneath.
+          */}
+
+          {/* ── The piece ─────────────────────────────────────────────── */}
+          <FormSection title="The piece" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
+              <Label className="text-xs">Category</Label>
+              <CategoryPicker
+                categories={staticCategories}
+                value={d.categoryId || ''}
+                onChange={v => set('categoryId', v)}
+                placeholder="Select category"
+              />
+            </div>
+            <div className="sm:col-span-2">
               <Label className="text-xs">Item name</Label>
               <Input value={d.name} onChange={e => set('name', e.target.value)} placeholder="What is being sold"  aria-label="Item name"/>
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Category</Label>
-                <CategoryPicker
-                  categories={staticCategories}
-                  value={d.categoryId || ''}
-                  onChange={v => set('categoryId', v)}
-                  placeholder="Select category"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Metal</Label>
-                <Select value={d.metalType} onValueChange={v => set('metalType', v as MetalType)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {METAL_TYPES.map(m => <SelectItem key={m} value={m}>{metalLabel(m)}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Metal</Label>
+              <Select value={d.metalType} onValueChange={v => set('metalType', v as MetalType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {METAL_TYPES.map(m => <SelectItem key={m} value={m}>{metalLabel(m)}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-
             {/* Karat is gold-only, so it appears and disappears with the metal. */}
             {isGold && (
-              <div className="sm:w-1/2">
+              <div>
                 <Label className="text-xs">Karat</Label>
                 <Select value={d.karat} onValueChange={v => set('karat', v)}>
                   <SelectTrigger><SelectValue placeholder="Select karat" /></SelectTrigger>
@@ -225,97 +239,92 @@ export const EditCartItemDialog: React.FC<{
                 </Select>
               </div>
             )}
-
-            <SizePicker categoryId={d.categoryId} value={d.size} onChange={v => set('size', v)} alwaysShow />
-
-            <PlatingFields
-              metalType={d.metalType}
-              value={{ platingType: d.platingType, platingNote: d.platingNote, nickelFree: d.nickelFree }}
-              onChange={p => setD(prev => prev ? {
-                ...prev,
-                platingType: p.platingType ?? '',
-                platingNote: p.platingNote ?? '',
-                nickelFree: !!p.nickelFree,
-              } : prev)}
-            />
           </div>
 
-          <Separator />
+          <PlatingFields
+            metalType={d.metalType}
+            value={{ platingType: d.platingType, platingNote: d.platingNote, nickelFree: d.nickelFree }}
+            onChange={p => setD(prev => prev ? {
+              ...prev,
+              platingType: p.platingType ?? '',
+              platingNote: p.platingNote ?? '',
+              nickelFree: !!p.nickelFree,
+            } : prev)}
+          />
 
-          {/* ── what it costs ── */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Checkbox id="manual-price" checked={d.isCustomPrice}
-                onCheckedChange={c => set('isCustomPrice', c === true)} />
-              <Label htmlFor="manual-price" className="cursor-pointer text-sm">
-                Set the price by hand
-              </Label>
-            </div>
+          <SizePicker categoryId={d.categoryId} value={d.size} onChange={v => set('size', v)} alwaysShow />
 
-            {d.isCustomPrice ? (
-              <div className="rounded-md border bg-muted/30 p-3 space-y-3">
-                <Num label="Price (PKR)" value={d.customPrice} onChange={v => set('customPrice', v)} placeholder="e.g. 5000" />
-                {isSilver && (
-                  <Num label="Reference rate per gram (optional)" value={d.silverRatePerGram}
-                    onChange={v => set('silverRatePerGram', v)} placeholder="e.g. 150"
-                    hint="For internal reference only — does not affect the price." />
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <Num label="Metal weight (g)" value={d.metalWeightG} onChange={v => set('metalWeightG', v)} step="0.001" />
-                  <Num label="Stone weight (g)" value={d.stoneWeightG} onChange={v => set('stoneWeightG', v)} step="0.001" />
-                  {isSilver
-                    ? <Num label="Rate per gram" value={d.silverRatePerGram} onChange={v => set('silverRatePerGram', v)} placeholder="e.g. 150" />
-                    : <Num label="Wastage %" value={d.wastagePercentage} onChange={v => set('wastagePercentage', v)} step="0.01" />}
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {isSilver && <Num label="Wastage %" value={d.wastagePercentage} onChange={v => set('wastagePercentage', v)} step="0.01" />}
-                  <Num label="Making" value={d.makingCharges} onChange={v => set('makingCharges', v)} />
-                  <Num label="Diamond" value={d.diamondCharges} onChange={v => set('diamondCharges', v)} />
-                  <Num label="Stone" value={d.stoneCharges} onChange={v => set('stoneCharges', v)} />
-                  {!isSilver && <Num label="Misc" value={d.miscCharges} onChange={v => set('miscCharges', v)} />}
-                </div>
-                {isSilver && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <Num label="Misc" value={d.miscCharges} onChange={v => set('miscCharges', v)} />
-                  </div>
-                )}
-              </div>
-            )}
+          {/* ── Price ─────────────────────────────────────────────────── */}
+          <FormSection title="Price" />
+          <PriceModeToggle fixed={d.isCustomPrice} onChange={v => set('isCustomPrice', v)} />
 
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Checkbox id="has-stones" checked={d.hasStones} onCheckedChange={c => set('hasStones', c === true)} />
-                <Label htmlFor="has-stones" className="cursor-pointer text-sm font-normal">Has stones</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox id="has-diamonds" checked={d.hasDiamonds} onCheckedChange={c => set('hasDiamonds', c === true)} />
-                <Label htmlFor="has-diamonds" className="cursor-pointer text-sm font-normal">Has diamonds</Label>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* ── the words that print ── */}
-          <div className="space-y-3">
+          {d.isCustomPrice ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Stone details</Label>
-                <Input value={d.stoneDetails} onChange={e => set('stoneDetails', e.target.value)} placeholder="e.g. 4 rubies"  aria-label="Stone details"/>
+              <Num label="Price (PKR)" value={d.customPrice} onChange={v => set('customPrice', v)} placeholder="The agreed total for this piece" />
+              {isSilver && (
+                <Num label="Reference rate per gram (optional)" value={d.silverRatePerGram}
+                  onChange={v => set('silverRatePerGram', v)} placeholder="e.g. 150"
+                  hint="For internal reference only — does not affect the price." />
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Weight and the figure the metal price is made from: wastage, or
+                  for silver an all-inclusive rate. */}
+              <div className="grid grid-cols-2 gap-3">
+                <Num label="Weight (g)" value={d.metalWeightG} onChange={v => set('metalWeightG', v)} step="0.001" />
+                {isSilver
+                  ? <Num label="Rate per gram (PKR)" value={d.silverRatePerGram} onChange={v => set('silverRatePerGram', v)} placeholder="e.g. 150" />
+                  : <Num label="Wastage (%)" value={d.wastagePercentage} onChange={v => set('wastagePercentage', v)} step="0.01" />}
               </div>
-              <div>
+              <div className="grid grid-cols-2 gap-3">
+                <Num label="Making (PKR)" value={d.makingCharges} onChange={v => set('makingCharges', v)} />
+                <Num label="Stones (PKR)" value={d.stoneCharges} onChange={v => set('stoneCharges', v)} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Num label="Misc (PKR)" value={d.miscCharges} onChange={v => set('miscCharges', v)} />
+                {isSilver && <Num label="Wastage (%)" value={d.wastagePercentage} onChange={v => set('wastagePercentage', v)} step="0.01" />}
+              </div>
+            </>
+          )}
+
+          {/* The box first, and the fields it opens under it. Details print on
+              the bill whichever way the piece is priced; the charge only
+              exists when the price is built from the rate. */}
+          <div className="flex items-center gap-2">
+            <Checkbox id="has-diamonds" checked={d.hasDiamonds} onCheckedChange={c => set('hasDiamonds', c === true)} />
+            <Label htmlFor="has-diamonds" className="cursor-pointer text-sm font-normal">Has diamonds</Label>
+          </div>
+          {d.hasDiamonds && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pl-6 border-l-2 border-muted">
+              {!d.isCustomPrice && <Num label="Diamonds (PKR)" value={d.diamondCharges} onChange={v => set('diamondCharges', v)} />}
+              <div className={cn(d.isCustomPrice ? 'sm:col-span-3' : 'sm:col-span-2')}>
                 <Label className="text-xs">Diamond details</Label>
                 <Input value={d.diamondDetails} onChange={e => set('diamondDetails', e.target.value)} placeholder="e.g. 0.5ct round"  aria-label="Diamond details"/>
               </div>
             </div>
-            <div>
-              <Label className="text-xs">Description</Label>
-              <Textarea rows={2} value={d.description} onChange={e => set('description', e.target.value)}
-                placeholder="Additional details to appear on the invoice"  aria-label="Description"/>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Checkbox id="has-stones" checked={d.hasStones} onCheckedChange={c => set('hasStones', c === true)} />
+            <Label htmlFor="has-stones" className="cursor-pointer text-sm font-normal">Has other stones</Label>
+          </div>
+          {d.hasStones && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pl-6 border-l-2 border-muted">
+              <Num label="Stone weight (g)" value={d.stoneWeightG} onChange={v => set('stoneWeightG', v)} step="0.001" />
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Stone details</Label>
+                <Input value={d.stoneDetails} onChange={e => set('stoneDetails', e.target.value)} placeholder="e.g. 4 rubies"  aria-label="Stone details"/>
+              </div>
             </div>
+          )}
+
+          {/* ── On the bill ───────────────────────────────────────────── */}
+          <FormSection title="On the bill" hint="optional" />
+          <div>
+            <Label className="text-xs">Description</Label>
+            <Textarea rows={2} value={d.description} onChange={e => set('description', e.target.value)}
+              placeholder="Additional details to appear on the invoice"  aria-label="Description"/>
           </div>
         </div>
 

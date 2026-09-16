@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { FormSection, PriceModeToggle } from '@/components/shared/piece-form';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
@@ -104,7 +105,7 @@ const orderItemSchema = z.object({
   metalType: z.enum(metalTypeValues, { required_error: 'Choose the metal' }),
   isCompleted: z.boolean().default(false),
   karigarId: z.string().optional(),
-  isManualPrice: z.boolean().default(true),
+  isManualPrice: z.boolean().default(false),
   manualPrice: z.coerce.number().min(0).default(0),
   // Optional size (e.g. "10 Indian / 5 US") for rings, bracelets and similar items
   size: z.string().optional(),
@@ -292,7 +293,7 @@ function cartItemToOrderItem(p: Product) {
     diamondDetails: p.diamondDetails || undefined,
     metalType: (p.metalType || STORE_CONFIG.defaultMetal) as MetalType,
     isCompleted: false,
-    isManualPrice: true,
+    isManualPrice: !!p.isCustomPrice,
     manualPrice: p.isCustomPrice ? (p.customPrice || 0) : 0,
     size: p.size || undefined,
     platingType: p.platingType || undefined,
@@ -313,13 +314,6 @@ const money = (n: number) =>
  * kinds of advance payment and the totals — everything the left column had no
  * room for. Nothing said where one concern ended and the next began.
  */
-/** A sub-heading inside a piece. One style for all four, where there used to be two. */
-const Section: React.FC<{ title: string; hint?: string }> = ({ title, hint }) => (
-  <p className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 pt-1 flex items-baseline gap-2">
-    {title}{hint && <span className="font-normal normal-case tracking-normal text-muted-foreground/60">{hint}</span>}
-  </p>
-);
-
 const PanelSection: React.FC<{
   title: string;
   icon?: React.ReactNode;
@@ -1056,7 +1050,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             */}
 
                             {/* ── The piece ─────────────────────────────────────────── */}
-                            <Section title="The piece" />
+                            <FormSection title="The piece" />
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <FormField control={form.control} name={`items.${index}.itemCategory`} render={({ field }) => (
                                     <FormItem>
@@ -1147,22 +1141,13 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             )}/>
 
                             {/* ── Price ─────────────────────────────────────────────── */}
-                            <Section title="Price" />
+                            <FormSection title="Price" />
                             {/* Two ways to price a piece, as two buttons rather than one
                                 negated checkbox. Same boolean underneath -- isManualPrice --
                                 so nothing about how the order is stored changes. */}
                             <FormField control={form.control} name={`items.${index}.isManualPrice`} render={({ field }) => (
                                 <FormItem>
-                                  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="How this piece is priced">
-                                    <Button type="button" variant={!field.value ? 'default' : 'outline'} className="h-9" role="radio" aria-checked={!field.value}
-                                      onClick={() => field.onChange(false)}>
-                                      Weight × rate
-                                    </Button>
-                                    <Button type="button" variant={field.value ? 'default' : 'outline'} className="h-9" role="radio" aria-checked={!!field.value}
-                                      onClick={() => field.onChange(true)}>
-                                      Fixed price
-                                    </Button>
-                                  </div>
+                                  <PriceModeToggle fixed={!!field.value} onChange={field.onChange} />
                                 </FormItem>
                             )}/>
 
@@ -1241,7 +1226,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             )}
 
                             {/* ── For the workshop ──────────────────────────────────── */}
-                            <Section title="For the workshop" />
+                            <FormSection title="For the workshop" />
                             <FormField control={form.control} name={`items.${index}.adminNote`} render={({ field }) => (
                                <FormItem className="rounded-md border border-warning/40 bg-warning/10 p-3">
                                   <FormLabel className="flex items-center text-warning"><Lock className="mr-2 h-4 w-4"/>Instructions for the karigar</FormLabel>
@@ -1272,7 +1257,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             )}/>}
 
                             {/* ── References ────────────────────────────────────────── */}
-                            <Section title="References" hint="optional" />
+                            <FormSection title="References" hint="optional" />
                             <div>
                                 <FormLabel>Sample picture</FormLabel>
                                 <FormField control={form.control} name={`items.${index}.sampleImageDataUri`} render={({ field }) => (
