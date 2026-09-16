@@ -164,6 +164,8 @@ export async function POST(req: NextRequest) {
       }),
       parts,
       schema: READING_SCHEMA as unknown as Record<string, unknown>,
+      // See GenerateOptions.thinkingBudget: half the wait was the model deliberating.
+      thinkingBudget: 0,
     });
     return NextResponse.json(parsed);
   } catch (err) {

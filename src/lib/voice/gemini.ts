@@ -41,6 +41,16 @@ export interface GenerateOptions {
   /** An OpenAPI-ish schema. Vertex uses uppercase type names: OBJECT, STRING, NUMBER… */
   schema: Record<string, unknown>;
   temperature?: number;
+  /**
+   * How long the model may think before answering, in tokens. 0 turns it off.
+   *
+   * Left unset, 2.5 Flash decides for itself, and for the voice prompt it decided on
+   * a couple of hundred tokens of deliberation every time — measured at 2.2–5.4 s per
+   * call against 1.0–1.2 s with it off, for the same answer. A sentence said across
+   * the counter is not a problem that needs working through; a page of handwriting
+   * might be, so the scanners leave this alone.
+   */
+  thinkingBudget?: number;
   signal?: AbortSignal;
 }
 
@@ -58,7 +68,7 @@ export class GeminiError extends Error {
  * wrong thing to do about it.
  */
 export async function generateJson<T>({
-  system, parts, schema, temperature = 0, signal,
+  system, parts, schema, temperature = 0, thinkingBudget, signal,
 }: GenerateOptions): Promise<T> {
   if (!PROJECT) throw new GeminiError('No Google Cloud project configured.', 503);
 
@@ -80,6 +90,7 @@ export async function generateJson<T>({
         temperature,
         responseMimeType: 'application/json',
         responseSchema: schema,
+        ...(thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget } } : {}),
       },
     }),
   });

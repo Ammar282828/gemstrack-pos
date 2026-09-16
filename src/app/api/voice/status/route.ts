@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
       system: 'Reply with {"ok":"yes"} and nothing else.',
       parts: [{ text: 'ping' }],
       schema: { type: 'OBJECT', properties: { ok: { type: 'STRING' } } },
+      thinkingBudget: 0,
     });
     ready = true;
   } catch (err) {

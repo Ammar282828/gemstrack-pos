@@ -248,6 +248,16 @@ export function VoiceBubble() {
     // The microphone must never open while the assistant is still speaking, or it records
     // its own voice and answers itself.
     stopSpeaking();
+    /**
+     * Wake the server while he is still talking.
+     *
+     * The backend scales to zero between uses, so the first sentence of the day was
+     * paying a cold start on top of the model call — and paying it AFTER the sentence
+     * was finished, when every second is felt. A press of the microphone is a reliable
+     * few seconds' notice. The status route is cached server-side for five minutes, so
+     * this costs one tiny model call per idle period, not one per press.
+     */
+    void authedFetch('/api/voice/status').catch(() => {});
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
