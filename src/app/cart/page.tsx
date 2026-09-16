@@ -711,7 +711,22 @@ export default function CartPage() {
     }
   };
 
-  const handleSendWhatsApp = async (invoiceToSend: InvoiceType) => {
+  /**
+   * Open WhatsApp to the customer, message written, estimate linked.
+   *
+   * This used to detour through the share sheet when the device had one: build the
+   * PDF, hand it to navigator.share, and return -- so on a phone the button labelled
+   * "Send via WhatsApp" opened the same sheet Print opens and never went near a chat.
+   * The wa.me path only ran on desktop, and after an await, which a phone would have
+   * refused as a popup anyway.
+   *
+   * Now it does what it says. Synchronously, so the tap's activation is still there
+   * when window.open asks for it; the same shape as the order page and the ledger,
+   * which never had the detour and always worked. The estimate goes as a link to its
+   * own page rather than as an attached PDF -- wa.me cannot carry a file. Anyone who
+   * wants the PDF in the chat has Print, whose sheet lists WhatsApp.
+   */
+  const handleSendWhatsApp = (invoiceToSend: InvoiceType) => {
     const whatsAppNumber = phoneForm.getValues('phone');
     if (!whatsAppNumber) {
       toast({ title: "No Phone Number", description: "Please enter a customer's phone number.", variant: "destructive" });
@@ -730,33 +745,12 @@ export default function CartPage() {
     }
     message += `Thank you for your business.`;
 
-    // Try Web Share API with PDF file (iOS 15+ / Android Chrome 86+)
-    if (typeof navigator !== 'undefined' && navigator.canShare) {
-      try {
-        const doc = await buildInvoicePDF(invoiceToSend);
-        if (doc) {
-          const blob = doc.output('blob') as Blob;
-          const file = new File([blob], `Estimate-${invoiceToSend.id}.pdf`, { type: 'application/pdf' });
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: `Estimate ${invoiceToSend.id}`, text: message });
-            toast({ title: "Shared", description: "Estimate PDF shared successfully." });
-            return;
-          }
-        }
-      } catch (e) {
-        if ((e as Error)?.name === 'AbortError') return; // user dismissed share sheet
-        console.error('Share failed, falling back to WhatsApp link:', e);
-      }
-    }
-
-    // Fallback for desktop: open wa.me with a pre-composed text + link
-    const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://gemstrack-pos.web.app';
+    const appUrl = typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.appUrl;
     message += `\n\nView estimate: ${appUrl}/view-invoice/${invoiceToSend.id}`;
     // Country code and leading-zero handling live in one place; the raw
     // digit strip that used to be here produced wa.me/0300… , a dead link.
-    const whatsappUrl = whatsAppLink(whatsAppNumber, message);
-    window.open(whatsappUrl, '_blank');
-    toast({ title: "Redirecting to WhatsApp", description: "Your message is ready to be sent." });
+    window.open(whatsAppLink(whatsAppNumber, message), '_blank');
+    toast({ title: "Opening WhatsApp", description: "The message is written — press send." });
   };
 
 

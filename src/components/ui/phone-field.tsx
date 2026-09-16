@@ -58,6 +58,30 @@ export function toE164(raw: string | undefined, country: CountryCode = 'PK'): st
   return withoutTrunk !== compact ? withoutTrunk : raw;
 }
 
+/**
+ * A number off the clipboard, made canonical before the input ever sees it.
+ *
+ * People paste what they have: "0300 1234567" off a card, "+92 300 1234567" out of
+ * WhatsApp, "923001234567" from a spreadsheet, "0092..." from an older phone. Left to
+ * the input, the first becomes "+92 0300 1234567" -- a trunk zero inside an
+ * international number -- and the third is read as a twelve-digit national number
+ * and rejected. toE164 already knows the trunk-zero rule; this adds the two shapes
+ * that only turn up by paste: a bare calling code with no plus, and the 00 prefix.
+ */
+export function fromPasted(text: string, country: CountryCode = 'PK'): string {
+  let t = String(text || '').trim().replace(/[\s\-().]/g, '');
+  if (!t) return '';
+  if (t.startsWith('00')) t = '+' + t.slice(2);
+  if (!t.startsWith('+')) {
+    const cc = getCountryCallingCode(country);
+    if (t.startsWith(cc) && t.length > cc.length + 6) {
+      const withPlus = parsePhoneNumberFromString('+' + t);
+      if (withPlus?.isValid()) return withPlus.number as string;
+    }
+  }
+  return toE164(t, country);
+}
+
 /** How finished the number is, for the message under the field. */
 export function phoneState(raw: string | undefined, country: CountryCode = 'PK'):
   { state: 'empty' | 'incomplete' | 'invalid' | 'valid'; digits: number; expected?: number } {
@@ -115,8 +139,23 @@ export const PhoneField: React.FC<{
     onBlur?.();
   };
 
+  /**
+   * Paste is handled here rather than left to the input, and the input is remounted
+   * straight away. Normalising on change already fixed what got STORED, but the
+   * library keeps its own copy of the text and the box went on showing "+92 0300…"
+   * until the field lost focus. A paste should look right the moment it lands.
+   */
+  const paste = (e: React.ClipboardEvent) => {
+    const text = e.clipboardData?.getData('text');
+    if (!text) return;
+    e.preventDefault();
+    onChange(fromPasted(text, country));
+    setTouched(true);
+    setNonce(n => n + 1);
+  };
+
   return (
-    <div className="space-y-1" onBlur={settle}>
+    <div className="space-y-1" onBlur={settle} onPaste={paste}>
       <PhoneInput
         key={nonce}
         international

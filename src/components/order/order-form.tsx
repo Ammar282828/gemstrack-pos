@@ -962,7 +962,15 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
               </CardDescription>
             </CardHeader>
             <CardContent>
-                <ScrollArea className="h-[60vh] pr-4 -mr-4">
+                {/* No ScrollArea here any more. Radix lays its content out as a table
+                    so it can scroll sideways, and a table sizes to its content -- the
+                    Category select's longest option pushed it to 519px inside a 311px
+                    card on a phone, and with only vertical scrolling enabled the
+                    viewport simply clipped the rest. Every field on the right edge was
+                    cut off. It was also a 60vh scroll box inside a page that scrolls,
+                    which on a phone is two scrollbars fighting over one thumb. The list
+                    flows now; on a desktop the pricing card is sticky beside it. */}
+                <div>
                 <div className="space-y-6">
                 {/* Each item is a plain panel, not a Card: it already sits
                     inside the form's Card, and card-in-card reads as two
@@ -1248,7 +1256,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                     );
                 })}
                 </div>
-                </ScrollArea>
+                </div>
             </CardContent>
             <CardFooter className="flex gap-2 flex-wrap">
                  <Button type="button" onClick={handleAddNewItem}>
@@ -1273,19 +1281,38 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                     <CardTitle className="flex items-center text-base"><List className="mr-2 h-5 w-5"/>Pricing</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                    {(formValues.items || []).some(item => item.metalType === 'gold') && (
+                    {(() => {
+                      // Only the rates this order actually uses. Every karat of gold and
+                      // both palladium grades used to show regardless -- six boxes for a
+                      // 21k ring -- and a box that is on screen looks like a box that must
+                      // be checked. The list follows the pieces: add an 18k item and the
+                      // 18k rate appears; remove it and it goes.
+                      const items = (formValues.items || []) as Array<{ metalType?: string; karat?: string }>;
+                      const goldKarats = new Set(items.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
+                      const pdKarats = new Set(items.filter(i => i.metalType === 'palladium').map(i => i.karat).filter(Boolean));
+                      const hasPalladium = items.some(i => i.metalType === 'palladium');
+                      if (goldKarats.size === 0 && !hasPalladium) return null;
+                      const gold = ([['24k','goldRate24k'],['22k','goldRate22k'],['21k','goldRate21k'],['18k','goldRate18k']] as const).filter(([k]) => goldKarats.has(k));
+                      const pd = ([['18k','palladiumRate18k'],['12k','palladiumRate12k']] as const).filter(([k]) => pdKarats.size === 0 || pdKarats.has(k));
+                      return (
                     <PanelSection title="Metal rates (PKR / gram)" icon={<DollarSign className="h-3.5 w-3.5" />}>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 border rounded-md">
-                            <FormField control={form.control} name="goldRate24k" render={({ field }) => (<FormItem><FormLabel className="text-xs">24k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                            <FormField control={form.control} name="goldRate22k" render={({ field }) => (<FormItem><FormLabel className="text-xs">22k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                            <FormField control={form.control} name="goldRate21k" render={({ field }) => (<FormItem><FormLabel className="text-xs">21k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                            <FormField control={form.control} name="goldRate18k" render={({ field }) => (<FormItem><FormLabel className="text-xs">18k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                        </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 p-3 border rounded-md mt-2">
-                            <FormField control={form.control} name="palladiumRate18k" render={({ field }) => (<FormItem><FormLabel className="text-xs">Palladium 18k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                            <FormField control={form.control} name="palladiumRate12k" render={({ field }) => (<FormItem><FormLabel className="text-xs">Palladium 12k</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                        </div>
-                        <FormDescription className="text-xs">Applies to every item in this estimate. A palladium rate left at zero falls back to the shop&apos;s flat palladium rate.</FormDescription>
+                        {gold.length > 0 && (
+                          <div className={cn('grid gap-x-4 gap-y-2 p-3 border rounded-md', gold.length === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
+                            {gold.map(([k, name]) => (
+                              <FormField key={name} control={form.control} name={name} render={({ field }) => (<FormItem><FormLabel className="text-xs">Gold {k}</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            ))}
+                          </div>
+                        )}
+                        {hasPalladium && (
+                          <div className={cn('grid gap-x-4 gap-y-2 p-3 border rounded-md', gold.length > 0 && 'mt-2', pd.length === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
+                            {pd.map(([k, name]) => (
+                              <FormField key={name} control={form.control} name={name} render={({ field }) => (<FormItem><FormLabel className="text-xs">Palladium {k}</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            ))}
+                          </div>
+                        )}
+                        <FormDescription className="text-xs">
+                          Applies to every piece on this order.{hasPalladium && ' A palladium rate left at zero falls back to the shop\u2019s flat palladium rate.'}
+                        </FormDescription>
 
                         {/* The rates still price the order; this only decides whether the
                             paper says what they were. Some customers are quoted a piece and
@@ -1303,7 +1330,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                             </FormItem>
                         )}/>
                     </PanelSection>
-                    )}
+                      );
+                    })()}
 
                     <PanelSection title="Delivery" icon={<Truck className="h-3.5 w-3.5" />}>
                     <DeliveryFields
