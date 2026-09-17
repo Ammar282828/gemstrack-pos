@@ -35,6 +35,12 @@ service cloud.firestore {
       allow read, update, delete: if isOwner();
     }
 
+    // Per-caller counters behind the public website routes (/api/public/*).
+    // Written by the Admin SDK only; nothing legitimate reads them from a browser.
+    match /website_ratelimit/{key} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if isOwner();
     }

@@ -21,6 +21,7 @@ import { getOrderPaymentStatus, type PaymentStatus as OrderPaymentStatus } from 
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { WebsiteOrderPanel } from '@/components/order/website-order-panel';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, DollarSign, Calendar, Edit, Loader2, Diamond, Gem, MessageSquare, FileText, Weight, Percent, Printer, Briefcase, CreditCard, RotateCcw, Truck, PackageSearch, ExternalLink, Trash2, Lock, ShoppingBag, MoreHorizontal } from 'lucide-react';
@@ -1066,6 +1067,9 @@ export default function OrderDetailPage() {
                       </div>
               </CardHeader>
               <CardContent>
+                  {order.source === 'website' && order.website && (
+                    <div className="mb-6"><WebsiteOrderPanel order={order} /></div>
+                  )}
                   {/* What the form captured and this page never showed: the
                       contact, who took the order, how they found us, where it
                       goes and any notes. The bench and the counter both need

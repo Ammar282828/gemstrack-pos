@@ -4,22 +4,45 @@
     {
       "name": "Mina Store (silver)",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000,
       "autoPort": true
     },
     {
       "name": "Taheri Store (gold)",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev:taheri"],
+      "runtimeArgs": [
+        "run",
+        "dev:taheri"
+      ],
       "port": 3001,
       "autoPort": true
     },
     {
       "name": "Notifications Scheduler",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["notifications-scheduler.js"],
+      "runtimeArgs": [
+        "notifications-scheduler.js"
+      ],
       "port": 3002
+    },
+    {
+      "name": "taheri-site",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/ammarmansa/Projects/taheri-site",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5180",
+        "--strictPort"
+      ],
+      "port": 5180
     }
   ]
 }

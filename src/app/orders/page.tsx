@@ -204,6 +204,9 @@ const OrderTableRow: React.FC<{ order: Order }> = ({ order }) => {
           <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
             {order.id}
           </Link>
+          {order.source === 'website' && (
+            <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] font-medium border-sky-500/40 text-sky-700 dark:text-sky-300">Website</Badge>
+          )}
           {/* Count first: it is the scannable part, and the item list is
               going to truncate whatever happens. */}
           <p className="text-xs text-muted-foreground max-w-[18rem] mt-0.5 truncate" title={order.summary}>

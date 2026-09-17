@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { WebsiteSettings } from '@/components/settings/website-settings';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ShopifyPullPanel } from '@/components/settings/shopify-pull-panel';
 import { useToast } from '@/hooks/use-toast';
@@ -965,6 +966,7 @@ export default function SettingsPage() {
 
           {/* ─────────────────────── Integrations ─────────────────────── */}
           <TabsContent value="integrations" className="space-y-4 mt-0">
+            <WebsiteSettings />
             <ShopifyCard />
             <Card>
               <CardHeader className="pb-4">

@@ -290,12 +290,13 @@ export interface Settings extends GoldRates {
 
 
 // Where a customer/sale came from — used for acquisition analytics.
-export const CUSTOMER_SOURCES = ['taheri_spillover', 'referral', 'walkin', 'other'] as const;
+export const CUSTOMER_SOURCES = ['taheri_spillover', 'referral', 'walkin', 'website', 'other'] as const;
 export type CustomerSource = typeof CUSTOMER_SOURCES[number];
 export const CUSTOMER_SOURCE_LABELS: Record<CustomerSource, string> = {
   taheri_spillover: 'Taheri Spillover',
   referral: 'Referral',
   walkin: 'Walk-in',
+  website: 'Website',
   other: 'Other',
 };
 
@@ -632,6 +633,9 @@ export interface Order {
   advanceInExchangeValue?: number; // Estimated value of the exchange
   invoiceId?: string; // Set when order is finalized into an invoice
   tcsConsignmentNo?: string; // TCS Envio courier consignment number
+  /** Set only on orders placed from taheri.shop — see lib/website/types.ts. */
+  website?: import('@/lib/website/types').WebsiteOrderMeta;
+  leopards?: import('@/lib/website/types').LeopardsMeta;
   notes?: string;
   shopifyOrderId?: string; // Carried forward from invoice during edit/revert so the next finalize re-links the same Shopify order
   shopifyOrderNumber?: number;

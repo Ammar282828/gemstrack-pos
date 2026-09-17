@@ -126,6 +126,24 @@ env:
     availability:
       - BUILD
       - RUNTIME
+
+  # ── Selling from taheri.shop ──────────────────────────────────────────────
+  # The public site quotes and checks out through /api/public/*. WEBSITE_ORIGIN
+  # is the one origin those routes answer to, and where the catalogue's
+  # attributes are read from. Leopards is optional: without its two secrets the
+  # order page takes a consignment number by hand.
+  - variable: WEBSITE_ORIGIN
+    value: https://taheri.shop
+    availability: [RUNTIME]
+  - variable: LEOPARDS_API_KEY
+    secret: LEOPARDS_API_KEY
+    availability: [RUNTIME]
+  - variable: LEOPARDS_API_PASSWORD
+    secret: LEOPARDS_API_PASSWORD
+    availability: [RUNTIME]
+  - variable: LEOPARDS_USE_SANDBOX
+    value: "false"
+    availability: [RUNTIME]
   - variable: NEXT_PUBLIC_STORE_INSTAGRAM_URL
     value: "https://www.instagram.com/collectionstaheri"
     availability:
