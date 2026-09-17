@@ -43,6 +43,15 @@
         "--strictPort"
       ],
       "port": 5180
+    },
+    {
+      "name": "POS (node 20)",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "PATH=/opt/homebrew/opt/node@20/bin:$PATH exec npm run dev"
+      ],
+      "port": 3000
     }
   ]
 }

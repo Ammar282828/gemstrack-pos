@@ -109,7 +109,7 @@ export function buildWebsiteOrder(raw: unknown, ctx: BuildContext): BuiltOrder {
   const token = ctx.token || randomBytes(18).toString('base64url');
   const origin = ctx.origin.replace(/\/+$/, '');
 
-  const products = quotes.map(q => productFor(q, ctx.catalog[q.key]!, ctx.config, origin, now));
+  const products = quotes.map(q => stripUndefined(productFor(q, ctx.catalog[q.key]!, ctx.config, origin, now)));
   const lines = quotes.map((q, i) => ({ description: String(products[i].name), price: q.price!, image: `${origin}/catalog-thumb/${encodeURI(q.key)}` }));
 
   const items = quotes.map((q, i) => {
@@ -171,7 +171,7 @@ export function buildWebsiteOrder(raw: unknown, ctx: BuildContext): BuiltOrder {
     website: { ...website, bagId: input.bagId },
   };
 
-  return { products, order, quotes, subtotal, deliveryCharge, grandTotal, token, lines };
+  return { products, order: stripUndefined(order), quotes, subtotal, deliveryCharge, grandTotal, token, lines };
 }
 
 /** A product record for a photographed piece, made at the moment it is bought. */

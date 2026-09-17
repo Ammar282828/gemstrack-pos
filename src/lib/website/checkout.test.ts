@@ -92,6 +92,16 @@ describe('buildWebsiteOrder', () => {
   });
 });
 
+describe('what the builder hands to Firestore', () => {
+  it('carries no undefined values — Firestore refuses a document that does', () => {
+    const built = buildWebsiteOrder({ ...good, expectedTotal: 121500 + 64750 + 500 }, ctx);
+    const hasUndefined = (o: unknown): boolean => Array.isArray(o) ? o.some(hasUndefined)
+      : o && typeof o === 'object' ? Object.values(o as object).some(v => v === undefined || hasUndefined(v)) : false;
+    expect(built.products.some(hasUndefined)).toBe(false);   // the plain-gold ring has no stoneDetails
+    expect(hasUndefined(built.order)).toBe(false);
+  });
+});
+
 describe('skuFor', () => {
   it('is stable and safe as a document id', () => {
     expect(skuFor('a/b/c.webp')).toBe(skuFor('a/b/c.webp'));

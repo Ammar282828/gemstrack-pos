@@ -14,7 +14,13 @@ import { FulfilmentError, markDelivered, markTransferReceived, refreshTracking, 
 
 export const dynamic = 'force-dynamic';
 
+// Follows the one switch that governs the whole app's posture — see
+// api/vision/order for why. While open, anyone who reaches this route can
+// move a website order along; closing NEXT_PUBLIC_OPEN_ACCESS closes this too.
+const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
+
 async function gate(req: NextRequest): Promise<string | NextResponse> {
+  if (OPEN_ACCESS) return 'open-access';
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const role = roleForEmail(email);

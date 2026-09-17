@@ -11,7 +11,7 @@ import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { json, preflight } from '@/lib/website/cors';
 import { rateLimit, callerKey } from '@/lib/website/ratelimit';
-import { loadRates, loadWebsiteConfig, ratesUsable } from '@/lib/website/config';
+import { configReadiness, loadRates, loadWebsiteConfig, ratesUsable } from '@/lib/website/config';
 import { getCatalogAttributes, normalisePieceKey } from '@/lib/website/catalog-source';
 import { quotePiece } from '@/lib/website/pricing';
 
@@ -29,7 +29,9 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return json(req, { error: 'Send { pieces: string[] }' }, { status: 400 });
 
   const [config, rates, catalog] = await Promise.all([loadWebsiteConfig(), loadRates(), getCatalogAttributes()]);
-  const selling = config.enabled && ratesUsable(rates);
+  // The same test checkout applies: a price the site shows must be one it can
+  // take an order at, or the bag leads to a refusal.
+  const selling = config.enabled && ratesUsable(rates) && configReadiness(config).ready;
 
   const quotes = parsed.data.pieces.map(raw => {
     const key = normalisePieceKey(raw);
