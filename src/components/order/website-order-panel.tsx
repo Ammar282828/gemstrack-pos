@@ -24,6 +24,9 @@ const fmt = (n: number) => `Rs ${Math.round(n).toLocaleString('en-PK')}`;
 
 async function call(id: string, body: Record<string, unknown> | null) {
   const tk = await getAuth().currentUser?.getIdToken();
+  // Moving a website order marks money received and goods shipped; the route
+  // insists on a verified account, even while the rest of the POS runs open.
+  if (!tk) throw new Error('Sign in with Google to move website orders — these actions need a verified account.');
   const res = await fetch(`/api/website/orders/${encodeURIComponent(id)}`, {
     method: body ? 'POST' : 'GET',
     headers: { 'Content-Type': 'application/json', ...(tk ? { Authorization: `Bearer ${tk}` } : {}) },

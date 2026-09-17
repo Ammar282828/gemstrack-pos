@@ -14,7 +14,7 @@ and the order together. Nothing exists in inventory until it is bought.
 | `src/lib/website/checkout.ts` | `buildWebsiteOrder` (pure, tested) → `placeWebsiteOrder`. Every piece is re-quoted server-side; a moved rate refuses with the new total |
 | `src/lib/website/fulfilment.ts` | transfer received → ship (Leopards API, or a CN typed in) → delivered; each tells the customer on WhatsApp |
 | `src/app/api/public/{quote,checkout,order/[id]}` | the site's three routes. CORS to `WEBSITE_ORIGIN` only, per-caller rate limits, honeypot |
-| `src/app/api/website/orders/[id]` | the shop's actions — owner or staff, signed in (open while `NEXT_PUBLIC_OPEN_ACCESS=1`, like every other route) |
+| `src/app/api/website/orders/[id]` | the shop's actions — owner or staff, **always** signed in. Deliberately does not follow `NEXT_PUBLIC_OPEN_ACCESS`: it marks money received and goods shipped |
 | Settings → Integrations → *Selling on taheri.shop* | the switch, default and per-collection pricing, diamond policy, delivery, the POS category |
 | Orders | a **Website** badge in the list; the order page carries payment state, the three moves, and the customer's link |
 
@@ -49,5 +49,7 @@ the Google auth library's fetch fails against `oauth2.googleapis.com`. A dev-onl
 `WEBSITE_ORIGIN=http://localhost:5180`,
 `WEBSITE_CATALOG_URL=http://localhost:5180/catalog-attributes.json` and test bank
 values lets a checkout run end to end against the live book without messaging anyone.
+To exercise the shop's actions without signing in, add `WEBSITE_ACTIONS_DEV_BYPASS=1`
+to that same dev-only file — it is server-only and refused in production.
 Delete the test order, its `WEB-` product and customer afterwards, and put
 `lastOrderNumber` back. `npm test` covers the pure parts.

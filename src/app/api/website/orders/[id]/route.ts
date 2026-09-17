@@ -14,13 +14,21 @@ import { FulfilmentError, markDelivered, markTransferReceived, refreshTracking, 
 
 export const dynamic = 'force-dynamic';
 
-// Follows the one switch that governs the whole app's posture — see
-// api/vision/order for why. While open, anyone who reaches this route can
-// move a website order along; closing NEXT_PUBLIC_OPEN_ACCESS closes this too.
-const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
+// This route does NOT follow NEXT_PUBLIC_OPEN_ACCESS the way the vision routes
+// do. Those spend AI credits when open; this one marks an order paid and
+// shipped. Under open access, anyone reaching it could make an unpaid order
+// look paid and the shop would ship. So a verified owner or staff token is
+// always required — which means, while the POS runs without sign-in, these
+// actions are unavailable from the UI. That is the correct consequence.
+//
+// The one exception is for running a checkout test on a development machine:
+// a server-only variable (no NEXT_PUBLIC_ prefix, so it never ships to a
+// browser) that is additionally refused in production, so it cannot be
+// switched on anywhere this route is reachable from the internet.
+const DEV_BYPASS = process.env.WEBSITE_ACTIONS_DEV_BYPASS === '1' && process.env.NODE_ENV !== 'production';
 
 async function gate(req: NextRequest): Promise<string | NextResponse> {
-  if (OPEN_ACCESS) return 'open-access';
+  if (DEV_BYPASS) return 'dev-bypass';
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const role = roleForEmail(email);
