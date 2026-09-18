@@ -14,6 +14,7 @@ import { rateLimit, callerKey } from '@/lib/website/ratelimit';
 import { configReadiness, loadRates, loadWebsiteConfig, ratesUsable } from '@/lib/website/config';
 import { getCatalogAttributes, normalisePieceKey } from '@/lib/website/catalog-source';
 import { quotePiece } from '@/lib/website/pricing';
+import { getPosWeights, mergeWeights } from '@/lib/website/weights';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,8 @@ export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json(req, { error: 'Send { pieces: string[] }' }, { status: 400 });
 
-  const [config, rates, catalog] = await Promise.all([loadWebsiteConfig(), loadRates(), getCatalogAttributes()]);
+  const [config, rates, published, pos] = await Promise.all([loadWebsiteConfig(), loadRates(), getCatalogAttributes(), getPosWeights()]);
+  const catalog = mergeWeights(published, pos);
   // The same test checkout applies: a price the site shows must be one it can
   // take an order at, or the bag leads to a refusal.
   const selling = config.enabled && ratesUsable(rates) && configReadiness(config).ready;
@@ -36,8 +38,11 @@ export async function POST(req: NextRequest) {
   const quotes = parsed.data.pieces.map(raw => {
     const key = normalisePieceKey(raw);
     const q = quotePiece(key, catalog[key], selling ? config : { ...config, enabled: false }, rates);
-    // The site gets a price or a reason, never the breakdown — margins stay in the book.
-    return { key, priceable: q.priceable, price: q.price, reason: q.reason };
+    const a = catalog[key];
+    // The site gets a price or a reason, never the breakdown — margins stay in
+    // the book. The weight and where it came from travel regardless of selling:
+    // the site draws counter-entered weights onto the photo.
+    return { key, priceable: q.priceable, price: q.price, reason: q.reason, weightGrams: a?.weightGrams ?? null, weightSource: a?.weightSource ?? null };
   });
 
   return json(req, {

@@ -23,6 +23,7 @@ import { createOrder } from '@/lib/writes/create-order';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { bankDetails, loadRates, loadWebsiteConfig, ratesUsable, configReadiness } from './config';
 import { getCatalogAttributes, normalisePieceKey } from './catalog-source';
+import { getPosWeights, mergeWeights } from './weights';
 import { deliveryChargeFor, quotePiece, type QuoteRates } from './pricing';
 import { customerPlacedMessage, shopPlacedMessage, shopNumber, trySend } from './notify';
 import type { PieceAttrs, PublicOrderView, Quote, WebsiteBankDetails, WebsiteConfig, WebsiteOrderMeta } from './types';
@@ -225,7 +226,8 @@ export interface PlacedOrder {
 }
 
 export async function placeWebsiteOrder(raw: unknown, meta: { caller: string; origin: string }): Promise<PlacedOrder> {
-  const [config, rates, catalog] = await Promise.all([loadWebsiteConfig(), loadRates(), getCatalogAttributes()]);
+  const [config, rates, published, pos] = await Promise.all([loadWebsiteConfig(), loadRates(), getCatalogAttributes(), getPosWeights()]);
+  const catalog = mergeWeights(published, pos);
   const origin = process.env.WEBSITE_ORIGIN || 'https://taheri.shop';
   const bank = bankDetails();
   const built = buildWebsiteOrder(raw, { config, rates, catalog, origin, bank });

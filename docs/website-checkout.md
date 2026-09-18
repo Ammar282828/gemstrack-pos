@@ -15,6 +15,7 @@ and the order together. Nothing exists in inventory until it is bought.
 | `src/lib/website/fulfilment.ts` | transfer received → ship (Leopards API, or a CN typed in) → delivered; each tells the customer on WhatsApp |
 | `src/app/api/public/{quote,checkout,order/[id]}` | the site's three routes. CORS to `WEBSITE_ORIGIN` only, per-caller rate limits, honeypot |
 | `src/app/api/website/orders/[id]` | the shop's actions — owner or staff, **always** signed in. Deliberately does not follow `NEXT_PUBLIC_OPEN_ACCESS`: it marks money received and goods shipped |
+| **Website → Photo Weights** (`/website/weights`) | record the weight of photographs that do not carry one in their corner. One photo at a time, one field, Enter saves and moves on. The site draws it onto the photo like the burned-in ones and prices from it. Stored in `website_pieces`; read through `/api/website/pieces` |
 | Settings → Integrations → *Selling on taheri.shop* | the switch, default and per-collection pricing, diamond policy, delivery, the POS category |
 | Orders | a **Website** badge in the list; the order page carries payment state, the three moves, and the customer's link |
 
