@@ -46,6 +46,9 @@ import { PhoneField } from '@/components/ui/phone-field';
 import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { OrderScanner } from '@/components/order/order-scanner';
+import {
+  exchangeValue, describeExchange, reconcileSlip, hasHisaab, karatFor, metalFor,
+} from '@/lib/vision/order-draft';
 import type { OrderDraft } from '@/lib/vision/order-draft';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 
@@ -706,11 +709,23 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
    * be in. Lines are APPENDED rather than replacing what is already there, because the
    * usual second photo is the other half of the same set, not a correction of the first.
    *
-   * Prices are deliberately not computed here. The slip's making charge goes in, the metal
-   * rate is whatever the form already holds, and the total is the form's own arithmetic —
-   * a figure read off handwriting must never quietly become a price nobody checked.
+   * How a piece is priced follows what the slip showed, the same fork the bill scanner
+   * makes:
+   *
+   *   A weight          → priced from the rate, like a piece typed at the counter. If the
+   *                       slip wrote a rate too, that rate goes in the order's rate box
+   *                       for its karat, so the form's arithmetic reproduces the slip's.
+   *                       Wastage is whatever the slip's sum used — usually nothing —
+   *                       because the slip's total is the one the customer agreed to.
+   *   A figure, no      → a fixed price at exactly that figure. Back-solving a weight
+   *   weight              from it would put a number on the order that nobody wrote.
+   *   Neither           → priced from the rate with the weight left for the form to ask.
+   *
+   * Cash advance, discount and old gold taken in exchange land in their own boxes. The
+   * slip's own totals are not copied anywhere as prices; they were checked against the
+   * reading in the scanner, and the form's total is the form's own arithmetic.
    */
-  const applyScan = (scan: OrderDraft, photoDataUri: string) => {
+  const applyScan = (scan: OrderDraft, photoDataUris: string[]) => {
     if (scan.customer?.pinned) {
       form.setValue('customerId', scan.customer.pinned.id);
       form.setValue('customerName', scan.customer.pinned.name);
@@ -720,42 +735,85 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
       form.setValue('customerName', scan.customer.heard);
     }
     if (scan.customerPhone) form.setValue('customerContact', normalizePhoneNumber(scan.customerPhone) || scan.customerPhone);
-    if (scan.advancePayment != null) form.setValue('advancePayment', scan.advancePayment);
+    if (Number(scan.advancePayment) > 0) form.setValue('advancePayment', Number(scan.advancePayment));
+    if (Number(scan.discount) > 0) form.setValue('discountAmount', Number(scan.discount));
+    if (scan.expectedDate && /^\d{4}-\d{2}-\d{2}$/.test(scan.expectedDate)) form.setValue('promisedDate', scan.expectedDate);
+
+    // Old gold against the order. The description carries everything the slip said about
+    // it — weight, karat, its own rate — and the value is only what the slip priced it at.
+    if (scan.exchange) {
+      const ex = exchangeValue(scan.exchange);
+      form.setValue('advanceInExchangeDescription', describeExchange(scan.exchange));
+      if (ex.value > 0) form.setValue('advanceInExchangeValue', ex.value);
+    }
 
     const karigarId = scan.karigar?.pinned?.id ?? '';
     const lines = scan.items?.length ? scan.items : [{}];
+    const RATE_FIELD: Record<string, keyof OrderFormData> = {
+      'gold:18k': 'goldRate18k', 'gold:21k': 'goldRate21k', 'gold:22k': 'goldRate22k', 'gold:24k': 'goldRate24k',
+      'palladium:18k': 'palladiumRate18k', 'palladium:12k': 'palladiumRate12k',
+    };
+    const check = reconcileSlip(scan);
+
     lines.forEach((it, i) => {
+      const metal = metalFor(it, STORE_CONFIG.defaultMetal) as MetalType;
+      const karat = karatFor(it, STORE_CONFIG.defaultMetal) as KaratValue | null;
+      const weight = Number(it.weightG) > 0 ? Number(it.weightG) : 0;
+      const written = Number(it.lineTotal) > 0 ? Number(it.lineTotal) : 0;
+      const fixed = weight <= 0 && written > 0;
+      const rate = Number(it.ratePerGram) > 0 ? Number(it.ratePerGram) : 0;
+
+      // The slip's rate becomes the order's rate for that karat. Silver has one all-in
+      // rate held in settings rather than on the order, so it is noted instead.
+      const rateField = rate > 0 && karat ? RATE_FIELD[`${metal}:${karat}`] : undefined;
+      if (rateField) form.setValue(rateField, rate);
+
+      // Which photo goes with this piece: the one the reader said shows it, else the
+      // first one on the first piece, as the order's reference picture.
+      const idx = Number(it.photoIndex);
+      const photo = idx >= 1 && idx <= photoDataUris.length ? photoDataUris[idx - 1]
+        : i === 0 ? photoDataUris[0] : '';
+
       setOpenItem(fields.length + i);
       append({
         itemCategory: it.itemCategory || '',
         description: it.description || '',
-        karat: it.karat ? (`${Math.round(it.karat)}k` as KaratValue) : '21k',
-        estimatedWeightG: it.weightG ?? 0,
-        wastagePercentage: 10,
-        makingCharges: it.makingCharges ?? 0,
+        karat: karat ?? (metal === 'gold' ? '21k' : undefined),
+        estimatedWeightG: weight,
+        // A slip that showed its sum used the wastage it wrote, or none; a bare weight
+        // is priced the way a new piece is.
+        wastagePercentage: hasHisaab(it) ? (Number(it.wastagePercent) || 0) : 10,
+        makingCharges: Number(it.makingCharges) > 0 ? Number(it.makingCharges) : 0,
         diamondCharges: 0,
-        stoneCharges: 0,
-        // The slip itself, kept on the first piece as the reference picture.
-        sampleImageDataUri: i === 0 ? photoDataUri : '',
+        stoneCharges: Number(it.stoneCharges) > 0 ? Number(it.stoneCharges) : 0,
+        sampleImageDataUri: photo ?? '',
         referenceSku: '',
         sampleGiven: false,
         hasDiamonds: false,
         stoneDetails: it.stoneDetails || '',
         diamondDetails: '',
-        metalType: STORE_CONFIG.defaultMetal as MetalType,
+        metalType: metal,
         isCompleted: false,
-        hasStones: Boolean(it.stoneWeightG),
-        stoneWeightG: it.stoneWeightG ?? 0,
+        hasStones: Number(it.stoneWeightG) > 0 || Number(it.stoneCharges) > 0,
+        stoneWeightG: Number(it.stoneWeightG) > 0 ? Number(it.stoneWeightG) : 0,
         karigarId,
-        isManualPrice: true,
-        manualPrice: 0,
+        isManualPrice: fixed,
+        manualPrice: fixed ? written : 0,
         platingType: '', platingNote: '', nickelFree: false,
         size: it.size || '',
         adminNote: [
           it.note,
           it.weightWasTola ? 'Weight converted from tola on the slip.' : null,
-          scan.unreadable ? `Unread on the slip: ${scan.unreadable}` : null,
-          scan.expectedDate ? `Slip says wanted by ${scan.expectedDate}.` : null,
+          it.rateWasPerTola ? 'Rate converted from per tola on the slip.' : null,
+          it.makingWasPerGram ? 'Making was written per gram and multiplied by the weight.' : null,
+          rate > 0 && !rateField && metal === 'silver' ? `Slip rate ${rate.toLocaleString('en-PK')}/g — silver is priced at the shop's rate in settings.` : null,
+          rate > 0 && !rateField && metal !== 'silver' ? `Slip rate ${rate.toLocaleString('en-PK')}/g could not be applied — no ${it.karat != null ? `${it.karat}k` : 'karat'} rate box.` : null,
+          Number(it.karat) > 0 && !karat ? `Slip says ${it.karat}k, which the form does not offer.` : null,
+          written > 0 && !fixed ? `Slip writes ${written.toLocaleString('en-PK')} for this piece.` : null,
+          check.itemsOff.includes(i) ? 'The slip\'s own sum for this piece does not match its written amount — check it.' : null,
+          i === 0 && scan.unreadable ? `Unread on the slip: ${scan.unreadable}` : null,
+          i === 0 && Number(scan.balanceDue) > 0 ? `Slip says balance ${Number(scan.balanceDue).toLocaleString('en-PK')}.` : null,
+          i === 0 && scan.expectedDate ? `Slip says wanted by ${scan.expectedDate}.` : null,
         ].filter(Boolean).join(' ') || '',
       });
     });

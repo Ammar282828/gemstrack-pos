@@ -4,18 +4,25 @@
  * Photograph a parchi, and get the order form filled in.
  *
  * It fills the form and stops. Nothing is created here — the draft appears beside the
- * photo it was read from, the names it could not pin are offered as a choice, and the
+ * photos it was read from, the names it could not pin are offered as a choice, and the
  * shopkeeper presses Create on the ordinary form afterwards.
  *
- * The photo stays on screen for exactly that reason. A figure read off handwriting is
+ * The photos stay on screen for exactly that reason. A figure read off handwriting is
  * worth checking against the handwriting, and the check is only free if both are in front
  * of you at once.
+ *
+ * A slip is often more than one photo — front and back, a second page, the piece itself
+ * beside its parchi — and it often arrives on WhatsApp rather than across the counter, so
+ * the camera roll is as good a source as the camera. Photos are sent together and read as
+ * one order; adding one re-reads the set, because the second page changes what the first
+ * page means.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import {
-  resolveDraft, TOLA_G, type NameGuess, type OrderDraft, type RawOrderDraft,
+  resolveDraft, reconcileSlip, exchangeValue, slipLinePrice, hasHisaab, TOLA_G,
+  type NameGuess, type OrderDraft, type RawOrderDraft,
 } from '@/lib/vision/order-draft';
 import type { RankedName, RosterEntry } from '@/lib/voice/phonetics';
 import { Button } from '@/components/ui/button';
@@ -24,7 +31,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Camera, Check, Loader2, ScanLine, TriangleAlert } from 'lucide-react';
+import { Camera, Check, Images, Loader2, Plus, TriangleAlert, X } from 'lucide-react';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 
 /**
@@ -34,8 +41,12 @@ import { authedFetch } from '@/lib/voice/authed-fetch';
  */
 const MAX_EDGE = 1600;
 const JPEG_QUALITY = 0.85;
+/** Mirrors the route's cap. Front, back, a second page, the piece — six is plenty. */
+const MAX_PHOTOS = 6;
 
-async function downscale(file: File): Promise<{ dataUri: string; base64: string }> {
+interface Photo { dataUri: string; base64: string }
+
+async function downscale(file: File): Promise<Photo> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
@@ -49,36 +60,39 @@ async function downscale(file: File): Promise<{ dataUri: string; base64: string 
   return { dataUri, base64: dataUri.split(',')[1] ?? '' };
 }
 
+const money = (n: number) => Math.round(n).toLocaleString('en-PK');
+
 export function OrderScanner({
   open, onOpenChange, onAccept,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onAccept: (draft: OrderDraft, photoDataUri: string) => void;
+  /** The draft, and every photo it was read from, in the order they were sent. */
+  onAccept: (draft: OrderDraft, photoDataUris: string[]) => void;
 }) {
   const customers = useAppStore((s) => s.customers);
   const karigars = useAppStore((s) => s.karigars);
 
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [draft, setDraft] = useState<OrderDraft | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
-  const reset = () => { setPhoto(null); setDraft(null); setError(null); };
+  const reset = () => { setPhotos([]); setDraft(null); setError(null); };
 
-  const scan = useCallback(async (file: File) => {
+  /** Read the whole set. Called with the full list, so a removed photo is really gone. */
+  const scan = useCallback(async (set: Photo[]) => {
+    if (set.length === 0) { setDraft(null); return; }
     setBusy(true);
     setError(null);
     setDraft(null);
     try {
-      const { dataUri, base64 } = await downscale(file);
-      setPhoto(dataUri);
-
       const res = await authedFetch('/api/vision/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mimeType: 'image/jpeg' }),
+        body: JSON.stringify({ images: set.map((p) => ({ data: p.base64, mimeType: 'image/jpeg' })) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Could not read that photo.');
@@ -93,11 +107,46 @@ export function OrderScanner({
     }
   }, [customers, karigars]);
 
+  const addFiles = useCallback(async (picked: File[]) => {
+    if (picked.length === 0) return;
+    setError(null);
+    try {
+      const room = MAX_PHOTOS - photos.length;
+      if (room <= 0) throw new Error(`At most ${MAX_PHOTOS} photos at a time.`);
+      const fresh = await Promise.all(picked.slice(0, room).map(downscale));
+      const next = [...photos, ...fresh];
+      setPhotos(next);
+      if (picked.length > room) setError(`Only the first ${room} of those were added — ${MAX_PHOTOS} photos at most.`);
+      await scan(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not read that photo.');
+    }
+  }, [photos, scan]);
+
+  const remove = (i: number) => {
+    const next = photos.filter((_, j) => j !== i);
+    setPhotos(next);
+    void scan(next);
+  };
+
   const pick = (which: 'karigar' | 'customer', person: RankedName | null) => {
     setDraft((d) => (d ? { ...d, [which]: d[which] ? { ...d[which]!, pinned: person } : null } : d));
   };
 
   const items = draft?.items ?? [];
+  const check = useMemo(() => (draft ? reconcileSlip(draft) : null), [draft]);
+  const exchange = useMemo(() => exchangeValue(draft?.exchange), [draft]);
+  const hasFoot = Boolean(draft && (
+    draft.advancePayment != null || draft.exchange || draft.discount != null
+    || draft.subtotal != null || draft.balanceDue != null || draft.expectedDate || draft.notes
+  ));
+
+  const onFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []);
+    // Same file twice in a row must re-fire change, so clear the value.
+    e.target.value = '';
+    void addFiles(picked);
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
@@ -105,39 +154,43 @@ export function OrderScanner({
         <DialogHeader>
           <DialogTitle>Read an order off a photo</DialogTitle>
           <DialogDescription>
-            A parchi, or a picture of the piece. Nothing is created — this fills the form in
-            and you check it against the photo.
+            A parchi, front and back, or a picture of the piece. Nothing is created — this
+            fills the form in and you check it against the photos.
           </DialogDescription>
         </DialogHeader>
 
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            // Same file twice in a row must re-fire change, so clear the value.
-            e.target.value = '';
-            if (f) void scan(f);
-          }}
-        />
+        {/* Two inputs on purpose. `capture` makes a phone open the camera and hide the
+            roll, which is right for a slip on the counter and wrong for one that came in
+            on WhatsApp. The gallery input has no capture and takes several at once. */}
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFiles} />
+        <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={onFiles} />
 
-        {!photo && !busy && (
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="flex w-full flex-col items-center gap-3 rounded-lg border border-dashed p-10 hover:bg-accent/50"
-          >
-            <Camera className="h-8 w-8 text-muted-foreground" />
-            <span className="text-sm">Take a photo, or choose one</span>
-          </button>
+        {photos.length === 0 && !busy && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-8 hover:bg-accent/50"
+            >
+              <Camera className="h-8 w-8 text-muted-foreground" />
+              <span className="text-sm">Take a photo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => galleryRef.current?.click()}
+              className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-8 hover:bg-accent/50"
+            >
+              <Images className="h-8 w-8 text-muted-foreground" />
+              <span className="text-sm">Upload photos</span>
+              <span className="text-xs text-muted-foreground">Front and back, or a few pages, together</span>
+            </button>
+          </div>
         )}
 
         {busy && (
           <div className="flex items-center justify-center gap-3 py-12 text-sm text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /> Reading it…
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Reading {photos.length > 1 ? `${photos.length} photos` : 'it'}…
           </div>
         )}
 
@@ -148,23 +201,67 @@ export function OrderScanner({
           </Alert>
         )}
 
-        {photo && draft && (
+        {photos.length > 0 && !busy && (
           <div className="grid gap-4 md:grid-cols-2">
-            {/* The photo stays up: a figure read off handwriting is worth checking against it. */}
+            {/* The photos stay up: a figure read off handwriting is worth checking against them. */}
             <div className="space-y-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photo} alt="The slip that was read" className="w-full rounded-lg border" />
-              <Button variant="outline" size="sm" className="w-full" onClick={() => fileRef.current?.click()}>
-                <Camera className="mr-2 h-4 w-4" /> Another photo
-              </Button>
+              {photos.map((p, i) => (
+                <div key={i} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.dataUri} alt={`Photo ${i + 1} of the slip`} className="w-full rounded-lg border" />
+                  {photos.length > 1 && (
+                    <span className="absolute left-2 top-2 rounded bg-background/85 px-1.5 py-0.5 text-xs font-medium">
+                      {i + 1}
+                    </span>
+                  )}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="absolute right-2 top-2 h-7 w-7"
+                    aria-label={`Remove photo ${i + 1}`}
+                    onClick={() => remove(i)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              {photos.length < MAX_PHOTOS && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" size="sm" onClick={() => cameraRef.current?.click()}>
+                    <Camera className="mr-2 h-4 w-4" /> Take another
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => galleryRef.current?.click()}>
+                    <Plus className="mr-2 h-4 w-4" /> Add from photos
+                  </Button>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                The photos are read together as one order. The first one is kept on the order
+                as its reference picture.
+              </p>
             </div>
 
+            {draft && (
             <div className="space-y-4">
               {draft.unreadable && (
                 <Alert>
                   <TriangleAlert className="h-4 w-4" />
                   <AlertTitle>Could not make this out</AlertTitle>
                   <AlertDescription>{draft.unreadable}</AlertDescription>
+                </Alert>
+              )}
+
+              {check && check.warnings.length > 0 && (
+                <Alert>
+                  <TriangleAlert className="h-4 w-4" />
+                  <AlertTitle>The slip does not add up as read</AlertTitle>
+                  <AlertDescription>
+                    <ul className="mt-1 list-disc space-y-1 pl-4">
+                      {check.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                    </ul>
+                    <p className="mt-2">Nothing has been corrected — check the figures against the photo, and fix them on the form.</p>
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -180,45 +277,115 @@ export function OrderScanner({
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">
                     {items.length} piece{items.length === 1 ? '' : 's'}
                   </div>
-                  {items.map((it, i) => (
-                    <div key={i} className="rounded-md border p-3 text-sm">
-                      <div className="font-medium">{it.description || 'Unnamed piece'}</div>
-                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  {items.map((it, i) => {
+                    const computed = slipLinePrice(it);
+                    const written = Number(it.lineTotal) > 0 ? Number(it.lineTotal) : null;
+                    const off = check?.itemsOff.includes(i);
+                    return (
+                    <div key={i} className={`rounded-md border p-3 text-sm ${off ? 'border-destructive/60' : ''}`}>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="font-medium">{it.description || 'Unnamed piece'}</span>
+                        {written != null && (
+                          <span className={`shrink-0 tabular-nums ${off ? 'text-destructive' : ''}`}>{money(written)}</span>
+                        )}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        {hasHisaab(it) ? (
+                          <Badge variant="secondary" className="font-normal">hisaab on the slip</Badge>
+                        ) : written != null && !(Number(it.weightG) > 0) ? (
+                          <Badge variant="outline" className="font-normal">figure only — fixed price</Badge>
+                        ) : null}
                         {it.itemCategory && <span>{it.itemCategory}</span>}
+                        {it.metalType && it.metalType !== 'gold' && <span>{it.metalType}</span>}
                         {it.karat != null && <span>{it.karat}k</span>}
                         {it.weightG != null && (
                           <span>
                             {it.weightG} g
-                            {it.weightWasTola && ` (${(it.weightG / TOLA_G).toFixed(2)} tola on the slip)`}
+                            {it.weightWasTola && ` (${(it.weightG / TOLA_G).toFixed(3)} tola on the slip)`}
                           </span>
                         )}
+                        {Number(it.ratePerGram) > 0 && (
+                          <span>
+                            @ {money(Number(it.ratePerGram))}/g
+                            {it.rateWasPerTola && ` (${money(Number(it.ratePerGram) * TOLA_G)}/tola on the slip)`}
+                          </span>
+                        )}
+                        {Number(it.wastagePercent) > 0 && <span>wastage {it.wastagePercent}%</span>}
+                        {Number(it.makingCharges) > 0 && (
+                          <span>making {money(Number(it.makingCharges))}{it.makingWasPerGram && ' (written per gram)'}</span>
+                        )}
+                        {Number(it.stoneCharges) > 0 && <span>stones {money(Number(it.stoneCharges))}</span>}
                         {it.size && <span>Size {it.size}</span>}
-                        {it.makingCharges != null && <span>Making {it.makingCharges.toLocaleString()}</span>}
+                        {it.photoIndex != null && photos.length > 1 && <span>photo {it.photoIndex}</span>}
                       </div>
+                      {computed != null && written == null && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Rate × weight comes to {money(computed)} — no amount was written against it.
+                        </div>
+                      )}
                       {it.note && <div className="mt-1 text-xs text-muted-foreground">{it.note}</div>}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
-              {(draft.advancePayment != null || draft.expectedDate || draft.notes) && (
+              {hasFoot && (
                 <div className="space-y-1 rounded-md border p-3 text-sm">
-                  {draft.advancePayment != null && <div>Advance: {draft.advancePayment.toLocaleString()}</div>}
-                  {draft.expectedDate && <div>Wanted by: {draft.expectedDate}</div>}
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Foot of the slip</div>
+                  {Number(draft.subtotal) > 0 && <Row label="Pieces" value={money(Number(draft.subtotal))} />}
+                  {Number(draft.discount) > 0 && <Row label="Discount" value={`− ${money(Number(draft.discount))}`} />}
+                  {Number(draft.advancePayment) > 0 && <Row label="Advance (cash)" value={`− ${money(Number(draft.advancePayment))}`} />}
+                  {draft.exchange && (
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0">
+                        Taken in exchange
+                        <span className="block text-xs text-muted-foreground">
+                          {[
+                            draft.exchange.description,
+                            Number(draft.exchange.karat) > 0 ? `${draft.exchange.karat}k` : null,
+                            Number(draft.exchange.weightG) > 0
+                              ? `${draft.exchange.weightG} g${draft.exchange.weightWasTola ? ' (tola on the slip)' : ''}`
+                              : null,
+                            Number(draft.exchange.ratePerGram) > 0 ? `@ ${money(Number(draft.exchange.ratePerGram))}/g` : null,
+                            exchange.from === 'computed' ? 'weight × rate off the slip' : null,
+                          ].filter(Boolean).join(' · ')}
+                        </span>
+                      </span>
+                      <span className={`shrink-0 tabular-nums ${exchange.from === 'none' ? 'text-destructive' : ''}`}>
+                        {exchange.from === 'none' ? 'no figure' : `− ${money(exchange.value)}`}
+                      </span>
+                    </div>
+                  )}
+                  {Number(draft.balanceDue) > 0 && (
+                    <Row label="Balance written" value={money(Number(draft.balanceDue))} strong />
+                  )}
+                  {check?.balance != null && Number(draft.balanceDue) <= 0 && (
+                    <Row label="Balance, as the figures read" value={money(check.balance)} strong />
+                  )}
+                  {draft.expectedDate && <Row label="Wanted by" value={draft.expectedDate} />}
                   {draft.notes && <div className="text-muted-foreground">{draft.notes}</div>}
                 </div>
               )}
+
+              {items.some(hasHisaab) && (
+                <p className="text-xs text-muted-foreground">
+                  The rate on the slip goes into the order&apos;s rate box, so the form prices these
+                  pieces the way the slip did. Change the rate on the form and they move with it.
+                </p>
+              )}
             </div>
+            )}
           </div>
         )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }}>Cancel</Button>
           <Button
-            disabled={!draft || busy}
+            disabled={!draft || busy || photos.length === 0}
             onClick={() => {
-              if (!draft || !photo) return;
-              onAccept(draft, photo);
+              if (!draft || photos.length === 0) return;
+              onAccept(draft, photos.map((p) => p.dataUri));
               reset();
               onOpenChange(false);
             }}
@@ -228,6 +395,15 @@ export function OrderScanner({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className={`flex items-baseline justify-between gap-3 ${strong ? 'font-medium' : ''}`}>
+      <span>{label}</span>
+      <span className="shrink-0 tabular-nums">{value}</span>
+    </div>
   );
 }
 
