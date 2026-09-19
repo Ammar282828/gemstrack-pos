@@ -6,10 +6,17 @@
  * shop's pool is empty — every call comes back RESOURCE_EXHAUSTED however valid the key
  * is. Vertex bills to the project's Google Cloud account, which is funded.
  *
- * It also means no API key at all. On App Hosting the request is signed by the backend's
- * own service account through Application Default Credentials, so there is no secret to
- * store, rotate, leak, or grant access to. Locally it uses whatever `gcloud auth
+ * It also means no API key by default. On App Hosting the request is signed by the
+ * backend's own service account through Application Default Credentials, so there is no
+ * secret to store, rotate, leak, or grant access to. Locally it uses whatever `gcloud auth
  * application-default login` left behind.
+ *
+ * The one exception: GEMINI_API_KEY. Set, it is used in place of the signed request,
+ * against Vertex AI's express endpoint (the same aiplatform host, keyed rather than
+ * signed, no project or region in the path). That is for a machine with no gcloud
+ * login, or a deployment whose backend account cannot be granted Vertex. It is a
+ * server-side variable only — never NEXT_PUBLIC_ — and the request shape is the same
+ * either way, so nothing above this file can tell which was used.
  */
 
 import { GoogleAuth } from 'google-auth-library';
@@ -20,6 +27,7 @@ const auth = new GoogleAuth({
 
 const PROJECT = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || '';
 const LOCATION = process.env.VERTEX_LOCATION?.trim() || 'us-central1';
+const API_KEY = process.env.GEMINI_API_KEY?.trim() || '';
 
 /**
  * Pinned, and to what Vertex actually serves this project rather than to whatever is
@@ -29,7 +37,7 @@ const LOCATION = process.env.VERTEX_LOCATION?.trim() || 'us-central1';
  */
 export const VERTEX_MODEL = process.env.VERTEX_MODEL?.trim() || 'gemini-2.5-flash';
 
-export const geminiConfigured = () => Boolean(PROJECT);
+export const geminiConfigured = () => Boolean(API_KEY || PROJECT);
 
 export interface InlinePart { inlineData: { mimeType: string; data: string } }
 export interface TextPart { text: string }
@@ -60,6 +68,27 @@ export class GeminiError extends Error {
   }
 }
 
+/** Where to send it and how to prove who is asking — see the note at the top. */
+async function endpoint(): Promise<{ url: string; headers: Record<string, string> }> {
+  if (API_KEY) {
+    return {
+      url: `https://aiplatform.googleapis.com/v1/publishers/google/models/${VERTEX_MODEL}:generateContent`,
+      headers: { 'x-goog-api-key': API_KEY },
+    };
+  }
+  if (!PROJECT) throw new GeminiError('No Google Cloud project configured.', 503);
+
+  const client = await auth.getClient();
+  const token = (await client.getAccessToken()).token;
+  if (!token) throw new GeminiError('Could not authenticate to Vertex AI.', 503);
+
+  return {
+    url: `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT}`
+      + `/locations/${LOCATION}/publishers/google/models/${VERTEX_MODEL}:generateContent`,
+    headers: { Authorization: `Bearer ${token}` },
+  };
+}
+
 /**
  * One call, one parsed JSON object.
  *
@@ -70,19 +99,12 @@ export class GeminiError extends Error {
 export async function generateJson<T>({
   system, parts, schema, temperature = 0, thinkingBudget, signal,
 }: GenerateOptions): Promise<T> {
-  if (!PROJECT) throw new GeminiError('No Google Cloud project configured.', 503);
-
-  const client = await auth.getClient();
-  const token = (await client.getAccessToken()).token;
-  if (!token) throw new GeminiError('Could not authenticate to Vertex AI.', 503);
-
-  const url = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT}`
-    + `/locations/${LOCATION}/publishers/google/models/${VERTEX_MODEL}:generateContent`;
+  const { url, headers } = await endpoint();
 
   const res = await fetch(url, {
     method: 'POST',
     signal,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: 'user', parts }],
