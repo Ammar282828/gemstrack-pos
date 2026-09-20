@@ -135,13 +135,20 @@ env:
   - variable: WEBSITE_ORIGIN
     value: https://taheri.shop
     availability: [RUNTIME]
-  # WEBSITE_UPLOAD_SECRET, LEOPARDS_API_KEY and LEOPARDS_API_PASSWORD are
-  # deliberately NOT declared here. App Hosting refuses a rollout when a
-  # declared secret does not exist in Secret Manager, and declaring them before
-  # their values existed is what failed the 20 Sept build. Every feature that
-  # wants one checks for it and says plainly that it is unconfigured: photo
-  # uploads refuse to send, Leopards falls back to a hand-entered CN. Add each
-  # variable back here in the same commit that creates its secret.
+  # Add Photos: the bearer the POS presents to taheri.shop/api/upload.php. The
+  # same value sits on Hostinger as ~/domains/taheri.shop/.website-upload-secret.
+  # The Secret Manager entry is named in lowercase (it was created that way);
+  # the variable the code reads is the uppercase one, and the two need not match.
+  - variable: WEBSITE_UPLOAD_SECRET
+    secret: website-upload-secret
+    availability: [RUNTIME]
+  # LEOPARDS_API_KEY and LEOPARDS_API_PASSWORD are deliberately NOT declared.
+  # App Hosting refuses a rollout when a declared secret does not exist in
+  # Secret Manager, and declaring them before their values existed is what
+  # failed the 20 Sept build. Without them the order page takes a consignment
+  # number by hand. Add each back here in the same commit that creates its
+  # secret — and grant the three App Hosting service accounts secretAccessor
+  # on it first, as the other secrets have, or the rollout fails on read.
   - variable: LEOPARDS_USE_SANDBOX
     value: "false"
     availability: [RUNTIME]
