@@ -22,13 +22,20 @@ import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
 import { getCatalogAttributes } from '@/lib/website/catalog-source';
 import { collectionOfKey } from '@/lib/website/pricing';
+import convertHeic from 'heic-convert';
 
 export const dynamic = 'force-dynamic';
 // A photograph can be several megabytes; the default body cap is far smaller.
 export const maxDuration = 60;
 
 const MAX_BYTES = 25 * 1024 * 1024;
+// What the site's drop folder takes, as-is.
 const EXTS = ['jpg', 'jpeg', 'png', 'webp'];
+// What an iPhone actually hands over. Converted to JPEG here, on the server,
+// so neither the phone nor the site has to know HEIC exists: the browser can
+// not reliably decode it, and the site's image pipeline does not need to.
+const HEIC_EXTS = ['heic', 'heif'];
+const isHeic = (ext: string, mime: string) => HEIC_EXTS.includes(ext) || /^image\/hei[cf]/i.test(mime);
 
 /**
  * Always a verified owner or staff member — this route deliberately does NOT
@@ -134,18 +141,32 @@ export async function POST(req: NextRequest) {
   }
 
   const ext = (nameHint || file.name).split('.').pop()?.toLowerCase() || '';
-  if (!EXTS.includes(ext)) return NextResponse.json({ error: `Photographs must be ${EXTS.join(', ')}.` }, { status: 415 });
+  const heic = isHeic(ext, file.type);
+  if (!heic && !EXTS.includes(ext)) return NextResponse.json({ error: `Photographs must be ${[...EXTS, ...HEIC_EXTS].join(', ')}.` }, { status: 415 });
 
   // Keep the name the counter gave it, minus anything that would change where
   // the file lands. The site's own sanitiser is the real boundary; this is so
   // the name stays recognisable rather than being mangled there.
-  const base = (nameHint || file.name).replace(/[/\\]/g, ' ').replace(/\s+/g, ' ').trim();
+  let base = (nameHint || file.name).replace(/[/\\]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!base || base === '.' || base === '..' || base.startsWith('.')) return NextResponse.json({ error: 'Give the photograph a name.' }, { status: 400 });
+
+  // A HEIC becomes a JPEG of the same name before it goes anywhere.
+  let body: Blob = file;
+  if (heic) {
+    try {
+      const jpeg = await convertHeic({ buffer: new Uint8Array(await file.arrayBuffer()), format: 'JPEG', quality: 0.9 });
+      body = new Blob([jpeg], { type: 'image/jpeg' });
+    } catch (e) {
+      console.warn('[website photos] HEIC conversion failed:', e instanceof Error ? e.message : e);
+      return NextResponse.json({ error: 'Could not read that HEIC photograph. Export it as a JPEG and try again.' }, { status: 415 });
+    }
+    base = base.replace(/\.hei[cf]$/i, '') + '.jpg';
+  }
   const rel = `${folder}/${base}`;
 
   const out = new FormData();
   out.set('rel', rel);
-  out.set('file', file, base);
+  out.set('file', body, base);
 
   try {
     const res = await fetch(`${siteOrigin()}/api/upload.php`, {

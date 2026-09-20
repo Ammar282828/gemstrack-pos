@@ -44,6 +44,7 @@
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
     "firebase": "^11.8.1",
+    "heic-convert": "^2.1.0",
     "html5-qrcode": "^2.3.8",
     "immer": "^10.1.1",
     "jspdf": "^2.5.1",
@@ -70,6 +71,7 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
+    "@types/heic-convert": "^2.1.1",
     "@types/jspdf": "^2.0.0",
     "@types/node": "^20",
     "@types/papaparse": "^5.3.14",

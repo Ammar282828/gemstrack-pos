@@ -104,11 +104,14 @@ export default function AddPhotosPage() {
     const accepted: Item[] = [];
     const rejected: string[] = [];
     for (const f of Array.from(files)) {
-      if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { rejected.push(f.name); continue; }
+      // HEIC often arrives with an empty MIME type (Windows, some Androids),
+      // so the extension counts too. The server turns it into a JPEG.
+      const ok = /^image\/(jpeg|png|webp|heic|heif)/i.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name);
+      if (!ok) { rejected.push(f.name); continue; }
       accepted.push({ id: `${f.name}-${f.size}-${Math.random().toString(36).slice(2, 7)}`, file: f, preview: URL.createObjectURL(f), name: f.name, status: 'queued', progress: 0 });
     }
     if (accepted.length) setItems(prev => [...prev, ...accepted]);
-    if (rejected.length) toast({ title: `Skipped ${rejected.length} file${rejected.length === 1 ? '' : 's'}`, description: 'Only JPEG, PNG and WebP photographs can go on the website.', variant: 'destructive' });
+    if (rejected.length) toast({ title: `Skipped ${rejected.length} file${rejected.length === 1 ? '' : 's'}`, description: 'Only JPEG, PNG, WebP and HEIC photographs can go on the website.', variant: 'destructive' });
   }, [toast]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
@@ -259,8 +262,8 @@ export default function AddPhotosPage() {
           <Button type="button" variant="secondary" onClick={() => fileRef.current?.click()}>Choose photographs</Button>
           <Button type="button" variant="outline" onClick={() => cameraRef.current?.click()} className="sm:hidden"><Camera className="h-4 w-4 mr-2" /> Take a photo</Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-3">JPEG, PNG or WebP · up to 25 MB each · add as many as you like</p>
-        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
+        <p className="text-xs text-muted-foreground mt-3">JPEG, PNG, WebP or HEIC · up to 25 MB each · add as many as you like</p>
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
         <input ref={cameraRef} type="file" accept="image/*" capture="environment" multiple hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
       </div>
       {!folder && <p className="text-sm text-muted-foreground text-center -mt-2">Choose a collection first.</p>}
@@ -282,7 +285,12 @@ export default function AddPhotosPage() {
             {items.map(item => (
               <li key={item.id} className="relative rounded-lg overflow-hidden border bg-muted/30">
                 <div className="relative aspect-square">
-                  <img src={item.preview} alt="" className={cn('w-full h-full object-cover transition-opacity', item.status === 'done' && 'opacity-60')} />
+                  <img src={item.preview} alt="" className={cn('w-full h-full object-cover transition-opacity', item.status === 'done' && 'opacity-60')}
+                    onError={e => { const el = e.currentTarget; el.style.display = 'none'; el.nextElementSibling?.classList.remove('hidden'); }} />
+                  <div className="hidden absolute inset-0 flex flex-col items-center justify-center text-muted-foreground bg-muted">
+                    <ImagePlus className="h-7 w-7 mb-1" />
+                    <span className="text-[11px] uppercase tracking-wide">{item.name.split('.').pop()?.toUpperCase()}</span>
+                  </div>
                   {item.status === 'uploading' && (
                     <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center text-white">
                       <Loader2 className="h-5 w-5 animate-spin mb-1.5" />
