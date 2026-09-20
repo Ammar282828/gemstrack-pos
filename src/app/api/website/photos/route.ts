@@ -59,10 +59,12 @@ async function gate(req: NextRequest): Promise<string | NextResponse> {
 const siteOrigin = () => (process.env.WEBSITE_ORIGIN || 'https://taheri.shop').replace(/\/+$/, '');
 
 /**
- * The site's folder tree, as it stands on disk at taheri.shop. Used when the
- * published catalogue is not reachable — adding a photograph must not depend
- * on the pricing work having shipped, and a counter with a tray of bangles
- * should never be told to come back later.
+ * The site's folder tree, as it stands on disk at taheri.shop. Two jobs: the
+ * whole picker when the published catalogue is not reachable — adding a
+ * photograph must not depend on the pricing work having shipped — and, when
+ * it is, the collections the catalogue cannot know about yet because they
+ * hold no photograph: a new folder (Watches, Opals) shows here with a count
+ * of nought so the counter can be the one to fill it.
  */
 const KNOWN_TREE: Record<string, string[]> = {
   'Rings & Bands': ['Rings', 'Diamond Rings', 'Bands', 'Palladium Bands for Him'],
@@ -70,6 +72,8 @@ const KNOWN_TREE: Record<string, string[]> = {
   'Chains & Lockets': ['Chains', 'Lockets', 'Contemporary Lockets', 'Takhti', 'Taweez'],
   'Sets': ['Gold Sets', 'Diamond Sets', 'Stone Sets', 'String Set', 'Locket Set With Bangle', 'Locket sets without Bangle'],
   'Earrings': ['Tops', 'Diamond Tops', 'Jhumki', 'Baali'],
+  'Gemstones': ['Opals'],
+  'Watches': ['Watches'],
 };
 
 /**
@@ -95,6 +99,10 @@ export async function GET(req: NextRequest) {
       else byCollection.set(collection, { category, count: 1, sample: key });
     }
     if (byCollection.size > 0) {
+      // Folders the catalogue has nothing in yet.
+      for (const [category, list] of Object.entries(KNOWN_TREE)) {
+        for (const collection of list) if (!byCollection.has(collection)) byCollection.set(collection, { category, count: 0, sample: '' });
+      }
       const collections = [...byCollection.entries()]
         .map(([collection, v]) => ({
           collection,
@@ -102,7 +110,7 @@ export async function GET(req: NextRequest) {
           count: v.count,
           // The path a new photo goes to — "Earrings/Jhumki".
           folder: `${v.category}/${collection}`,
-          sample: `${origin}/catalog-thumb/${encodeURI(v.sample)}`,
+          sample: v.sample ? `${origin}/catalog-thumb/${encodeURI(v.sample)}` : '',
         }))
         .sort((a, b) => a.category.localeCompare(b.category) || a.collection.localeCompare(b.collection));
       return NextResponse.json({ collections, configured, source: 'catalogue' });
