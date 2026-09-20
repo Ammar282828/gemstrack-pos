@@ -144,6 +144,12 @@ env:
   - variable: LEOPARDS_USE_SANDBOX
     value: "false"
     availability: [RUNTIME]
+  # Shared with taheri.shop's api/upload.php. The counter posts a photograph to
+  # this app, which forwards it to the website's drop folder with this secret —
+  # so a browser never holds it and the website never trusts a browser.
+  - variable: WEBSITE_UPLOAD_SECRET
+    secret: WEBSITE_UPLOAD_SECRET
+    availability: [RUNTIME]
   - variable: NEXT_PUBLIC_STORE_INSTAGRAM_URL
     value: "https://www.instagram.com/collectionstaheri"
     availability:

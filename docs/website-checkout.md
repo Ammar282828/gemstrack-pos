@@ -15,6 +15,7 @@ and the order together. Nothing exists in inventory until it is bought.
 | `src/lib/website/fulfilment.ts` | transfer received → ship (Leopards API, or a CN typed in) → delivered; each tells the customer on WhatsApp |
 | `src/app/api/public/{quote,checkout,order/[id]}` | the site's three routes. CORS to `WEBSITE_ORIGIN` only, per-caller rate limits, honeypot |
 | `src/app/api/website/orders/[id]` | the shop's actions — owner or staff, **always** signed in. Deliberately does not follow `NEXT_PUBLIC_OPEN_ACCESS`: it marks money received and goods shipped |
+| **Website → Add Photos** (`/website/photos`) | put pieces on the website from the counter. Choose a collection, drag in a tray of photographs (or shoot them on the phone), watch them upload one by one. Relays to the site's `api/upload.php` with `WEBSITE_UPLOAD_SECRET`, which writes into `catalog-drop/` — the site folds them into the gallery on the next page load, no rebuild |
 | **Website → Photo Weights** (`/website/weights`) | record the weight of photographs that do not carry one in their corner. One photo at a time, one field, Enter saves and moves on. The site draws it onto the photo like the burned-in ones and prices from it. Stored in `website_pieces`; read through `/api/website/pieces` |
 | Settings → Integrations → *Selling on taheri.shop* | the switch, default and per-collection pricing, diamond policy, delivery, the POS category |
 | Orders | a **Website** badge in the list; the order page carries payment state, the three moves, and the customer's link |
@@ -37,9 +38,14 @@ POS reads the same file — never the values a browser sends.
    making charge is set the site shows no prices.
 4. **Weights.** 1,215 of 2,272 pieces carry a readable weight; only those get a price.
    The rest stay "Inquire" until a weight is added.
-5. **Leopards** (optional): `LEOPARDS_API_KEY`, `LEOPARDS_API_PASSWORD` as secrets.
+5. **Photo uploads** (optional, independent of checkout): set the same
+   `WEBSITE_UPLOAD_SECRET` on both sides — an App Hosting secret here, and an
+   environment variable on Hostinger (hPanel → Advanced → PHP Configuration, or
+   a `SetEnv` in `.htaccess`). Without it, Add Photos says so plainly and
+   refuses to send. Generate one with `openssl rand -base64 32`.
+6. **Leopards** (optional): `LEOPARDS_API_KEY`, `LEOPARDS_API_PASSWORD` as secrets.
    Without them the order page takes a consignment number typed in by hand.
-6. Deploy both: merge `website-checkout` here (App Hosting rolls out on push to main)
+7. Deploy both: merge `website-checkout` here (App Hosting rolls out on push to main)
    and `checkout` on the site (its workflow deploys on push to main).
 
 ## Testing locally

@@ -11,7 +11,7 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, Target, Mic, Scale} from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, Target, Mic, Scale, ImagePlus} from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -79,6 +79,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Website',
     items: [
+      { staff: true, href: '/website/photos', label: 'Add Photos', icon: <ImagePlus /> },
       { staff: true, href: '/website/weights', label: 'Photo Weights', icon: <Scale /> },
     ],
   },
