@@ -38,11 +38,19 @@ POS reads the same file — never the values a browser sends.
    making charge is set the site shows no prices.
 4. **Weights.** 1,215 of 2,272 pieces carry a readable weight; only those get a price.
    The rest stay "Inquire" until a weight is added.
-5. **Photo uploads** (optional, independent of checkout): set the same
-   `WEBSITE_UPLOAD_SECRET` on both sides — an App Hosting secret here, and an
-   environment variable on Hostinger (hPanel → Advanced → PHP Configuration, or
-   a `SetEnv` in `.htaccess`). Without it, Add Photos says so plainly and
-   refuses to send. Generate one with `openssl rand -base64 32`.
+5. **Photo uploads** — done 2026-09-20, kept here for the day it is rotated.
+   The same value lives in two places: Secret Manager as `website-upload-secret`
+   (declared in `apphosting.yaml` as `WEBSITE_UPLOAD_SECRET`; the two names
+   need not match), and on Hostinger as the file
+   `~/domains/taheri.shop/.website-upload-secret`, mode 600, one level above
+   `public_html`. Shared hosting does not pass env vars to PHP reliably, which
+   is why it is a file. Two things bite: a Secret Manager entry has **no IAM
+   bindings** when created by hand, and App Hosting fails the rollout on read —
+   grant `secretAccessor` + `viewer` to the same three service accounts
+   `CRON_SECRET` has before declaring it; and the site's `api/*.php` only
+   reaches Hostinger through the deploy workflow (it used to skip `api/`).
+   Without the secret, Add Photos says so plainly and refuses to send. Rotate
+   with `openssl rand -base64 32`, replace both sides, push to roll out.
 6. **Leopards** (optional): `LEOPARDS_API_KEY`, `LEOPARDS_API_PASSWORD` as secrets.
    Without them the order page takes a consignment number typed in by hand.
 7. Deploy both: merge `website-checkout` here (App Hosting rolls out on push to main)
