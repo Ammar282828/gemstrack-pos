@@ -118,7 +118,13 @@ export async function POST(req: NextRequest) {
 
   if (!(file instanceof File)) return NextResponse.json({ error: 'No photograph was received.' }, { status: 400 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: `That photograph is over ${MAX_BYTES / 1048576} MB.` }, { status: 413 });
-  if (!/^[^/]+\/[^/]+$/.test(folder)) return NextResponse.json({ error: 'Choose a collection first.' }, { status: 400 });
+  // Two plain segments, neither a dot-segment: the site's own sanitiser is
+  // the boundary that matters, but a folder that could never be a collection
+  // is refused here first.
+  const segs = folder.split('/');
+  if (segs.length !== 2 || segs.some(s => !s || s === '.' || s === '..' || /[\\\0]/.test(s))) {
+    return NextResponse.json({ error: 'Choose a collection first.' }, { status: 400 });
+  }
 
   const ext = (nameHint || file.name).split('.').pop()?.toLowerCase() || '';
   if (!EXTS.includes(ext)) return NextResponse.json({ error: `Photographs must be ${EXTS.join(', ')}.` }, { status: 415 });
@@ -127,6 +133,7 @@ export async function POST(req: NextRequest) {
   // the file lands. The site's own sanitiser is the real boundary; this is so
   // the name stays recognisable rather than being mangled there.
   const base = (nameHint || file.name).replace(/[/\\]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!base || base === '.' || base === '..' || base.startsWith('.')) return NextResponse.json({ error: 'Give the photograph a name.' }, { status: 400 });
   const rel = `${folder}/${base}`;
 
   const out = new FormData();
