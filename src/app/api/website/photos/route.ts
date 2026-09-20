@@ -5,10 +5,12 @@
  *   POST  → one photograph (multipart), forwarded to the site's drop folder
  *
  * The POS does not hold the photographs; the website does. This route is a
- * relay: the browser posts an image here with the staff member's own session,
- * and the server forwards it to taheri.shop/api/upload.php with the shared
- * secret. The secret stays on this side — a browser never sees it, and the
- * site never has to trust a browser.
+ * relay: the browser posts an image here with the staff member's own Google
+ * sign-in, and the server forwards it to taheri.shop/api/upload.php with the
+ * shared secret. The secret stays on this side — a browser never sees it, and
+ * the site never has to trust a browser. Two boundaries, then: the site trusts
+ * only this server, and this server trusts only a verified owner or staff
+ * account. Neither is relaxed by the open-access switch.
  *
  * The site folds a dropped photograph into its gallery on the next page load,
  * so a piece photographed at the counter is public within seconds, with no
@@ -25,12 +27,17 @@ export const dynamic = 'force-dynamic';
 // A photograph can be several megabytes; the default body cap is far smaller.
 export const maxDuration = 60;
 
-const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
 const MAX_BYTES = 25 * 1024 * 1024;
 const EXTS = ['jpg', 'jpeg', 'png', 'webp'];
 
+/**
+ * Always a verified owner or staff member — this route deliberately does NOT
+ * honour NEXT_PUBLIC_OPEN_ACCESS, the same way the order-actions route does
+ * not. Open access takes the sign-in screen off the POS; it must not also
+ * hand the public website's gallery to anyone who finds this URL. The page
+ * signs its user in on its own when the rest of the app has not.
+ */
 async function gate(req: NextRequest): Promise<string | NextResponse> {
-  if (OPEN_ACCESS) return 'counter';
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const role = roleForEmail(email);
