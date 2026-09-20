@@ -225,12 +225,14 @@ export interface PlacedOrder {
   lines: BuiltOrder['lines'];
 }
 
-export async function placeWebsiteOrder(raw: unknown, meta: { caller: string; origin: string }): Promise<PlacedOrder> {
+export async function placeWebsiteOrder(raw: unknown, meta: { caller: string; origin: string; customerUid?: string }): Promise<PlacedOrder> {
   const [config, rates, published, pos] = await Promise.all([loadWebsiteConfig(), loadRates(), getCatalogAttributes(), getPosWeights()]);
   const catalog = mergeWeights(published, pos);
   const origin = process.env.WEBSITE_ORIGIN || 'https://taheri.shop';
   const bank = bankDetails();
   const built = buildWebsiteOrder(raw, { config, rates, catalog, origin, bank });
+  // A signed-in customer's order is theirs to find again from their account.
+  if (meta.customerUid) (built.order.website as WebsiteOrderMeta).customerUid = meta.customerUid;
 
   // The same bag submitted twice — a double tap, a retry after a timeout — is one order.
   const bagId = (built.order.website as { bagId: string }).bagId;

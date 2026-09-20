@@ -18,8 +18,8 @@ export function corsHeaders(req: NextRequest): Record<string, string> {
   const allow = allowedOrigins().includes(origin) ? origin : allowedOrigins()[0];
   return {
     'Access-Control-Allow-Origin': allow,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '600',
     'Vary': 'Origin',
   };

@@ -12,6 +12,7 @@ import { NextRequest } from 'next/server';
 import { json, preflight } from '@/lib/website/cors';
 import { rateLimit, callerKey } from '@/lib/website/ratelimit';
 import { placeWebsiteOrder, CheckoutRejected } from '@/lib/website/checkout';
+import { identityFromRequest } from '@/lib/website/customers';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,9 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   try {
-    const placed = await placeWebsiteOrder(body, { caller, origin: req.headers.get('origin') || '' });
+    // Optional: a signed-in customer's token ties the order to their account.
+    const who = await identityFromRequest(req);
+    const placed = await placeWebsiteOrder(body, { caller, origin: req.headers.get('origin') || '', customerUid: who?.uid });
     return json(req, placed, { status: 201 });
   } catch (e) {
     if (e instanceof CheckoutRejected) return json(req, { error: e.message, code: e.code, detail: e.detail }, { status: e.status });

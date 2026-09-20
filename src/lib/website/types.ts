@@ -132,6 +132,8 @@ export interface WebsiteOrderMeta {
   paidAt?: string;
   customerPhone?: string;
   customerEmail?: string;
+  /** The Firebase uid of the signed-in customer who placed it, if any. */
+  customerUid?: string;
 }
 
 export interface LeopardsMeta {
