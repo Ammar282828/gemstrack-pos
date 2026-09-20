@@ -41,6 +41,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Weights recorded at the counter for catalogue photographs, and anything
+    // else the website routes keep. Written by the Admin SDK through
+    // /api/website/*, which applies its own role check; a browser has no
+    // reason to touch them directly.
+    match /website_pieces/{key} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if isOwner();
     }

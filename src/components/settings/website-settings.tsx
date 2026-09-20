@@ -42,6 +42,7 @@ export function WebsiteSettings() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [denied, setDenied] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -51,6 +52,11 @@ export function WebsiteSettings() {
           const d = snap.data() as Partial<WebsiteConfig>;
           setCfg({ ...DEFAULT_WEBSITE_CONFIG, ...d, defaultPricing: { ...DEFAULT_WEBSITE_CONFIG.defaultPricing, ...(d.defaultPricing || {}) }, categoryPricing: d.categoryPricing || {} });
         }
+      } catch (e) {
+        // Once the database is closed again, only an owner may read this. Staff
+        // opening Settings should see a plain explanation, not a blank card.
+        setDenied(true);
+        console.warn('[website settings] could not read app_settings/website', e);
       } finally { setLoaded(true); }
     })();
   }, []);
@@ -94,6 +100,13 @@ export function WebsiteSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+
+        {denied && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
+            <p className="font-medium">These settings are owner-only.</p>
+            <p className="text-muted-foreground">Pricing and the selling switch can only be read and changed by a shop owner. Nothing below will save on this account.</p>
+          </div>
+        )}
 
         <div className="flex items-center justify-between rounded-md border p-4">
           <div className="space-y-0.5">
