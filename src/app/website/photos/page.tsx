@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ImagePlus, Upload, Check, X, Loader2, Camera, RotateCw, Scale, ExternalLink, AlertTriangle } from 'lucide-react';
+import { ImagePlus, Upload, Check, X, Loader2, Camera, RotateCw, Scale, ExternalLink, AlertTriangle, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Collection { collection: string; category: string; count: number; folder: string; sample: string }
@@ -150,6 +150,16 @@ export default function AddPhotosPage() {
     failed: items.filter(i => i.status === 'failed').length,
   }), [items]);
 
+  // Put a photograph that just went up on the home page as the set of the day.
+  const [featuredRel, setFeaturedRel] = useState<string | null>(null);
+  const featureItem = async (rel: string) => {
+    const res = await fetch('/api/website/featured', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify({ key: rel }) });
+    const d = await res.json();
+    if (!res.ok) { toast({ title: 'Could not feature it', description: d.error || `${res.status}`, variant: 'destructive' }); return; }
+    setFeaturedRel(rel);
+    toast({ title: 'Set of the day', description: 'It leads the home page now. Add a line to it under Photo Weights if you like.' });
+  };
+
   const clearDone = () => setItems(prev => { prev.filter(i => i.status === 'done').forEach(i => URL.revokeObjectURL(i.preview)); return prev.filter(i => i.status !== 'done'); });
   const remove = (id: string) => setItems(prev => { const it = prev.find(i => i.id === id); if (it) URL.revokeObjectURL(it.preview); return prev.filter(i => i.id !== id); });
 
@@ -271,6 +281,11 @@ export default function AddPhotosPage() {
                   <p className="text-[11px] text-muted-foreground tabular-nums">
                     {item.status === 'failed' ? <span className="text-destructive">{item.error}</span> : prettyBytes(item.file.size)}
                   </p>
+                  {item.status === 'done' && item.rel && (
+                    <button type="button" onClick={() => featureItem(item.rel!)} className={cn('mt-1.5 inline-flex items-center gap-1 text-[11px] rounded-full border px-2 py-0.5 transition-colors', featuredRel === item.rel ? 'bg-amber-500 text-black border-amber-500' : 'text-muted-foreground hover:text-foreground hover:border-foreground/40')}>
+                      <Star className={cn('h-3 w-3', featuredRel === item.rel && 'fill-current')} /> {featuredRel === item.rel ? 'Set of the day' : 'Feature today'}
+                    </button>
+                  )}
                 </div>
               </li>
             ))}

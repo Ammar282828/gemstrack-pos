@@ -23,7 +23,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Scale, ChevronLeft, ChevronRight, Loader2, Check, Search, X } from 'lucide-react';
+import { Scale, ChevronLeft, ChevronRight, Loader2, Check, Search, X, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Piece {
@@ -39,6 +39,27 @@ async function authed(): Promise<Record<string, string>> {
 export default function PhotoWeightsPage() {
   const { toast } = useToast();
   const [pieces, setPieces] = useState<Piece[] | null>(null);
+  // The set of the day: one piece on the home page, and the counter's line.
+  const [featured, setFeatured] = useState<{ key: string; note: string; collection: string; file: string; thumb: string } | null | undefined>(undefined);
+  const [note, setNote] = useState('');
+  const [featuring, setFeaturing] = useState(false);
+  useEffect(() => { (async () => {
+    const res = await fetch('/api/website/featured', { headers: await authed(), cache: 'no-store' });
+    const d = res.ok ? await res.json() : { featured: null };
+    setFeatured(d.featured); setNote(d.featured?.note || '');
+  })(); }, []);
+  const feature = async (key: string | null) => {
+    setFeaturing(true);
+    try {
+      const res = key
+        ? await fetch('/api/website/featured', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(await authed()) }, body: JSON.stringify({ key, note }) })
+        : await fetch('/api/website/featured', { method: 'DELETE', headers: await authed() });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || `${res.status}`);
+      setFeatured(d.featured);
+    } catch (e) { toast({ title: 'Could not change the set of the day', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }); }
+    finally { setFeaturing(false); }
+  };
   const [collection, setCollection] = useState<string>('all');
   const [onlyMissing, setOnlyMissing] = useState(true);
   const [search, setSearch] = useState('');
@@ -143,6 +164,24 @@ export default function PhotoWeightsPage() {
         </div>
       </div>
 
+      {/* Set of the day — what the home page leads with. Pick any photo below
+          and press the star; the line beside it is shown under the headline. */}
+      <div className="rounded-lg border bg-amber-500/[0.04] border-amber-500/30 p-3 md:p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {featured ? <img src={featured.thumb} alt="" className="h-14 w-14 rounded-md object-cover flex-shrink-0" /> : <div className="h-14 w-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0"><Star className="h-5 w-5 text-muted-foreground" /></div>}
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Set of the day · on the home page</p>
+            {featured === undefined ? <p className="text-sm text-muted-foreground">…</p>
+              : featured ? <p className="text-sm font-medium truncate">{featured.file} <span className="text-muted-foreground font-normal">· {featured.collection}</span></p>
+              : <p className="text-sm text-muted-foreground">Nothing yet — open a photo below and press <Star className="inline h-3.5 w-3.5 -mt-0.5" /> Feature today.</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 sm:w-[46%]">
+          <Input placeholder="A line about it (optional)" value={note} maxLength={160} onChange={e => setNote(e.target.value)} onBlur={() => { if (featured && note !== featured.note) feature(featured.key); }} className="h-9" />
+          {featured && <Button variant="ghost" size="sm" onClick={() => feature(null)} disabled={featuring} title="Take it off the home page"><X className="h-4 w-4" /></Button>}
+        </div>
+      </div>
+
       {pieces === null ? (
         <div className="flex items-center justify-center py-24 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading the catalogue…</div>
       ) : !current ? (
@@ -157,9 +196,13 @@ export default function PhotoWeightsPage() {
             <img key={current.key} src={current.thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />
             {/* Where the site will draw it — so what you type appears where it will land. */}
             {(value || current.weightGrams) && current.source !== 'label' && (
-              <span className="absolute text-white font-light tabular-nums select-none" style={{ left: '9%', top: '8%', fontSize: '5.5cqw', fontFamily: 'Inter, system-ui, sans-serif', letterSpacing: '0.02em', textShadow: '0 1px 8px rgba(0,0,0,.35)' }}>
-                {(value || String(current.weightGrams)).replace(/[^\d.]/g, '')}g
-              </span>
+              // The site's own geometry (WeightLabel.jsx): Futura LT Light at
+              // 143/3000 of the width, 120 in, baseline at 100 + 143 × 1.1.
+              <svg aria-hidden="true" viewBox="0 0 3000 3000" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 w-full h-full pointer-events-none select-none">
+                <text x="120" y={100 + 143 * 1.1} fontFamily='"Futura LT", Futura, "Century Gothic", system-ui, sans-serif' fontWeight="300" fontSize="143" letterSpacing="2" fill="#fff">
+                  {(value || String(current.weightGrams)).replace(/[^\d.]/g, '')}g
+                </text>
+              </svg>
             )}
             {current.source === 'label' && <Badge className="absolute top-3 right-3 bg-black/55 text-white border-transparent">weight is on the photo: {current.labelWeightGrams}g</Badge>}
             <button type="button" onClick={() => setIndex(i => Math.max(i - 1, 0))} disabled={index === 0} aria-label="Previous photo" className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/40 text-white flex items-center justify-center disabled:opacity-0"><ChevronLeft className="h-5 w-5" /></button>
@@ -195,6 +238,9 @@ export default function PhotoWeightsPage() {
               <Button variant="secondary" className="h-11" onClick={() => setIndex(i => Math.min(i + 1, queue.length - 1))} disabled={index >= queue.length - 1}>Skip</Button>
             </div>
             <p className="text-xs text-muted-foreground"><kbd className="px-1 rounded border">Enter</kbd> saves and moves on · <kbd className="px-1 rounded border">←</kbd> <kbd className="px-1 rounded border">→</kbd> move without saving</p>
+            <Button variant={featured?.key === current.key ? 'default' : 'outline'} className="w-full h-10" onClick={() => feature(featured?.key === current.key ? null : current.key)} disabled={featuring}>
+              <Star className={cn('h-4 w-4 mr-2', featured?.key === current.key && 'fill-current')} /> {featured?.key === current.key ? 'Set of the day — on the home page' : 'Feature today'}
+            </Button>
 
             <div>
               <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Coming up</p>
