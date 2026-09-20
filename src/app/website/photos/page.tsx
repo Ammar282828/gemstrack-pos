@@ -13,23 +13,21 @@
  * drop folder at load time, so there is no build and no deploy between the
  * counter and the customer.
  *
- * This page asks for a Google sign-in even when the rest of the POS is running
- * open (NEXT_PUBLIC_OPEN_ACCESS). It writes to the public website, and the
- * route behind it insists on a verified owner or staff account for that —
- * so the person at the counter signs in once here, and the browser remembers.
+ * No sign-in of its own: the page runs on whatever the POS runs on. Under
+ * open access that is nobody, and the counter can still add photographs —
+ * decided by Ammar on 2026-09-20. The route behind it says the same.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { auth as firebaseAuth } from '@/lib/firebase';
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ImagePlus, Upload, Check, X, Loader2, Camera, RotateCw, Scale, ExternalLink, AlertTriangle, LogIn } from 'lucide-react';
+import { ImagePlus, Upload, Check, X, Loader2, Camera, RotateCw, Scale, ExternalLink, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Collection { collection: string; category: string; count: number; folder: string; sample: string }
@@ -44,11 +42,7 @@ const prettyBytes = (n: number) => n > 1048576 ? `${(n / 1048576).toFixed(1)} MB
 
 export default function AddPhotosPage() {
   const { toast } = useToast();
-  // undefined until Firebase has restored (or failed to restore) the session;
-  // null when there is no user; a User once signed in.
-  const [user, setUser] = useState<User | null | undefined>(undefined);
-  const [denied, setDenied] = useState<string | null>(null);
-  const [signingIn, setSigningIn] = useState(false);
+  const [denied, setDenied] = useState(false);
   const [collections, setCollections] = useState<Collection[] | null>(null);
   const [configured, setConfigured] = useState(true);
   const [folder, setFolder] = useState('');
@@ -59,15 +53,11 @@ export default function AddPhotosPage() {
   const cameraRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!firebaseAuth) { setUser(null); return; }
-    return onAuthStateChanged(firebaseAuth, u => { setUser(u); setDenied(null); });
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
     (async () => {
       const res = await fetch('/api/website/photos', { headers: await authHeaders(), cache: 'no-store' });
-      if (res.status === 401 || res.status === 403) { setDenied(user.email || 'this account'); return; }
+      // Only reachable with open access off and an account that is neither
+      // owner nor staff — the app's own gate normally stops that earlier.
+      if (res.status === 401 || res.status === 403) { setDenied(true); return; }
       if (!res.ok) { toast({ title: 'Could not load collections', description: `${res.status}`, variant: 'destructive' }); return; }
       const d = await res.json();
       setCollections(d.collections);
@@ -75,19 +65,7 @@ export default function AddPhotosPage() {
       // Remember the last collection: a counter session is usually one tray.
       try { const last = localStorage.getItem('taheri_photo_folder'); if (last && d.collections.some((c: Collection) => c.folder === last)) setFolder(last); } catch { /* fine */ }
     })();
-  }, [user, toast]);
-
-  const signIn = async () => {
-    if (!firebaseAuth) return;
-    setSigningIn(true);
-    try { await signInWithPopup(firebaseAuth, new GoogleAuthProvider()); }
-    catch (e) {
-      const code = (e as { code?: string })?.code || '';
-      // Closing the popup is not an error worth a red toast.
-      if (!/popup-closed|cancelled-popup/.test(code)) toast({ title: 'Sign-in did not complete', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
-    }
-    finally { setSigningIn(false); }
-  };
+  }, [toast]);
 
   useEffect(() => { if (folder) try { localStorage.setItem('taheri_photo_folder', folder); } catch { /* fine */ } }, [folder]);
   // Object URLs are a real allocation; let them go when the page does.
@@ -189,32 +167,17 @@ export default function AddPhotosPage() {
         )}
       </div>
 
-      {/* Writing to the public website needs a named person, open access or not. */}
-      {user === undefined && (
-        <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Checking who you are…</p>
-      )}
-      {user === null && (
-        <div className="rounded-xl border p-6 md:p-8 text-center space-y-3">
-          <LogIn className="h-8 w-8 mx-auto text-muted-foreground" />
-          <p className="font-medium">Sign in to put photographs on the website</p>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">Anything sent from here is public on taheri.shop within seconds, so it has to come from a named shop account. Once, on this device — the browser remembers.</p>
-          <Button onClick={signIn} disabled={signingIn} className="h-11">
-            {signingIn ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Opening Google…</> : 'Sign in with Google'}
-          </Button>
-        </div>
-      )}
-      {user && denied && (
+      {denied && (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm flex gap-3">
           <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
-          <div className="space-y-2">
-            <p className="font-medium">{denied} is not allowed to add photographs.</p>
+          <div>
+            <p className="font-medium">This account is not allowed to add photographs.</p>
             <p className="text-muted-foreground">Only owner and staff accounts can write to the website. Staff addresses are listed in <code>NEXT_PUBLIC_STORE_STAFF_EMAILS</code>.</p>
-            <Button variant="outline" size="sm" onClick={() => firebaseAuth && signOut(firebaseAuth)}>Use a different account</Button>
           </div>
         </div>
       )}
 
-      {user && !denied && !configured && (
+      {!denied && !configured && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-4 text-sm flex gap-3">
           <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
           <div>
@@ -224,7 +187,7 @@ export default function AddPhotosPage() {
         </div>
       )}
 
-      {user && !denied && (<>
+      {!denied && (<>
       <div className="space-y-2">
         <Label>Collection</Label>
         <Select value={folder} onValueChange={setFolder}>

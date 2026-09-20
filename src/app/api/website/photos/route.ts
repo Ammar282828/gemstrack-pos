@@ -5,12 +5,11 @@
  *   POST  → one photograph (multipart), forwarded to the site's drop folder
  *
  * The POS does not hold the photographs; the website does. This route is a
- * relay: the browser posts an image here with the staff member's own Google
- * sign-in, and the server forwards it to taheri.shop/api/upload.php with the
+ * relay: the browser posts an image here with whatever session the POS runs
+ * on, and the server forwards it to taheri.shop/api/upload.php with the
  * shared secret. The secret stays on this side — a browser never sees it, and
- * the site never has to trust a browser. Two boundaries, then: the site trusts
- * only this server, and this server trusts only a verified owner or staff
- * account. Neither is relaxed by the open-access switch.
+ * the site never has to trust a browser. The site trusts only this server;
+ * this server trusts whoever the POS trusts.
  *
  * The site folds a dropped photograph into its gallery on the next page load,
  * so a piece photographed at the counter is public within seconds, with no
@@ -28,6 +27,7 @@ export const dynamic = 'force-dynamic';
 // A photograph can be several megabytes; the default body cap is far smaller.
 export const maxDuration = 60;
 
+const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
 const MAX_BYTES = 25 * 1024 * 1024;
 // What the site's drop folder takes, as-is.
 const EXTS = ['jpg', 'jpeg', 'png', 'webp'];
@@ -38,13 +38,17 @@ const HEIC_EXTS = ['heic', 'heif'];
 const isHeic = (ext: string, mime: string) => HEIC_EXTS.includes(ext) || /^image\/hei[cf]/i.test(mime);
 
 /**
- * Always a verified owner or staff member — this route deliberately does NOT
- * honour NEXT_PUBLIC_OPEN_ACCESS, the same way the order-actions route does
- * not. Open access takes the sign-in screen off the POS; it must not also
- * hand the public website's gallery to anyone who finds this URL. The page
- * signs its user in on its own when the rest of the app has not.
+ * Whoever the POS lets in. Under NEXT_PUBLIC_OPEN_ACCESS that is anyone who
+ * reaches the app, and — decided by Ammar on 2026-09-20 — that includes
+ * putting photographs on the website: the counter must not have to sign in
+ * to do it. So, unlike the order-actions route, this one follows the open
+ * switch. While it is on, anyone who finds this URL can add an image to
+ * taheri.shop's gallery; dropping NEXT_PUBLIC_OPEN_ACCESS from
+ * apphosting.yaml closes that along with the rest of the app, and the
+ * verified owner/staff check below takes over.
  */
 async function gate(req: NextRequest): Promise<string | NextResponse> {
+  if (OPEN_ACCESS) return 'counter';
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const role = roleForEmail(email);
