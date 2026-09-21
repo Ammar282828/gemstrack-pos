@@ -21,7 +21,7 @@ import QRCode from 'qrcode.react';
 import { format } from 'date-fns';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { DetailSkeleton } from '@/components/shared/skeletons';
-import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
+import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib/invoice-item-cell';
 import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
 import { useToast } from '@/hooks/use-toast';
 
@@ -226,7 +226,8 @@ export default function ViewInvoicePage() {
     itemsToPrint.forEach((item, index) => {
         let breakdownLines = [];
         if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+        // Grams only — no rupee value, no percentage — on the customer's copy.
+        { const w = item.wastageCost > 0 ? wastageLine(item) : null; if (w) breakdownLines.push(w); }
         if (item.makingCharges > 0) breakdownLines.push(`  + Making: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: PKR ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
         if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: PKR ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);

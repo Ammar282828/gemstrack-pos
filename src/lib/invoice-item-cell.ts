@@ -26,6 +26,27 @@ export interface ItemBlock {
   breakdown: string[];
 }
 
+/**
+ * Wastage as it is written on the customer's invoice: grams, nothing else.
+ *
+ * The book prices wastage as a percentage of the metal cost (pricing.ts), so
+ * the money and the percentage both exist on the item. The customer's copy
+ * shows neither — the shop's decision, 2026-09-21 — only the metal it stands
+ * for, which is net metal weight × the percentage. A piece with a cost but no
+ * recorded percentage (older data) is derived from the cost instead.
+ */
+export function wastageGrams(item: { metalWeightG?: number; stoneWeightG?: number; wastagePercentage?: number; wastageCost?: number; metalCost?: number }): number {
+  const net = Math.max(0, (Number(item.metalWeightG) || 0) - (Number(item.stoneWeightG) || 0));
+  const pct = Number(item.wastagePercentage) || 0;
+  if (pct > 0) return net * pct / 100;
+  const cost = Number(item.wastageCost) || 0, metal = Number(item.metalCost) || 0;
+  return cost > 0 && metal > 0 ? net * cost / metal : 0;
+}
+export const wastageLine = (item: Parameters<typeof wastageGrams>[0]): string | null => {
+  const g = wastageGrams(item);
+  return g > 0 ? `  + Wastage: ${g.toFixed(2)} g` : null;
+};
+
 const PT_MM = 0.3528;
 const line = (pt: number) => pt * PT_MM * 1.2;
 

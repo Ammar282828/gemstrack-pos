@@ -29,7 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { metalLabel, describeSettings, describeDelivery } from '@/lib/materials';
-import { drawItemCell, itemCellHeight, type ItemBlock } from '@/lib/invoice-item-cell';
+import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib/invoice-item-cell';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
@@ -141,7 +141,8 @@ async function generateInvoicePDF(
   itemsToPrint.forEach((item: InvoiceItem, index: number) => {
     const breakdownLines: string[] = [];
     if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-    if (item.wastageCost > 0) breakdownLines.push(`  + Wastage (${item.wastagePercentage}%): PKR ${item.wastageCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
+    // Grams only — no rupee value, no percentage — on the customer's copy.
+    { const w = item.wastageCost > 0 ? wastageLine(item) : null; if (w) breakdownLines.push(w); }
     if (item.makingCharges > 0) breakdownLines.push(`  + Making: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
     if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: PKR ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
     if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: PKR ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
