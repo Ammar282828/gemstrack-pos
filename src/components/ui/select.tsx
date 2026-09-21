@@ -5,7 +5,7 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { MIN_OPTIONS_FOR_RECENTS, recentsKeyFor, rememberRecent, useRecents } from "@/lib/recents"
+import { MIN_OPTIONS_FOR_RECENTS, isRememberable, recentsKeyFor, rememberRecent, useRecents } from "@/lib/recents"
 
 /**
  * Radix's Select, with a "Recent" group.
@@ -151,7 +151,8 @@ const SelectContent = React.forwardRef<
   const items = new Map<string, React.ReactElement>()
   collectItems(children, items)
   const values = [...items.keys()]
-  const enough = values.length >= MIN_OPTIONS_FOR_RECENTS
+  // A "none" row is not a choice; it does not make a short list long.
+  const enough = values.filter(isRememberable).length >= MIN_OPTIONS_FOR_RECENTS
   const key =
     scope?.explicit === false || !enough ? undefined
     : scope?.explicit ?? recentsKeyFor(values)

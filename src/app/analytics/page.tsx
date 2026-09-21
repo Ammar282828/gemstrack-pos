@@ -46,6 +46,10 @@ const SOURCE_COLORS: Record<string, string> = {
   taheri_spillover: 'hsl(var(--chart-1))',
   referral: 'hsl(var(--chart-2))',
   walkin: 'hsl(var(--chart-3))',
+  // Five tokens, seven keys: the two online channels borrow a token at lower
+  // opacity so every line on the trend chart still has its own colour.
+  social_media: 'hsl(var(--chart-2) / 0.55)',
+  website: 'hsl(var(--chart-1) / 0.55)',
   other: 'hsl(var(--chart-4))',
   [UNCLASSIFIED_KEY]: 'hsl(var(--chart-5))',
 };

@@ -292,12 +292,14 @@ export interface Settings extends GoldRates {
 
 
 // Where a customer/sale came from — used for acquisition analytics.
-export const CUSTOMER_SOURCES = ['taheri_spillover', 'referral', 'walkin', 'website', 'other'] as const;
+export const CUSTOMER_SOURCES = ['taheri_spillover', 'referral', 'walkin', 'social_media', 'website', 'other'] as const;
 export type CustomerSource = typeof CUSTOMER_SOURCES[number];
 export const CUSTOMER_SOURCE_LABELS: Record<CustomerSource, string> = {
   taheri_spillover: 'Taheri Spillover',
   referral: 'Referral',
   walkin: 'Walk-in',
+  // Instagram, WhatsApp statuses, a forwarded reel — anything that arrived through a feed.
+  social_media: 'Social media',
   website: 'Website',
   other: 'Other',
 };
