@@ -88,6 +88,14 @@ Push Taheri first, check it, then Mina. `main` here is the shared working branch
 from the YAML files (secrets left blank to fill from Secret Manager), then `npm run dev:taheri`
 (port 3000) or `npm run dev:mina` (port 3001). `.env.local` is a hand-kept Taheri file that plain `npm run dev` uses.
 
+## Open items after the reconvergence (2026-09-22)
+
+- `NEXT_PUBLIC_STORE_TAKEN_BY` in `apphosting.mina.yaml` is a guess (Mina, Ammar, Murtaza) — Mina's fork never had
+  "Taken by". Ask the owner for Mina's counter names and correct it.
+- `website-checkout` is retired but not deleted; delete it once nobody has it checked out elsewhere.
+- Mina's `firestore.rules` and Taheri's differ (Taheri's are open); App Hosting does not deploy rules, so each
+  project keeps whatever was last deployed with the Firebase CLI.
+
 ## Decisions already made (don't reopen unless asked)
 
 - **Add Photos needs no sign-in** under open access — the owner overruled an auth gate on 2026-09-20.
