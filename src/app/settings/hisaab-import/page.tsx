@@ -193,7 +193,7 @@ export default function HisaabImportPage() {
             </div>
             <div>
               <label htmlFor="entity-select" className="text-sm font-medium block mb-2">2. Select Person to Import For</label>
-              <Select onValueChange={setSelectedEntityId} value={selectedEntityId}>
+              <Select onValueChange={setSelectedEntityId} value={selectedEntityId} recentsKey="hisaab-entity">
                 <SelectTrigger id="entity-select">
                   <SelectValue placeholder="Select a customer or karigar..." />
                 </SelectTrigger>

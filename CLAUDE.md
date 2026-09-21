@@ -108,6 +108,9 @@ from the YAML files (secrets left blank to fill from Secret Manager), then `npm 
 - Number fields (`AmountInput`) select their contents on focus, and the sale-flow ones (order items, product form,
   cart edit) show a 0 as blank (`zeroAsEmpty`) — the counter asked for no pre-filled zeros to delete.
 - In a component, no hook after an early `return` (the `/orders/add` crash of 2026-09-22 was exactly that).
+- Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**
+  (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
+  value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).
 
 ## graphify
 

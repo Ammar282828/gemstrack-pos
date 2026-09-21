@@ -5,8 +5,50 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { MIN_OPTIONS_FOR_RECENTS, recentsKeyFor, rememberRecent, useRecents } from "@/lib/recents"
 
-const Select = SelectPrimitive.Root
+/**
+ * Radix's Select, with a "Recent" group.
+ *
+ * Every Select with enough options to scroll (MIN_OPTIONS_FOR_RECENTS) shows
+ * this browser's last few picks first. The items are MOVED up, not copied:
+ * Radix portals the selected item's text into the trigger, and a value that
+ * appears twice in the list would print twice in the box.
+ *
+ * The memory is keyed by `recentsKey`, or — when a caller gives none — by
+ * the set of option values, so identical lists share one memory. A list that
+ * changes over time (categories) should be given a key so its recents survive
+ * an addition. `recentsKey={false}` turns the group off for a Select that
+ * already ranks its own options.
+ */
+interface RecentsScope {
+  explicit: string | false | undefined
+  /** Set by SelectContent from what it renders; read by Root when a value is picked. */
+  keyRef: React.MutableRefObject<string | undefined>
+}
+const RecentsContext = React.createContext<RecentsScope | null>(null)
+
+type SelectProps = React.ComponentProps<typeof SelectPrimitive.Root> & {
+  recentsKey?: string | false
+}
+
+const Select: React.FC<SelectProps> = ({ recentsKey, onValueChange, children, ...props }) => {
+  const keyRef = React.useRef<string | undefined>(undefined)
+  const scope = React.useMemo<RecentsScope>(() => ({ explicit: recentsKey, keyRef }), [recentsKey])
+  return (
+    <RecentsContext.Provider value={scope}>
+      <SelectPrimitive.Root
+        {...props}
+        onValueChange={(v) => {
+          rememberRecent(keyRef.current, v)
+          onValueChange?.(v)
+        }}
+      >
+        {children}
+      </SelectPrimitive.Root>
+    </RecentsContext.Provider>
+  )
+}
 
 const SelectGroup = SelectPrimitive.Group
 
@@ -67,10 +109,68 @@ const SelectScrollDownButton = React.forwardRef<
 SelectScrollDownButton.displayName =
   SelectPrimitive.ScrollDownButton.displayName
 
+/** Walks fragments and groups to find every SelectItem, by value. */
+function collectItems(children: React.ReactNode, into: Map<string, React.ReactElement>): void {
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child)) return
+    const el = child as React.ReactElement<{ value?: unknown; children?: React.ReactNode }>
+    if (el.type === SelectItem) {
+      if (typeof el.props.value === "string") into.set(el.props.value, el)
+    } else if (el.type === React.Fragment || el.type === SelectGroup) {
+      collectItems(el.props.children, into)
+    }
+  })
+}
+
+/** The same tree without the items whose values are in `drop`; a group left with no items goes too. */
+function withoutItems(children: React.ReactNode, drop: Set<string>): React.ReactNode {
+  return React.Children.map(children, (child) => {
+    if (!React.isValidElement(child)) return child
+    const el = child as React.ReactElement<{ value?: unknown; children?: React.ReactNode }>
+    if (el.type === SelectItem) {
+      return typeof el.props.value === "string" && drop.has(el.props.value) ? null : el
+    }
+    if (el.type === React.Fragment || el.type === SelectGroup) {
+      const inner = withoutItems(el.props.children, drop)
+      if (el.type === SelectGroup) {
+        const left = new Map<string, React.ReactElement>()
+        collectItems(inner, left)
+        if (left.size === 0) return null
+      }
+      return React.cloneElement(el, undefined, inner)
+    }
+    return el
+  })
+}
+
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", ...props }, ref) => (
+>(({ className, children, position = "popper", ...props }, ref) => {
+  const scope = React.useContext(RecentsContext)
+  const items = new Map<string, React.ReactElement>()
+  collectItems(children, items)
+  const values = [...items.keys()]
+  const enough = values.length >= MIN_OPTIONS_FOR_RECENTS
+  const key =
+    scope?.explicit === false || !enough ? undefined
+    : scope?.explicit ?? recentsKeyFor(values)
+  if (scope) scope.keyRef.current = key
+  const recents = useRecents(key)
+
+  const onTop = recents.filter((v) => items.has(v))
+  const body = onTop.length === 0 ? children : (
+    <>
+      <SelectGroup>
+        <SelectLabel className="pl-8 pr-2 pt-1.5 pb-1 text-2xs font-normal uppercase tracking-wide text-muted-foreground">Recent</SelectLabel>
+        {onTop.map((v) => React.cloneElement(items.get(v)!, { key: `recent:${v}` }))}
+      </SelectGroup>
+      <SelectSeparator />
+      {withoutItems(children, new Set(onTop))}
+    </>
+  )
+
+  return (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
@@ -91,12 +191,13 @@ const SelectContent = React.forwardRef<
             "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
         )}
       >
-        {children}
+        {body}
       </SelectPrimitive.Viewport>
       <SelectScrollDownButton />
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
-))
+  )
+})
 SelectContent.displayName = SelectPrimitive.Content.displayName
 
 const SelectLabel = React.forwardRef<

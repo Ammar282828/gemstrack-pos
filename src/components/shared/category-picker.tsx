@@ -36,7 +36,7 @@ export const CategoryPicker: React.FC<{
   className?: string;
   'aria-label'?: string;
 }> = ({ categories, value, onChange, placeholder = 'Select category', clearLabel, className, 'aria-label': ariaLabel }) => (
-  <Select value={value || ''} onValueChange={v => { if (v === '') return; onChange(v === NONE ? '' : v); }}>
+  <Select value={value || ''} onValueChange={v => { if (v === '') return; onChange(v === NONE ? '' : v); }} recentsKey="category">
     <SelectTrigger className={cn('w-full', className)} aria-label={ariaLabel || 'Category'}>
       <SelectValue placeholder={placeholder} />
     </SelectTrigger>

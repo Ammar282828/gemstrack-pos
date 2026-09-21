@@ -322,7 +322,7 @@ export default function ExpensesPage() {
             {PERIODS.map(p => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter} recentsKey="expense-category">
           <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="All categories" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="All">All categories</SelectItem>

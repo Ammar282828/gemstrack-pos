@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Check, ChevronsUpDown, Loader2, Plus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MIN_OPTIONS_FOR_RECENTS, recentsKeyFor, rememberRecent, useRecents } from '@/lib/recents';
 
 export interface PickerOption {
   value: string;
@@ -51,6 +52,12 @@ export const SearchablePicker: React.FC<{
   /** The noun in "Create X" — "karigar", so the row says what it will make. */
   createNoun?: string;
   disabled?: boolean;
+  /**
+   * Which memory the "Recent" group at the top reads (see lib/recents). Derived
+   * from the option values when omitted; `false` for a list that already ranks
+   * itself, like the karigar picker.
+   */
+  recentsKey?: string | false;
   /** Sits before the label. For triggers that read as an action, not a field. */
   icon?: React.ReactNode;
   className?: string;
@@ -58,12 +65,18 @@ export const SearchablePicker: React.FC<{
   'aria-label'?: string;
 }> = ({
   value, onChange, options, placeholder = 'Select…', searchPlaceholder = 'Search…',
-  layout = 'list', clearLabel, allowCustom, onCreate, createNoun, disabled, icon, className, triggerClassName,
+  layout = 'list', clearLabel, allowCustom, onCreate, createNoun, disabled, recentsKey, icon, className, triggerClassName,
   'aria-label': ariaLabel,
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
+
+  const memoryKey = useMemo(() => {
+    if (recentsKey === false || options.length < MIN_OPTIONS_FOR_RECENTS) return undefined;
+    return recentsKey ?? recentsKeyFor(options.map(o => o.value));
+  }, [recentsKey, options]);
+  const recents = useRecents(memoryKey);
 
   const selected = options.find(o => o.value === value);
   // A value that is not on the list is still a real value — a custom size
@@ -79,15 +92,29 @@ export const SearchablePicker: React.FC<{
 
   const grouped = useMemo(() => {
     const out = new Map<string, PickerOption[]>();
+    // With nothing typed, the last few picks come first and leave their own
+    // groups, so nothing is listed twice. A typed size that was never on the
+    // scale is still a recent, shown as itself.
+    const recent: PickerOption[] = [];
+    if (!query.trim()) {
+      for (const v of recents) {
+        const o = options.find(x => x.value === v);
+        if (o) recent.push(o);
+        else if (allowCustom) recent.push({ value: v, label: v });
+      }
+    }
+    if (recent.length) out.set('Recent', recent);
+    const skip = new Set(recent.map(o => o.value));
     for (const o of hits) {
+      if (skip.has(o.value)) continue;
       const k = o.group || '';
       if (!out.has(k)) out.set(k, []);
       out.get(k)!.push(o);
     }
     return [...out.entries()];
-  }, [hits]);
+  }, [hits, recents, options, query, allowCustom]);
 
-  const pick = (v: string) => { onChange(v); setOpen(false); setQuery(''); };
+  const pick = (v: string) => { rememberRecent(memoryKey, v); onChange(v); setOpen(false); setQuery(''); };
   const typed = query.trim();
   // Case-insensitive on purpose: "ahmed" typed against "Ahmed" on file is the same
   // person, and offering to create him again is how duplicates get made.

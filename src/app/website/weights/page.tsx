@@ -149,7 +149,7 @@ export default function PhotoWeightsPage() {
       <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-[width] duration-500" style={{ width: `${pct}%` }} /></div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={collection} onValueChange={v => { setCollection(v); setIndex(0); }}>
+        <Select value={collection} onValueChange={v => { setCollection(v); setIndex(0); }} recentsKey="website-collection">
           <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All collections</SelectItem>

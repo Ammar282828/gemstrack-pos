@@ -200,7 +200,7 @@ export default function AddPhotosPage() {
       {!denied && (<>
       <div className="space-y-2">
         <Label>Collection</Label>
-        <Select value={folder} onValueChange={setFolder}>
+        <Select value={folder} onValueChange={setFolder} recentsKey="website-collection">
           <SelectTrigger className="w-full sm:w-96 h-12 text-base"><SelectValue placeholder={collections ? 'Choose where these photographs go…' : 'Loading collections…'} /></SelectTrigger>
           <SelectContent>
             {grouped.map(([category, list]) => (

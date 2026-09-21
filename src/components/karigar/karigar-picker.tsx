@@ -144,6 +144,7 @@ export const KarigarPicker: React.FC<{
       options={options}
       onCreate={create}
       createNoun="karigar"
+      recentsKey={false}
       placeholder={placeholder}
       searchPlaceholder="Search or add a karigar…"
       clearLabel={clearLabel}
