@@ -679,7 +679,7 @@ export default function SettingsPage() {
         goldRatePerGram18k: rates?.goldRatePerGram18k ?? currentSettings.goldRatePerGram18k,
       };
       const shopDefaults = {
-        shopName: 'HOUSE OF MINA',
+        shopName: STORE_CONFIG.name,
         shopAddress: '272-B, SHABBIRABAD, BLOCK B, SYEDNA FAKHRUDDIN ROAD, KARACHI',
         shopContact: '03161930960',
       };
@@ -691,7 +691,7 @@ export default function SettingsPage() {
       });
       toast({
         title: 'Settings Restored',
-        description: `Gold rates fetched from gold.pk. Shop details reset to House of Mina defaults.`,
+        description: `Gold rates fetched from gold.pk. Shop details reset to ${STORE_CONFIG.name} defaults.`,
       });
     } catch {
       toast({ title: 'Restore failed', description: 'Could not restore settings.', variant: 'destructive' });

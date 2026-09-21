@@ -134,12 +134,44 @@ export const STORE_COMMUNITIES: { label: string; lead: string; tail: string; sub
     href: 'https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H' },
 ];
 
+/**
+ * Is this hostname the shop's link page (links.taheri.shop for Taheri)? Read
+ * from NEXT_PUBLIC_STORE_LINKS_URL, so a shop without one answers no to every
+ * host and the middleware never rewrites anything.
+ */
+export const isLinksHost = (hostname: string): boolean => {
+  if (!STORE_LINKS.url) return false;
+  let host = '';
+  try { host = new URL(STORE_LINKS.url).hostname.toLowerCase(); } catch { return false; }
+  const h = String(hostname || '').toLowerCase();
+  return h === host || h === `www.${host}`;
+};
+
 /** The address a printed QR should point at. */
 export const storeLinksUrl = (): string =>
   STORE_LINKS.url || (STORE_CONFIG.appUrl ? `${STORE_CONFIG.appUrl.replace(/\/$/, '')}/links` : '');
 
-export const STORE_LOGO_URL = '/taheri-logo.png';
-export const STORE_LOGO_LIGHT_URL = '/taheri-logo-light.png';
+/**
+ * Which house this build is. One codebase serves both shops — Taheri at
+ * pos.taheri.shop and House of Mina at pos.houseofmina.store — and every
+ * difference between them is a value in that backend's apphosting.<env>.yaml,
+ * never a fork of the code. `brand` picks the dark palette in globals.css
+ * (`.brand-taheri`, `.brand-mina`) and the browser-chrome colour; the logo,
+ * its aspect and the counter's names follow below. Defaults are Taheri's.
+ */
+export const STORE_BRAND = (process.env.NEXT_PUBLIC_STORE_BRAND ?? 'taheri') as 'taheri' | 'mina';
+export const STORE_THEME_COLOR = process.env.NEXT_PUBLIC_STORE_THEME_COLOR ?? '#0A1111';
+
+export const STORE_LOGO_URL = process.env.NEXT_PUBLIC_STORE_LOGO_URL ?? '/taheri-logo.png';
+export const STORE_LOGO_LIGHT_URL = process.env.NEXT_PUBLIC_STORE_LOGO_LIGHT_URL ?? STORE_LOGO_URL;
+
+/**
+ * Who stands at this shop's counter — the "Taken by" list on orders and
+ * invoices. A fixed list, not free text, because it is a filter as much as a
+ * record. Comma-separated in NEXT_PUBLIC_STORE_TAKEN_BY; Taheri's five by default.
+ */
+export const STORE_TAKEN_BY: readonly string[] = (process.env.NEXT_PUBLIC_STORE_TAKEN_BY ?? 'Ammar,Murtaza,Huzaifa,Mansoor,Mohammad')
+  .split(',').map((n) => n.trim()).filter(Boolean);
 
 /**
  * The wordmark's true width ÷ height, used to size it on PDFs.
@@ -151,4 +183,4 @@ export const STORE_LOGO_LIGHT_URL = '/taheri-logo-light.png';
  *
  * Measured from public/taheri-logo.png. If the artwork is replaced, remeasure it.
  */
-export const STORE_LOGO_ASPECT = 1528 / 383;
+export const STORE_LOGO_ASPECT = Number(process.env.NEXT_PUBLIC_STORE_LOGO_ASPECT) || 1528 / 383;

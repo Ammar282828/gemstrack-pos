@@ -172,6 +172,44 @@ body {
     --sidebar-ring: var(--ring);
   }
 
+  /* House of Mina's dark palette — maroon, the single ink of its wordmark
+     (public/house-of-mina-logo.png, #380000). The `.dark` block above is
+     Taheri's; the body carries `brand-<house>` from STORE_BRAND, and these
+     variables override on the body for everything inside it. `brand-taheri`
+     has no block of its own, exactly as `theme-taheri` has none: it is the
+     absence of this override. */
+  .dark .brand-mina {
+    --background: 0 30% 8%;
+    --foreground: 0 12% 97%;
+    --card: 0 26% 12.5%;
+    --card-foreground: 0 12% 97%;
+    --popover: 0 26% 12.5%;
+    --popover-foreground: 0 12% 97%;
+    --primary: 0 74% 64%;
+    --primary-foreground: 0 60% 12%;
+    --secondary: 0 20% 18%;
+    --secondary-foreground: 0 10% 93%;
+    --muted: 0 20% 18%;
+    --muted-foreground: 0 9% 70%;
+    --accent: 0 28% 24%;
+    --accent-foreground: 0 12% 97%;
+    --destructive: 12 58% 34%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 62% 52%;
+    --success-foreground: 145 60% 8%;
+    --warning: 40 92% 60%;
+    --warning-foreground: 40 60% 10%;
+    --border: 0 17% 24%;
+    --input: 0 17% 24%;
+    --ring: 0 74% 64%;
+    --chart-1: 0 74% 64%;
+    --chart-2: 22 78% 60%;
+    --chart-3: 40 88% 62%;
+    --chart-4: 340 65% 62%;
+    --chart-5: 190 60% 58%;
+  }
+
+
   /* `theme-taheri` deliberately has no block of its own. <html> always carries
      `.dark`, and the light palette is applied by `.theme-default` on <body>
      overriding it; `theme-taheri` is simply the absence of that override, so the

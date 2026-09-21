@@ -27,8 +27,9 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+// The shop's link page host comes from NEXT_PUBLIC_STORE_LINKS_URL (see store-config).
+import { isLinksHost } from '@/lib/store-config';
 
-const LINKS_HOSTS = new Set(['links.taheri.shop', 'www.links.taheri.shop']);
 
 const bare = (v: string | null | undefined) =>
   (v || '').split(',')[0].trim().split(':')[0].toLowerCase();
@@ -39,7 +40,7 @@ export function middleware(req: NextRequest) {
     bare(req.headers.get('host')),
     bare(req.nextUrl.hostname),
   ];
-  const isLinks = candidates.some((h) => LINKS_HOSTS.has(h));
+  const isLinks = candidates.some((h) => isLinksHost(h));
   const url = req.nextUrl.clone();
 
   const res = (() => {

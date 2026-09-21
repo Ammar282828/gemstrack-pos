@@ -1,3 +1,4 @@
+import { STORE_TAKEN_BY } from './store-config';
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
@@ -200,7 +201,8 @@ export interface Theme {
 
 export const AVAILABLE_THEMES: Theme[] = [
     { key: 'default', name: 'Light', primaryColorHsl: '220.9 39.3% 11%' },
-    { key: 'taheri', name: 'Taheri (dark)', primaryColorHsl: '34 36% 60%' },
+    // The house's own dark palette — which house, globals.css decides by brand.
+    { key: 'taheri', name: 'Dark', primaryColorHsl: '34 36% 60%' },
 ];
 
 /** Anything stored outside this set is a retired colour option — 'red' included,
@@ -555,8 +557,8 @@ export interface VoiceAlias {
  * Kept separate from the app's sign-in accounts on purpose — whoever is standing at the
  * screen is often not whose Google session it is.
  */
-export const TAKEN_BY = ['Ammar', 'Murtaza', 'Huzaifa', 'Mansoor', 'Mohammad'] as const;
-export type TakenBy = typeof TAKEN_BY[number];
+export const TAKEN_BY: readonly string[] = STORE_TAKEN_BY;
+export type TakenBy = string;
 
 export const ORDER_STATUSES = ['Pending', 'In Progress', 'Completed', 'Cancelled', 'Refunded'] as const;
 export type OrderStatus = typeof ORDER_STATUSES[number];

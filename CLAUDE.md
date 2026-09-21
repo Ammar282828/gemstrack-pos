@@ -1,9 +1,14 @@
-# taheri-shop — the Taheri POS
+# taheri-shop — the POS for both houses
 
-Next.js point-of-sale for Taheri Collections (gold and diamond jewellers, Karachi).
-Live at **pos.taheri.shop** on Firebase App Hosting, project **`gemstrack-pos`**, backend `studio`.
-Forked from House of Mina's GemsTrack-POS (project `hom-pos-52710474-ceeea`); `.firebaserc`
-still points at that project and is misleading — Taheri's is `gemstrack-pos`.
+Next.js point-of-sale serving **two shops from one codebase**:
+
+| House | Live at | Firebase project | Backend / environment | Deploys from |
+|---|---|---|---|---|
+| Taheri (gold and diamond) | pos.taheri.shop | `gemstrack-pos` | `studio` / `taheri` | branch **`taheri-next`** of this repo |
+| House of Mina (silver) | pos.houseofmina.store | `hom-pos-52710474-ceeea` | `studio` / `mina` | branch **`main`** of repo **gemstrack-pos** (remote `hom`) |
+
+The two were forks that drifted; they were reconverged on 2026-09-22 and this history is now
+the one both deploy from. `.firebaserc` names hom-pos and is only for the Firebase CLI, which is not used.
 
 The public website is a separate repo: **taheri-site** (github.com/Ammar282828/taheri-site,
 `~/Projects/taheri-site`), a Vite app on Hostinger. Read its CLAUDE.md for the site.
@@ -11,11 +16,11 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 
 ## Branches and deploys
 
-- Remote is named **`taheri`** (not origin). **`taheri-next` is the branch App Hosting deploys** —
-  every push rolls out automatically (~5 min; `gcloud builds list --region us-central1` shows it).
-- **`website-checkout`** is the working branch. Keep it level: `git push taheri website-checkout && git push taheri website-checkout:taheri-next`.
-- **`main` is dead** — a June lineage that conflicts in 10 files with current work. Never deploy
-  from it; don't merge into it without resolving the conflicts deliberately.
+- Remotes: **`taheri`** (this repo, github.com/Ammar282828/taheri-pos) and **`hom`** (github.com/Ammar282828/gemstrack-pos).
+  Neither is called origin.
+- **`main` is the working branch.** Taheri deploys from `taheri-next`, Mina from `hom`'s `main`; both are
+  pushed *from* `main` (see below). Every push to a deploy branch rolls out automatically
+  (~5 min; `gcloud builds list --region us-central1 --project <project>` shows it).
 - Never trigger builds by hand (REST/console); they jam the queue and a stale site looks like a code bug.
 
 ## Running locally
@@ -56,23 +61,32 @@ CORS for `/api/public/*` is in `src/lib/website/cors.ts` (taheri.shop, www, and 
 Design and go-live checklist: `docs/website-checkout.md`. Go-live of online selling is still blocked by empty
 bank env vars and the open Firestore rules.
 
-## Sharing changes with House of Mina's POS
+## Two houses, one codebase — the rules
 
-House of Mina's POS is the same codebase, diverged: repo **gemstrack-pos**
-(github.com/Ammar282828/gemstrack-pos, `~/Projects/GemsTrack-POS`, branch `main`, deploys to
-pos.houseofmina.store). Common ancestor `b62bab6`; since then the two have been kept in step by
-hand and ~40 files have changed on both sides. Until they are reconverged, share a change like this:
+- **Every difference between the shops is a variable, never a fork of the code.** The code's
+  defaults are Taheri's. `apphosting.yaml` holds only what both houses share; `apphosting.taheri.yaml`
+  and `apphosting.mina.yaml` hold everything that differs and are applied by App Hosting on top of the base
+  for the backend whose environment name matches (an override can add or replace a variable, never remove one —
+  so nothing goes in the base that only one house wants). Mina's file states every value its old fork had
+  baked into code; leave one out and Mina comes up wearing Taheri's name.
+- What the variables drive: `src/lib/store-config.ts` (name, contacts, bank, links, allowed emails,
+  default metal, margin, **brand**, logo and its aspect, **counter staff** for "Taken by"); `globals.css`
+  (`.dark .brand-mina` is Mina's maroon dark palette; Taheri's is the plain `.dark`); `layout.tsx`
+  (brand class, theme-colour, links host); `app-layout.tsx` (the Website menu exists only when
+  `NEXT_PUBLIC_STORE_WEBSITE_URL` is set); `voice/gemini.ts` (`VERTEX_PROJECT` bills Mina's voice to Taheri's project).
+- A `secret:` in the base must exist in **both** projects; one in a house file only in that project.
 
-1. **One change, one commit, shared code only.** Anything shop-specific (apphosting.yaml, store copy,
-   Taheri's website routes, Mina's Shopify/silver) goes in its own commit so it is never picked by mistake.
-2. Each repo has the other as a remote (`hom` here; `taheri` there). To carry a commit over:
-   `git fetch hom && git cherry-pick -x <sha>` — `-x` writes the source sha into the message, so
-   `git log --cherry-mark --right-only website-checkout...hom/main` shows what still needs porting (`+`) and what is already there (`=`).
-3. Resolve conflicts in the shop's favour and re-run `npx tsc --noEmit -p .` before pushing.
+**Shipping a change to both houses:**
+```
+git push taheri main:taheri-next     # Taheri rolls out (~5 min)
+git push hom main:main               # House of Mina rolls out
+```
+Push Taheri first, check it, then Mina. `main` here is the shared working branch (the old dead
+`main` is kept as tag `old-main-2026-06`). `website-checkout` is retired.
 
-The real fix is one repo with two App Hosting backends and per-shop differences in config
-(`apphosting.<environment>.yaml`, `STORE_CONFIG`) — a one-time reconvergence, not a habit. See the
-session notes from 2026-09-22 before starting it.
+**Running a house locally:** `npm run env:taheri` or `npm run env:mina` writes `.env.<house>.local`
+from the YAML files (secrets left blank to fill from Secret Manager), then `npm run dev:taheri`
+(port 3000) or `npm run dev:mina` (port 3001). `.env.local` is a hand-kept Taheri file that plain `npm run dev` uses.
 
 ## Decisions already made (don't reopen unless asked)
 

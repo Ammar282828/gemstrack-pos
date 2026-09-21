@@ -1,0 +1,191 @@
+# Taheri — everything that differs from House of Mina. Applied on top of
+# apphosting.yaml for the backend whose environment name is "taheri"
+# (project gemstrack-pos). See the header of apphosting.yaml.
+#
+# Check the project id below before touching anything else: deployed with the
+# wrong one, this app signs in against the other house's project and reads and
+# writes the other house's database while showing Taheri's name on the door.
+
+env:
+  - variable: NEXT_PUBLIC_STORE_BRAND
+    value: taheri
+    availability:
+      - BUILD
+      - RUNTIME
+  # Counter staff, for "Taken by" on orders and invoices.
+  - variable: NEXT_PUBLIC_STORE_TAKEN_BY
+    value: "Ammar,Murtaza,Huzaifa,Mansoor,Mohammad"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_APP_URL
+    value: "https://pos.taheri.shop"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "gemstrack-pos.firebaseapp.com"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "gemstrack-pos"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "gemstrack-pos.firebasestorage.app"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "948018742883"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:948018742883:web:a3a090dde378be96089a56"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_NAME
+    value: "TAHERI"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_DEFAULT_METAL
+    value: "gold"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_ALLOWED_EMAILS
+    value: "potatomasta501@gmail.com"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_WHATSAPP_URL
+    value: "https://wa.me/923262275554"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Gates the notification endpoints, which Cloud Scheduler calls without a user
+  # session. Its own value in this project, not shared with the other shop.
+  - variable: NEXT_PUBLIC_OPEN_ACCESS
+    value: "1"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # WhatsApp, through Green API. Deliberately the SAME instance House of Mina uses --
+  # the shop runs one bot across both stores and its own env says so ("same as Mina --
+  # shared bot"), so messages from either shop go out from the one number. That is the
+  # arrangement, not an accident of copying: change it only if Taheri gets its own line.
+  #
+  # RUNTIME only. Read per request in src/lib/whatsapp.ts, never at build.
+  - variable: NEXT_PUBLIC_STORE_WEBSITE_URL
+    value: "https://taheri.shop"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # ── Selling from taheri.shop ──────────────────────────────────────────────
+  # The public site quotes and checks out through /api/public/*. WEBSITE_ORIGIN
+  # is the one origin those routes answer to, and where the catalogue's
+  # attributes are read from. Leopards is optional: without its two secrets the
+  # order page takes a consignment number by hand.
+  - variable: WEBSITE_ORIGIN
+    value: https://taheri.shop
+    availability: [RUNTIME]
+  # Add Photos: the bearer the POS presents to taheri.shop/api/upload.php. The
+  # same value sits on Hostinger as ~/domains/taheri.shop/.website-upload-secret.
+  # The Secret Manager entry is named in lowercase (it was created that way);
+  # the variable the code reads is the uppercase one, and the two need not match.
+  - variable: WEBSITE_UPLOAD_SECRET
+    secret: website-upload-secret
+    availability: [RUNTIME]
+  # LEOPARDS_API_KEY and LEOPARDS_API_PASSWORD are deliberately NOT declared.
+  # App Hosting refuses a rollout when a declared secret does not exist in
+  # Secret Manager, and declaring them before their values existed is what
+  # failed the 20 Sept build. Without them the order page takes a consignment
+  # number by hand. Add each back here in the same commit that creates its
+  # secret — and grant the three App Hosting service accounts secretAccessor
+  # on it first, as the other secrets have, or the rollout fails on read.
+  - variable: LEOPARDS_USE_SANDBOX
+    value: "false"
+    availability: [RUNTIME]
+  - variable: NEXT_PUBLIC_STORE_INSTAGRAM_URL
+    value: "https://www.instagram.com/collectionstaheri"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_LINKS_URL
+    value: "https://links.taheri.shop"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Orders & enquiries, in the order they print on invoices and workshop slips.
+  - variable: NEXT_PUBLIC_STORE_CONTACT1_NAME
+    value: "Murtaza"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT1_NUMBER
+    value: "0333 2275190"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT2_NAME
+    value: "Mohammad"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT2_NUMBER
+    value: "0300 8280896"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT3_NAME
+    value: "Huzaifa"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT3_NUMBER
+    value: "0335 2275553"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT4_NAME
+    value: "Ammar"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT4_NUMBER
+    value: "0326 2275554"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT5_NAME
+    value: "Mansoor"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_CONTACT5_NUMBER
+    value: "0339 4006890"
+    availability:
+      - BUILD
+      - RUNTIME
+  # The direct review link from Business Profile: it opens the star rating on the
+  # Taheri Collections listing (Najmi Market, Saddar) rather than a search results
+  # page, so the row does exactly what it says.
+  - variable: NEXT_PUBLIC_STORE_GOOGLE_REVIEW_URL
+    value: "https://g.page/r/Carl6vAff1U9EBM/review"
+    availability:
+      - BUILD
+      - RUNTIME

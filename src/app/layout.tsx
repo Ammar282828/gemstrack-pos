@@ -12,7 +12,7 @@ import { useIsStoreHydrated } from '@/hooks/use-store';
 import React, { useEffect } from 'react';
 import Script from 'next/script';
 import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, isLinksHost } from '@/lib/store-config';
 import { readCachedTheme, writeCachedTheme } from '@/lib/theme-cache';
 import { warmPdfLogo } from '@/lib/pdf-logo';
 
@@ -52,18 +52,18 @@ function AppBody({ children }: { children: React.ReactNode }) {
    * no longer put the shop's book in front of a customer. Belt and braces, because the
    * cost of being wrong here is not a broken page.
    */
-  const isLinksHost = typeof window !== 'undefined'
-    && /^(?:www\.)?links\.taheri\.shop$/i.test(window.location.hostname);
+  const onLinksHost = typeof window !== 'undefined'
+    && isLinksHost(window.location.hostname);
 
   // If anything ever lands on another path here, it goes to the link page and stays
   // there. Nothing else on this hostname is meant for the person looking at it.
   useEffect(() => {
-    if (isLinksHost && !pathname.startsWith('/links')) {
+    if (onLinksHost && !pathname.startsWith('/links')) {
       window.location.replace('/links');
     }
-  }, [isLinksHost, pathname]);
+  }, [onLinksHost, pathname]);
 
-  const isPublicInvoicePage = isPublicPath || isLinksHost;
+  const isPublicInvoicePage = isPublicPath || onLinksHost;
 
   // Settings come from Firestore and are not persisted into the store, so on a
   // cold load nothing knows the theme until the network answers. The cached
@@ -83,7 +83,7 @@ function AppBody({ children }: { children: React.ReactNode }) {
 
   if (!isHydrated) {
     return (
-      <body suppressHydrationWarning className={`${inter.variable} font-sans antialiased theme-${cachedTheme}`}>
+      <body suppressHydrationWarning className={`${inter.variable} font-sans antialiased theme-${cachedTheme} brand-${STORE_BRAND}`}>
       </body>
     );
   }
@@ -93,7 +93,7 @@ function AppBody({ children }: { children: React.ReactNode }) {
   const activeTheme = hasSettingsLoaded && theme ? theme : cachedTheme;
 
   return (
-    <body className={`${inter.variable} font-sans antialiased theme-${activeTheme}`}>
+    <body className={`${inter.variable} font-sans antialiased theme-${activeTheme} brand-${STORE_BRAND}`}>
       {isPublicInvoicePage ? (
         // For public pages, render children directly without the main app layout
         <>
@@ -129,7 +129,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/* The browser chrome around the app. #0A1111 is taheri.shop's ground —
             this was the other shop's maroon. */}
-        <meta name="theme-color" content="#0A1111" />
+        <meta name="theme-color" content={STORE_THEME_COLOR} />
         {/*
           Paint the right background before anything else runs.
 

@@ -1,17 +1,23 @@
-# Settings for Backend (on Cloud Run).
+# Settings for Backend (on Cloud Run) — the part BOTH houses share.
 # See https://firebase.google.com/docs/app-hosting/configure#cloud-run
 #
-# THIS IS TAHERI'S. It was forked from House of Mina's and every value in it had
-# to be turned over, because the defaults baked into src/lib/firebase.ts all point
-# at hom-pos-52710474-ceeea. Deployed unchanged, this app signs in against House
-# of Mina's project and reads and writes House of Mina's database while showing
-# Taheri's name on the door. Check the project id below before touching anything
-# else in this file.
+# One codebase serves two shops from two Firebase projects:
 #
-# Shopify and the WhatsApp (GreenAPI) transport are deliberately absent: Taheri
-# does not use either, and its own env records SHOPIFY_API_KEY as "unused".
-# Adding House of Mina's credentials here would wire this shop to that shop's
-# storefront and phone number.
+#   Taheri          project gemstrack-pos             backend studio   environment "taheri"   pos.taheri.shop
+#   House of Mina   project hom-pos-52710474-ceeea    backend studio   environment "mina"     pos.houseofmina.store
+#
+# App Hosting reads this file and then apphosting.<environment>.yaml for the
+# backend's environment name, where a variable of the same name overrides and
+# a new one is added. So: anything identical for both houses lives here; every
+# difference — Firebase project, store name, contacts, logo, brand palette,
+# which features the shop has — lives in apphosting.taheri.yaml or
+# apphosting.mina.yaml. Never a fork of the code, never a value here that only
+# one house wants (an override file can add or replace a variable; it cannot
+# remove one).
+#
+# A `secret:` declared here must exist in BOTH projects' Secret Manager and be
+# readable by each project's App Hosting service accounts, or that project's
+# rollout fails. A secret only one house has goes in that house's file.
 
 runConfig:
   minInstances: 0
@@ -24,93 +30,16 @@ env:
     availability:
       - BUILD
 
-  # Where this app actually answers. The hosted.app address still works and still
-  # serves the same backend, but this is the one printed on documents and used to
-  # build links, so it should be the address the shop actually says out loud.
-  - variable: NEXT_PUBLIC_APP_URL
-    value: "https://pos.taheri.shop"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: "AIzaSyAl3W_9_Z9j0sR7rGIwwM1uiiXvOxGQ7IA"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    value: "gemstrack-pos.firebaseapp.com"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    value: "gemstrack-pos"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    value: "gemstrack-pos.firebasestorage.app"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    value: "948018742883"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    value: "1:948018742883:web:a3a090dde378be96089a56"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_NAME
-    value: "TAHERI"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_DEFAULT_METAL
-    value: "gold"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_ALLOWED_EMAILS
-    value: "potatomasta501@gmail.com"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_WHATSAPP_URL
-    value: "https://wa.me/923262275554"
-    availability:
-      - BUILD
-      - RUNTIME
-
-
   # Gates the notification endpoints, which Cloud Scheduler calls without a user
-  # session. Its own value in this project, not shared with the other shop.
+  # session. Each project holds its own value under this name.
   - variable: CRON_SECRET
     secret: CRON_SECRET
     availability:
       - RUNTIME
 
-# Vertex AI needs no key: the backend signs its own requests with the service account
-# it already runs as. GOOGLE_GENAI_API_KEY is gone from here for that reason, not by
-# oversight -- the API-key endpoint bills to a separate AI Studio pool, which is what
-# was empty. The secret still exists in the project if anything ever wants it back.
-
-  # ██ TEMPORARY: removes the sign-in screen on the deployed app ██
-  # Set 2026-09-07 at Ammar's request, paired with open firestore.rules.
-  # Delete this block and restore firestore.rules.locked to close it again.
-  - variable: NEXT_PUBLIC_OPEN_ACCESS
-    value: "1"
-    availability:
-      - BUILD
-      - RUNTIME
-
-  # WhatsApp, through Green API. Deliberately the SAME instance House of Mina uses --
-  # the shop runs one bot across both stores and its own env says so ("same as Mina --
-  # shared bot"), so messages from either shop go out from the one number. That is the
-  # arrangement, not an accident of copying: change it only if Taheri gets its own line.
-  #
-  # RUNTIME only. Read per request in src/lib/whatsapp.ts, never at build.
+  # WhatsApp, through Green API. Deliberately the SAME instance for both houses:
+  # the shop runs one bot across both stores, so messages from either go out from
+  # the one number. RUNTIME only; read per request in src/lib/whatsapp.ts.
   - variable: GREENAPI_ID_INSTANCE
     secret: GREENAPI_ID_INSTANCE
     availability:
@@ -118,107 +47,4 @@ env:
   - variable: GREENAPI_API_TOKEN
     secret: GREENAPI_API_TOKEN
     availability:
-      - RUNTIME
-  # The link page the printed QR points at, and what it lists. Anything left empty is
-  # simply not shown on the page -- a row that goes nowhere is worse than no row.
-  - variable: NEXT_PUBLIC_STORE_WEBSITE_URL
-    value: "https://taheri.shop"
-    availability:
-      - BUILD
-      - RUNTIME
-
-  # ── Selling from taheri.shop ──────────────────────────────────────────────
-  # The public site quotes and checks out through /api/public/*. WEBSITE_ORIGIN
-  # is the one origin those routes answer to, and where the catalogue's
-  # attributes are read from. Leopards is optional: without its two secrets the
-  # order page takes a consignment number by hand.
-  - variable: WEBSITE_ORIGIN
-    value: https://taheri.shop
-    availability: [RUNTIME]
-  # Add Photos: the bearer the POS presents to taheri.shop/api/upload.php. The
-  # same value sits on Hostinger as ~/domains/taheri.shop/.website-upload-secret.
-  # The Secret Manager entry is named in lowercase (it was created that way);
-  # the variable the code reads is the uppercase one, and the two need not match.
-  - variable: WEBSITE_UPLOAD_SECRET
-    secret: website-upload-secret
-    availability: [RUNTIME]
-  # LEOPARDS_API_KEY and LEOPARDS_API_PASSWORD are deliberately NOT declared.
-  # App Hosting refuses a rollout when a declared secret does not exist in
-  # Secret Manager, and declaring them before their values existed is what
-  # failed the 20 Sept build. Without them the order page takes a consignment
-  # number by hand. Add each back here in the same commit that creates its
-  # secret — and grant the three App Hosting service accounts secretAccessor
-  # on it first, as the other secrets have, or the rollout fails on read.
-  - variable: LEOPARDS_USE_SANDBOX
-    value: "false"
-    availability: [RUNTIME]
-  - variable: NEXT_PUBLIC_STORE_INSTAGRAM_URL
-    value: "https://www.instagram.com/collectionstaheri"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_LINKS_URL
-    value: "https://links.taheri.shop"
-    availability:
-      - BUILD
-      - RUNTIME
-
-  # Orders & enquiries, in the order they print on invoices and workshop slips.
-  - variable: NEXT_PUBLIC_STORE_CONTACT1_NAME
-    value: "Murtaza"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_CONTACT1_NUMBER
-    value: "0333 2275190"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_CONTACT2_NAME
-    value: "Mohammad"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_CONTACT2_NUMBER
-    value: "0300 8280896"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_CONTACT3_NAME
-    value: "Huzaifa"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_CONTACT3_NUMBER
-    value: "0335 2275553"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_CONTACT4_NAME
-    value: "Ammar"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_CONTACT4_NUMBER
-    value: "0326 2275554"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_CONTACT5_NAME
-    value: "Mansoor"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_CONTACT5_NUMBER
-    value: "0339 4006890"
-    availability:
-      - BUILD
-      - RUNTIME
-  # The direct review link from Business Profile: it opens the star rating on the
-  # Taheri Collections listing (Najmi Market, Saddar) rather than a search results
-  # page, so the row does exactly what it says.
-  - variable: NEXT_PUBLIC_STORE_GOOGLE_REVIEW_URL
-    value: "https://g.page/r/Carl6vAff1U9EBM/review"
-    availability:
-      - BUILD
       - RUNTIME

@@ -25,7 +25,11 @@ const auth = new GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/cloud-platform'],
 });
 
-const PROJECT = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || '';
+// VERTEX_PROJECT lets Vertex bill to a different Google Cloud project than the
+// app's own. House of Mina runs on hom-pos, which has no funded Vertex, so its
+// backend sets VERTEX_PROJECT=gemstrack-pos (and that project grants its App
+// Hosting service account roles/aiplatform.user). Unset, the app's own project.
+const PROJECT = process.env.VERTEX_PROJECT || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || '';
 const LOCATION = process.env.VERTEX_LOCATION?.trim() || 'us-central1';
 const API_KEY = process.env.GEMINI_API_KEY?.trim() || '';
 

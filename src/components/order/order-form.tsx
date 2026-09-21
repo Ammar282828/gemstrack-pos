@@ -154,7 +154,8 @@ const orderFormSchema = z.object({
     customerName: z.string().optional(),
     customerContact: z.string().optional(),
     source: z.enum(CUSTOMER_SOURCES).optional(),
-    takenBy: z.enum(TAKEN_BY).optional(),
+    // The counter's own list (store-config), so a name off it and nothing else.
+    takenBy: z.string().refine((v) => TAKEN_BY.includes(v), 'Choose a name from the list').optional(),
     promisedDate: z.string().optional(),
 }).refine(data => {
     const goldItems = data.items.filter(item => item.metalType === 'gold');
