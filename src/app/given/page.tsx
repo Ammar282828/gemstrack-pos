@@ -81,6 +81,8 @@ function GivenItemForm({
   const recipientType = form.watch('recipientType');
 
   const onSubmit = async (data: GivenFormData) => {
+    // Firestore rejects a field whose value is `undefined`, so a date that
+    // does not exist yet is left out rather than sent as nothing.
     const payload: Omit<GivenItem, 'id'> = {
       date: data.date.toISOString(),
       description: data.description,
@@ -88,19 +90,20 @@ function GivenItemForm({
       recipientName: data.recipientName,
       notes: data.notes || '',
       status: item?.status ?? 'out',
-      returnedDate: item?.returnedDate,
+      ...(item?.returnedDate ? { returnedDate: item.returnedDate } : {}),
     };
     try {
       if (isEdit && item) {
         await updateGivenItem(item.id, payload);
         toast({ title: 'Updated', description: 'Item updated.' });
       } else {
-        await addGivenItem(payload);
+        const saved = await addGivenItem(payload);
+        if (!saved) throw new Error('not saved');
         toast({ title: 'Added', description: 'Item recorded as given.' });
       }
       onSubmitSuccess();
     } catch {
-      toast({ title: 'Error', description: 'Failed to save.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to save. If the database is locked, unlock it in Settings.', variant: 'destructive' });
     }
   };
 
@@ -184,13 +187,11 @@ function GivenItemForm({
             <FormItem>
               <FormLabel>Recipient Name</FormLabel>
               <FormControl>
-                <>
-                  <Input list="recipient-suggestions" placeholder="Name…" {...field} />
-                  <datalist id="recipient-suggestions">
-                    {recipientSuggestions.map(n => <option key={n} value={n} />)}
-                  </datalist>
-                </>
+                <Input list="recipient-suggestions" placeholder="Name…" {...field} />
               </FormControl>
+              <datalist id="recipient-suggestions">
+                {recipientSuggestions.map(n => <option key={n} value={n} />)}
+              </datalist>
               <FormMessage />
             </FormItem>
           )}
@@ -382,7 +383,7 @@ export default function GivenItemsPage() {
                         <CheckCircle2 className="w-3 h-3 mr-1" /> Got Back
                       </Button>
                     )}
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => openEdit(item)}>
                       <Edit className="w-3.5 h-3.5" />
                     </Button>
                     <AlertDialog>
@@ -464,7 +465,7 @@ export default function GivenItemsPage() {
                             <CheckCircle2 className="w-3 h-3 mr-1" /> Got Back
                           </Button>
                         )}
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(item)}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => openEdit(item)}>
                           <Edit className="w-3.5 h-3.5" />
                         </Button>
                         <AlertDialog>

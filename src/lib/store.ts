@@ -4030,6 +4030,8 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      // Like delete and markReturned below, these rethrow: the page reports
+      // the failure, rather than toasting "Added" over a write that never landed.
       addGivenItem: async (data) => {
         if (get().settings.databaseLocked) return null;
         try {
@@ -4038,7 +4040,7 @@ export const useAppStore = create<AppState>()(
           return { id: docRef.id, ...data };
         } catch (error) {
           console.error('[GemsTrack Store addGivenItem] Error:', error);
-          return null;
+          throw error;
         }
       },
       updateGivenItem: async (id, data) => {
@@ -4048,6 +4050,7 @@ export const useAppStore = create<AppState>()(
           await addActivityLog('given.update', `Updated given item`, `ID: ${id}`, id);
         } catch (error) {
           console.error(`[GemsTrack Store updateGivenItem] Error:`, error);
+          throw error;
         }
       },
       deleteGivenItem: async (id) => {
