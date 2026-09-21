@@ -73,7 +73,9 @@ bank env vars and the open Firestore rules.
   default metal, margin, **brand**, logo and its aspect, **counter staff** for "Taken by"); `globals.css`
   (`.dark .brand-mina` is Mina's maroon dark palette; Taheri's is the plain `.dark`); `layout.tsx`
   (brand class, theme-colour, links host); `app-layout.tsx` (the Website menu exists only when
-  `NEXT_PUBLIC_STORE_WEBSITE_URL` is set); `voice/gemini.ts` (`VERTEX_PROJECT` bills Mina's voice to Taheri's project).
+  `NEXT_PUBLIC_STORE_WEBSITE_URL` is set; **Shareholder Finances** and "paid by Mina/Ammar" on an expense only when
+  `NEXT_PUBLIC_STORE_PARTNERSHIP=1` — Mina's partnership book, whose ledgers live in Mina's Firestore);
+  `voice/gemini.ts` (`VERTEX_PROJECT` bills Mina's voice to Taheri's project).
 - A `secret:` in the base must exist in **both** projects; one in a house file only in that project.
 
 **Shipping a change to both houses:**
@@ -103,6 +105,9 @@ from the YAML files (secrets left blank to fill from Secret Manager), then `npm 
 - **Invoices show wastage in grams only** (no rupee value, no percentage); the workshop slip keeps the percentage.
 - Copy: never "Najmi Market" or "Saddar" in anything a customer reads; hours are Sat–Thu 11:00–21:00, **Fri 15:30–20:00**.
 - Photo Weights' preview draws the weight with the overlay tool's geometry (Futura LT Light, 143/3000 of the width, inset 120/3000).
+- Number fields (`AmountInput`) select their contents on focus, and the sale-flow ones (order items, product form,
+  cart edit) show a 0 as blank (`zeroAsEmpty`) — the counter asked for no pre-filled zeros to delete.
+- In a component, no hook after an early `return` (the `/orders/add` crash of 2026-09-22 was exactly that).
 
 ## graphify
 

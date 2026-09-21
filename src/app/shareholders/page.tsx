@@ -42,6 +42,7 @@ import {
 } from '@/lib/shareholders';
 import { format } from 'date-fns';
 import { AmountInput } from '@/components/ui/amount-input';
+import { STORE_PARTNERSHIP } from '@/lib/store-config';
 
 /** Expenses from "Pearls - Studs x2" onward. */
 const EXPENSE_CUTOFF = '2025-07-02';
@@ -296,6 +297,15 @@ export default function ShareholderFinancesPage() {
 
   const isLoading = isExpensesLoading || isInvoicesLoading || isOrdersLoading
     || isAdditionalRevenueLoading || ledgersLoading;
+
+  // Reachable by URL from either shop; only one of them keeps this book.
+  if (!STORE_PARTNERSHIP) {
+    return (
+      <div className="container mx-auto px-4 py-5 md:py-6 max-w-6xl">
+        <p className="text-sm text-muted-foreground">This shop keeps no partner ledgers.</p>
+      </div>
+    );
+  }
 
   if (!appReady || isLoading) {
     return (

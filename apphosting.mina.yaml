@@ -14,6 +14,14 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # The partnership book: Shareholder Finances in the sidebar and "paid by
+  # Mina/Ammar" on an expense. Mina's ledgers live in this project's Firestore
+  # (mina_ledger, ammar_ledger); Taheri has none and leaves this unset.
+  - variable: NEXT_PUBLIC_STORE_PARTNERSHIP
+    value: "1"
+    availability:
+      - BUILD
+      - RUNTIME
   # The maroon of the wordmark, for the browser chrome (globals.css .brand-mina).
   - variable: NEXT_PUBLIC_STORE_THEME_COLOR
     value: "#1A0E0E"

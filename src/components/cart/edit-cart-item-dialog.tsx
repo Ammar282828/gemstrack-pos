@@ -132,7 +132,7 @@ const Num: React.FC<{
 }> = ({ label, value, onChange, step, placeholder, hint }) => (
   <div>
     <Label className="text-xs">{label}</Label>
-    <AmountInput step={step} value={value} placeholder={placeholder}
+    <AmountInput step={step} value={value} placeholder={placeholder} zeroAsEmpty
       onValueChange={v => onChange(v === undefined ? '' : String(v))} />
     {hint && <p className="text-2xs text-muted-foreground mt-0.5">{hint}</p>}
   </div>

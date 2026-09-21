@@ -184,3 +184,15 @@ export const STORE_TAKEN_BY: readonly string[] = (process.env.NEXT_PUBLIC_STORE_
  * Measured from public/taheri-logo.png. If the artwork is replaced, remeasure it.
  */
 export const STORE_LOGO_ASPECT = Number(process.env.NEXT_PUBLIC_STORE_LOGO_ASPECT) || 1528 / 383;
+
+/**
+ * Does this shop keep partner ledgers?
+ *
+ * Shareholder Finances (/shareholders, the mina_ledger and ammar_ledger
+ * collections, and "paid by Mina/Ammar" on an expense) is House of Mina's
+ * partnership book. Taheri has no partners in this sense, so its sidebar never
+ * linked the page; when the two forks became one codebase that omission came
+ * with Taheri's nav and Mina's link vanished. NEXT_PUBLIC_STORE_PARTNERSHIP=1
+ * in apphosting.mina.yaml brings it back; Taheri leaves it unset.
+ */
+export const STORE_PARTNERSHIP = process.env.NEXT_PUBLIC_STORE_PARTNERSHIP === '1';

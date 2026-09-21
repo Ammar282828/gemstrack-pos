@@ -14,6 +14,10 @@
  *   · pasting "PKR 1,25,000" or "1 250.50" gives 125000 / 1250.5
  *   · the caret stays where it was, counted in digits rather than characters,
  *     so inserting a separator does not jump it to the end
+ *   · focusing selects what is there, so typing replaces a pre-filled figure
+ *     instead of appending to it. A field holding 0 with the caret landing in
+ *     front of it turned a typed 5000 into 50,000 — and every new order item
+ *     starts at 0. See `zeroAsEmpty` for not showing that 0 at all.
  */
 
 import * as React from 'react';
@@ -66,11 +70,21 @@ export interface AmountInputProps
    * Pass `undefined` where blank genuinely has to differ from zero.
    */
   emptyValue?: '' | undefined;
+  /**
+   * Show a value of exactly 0 as an empty box.
+   *
+   * For a charge or a weight, "nothing yet" and "0" are the same figure, and a
+   * pre-filled 0 is one more thing to delete before the number can go in — on
+   * every making, stones and diamonds field of every item on an order. Blank
+   * shows the placeholder instead. What is *emitted* does not change: a cleared
+   * field still reports `emptyValue`, and the schema still coerces that to 0.
+   */
+  zeroAsEmpty?: boolean;
 }
 
 export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
   ({ value, onValueChange, onChange, maxDecimals = 2, allowNegative = false,
-     emptyValue = '', className, name, onBlur, ...rest }, ref) => {
+     emptyValue = '', zeroAsEmpty = false, className, name, onBlur, onFocus, onMouseUp, ...rest }, ref) => {
     const inner = React.useRef<HTMLInputElement | null>(null);
     const setRef = (el: HTMLInputElement | null) => {
       inner.current = el;
@@ -84,9 +98,16 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
     const pendingCaret = React.useRef<number | null>(null);
 
     const fromProp = value === null || value === undefined || value === ''
+      || (zeroAsEmpty && Number(value) === 0)
       ? ''
       : format(digitsOnly(String(value)), maxDecimals);
     const shown = draft ?? fromProp;
+
+    // Select-all on focus. The selection is made when focus arrives, but a
+    // click's mouseup then collapses it to a caret — so the first mouseup after
+    // a focus is swallowed, and only that one: dragging to select part of the
+    // number a moment later works as usual.
+    const swallowMouseUp = React.useRef(false);
 
     const emit = (n: number | undefined) => {
       const out = (n === undefined ? emptyValue : n) as number | undefined;
@@ -143,7 +164,20 @@ export const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
         autoComplete="off"
         value={shown}
         onChange={handle}
+        onFocus={e => {
+          swallowMouseUp.current = true;
+          e.target.select();
+          onFocus?.(e);
+        }}
+        onMouseUp={e => {
+          if (swallowMouseUp.current) {
+            swallowMouseUp.current = false;
+            e.preventDefault();
+          }
+          onMouseUp?.(e);
+        }}
         onBlur={e => {
+          swallowMouseUp.current = false;
           // Hand the canonical form back on the way out, so "1." settles to "1".
           setDraft(null);
           onBlur?.(e);

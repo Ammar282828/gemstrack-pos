@@ -11,13 +11,13 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, Target, Mic, Scale, ImagePlus} from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, Target, Mic, Scale, ImagePlus, PieChart } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
-import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS } from '@/lib/store-config';
+import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -93,6 +93,10 @@ const navGroups: NavGroup[] = [
       { href: '/additional-revenue', label: 'Extra Revenue', icon: <Coins /> },
       { href: '/hisaab', label: 'Hisaab / Ledger', icon: <BookUser /> },
       { href: '/overheads', label: 'Monthly Overheads', icon: <Target /> },
+      // The partnership book, for the shop that has partners (NEXT_PUBLIC_STORE_PARTNERSHIP).
+      ...(STORE_PARTNERSHIP ? ([
+        { href: '/shareholders', label: 'Shareholder Finances', icon: <PieChart /> },
+      ] as NavItem[]) : []),
       { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
     ],
   },

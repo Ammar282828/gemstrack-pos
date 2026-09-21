@@ -30,6 +30,7 @@ import { format } from 'date-fns';
 import { SearchablePicker } from '@/components/shared/searchable-picker';
 import { KarigarPicker } from '@/components/karigar/karigar-picker';
 import { AmountInput } from '@/components/ui/amount-input';
+import { STORE_PARTNERSHIP } from '@/lib/store-config';
 
 const expenseSchema = z.object({
   date: z.date({ required_error: "A date is required." }),
@@ -210,8 +211,11 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
               onChange={field.onChange}
               options={[
                 { value: 'business', label: 'Business cash' },
-                { value: 'ammar', label: 'Ammar', hint: 'Personal — logged to his ledger as a loan' },
-                { value: 'mina', label: 'Mina', hint: 'Personal — logged to her ledger as a loan' },
+                // The partners' own pockets, for the shop that has partner ledgers.
+                ...(STORE_PARTNERSHIP ? [
+                  { value: 'ammar', label: 'Ammar', hint: 'Personal — logged to his ledger as a loan' },
+                  { value: 'mina', label: 'Mina', hint: 'Personal — logged to her ledger as a loan' },
+                ] : []),
               ]}
               aria-label="Paid by"
             />

@@ -353,6 +353,13 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
   // Only one item is expanded at a time: twenty fields per piece across a
   // five-piece order is otherwise a hundred fields of uninterrupted scrolling.
   const [openItem, setOpenItem] = React.useState(0);
+  // Declared up here with the other state, ABOVE the "Loading Form..." return
+  // below. It used to sit after it, so the first render (still loading) had one
+  // hook fewer than the second, and React threw #310 -- "rendered more hooks
+  // than during the previous render" -- on every direct load or refresh of
+  // /orders/add. Reached from inside the app, with settings already in the
+  // store, the loading branch was skipped and the page happened to work.
+  const [scannerOpen, setScannerOpen] = React.useState(false);
   // Delivery is held outside the zod form: it is a self-contained block with
   // its own validity, and threading it through the item schema buys nothing.
   const [delivery, setDelivery] = React.useState<DeliveryInfo>(order?.delivery ?? EMPTY_DELIVERY);
@@ -700,8 +707,6 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         adminNote: '',
         });
     };
-
-  const [scannerOpen, setScannerOpen] = React.useState(false);
 
   /**
    * Take what was read off a photo and put it in the form.
@@ -1214,7 +1219,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
 
                             {form.watch(`items.${index}.isManualPrice`) ? (
                                 <FormField control={form.control} name={`items.${index}.manualPrice`} render={({ field }) => (
-                                    <FormItem><FormLabel>Price (PKR)</FormLabel><FormControl><AmountInput placeholder="The agreed total for this piece" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Price (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="The agreed total for this piece" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                             ) : (
                                 <>
@@ -1224,7 +1229,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                     <FormField control={form.control} name={`items.${index}.estimatedWeightG`} render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Weight (g)</FormLabel>
-                                            <FormControl><AmountInput {...field} /></FormControl>
+                                            <FormControl><AmountInput zeroAsEmpty {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}/>
@@ -1236,10 +1241,10 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 </div>
                                 <div className="grid grid-cols-2 gap-3 md:gap-4">
                                     <FormField control={form.control} name={`items.${index}.makingCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel>Making (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Making (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <FormField control={form.control} name={`items.${index}.stoneCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </div>
 
@@ -1255,7 +1260,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 {form.watch(`items.${index}.hasDiamonds`) && (
                                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pl-6 border-l-2 border-muted">
                                     <FormField control={form.control} name={`items.${index}.diamondCharges`} render={({ field }) => (
-                                        <FormItem><FormLabel>Diamonds (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Diamonds (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <div className="md:col-span-2">
                                       <FormField control={form.control} name={`items.${index}.diamondDetails`} render={({ field }) => (
@@ -1274,7 +1279,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                                 {form.watch(`items.${index}.hasStones`) && (
                                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pl-6 border-l-2 border-muted">
                                     <FormField control={form.control} name={`items.${index}.stoneWeightG`} render={({ field }) => (
-                                        <FormItem><FormLabel>Stone weight (g)</FormLabel><FormControl><AmountInput placeholder="e.g. 0.5" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Stone weight (g)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="e.g. 0.5" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <div className="md:col-span-2">
                                       <FormField control={form.control} name={`items.${index}.stoneDetails`} render={({ field }) => (

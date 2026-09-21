@@ -131,7 +131,20 @@ export const PhoneField: React.FC<{
   const status = phoneState(value, country);
   const tell = showHint && touched && status.state !== 'empty';
 
-  const settle = () => {
+  /**
+   * Runs when focus leaves the FIELD, not when it moves inside it.
+   *
+   * The flag and the digits are two elements in one box, and `onBlur` on the
+   * wrapper fires for a move between them too. Picking a country focuses the
+   * flag's <select>; the next click, on the digits, blurred the select, this
+   * remounted the input under the pointer, and the keystrokes that followed went
+   * to the page body. From the counter: choose UAE, click the field, type,
+   * nothing appears -- so "international numbers don't work". A blur whose
+   * relatedTarget is still inside the wrapper is that internal move and is
+   * ignored; only a true exit normalises and remounts.
+   */
+  const settle = (e: React.FocusEvent<HTMLDivElement>) => {
+    if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
     setTouched(true);
     const canonical = toE164(value, country);
     if (canonical !== value) onChange(canonical);

@@ -475,7 +475,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           <FormField control={form.control} name="secondaryMetalWeightG" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Weight (g)</FormLabel>
-                                <FormControl><AmountInput placeholder="e.g. 1.25" {...field} disabled={!selectedSecondaryMetalType || selectedSecondaryMetalType === 'none'} /></FormControl>
+                                <FormControl><AmountInput zeroAsEmpty placeholder="e.g. 1.25" {...field} disabled={!selectedSecondaryMetalType || selectedSecondaryMetalType === 'none'} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                           )}/>
@@ -508,14 +508,14 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         <FormField control={form.control} name="customPrice" render={({ field }) => (
                             <FormItem>
                               <FormLabel>Price (PKR)</FormLabel>
-                              <FormControl><AmountInput placeholder="e.g. 15000" {...field} /></FormControl>
+                              <FormControl><AmountInput zeroAsEmpty placeholder="e.g. 15000" {...field} /></FormControl>
                               <FormMessage />
                             </FormItem>
                         )}/>
                         <FormField control={form.control} name="silverRatePerGram" render={({ field }) => (
                             <FormItem>
                               <FormLabel>Reference rate per gram <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
-                              <FormControl><AmountInput placeholder="e.g. 275" {...field} /></FormControl>
+                              <FormControl><AmountInput zeroAsEmpty placeholder="e.g. 275" {...field} /></FormControl>
                               <FormDescription>For internal reference only — does not affect the price.</FormDescription>
                             </FormItem>
                         )}/>
@@ -528,7 +528,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         <FormField control={form.control} name="metalWeightG" render={({ field }) => (
                             <FormItem>
                               <FormLabel>Weight (g)</FormLabel>
-                              <FormControl><AmountInput placeholder="e.g. 5.75" {...field} /></FormControl>
+                              <FormControl><AmountInput zeroAsEmpty placeholder="e.g. 5.75" {...field} /></FormControl>
                               <FormMessage />
                             </FormItem>
                         )}/>
@@ -536,7 +536,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           <FormField control={form.control} name="silverRatePerGram" render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Rate per gram (PKR)</FormLabel>
-                                <FormControl><AmountInput placeholder="e.g. 275" {...field} /></FormControl>
+                                <FormControl><AmountInput zeroAsEmpty placeholder="e.g. 275" {...field} /></FormControl>
                                 <FormDescription>All-inclusive, for this piece. 0 uses the rate in settings.</FormDescription>
                                 <FormMessage />
                               </FormItem>
@@ -557,7 +557,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                           )}/>
                           )}
                           <FormField control={form.control} name="miscCharges" render={({ field }) => (
-                              <FormItem><FormLabel>Misc (PKR)</FormLabel><FormControl><AmountInput placeholder="e.g. 250" {...field} /></FormControl><FormMessage /></FormItem>
+                              <FormItem><FormLabel>Misc (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="e.g. 250" {...field} /></FormControl><FormMessage /></FormItem>
                           )}/>
                       </div>
 
@@ -571,7 +571,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       {hasDiamondsValue && (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pl-6 border-l-2 border-muted">
                           <FormField control={form.control} name="diamondCharges" render={({ field }) => (
-                              <FormItem><FormLabel>Diamonds (PKR)</FormLabel><FormControl><AmountInput placeholder="e.g. 50000" {...field} /></FormControl><FormMessage /></FormItem>
+                              <FormItem><FormLabel>Diamonds (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="e.g. 50000" {...field} /></FormControl><FormMessage /></FormItem>
                           )}/>
                           <div className="md:col-span-2">
                             <FormField control={form.control} name="diamondDetails" render={({ field }) => (
@@ -590,10 +590,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                       {hasStonesValue && (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 pl-6 border-l-2 border-muted">
                           <FormField control={form.control} name="stoneWeightG" render={({ field }) => (
-                              <FormItem><FormLabel>Stone weight (g)</FormLabel><FormControl><AmountInput placeholder="e.g. 0.5" {...field} /></FormControl><FormMessage /></FormItem>
+                              <FormItem><FormLabel>Stone weight (g)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="e.g. 0.5" {...field} /></FormControl><FormMessage /></FormItem>
                           )}/>
                           <FormField control={form.control} name="stoneCharges" render={({ field }) => (
-                              <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput placeholder="e.g. 15000" {...field} /></FormControl><FormMessage /></FormItem>
+                              <FormItem><FormLabel>Stones (PKR)</FormLabel><FormControl><AmountInput zeroAsEmpty placeholder="e.g. 15000" {...field} /></FormControl><FormMessage /></FormItem>
                           )}/>
                           <div className="col-span-2 md:col-span-3">
                             <FormField control={form.control} name="stoneDetails" render={({ field }) => (
