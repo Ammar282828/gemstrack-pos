@@ -56,6 +56,24 @@ CORS for `/api/public/*` is in `src/lib/website/cors.ts` (taheri.shop, www, and 
 Design and go-live checklist: `docs/website-checkout.md`. Go-live of online selling is still blocked by empty
 bank env vars and the open Firestore rules.
 
+## Sharing changes with House of Mina's POS
+
+House of Mina's POS is the same codebase, diverged: repo **gemstrack-pos**
+(github.com/Ammar282828/gemstrack-pos, `~/Projects/GemsTrack-POS`, branch `main`, deploys to
+pos.houseofmina.store). Common ancestor `b62bab6`; since then the two have been kept in step by
+hand and ~40 files have changed on both sides. Until they are reconverged, share a change like this:
+
+1. **One change, one commit, shared code only.** Anything shop-specific (apphosting.yaml, store copy,
+   Taheri's website routes, Mina's Shopify/silver) goes in its own commit so it is never picked by mistake.
+2. Each repo has the other as a remote (`hom` here; `taheri` there). To carry a commit over:
+   `git fetch hom && git cherry-pick -x <sha>` — `-x` writes the source sha into the message, so
+   `git log --cherry-mark --right-only website-checkout...hom/main` shows what still needs porting (`+`) and what is already there (`=`).
+3. Resolve conflicts in the shop's favour and re-run `npx tsc --noEmit -p .` before pushing.
+
+The real fix is one repo with two App Hosting backends and per-shop differences in config
+(`apphosting.<environment>.yaml`, `STORE_CONFIG`) — a one-time reconvergence, not a habit. See the
+session notes from 2026-09-22 before starting it.
+
 ## Decisions already made (don't reopen unless asked)
 
 - **Add Photos needs no sign-in** under open access — the owner overruled an auth gate on 2026-09-20.
