@@ -1,48 +1,19 @@
-
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { metalLabel, describeMetal, describeSettings, describeDelivery } from '@/lib/materials';
-import { categorySingular } from '@/lib/categories';
-import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
+import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
 import { useParams } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Invoice, Settings, Customer, InvoiceItem, staticCategories } from '@/lib/store';
-import { Loader2, Download, CheckCircle } from 'lucide-react';
-import { openPDFWindowForIOS, savePDF } from '@/lib/utils';
-import { loadPdfLogo } from '@/lib/pdf-logo';
+import { Invoice, Settings, Customer } from '@/lib/store';
+import { Download, CheckCircle, Files } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { saveInvoicePdf } from '@/lib/invoice-pdf';
 import QRCode from 'qrcode.react';
-import { format } from 'date-fns';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { DetailSkeleton } from '@/components/shared/skeletons';
-import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib/invoice-item-cell';
-import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
 import { useToast } from '@/hooks/use-toast';
-
-/** Shared by the table and by alignHeadCell, which needs the same object. */
-const INVOICE_COLUMNS = {
-  0: { cellWidth: 7, halign: 'center' },
-  1: { cellWidth: 'auto' },
-  2: { cellWidth: 9, halign: 'right' },
-  3: { cellWidth: 22, halign: 'right' },
-  4: { cellWidth: 22, halign: 'right' },
-} as const;
-
-// Re-declare module for jsPDF in this file as well
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-    lastAutoTable: {
-      finalY?: number;
-    };
-  }
-}
 
 export default function ViewInvoicePage() {
   const params = useParams();
@@ -54,6 +25,7 @@ export default function ViewInvoicePage() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const pieceCount = !invoice ? 0 : Array.isArray(invoice.items) ? invoice.items.length : Object.keys(invoice.items || {}).length;
 
   useEffect(() => {
     if (!invoiceId) return;
@@ -98,11 +70,12 @@ export default function ViewInvoicePage() {
     fetchInvoiceData();
   }, [invoiceId]);
   
-  const handlePrint = async () => {
+  const handlePrint = async (perPiece = false) => {
+    if (!invoice || !settings) return;
     // A customer opening their own estimate gets no console; a silent failure
     // here is indistinguishable from a dead button.
     try {
-      await buildEstimate();
+      await saveInvoicePdf(invoice, { customer, perPiece });
     } catch (e) {
       console.error('[GemsTrack] estimate PDF failed', e);
       toast({
@@ -112,243 +85,6 @@ export default function ViewInvoicePage() {
       });
     }
   };
-
-  const buildEstimate = async () => {
-    if (!invoice || !settings) return;
-
-    const iOSWin = openPDFWindowForIOS();
-    const pdfDoc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a5'
-    });
-    const pageHeight = pdfDoc.internal.pageSize.getHeight();
-    const pageWidth = pdfDoc.internal.pageSize.getWidth();
-    const margin = 10;
-
-    // Once per session, not once per print — see pdf-logo.ts.
-    const pdfLogo = await loadPdfLogo();
-    const logoDataUrl: string | null = pdfLogo?.dataUrl ?? null;
-    const logoFormat: string = pdfLogo?.format ?? 'PNG';
-    const logoNaturalW = pdfLogo?.width ?? 0;
-    const logoNaturalH = pdfLogo?.height ?? 0;
-
-        const drawHeader = (pageNum: number) => drawDocHeader(pdfDoc, {
-      pageWidth, pageHeight, margin, title: 'Estimate',
-      logoDataUrl, logoFormat, logoAspect: STORE_LOGO_ASPECT, pageNum,
-    });
-    
-    drawHeader(1);
-    
-    let infoY = 28;
-    pdfDoc.setFontSize(7);
-    pdfDoc.setTextColor(100);
-    pdfDoc.setFont("helvetica", "bold");
-    pdfDoc.text('BILL TO:', margin, infoY);
-    pdfDoc.text('INVOICE DETAILS:', pageWidth / 2 + 2, infoY);
-
-    pdfDoc.setLineWidth(0.2);
-    pdfDoc.line(margin, infoY + 1.5, pageWidth - margin, infoY + 1.5);
-
-    infoY += 6;
-    pdfDoc.setFont("helvetica", "normal");
-    pdfDoc.setTextColor(0);
-    pdfDoc.setFontSize(8);
-
-    let customerInfo = "Walk-in Customer";
-    const phone = customer?.phone || invoice.customerContact || '';
-    const email = customer?.email || '';
-    if (customer) {
-        customerInfo = `${customer.name}\n`;
-        if (customer.address) customerInfo += `${customer.address}\n`;
-    } else if (invoice.customerName) {
-        customerInfo = `${invoice.customerName}\n`;
-    }
-    if (phone) customerInfo += `Phone: ${phone}\n`;
-    if (email) customerInfo += `Email: ${email}`;
-    pdfDoc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.4 });
-
-    // Where it is going, when it is being delivered. The address the customer
-    // gave was never printed, so whoever packed the piece had to go and find
-    // it in the order.
-    const deliveryLines: string[] = describeDelivery(invoice.delivery);
-    if (deliveryLines.length) {
-      const dy = infoY + (customerInfo.split('\n').length * 4) + 2;
-      pdfDoc.setFontSize(7).setTextColor(100).setFont('helvetica', 'bold');
-      pdfDoc.text('DELIVER TO:', margin, dy);
-      pdfDoc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(0);
-      pdfDoc.text(deliveryLines.join('\n'), margin, dy + 4, { lineHeightFactor: 1.4 });
-    }
-
-    let invoiceDetails = `Estimate #: ${invoice.id}\n`;
-    invoiceDetails += `Date: ${new Date(invoice.createdAt).toLocaleDateString()}`;
-    pdfDoc.text(invoiceDetails, pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
-    
-    const rates = (invoice.ratesApplied || {}) as Record<string, number>;
-    const itemsList = invoice.items as InvoiceItem[];
-    const usedKarats = new Set(itemsList.filter(i => i.metalType === 'gold').map(i => i.karat).filter(Boolean));
-    let ratesApplied: string[] = [];
-    // hideRates: the bill is priced at these rates and just does not say so.
-    if (usedKarats.size > 0 && !invoice.hideRates) {
-      if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
-      if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
-      if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
-      if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
-    }
-
-    if (ratesApplied.length > 0) {
-        pdfDoc.setFontSize(6.5);
-        pdfDoc.setTextColor(150);
-        pdfDoc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, infoY + 10, { lineHeightFactor: 1.4 });
-    }
-    
-    // The delivery block sits under BILL TO and grows with the address, so
-    // the table has to start below whatever it actually took. Without this
-    // the items table was drawn straight over it.
-    const deliveryBlockHeight = deliveryLines.length
-      ? 6 + deliveryLines.length * 4
-      : 0;
-    const tableStartY = infoY + (ratesApplied.length > 0 ? 18 : 13) + deliveryBlockHeight;
-    const tableColumn = ["#", "Product & Breakdown", "Qty", "Unit", "Total"];
-    const tableRows: any[][] = [];
-    const itemBlocks: ItemBlock[] = [];
-    // The description column is 'auto', so its width is whatever the fixed
-    // columns leave. Computed here so the height and the drawing wrap at the
-    // same measure.
-    // autoTable is given this same margin, so the arithmetic below matches the
-    // width it actually hands the cell. It did not: autoTable defaults to its
-    // own ~14.11mm margin and these pages use 10, so the description column was
-    // assumed 8.2mm wider than it was and the spec line ran into the Qty column.
-    const descColWidth = (pageWidth - margin * 2) - (7 + 9 + 22 + 22);
-
-    const itemsToPrint = Array.isArray(invoice.items) ? invoice.items : Object.values(invoice.items as {[key: string]: InvoiceItem});
-    
-    itemsToPrint.forEach((item, index) => {
-        let breakdownLines = [];
-        if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        // Grams only — no rupee value, no percentage — on the customer's copy.
-        { const w = item.wastageCost > 0 ? wastageLine(item) : null; if (w) breakdownLines.push(w); }
-        if (item.makingCharges > 0) breakdownLines.push(`  + Making: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: PKR ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: PKR ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-        const breakdownText = breakdownLines.length > 0 ? `\n${breakdownLines.join('\n')}` : '';
-
-        const metalTypeName = metalLabel(item.metalType);
-        const karat = item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : '';
-        const weightPart = item.metalWeightG > 0 ? `, Wt: ${item.metalWeightG.toFixed(2)}g` : '';
-        const metalDisplay = `${metalTypeName}${karat}${weightPart}`;
-        
-        // The cell is drawn by hand in didDrawCell — see lib/invoice-item-cell.
-        // The name leads, the specification sits under it, what is set into
-        // the piece gets its own line, and the costs are subordinate.
-        // The category leads -- "Ring", one of them, not the department -- and the
-        // piece's own name sits under it with the metal. It used to be the other way
-        // round, and the category was never found anyway: an InvoiceItem carries
-        // categoryId, and this looked it up by itemCategory, which it does not have.
-        const catId = (item as { categoryId?: string; itemCategory?: string }).categoryId
-          || (item as { itemCategory?: string }).itemCategory;
-        const catName = categorySingular(catId) || staticCategories.find(c => c.id === catId)?.title || '';
-        const block: ItemBlock = {
-            name: catName || item.name || '',
-            spec: [
-                // The name is the second line now. Dropped when it merely repeats the
-                // category, so "Ring" is not followed by "Ring".
-                item.name && item.name.trim().toLowerCase() !== catName.toLowerCase() ? item.name : '',
-                metalDisplay,
-                item.size ? `Size ${item.size}` : '',
-                item.sku ? `SKU ${item.sku}` : '',
-            ].filter(Boolean).join('  ·  '),
-            settings: describeSettings(item),
-            breakdown: breakdownLines.map(l => l.trim().replace(/^\+\s*/, '')),
-        };
-        itemBlocks.push(block);
-
-        const itemData = [
-            index + 1,
-            '',
-            item.quantity,
-            item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }),
-            item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 }),
-        ];
-        tableRows.push(itemData);
-    });
-
-    pdfDoc.autoTable({
-        head: [tableColumn],
-        body: tableRows,
-        startY: tableStartY,
-        ...tableStyles(margin),
-        columnStyles: INVOICE_COLUMNS,
-        didParseCell: (data: any) => {
-            alignHeadCell(data, INVOICE_COLUMNS);
-            // Tell autoTable how tall the hand-drawn cell will be, and stop it
-            // laying out text of its own there.
-            if (data.section === 'body' && data.column.index === 1) {
-                const block = itemBlocks[data.row.index];
-                if (block) {
-                    data.cell.text = [];
-                    data.cell.styles.minCellHeight = itemCellHeight(pdfDoc, block, descColWidth);
-                }
-            }
-        },
-        didDrawCell: (data: any) => {
-            if (data.section === 'body' && data.column.index === 1) {
-                const block = itemBlocks[data.row.index];
-                if (block) drawItemCell(pdfDoc, block, data.cell, descColWidth);
-            }
-            drawRowRule(pdfDoc, data, 4, { margin, pageWidth });
-        },
-        didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
-            if (data.pageNumber > 1) {
-                pdfDoc.setPage(data.pageNumber);
-                data.settings.startY = 28; 
-            }
-            drawHeader(data.pageNumber);
-        },
-    });
-
-    let finalY = pdfDoc.lastAutoTable.finalY || 0;
-    
-    const footerAndTotalsHeight = 80;
-    let needsNewPage = finalY + footerAndTotalsHeight > pageHeight - margin;
-
-    if (needsNewPage) {
-        pdfDoc.addPage();
-        drawHeader(pdfDoc.getNumberOfPages());
-        finalY = 28; 
-    }
-    
-    let currentY = finalY + 8;
-    const totalsX = pageWidth - margin;
-    const adjustmentsAmount = getInvoiceAdjustmentsAmount(invoice);
-
-    const money = (n: number) => `PKR ${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-      const totalRows: TotalRow[] = [{ label: 'Subtotal', value: money(invoice.subtotal) }];
-      if (invoice.discountAmount > 0) totalRows.push({ label: 'Discount', value: `- ${money(invoice.discountAmount)}`, tone: 'ink' });
-      if (adjustmentsAmount !== 0) totalRows.push({ label: 'Adjustments', value: money(adjustmentsAmount) });
-      if (invoice.exchangeAmount1 || invoice.exchangeAmount2) {
-      totalRows.push({ label: invoice.exchangeDescription ? `Exchange (${invoice.exchangeDescription})` : 'Exchange', value: '', tone: 'ink' });
-        if (invoice.exchangeAmount1) totalRows.push({ label: '', value: `- ${money(invoice.exchangeAmount1)}` });
-        if (invoice.exchangeAmount2) totalRows.push({ label: '', value: `- ${money(invoice.exchangeAmount2)}` });
-    }
-      drawTotals(pdfDoc, {
-      pageWidth, pageHeight, margin, startY: currentY, onNewPage: drawHeader,
-      rows: totalRows,
-      total: { label: 'Grand Total', value: money(invoice.grandTotal) },
-      after: invoice.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${money(invoice.amountPaid)}` }] : [],
-      closing: invoice.amountPaid > 0 ? { label: 'Balance Due', value: money(invoice.balanceDue) } : undefined,
-    });
-
-    drawDocFooter(pdfDoc, {
-      pageWidth, pageHeight, margin,
-      linksQr: document.getElementById('links-qr-code') as HTMLCanvasElement | null,
-    whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
-      instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
-    });
-
-    await savePDF(pdfDoc, `Estimate-${invoice.id}.pdf`, iOSWin);
-  }
 
   if (isLoading) {
     return (
@@ -421,9 +157,17 @@ export default function ViewInvoicePage() {
                 </div>
             </CardContent>
             <CardFooter>
-                 <Button onClick={handlePrint} disabled={!settings} size="lg" className="w-full">
-                    <Download className="mr-2 h-5 w-5" /> Download PDF
-                </Button>
+                 <div className="w-full space-y-2">
+                   <Button onClick={() => handlePrint()} disabled={!settings} size="lg" className="w-full">
+                      <Download className="mr-2 h-5 w-5" /> Download PDF
+                  </Button>
+                  {pieceCount > 1 && (
+                    <Button onClick={() => handlePrint(true)} disabled={!settings} variant="outline" size="lg" className="w-full">
+                      <Files className="mr-2 h-5 w-5" /> Each piece on its own page
+                      <span className="ml-2 text-xs text-muted-foreground">{pieceCount} pages</span>
+                    </Button>
+                  )}
+                 </div>
             </CardFooter>
         </Card>
          <footer className="text-center mt-8 text-sm text-muted-foreground">

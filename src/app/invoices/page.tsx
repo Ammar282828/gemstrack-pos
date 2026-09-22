@@ -5,21 +5,18 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
-import { useAppStore, Order, Invoice, Settings, Customer, InvoiceItem, staticCategories, ORDER_STATUSES, OrderStatus } from '@/lib/store';
-import { categorySingular } from '@/lib/categories';
+import { useAppStore, Order, Invoice, Customer, ORDER_STATUSES, OrderStatus } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { stockSku } from '@/lib/sku';
 import { UnfinishedWork } from '@/components/shared/unfinished-work';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Loader2, FileText, ClipboardList, AlertTriangle, Calendar, Upload, CheckCircle2, ShoppingBag, Printer, ChevronDown, Link2, Copy, Send } from 'lucide-react';
+import { Search, Loader2, FileText, ClipboardList, AlertTriangle, Calendar, Upload, CheckCircle2, ShoppingBag, Link2, Copy, Send } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { cn, openPDFWindowForIOS, savePDF, settledRowClass, shopifyRowClass, shopifyCardClass } from '@/lib/utils';
-import { loadPdfLogo } from '@/lib/pdf-logo';
+import { cn, settledRowClass, shopifyRowClass, shopifyCardClass } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from "react-day-picker";
@@ -28,223 +25,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, writeBatch, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { metalLabel, describeSettings, describeDelivery } from '@/lib/materials';
-import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib/invoice-item-cell';
 import { mergeInstructions } from '@/lib/workshop';
 import { describePlating } from '@/lib/materials';
-import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL, STORE_LOGO_ASPECT } from '@/lib/store-config';
-import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import QRCode from 'qrcode.react';
-import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
-import { fitText } from '@/lib/pdf-text';
-import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
-
-/** Shared by the table and by alignHeadCell, which needs the same object. */
-const INVOICE_COLUMNS = { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 9, halign: 'right' }, 3: { cellWidth: 22, halign: 'right' }, 4: { cellWidth: 22, halign: 'right' } } as const;
-import { buildOrderItemBlocks, drawOrderTotals } from '@/lib/order-slip';
+import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
+import { saveInvoicePdf } from '@/lib/invoice-pdf';
+import { PrintButton } from '@/components/shared/print-button';
 import { generateOrderSlipPDF } from '@/lib/order-slip-pdf';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import type { TakenBy } from '@/lib/store';
-
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-    lastAutoTable: { finalY?: number };
-  }
-}
+import QRCode from 'qrcode.react';
+import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
+import { fitText } from '@/lib/pdf-text';
+import { label } from '@/lib/pdf-chrome';
 
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
 
-async function generateInvoicePDF(
-  invoice: Invoice,
-  settings: Settings,
-  customers: Customer[],
-) {
-  if (typeof window === 'undefined') return;
-  const iOSWin = openPDFWindowForIOS();
-  const pdfDoc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
-  const pageHeight = pdfDoc.internal.pageSize.getHeight();
-  const pageWidth = pdfDoc.internal.pageSize.getWidth();
-  const margin = 10;
+/** How many pieces an invoice carries; an order's slip is never split. */
+const pieceCount = (d: DocumentType): number => {
+  if (d.docType !== 'invoice') return 1;
+  const items = (d as Invoice).items;
+  return Array.isArray(items) ? items.length : Object.keys(items || {}).length;
+};
 
-  // Once per session, not once per print — see pdf-logo.ts.
-  const pdfLogo = await loadPdfLogo();
-  const logoDataUrl: string | null = pdfLogo?.dataUrl ?? null;
-  const logoFormat: string = pdfLogo?.format ?? 'PNG';
-
-  const drawHeader = (pageNum: number) => drawDocHeader(pdfDoc, {
-    pageWidth, pageHeight, margin, title: 'Estimate',
-    logoDataUrl, logoFormat, logoAspect: STORE_LOGO_ASPECT, pageNum,
-  });
-  drawHeader(1);
-
-  let infoY = 28;
-  label(pdfDoc, 'Bill to', margin, infoY);
-  label(pdfDoc, 'Estimate details', pageWidth / 2, infoY);
-  infoY += 5;
-  pdfDoc.setFont('helvetica', 'normal').setFontSize(8);
-
-  let customerInfo = 'Walk-in Customer';
-  const customer = invoice.customerId ? customers.find(c => c.id === invoice.customerId) : null;
-  const phone = (customer?.phone) || invoice.customerContact || '';
-  const email = customer?.email || '';
-  if (customer) {
-    customerInfo = customer.name;
-  } else if (invoice.customerName) {
-    customerInfo = invoice.customerName;
-  }
-  if (phone)  customerInfo += `\nPhone: ${phone}`;
-  if (email)  customerInfo += `\nEmail: ${email}`;
-  pdfDoc.text(customerInfo, margin, infoY, { lineHeightFactor: 1.4 });
-
-    // Where it is going, when it is being delivered. The address the customer
-    // gave was never printed, so whoever packed the piece had to go and find
-    // it in the order.
-    const deliveryLines: string[] = describeDelivery(invoice.delivery);
-    if (deliveryLines.length) {
-      const dy = infoY + (customerInfo.split('\n').length * 4) + 2;
-      label(pdfDoc, 'Deliver to', margin, dy);
-      pdfDoc.setFont('helvetica', 'normal').setFontSize(8);
-      pdfDoc.text(deliveryLines.join('\n'), margin, dy + 4, { lineHeightFactor: 1.4 });
-    }
-  pdfDoc.text(`Estimate #: ${invoice.id}\nDate: ${new Date(invoice.createdAt).toLocaleDateString()}`, pageWidth / 2, infoY, { lineHeightFactor: 1.4 });
-
-  const rates = (invoice.ratesApplied || {}) as Record<string, number>;
-  const itemsToPrint = Array.isArray(invoice.items) ? invoice.items : Object.values(invoice.items as Record<string, InvoiceItem>);
-  const usedKarats = new Set(itemsToPrint.filter((i: InvoiceItem) => i.metalType === 'gold').map((i: InvoiceItem) => i.karat).filter(Boolean));
-  const ratesApplied: string[] = [];
-  // hideRates: the bill is priced at these rates and just does not say so.
-  if (!invoice.hideRates) {
-  if (usedKarats.has('24k') && rates.goldRatePerGram24k) ratesApplied.push(`24k: ${rates.goldRatePerGram24k.toLocaleString()}/g`);
-  if (usedKarats.has('22k') && rates.goldRatePerGram22k) ratesApplied.push(`22k: ${rates.goldRatePerGram22k.toLocaleString()}/g`);
-  if (usedKarats.has('21k') && rates.goldRatePerGram21k) ratesApplied.push(`21k: ${rates.goldRatePerGram21k.toLocaleString()}/g`);
-  if (usedKarats.has('18k') && rates.goldRatePerGram18k) ratesApplied.push(`18k: ${rates.goldRatePerGram18k.toLocaleString()}/g`);
-  }
-  if (ratesApplied.length > 0) {
-    pdfDoc.setFontSize(6.5).setTextColor(150);
-    pdfDoc.text(ratesApplied.join(' | '), pageWidth / 2 + 2, infoY + 10, { lineHeightFactor: 1.4 });
-  }
-
-  // The delivery block sits under BILL TO and grows with the address, so
-    // the table has to start below whatever it actually took. Without this
-    // the items table was drawn straight over it.
-    const deliveryBlockHeight = deliveryLines.length
-      ? 6 + deliveryLines.length * 4
-      : 0;
-    const tableStartY = infoY + (ratesApplied.length > 0 ? 18 : 13) + deliveryBlockHeight;
-  const tableRows: any[][] = [];
-  const itemBlocks: ItemBlock[] = [];
-  // Same measure for the height and the drawing — see lib/invoice-item-cell.
-  const descColWidth = (pageWidth - margin * 2) - (7 + 9 + 22 + 22);
-  itemsToPrint.forEach((item: InvoiceItem, index: number) => {
-    const breakdownLines: string[] = [];
-    if (item.metalCost > 0) breakdownLines.push(`  Metal: PKR ${item.metalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-    // Grams only — no rupee value, no percentage — on the customer's copy.
-    { const w = item.wastageCost > 0 ? wastageLine(item) : null; if (w) breakdownLines.push(w); }
-    if (item.makingCharges > 0) breakdownLines.push(`  + Making: PKR ${item.makingCharges.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-    if (item.diamondChargesIfAny > 0) breakdownLines.push(`  + Diamonds: PKR ${item.diamondChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-    if (item.stoneChargesIfAny > 0) breakdownLines.push(`  + Stones: PKR ${item.stoneChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-    if (item.miscChargesIfAny > 0) breakdownLines.push(`  + Misc: PKR ${item.miscChargesIfAny.toLocaleString(undefined, { minimumFractionDigits: 2 })}`);
-    const metalTypeName = metalLabel(item.metalType);
-    const karat = item.metalType === 'gold' && item.karat ? ` (${item.karat.toUpperCase()})` : '';
-    const weightPart = item.metalWeightG > 0 ? `, Wt: ${(item.metalWeightG || 0).toFixed(2)}g` : '';
-    // Category first, singular; the piece's own name second. See the cart's copy of
-    // this block for why categoryId is consulted -- itemCategory is not on an InvoiceItem.
-    const catId = (item as { categoryId?: string; itemCategory?: string }).categoryId
-      || (item as { itemCategory?: string }).itemCategory;
-    const catName = categorySingular(catId) || staticCategories.find(c => c.id === catId)?.title || '';
-    itemBlocks.push({
-      name: catName || item.name || '',
-      spec: [
-        item.name && item.name.trim().toLowerCase() !== catName.toLowerCase() ? item.name : '',
-        `${metalTypeName}${karat}${weightPart}`, item.size ? `Size ${item.size}` : '', stockSku(item.sku) ? `SKU ${item.sku}` : '',
-      ].filter(Boolean).join('  ·  '),
-      settings: describeSettings(item),
-      breakdown: breakdownLines.map(l => l.trim().replace(/^\+\s*/, '')),
-    });
-    tableRows.push([index + 1, '', item.quantity, item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }), item.itemTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })]);
-  });
-
-  pdfDoc.autoTable({
-    ...tableStyles(margin),
-    head: [['#', 'Product & Breakdown', 'Qty', 'Unit', 'Total']],
-    body: tableRows,
-    startY: tableStartY,
-    columnStyles: INVOICE_COLUMNS,
-    didParseCell: (data: any) => {
-      alignHeadCell(data, INVOICE_COLUMNS);
-      if (data.section === 'body' && data.column.index === 1) {
-        const block = itemBlocks[data.row.index];
-        if (block) {
-          data.cell.text = [];
-          data.cell.styles.minCellHeight = itemCellHeight(pdfDoc, block, descColWidth);
-        }
-      }
-    },
-    didDrawCell: (data: any) => {
-      if (data.section === 'body' && data.column.index === 1) {
-        const block = itemBlocks[data.row.index];
-        if (block) drawItemCell(pdfDoc, block, data.cell, descColWidth);
-      }
-      drawRowRule(pdfDoc, data, 4, { margin, pageWidth });
-    },
-    didDrawPage: (data: { pageNumber: number; settings: { startY: number } }) => {
-      if (data.pageNumber > 1) { pdfDoc.setPage(data.pageNumber); data.settings.startY = 28; }
-      drawHeader(data.pageNumber);
-    },
-  });
-
-  let finalY = pdfDoc.lastAutoTable.finalY || 0;
-
-  if (invoice.paymentHistory && invoice.paymentHistory.length > 0) {
-    finalY += 8;
-    pdfDoc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(0);
-    pdfDoc.text('Payment History', margin, finalY);
-    finalY += 4;
-    pdfDoc.autoTable({
-      head: [['Date', 'Amount', 'Notes']],
-      body: invoice.paymentHistory.map(p => [format(new Date(p.date), 'PP'), `PKR ${p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, p.notes || 'Payment received']),
-      startY: finalY, theme: 'striped',
-      margin: { left: margin, right: margin },
-      headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 8 },
-      styles: { fontSize: 7 },
-    });
-    finalY = pdfDoc.lastAutoTable.finalY || finalY;
-  }
-
-  if (finalY + 70 > pageHeight - margin) {
-    pdfDoc.addPage(); drawHeader(pdfDoc.getNumberOfPages()); finalY = 28;
-  }
-
-  const currentY = finalY + 10;
-  const adjustmentsAmount = getInvoiceAdjustmentsAmount(invoice);
-  const money = (n: number) => `PKR ${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-  const totalRows: TotalRow[] = [{ label: 'Subtotal', value: money(invoice.subtotal) }];
-  if (invoice.discountAmount > 0) totalRows.push({ label: 'Discount', value: `- ${money(invoice.discountAmount)}`, tone: 'ink' });
-  if (adjustmentsAmount !== 0) totalRows.push({ label: 'Adjustments', value: money(adjustmentsAmount) });
-  if (invoice.exchangeAmount1 || invoice.exchangeAmount2) {
-    totalRows.push({ label: invoice.exchangeDescription ? `Exchange (${invoice.exchangeDescription})` : 'Exchange', value: '', tone: 'ink' });
-    if (invoice.exchangeAmount1) totalRows.push({ label: '', value: `- ${money(invoice.exchangeAmount1)}` });
-    if (invoice.exchangeAmount2) totalRows.push({ label: '', value: `- ${money(invoice.exchangeAmount2)}` });
-  }
-  drawTotals(pdfDoc, {
-    pageWidth, pageHeight, margin, startY: currentY, onNewPage: drawHeader,
-    rows: totalRows,
-    total: { label: 'Grand Total', value: money(invoice.grandTotal) },
-    after: invoice.amountPaid > 0 ? [{ label: 'Amount Paid', value: `- ${money(invoice.amountPaid)}` }] : [],
-    closing: invoice.amountPaid > 0 ? { label: 'Balance Due', value: money(invoice.balanceDue) } : undefined,
-  });
-
-  drawDocFooter(pdfDoc, {
-    pageWidth, pageHeight, margin,
-    linksQr: document.getElementById('links-qr-code') as HTMLCanvasElement | null,
-    whatsappQr: document.getElementById('wa-qr-code') as HTMLCanvasElement | null,
-    instagramQr: document.getElementById('insta-qr-code') as HTMLCanvasElement | null,
-  });
-  await savePDF(pdfDoc, `Invoice-${invoice.id}.pdf`, iOSWin);
-}
 
 
 const getStatusBadgeVariant = (status: Order['status'] | 'Paid' | 'Unpaid') => {
@@ -272,7 +74,7 @@ const getDocStatus = (doc: DocumentType): Order['status'] | 'Paid' | 'Unpaid' =>
 const isShopifyDoc = (doc: DocumentType): boolean =>
   doc.docType === 'invoice' && !!((doc as Invoice).source?.startsWith('shopify'));
 
-const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean }> = ({ doc, onPrint, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink }) => {
+const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean }> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -345,9 +147,7 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
              {/* "View Details" is gone: the card body already opens it, and on
                  a phone four ghost buttons wrapped onto a second 44px row. */}
              <CardFooter className="p-1.5 border-t bg-muted/30 flex gap-1.5">
-                <Button variant="ghost" size="sm" className="flex-1 justify-center" onClick={(e) => { e.stopPropagation(); onPrint(); }}>
-                    <Printer className="w-4 h-4 mr-2" /> Print
-                </Button>
+                <PrintButton className="flex-1" pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
                 {status === 'Unpaid' && onMarkPaid && (
                     <Button variant="ghost" size="sm" className="flex-1 justify-center text-success hover:text-success hover:bg-success/10" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
                         <CheckCircle2 className="w-4 h-4 mr-2" /> Mark Paid
@@ -364,7 +164,7 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPai
     );
 };
 
-const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean }> = ({ doc, onPrint, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink }) => {
+const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPerPiece?: () => void; onMarkPaid?: () => void; onStatusChange?: (status: OrderStatus) => void; onSendPaymentLink?: () => void; isSendingLink?: boolean }> = ({ doc, onPrint, onPrintPerPiece, onMarkPaid, onStatusChange, onSendPaymentLink, isSendingLink }) => {
     const router = useRouter();
     const status = getDocStatus(doc);
 
@@ -434,9 +234,7 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onMarkPaid
             </TableCell>
             <TableCell>
                 <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onPrint(); }}>
-                        <Printer className="w-4 h-4 mr-1" /> Print
-                    </Button>
+                    <PrintButton pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
                     {status === 'Unpaid' && onMarkPaid && (
                         <Button variant="ghost" size="sm" className="text-success hover:text-success hover:bg-success/10" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
                             <CheckCircle2 className="w-4 h-4 mr-1" /> Paid
@@ -634,13 +432,16 @@ export default function DocumentsPage() {
     updateOrderStatus: state.updateOrderStatus,
   }));
 
-  const handlePrint = async (document: DocumentType) => {
+  /** `perPiece` prints a multi-piece invoice as one invoice per piece — see lib/invoice-pdf. */
+  const handlePrint = async (document: DocumentType, perPiece = false) => {
     // Neither call was awaited or caught, so anything that went wrong while
     // drawing became an unhandled rejection: the operator pressed Print, no
     // file appeared, and nothing said why.
     try {
       if (document.docType === 'invoice') {
-        await generateInvoicePDF(document as Invoice, settings, customers);
+        const inv = document as Invoice;
+        const customer = inv.customerId ? customers.find(c => c.id === inv.customerId) : null;
+        await saveInvoicePdf(inv, { customer, perPiece });
       } else {
         await generateOrderSlipPDF(document as Order, settings);
       }
@@ -872,6 +673,7 @@ export default function DocumentsPage() {
       const rowProps = (d: DocumentType) => ({
         doc: d,
         onPrint: () => handlePrint(d),
+        onPrintPerPiece: d.docType === 'invoice' ? () => handlePrint(d, true) : undefined,
         onMarkPaid: d.docType === 'invoice' && (d as Invoice).balanceDue > 0 ? () => handleMarkPaid(d) : undefined,
         onStatusChange: d.docType === 'order' ? (s: OrderStatus) => handleOrderStatusChange(d.id, s) : undefined,
         onSendPaymentLink: d.docType === 'invoice' ? () => handleSendPaymentLink(d as Invoice) : undefined,
