@@ -777,29 +777,30 @@ export interface AdditionalRevenue {
 
 // --- Repairs ---------------------------------------------------------------
 /**
- * A customer's own piece, left at the counter to be mended.
+ * A repair ticket: one customer, one visit, any number of pieces.
  *
- * Not an order (nothing is being made or sold) and not a given item (it is the
- * customer's, not the shop's). It is weighed when it comes in and again when it
- * goes back, because for gold that is the question a customer asks. Money taken
- * for a repair — an advance, the balance — is written to Extra Revenue in the
- * same transaction as the repair, so the dashboard and analytics count it
+ * Not an order (nothing is made or sold) and not a given item (the pieces are
+ * the customer's). Kept deliberately small: each piece is what it is, what to
+ * do, its weight and its price; the ticket has a ready-by date and the money.
+ * Money taken — an advance, the balance on collection — is written to Extra
+ * Revenue in the same transaction, so the dashboard and analytics count it
  * without knowing repairs exist.
  */
-export const REPAIR_STATUSES = ['received', 'in_progress', 'ready', 'collected', 'cancelled'] as const;
+export const REPAIR_STATUSES = ['received', 'ready', 'collected', 'cancelled'] as const;
 export type RepairStatus = typeof REPAIR_STATUSES[number];
 export const REPAIR_STATUS_LABELS: Record<RepairStatus, string> = {
   received: 'In the shop',
-  in_progress: 'Being worked on',
   ready: 'Ready',
   collected: 'Collected',
   cancelled: 'Cancelled',
 };
-/** What is usually asked for. Free text in `details` says exactly what. */
-export const REPAIR_WORK = [
-  'Resize', 'Polish', 'Replate', 'Solder / join', 'Stone reset', 'Stone replace',
-  'Clasp / lock', 'Chain repair', 'Earring post / back', 'Rhodium', 'Clean', 'Other',
-] as const;
+
+export interface RepairPiece {
+  item: string;              // "Gold ring"
+  work: string;              // "resize to 14"
+  weightG?: number;          // weighed at the counter
+  price?: number;            // what this piece's repair costs
+}
 
 export interface RepairPayment {
   amount: number;
@@ -815,38 +816,33 @@ export interface Repair {
   customerId?: string;
   customerName: string;
   customerContact?: string;
-  item: string;              // "Gold ring with a ruby"
-  metalType?: MetalType;
-  karat?: KaratValue;
-  /** Weighed at the counter when it came in, and again when it went back. */
-  weightInG?: number;
-  weightOutG?: number;
-  work: string[];            // from REPAIR_WORK
-  details?: string;          // "size 12 to 14; the left stone is missing"
-  estimate?: number;         // what the customer was quoted
-  charge?: number;           // the final figure, set when it is ready
+  pieces: RepairPiece[];
   payments: RepairPayment[];
-  karigarId?: string;
-  karigarName?: string;
-  karigarCost?: number;      // what the karigar is paid for it
   status: RepairStatus;
   receivedAt: string;        // ISO
   promisedDate?: string;     // yyyy-MM-dd
   readyAt?: string;
   collectedAt?: string;
+  karigarId?: string;
+  karigarName?: string;
   takenBy?: TakenBy;
   /** For the shop only. Never printed, never sent. */
   internalNote?: string;
 }
 
-/** What the customer still owes: the charge (or the estimate, until there is one) less what has been paid. */
-export function repairBalance(r: Pick<Repair, 'charge' | 'estimate' | 'payments'>): number {
-  const due = r.charge ?? r.estimate ?? 0;
-  const paid = (r.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-  return Math.max(0, Math.round((due - paid) * 100) / 100);
-}
+export const repairTotal = (r: Pick<Repair, 'pieces'>): number =>
+  (r.pieces || []).reduce((s, p) => s + (Number(p.price) || 0), 0);
 export const repairPaid = (r: Pick<Repair, 'payments'>): number =>
   (r.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+/** What the customer still owes on the ticket. */
+export const repairBalance = (r: Pick<Repair, 'pieces' | 'payments'>): number =>
+  Math.max(0, Math.round((repairTotal(r) - repairPaid(r)) * 100) / 100);
+/** "Gold ring" or "Gold ring + 2 more" — a ticket in a line. */
+export const repairSummary = (r: Pick<Repair, 'pieces'>): string => {
+  const ps = (r.pieces || []).filter((p) => p.item);
+  if (!ps.length) return 'Repair';
+  return ps.length === 1 ? ps[0].item : `${ps[0].item} + ${ps.length - 1} more`;
+};
 
 export type GivenItemStatus = 'out' | 'returned';
 export type GivenItemRecipientType = 'karigar' | 'customer' | 'other';
@@ -1393,7 +1389,7 @@ export interface AppState {
   /** Writes the repair, and its advance (if any) to Extra Revenue, in one transaction. */
   addRepair: (data: Omit<Repair, 'id' | 'payments' | 'status'> & { advance?: number; advanceMethod?: PaymentType }) => Promise<Repair>;
   updateRepair: (id: string, data: Partial<Omit<Repair, 'id' | 'payments'>>) => Promise<void>;
-  setRepairStatus: (id: string, status: RepairStatus, extra?: Partial<Pick<Repair, 'charge' | 'weightOutG' | 'karigarId' | 'karigarName' | 'karigarCost'>>) => Promise<void>;
+  setRepairStatus: (id: string, status: RepairStatus) => Promise<void>;
   recordRepairPayment: (id: string, payment: Omit<RepairPayment, 'revenueId'>) => Promise<void>;
   /** Deletes the repair and the Extra Revenue rows its payments wrote. */
   deleteRepair: (id: string) => Promise<void>;
@@ -4199,7 +4195,7 @@ export const useAppStore = create<AppState>()(
             const revenueRef = doc(collection(db, FIRESTORE_COLLECTIONS.ADDITIONAL_REVENUE));
             tx.set(revenueRef, {
               date: now, amount: advance, repairId: id,
-              description: `Repair ${id} — advance: ${data.item} (${data.customerName || 'walk-in'})`,
+              description: `Repair ${id} — advance: ${repairSummary(data)} (${data.customerName || 'walk-in'})`,
             });
             payments.push({ amount: advance, date: now, ...(advanceMethod ? { method: advanceMethod } : {}), revenueId: revenueRef.id, note: 'Advance' });
           }
@@ -4208,7 +4204,7 @@ export const useAppStore = create<AppState>()(
           tx.update(settingsRef, { lastRepairNumber: next });
           return repair;
         });
-        await addActivityLog('repair.create', `Repair ${created.id} received: ${created.item}`, `From: ${created.customerName || 'walk-in'}`, created.id);
+        await addActivityLog('repair.create', `Repair ${created.id} received: ${repairSummary(created)}`, `From: ${created.customerName || 'walk-in'}`, created.id);
         return created;
       },
 
@@ -4219,17 +4215,17 @@ export const useAppStore = create<AppState>()(
         const patch: Record<string, unknown> = {};
         for (const [k, v] of Object.entries(data)) patch[k] = v === undefined ? deleteField() : v;
         await setDoc(doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id), patch, { merge: true });
-        await addActivityLog('repair.update', `Repair ${id} updated`, data.item || '', id);
+        await addActivityLog('repair.update', `Repair ${id} updated`, data.pieces ? repairSummary({ pieces: data.pieces }) : '', id);
       },
 
-      setRepairStatus: async (id, status, extra = {}) => {
+      setRepairStatus: async (id, status) => {
         if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
         const now = new Date().toISOString();
         const stamp: Partial<Repair> =
           status === 'ready' ? { readyAt: now }
           : status === 'collected' ? { collectedAt: now }
           : {};
-        await setDoc(doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id), cleanObject({ status, ...stamp, ...extra }), { merge: true });
+        await setDoc(doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id), cleanObject({ status, ...stamp }), { merge: true });
         await addActivityLog('repair.status', `Repair ${id}: ${REPAIR_STATUS_LABELS[status]}`, '', id);
       },
 
@@ -4244,7 +4240,7 @@ export const useAppStore = create<AppState>()(
           const revenueRef = doc(collection(db, FIRESTORE_COLLECTIONS.ADDITIONAL_REVENUE));
           tx.set(revenueRef, {
             date: payment.date, amount: payment.amount, repairId: id,
-            description: `Repair ${id}: ${repair.item} (${repair.customerName || 'walk-in'})`,
+            description: `Repair ${id}: ${repairSummary(repair)} (${repair.customerName || 'walk-in'})`,
           });
           tx.update(repairRef, { payments: [...(repair.payments || []), cleanObject({ ...payment, revenueId: revenueRef.id })] });
         });
@@ -4260,7 +4256,7 @@ export const useAppStore = create<AppState>()(
         }
         batch.delete(doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id));
         await batch.commit();
-        await addActivityLog('repair.delete', `Repair ${id} deleted`, repair ? `${repair.item} — ${repair.customerName}` : '', id);
+        await addActivityLog('repair.delete', `Repair ${id} deleted`, repair ? `${repairSummary(repair)} — ${repair.customerName}` : '', id);
       },
 
       addPrintHistory: (sku) => set(state => {

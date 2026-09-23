@@ -122,11 +122,11 @@ certificate itself; the site is **live over HTTPS** and Mina's Add Photos reads 
 - Photo Weights' preview draws the weight with the overlay tool's geometry (Futura LT Light, 143/3000 of the width, inset 120/3000).
 - Number fields (`AmountInput`) select their contents on focus, and the sale-flow ones (order items, product form,
   cart edit) show a 0 as blank (`zeroAsEmpty`) — the counter asked for no pre-filled zeros to delete.
-- **Repairs** (`/repairs`, under Invoices): a customer's own piece in for mending — its own `repairs` collection,
-  numbered `REP-000001` from `lastRepairNumber` in settings (floored by the highest on file). Weighed in and out;
-  money taken (advance, balance on collection) is written to **Extra Revenue** in the same transaction with
-  `repairId`, so the dashboard and analytics count it; deleting a repair deletes those rows. Printed receipt:
-  `src/lib/repair-pdf.ts`. Not a karigar job — the karigar is recorded on the repair, not on the Workshop board.
+- **Repairs** (`/repairs`, under Invoices): a ticket = one customer + **any number of pieces** (piece, what to do,
+  weight, price) + ready-by + optional advance; karigar / taken by / shop note fold away under "More". Deliberately
+  simple (owner's ask): three steps, **In the shop → Ready → Collected** — Ready is one tap, Hand back only takes the
+  balance. `REP-000001` numbering from `lastRepairNumber` in settings. Money taken is written to **Extra Revenue** in
+  the same transaction with `repairId`; deleting a repair deletes those rows. Receipt: `src/lib/repair-pdf.ts`.
 - In a component, no hook after an early `return` (the `/orders/add` crash of 2026-09-22 was exactly that).
 - **One invoice PDF builder**: `src/lib/invoice-pdf.ts` (`saveInvoicePdf`) draws the customer's copy for the invoices list,
   the cart's post-sale screen and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
