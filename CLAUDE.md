@@ -102,7 +102,10 @@ order 1008754559, beside taheri.shop; first deploy shipped 2,319 files). Mina's 
 website variables and `WEBSITE_UPLOAD_SECRET` (hom-pos Secret Manager, same value as
 `~/domains/catalogue.houseofmina.store/.website-upload-secret`; sha256 prefix `c6701cb1`). DNS was added through the
 GoDaddy API (`A catalogue → 145.79.26.82`; houseofmina.store's DNS stays at GoDaddy) and Hostinger issued the
-certificate itself; the site is **live over HTTPS** and Mina's Add Photos reads its 18 collections from it.
+certificate itself; the site is **live over HTTPS** and Mina's Add Photos reads its categories from it — since
+2026-09-23 five, one level, like taheri.shop's (Rings & Bands, Wristwear, Chains & Pendants, Sets, Earrings), each
+offered as one folder `Category/Category`. Add Photos names and links to **this house's** website
+(`NEXT_PUBLIC_STORE_WEBSITE_URL`; a site tree's `path` when it gives one), never a hardcoded taheri.shop.
 `KNOWN_TREE` in the photos route is taheri.shop's folder list and is only ever offered for that origin.
 
 ## Open items after the reconvergence (2026-09-22)

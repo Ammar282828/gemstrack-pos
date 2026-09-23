@@ -29,9 +29,14 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ImagePlus, Upload, Check, X, Loader2, Camera, RotateCw, Scale, ExternalLink, AlertTriangle, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORE_WEBSITE_FEATURED } from '@/lib/store-config';
+import { STORE_LINKS, STORE_WEBSITE_FEATURED } from '@/lib/store-config';
 
-interface Collection { collection: string; category: string; count: number; folder: string; sample: string }
+/** This house's website: taheri.shop for Taheri, the catalogue for House of Mina. */
+const SITE = (STORE_LINKS.website || 'https://taheri.shop').replace(/\/+$/, '');
+const SITE_NAME = SITE.replace(/^https?:\/\//, '');
+
+/** `path` is where the collection's page is, when the site says (its own catalog-tree.json). */
+interface Collection { collection: string; category: string; count: number; folder: string; sample: string; path?: string }
 type Status = 'queued' | 'uploading' | 'done' | 'failed';
 interface Item { id: string; file: File; preview: string; name: string; status: Status; error?: string; rel?: string; progress: number }
 
@@ -142,7 +147,7 @@ export default function AddPhotosPage() {
     for (const item of pending) await uploadOne(item, headers);
     setBusy(false);
     const done = pending.length;
-    if (done) toast({ title: `${done} photograph${done === 1 ? '' : 's'} sent`, description: `They are on taheri.shop in ${chosen?.collection} now.` });
+    if (done) toast({ title: `${done} photograph${done === 1 ? '' : 's'} sent`, description: `They are on ${SITE_NAME} in ${chosen?.collection} now.` });
   }, [folder, busy, items, chosen, toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const counts = useMemo(() => ({
@@ -169,7 +174,7 @@ export default function AddPhotosPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><ImagePlus className="mr-3 h-8 w-8" /> Add Photos</h1>
-          <p className="text-sm text-muted-foreground mt-1">Pick a collection, then add the photographs. They appear on taheri.shop straight away — no rebuild.</p>
+          <p className="text-sm text-muted-foreground mt-1">Pick a collection, then add the photographs. They appear on {SITE_NAME} straight away — no rebuild.</p>
         </div>
         {counts.done > 0 && (
           <Link href="/website/weights" className="text-sm text-primary underline underline-offset-4 flex items-center gap-1.5 whitespace-nowrap">
@@ -193,7 +198,7 @@ export default function AddPhotosPage() {
           <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
           <div>
             <p className="font-medium">Uploads are not switched on yet.</p>
-            <p className="text-muted-foreground">Set <code>WEBSITE_UPLOAD_SECRET</code> to the same value on this app and on taheri.shop, then reload. Until then the photographs below cannot be sent.</p>
+            <p className="text-muted-foreground">Set <code>WEBSITE_UPLOAD_SECRET</code> to the same value on this app and on {SITE_NAME}, then reload. Until then the photographs below cannot be sent.</p>
           </div>
         </div>
       )}
@@ -297,7 +302,7 @@ export default function AddPhotosPage() {
           )}
           {counts.done > 0 && chosen && (
             <p className="text-sm text-muted-foreground">
-              <a href={`https://taheri.shop/${chosen.collection.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} target="_blank" rel="noopener" className="text-primary underline underline-offset-2 inline-flex items-center gap-1">
+              <a href={`${SITE}${chosen.path ?? `/${chosen.collection.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}`} target="_blank" rel="noopener" className="text-primary underline underline-offset-2 inline-flex items-center gap-1">
                 See {chosen.collection} on the website <ExternalLink className="h-3 w-3" />
               </a>
             </p>
