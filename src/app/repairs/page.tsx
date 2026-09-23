@@ -109,7 +109,8 @@ function RepairForm({ repair, onDone }: { repair?: Repair; onDone: (saved?: Repa
 
   useEffect(() => { loadCustomers(); loadKarigars(); }, [loadCustomers, loadKarigars]);
 
-  const toggleWork = (w: string) => set('work', d.work.includes(w) ? d.work.filter((x) => x !== w) : [...d.work, w]);
+  // From the latest state, not this render's: two quick taps must both count.
+  const toggleWork = (w: string) => setD((x) => ({ ...x, work: x.work.includes(w) ? x.work.filter((y) => y !== w) : [...x.work, w] }));
 
   const save = async () => {
     if (!d.item.trim()) { toast({ title: 'Describe the piece', description: 'What was brought in — "gold ring with a ruby".', variant: 'destructive' }); return; }
