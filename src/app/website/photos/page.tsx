@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ImagePlus, Upload, Check, X, Loader2, Camera, RotateCw, Scale, ExternalLink, AlertTriangle, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { STORE_WEBSITE_FEATURED } from '@/lib/store-config';
 
 interface Collection { collection: string; category: string; count: number; folder: string; sample: string }
 type Status = 'queued' | 'uploading' | 'done' | 'failed';
@@ -281,7 +282,7 @@ export default function AddPhotosPage() {
                   <p className="text-[11px] text-muted-foreground tabular-nums">
                     {item.status === 'failed' ? <span className="text-destructive">{item.error}</span> : prettyBytes(item.file.size)}
                   </p>
-                  {item.status === 'done' && item.rel && (
+                  {item.status === 'done' && item.rel && STORE_WEBSITE_FEATURED && (
                     <button type="button" onClick={() => featureItem(item.rel!)} className={cn('mt-1.5 inline-flex items-center gap-1 text-[11px] rounded-full border px-2 py-0.5 transition-colors', featuredRel === item.rel ? 'bg-amber-500 text-black border-amber-500' : 'text-muted-foreground hover:text-foreground hover:border-foreground/40')}>
                       <Star className={cn('h-3 w-3', featuredRel === item.rel && 'fill-current')} /> {featuredRel === item.rel ? 'Set of the day' : 'Feature today'}
                     </button>

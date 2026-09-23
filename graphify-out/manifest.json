@@ -1000,9 +1000,9 @@
     "semantic_hash": ""
   },
   ".claude/launch.json": {
-    "mtime": 1790021392.9005597,
-    "seen": 1790022150.685487,
-    "ast_hash": "854e7fbf33d5058dc9b20f3707d2bc06",
+    "mtime": 1790148627.7609966,
+    "seen": 1790149297.484951,
+    "ast_hash": "88fa23eda0f8bc172e66e2faebe4e501",
     "semantic_hash": ""
   },
   ".claude/settings.json": {
@@ -2008,9 +2008,9 @@
     "semantic_hash": ""
   },
   "src/app/api/website/photos/route.ts": {
-    "mtime": 1789932723.174402,
-    "seen": 1789934955.702236,
-    "ast_hash": "c6fee371a61e26f213208fdfb8f40237",
+    "mtime": 1790149194.747688,
+    "seen": 1790149297.485076,
+    "ast_hash": "f17825a875d1b4a489dd4a53b50f325f",
     "semantic_hash": ""
   },
   "src/app/api/website/pieces/route.ts": {
@@ -2308,15 +2308,15 @@
     "semantic_hash": ""
   },
   "src/app/website/photos/page.tsx": {
-    "mtime": 1790023326.7314239,
-    "seen": 1790023448.171247,
-    "ast_hash": "95729fc1f8ecdd135338bacfa894bb80",
+    "mtime": 1790149186.7752523,
+    "seen": 1790149297.485111,
+    "ast_hash": "9b1cbc3fd46649334c32c53069063e07",
     "semantic_hash": ""
   },
   "src/app/website/weights/page.tsx": {
-    "mtime": 1790023326.7316275,
-    "seen": 1790023448.1712482,
-    "ast_hash": "e13fdf700bffcfd17533a1bb5b317348",
+    "mtime": 1790149180.5639067,
+    "seen": 1790149297.485112,
+    "ast_hash": "ff5a4781bae0d7026895fb712d3362ad",
     "semantic_hash": ""
   },
   "src/app/workshop/page.tsx": {
@@ -2404,9 +2404,9 @@
     "semantic_hash": ""
   },
   "src/components/layout/app-layout.tsx": {
-    "mtime": 1790022010.1233277,
-    "seen": 1790022150.685636,
-    "ast_hash": "aafca06edbc446e8773997ab978863ad",
+    "mtime": 1790149180.56361,
+    "seen": 1790149297.485122,
+    "ast_hash": "57aff30a3a4e6b11cedc1c2c5c918927",
     "semantic_hash": ""
   },
   "src/components/layout/main-app.tsx": {
@@ -3052,9 +3052,9 @@
     "semantic_hash": ""
   },
   "src/lib/store-config.ts": {
-    "mtime": 1790022010.1246984,
-    "seen": 1790022150.6857002,
-    "ast_hash": "467588d95ca6216781f38659b3bc1897",
+    "mtime": 1790149180.5634573,
+    "seen": 1790149297.485198,
+    "ast_hash": "02e99356de476a8139cd4e70e7fdee66",
     "semantic_hash": ""
   },
   "src/lib/store.ts": {
@@ -3310,9 +3310,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790095288.7866592,
-    "seen": 1790095293.383589,
-    "ast_hash": "ff046d8ee7c4ae083a51f3370f07693b",
+    "mtime": 1790149286.9076822,
+    "seen": 1790149297.485229,
+    "ast_hash": "22a456dd079d460ec0d79083c515617f",
     "semantic_hash": ""
   },
   "README.md": {

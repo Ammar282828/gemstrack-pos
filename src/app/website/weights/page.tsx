@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Scale, ChevronLeft, ChevronRight, Loader2, Check, Search, X, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { STORE_WEBSITE_WEIGHTS } from '@/lib/store-config';
 
 interface Piece {
   key: string; collection: string; file: string; thumb: string;
@@ -36,7 +37,15 @@ async function authed(): Promise<Record<string, string>> {
   try { const t = await firebaseAuth?.currentUser?.getIdToken(); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; }
 }
 
-export default function PhotoWeightsPage() {
+export default function PhotoWeightsRoute() {
+  // A wrapper, so the page's own hooks never sit behind an early return.
+  if (!STORE_WEBSITE_WEIGHTS) {
+    return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop's website prices pieces without weights.</p>;
+  }
+  return <PhotoWeightsPage />;
+}
+
+function PhotoWeightsPage() {
   const { toast } = useToast();
   const [pieces, setPieces] = useState<Piece[] | null>(null);
   // The set of the day: one piece on the home page, and the counter's line.

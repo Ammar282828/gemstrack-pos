@@ -52,6 +52,32 @@
         "PATH=/opt/homebrew/opt/node@20/bin:$PATH exec npm run dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "mina-catalogue",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/ammarmansa/Projects/mina-catalogue",
+        "run",
+        "dev",
+        "--",
+        "--strictPort"
+      ],
+      "port": 5190
+    },
+    {
+      "name": "mina-catalogue (build)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/ammarmansa/Projects/mina-catalogue",
+        "run",
+        "preview",
+        "--",
+        "--strictPort"
+      ],
+      "port": 5191
     }
   ]
 }

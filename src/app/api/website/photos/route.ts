@@ -87,6 +87,23 @@ export async function GET(req: NextRequest) {
   const origin = siteOrigin();
   const configured = !!process.env.WEBSITE_UPLOAD_SECRET;
 
+  // A site that states its own tree is taken at its word. House of Mina's
+  // catalogue publishes catalog-tree.json (every folder, empty ones included,
+  // with counts and a sample); taheri.shop does not, and falls through to the
+  // catalogue-and-known-tree reading below. KNOWN_TREE is Taheri's, so it must
+  // never be offered for a site that has its own.
+  try {
+    const res = await fetch(`${origin}/catalog-tree.json`, { cache: 'no-store', signal: AbortSignal.timeout(6000) });
+    if (res.ok) {
+      const tree = (await res.json()) as { collections?: { category: string; collection: string; folder: string; count: number; sample: string }[] };
+      if (Array.isArray(tree.collections) && tree.collections.length) {
+        return NextResponse.json({ collections: tree.collections, configured, source: 'site-tree' });
+      }
+    }
+  } catch {
+    // Not published, or the site is slow: read it the older way.
+  }
+
   try {
     const catalog = await getCatalogAttributes();
     const byCollection = new Map<string, { category: string; count: number; sample: string }>();

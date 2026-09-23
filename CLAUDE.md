@@ -75,7 +75,9 @@ bank env vars and the open Firestore rules.
   (brand class, theme-colour, links host); `app-layout.tsx` (the Website menu exists only when
   `NEXT_PUBLIC_STORE_WEBSITE_URL` is set; **Shareholder Finances** and "paid by Mina/Ammar" on an expense only when
   `NEXT_PUBLIC_STORE_PARTNERSHIP=1` — Mina's partnership book, whose ledgers live in Mina's Firestore);
-  `voice/gemini.ts` (`VERTEX_PROJECT` bills Mina's voice to Taheri's project).
+  `voice/gemini.ts` (`VERTEX_PROJECT` bills Mina's voice to Taheri's project); the Website menu's **Photo Weights**
+  and Add Photos' **Feature today** follow `NEXT_PUBLIC_STORE_WEBSITE_WEIGHTS` / `_FEATURED` (default on; Mina's
+  catalogue has neither, so its file sets both to "0" at go-live).
 - A `secret:` in the base must exist in **both** projects; one in a house file only in that project.
 
 **Shipping a change to both houses:**
@@ -89,6 +91,17 @@ Push Taheri first, check it, then Mina. `main` here is the shared working branch
 **Running a house locally:** `npm run env:taheri` or `npm run env:mina` writes `.env.<house>.local`
 from the YAML files (secrets left blank to fill from Secret Manager), then `npm run dev:taheri`
 (port 3000) or `npm run dev:mina` (port 3001). `.env.local` is a hand-kept Taheri file that plain `npm run dev` uses.
+
+## House of Mina's catalogue (catalogue.houseofmina.store)
+
+A separate site in its own repo, **mina-catalogue** (`~/Projects/mina-catalogue`, github.com/Ammar282828/mina-catalogue,
+private) — built 2026-09-23; read its CLAUDE.md. It publishes `catalog-tree.json`, and `/api/website/photos` reads a
+site's own tree before anything else (taheri.shop publishes none, so Taheri's picker is unchanged).
+**Go-live is waiting on the owner:** add the website in hPanel + a DNS record at GoDaddy. Then, for Mina's POS, in
+`apphosting.mina.yaml`: `NEXT_PUBLIC_STORE_WEBSITE_URL` and `WEBSITE_ORIGIN` = https://catalogue.houseofmina.store,
+`NEXT_PUBLIC_STORE_WEBSITE_WEIGHTS=0`, `NEXT_PUBLIC_STORE_WEBSITE_FEATURED=0`, and `WEBSITE_UPLOAD_SECRET` as a secret
+(create it in hom-pos's Secret Manager with the App Hosting SAs' access first; the same value goes in
+`~/domains/catalogue.houseofmina.store/.website-upload-secret` on Hostinger).
 
 ## Open items after the reconvergence (2026-09-22)
 

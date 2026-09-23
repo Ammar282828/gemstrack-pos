@@ -17,7 +17,7 @@ import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
-import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP } from '@/lib/store-config';
+import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -82,7 +82,7 @@ const navGroups: NavGroup[] = [
       // The website pages exist only for a shop that has one (NEXT_PUBLIC_STORE_WEBSITE_URL).
       ...(STORE_LINKS.website ? ([
         { staff: true, href: '/website/photos', label: 'Add Photos', icon: <ImagePlus /> },
-        { staff: true, href: '/website/weights', label: 'Photo Weights', icon: <Scale /> },
+        ...(STORE_WEBSITE_WEIGHTS ? [{ staff: true, href: '/website/weights', label: 'Photo Weights', icon: <Scale /> }] : []),
       ] as NavItem[]) : []),
     ],
   },

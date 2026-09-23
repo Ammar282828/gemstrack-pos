@@ -196,3 +196,15 @@ export const STORE_LOGO_ASPECT = Number(process.env.NEXT_PUBLIC_STORE_LOGO_ASPEC
  * in apphosting.mina.yaml brings it back; Taheri leaves it unset.
  */
 export const STORE_PARTNERSHIP = process.env.NEXT_PUBLIC_STORE_PARTNERSHIP === '1';
+
+/**
+ * What this shop's website does besides showing photographs.
+ *
+ * taheri.shop prices pieces by weight at the day's gold rate, so the counter
+ * enters weights (Photo Weights) and picks a set of the day. House of Mina's
+ * catalogue sells at fixed prices copied from its Shopify store and has
+ * neither, so its Website menu is Add Photos alone. Both default on (Taheri);
+ * a house sets "0" to turn one off.
+ */
+export const STORE_WEBSITE_WEIGHTS = process.env.NEXT_PUBLIC_STORE_WEBSITE_WEIGHTS !== '0';
+export const STORE_WEBSITE_FEATURED = process.env.NEXT_PUBLIC_STORE_WEBSITE_FEATURED !== '0';
