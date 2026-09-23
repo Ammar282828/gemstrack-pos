@@ -1750,15 +1750,15 @@
     "semantic_hash": ""
   },
   "src/app/analytics/categories/page.tsx": {
-    "mtime": 1789891083.1549382,
-    "seen": 1789910563.404161,
-    "ast_hash": "863689ed9a15ea334cd5382ecd45ae60",
+    "mtime": 1790168394.835234,
+    "seen": 1790168411.544443,
+    "ast_hash": "64bc59f0392d82303f6b273c83d2ee8d",
     "semantic_hash": ""
   },
   "src/app/analytics/customers/page.tsx": {
-    "mtime": 1789891083.1550307,
-    "seen": 1789910563.404161,
-    "ast_hash": "8190224d08de1a5b5a5f49e7fe64dbf9",
+    "mtime": 1790168394.8354123,
+    "seen": 1790168411.5444438,
+    "ast_hash": "422f8c051f6005f11fdfc727f48ee600",
     "semantic_hash": ""
   },
   "src/app/analytics/page.tsx": {
@@ -1768,9 +1768,9 @@
     "semantic_hash": ""
   },
   "src/app/analytics/products/page.tsx": {
-    "mtime": 1789891083.1552978,
-    "seen": 1789910563.404162,
-    "ast_hash": "72cee0de37828246c2c5c3f2047a2bf0",
+    "mtime": 1790168400.5384338,
+    "seen": 1790168411.544445,
+    "ast_hash": "a90b43a351c6d837f4bbd4f1d46675d2",
     "semantic_hash": ""
   },
   "src/app/api/gold-rates/route.ts": {

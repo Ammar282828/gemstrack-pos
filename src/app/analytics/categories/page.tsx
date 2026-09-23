@@ -15,6 +15,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { pkrLac, lacCrore } from '@/lib/money';
 
 type CategoryPerformanceData = {
   id: string;
@@ -152,7 +153,7 @@ export default function CategoriesAnalyticsPage() {
                                         {categoryPerformance.map(c => (
                                             <TableRow key={c.id}>
                                                 <TableCell className="font-medium">{c.name}</TableCell>
-                                                <TableCell className="text-right font-semibold">{c.revenue.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right font-semibold">{lacCrore(c.revenue)}</TableCell>
                                                 <TableCell className="text-right">{c.itemsSold}</TableCell>
                                                 <TableCell className="text-right">{c.orders}</TableCell>
                                             </TableRow>
@@ -185,7 +186,7 @@ export default function CategoriesAnalyticsPage() {
                                         }}>
                                         {categoryPerformance.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                                     </Pie>
-                                    <Tooltip formatter={(value: number) => [`PKR ${value.toLocaleString()}`, 'Revenue']} />
+                                    <Tooltip formatter={(value: number) => [pkrLac(value), 'Revenue']} />
                                     <Legend />
                                 </PieChart>
                             </ResponsiveContainer>

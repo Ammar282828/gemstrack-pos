@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { lacCrore } from '@/lib/money';
 
 
 type ProductPerformanceData = {
@@ -144,7 +145,7 @@ export default function ProductsAnalyticsPage() {
                             <div className="font-medium">{p.name}</div>
                             <div className="text-xs text-muted-foreground">{p.sku}</div>
                         </TableCell>
-                        <TableCell className="text-right font-semibold">{p.revenue.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-semibold">{lacCrore(p.revenue)}</TableCell>
                         <TableCell className="text-right">{p.quantity}</TableCell>
                         <TableCell className="text-right">{p.orders}</TableCell>
                     </TableRow>

@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
+import { pkrLac, lacCrore } from '@/lib/money';
 
 type CustomerPerformanceData = {
   customerId?: string;
@@ -151,10 +152,10 @@ export default function CustomersAnalyticsPage() {
                             )}
                             {c.customerId && <div className="text-xs text-muted-foreground">{c.customerId}</div>}
                         </TableCell>
-                        <TableCell className="text-right font-semibold">{c.totalSpent.toLocaleString()}</TableCell>
+                        <TableCell className="text-right font-semibold">{lacCrore(c.totalSpent)}</TableCell>
                         <TableCell className="text-right">{c.orderCount}</TableCell>
                         <TableCell className="text-right">{c.itemsPurchased}</TableCell>
-                        <TableCell className="text-right">{c.averageSpent.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{lacCrore(c.averageSpent)}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
