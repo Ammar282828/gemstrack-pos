@@ -36,6 +36,7 @@ const FIRESTORE_COLLECTIONS = {
   SILVER_TRANSACTIONS: "silver_transactions",
   VOICE_ALIASES: "voice_aliases",
   KARIGAR_JOBS: "karigar_jobs",
+  REPAIRS: "repairs",
 };
 const GLOBAL_SETTINGS_DOC_ID = "global";
 
@@ -251,6 +252,8 @@ export interface Settings extends GoldRates {
   shopLogoUrlBlack?: string;
   lastInvoiceNumber: number;
   lastOrderNumber: number;
+  /** REP-000001 onwards. Missing until the first repair is written. */
+  lastRepairNumber?: number;
   allowedDeviceIds: string[];
   weprintApiSkus: string[];
   paymentMethods: PaymentMethod[];
@@ -768,7 +771,82 @@ export interface AdditionalRevenue {
   date: string; // ISO String
   description: string;
   amount: number;
+  /** Set when the money was taken for a repair — see Repair.payments. */
+  repairId?: string;
 }
+
+// --- Repairs ---------------------------------------------------------------
+/**
+ * A customer's own piece, left at the counter to be mended.
+ *
+ * Not an order (nothing is being made or sold) and not a given item (it is the
+ * customer's, not the shop's). It is weighed when it comes in and again when it
+ * goes back, because for gold that is the question a customer asks. Money taken
+ * for a repair — an advance, the balance — is written to Extra Revenue in the
+ * same transaction as the repair, so the dashboard and analytics count it
+ * without knowing repairs exist.
+ */
+export const REPAIR_STATUSES = ['received', 'in_progress', 'ready', 'collected', 'cancelled'] as const;
+export type RepairStatus = typeof REPAIR_STATUSES[number];
+export const REPAIR_STATUS_LABELS: Record<RepairStatus, string> = {
+  received: 'In the shop',
+  in_progress: 'Being worked on',
+  ready: 'Ready',
+  collected: 'Collected',
+  cancelled: 'Cancelled',
+};
+/** What is usually asked for. Free text in `details` says exactly what. */
+export const REPAIR_WORK = [
+  'Resize', 'Polish', 'Replate', 'Solder / join', 'Stone reset', 'Stone replace',
+  'Clasp / lock', 'Chain repair', 'Earring post / back', 'Rhodium', 'Clean', 'Other',
+] as const;
+
+export interface RepairPayment {
+  amount: number;
+  date: string;              // ISO
+  method?: PaymentType;
+  /** The Extra Revenue row this payment wrote. */
+  revenueId?: string;
+  note?: string;
+}
+
+export interface Repair {
+  id: string;                // REP-000001
+  customerId?: string;
+  customerName: string;
+  customerContact?: string;
+  item: string;              // "Gold ring with a ruby"
+  metalType?: MetalType;
+  karat?: KaratValue;
+  /** Weighed at the counter when it came in, and again when it went back. */
+  weightInG?: number;
+  weightOutG?: number;
+  work: string[];            // from REPAIR_WORK
+  details?: string;          // "size 12 to 14; the left stone is missing"
+  estimate?: number;         // what the customer was quoted
+  charge?: number;           // the final figure, set when it is ready
+  payments: RepairPayment[];
+  karigarId?: string;
+  karigarName?: string;
+  karigarCost?: number;      // what the karigar is paid for it
+  status: RepairStatus;
+  receivedAt: string;        // ISO
+  promisedDate?: string;     // yyyy-MM-dd
+  readyAt?: string;
+  collectedAt?: string;
+  takenBy?: TakenBy;
+  /** For the shop only. Never printed, never sent. */
+  internalNote?: string;
+}
+
+/** What the customer still owes: the charge (or the estimate, until there is one) less what has been paid. */
+export function repairBalance(r: Pick<Repair, 'charge' | 'estimate' | 'payments'>): number {
+  const due = r.charge ?? r.estimate ?? 0;
+  const paid = (r.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  return Math.max(0, Math.round((due - paid) * 100) / 100);
+}
+export const repairPaid = (r: Pick<Repair, 'payments'>): number =>
+  (r.payments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
 export type GivenItemStatus = 'out' | 'returned';
 export type GivenItemRecipientType = 'karigar' | 'customer' | 'other';
@@ -1021,7 +1099,7 @@ export function sizeScaleFor(categoryId?: string): SizeScale | undefined {
   return categoryId ? SIZE_SCALES[categoryId] : undefined;
 }
 
-export const LOG_EVENT_TYPES = ['product', 'customer', 'karigar', 'invoice', 'order', 'expense'] as const;
+export const LOG_EVENT_TYPES = ['product', 'customer', 'karigar', 'invoice', 'order', 'expense', 'repair'] as const;
 export type LogEventType = 
   | 'product.create' | 'product.update' | 'product.delete'
   | 'customer.create' | 'customer.update' | 'customer.delete'
@@ -1031,7 +1109,8 @@ export type LogEventType =
   | 'expense.create' | 'expense.update' | 'expense.delete'
   | 'revenue.create' | 'revenue.update' | 'revenue.delete'
   | 'given.create' | 'given.update' | 'given.delete' | 'given.returned'
-  | 'job.create' | 'job.update' | 'job.delete';
+  | 'job.create' | 'job.update' | 'job.delete'
+  | 'repair.create' | 'repair.update' | 'repair.status' | 'repair.payment' | 'repair.delete';
 
 export interface ActivityLog {
     id: string;
@@ -1114,6 +1193,7 @@ export interface AppState {
   expenses: Expense[];
   additionalRevenues: AdditionalRevenue[];
   givenItems: GivenItem[];
+  repairs: Repair[];
   karigarJobs: KarigarJob[];
   soldProducts: Product[];
   activityLog: ActivityLog[];
@@ -1133,6 +1213,7 @@ export interface AppState {
   isExpensesLoading: boolean;
   isAdditionalRevenueLoading: boolean;
   isGivenItemsLoading: boolean;
+  isRepairsLoading: boolean;
   isKarigarJobsLoading: boolean;
   isActivityLogLoading: boolean;
   
@@ -1150,6 +1231,7 @@ export interface AppState {
   hasExpensesLoaded: boolean;
   hasAdditionalRevenueLoaded: boolean;
   hasGivenItemsLoaded: boolean;
+  hasRepairsLoaded: boolean;
   hasKarigarJobsLoaded: boolean;
   hasActivityLogLoaded: boolean;
 
@@ -1167,6 +1249,7 @@ export interface AppState {
   expensesError: string | null;
   additionalRevenueError: string | null;
   givenItemsError: string | null;
+  repairsError: string | null;
   karigarJobsError: string | null;
   activityLogError: string | null;
 
@@ -1306,6 +1389,14 @@ export interface AppState {
   updateGivenItem: (id: string, data: Partial<Omit<GivenItem, 'id'>>) => Promise<void>;
   deleteGivenItem: (id: string) => Promise<void>;
   markGivenItemReturned: (id: string, returnedDate: string) => Promise<void>;
+  loadRepairs: () => void;
+  /** Writes the repair, and its advance (if any) to Extra Revenue, in one transaction. */
+  addRepair: (data: Omit<Repair, 'id' | 'payments' | 'status'> & { advance?: number; advanceMethod?: PaymentType }) => Promise<Repair>;
+  updateRepair: (id: string, data: Partial<Omit<Repair, 'id' | 'payments'>>) => Promise<void>;
+  setRepairStatus: (id: string, status: RepairStatus, extra?: Partial<Pick<Repair, 'charge' | 'weightOutG' | 'karigarId' | 'karigarName' | 'karigarCost'>>) => Promise<void>;
+  recordRepairPayment: (id: string, payment: Omit<RepairPayment, 'revenueId'>) => Promise<void>;
+  /** Deletes the repair and the Extra Revenue rows its payments wrote. */
+  deleteRepair: (id: string) => Promise<void>;
 
   loadActivityLog: () => void;
   addPrintHistory: (sku: string) => void;
@@ -1346,9 +1437,9 @@ function cleanObject<T extends object>(obj: T): T {
 const createDataLoader = <T, K extends keyof AppState>(
   collectionName: string,
   stateKey: K,
-  loadingKey: 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isKarigarBatchesLoading' | 'isSilverTransactionsLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isAdditionalRevenueLoading' | 'isGivenItemsLoading' | 'isKarigarJobsLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading',
-  errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'karigarBatchesError' | 'silverTransactionsError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'additionalRevenueError' | 'givenItemsError' | 'karigarJobsError' | 'soldProductsError' | 'activityLogError',
-  loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasKarigarBatchesLoaded' | 'hasSilverTransactionsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasAdditionalRevenueLoaded' | 'hasGivenItemsLoaded' | 'hasKarigarJobsLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
+  loadingKey: 'isProductsLoading' | 'isCustomersLoading' | 'isKarigarsLoading' | 'isKarigarBatchesLoading' | 'isSilverTransactionsLoading' | 'isInvoicesLoading' | 'isOrdersLoading' | 'isHisaabLoading' | 'isExpensesLoading' | 'isAdditionalRevenueLoading' | 'isGivenItemsLoading' | 'isRepairsLoading' | 'isKarigarJobsLoading' | 'isSoldProductsLoading' | 'isActivityLogLoading',
+  errorKey: 'productsError' | 'customersError' | 'karigarsError' | 'karigarBatchesError' | 'silverTransactionsError' | 'invoicesError' | 'ordersError' | 'hisaabError' | 'expensesError' | 'additionalRevenueError' | 'givenItemsError' | 'repairsError' | 'karigarJobsError' | 'soldProductsError' | 'activityLogError',
+  loadedKey: 'hasProductsLoaded' | 'hasCustomersLoaded' | 'hasKarigarsLoaded' | 'hasKarigarBatchesLoaded' | 'hasSilverTransactionsLoaded' | 'hasInvoicesLoaded' | 'hasOrdersLoaded' | 'hasHisaabLoaded' | 'hasExpensesLoaded' | 'hasAdditionalRevenueLoaded' | 'hasGivenItemsLoaded' | 'hasRepairsLoaded' | 'hasKarigarJobsLoaded' | 'hasSoldProductsLoaded' | 'hasActivityLogLoaded',
   orderByField: string = "name",
   orderByDirection: "asc" | "desc" = "asc",
   onData?: (list: T[], get: () => AppState) => void,
@@ -1576,6 +1667,7 @@ const loadHisaab = createDataLoader<HisaabEntry, 'hisaabEntries'>('hisaab', 'his
 const loadExpenses = createDataLoader<Expense, 'expenses'>('expenses', 'expenses', 'isExpensesLoading', 'expensesError', 'hasExpensesLoaded', 'date', 'desc');
 const loadAdditionalRevenues = createDataLoader<AdditionalRevenue, 'additionalRevenues'>('additional_revenue', 'additionalRevenues', 'isAdditionalRevenueLoading', 'additionalRevenueError', 'hasAdditionalRevenueLoaded', 'date', 'desc');
 const loadGivenItems = createDataLoader<GivenItem, 'givenItems'>('given_items', 'givenItems', 'isGivenItemsLoading', 'givenItemsError', 'hasGivenItemsLoaded', 'date', 'desc');
+const loadRepairs = createDataLoader<Repair, 'repairs'>('repairs', 'repairs', 'isRepairsLoading', 'repairsError', 'hasRepairsLoaded', 'receivedAt', 'desc');
 const loadKarigarJobs = createDataLoader<KarigarJob, 'karigarJobs'>('karigar_jobs', 'karigarJobs', 'isKarigarJobsLoading', 'karigarJobsError', 'hasKarigarJobsLoaded', 'assignedDate', 'desc');
 const loadSoldProducts = createDataLoader<Product, 'soldProducts'>('sold_products', 'soldProducts', 'isSoldProductsLoading', 'soldProductsError', 'hasSoldProductsLoaded', 'sku', 'asc');
 const loadActivityLog = createDataLoader<ActivityLog, 'activityLog'>('activity_log', 'activityLog', 'isActivityLogLoading', 'activityLogError', 'hasActivityLogLoaded', 'timestamp', 'desc');
@@ -1608,6 +1700,7 @@ export const useAppStore = create<AppState>()(
       expenses: [],
       additionalRevenues: [],
       givenItems: [],
+      repairs: [],
       karigarJobs: [],
       activityLog: [],
       printHistory: [],
@@ -1625,6 +1718,7 @@ export const useAppStore = create<AppState>()(
       isExpensesLoading: true,
       isAdditionalRevenueLoading: true,
       isGivenItemsLoading: true,
+      isRepairsLoading: true,
       isKarigarJobsLoading: true,
       isActivityLogLoading: true,
       
@@ -1641,6 +1735,7 @@ export const useAppStore = create<AppState>()(
       hasExpensesLoaded: false,
       hasAdditionalRevenueLoaded: false,
       hasGivenItemsLoaded: false,
+      hasRepairsLoaded: false,
       hasKarigarJobsLoaded: false,
       hasActivityLogLoaded: false,
 
@@ -1657,6 +1752,7 @@ export const useAppStore = create<AppState>()(
       expensesError: null,
       additionalRevenueError: null,
       givenItemsError: null,
+      repairsError: null,
       karigarJobsError: null,
       activityLogError: null,
 
@@ -1858,6 +1954,7 @@ export const useAppStore = create<AppState>()(
       loadExpenses: () => loadExpenses(set, get),
       loadAdditionalRevenues: () => loadAdditionalRevenues(set, get),
       loadGivenItems: () => loadGivenItems(set, get),
+      loadRepairs: () => loadRepairs(set, get),
       loadKarigarJobs: () => loadKarigarJobs(set, get),
       loadActivityLog: () => loadActivityLog(set, get),
 
@@ -4076,6 +4173,94 @@ export const useAppStore = create<AppState>()(
           console.error(`[GemsTrack Store markGivenItemReturned] Error:`, error);
           throw error;
         }
+      },
+
+      // ── Repairs ──────────────────────────────────────────────────────────
+      addRepair: async ({ advance, advanceMethod, ...data }) => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        // The highest number already on file is a floor for the counter, so a
+        // settings document written before repairs existed cannot reissue one.
+        const onFile = get().repairs.reduce((m, r) => {
+          const n = Number(String(r.id).replace(/^REP-/, ''));
+          return Number.isFinite(n) && n > m ? n : m;
+        }, 0);
+        const now = new Date().toISOString();
+        const created = await runTransaction(db, async (tx) => {
+          const settingsRef = doc(db, FIRESTORE_COLLECTIONS.SETTINGS, GLOBAL_SETTINGS_DOC_ID);
+          const snap = await tx.get(settingsRef);
+          const next = Math.max(Number(snap.data()?.lastRepairNumber) || 0, onFile) + 1;
+          const id = `REP-${String(next).padStart(6, '0')}`;
+          const repairRef = doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id);
+          const clash = await tx.get(repairRef);
+          if (clash.exists()) throw new Error(`Repair ${id} already exists — the repair counter is behind. Try again.`);
+
+          const payments: RepairPayment[] = [];
+          if (advance && advance > 0) {
+            const revenueRef = doc(collection(db, FIRESTORE_COLLECTIONS.ADDITIONAL_REVENUE));
+            tx.set(revenueRef, {
+              date: now, amount: advance, repairId: id,
+              description: `Repair ${id} — advance: ${data.item} (${data.customerName || 'walk-in'})`,
+            });
+            payments.push({ amount: advance, date: now, ...(advanceMethod ? { method: advanceMethod } : {}), revenueId: revenueRef.id, note: 'Advance' });
+          }
+          const repair: Repair = cleanObject({ ...data, id, payments, status: 'received' as RepairStatus, receivedAt: data.receivedAt || now });
+          tx.set(repairRef, repair);
+          tx.update(settingsRef, { lastRepairNumber: next });
+          return repair;
+        });
+        await addActivityLog('repair.create', `Repair ${created.id} received: ${created.item}`, `From: ${created.customerName || 'walk-in'}`, created.id);
+        return created;
+      },
+
+      updateRepair: async (id, data) => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        // A field left empty on the form clears it: undefined becomes a delete,
+        // where a plain merge would quietly keep the old karigar or estimate.
+        const patch: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(data)) patch[k] = v === undefined ? deleteField() : v;
+        await setDoc(doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id), patch, { merge: true });
+        await addActivityLog('repair.update', `Repair ${id} updated`, data.item || '', id);
+      },
+
+      setRepairStatus: async (id, status, extra = {}) => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        const now = new Date().toISOString();
+        const stamp: Partial<Repair> =
+          status === 'ready' ? { readyAt: now }
+          : status === 'collected' ? { collectedAt: now }
+          : {};
+        await setDoc(doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id), cleanObject({ status, ...stamp, ...extra }), { merge: true });
+        await addActivityLog('repair.status', `Repair ${id}: ${REPAIR_STATUS_LABELS[status]}`, '', id);
+      },
+
+      recordRepairPayment: async (id, payment) => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        if (!(payment.amount > 0)) return;
+        await runTransaction(db, async (tx) => {
+          const repairRef = doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id);
+          const snap = await tx.get(repairRef);
+          if (!snap.exists()) throw new Error(`Repair ${id} not found.`);
+          const repair = snap.data() as Repair;
+          const revenueRef = doc(collection(db, FIRESTORE_COLLECTIONS.ADDITIONAL_REVENUE));
+          tx.set(revenueRef, {
+            date: payment.date, amount: payment.amount, repairId: id,
+            description: `Repair ${id}: ${repair.item} (${repair.customerName || 'walk-in'})`,
+          });
+          tx.update(repairRef, { payments: [...(repair.payments || []), cleanObject({ ...payment, revenueId: revenueRef.id })] });
+        });
+        await addActivityLog('repair.payment', `Repair ${id}: PKR ${payment.amount.toLocaleString()} received`, payment.method || '', id);
+      },
+
+      deleteRepair: async (id) => {
+        if (get().settings.databaseLocked) throw new Error('The database is locked. Unlock it in Settings first.');
+        const repair = get().repairs.find(r => r.id === id);
+        const batch = writeBatch(db);
+        for (const p of repair?.payments || []) {
+          if (p.revenueId) batch.delete(doc(db, FIRESTORE_COLLECTIONS.ADDITIONAL_REVENUE, p.revenueId));
+        }
+        batch.delete(doc(db, FIRESTORE_COLLECTIONS.REPAIRS, id));
+        await batch.commit();
+        await addActivityLog('repair.delete', `Repair ${id} deleted`, repair ? `${repair.item} — ${repair.customerName}` : '', id);
       },
 
       addPrintHistory: (sku) => set(state => {

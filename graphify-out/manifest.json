@@ -1738,9 +1738,9 @@
     "semantic_hash": ""
   },
   "src/app/activity-log/page.tsx": {
-    "mtime": 1789891083.1547,
-    "seen": 1789910563.40416,
-    "ast_hash": "62cb89911ade1cc4fb6d3a3d85da9751",
+    "mtime": 1790156372.7849498,
+    "seen": 1790156629.949334,
+    "ast_hash": "60020db563fc0e3a476c4173188d590c",
     "semantic_hash": ""
   },
   "src/app/additional-revenue/page.tsx": {
@@ -2230,9 +2230,9 @@
     "semantic_hash": ""
   },
   "src/app/settings/backups/page.tsx": {
-    "mtime": 1789891083.161742,
-    "seen": 1789910563.4041972,
-    "ast_hash": "659a28f6eba0e0d11b6857fd783741b6",
+    "mtime": 1790156557.161408,
+    "seen": 1790156629.949386,
+    "ast_hash": "5d0919a656ae385fa4e69e424b889740",
     "semantic_hash": ""
   },
   "src/app/settings/contact-import/page.tsx": {
@@ -2404,9 +2404,9 @@
     "semantic_hash": ""
   },
   "src/components/layout/app-layout.tsx": {
-    "mtime": 1790149180.56361,
-    "seen": 1790149297.485122,
-    "ast_hash": "57aff30a3a4e6b11cedc1c2c5c918927",
+    "mtime": 1790156557.1609452,
+    "seen": 1790156629.949404,
+    "ast_hash": "b967b4434a2424bf5e49d18d1c288ec7",
     "semantic_hash": ""
   },
   "src/components/layout/main-app.tsx": {
@@ -2452,9 +2452,9 @@
     "semantic_hash": ""
   },
   "src/components/search/command-palette.tsx": {
-    "mtime": 1789891083.1658485,
-    "seen": 1789910563.404214,
-    "ast_hash": "e0a9575ec339e3b204db8ec81fb3dca4",
+    "mtime": 1790156574.2280073,
+    "seen": 1790156629.949409,
+    "ast_hash": "79e660e3e96704b6fcfeb8ee94784b6a",
     "semantic_hash": ""
   },
   "src/components/settings/shopify-pull-panel.tsx": {
@@ -3028,9 +3028,9 @@
     "semantic_hash": ""
   },
   "src/lib/roles.ts": {
-    "mtime": 1789891083.170081,
-    "seen": 1789910563.404256,
-    "ast_hash": "5d36c67ad636b48c3255ca241c214887",
+    "mtime": 1790156557.16127,
+    "seen": 1790156629.949471,
+    "ast_hash": "13dce3604a5a8fe5acfac0121f0e4df2",
     "semantic_hash": ""
   },
   "src/lib/shareholders.ts": {
@@ -3058,9 +3058,9 @@
     "semantic_hash": ""
   },
   "src/lib/store.ts": {
-    "mtime": 1790023849.1756117,
-    "seen": 1790023913.892651,
-    "ast_hash": "761022c5876af52025549a074ebf51b8",
+    "mtime": 1790156544.6019526,
+    "seen": 1790156629.949474,
+    "ast_hash": "7366c7efcd979adcb055ef8eac4debf3",
     "semantic_hash": ""
   },
   "src/lib/theme-cache.ts": {
@@ -3310,9 +3310,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790152798.3324814,
-    "seen": 1790152802.493182,
-    "ast_hash": "5363f8ee6c980da59f67e107eefb0b0a",
+    "mtime": 1790156625.635899,
+    "seen": 1790156629.949501,
+    "ast_hash": "0de695aaa328b42ce7b1042a1f980413",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3475,6 +3475,18 @@
     "mtime": 1790095000.6723151,
     "seen": 1790095293.3835452,
     "ast_hash": "ba3936b9204d3bfddd65284dda7a4aff",
+    "semantic_hash": ""
+  },
+  "src/app/repairs/page.tsx": {
+    "mtime": 1790156544.6015284,
+    "seen": 1790156629.949384,
+    "ast_hash": "e38e2fd80743828001dc96d2cdec8492",
+    "semantic_hash": ""
+  },
+  "src/lib/repair-pdf.ts": {
+    "mtime": 1790156402.1990836,
+    "seen": 1790156629.94947,
+    "ast_hash": "456a8f40a51aebf818217f5be07acdfb",
     "semantic_hash": ""
   }
 }

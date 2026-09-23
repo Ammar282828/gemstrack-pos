@@ -36,6 +36,7 @@ const EXPORTABLE_COLLECTIONS: { id: string; label: string; description: string }
   { id: 'additional_revenue', label: 'Additional Revenue', description: 'Extra income entries' },
   { id: 'karigar_batches',    label: 'Karigar Batches',    description: 'Karigar work batches' },
   { id: 'given_items',        label: 'Given Items',        description: 'Items given out' },
+  { id: 'repairs',            label: 'Repairs',            description: "Customers' pieces in for repair" },
   { id: 'categories',         label: 'Categories',         description: 'Product category definitions' },
   { id: 'sold_products',      label: 'Sold Products',      description: 'Historical sold product archive' },
 ];

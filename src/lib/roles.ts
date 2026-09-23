@@ -79,6 +79,7 @@ export const STAFF_COLLECTIONS = [
   'karigars',
   'given_items',
   'karigar_jobs',
+  'repairs',
 ] as const;
 
 export type StaffCollection = (typeof STAFF_COLLECTIONS)[number];

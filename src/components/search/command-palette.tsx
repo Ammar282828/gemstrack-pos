@@ -18,11 +18,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { nameScore } from '@/lib/voice/phonetics';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import {
-  Search, Users, Briefcase, Gem, Home, PlusCircle, Receipt, Hammer, ClipboardList,
-  BookUser, TrendingUp, Settings as SettingsIcon, CreditCard, Calendar, ArrowRight,
-  RotateCcw, Mic,
-} from 'lucide-react';
+import { Search, Users, Briefcase, Gem, Home, PlusCircle, Receipt, Hammer, ClipboardList, BookUser, TrendingUp, Settings as SettingsIcon, CreditCard, Calendar, ArrowRight, RotateCcw, Mic, Wrench } from 'lucide-react';
 
 interface Item {
   id: string;
@@ -38,6 +34,7 @@ const DESTINATIONS: Array<Omit<Item, 'id'>> = [
   { label: 'New Sale', group: 'Go to', icon: <PlusCircle className="h-4 w-4" />, href: '/new' },
   { label: 'Orders', group: 'Go to', icon: <ClipboardList className="h-4 w-4" />, href: '/orders' },
   { label: 'Invoices', group: 'Go to', icon: <Receipt className="h-4 w-4" />, href: '/invoices' },
+  { label: 'Repairs', group: 'Go to', icon: <Wrench className="h-4 w-4" />, href: '/repairs' },
   { label: 'Workshop', group: 'Go to', icon: <Hammer className="h-4 w-4" />, href: '/workshop' },
   { label: 'Products', group: 'Go to', icon: <Gem className="h-4 w-4" />, href: '/products' },
   { label: 'Customers', group: 'Go to', icon: <Users className="h-4 w-4" />, href: '/customers' },

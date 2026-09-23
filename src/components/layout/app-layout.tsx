@@ -11,7 +11,7 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, Target, Mic, Scale, ImagePlus, PieChart } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, Target, Mic, Scale, ImagePlus, PieChart, Wrench } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -65,6 +65,7 @@ const navGroups: NavGroup[] = [
       { staff: true, href: '/new', label: 'New Sale', icon: <PlusCircle /> },
       { staff: true, href: '/orders', label: 'Orders', icon: <ClipboardList /> },
       { staff: true, href: '/invoices', label: 'Invoices', icon: <Receipt /> },
+      { staff: true, href: '/repairs', label: 'Repairs', icon: <Wrench /> },
       { staff: true, href: '/customers', label: 'Customers', icon: <Users /> },
     ],
   },
