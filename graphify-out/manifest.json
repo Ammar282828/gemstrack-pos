@@ -2308,9 +2308,9 @@
     "semantic_hash": ""
   },
   "src/app/website/photos/page.tsx": {
-    "mtime": 1790149186.7752523,
-    "seen": 1790149297.485111,
-    "ast_hash": "9b1cbc3fd46649334c32c53069063e07",
+    "mtime": 1790174107.7958064,
+    "seen": 1790174158.022262,
+    "ast_hash": "d54aba895c4b347425c3672d677418e6",
     "semantic_hash": ""
   },
   "src/app/website/weights/page.tsx": {
@@ -3310,9 +3310,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790168357.7551284,
-    "seen": 1790168380.318655,
-    "ast_hash": "6c10ea00b7d7770446747841ae9e9798",
+    "mtime": 1790174151.3325765,
+    "seen": 1790174158.022367,
+    "ast_hash": "12e969eec54a35358669699d8dfc7764",
     "semantic_hash": ""
   },
   "README.md": {
