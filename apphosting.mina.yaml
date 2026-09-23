@@ -181,3 +181,31 @@ env:
     value: gemstrack-pos
     availability:
       - RUNTIME
+
+  # ── The website: catalogue.houseofmina.store (repo mina-catalogue) ────────
+  # Add Photos sends photographs there; it reads the site's own folders from
+  # /catalog-tree.json. The catalogue sells at fixed prices, so there is no
+  # Photo Weights page and no set of the day.
+  - variable: NEXT_PUBLIC_STORE_WEBSITE_URL
+    value: https://catalogue.houseofmina.store
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: WEBSITE_ORIGIN
+    value: https://catalogue.houseofmina.store
+    availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_WEBSITE_WEIGHTS
+    value: "0"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_WEBSITE_FEATURED
+    value: "0"
+    availability:
+      - BUILD
+      - RUNTIME
+  # In this project's Secret Manager (App Hosting SAs have access); the same
+  # value is in ~/domains/catalogue.houseofmina.store/.website-upload-secret.
+  - variable: WEBSITE_UPLOAD_SECRET
+    secret: website-upload-secret

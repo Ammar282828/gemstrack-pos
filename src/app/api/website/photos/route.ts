@@ -66,6 +66,7 @@ const siteOrigin = () => (process.env.WEBSITE_ORIGIN || 'https://taheri.shop').r
  * hold no photograph: a new folder (Watches, Opals) shows here with a count
  * of nought so the counter can be the one to fill it.
  */
+const KNOWN_TREE_ORIGIN = 'https://taheri.shop';
 const KNOWN_TREE: Record<string, string[]> = {
   'Rings & Bands': ['Rings', 'Diamond Rings', 'Bands', 'Palladium Bands for Him'],
   'Wristwear': ['Bangles', 'Thin Bangles', 'Kara Churi set', 'Karay', 'Stone Bangles', 'Diamond Bangles', 'Bracelet', 'Diamond Bracelets', 'String Bracelets', 'Bangle & Ring'],
@@ -116,8 +117,8 @@ export async function GET(req: NextRequest) {
       else byCollection.set(collection, { category, count: 1, sample: key });
     }
     if (byCollection.size > 0) {
-      // Folders the catalogue has nothing in yet.
-      for (const [category, list] of Object.entries(KNOWN_TREE)) {
+      // Folders the catalogue has nothing in yet — only for the site this list describes.
+      for (const [category, list] of Object.entries(origin === KNOWN_TREE_ORIGIN ? KNOWN_TREE : {})) {
         for (const collection of list) if (!byCollection.has(collection)) byCollection.set(collection, { category, count: 0, sample: '' });
       }
       const collections = [...byCollection.entries()]
@@ -137,6 +138,12 @@ export async function GET(req: NextRequest) {
     // the catalogue file only exists once the website's own build has shipped.
   }
 
+  // The list is taheri.shop's folders. Offered to another shop's site it would
+  // send that shop's photographs into Taheri's collection names; better to say
+  // the site could not be read.
+  if (origin !== KNOWN_TREE_ORIGIN) {
+    return NextResponse.json({ error: `Could not read the collections from ${origin}. Is the website up?` }, { status: 502 });
+  }
   const collections = Object.entries(KNOWN_TREE).flatMap(([category, list]) =>
     list.map(collection => ({ collection, category, count: 0, folder: `${category}/${collection}`, sample: '' })));
   return NextResponse.json({ collections, configured, source: 'known-tree' });

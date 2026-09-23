@@ -97,11 +97,13 @@ from the YAML files (secrets left blank to fill from Secret Manager), then `npm 
 A separate site in its own repo, **mina-catalogue** (`~/Projects/mina-catalogue`, github.com/Ammar282828/mina-catalogue,
 private) — built 2026-09-23; read its CLAUDE.md. It publishes `catalog-tree.json`, and `/api/website/photos` reads a
 site's own tree before anything else (taheri.shop publishes none, so Taheri's picker is unchanged).
-**Go-live is waiting on the owner:** add the website in hPanel + a DNS record at GoDaddy. Then, for Mina's POS, in
-`apphosting.mina.yaml`: `NEXT_PUBLIC_STORE_WEBSITE_URL` and `WEBSITE_ORIGIN` = https://catalogue.houseofmina.store,
-`NEXT_PUBLIC_STORE_WEBSITE_WEIGHTS=0`, `NEXT_PUBLIC_STORE_WEBSITE_FEATURED=0`, and `WEBSITE_UPLOAD_SECRET` as a secret
-(create it in hom-pos's Secret Manager with the App Hosting SAs' access first; the same value goes in
-`~/domains/catalogue.houseofmina.store/.website-upload-secret` on Hostinger).
+**Live on the server since 2026-09-23** (Hostinger website created through the Hostinger API on the Business plan,
+order 1008754559, beside taheri.shop; first deploy shipped 2,319 files). Mina's `apphosting.mina.yaml` carries the
+website variables and `WEBSITE_UPLOAD_SECRET` (hom-pos Secret Manager, same value as
+`~/domains/catalogue.houseofmina.store/.website-upload-secret`; sha256 prefix `c6701cb1`). The only open step is DNS:
+an `A` record `catalogue` → `145.79.26.82` at GoDaddy (houseofmina.store's DNS is not at Hostinger), then SSL through
+the Hostinger API (`POST /api/hosting/v1/accounts/u870899616/websites/catalogue.houseofmina.store/ssl/setup`).
+`KNOWN_TREE` in the photos route is taheri.shop's folder list and is only ever offered for that origin.
 
 ## Open items after the reconvergence (2026-09-22)
 
