@@ -100,9 +100,9 @@ site's own tree before anything else (taheri.shop publishes none, so Taheri's pi
 **Live on the server since 2026-09-23** (Hostinger website created through the Hostinger API on the Business plan,
 order 1008754559, beside taheri.shop; first deploy shipped 2,319 files). Mina's `apphosting.mina.yaml` carries the
 website variables and `WEBSITE_UPLOAD_SECRET` (hom-pos Secret Manager, same value as
-`~/domains/catalogue.houseofmina.store/.website-upload-secret`; sha256 prefix `c6701cb1`). The only open step is DNS:
-an `A` record `catalogue` → `145.79.26.82` at GoDaddy (houseofmina.store's DNS is not at Hostinger), then SSL through
-the Hostinger API (`POST /api/hosting/v1/accounts/u870899616/websites/catalogue.houseofmina.store/ssl/setup`).
+`~/domains/catalogue.houseofmina.store/.website-upload-secret`; sha256 prefix `c6701cb1`). DNS was added through the
+GoDaddy API (`A catalogue → 145.79.26.82`; houseofmina.store's DNS stays at GoDaddy) and Hostinger issued the
+certificate itself; the site is **live over HTTPS** and Mina's Add Photos reads its 18 collections from it.
 `KNOWN_TREE` in the photos route is taheri.shop's folder list and is only ever offered for that origin.
 
 ## Open items after the reconvergence (2026-09-22)
