@@ -22,6 +22,7 @@ import { Alert, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { isBusinessCost } from '@/lib/partnership';
+import { pkrLac, lacCrore, axisLac } from '@/lib/money';
 import { STORE_EST_MARGIN } from '@/lib/store-config';
 import { splitAllCoinSales, summariseCoins } from '@/lib/analytics/coins';
 import { toTola, formatWeight } from '@/lib/units';
@@ -685,7 +686,7 @@ export default function AnalyticsPage() {
               </DialogHeader>
               {selectedDayData && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center my-4">
-                    <div className="p-3 bg-muted rounded-md"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-xl font-bold">PKR {selectedDayData.sales.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p></div>
+                    <div className="p-3 bg-muted rounded-md"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-xl font-bold">{pkrLac(selectedDayData.sales)}</p></div>
                     <div className="p-3 bg-muted rounded-md"><p className="text-sm text-muted-foreground">Total Orders</p><p className="text-xl font-bold">{selectedDayData.orders}</p></div>
                     <div className="p-3 bg-muted rounded-md"><p className="text-sm text-muted-foreground">Items Sold</p><p className="text-xl font-bold">{selectedDayData.itemsSold}</p></div>
                 </div>
@@ -700,7 +701,7 @@ export default function AnalyticsPage() {
                       </TableHeader>
                       <TableBody>
                         {dailyBreakdown.invoices.map(invoice => (
-                          <TableRow key={invoice.id}><TableCell className="font-medium">{invoice.id}</TableCell><TableCell>{invoice.customerName}</TableCell><TableCell className="text-right">{invoice.grandTotal.toLocaleString()}</TableCell></TableRow>
+                          <TableRow key={invoice.id}><TableCell className="font-medium">{invoice.id}</TableCell><TableCell>{invoice.customerName}</TableCell><TableCell className="text-right">{lacCrore(invoice.grandTotal)}</TableCell></TableRow>
                         ))}
                       </TableBody>
                     </Table>
@@ -715,7 +716,7 @@ export default function AnalyticsPage() {
                       </TableHeader>
                       <TableBody>
                         {dailyBreakdown.products.map((item, index) => (
-                          <TableRow key={`${item.invoiceId}-${item.sku}-${index}`}><TableCell><div className="font-medium">{item.name}</div><div className="text-xs text-muted-foreground">{item.sku}</div></TableCell><TableCell className="text-right">{item.itemTotal.toLocaleString()}</TableCell></TableRow>
+                          <TableRow key={`${item.invoiceId}-${item.sku}-${index}`}><TableCell><div className="font-medium">{item.name}</div><div className="text-xs text-muted-foreground">{item.sku}</div></TableCell><TableCell className="text-right">{lacCrore(item.itemTotal)}</TableCell></TableRow>
                         ))}
                       </TableBody>
                     </Table>
@@ -799,7 +800,7 @@ export default function AnalyticsPage() {
             const netProfit = analyticsData.totalSales - analyticsData.totalExpenses;
             const estProfit = analyticsData.totalSales * STORE_EST_MARGIN;
             const margin = analyticsData.totalSales > 0 ? (netProfit / analyticsData.totalSales) * 100 : 0;
-            const money = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+            const money = (n: number) => pkrLac(n);
 
             const money_tiles = [
               {
@@ -910,7 +911,7 @@ export default function AnalyticsPage() {
               and "estimated profit" applied the jewellery margin to money that earned
               a fraction of it. Nothing in this box is in the figures above. */}
           {coinInvoices.length > 0 && (() => {
-            const money = (n: number) => `PKR ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+            const money = (n: number) => pkrLac(n);
             const tiles = [
               { label: 'Coin revenue', value: money(coinSummary.revenue), sub: `${coinSummary.invoices} bill${coinSummary.invoices === 1 ? '' : 's'} in this period` },
               { label: 'Coins sold', value: String(coinSummary.coins), sub: coinSummary.grams > 0 ? formatWeight(coinSummary.grams) : 'no weight recorded' },
@@ -972,12 +973,12 @@ export default function AnalyticsPage() {
                         <TrendingUp className="h-4 w-4 text-success" />
                       </div>
                       <div className="text-xl sm:text-2xl font-bold text-success">
-                        PKR {cashIn.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        {pkrLac(cashIn)}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Invoice payments: PKR {cashInFromInvoicePayments.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        {cashInFromOrderAdvances > 0 && <> · Advances incl. trade-ins: PKR {cashInFromOrderAdvances.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>}
-                        {cashInFromExtraRevenue > 0 && <> · Extra: PKR {cashInFromExtraRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</>}
+                        Invoice payments: {pkrLac(cashInFromInvoicePayments)}
+                        {cashInFromOrderAdvances > 0 && <> · Advances incl. trade-ins: {pkrLac(cashInFromOrderAdvances)}</>}
+                        {cashInFromExtraRevenue > 0 && <> · Extra: {pkrLac(cashInFromExtraRevenue)}</>}
                       </p>
                     </div>
                     <div className="rounded-lg border border-destructive/40 p-4">
@@ -986,7 +987,7 @@ export default function AnalyticsPage() {
                         <TrendingDown className="h-4 w-4 text-destructive" />
                       </div>
                       <div className="text-xl sm:text-2xl font-bold text-destructive">
-                        PKR {cashOut.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        {pkrLac(cashOut)}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">Every expense paid in this period</p>
                     </div>
@@ -998,7 +999,7 @@ export default function AnalyticsPage() {
                           : <TrendingDown className="h-4 w-4 text-destructive" />}
                       </div>
                       <div className={cn('text-xl sm:text-2xl font-bold', netCashFlow >= 0 ? 'text-success' : 'text-destructive')}>
-                        {netCashFlow >= 0 ? '+' : '−'}PKR {Math.abs(netCashFlow).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        {netCashFlow >= 0 ? '+' : '−'}{pkrLac(Math.abs(netCashFlow))}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         {netCashFlow >= 0 ? 'Business gained cash in this period' : 'Business spent more cash than it took in'}
@@ -1007,7 +1008,7 @@ export default function AnalyticsPage() {
                   </div>
                   {accrualVsCashGap > 0 && (
                     <div className="mt-3 rounded-md border bg-warning/10 border-warning/40 p-3 text-xs text-warning">
-                      <span className="font-semibold">PKR {accrualVsCashGap.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span> of recognised revenue is <em>not yet collected</em> — sitting as customer receivables and uninvoiced open orders. That gap is the difference between &ldquo;Total Revenue&rdquo; (accrual) and &ldquo;Cash In&rdquo;.
+                      <span className="font-semibold">{pkrLac(accrualVsCashGap)}</span> of recognised revenue is <em>not yet collected</em> — sitting as customer receivables and uninvoiced open orders. That gap is the difference between &ldquo;Total Revenue&rdquo; (accrual) and &ldquo;Cash In&rdquo;.
                     </div>
                   )}
                 </CardContent>
@@ -1026,13 +1027,13 @@ export default function AnalyticsPage() {
                     <ResponsiveContainer width="100%" height={350}>
                     <BarChart data={analyticsData.expensesByCategory} layout="vertical" margin={{ right: 10, left: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value/1000).toFixed(0)}k`} />
+                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => axisLac(Number(value))} />
                         <YAxis dataKey="category" type="category" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={85} interval={0} />
                         <Tooltip
                             contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
                             labelStyle={{ color: 'hsl(var(--foreground))' }}
                             itemStyle={{ color: 'hsl(var(--foreground))' }}
-                            formatter={(value: number) => [`PKR ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Amount"]}
+                            formatter={(value: number) => [`${pkrLac(value)}`, "Amount"]}
                         />
                         <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
                         <Bar dataKey="amount" name="Amount" fill="hsl(var(--chart-5))" radius={[0, 4, 4, 0]} barSize={20} />
@@ -1059,14 +1060,14 @@ export default function AnalyticsPage() {
                   <LineChart data={analyticsData.salesOverTime}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))"/>
                     <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `PKR ${Number(value/1000).toFixed(0)}k`} />
+                    <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => axisLac(Number(value))} />
                     <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
                     <Tooltip
                         contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
                         labelStyle={{ color: 'hsl(var(--foreground))' }}
                         itemStyle={{ color: 'hsl(var(--foreground))' }}
                         formatter={(value: number, name: string) => {
-                             if (name === 'Sales') return [`PKR ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, name];
+                             if (name === 'Sales') return [`${pkrLac(value)}`, name];
                              if (name === 'Orders') return [value.toLocaleString(), name];
                              return [value, name];
                         }}
@@ -1092,7 +1093,7 @@ export default function AnalyticsPage() {
                 <CardDescription>
                   Every month on record, regardless of the date filter above.
                   {monthlyRevenue.average > 0 && (
-                    <> Averaging <span className="font-medium text-foreground">PKR {Math.round(monthlyRevenue.average).toLocaleString()}</span> across months with sales.</>
+                    <> Averaging <span className="font-medium text-foreground">{pkrLac(monthlyRevenue.average)}</span> across months with sales.</>
                   )}
                 </CardDescription>
               </CardHeader>
@@ -1114,7 +1115,7 @@ export default function AnalyticsPage() {
                       fontSize={12}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(v) => `PKR ${Number(v / 1000).toFixed(0)}k`}
+                      tickFormatter={(v) => axisLac(Number(v))}
                     />
                     <Tooltip
                       cursor={{ fill: 'hsl(var(--muted))', opacity: 0.35 }}
@@ -1122,7 +1123,7 @@ export default function AnalyticsPage() {
                       labelStyle={{ color: 'hsl(var(--foreground))' }}
                       itemStyle={{ color: 'hsl(var(--foreground))' }}
                       formatter={(value: number, _name: string, entry: { payload?: { sales?: number } }) => [
-                        `PKR ${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}${entry?.payload?.sales ? ` · ${entry.payload.sales} sale${entry.payload.sales === 1 ? '' : 's'}` : ''}`,
+                        `${pkrLac(value)}${entry?.payload?.sales ? ` · ${entry.payload.sales} sale${entry.payload.sales === 1 ? '' : 's'}` : ''}`,
                         'Revenue',
                       ]}
                     />
@@ -1177,16 +1178,16 @@ export default function AnalyticsPage() {
                         onClick={() => handleQuickSelect(`year-${row.year}`)}
                       >
                         <TableCell className="font-semibold">{row.year}</TableCell>
-                        <TableCell className="text-right">{row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                        <TableCell className="text-right">{lacCrore(row.revenue)}</TableCell>
                         <TableCell className="text-right font-medium text-warning hidden sm:table-cell">
-                          {row.unpaid > 0 ? row.unpaid.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}
+                          {row.unpaid > 0 ? lacCrore(row.unpaid) : '—'}
                         </TableCell>
-                        <TableCell className="text-right text-destructive hidden sm:table-cell">{row.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                        <TableCell className="text-right text-destructive hidden sm:table-cell">{lacCrore(row.expenses)}</TableCell>
                         <TableCell className="text-right font-medium text-blue-600 hidden md:table-cell">
-                          {(row.revenue * STORE_EST_MARGIN).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          {lacCrore(row.revenue * STORE_EST_MARGIN)}
                         </TableCell>
                         <TableCell className={`text-right font-semibold ${row.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          {row.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                          {lacCrore(row.netProfit)}
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground text-sm hidden sm:table-cell">
                           {row.revenue > 0 ? `${((row.netProfit / row.revenue) * 100).toFixed(1)}%` : '—'}
@@ -1224,7 +1225,7 @@ export default function AnalyticsPage() {
                             <span className="hidden sm:inline">{format(parseISO(day.date), 'EEE, MMM d, yyyy')}</span>
                             <span className="sm:hidden">{format(parseISO(day.date), 'MMM d')}</span>
                           </TableCell>
-                          <TableCell className="text-right font-semibold">{day.sales.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                          <TableCell className="text-right font-semibold">{lacCrore(day.sales)}</TableCell>
                           <TableCell className="text-right">{day.orders}</TableCell>
                           <TableCell className="text-right hidden sm:table-cell">{day.itemsSold}</TableCell>
                         </TableRow>
@@ -1266,7 +1267,7 @@ export default function AnalyticsPage() {
                             <div className="text-xs text-muted-foreground">{stockSku(product.sku) ? `SKU: ${product.sku}` : 'Not in stock'}</div>
                           </TableCell>
                           <TableCell className="text-right">{product.quantity}</TableCell>
-                          <TableCell className="text-right">{product.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{lacCrore(product.revenue)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1289,13 +1290,13 @@ export default function AnalyticsPage() {
                     <ResponsiveContainer width="100%" height={350}>
                     <BarChart data={analyticsData.salesByCategory.filter(c => c.sales > 0)} layout="vertical" margin={{ right: 10, left: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value/1000).toFixed(0)}k`} />
+                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => axisLac(Number(value))} />
                         <YAxis dataKey="categoryName" type="category" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} width={85} interval={0} />
                         <Tooltip
                             contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
                             labelStyle={{ color: 'hsl(var(--foreground))' }}
                             itemStyle={{ color: 'hsl(var(--foreground))' }}
-                            formatter={(value: number) => [`PKR ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Sales"]}
+                            formatter={(value: number) => [`${pkrLac(value)}`, "Sales"]}
                         />
                         <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
                         <Bar dataKey="sales" name="Sales" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} barSize={20} />
@@ -1336,7 +1337,7 @@ export default function AnalyticsPage() {
                             {customer.customerId && <div className="text-xs text-muted-foreground">ID: {customer.customerId}</div>}
                           </TableCell>
                           <TableCell className="text-right">{customer.orderCount}</TableCell>
-                          <TableCell className="text-right">{customer.totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{lacCrore(customer.totalSpent)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1392,9 +1393,9 @@ export default function AnalyticsPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-right">{row.orderCount}</TableCell>
-                              <TableCell className="text-right font-semibold">{row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                              <TableCell className="text-right font-semibold">{lacCrore(row.revenue)}</TableCell>
                               <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{share.toFixed(1)}%</TableCell>
-                              <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{row.avgOrderValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                              <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{lacCrore(row.avgOrderValue)}</TableCell>
                             </TableRow>
                           );
                           });
@@ -1409,13 +1410,13 @@ export default function AnalyticsPage() {
                         <LineChart data={analyticsData.sourceTrend}>
                           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                           <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => format(parseISO(value), 'MMM d')} />
-                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => `${Number(value / 1000).toFixed(0)}k`} />
+                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => axisLac(Number(value))} />
                           <Tooltip
                             contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
                             labelStyle={{ color: 'hsl(var(--foreground))' }}
                             itemStyle={{ color: 'hsl(var(--foreground))' }}
                             labelFormatter={(label) => format(parseISO(label as string), 'EEE, MMM d, yyyy')}
-                            formatter={(value: number, name: string) => [`PKR ${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, name]}
+                            formatter={(value: number, name: string) => [`${pkrLac(value)}`, name]}
                           />
                           <Legend wrapperStyle={{ color: 'hsl(var(--muted-foreground))' }} />
                           {analyticsData.sourceActiveKeys.map((key) => (

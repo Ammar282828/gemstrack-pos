@@ -1762,9 +1762,9 @@
     "semantic_hash": ""
   },
   "src/app/analytics/page.tsx": {
-    "mtime": 1790023849.175783,
-    "seen": 1790023913.8925068,
-    "ast_hash": "8d7cf7c386830793274041d6687debc6",
+    "mtime": 1790168327.1960173,
+    "seen": 1790168380.318493,
+    "ast_hash": "8289e1ea9e9eabbf02000ab5e3accc9e",
     "semantic_hash": ""
   },
   "src/app/analytics/products/page.tsx": {
@@ -3310,9 +3310,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790160505.7358744,
-    "seen": 1790160529.515462,
-    "ast_hash": "d62a593cec343178f481e9a21ab29319",
+    "mtime": 1790168357.7551284,
+    "seen": 1790168380.318655,
+    "ast_hash": "6c10ea00b7d7770446747841ae9e9798",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3487,6 +3487,12 @@
     "mtime": 1790160336.3047183,
     "seen": 1790160529.515431,
     "ast_hash": "750d8297041390316635f9ae87570875",
+    "semantic_hash": ""
+  },
+  "src/lib/money.ts": {
+    "mtime": 1790168346.9548717,
+    "seen": 1790168380.318615,
+    "ast_hash": "39d1aef7632de3e6a5ad3ae83e6573bd",
     "semantic_hash": ""
   }
 }
