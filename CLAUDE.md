@@ -58,6 +58,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 | `/api/website/post` | POS page Post a Piece | GET the community's name/size; POST one image + caption to `WHATSAPP_COMMUNITY_CHAT_ID` via Green API (`sendFileByUpload`), logged in `social_posts`. `/convert` turns HEIC into JPEG for the canvas |
 | `/api/website/post/ai` | Post a Piece | Gemini on Vertex (`IMAGE_AI_PROJECT`): `enhance`, `reframe`, `restage`, `letter`, `caption`, `check`. Every image edit is compared with its source ("same piece?"); capped 300 calls/day shop-wide, 60/h per IP |
 | `/api/instagram/status`, `connect`, `callback`, `story` | Post a Piece | Instagram Login OAuth → 60-day token in **Secret Manager** (`instagram-token`, renewed on use), locked to `INSTAGRAM_USERNAME`; `story` publishes a 9:16 JPEG |
+| `/api/website/post/health` | Post a Piece | GET: every check + last day's `social_errors` + diagnosis context; POST: the page records a failure |
 | `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
 | `/api/website/orders/[id]` | POS order page | mark paid / shipped — **always verifies a token, even under open access** |
 
@@ -166,6 +167,14 @@ sorted by its file name). Add Photos names and links to **this house's** website
   @collectionstaheri as tester), `INSTAGRAM_APP_ID`, secret `instagram-app-secret`, redirect
   `https://pos.taheri.shop/api/instagram/callback`, and secret `instagram-token` with secretAccessor + secretVersionAdder
   for the runtime account.
+- **Post a Piece checks** (2026-09-25, owner: "thorough checks … with a very obvious solution"): `src/lib/social/health.ts`
+  tests every dependency live (site up; upload key via an empty POST to upload.php — 400 = key right, 401 = wrong; set of
+  the day; Green API signed in, line is admin of the community, send queue; Instagram app set, token-secret IAM, token
+  valid + days left + publishing quota, public image route reachable; AI ping + image model served + today's cap) and
+  `src/lib/social/diagnose.ts` turns any error into title + fix + action (link or gcloud command), with the real messages
+  from setup pinned in tests. Failures are logged to Firestore `social_errors` (server routes log their own; the page
+  reports website/featured failures). The panel sits atop the page; the publish confirm lists failing checks for the
+  chosen destinations. Locally the website checks fail — this Mac can't resolve taheri.shop — not a real outage.
 - Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**
   (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
   value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).

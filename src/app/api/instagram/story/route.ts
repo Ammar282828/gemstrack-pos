@@ -15,6 +15,7 @@ import sharp from 'sharp';
 import { adminDb } from '@/lib/firebase-admin';
 import { postGate, publicOrigin } from '@/lib/social/gate';
 import { InstagramError, publishStory } from '@/lib/social/instagram';
+import { recordError } from '@/lib/social/errors';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
       .catch(e => console.warn('[instagram] could not log the post:', e instanceof Error ? e.message : e));
     return NextResponse.json({ ok: true, mediaId });
   } catch (e) {
+    await recordError('instagram', e, { by: who });
     const status = e instanceof InstagramError ? e.status : 502;
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Instagram post failed' }, { status });
   } finally {

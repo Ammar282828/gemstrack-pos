@@ -37,6 +37,7 @@ import { whatsappCaption } from '@/lib/social/caption';
 import { PALETTES } from '@/lib/social/palettes';
 import { STORE_CONFIG } from '@/lib/store-config';
 import sharp from 'sharp';
+import { recordError } from '@/lib/social/errors';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -182,6 +183,7 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const status = e instanceof AiError ? e.status : 502;
     console.warn(`[post ai] ${op} failed after ${((Date.now() - started) / 1000).toFixed(1)}s:`, e instanceof Error ? e.message : e);
+    await recordError(op === 'caption' ? 'caption' : 'ai', e, { op, by: who });
     return NextResponse.json({ error: e instanceof Error ? e.message : 'AI request failed' }, { status: status >= 400 && status < 600 ? status : 502 });
   }
 }

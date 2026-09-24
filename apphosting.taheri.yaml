@@ -169,6 +169,11 @@ env:
   - variable: INSTAGRAM_APP_ID
     value: "1745196310046317"
     availability: [RUNTIME]
+  # The Meta app itself (its dashboard id) — only for the checks panel's links to
+  # the right settings pages.
+  - variable: INSTAGRAM_META_APP_ID
+    value: "1075984878628188"
+    availability: [RUNTIME]
   - variable: INSTAGRAM_APP_SECRET
     secret: instagram-app-secret
     availability: [RUNTIME]

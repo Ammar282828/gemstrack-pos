@@ -137,6 +137,44 @@ export async function whatsAppGroupInfo(chatId: string): Promise<{ name: string;
   }
 }
 
+/**
+ * For the Post a Piece checks: the linked number, the group's admins, and how
+ * many messages are waiting to go out (a queue that grows means the phone is
+ * offline or the line is stuck). Nulls when Green API cannot be reached.
+ */
+export async function whatsAppDiagnostics(chatId?: string): Promise<{
+  phone: string | null; queued: number | null; group: { name: string; size: number; admins: string[] } | null;
+}> {
+  const creds = credentials();
+  if (!creds) return { phone: null, queued: null, group: null };
+  const get = async (method: string, body?: unknown) => {
+    try {
+      const res = await fetch(`${creds.base}/waInstance${creds.id}/${method}/${creds.token}`, {
+        method: body ? 'POST' : 'GET',
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(8000),
+      });
+      return res.ok ? await res.json() : null;
+    } catch { return null; }
+  };
+  const [settings, queue, group] = await Promise.all([
+    get('getWaSettings'),
+    get('showMessagesQueue'),
+    chatId ? get('getGroupData', { groupId: chatId }) : Promise.resolve(null),
+  ]);
+  const participants: Array<{ id: string; isAdmin?: boolean; isSuperAdmin?: boolean }> = Array.isArray(group?.participants) ? group.participants : [];
+  return {
+    phone: settings?.phone ? String(settings.phone) : null,
+    queued: Array.isArray(queue) ? queue.length : null,
+    group: group ? {
+      name: String(group.subject || ''),
+      size: Number(group.size) || participants.length,
+      admins: participants.filter(p => p.isAdmin || p.isSuperAdmin).map(p => p.id),
+    } : null,
+  };
+}
+
 // ── Deep links to the WhatsApp app (client-side) ─────────────────────────────
 // Distinct from sendWhatsAppMessage above, which posts through the bridge.
 // The link-building and Pakistani number normalisation below were previously

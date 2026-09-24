@@ -50,6 +50,8 @@ import { STORE_LINKS, STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_WEBSITE_FEATUR
 import { detailsLine, waNumberFromUrl, weightLabel, websiteFileName, whatsappCaption } from '@/lib/social/caption';
 import { PALETTES, STORY_H, STORY_W, drawStory, loadImage, loadStoryFonts, renderStoryJpeg, stampPhoto, suggestPalette, type Placement } from '@/lib/social/story';
 import { SCENES, type Aspect, type CaptionResult, type CheckResult } from '@/lib/social/prompts';
+import { diagnose, type Where } from '@/lib/social/diagnose';
+import { HealthPanel, useHealth, reportError, ActionButton, type Check as HealthCheck } from './health-panel';
 
 const headlineFace = Sofia_Sans_Extra_Condensed({ subsets: ['latin'], weight: ['800'], display: 'swap' });
 const bodyFace = Figtree({ subsets: ['latin'], weight: ['300', '400'], display: 'swap' });
@@ -75,7 +77,11 @@ interface Photo {
   toWhatsApp: boolean;
 }
 type StepStatus = 'waiting' | 'running' | 'done' | 'failed';
-interface Step { id: string; label: string; status: StepStatus; error?: string; note?: string }
+interface Step { id: string; label: string; status: StepStatus; error?: string; errStatus?: number; note?: string }
+const STEP_WHERE: Record<string, Where> = { website: 'website', featured: 'featured', whatsapp: 'whatsapp', instagram: 'instagram' };
+/** An Error that remembers the HTTP status it came with, for diagnose(). */
+const httpError = (message: string, status: number) => Object.assign(new Error(message), { status });
+const errStatus = (e: unknown) => (typeof (e as { status?: unknown })?.status === 'number' ? (e as { status: number }).status : undefined);
 interface Lettered { url: string; img: HTMLImageElement; verified: boolean; missing: string[]; forId: string }
 
 async function authHeaders(): Promise<Record<string, string>> {
@@ -118,7 +124,7 @@ async function callAi<T>(op: string, images: Blob[], params: Record<string, unkn
   images.forEach((b, i) => form.append('image', b, `image-${i}.jpg`));
   const res = await fetch('/api/website/post/ai', { method: 'POST', headers: await authHeaders(), body: form });
   const d = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(d.error || `AI request failed (${res.status})`);
+  if (!res.ok) throw httpError(d.error || `AI request failed (${res.status})`, res.status);
   return d as T;
 }
 
@@ -131,6 +137,13 @@ const checkOk = (c: CheckResult | null | undefined) => !!c && c.samePiece && c.c
 
 export default function PostAPiecePage() {
   const { toast } = useToast();
+  const health = useHealth();
+  const dctx = health.report?.context ?? {};
+  /** A toast that says what went wrong and what to do, never the raw error. */
+  const explain = (where: Where, e: unknown) => {
+    const d = diagnose(where, { status: errStatus(e), message: e instanceof Error ? e.message : String(e) }, dctx);
+    toast({ title: d.title, description: d.fix, variant: 'destructive' });
+  };
 
   // ── What the counter enters ──
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -219,7 +232,10 @@ export default function PostAPiecePage() {
     // Back from Instagram's approval page.
     const q = new URLSearchParams(window.location.search);
     if (q.get('instagram') === 'connected') toast({ title: `Instagram connected as @${q.get('username')}`, description: 'Stories now post straight from here.' });
-    if (q.get('instagram') === 'error') toast({ title: 'Instagram was not connected', description: q.get('reason') || '', variant: 'destructive' });
+    if (q.get('instagram') === 'error') {
+      const d = diagnose('instagram-connect', q.get('reason') || '');
+      toast({ title: `Instagram was not connected — ${d.title.toLowerCase()}`, description: d.fix, variant: 'destructive' });
+    }
     if (q.get('instagram')) window.history.replaceState(null, '', window.location.pathname);
     if (!SITE) return;
     (async () => {
@@ -337,7 +353,7 @@ export default function PostAPiecePage() {
       }
       return made;
     } catch (e) {
-      toast({ title: `${label} failed`, description: e instanceof Error ? e.message : '', variant: 'destructive' });
+      explain('ai', e);
       return null;
     } finally {
       setBusy(key, null);
@@ -372,7 +388,7 @@ export default function PostAPiecePage() {
       if (!opts.quiet) toast({ title: 'Captions written', description: c.stonesSeen && !stones ? `Stones look like: ${c.stonesSeen}. Add them if that is right.` : 'Read them over before sending.' });
       return c;
     } catch (e) {
-      toast({ title: 'Could not write the captions', description: e instanceof Error ? e.message : '', variant: 'destructive' });
+      explain('caption', e);
       return null;
     } finally {
       setBusy('caption', null);
@@ -414,7 +430,7 @@ export default function PostAPiecePage() {
       setLettering('ai');
       if (!d.lettering.verified) toast({ title: 'The AI got some words wrong', description: `Could not find: ${d.lettering.missing.join(', ') || 'the text'}. Try again, or use our fonts.`, variant: 'destructive' });
     } catch (e) {
-      toast({ title: 'AI lettering failed', description: e instanceof Error ? e.message : '', variant: 'destructive' });
+      explain('ai', e);
     } finally {
       setBusy('letter', null);
     }
@@ -489,7 +505,7 @@ export default function PostAPiecePage() {
   const connectInstagram = async () => {
     const res = await fetch('/api/instagram/connect', { method: 'POST', headers: await authHeaders() });
     const d = await res.json().catch(() => ({}));
-    if (!res.ok || !d.url) { toast({ title: 'Could not start the connection', description: d.error || `${res.status}`, variant: 'destructive' }); return; }
+    if (!res.ok || !d.url) { explain('instagram-connect', httpError(d.error || `${res.status}`, res.status)); return; }
     window.location.href = d.url;
   };
 
@@ -500,6 +516,9 @@ export default function PostAPiecePage() {
   const igOn = toInstagram && !!ig?.connected;
   const ready = !!hero && !!headline.trim();
   const targets = [siteOn && SITE_NAME, waOn && 'WhatsApp', igOn && 'Instagram'].filter(Boolean) as string[];
+  // Checks that are failing for somewhere this post is about to go.
+  const blockers: HealthCheck[] = (health.report?.checks ?? []).filter(c => c.status === 'fail' && (
+    (siteOn && c.group === 'Website') || (waOn && c.group === 'WhatsApp') || (igOn && c.group === 'Instagram')));
   const problems: string[] = [];
   if (!photos.length) problems.push('Add a photo.');
   if (!headline.trim()) problems.push('Give it a headline.');
@@ -519,7 +538,7 @@ export default function PostAPiecePage() {
     form.set('file', jpeg, name);
     const res = await fetch('/api/website/photos', { method: 'POST', headers, body: form });
     const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(d.error || `Upload failed (${res.status})`);
+    if (!res.ok) throw httpError(d.error || `Upload failed (${res.status})`, res.status);
     uploadedRef.current[p.id] = d.rel;
     return d.rel;
   };
@@ -531,7 +550,7 @@ export default function PostAPiecePage() {
     if (text) form.set('caption', text);
     const res = await fetch('/api/website/post', { method: 'POST', headers, body: form });
     const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(d.error || `WhatsApp send failed (${res.status})`);
+    if (!res.ok) throw httpError(d.error || `WhatsApp send failed (${res.status})`, res.status);
     sentRef.current[key] = true;
   };
 
@@ -547,6 +566,7 @@ export default function PostAPiecePage() {
     ];
     if (!only) setSteps(plan);
     const todo = plan.filter(s => (only ? s.id === only : true) && s.status !== 'done');
+    let failedAny = false;
 
     for (const s of todo) {
       setStep(s.id, { status: 'running', error: undefined });
@@ -562,14 +582,14 @@ export default function PostAPiecePage() {
           const rel = lead && uploadedRef.current[lead.id];
           if (!rel) throw new Error('No photo is on the website yet.');
           const res = await fetch('/api/website/featured', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ key: rel }) });
-          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `${res.status}`);
+          if (!res.ok) throw httpError((await res.json().catch(() => ({}))).error || `${res.status}`, res.status);
         } else if (s.id === 'instagram') {
           if (!sentRef.current.instagram) {
             const form = new FormData();
             form.set('file', new File([await getStory()], `${fileNameBase}-story.jpg`, { type: 'image/jpeg' }));
             const res = await fetch('/api/instagram/story', { method: 'POST', headers, body: form });
             const d = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(d.error || `Instagram failed (${res.status})`);
+            if (!res.ok) throw httpError(d.error || `Instagram failed (${res.status})`, res.status);
             sentRef.current.instagram = true;
           }
         } else if (s.id === 'whatsapp') {
@@ -588,15 +608,21 @@ export default function PostAPiecePage() {
         }
         setStep(s.id, { status: 'done' });
       } catch (e) {
-        setStep(s.id, { status: 'failed', error: e instanceof Error ? e.message : 'Failed' });
+        const message = e instanceof Error ? e.message : 'Failed';
+        setStep(s.id, { status: 'failed', error: message, errStatus: errStatus(e) });
+        // WhatsApp and Instagram log their own failures on the server; the website goes
+        // through the shared Add Photos route, so the page records those itself.
+        if (s.id === 'website' || s.id === 'featured') reportError(s.id, message, errStatus(e));
+        failedAny = true;
       }
     }
     setPublishing(false);
+    if (failedAny) health.refresh();
   };
 
   const onPublish = () => {
     if (problems.length) { toast({ title: 'Not yet', description: problems.join(' '), variant: 'destructive' }); return; }
-    if (waOn || igOn) setConfirmOpen(true);
+    if (waOn || igOn || blockers.length) setConfirmOpen(true);
     else runPublish();
   };
 
@@ -635,6 +661,8 @@ export default function PostAPiecePage() {
           </div>
         )}
       </div>
+
+      <HealthPanel health={health} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* ── Left: what goes in ── */}
@@ -887,7 +915,16 @@ export default function PostAPiecePage() {
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="block truncate">{s.label}{s.note ? <span className="text-muted-foreground"> · {s.note}</span> : null}</span>
-                      {s.error && <span className="block text-xs text-destructive">{s.error}</span>}
+                      {s.error && (() => {
+                        const d = diagnose(STEP_WHERE[s.id] ?? 'page', { status: s.errStatus, message: s.error }, dctx);
+                        return (
+                          <span className="block mt-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 space-y-1">
+                            <span className="block text-xs font-semibold text-destructive">{d.title}</span>
+                            <span className="block text-xs">{d.fix}</span>
+                            {d.action && <ActionButton action={d.action} />}
+                          </span>
+                        );
+                      })()}
                     </span>
                     {s.status === 'failed' && !publishing && <button type="button" onClick={() => runPublish(s.id)} className="text-xs text-primary flex items-center gap-1"><RotateCw className="h-3 w-3" /> Retry</button>}
                   </li>
@@ -959,12 +996,18 @@ export default function PostAPiecePage() {
                 {waOn && <p>{waSend === 'story' ? 'The story image' : `${waPhotos().length} photo${waPhotos().length === 1 ? '' : 's'}`} with the caption go{waSend === 'story' ? 'es' : ''} to {community?.name}{community?.size ? ` — ${community.size.toLocaleString()} members` : ''}.</p>}
                 {siteOn && <p>{sitePhotos.length} photo{sitePhotos.length === 1 ? '' : 's'} go{sitePhotos.length === 1 ? 'es' : ''} on {SITE_NAME}.</p>}
                 <p>A post cannot be unsent from here.</p>
+                {blockers.length > 0 && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2.5 space-y-2 text-foreground">
+                    <p className="font-semibold text-destructive">This will probably fail:</p>
+                    {blockers.map(c => <p key={c.id} className="text-xs"><span className="font-medium">{c.label}</span> — {c.fix ?? c.detail}</p>)}
+                  </div>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Not yet</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setConfirmOpen(false); runPublish(); }}>Publish</AlertDialogAction>
+            <AlertDialogAction onClick={() => { setConfirmOpen(false); runPublish(); }}>{blockers.length ? 'Publish anyway' : 'Publish'}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -189,3 +189,39 @@ export async function publishStory(imageUrl: string): Promise<string> {
   }));
   return String(published.id);
 }
+
+// ── For the checks panel ───────────────────────────────────────────────────
+
+export interface InstagramHealth {
+  username: string;
+  daysLeft: number;
+  /** Posts published through the API in the last 24 hours, and the cap. */
+  quota: { used: number; total: number } | null;
+}
+
+/** Is the saved token still good, whose is it, and how much of today's allowance is used? Throws Instagram's own error when the token is bad. */
+export async function instagramHealth(): Promise<InstagramHealth | null> {
+  const conn = await loadConnection();
+  if (!conn) return null;
+  const v = VERSION();
+  const me = await igJson(await fetch(`${GRAPH}/${v}/me?${new URLSearchParams({ fields: 'user_id,username', access_token: conn.token })}`, { signal: AbortSignal.timeout(8000) }));
+  let quota: InstagramHealth['quota'] = null;
+  try {
+    const q = await igJson(await fetch(`${GRAPH}/${v}/${conn.userId}/content_publishing_limit?${new URLSearchParams({ fields: 'quota_usage,config', access_token: conn.token })}`, { signal: AbortSignal.timeout(8000) }));
+    const row = (q.data as Array<{ quota_usage?: number; config?: { quota_total?: number } }> | undefined)?.[0];
+    if (row) quota = { used: Number(row.quota_usage ?? 0), total: Number(row.config?.quota_total ?? 100) };
+  } catch { /* the limit is advice; the token check above is what matters */ }
+  return {
+    username: String(me.username || conn.username),
+    daysLeft: Math.floor((new Date(conn.expiresAt).getTime() - Date.now()) / 86_400_000),
+    quota,
+  };
+}
+
+/** Can this deployment read and add versions to the token secret? (Connect and renewal both need to.) */
+export async function tokenStoreAccess(): Promise<{ read: boolean; write: boolean }> {
+  const res = await sm(':testIamPermissions', { method: 'POST', body: JSON.stringify({ permissions: ['secretmanager.versions.access', 'secretmanager.versions.add'] }) });
+  if (!res.ok) return { read: false, write: false };
+  const granted: string[] = (await res.json()).permissions ?? [];
+  return { read: granted.includes('secretmanager.versions.access'), write: granted.includes('secretmanager.versions.add') };
+}

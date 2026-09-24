@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { publicOrigin } from '@/lib/social/gate';
 import { completeConnection } from '@/lib/social/instagram';
+import { recordError } from '@/lib/social/errors';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
     const conn = await completeConnection(origin, code);
     return back({ instagram: 'connected', username: conn.username });
   } catch (e) {
+    await recordError('instagram-connect', e);
     return back({ instagram: 'error', reason: e instanceof Error ? e.message : 'Could not connect' });
   }
 }

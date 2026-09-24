@@ -136,3 +136,21 @@ export async function generateText(opts: { model?: string; parts: Part[] }): Pro
   });
   return partsOf(data).filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
 }
+
+// ── For the checks panel ───────────────────────────────────────────────────
+
+/** A one-word call to the cheap model: proves the project, the permission and the quota in a second. */
+export async function aiPing(): Promise<void> {
+  await generateText({ model: CHECK_MODEL, parts: [{ text: 'Reply with the single word OK.' }] });
+}
+
+/** Does Vertex still serve the image model by this name? Reads the model card; costs nothing. */
+export async function imageModelServed(): Promise<boolean> {
+  if (!PROJECT) return false;
+  const token = (await (await auth.getClient()).getAccessToken()).token;
+  const res = await fetch(`https://aiplatform.googleapis.com/v1beta1/publishers/google/models/${IMAGE_MODEL}`, {
+    headers: { Authorization: `Bearer ${token}`, 'x-goog-user-project': PROJECT },
+    signal: AbortSignal.timeout(8000),
+  });
+  return res.ok;
+}

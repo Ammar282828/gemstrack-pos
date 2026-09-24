@@ -22,6 +22,7 @@ import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendWhatsAppFileToGroup, whatsAppGroupInfo, WhatsAppNotConfiguredError } from '@/lib/whatsapp';
+import { recordError } from '@/lib/social/errors';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
     }).catch(e => console.warn('[post] could not log the send:', e instanceof Error ? e.message : e));
     return NextResponse.json({ ok: true, idMessage });
   } catch (e) {
+    await recordError('whatsapp', e, { by: who });
     if (e instanceof WhatsAppNotConfiguredError) return NextResponse.json({ error: e.message }, { status: 503 });
     return NextResponse.json({ error: e instanceof Error ? e.message : 'WhatsApp send failed' }, { status: 502 });
   }
