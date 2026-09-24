@@ -78,6 +78,21 @@
         "--strictPort"
       ],
       "port": 5191
+    },
+    {
+      "name": "taheri-site (build)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/ammarmansa/Projects/taheri-site",
+        "run",
+        "preview",
+        "--",
+        "--port",
+        "5185",
+        "--strictPort"
+      ],
+      "port": 5185
     }
   ]
 }
