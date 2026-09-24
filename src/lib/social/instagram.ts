@@ -84,7 +84,7 @@ export const redirectUri = (origin: string) => `${origin.replace(/\/+$/, '')}/ap
 export function authorizeUrl(origin: string, state: string): string {
   const q = new URLSearchParams({
     enable_fb_login: '0',
-    force_authentication: '1',
+    force_reauth: 'true',
     client_id: APP_ID(),
     redirect_uri: redirectUri(origin),
     response_type: 'code',
@@ -104,30 +104,23 @@ async function igJson(res: Response): Promise<Record<string, unknown>> {
 }
 
 /**
- * The code for a short-lived token. The redirect URI must match the one the
- * code was issued against — and Meta's dashboard "might have added a trailing
- * slash" to the registered one (their docs), in which case Instagram binds the
- * code to that form rather than the one in the dialog request. So: the exact
- * URI first, and only on Instagram's redirect_uri complaint, the same URI with
- * the slash toggled. A code that fails validation is not spent.
+ * The code for a short-lived token — once: Instagram spends a code on the first
+ * exchange even when it refuses it, so there is no second try. When this says
+ * "redirect_uri is identical…" while the URIs plainly are, the usual cause is
+ * the secret: INSTAGRAM_APP_SECRET must be the *Instagram* app secret from
+ * "API setup with Instagram login", not the Meta app's secret from Basic
+ * settings (the two look alike; 2026-09-24 was lost to exactly that).
  */
 async function exchangeCode(origin: string, code: string): Promise<Record<string, unknown>> {
-  const exact = redirectUri(origin);
-  const toggled = exact.endsWith('/') ? exact.slice(0, -1) : `${exact}/`;
-  let last: unknown;
-  for (const redirect_uri of [exact, toggled]) {
-    try {
-      return await igJson(await fetch('https://api.instagram.com/oauth/access_token', {
-        method: 'POST',
-        body: new URLSearchParams({ client_id: APP_ID(), client_secret: APP_SECRET(), grant_type: 'authorization_code', redirect_uri, code }),
-      }));
-    } catch (e) {
-      last = e;
-      console.warn(`[instagram] code exchange with ${redirect_uri} refused:`, e instanceof Error ? e.message : e);
-      if (!(e instanceof Error && /redirect_uri/i.test(e.message))) throw e;
-    }
+  try {
+    return await igJson(await fetch('https://api.instagram.com/oauth/access_token', {
+      method: 'POST',
+      body: new URLSearchParams({ client_id: APP_ID(), client_secret: APP_SECRET(), grant_type: 'authorization_code', redirect_uri: redirectUri(origin), code }),
+    }));
+  } catch (e) {
+    console.warn('[instagram] code exchange refused:', e instanceof Error ? e.message : e);
+    throw e;
   }
-  throw last;
 }
 
 /** The code from the redirect → a 60-day token for the approved account, saved. */
