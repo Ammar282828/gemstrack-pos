@@ -105,7 +105,9 @@ GoDaddy API (`A catalogue → 145.79.26.82`; houseofmina.store's DNS stays at Go
 certificate itself; the site is **live over HTTPS** and Mina's Add Photos reads its categories from it — since
 2026-09-23 five, one level, like taheri.shop's (Rings & Bands, Wristwear, Chains & Pendants, Sets, Earrings), each
 offered as one folder `Category/Category`, plus a **Men's** section with four sub-folders (`Men's/Men's Rings`,
-`Men's/Natural Ruby Rings`, `Men's/Men's Chains`, `Men's/Men's Bracelets & Cuffs`). Add Photos names and links to **this house's** website
+`Men's/Natural Ruby Rings`, `Men's/Men's Chains`, `Men's/Men's Bracelets & Cuffs`)), and since 2026-09-24 **Wristwear** with three
+(`Wristwear/Bangle & Ring Sets`, `Wristwear/Bangles & Cuffs`, `Wristwear/Bracelets`; an old `Wristwear/Wristwear` drop is
+sorted by its file name). Add Photos names and links to **this house's** website
 (`NEXT_PUBLIC_STORE_WEBSITE_URL`; a site tree's `path` when it gives one), never a hardcoded taheri.shop.
 `KNOWN_TREE` in the photos route is taheri.shop's folder list and is only ever offered for that origin.
 
