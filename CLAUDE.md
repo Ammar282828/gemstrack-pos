@@ -51,7 +51,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 |---|---|---|
 | `/api/public/quote`, `checkout`, `order/:id` | taheri.shop | prices at today's rate; bank-transfer checkout; the customer's order page (token link) |
 | `/api/public/featured` | taheri.shop | the set of the day (`app_settings/website_featured`), cached 60 s |
-| `/api/public/me` | taheri.shop, Bearer Firebase ID token | the customer's record: profile, favourites, orders (`website_customers/{uid}`) |
+| `/api/public/me` | taheri.shop and (on Mina's POS) catalogue.houseofmina.store, Bearer Firebase ID token of that house's project | the customer's record: profile, favourites, orders (`website_customers/{uid}`). Favourites must be three-part keys (`isPieceKey`): taheri.shop's `Category/Collection/file`, the catalogue's `mina/piece/<handle>` |
 | `/api/website/photos` | POS page Add Photos | relays a photo to `taheri.shop/api/upload.php` with `WEBSITE_UPLOAD_SECRET`; HEIC → JPEG on the way |
 | `/api/website/pieces` | POS page Photo Weights | counter-entered weights (`website_pieces`) for photos with no burned-in label |
 | `/api/website/featured` | Photo Weights / Add Photos | set or clear the set of the day |
@@ -115,6 +115,9 @@ offered as one folder `Category/Category`, plus a **Men's** section with four su
 sorted by its file name). Add Photos names and links to **this house's** website
 (`NEXT_PUBLIC_STORE_WEBSITE_URL`; a site tree's `path` when it gives one), never a hardcoded taheri.shop.
 `KNOWN_TREE` in the photos route is taheri.shop's folder list and is only ever offered for that origin.
+Since 2026-09-25 the catalogue has **customer accounts** like taheri.shop's (Google sign-in on hom-pos's own Firebase
+project; `catalogue.houseofmina.store` added to its authorised domains), talking to Mina's POS `/api/public/me` — no POS
+change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the table above for the key shape).
 
 ## Open items after the reconvergence (2026-09-22)
 
