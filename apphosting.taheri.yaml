@@ -169,8 +169,9 @@ env:
   - variable: INSTAGRAM_APP_ID
     value: "1745196310046317"
     availability: [RUNTIME]
-  # INSTAGRAM_APP_SECRET (secret: instagram-app-secret) goes here once that
-  # secret has an enabled version — declared before, the rollout fails on read.
+  - variable: INSTAGRAM_APP_SECRET
+    secret: instagram-app-secret
+    availability: [RUNTIME]
   - variable: NEXT_PUBLIC_STORE_LINKS_URL
     value: "https://links.taheri.shop"
     availability:
