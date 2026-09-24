@@ -49,7 +49,7 @@ import { STORE_LINKS, STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_WEBSITE_FEATUR
 import { detailsLine, waNumberFromUrl, weightLabel, websiteFileName, whatsappCaption } from '@/lib/social/caption';
 import { PALETTES, STORY_H, STORY_W, canvasToJpeg, loadImage, loadStampFont, stampPhoto, suggestPalette } from '@/lib/social/story';
 import { SCENES, customPrompt, restagePrompt, type Aspect, type CaptionResult, type CheckResult } from '@/lib/social/prompts';
-import { applyPreset, emptyDoc, renderDoc, type Assets, type Bind, type Fields, type TextLayer } from '@/lib/social/editor';
+import { applyPreset, emptyDoc, reflow, renderDoc, type Assets, type Bind, type Fields, type TextLayer } from '@/lib/social/editor';
 import type { Palette } from '@/lib/social/palettes';
 import { StoryEditor, useStoryDoc } from './story-editor';
 import { diagnose, type Where } from '@/lib/social/diagnose';
@@ -465,7 +465,7 @@ export default function PostAPiecePage() {
     if (!hero) throw new Error('Add a photo first');
     const c = document.createElement('canvas');
     c.width = STORY_W; c.height = STORY_H;
-    renderDoc(c.getContext('2d')!, story.doc, fields, assets, aiLettered ? { background: aiLettered.img, hideBound: true } : {});
+    renderDoc(c.getContext('2d')!, reflow(story.doc, fields, assets), fields, assets, aiLettered ? { background: aiLettered.img, hideBound: true } : {});
     return canvasToJpeg(c, 0.93);
   }, [hero, story.doc, fields, assets, aiLettered]);
 

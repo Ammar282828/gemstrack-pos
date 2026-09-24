@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 import { STORY_H, STORY_W } from '@/lib/social/story';
 import { PALETTES, type Palette } from '@/lib/social/palettes';
 import {
-  FONT_LABEL, PRESETS, applyPalette, applyPreset, hitTest, layerBox, moveLayer, newImageLayer, newLayerId, newLinkPill, newShape, newText, newWordmark,
+  FONT_LABEL, PRESETS, applyPalette, applyPreset, hitTest, layerBox, moveLayer, newImageLayer, newLayerId, newLinkPill, newShape, newText, newWordmark, reflow,
   renderDoc, scaleLayer, type Assets, type Bind, type Box, type Fields, type FontKey, type Layer, type PresetId, type ShapeLayer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
 
@@ -133,6 +133,8 @@ export interface StoryEditorProps {
 export function StoryEditor({ api, fields, assets, photos, palette, onPalette, lettered, onField, weightOwnLine, overlay, websiteLabel }: StoryEditorProps) {
   const { toast } = useToast();
   const { doc, change, checkpoint, undo, redo, canUndo, canRedo } = api;
+  // What is on screen: the document with its stacked lines placed for the current words.
+  const view = React.useMemo(() => reflow(doc, fields, assets), [doc, fields, assets]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | 'bg' | null>(null);
@@ -149,8 +151,8 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    renderDoc(c.getContext('2d')!, doc, fields, assets, lettered ? { background: lettered, hideBound: true } : {});
-  }, [doc, fields, assets, lettered]);
+    renderDoc(c.getContext('2d')!, view, fields, assets, lettered ? { background: lettered, hideBound: true } : {});
+  }, [view, fields, assets, lettered]);
 
   // Story pixels → CSS pixels, kept current as the page resizes.
   useEffect(() => {
@@ -161,7 +163,7 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
     return () => ro.disconnect();
   }, []);
 
-  const layer = typeof selected === 'string' && selected !== 'bg' ? doc.layers.find(l => l.id === selected) ?? null : null;
+  const layer = typeof selected === 'string' && selected !== 'bg' ? view.layers.find(l => l.id === selected) ?? null : null;
   const box: Box | null = layer ? layerBox(layer, fields, assets) : null;
 
   const toStory = (e: { clientX: number; clientY: number }) => {
@@ -198,7 +200,7 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
       return;
     }
     if (lettered) { setSelected(null); return; }
-    const hit = hitTest(doc, p.x, p.y, fields, assets);
+    const hit = hitTest(view, p.x, p.y, fields, assets);
     if (hit) {
       setSelected(hit.id);
       drag.current = { mode: 'layer', id: hit.id, sx: p.x, sy: p.y, orig: hit, before: doc };

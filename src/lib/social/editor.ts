@@ -42,6 +42,13 @@ export interface TextLayer extends Base {
   upper: boolean;
   shadow: boolean;
   box: { color: string; radius: number; pad: number } | null;
+  /**
+   * Part of a preset's stack: its top follows the layer above it (plus `gap`)
+   * as the words change length, so a headline that grows to two lines pushes
+   * the weight and details down instead of running into them. Dragging the
+   * layer takes it out of the stack and leaves it where it was put.
+   */
+  flow?: { gap: number };
 }
 export interface MarkLayer extends Base { kind: 'wordmark'; x: number; y: number; width: number; tone: 'dark' | 'light' }
 export interface ShapeLayer extends Base {
@@ -206,9 +213,31 @@ export function hitTest(doc: StoryDoc, px: number, py: number, fields: Fields, a
   return null;
 }
 
-/** Move a layer by (dx, dy) story pixels. */
+/** Move a layer by (dx, dy) story pixels. A moved line leaves its preset's stack and stays where it is put. */
 export function moveLayer(l: Layer, dx: number, dy: number): Layer {
-  return { ...l, x: l.x + dx, y: l.y + dy } as Layer;
+  return (l.kind === 'text' ? { ...l, x: l.x + dx, y: l.y + dy, flow: undefined } : { ...l, x: l.x + dx, y: l.y + dy }) as Layer;
+}
+
+/**
+ * The document as it should look with these words: every stacked line placed
+ * under the one above it. The first line of the stack keeps its own top; an
+ * empty line takes no room. Used for drawing, hit-testing and export alike,
+ * so what is seen is what is posted.
+ */
+export function reflow(doc: StoryDoc, fields: Fields, a: Assets): StoryDoc {
+  let bottom: number | null = null;
+  let changed = false;
+  const layers = doc.layers.map(l => {
+    if (l.kind !== 'text' || !l.flow || l.hidden) return l;
+    const empty = !textOf(l, fields).trim();
+    const y = bottom === null ? l.y : bottom + (empty ? 0 : l.flow.gap);
+    const placed = y === l.y ? l : { ...l, y };
+    if (placed !== l) changed = true;
+    if (!empty) bottom = y + layoutText(mctx(), placed, fields, a.fonts).h;
+    else if (bottom === null) bottom = y;
+    return placed;
+  });
+  return changed ? { ...doc, layers } : doc;
 }
 
 /** Grow or shrink a layer by a factor around its own anchor. */
@@ -385,28 +414,27 @@ export function applyPreset(doc: StoryDoc, preset: PresetId, palette: Palette, f
   const x = center ? 540 : 96;
   const out: Layer[] = [];
   let y = preset === 'bottom' ? 1380 : opts.wordmark ? 300 : 260;
-  const push = (l: TextLayer) => {
-    if (!textOf(l, fields).trim()) { out.push({ ...l, hidden: false }); return; }
-    const b = layerBox(l, fields, a);
-    out.push(l);
-    y = l.y + b.h;
+  // Stacked lines: reflow() keeps each one under the one above as the words change.
+  const push = (l: TextLayer, gap: number) => {
+    const stacked = { ...l, flow: { gap } };
+    out.push(stacked);
+    if (textOf(l, fields).trim()) y = l.y + layerBox(stacked, fields, a).h;
   };
   if (opts.wordmark) out.push(newWordmark(palette.dark));
-  push(text({ bind: 'kicker', x, y, size: 54, font: 'regular', color: palette.body, align }));
-  if (fields.kicker.trim()) y += 6;
-  const headline = text({ bind: 'headline', x, y, size: preset === 'minimal' ? 230 : 210, font: 'condensed', color: palette.headline, align, width: 888, fit: true, lineHeight: 0.92 });
-  push(headline);
+  push(text({ bind: 'kicker', x, y, size: 54, font: 'regular', color: palette.body, align }), 0);
+  const headline = text({ bind: 'headline', x, y: y + (fields.kicker.trim() ? 6 : 0), size: preset === 'minimal' ? 230 : 210, font: 'condensed', color: palette.headline, align, width: 888, fit: true, lineHeight: 0.92 });
+  push(headline, 6);
   if (preset === 'split') {
     // Headline and weight on the left; the details in a right-hand column at the headline's height.
-    push(text({ bind: 'weight', x, y: y + 14, size: 84, font: 'light', color: palette.body, align }));
+    push(text({ bind: 'weight', x, y: y + 14, size: 84, font: 'light', color: palette.body, align }), 14);
     out.push(text({ bind: 'details', x: 984, y: headline.y + 40, size: 42, font: 'regular', color: palette.body, align: 'right', width: 420, lineHeight: 1.25 }));
   } else if (preset !== 'minimal') {
-    if (opts.weightOwnLine) push(text({ bind: 'weight', x, y: y + 14, size: 92, font: 'light', color: palette.body, align }));
-    push(text({ bind: 'details', x, y: y + 24, size: 40, font: 'regular', color: palette.body, align, width: 888 }));
+    if (opts.weightOwnLine) push(text({ bind: 'weight', x, y: y + 14, size: 92, font: 'light', color: palette.body, align }), 14);
+    push(text({ bind: 'details', x, y: y + 24, size: 40, font: 'regular', color: palette.body, align, width: 888 }), 24);
   } else {
-    push(text({ bind: 'weight', x, y: y + 14, size: 92, font: 'light', color: palette.body, align }));
+    push(text({ bind: 'weight', x, y: y + 14, size: 92, font: 'light', color: palette.body, align }), 14);
   }
-  return { ...doc, layers: [...out, ...keep] };
+  return reflow({ ...doc, layers: [...out, ...keep] }, fields, a);
 }
 
 /** Recolour the bound layers and the wordmark to a palette, leaving custom layers alone. */
