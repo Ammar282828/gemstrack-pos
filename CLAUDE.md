@@ -55,6 +55,10 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 | `/api/website/photos` | POS page Add Photos | relays a photo to `taheri.shop/api/upload.php` with `WEBSITE_UPLOAD_SECRET`; HEIC → JPEG on the way |
 | `/api/website/pieces` | POS page Photo Weights | counter-entered weights (`website_pieces`) for photos with no burned-in label |
 | `/api/website/featured` | Photo Weights / Add Photos | set or clear the set of the day |
+| `/api/website/post` | POS page Post a Piece | GET the community's name/size; POST one image + caption to `WHATSAPP_COMMUNITY_CHAT_ID` via Green API (`sendFileByUpload`), logged in `social_posts`. `/convert` turns HEIC into JPEG for the canvas |
+| `/api/website/post/ai` | Post a Piece | Gemini on Vertex (`IMAGE_AI_PROJECT`): `enhance`, `reframe`, `restage`, `letter`, `caption`, `check`. Every image edit is compared with its source ("same piece?"); capped 300 calls/day shop-wide, 60/h per IP |
+| `/api/instagram/status`, `connect`, `callback`, `story` | Post a Piece | Instagram Login OAuth → 60-day token in **Secret Manager** (`instagram-token`, renewed on use), locked to `INSTAGRAM_USERNAME`; `story` publishes a 9:16 JPEG |
+| `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
 | `/api/website/orders/[id]` | POS order page | mark paid / shipped — **always verifies a token, even under open access** |
 
 CORS for `/api/public/*` is in `src/lib/website/cors.ts` (taheri.shop, www, and localhost:5180 in dev).
@@ -140,6 +144,28 @@ sorted by its file name). Add Photos names and links to **this house's** website
   the cart's post-sale screen and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
   own page ("Piece 2 of 3"); discount, exchange, adjustments and paid are shared pro rata by piece price, the last piece
   absorbs rounding, payment history is left off the pieces. The split button is `components/shared/print-button.tsx`.
+- **Post a Piece** (`/website/post`, 2026-09-24): photos + headline + weight → a 1080×1920 Instagram story drawn on a canvas in
+  the shop's story style (photo full bleed, Sofia Sans Extra Condensed 800 headline, Figtree weight/details line
+  `21K Yellow Gold | Stones | 45.350g`, wordmark top-right; `src/lib/social/story.ts`), the WhatsApp caption
+  (`src/lib/social/caption.ts`: the jewelry-post format **without the address**), and the website photo **stamped with the
+  weight** in the overlay tool's geometry (Futura LT Light, `public/fonts/futura-lt-light.woff2`). Stamping, not
+  `website_pieces`, because a just-dropped photo is not in `catalog-attributes.json` yet and `/api/website/pieces` refuses it.
+  Publish sends to the website (Add Photos relay; per-photo Site/WA ticks), set of the day, the Instagram story (when
+  connected) and the community's **announcements group** (`120363360668200388@g.us`, Green API line +92 326 2275554 is
+  admin) after a confirm. The WhatsApp channel is **share-sheet by hand** (owner's choice); Green API documents no channels.
+  **AI** (owner: "extremely advanced", 2026-09-24): Enhance, Extend to 9:16/4:5/1:1, New setting (7 scenes from the shop's own
+  stories + free text), Make it with AI (caption + plan + re-staged 9:16), AI lettering (read back and verified), Write with
+  AI (WhatsApp + Instagram captions; the route rebuilds the caption frame if the model drops the weight or a number).
+  Prompts in `src/lib/social/prompts.ts` follow the nanobanana rules (piece first, never name the metal, avoid-list last).
+  Models: `gemini-3-pro-image` (Nano Banana Pro; the `-preview` name 404s on Vertex now), `gemini-3.1-pro-preview`,
+  `gemini-3.8-flash`. **Billing:** Murtaza's project `jewelgen-mm-e3d43ecb` (owner offered it); this Mac's ADC
+  (potatomasta501) has no access there, so local dev signs AI calls with `IMAGE_AI_CREDENTIALS` =
+  `~/.config/gcloud/legacy_credentials/mmurtaza1970@gmail.com/adc.json` in `.env.development.local`. Production needs
+  `roles/aiplatform.user` for `firebase-app-hosting-compute@gemstrack-pos` on that project. Timings: an image op ≈ 40–65 s
+  incl. the check, captions ≈ 30 s (Cloud Run timeout is 300 s). **Instagram** needs a Meta app (Instagram Login, dev mode,
+  @collectionstaheri as tester), `INSTAGRAM_APP_ID`, secret `instagram-app-secret`, redirect
+  `https://pos.taheri.shop/api/instagram/callback`, and secret `instagram-token` with secretAccessor + secretVersionAdder
+  for the runtime account.
 - Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**
   (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
   value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).

@@ -124,6 +124,53 @@ env:
     availability:
       - BUILD
       - RUNTIME
+
+  # ── Post a Piece (/website/post) ──────────────────────────────────────────
+  # The announcements group of the "Taheri Collections" community (1,042
+  # members; only admins write, and the Green API line +92 326 2275554 is one).
+  # Not a secret — a chat id, read from Green API's getGroupData on 2026-09-24
+  # (isCommunityAnnounce: true). Without it the page has no WhatsApp option.
+  - variable: WHATSAPP_COMMUNITY_CHAT_ID
+    value: "120363360668200388@g.us"
+    availability: [RUNTIME]
+  # The channel has no API this shop can post through; the page links to it
+  # and shares the image + caption by hand.
+  - variable: NEXT_PUBLIC_STORE_WA_CHANNEL_URL
+    value: "https://whatsapp.com/channel/0029VbDHt507tkj3qtiehX0S"
+    availability:
+      - BUILD
+      - RUNTIME
+  # The numbers a post's caption asks customers to write to.
+  - variable: NEXT_PUBLIC_STORE_WHATSAPP_NUMBERS
+    value: "+923352275553, +923262275554"
+    availability:
+      - BUILD
+      - RUNTIME
+  # Post a Piece's AI (Gemini image + text models on Vertex, location global)
+  # bills to Murtaza's "Jewel Gen" project, not this one. That project grants
+  # this backend's service account (firebase-app-hosting-compute@gemstrack-pos)
+  # roles/aiplatform.user; without the grant every AI button answers 403.
+  - variable: IMAGE_AI_PROJECT
+    value: "jewelgen-mm-e3d43ecb"
+    availability: [RUNTIME]
+  # Instagram stories post through "Instagram API with Instagram Login" — the
+  # shop's Meta app, in development mode, with @collectionstaheri as its
+  # Instagram tester. Only that account may be connected (src/lib/social/
+  # instagram.ts). The app secret is in Secret Manager as instagram-app-secret,
+  # readable by the three App Hosting accounts like CRON_SECRET; the token the
+  # app earns on Connect lives in instagram-token, which only the runtime
+  # account can read and add versions to. Redirect URI registered with Meta:
+  # https://pos.taheri.shop/api/instagram/callback
+  # INSTAGRAM_APP_ID is the *Instagram* app id from "API setup with Instagram
+  # login" — not the Meta app id (1075984878628188) at the top of the dashboard.
+  - variable: INSTAGRAM_USERNAME
+    value: "collectionstaheri"
+    availability: [RUNTIME]
+  - variable: INSTAGRAM_APP_ID
+    value: "1745196310046317"
+    availability: [RUNTIME]
+  # INSTAGRAM_APP_SECRET (secret: instagram-app-secret) goes here once that
+  # secret has an enabled version — declared before, the rollout fails on read.
   - variable: NEXT_PUBLIC_STORE_LINKS_URL
     value: "https://links.taheri.shop"
     availability:

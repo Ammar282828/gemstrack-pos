@@ -88,6 +88,55 @@ export async function whatsAppStatus(): Promise<{
   }
 }
 
+// ── Posting to the shop's own groups (Post a Piece) ──────────────────────────
+// A piece goes to the community's announcements group from the same linked
+// number the alerts use. The chat is a group id ("…@g.us") that the caller
+// takes from configuration — never built from anything a request sends — so
+// these can only ever reach the groups the shop has named.
+
+/** Uploads go to the media host, as Green API recommends for sendFileByUpload. */
+const DEFAULT_MEDIA = 'https://media.green-api.com';
+
+/** One file, with the caption under it, to a group. Resolves to Green API's message id. */
+export async function sendWhatsAppFileToGroup(chatId: string, file: Blob, fileName: string, caption = ''): Promise<string> {
+  const creds = credentials();
+  if (!creds) throw new WhatsAppNotConfiguredError();
+  if (!/@g\.us$/.test(chatId)) throw new Error(`Not a group chat id: ${chatId}`);
+  const media = (process.env.GREENAPI_MEDIA_URL || DEFAULT_MEDIA).replace(/\/$/, '');
+  const form = new FormData();
+  form.set('chatId', chatId);
+  form.set('fileName', fileName);
+  form.set('file', file, fileName);
+  // WhatsApp shows a caption under images and caps it at 1024 characters.
+  if (caption) form.set('caption', caption.slice(0, 1024));
+  const res = await fetch(`${media}/waInstance${creds.id}/sendFileByUpload/${creds.token}`, { method: 'POST', body: form });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Green API ${res.status}: ${text.slice(0, 200)}`);
+  let data: { idMessage?: string } = {};
+  try { data = JSON.parse(text); } catch { /* reported below */ }
+  if (!data.idMessage) throw new Error(`Green API did not accept the file: ${text.slice(0, 200)}`);
+  return data.idMessage;
+}
+
+/** A group's name and member count, for saying where a post is about to go. */
+export async function whatsAppGroupInfo(chatId: string): Promise<{ name: string; size: number } | null> {
+  const creds = credentials();
+  if (!creds) return null;
+  try {
+    const res = await fetch(`${creds.base}/waInstance${creds.id}/getGroupData/${creds.token}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupId: chatId }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return { name: String(d?.subject || ''), size: Number(d?.size) || (Array.isArray(d?.participants) ? d.participants.length : 0) };
+  } catch {
+    return null;
+  }
+}
+
 // ── Deep links to the WhatsApp app (client-side) ─────────────────────────────
 // Distinct from sendWhatsAppMessage above, which posts through the bridge.
 // The link-building and Pakistani number normalisation below were previously

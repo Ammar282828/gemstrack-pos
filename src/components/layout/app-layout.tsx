@@ -11,7 +11,7 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, Target, Mic, Scale, ImagePlus, PieChart, Wrench } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, Briefcase, ArchiveRestore, ClipboardList, Calendar, BookUser, CreditCard, FileText, Landmark, History, LogOut, HandCoins, WifiOff, Hammer, Receipt, Package, Coins, Target, Mic, Scale, ImagePlus, PieChart, Wrench, Send } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -82,6 +82,7 @@ const navGroups: NavGroup[] = [
     items: [
       // The website pages exist only for a shop that has one (NEXT_PUBLIC_STORE_WEBSITE_URL).
       ...(STORE_LINKS.website ? ([
+        { staff: true, href: '/website/post', label: 'Post a Piece', icon: <Send /> },
         { staff: true, href: '/website/photos', label: 'Add Photos', icon: <ImagePlus /> },
         ...(STORE_WEBSITE_WEIGHTS ? [{ staff: true, href: '/website/weights', label: 'Photo Weights', icon: <Scale /> }] : []),
       ] as NavItem[]) : []),

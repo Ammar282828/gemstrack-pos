@@ -90,6 +90,8 @@ export const STORE_LINKS = {
   whatsapp:   process.env.NEXT_PUBLIC_STORE_WHATSAPP_URL    ?? '',
   /** The WhatsApp *community* invite, which is not the same as a wa.me chat link. */
   waCommunity: process.env.NEXT_PUBLIC_STORE_WA_COMMUNITY_URL ?? '',
+  /** The shop's WhatsApp channel (whatsapp.com/channel/…). Post a Piece links to it for sharing by hand. */
+  waChannel:  process.env.NEXT_PUBLIC_STORE_WA_CHANNEL_URL  ?? '',
   instagram:  process.env.NEXT_PUBLIC_STORE_INSTAGRAM_URL   ?? '',
   website:    process.env.NEXT_PUBLIC_STORE_WEBSITE_URL     ?? '',
   googleReview: process.env.NEXT_PUBLIC_STORE_GOOGLE_REVIEW_URL ?? '',
@@ -208,3 +210,17 @@ export const STORE_PARTNERSHIP = process.env.NEXT_PUBLIC_STORE_PARTNERSHIP === '
  */
 export const STORE_WEBSITE_WEIGHTS = process.env.NEXT_PUBLIC_STORE_WEBSITE_WEIGHTS !== '0';
 export const STORE_WEBSITE_FEATURED = process.env.NEXT_PUBLIC_STORE_WEBSITE_FEATURED !== '0';
+
+/**
+ * Post a Piece — what a new piece's post says by default.
+ *
+ * The WhatsApp numbers a caption asks customers to write to, comma-separated
+ * and printed as given (Taheri: "+923352275553, +923262275554"). Without the
+ * variable it falls back to the one number in NEXT_PUBLIC_STORE_WHATSAPP_URL.
+ * The metal line starts as this house's usual — 21K for Taheri's gold, 925
+ * for House of Mina's silver — and the counter changes it per piece.
+ */
+export const STORE_WHATSAPP_NUMBERS: string[] = (process.env.NEXT_PUBLIC_STORE_WHATSAPP_NUMBERS ?? '')
+  .split(',').map((n) => n.trim()).filter(Boolean);
+export const STORE_POST_METAL = process.env.NEXT_PUBLIC_STORE_POST_METAL
+  ?? (STORE_CONFIG.defaultMetal === 'silver' ? '925 Sterling Silver' : '21K Yellow Gold');
