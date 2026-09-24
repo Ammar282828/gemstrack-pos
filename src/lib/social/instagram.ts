@@ -103,13 +103,37 @@ async function igJson(res: Response): Promise<Record<string, unknown>> {
   return d;
 }
 
+/**
+ * The code for a short-lived token. The redirect URI must match the one the
+ * code was issued against — and Meta's dashboard "might have added a trailing
+ * slash" to the registered one (their docs), in which case Instagram binds the
+ * code to that form rather than the one in the dialog request. So: the exact
+ * URI first, and only on Instagram's redirect_uri complaint, the same URI with
+ * the slash toggled. A code that fails validation is not spent.
+ */
+async function exchangeCode(origin: string, code: string): Promise<Record<string, unknown>> {
+  const exact = redirectUri(origin);
+  const toggled = exact.endsWith('/') ? exact.slice(0, -1) : `${exact}/`;
+  let last: unknown;
+  for (const redirect_uri of [exact, toggled]) {
+    try {
+      return await igJson(await fetch('https://api.instagram.com/oauth/access_token', {
+        method: 'POST',
+        body: new URLSearchParams({ client_id: APP_ID(), client_secret: APP_SECRET(), grant_type: 'authorization_code', redirect_uri, code }),
+      }));
+    } catch (e) {
+      last = e;
+      console.warn(`[instagram] code exchange with ${redirect_uri} refused:`, e instanceof Error ? e.message : e);
+      if (!(e instanceof Error && /redirect_uri/i.test(e.message))) throw e;
+    }
+  }
+  throw last;
+}
+
 /** The code from the redirect → a 60-day token for the approved account, saved. */
 export async function completeConnection(origin: string, rawCode: string): Promise<Connection> {
   const code = rawCode.replace(/#_$/, '');
-  const short = await igJson(await fetch('https://api.instagram.com/oauth/access_token', {
-    method: 'POST',
-    body: new URLSearchParams({ client_id: APP_ID(), client_secret: APP_SECRET(), grant_type: 'authorization_code', redirect_uri: redirectUri(origin), code }),
-  }));
+  const short = await exchangeCode(origin, code);
   const long = await igJson(await fetch(`${GRAPH}/access_token?${new URLSearchParams({ grant_type: 'ig_exchange_token', client_secret: APP_SECRET(), access_token: String(short.access_token) })}`));
   const token = String(long.access_token);
   const me = await igJson(await fetch(`${GRAPH}/${VERSION()}/me?${new URLSearchParams({ fields: 'user_id,username,account_type', access_token: token })}`));
