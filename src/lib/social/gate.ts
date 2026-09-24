@@ -20,7 +20,18 @@ export async function postGate(req: NextRequest): Promise<string | NextResponse>
   return email;
 }
 
-/** This deployment's public address — what Instagram is sent back to and fetches images from. */
+/** This deployment's public address — where Instagram sends the account holder back after approving. */
 export function publicOrigin(req: NextRequest): string {
   return (STORE_CONFIG.appUrl || req.nextUrl.origin).replace(/\/+$/, '');
+}
+
+/**
+ * Where Instagram's servers fetch a story image from. SOCIAL_MEDIA_ORIGIN is
+ * the backend's own Google address (…hosted.app): it depends on no domain
+ * registry, so a story can still post when the shop's domain can't be
+ * resolved — as on 2026-09-24, when every .shop domain vanished for hours and
+ * Instagram answered "Only photo or video can be accepted as media type".
+ */
+export function mediaOrigin(req: NextRequest): string {
+  return (process.env.SOCIAL_MEDIA_ORIGIN || '').trim().replace(/\/+$/, '') || publicOrigin(req);
 }

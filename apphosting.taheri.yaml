@@ -169,6 +169,11 @@ env:
   - variable: INSTAGRAM_APP_ID
     value: "1745196310046317"
     availability: [RUNTIME]
+  # Where Instagram fetches story images from: the backend's own Google address,
+  # which doesn't depend on the .shop registry (it went dark on 2026-09-24).
+  - variable: SOCIAL_MEDIA_ORIGIN
+    value: "https://studio--gemstrack-pos.us-central1.hosted.app"
+    availability: [RUNTIME]
   # The Meta app itself (its dashboard id) — only for the checks panel's links to
   # the right settings pages.
   - variable: INSTAGRAM_META_APP_ID

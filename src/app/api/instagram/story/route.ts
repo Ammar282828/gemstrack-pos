@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import sharp from 'sharp';
 import { adminDb } from '@/lib/firebase-admin';
-import { postGate, publicOrigin } from '@/lib/social/gate';
+import { postGate, mediaOrigin } from '@/lib/social/gate';
 import { InstagramError, publishStory } from '@/lib/social/instagram';
 import { recordError } from '@/lib/social/errors';
 
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   const ref = adminDb.collection('social_media').doc(id);
   await ref.set({ data: jpeg, contentType: 'image/jpeg', createdAt: new Date().toISOString() });
   try {
-    const mediaId = await publishStory(`${publicOrigin(req)}/api/public/social/${id}`);
+    const mediaId = await publishStory(`${mediaOrigin(req)}/api/public/social/${id}`);
     await adminDb.collection('social_posts').add({ at: new Date().toISOString(), by: who, destination: 'instagram-story', mediaId })
       .catch(e => console.warn('[instagram] could not log the post:', e instanceof Error ? e.message : e));
     return NextResponse.json({ ok: true, mediaId });

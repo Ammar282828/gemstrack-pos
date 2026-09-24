@@ -10,6 +10,9 @@ describe('diagnose — the errors actually seen on 2026-09-24', () => {
     expect(d.fix).toMatch(/Instagram app secret/);
     expect(d.action?.href).toContain('instagram-app-secret');
   });
+  it('reads the "only photo or video" refusal as Instagram failing to fetch the image', () => {
+    expect(diagnose('instagram', 'Only photo or video can be accepted as media type.', ctx).title).toBe('Instagram couldn’t fetch the image');
+  });
   it('says a spent code means connect again', () => {
     expect(diagnose('instagram-connect', 'This authorization code has been used', ctx).fix).toMatch(/Connect Instagram again/);
   });
@@ -53,8 +56,14 @@ describe('diagnose — anything', () => {
   });
   it('the server failing to reach a service names that service', () => {
     expect(diagnose('website', 'fetch failed', ctx).title).toBe('Taheri.shop can’t be reached');
-    expect(diagnose('whatsapp', 'getaddrinfo ENOTFOUND api.green-api.com', ctx).title).toMatch(/Green API/);
+    expect(diagnose('whatsapp', 'getaddrinfo ENOTFOUND api.green-api.com', ctx).title).toBe('api.green-api.com can’t be found by name');
+    expect(diagnose('whatsapp', 'read ECONNRESET', ctx).title).toMatch(/Green API/);
     expect(diagnose('ai', 'timed out', ctx).fix).toMatch(/Retry/);
+  });
+  it('a name that cannot be found points at DNS and the backup address', () => {
+    const d = diagnose('website', 'fetch failed (ENOTFOUND taheri.shop)', ctx);
+    expect(d.title).toBe('taheri.shop can’t be found by name');
+    expect(d.fix).toContain('hosted.app');
   });
   it('an unknown error still says what to do next', () => {
     const d = diagnose('page', 'something odd', ctx);

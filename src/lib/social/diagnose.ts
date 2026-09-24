@@ -44,6 +44,16 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
   if (/failed to fetch|networkerror|network request failed|load failed|err_internet_disconnected/.test(m)) {
     return { title: 'No internet connection', fix: 'This device lost its connection. Check the Wi-Fi or mobile data, then press Retry.', retry: true };
   }
+  // A name that can't be found at all: the domain's DNS. On 2026-09-24 this was the whole
+  // .shop registry going dark for every .shop domain at once — nothing to fix on our side.
+  if (/enotfound|nxdomain|eai_again/.test(m) && where !== 'page') {
+    const host = msg.match(/(?:ENOTFOUND|EAI_AGAIN)\s+([\w.-]+)/i)?.[1] ?? (where.startsWith('instagram') ? 'the POS’s address' : site);
+    return {
+      title: `${host} can’t be found by name`,
+      fix: `The address ${host} isn’t resolving (DNS). If other sites on the same ending (like .shop) are also down, it’s the registry and it will come back by itself — meanwhile use the POS at its backup address, studio--gemstrack-pos.us-central1.hosted.app. If only this domain is down, check it with the registrar (Hostinger).`,
+      retry: true,
+    };
+  }
   // The server's own "couldn't reach it" (Node's fetch), as opposed to the browser's above.
   if (/fetch failed|enotfound|econnrefused|econnreset|etimedout|getaddrinfo|socket hang up|timed out/.test(m) && where !== 'page') {
     const who = where === 'website' || where === 'featured' ? site
@@ -128,7 +138,7 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
       if (/tester|not.*(allowed|authorized) to use|app not active|not available/.test(m)) {
         return { title: 'The account isn’t a tester of the app', fix: `On the Meta dashboard → App roles → Roles, add ${ig} as an Instagram Tester, then accept the invite in Instagram (Settings → Website permissions → Apps and websites → Tester invites).`, action: { label: 'Open App roles', href: meta(c, 'roles/roles/') }, retry: false };
       }
-      if (/media download|could not be fetched|failed to download|9004|image_url/.test(m)) {
+      if (/only photo or video can be accepted|media download|could not be fetched|failed to download|9004|image_url/.test(m)) {
         return { title: 'Instagram couldn’t fetch the image', fix: 'Instagram couldn’t download the story from the POS. Press Retry; if it keeps happening, the POS’s public address is unreachable — open the checks below.', retry: true };
       }
       if (/aspect ratio|36003|unsupported|2207026|2207004|format/.test(m)) {

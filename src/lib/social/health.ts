@@ -38,7 +38,9 @@ async function guard(id: string, group: CheckGroup, label: string, where: Parame
     return { id, group, label, ...(await within(run())) };
   } catch (e) {
     const status = typeof (e as { status?: unknown })?.status === 'number' ? (e as { status: number }).status : undefined;
-    const message = e instanceof Error ? e.message : String(e);
+    // Node's fetch says only "fetch failed"; the reason (ENOTFOUND, ECONNREFUSED, a certificate…) is in its cause.
+    const cause = (e as { cause?: { code?: string; hostname?: string } })?.cause;
+    const message = `${e instanceof Error ? e.message : String(e)}${cause?.code ? ` (${cause.code}${cause.hostname ? ` ${cause.hostname}` : ''})` : ''}`;
     const d = diagnose(where, { status, message }, ctx());
     return { id, group, label, status: 'fail', detail: message.slice(0, 200), fix: d.fix, action: d.action };
   }
@@ -76,6 +78,9 @@ function websiteChecks(): Promise<Check>[] {
 
 function whatsappChecks(): Promise<Check>[] {
   const community = (process.env.WHATSAPP_COMMUNITY_CHAT_ID || '').trim();
+  // One read of the line serves both checks below: Green API rate-limits its methods,
+  // and two reads at once made the second come back empty.
+  const diag = whatsAppDiagnostics(community || undefined);
   return [
     guard('wa-line', 'WhatsApp', 'WhatsApp line is signed in', 'whatsapp', async () => {
       const s = await whatsAppStatus();
@@ -86,7 +91,7 @@ function whatsappChecks(): Promise<Check>[] {
     }),
     guard('wa-community', 'WhatsApp', 'Can post in the community', 'whatsapp', async () => {
       if (!community) return { status: 'off', detail: 'No community is set for this shop (WHATSAPP_COMMUNITY_CHAT_ID), so the page won’t offer WhatsApp.' };
-      const d = await whatsAppDiagnostics(community);
+      const d = await diag;
       if (!d.group) return { status: 'fail', detail: 'The announcements group could not be read.', fix: diagnose('whatsapp', 'chat id not found', ctx()).fix };
       const me = d.phone ? `${d.phone}@c.us` : '';
       if (me && !d.group.admins.includes(me)) {
@@ -95,7 +100,7 @@ function whatsappChecks(): Promise<Check>[] {
       return { status: 'ok', detail: `“${d.group.name}”, ${d.group.size.toLocaleString()} members; the line is an admin.` };
     }),
     guard('wa-queue', 'WhatsApp', 'Nothing stuck waiting to send', 'whatsapp', async () => {
-      const d = await whatsAppDiagnostics();
+      const d = await diag;
       if (d.queued === null) return { status: 'warn', detail: 'Could not read the send queue.' };
       if (d.queued > 3) return { status: 'warn', detail: `${d.queued} messages are waiting to go out.`, fix: 'The phone with the WhatsApp line may be off or without internet. Make sure it’s on and connected; the queue sends by itself once it is.' };
       return { status: 'ok', detail: d.queued ? `${d.queued} waiting — normal while sending.` : 'Queue is empty.' };
@@ -109,7 +114,8 @@ function instagramChecks(): Promise<Check>[] {
   if (!process.env.INSTAGRAM_APP_ID && !process.env.INSTAGRAM_APP_SECRET) {
     return [Promise.resolve({ id: 'ig', group: 'Instagram', label: 'Instagram', status: 'off', detail: 'Instagram isn’t set up for this shop; stories are shared by hand.' })];
   }
-  const origin = (STORE_CONFIG.appUrl || '').replace(/\/+$/, '');
+  // The address Instagram fetches story images from (see mediaOrigin in gate.ts).
+  const origin = ((process.env.SOCIAL_MEDIA_ORIGIN || '').trim() || STORE_CONFIG.appUrl || '').replace(/\/+$/, '');
   return [
     guard('ig-config', 'Instagram', 'Instagram app is set up', 'instagram', async () => instagramConfigured()
       ? { status: 'ok', detail: `Instagram app ${process.env.INSTAGRAM_APP_ID}.` }
@@ -150,9 +156,13 @@ async function aiChecks(fresh: boolean): Promise<Check[]> {
       await aiPing();
       return { status: 'ok', detail: `Vertex AI answered in ${((Date.now() - t) / 1000).toFixed(1)} s (${process.env.IMAGE_AI_PROJECT}).` };
     }),
-    guard('ai-model', 'AI', 'Image model is available', 'ai', async () => (await imageModelServed())
-      ? { status: 'ok', detail: `${IMAGE_MODEL} is served.` }
-      : { status: 'fail', detail: `${IMAGE_MODEL} was not found.`, fix: diagnose('ai', { status: 404, message: 'publisher model' }, ctx()).fix }),
+    guard('ai-model', 'AI', 'Image model is available', 'ai', async () => {
+      const served = await imageModelServed();
+      if (served === true) return { status: 'ok', detail: `${IMAGE_MODEL} is served.` };
+      if (served === 404) return { status: 'fail', detail: `${IMAGE_MODEL} was not found.`, fix: diagnose('ai', { status: 404, message: 'publisher model' }, ctx()).fix };
+      // Reading the model card needs a permission the POS doesn't have to have; posting only needs the model to answer.
+      return { status: 'ok', detail: `${IMAGE_MODEL} is set (its card couldn’t be read, ${served}; the AI answers check above is what counts).` };
+    }),
   ]);
   aiCache = { at: Date.now(), checks };
   return checks;

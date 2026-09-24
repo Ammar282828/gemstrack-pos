@@ -144,13 +144,13 @@ export async function aiPing(): Promise<void> {
   await generateText({ model: CHECK_MODEL, parts: [{ text: 'Reply with the single word OK.' }] });
 }
 
-/** Does Vertex still serve the image model by this name? Reads the model card; costs nothing. */
-export async function imageModelServed(): Promise<boolean> {
-  if (!PROJECT) return false;
+/** Does Vertex still serve the image model by this name? Reads the model card; costs nothing. true, or the HTTP status it got. */
+export async function imageModelServed(): Promise<true | number> {
+  if (!PROJECT) return 0;
   const token = (await (await auth.getClient()).getAccessToken()).token;
   const res = await fetch(`https://aiplatform.googleapis.com/v1beta1/publishers/google/models/${IMAGE_MODEL}`, {
     headers: { Authorization: `Bearer ${token}`, 'x-goog-user-project': PROJECT },
     signal: AbortSignal.timeout(8000),
   });
-  return res.ok;
+  return res.ok ? true : res.status;
 }
