@@ -95,6 +95,23 @@ export function restagePrompt(scene: string, aspect: Aspect): string {
   ].filter(Boolean).join(' ');
 }
 
+/**
+ * Anything the counter asks for in their own words ("put it on a marble tray
+ * with white roses", "remove the hand", "warmer light"). The piece-first rule
+ * and the avoid-list still wrap it, so a free request can't redesign the piece
+ * by accident; the full prompt is shown on the page and can be edited outright.
+ */
+export function customPrompt(instruction: string, aspect: Aspect | null): string {
+  return [
+    FIDELITY,
+    `Now do this to the photograph: ${instruction.trim().replace(/\.?$/, '.')}`,
+    'Change only what is asked; everything else stays as it is.',
+    aspect ? `Output a ${aspect} frame.${storyRoom(aspect)}` : 'Keep the same framing and shape.',
+    'Photorealistic and colour-accurate.',
+    AVOID,
+  ].join(' ');
+}
+
 export interface LetteringText {
   kicker: string;
   headline: string;
@@ -103,6 +120,8 @@ export interface LetteringText {
   headlineColour: string;
   bodyColour: string;
   align: 'left' | 'center';
+  /** The counter's own words on the look ("gold foil serif, elegant"); overrides the house faces. */
+  style?: string;
 }
 
 /** For the AI-lettered story: the typography only, on an image that already has the scene. */
@@ -116,9 +135,10 @@ export function letteringPrompt(t: LetteringText): string {
   return [
     'Add typography to this Instagram story image, the way a luxury jeweller’s story is lettered. Keep the photograph and the jewellery exactly as they are — change nothing but adding the text.',
     `In the calm top third, ${t.align === 'center' ? 'centred' : 'left-aligned with a generous margin'}, set: ${lines.join('; ')}.`,
+    t.style?.trim() ? `Lettering style, which takes precedence over the faces named above: ${t.style.trim()}.` : '',
     'Spell every word and number exactly as given, character for character. Crisp, flat, perfectly legible lettering with no effects, no outlines and no shadows.',
     'Avoid: any other text, logos, watermarks, changes to the jewellery.',
-  ].join(' ');
+  ].filter(Boolean).join(' ');
 }
 
 // ── Text: the caption and the plan for a story ─────────────────────────────
@@ -136,6 +156,8 @@ export interface CaptionFacts {
   /** Scene ids the plan may choose from. */
   scenes: { id: string; label: string; suits: string }[];
   palettes: { id: string; label: string }[];
+  /** The counter's description of the story they want, if any. */
+  brief?: string;
 }
 
 export function captionSystem(shop: string): string {
@@ -173,10 +195,13 @@ Return:
   blank line, then an italic line of stones · occasion · feeling, e.g. _Rubies & pearls · festive evenings · heirloom_
   blank line, then *Ask for today's price:* on its own line, then "💬 WhatsApp: " followed by the numbers exactly as given, then (if a link was given) "🌐 See it at *<link>*".
 - instagramCaption: a short feed caption: the piece and its facts in one line, one line of feeling, "Ask for today's price on WhatsApp — <first number>", the link if given, then four to six hashtags from #taheri #taheridiamonds #karachijewellery #goldjewellerykarachi #pakistanijewellery and one for the piece type.
+- sceneBrief: ${f.brief?.trim() ? 'one sentence describing the setting to photograph the piece in, following the brief below' : '""'} (plain scene description only — surface, props, light; no text, no people's faces).
 - sceneId: the best backdrop for this piece's story from: ${f.scenes.map(s => `${s.id} (${s.label}; suits ${s.suits})`).join('; ')}.
 - paletteId: the lettering colours that will read best and suit the scene, from: ${f.palettes.map(p => `${p.id} (${p.label})`).join(', ')}.
 - align: "left" or "center".
-- weightOwnLine: true to show the weight large under the headline, false to put it in the small details line.`;
+- weightOwnLine: true to show the weight large under the headline, false to put it in the small details line.${f.brief?.trim() ? `
+
+The counter's brief for this story — follow it for the headline, the words and the setting where it does not conflict with the hard rules: "${f.brief.trim().slice(0, 500)}"` : ''}`;
 }
 
 /** Vertex response schema for the caption call (uppercase OpenAPI types). */
@@ -189,12 +214,13 @@ export const CAPTION_SCHEMA = {
     hook: { type: 'STRING' },
     whatsappCaption: { type: 'STRING' },
     instagramCaption: { type: 'STRING' },
+    sceneBrief: { type: 'STRING' },
     sceneId: { type: 'STRING' },
     paletteId: { type: 'STRING' },
     align: { type: 'STRING', enum: ['left', 'center'] },
     weightOwnLine: { type: 'BOOLEAN' },
   },
-  required: ['headlines', 'kicker', 'stonesSeen', 'hook', 'whatsappCaption', 'instagramCaption', 'sceneId', 'paletteId', 'align', 'weightOwnLine'],
+  required: ['headlines', 'kicker', 'stonesSeen', 'hook', 'whatsappCaption', 'instagramCaption', 'sceneBrief', 'sceneId', 'paletteId', 'align', 'weightOwnLine'],
 };
 
 export interface CaptionResult {
@@ -204,6 +230,7 @@ export interface CaptionResult {
   hook: string;
   whatsappCaption: string;
   instagramCaption: string;
+  sceneBrief: string;
   sceneId: string;
   paletteId: string;
   align: 'left' | 'center';

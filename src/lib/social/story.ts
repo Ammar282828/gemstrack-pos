@@ -126,14 +126,15 @@ export function suggestPalette(photo: StoryOptions['photo'], placement: Placemen
   c.width = STORY_W / 4; c.height = STORY_H / 4;
   const ctx = c.getContext('2d', { willReadFrequently: true })!;
   ctx.scale(0.25, 0.25);
-  drawPhoto(ctx, photo, placement);
+  drawStoryPhoto(ctx, photo, placement);
   const lum = regionLuminance(ctx, 0, (STORY_H * 0.1) / 4, c.width, (STORY_H * 0.25) / 4);
   return lum > 150 ? PALETTES[0] : lum > 95 ? PALETTES[3] : PALETTES[4];
 }
 
 // ── Drawing ────────────────────────────────────────────────────────────────
 
-function drawPhoto(ctx: CanvasRenderingContext2D, photo: StoryOptions['photo'], p: Placement) {
+/** The background photo, placed: filled and cropped, or shown whole on its own blurred light. */
+export function drawStoryPhoto(ctx: CanvasRenderingContext2D, photo: StoryOptions['photo'], p: Placement) {
   const iw = photo.width, ih = photo.height;
   if (!iw || !ih) return;
   const cover = Math.max(STORY_W / iw, STORY_H / ih);
@@ -209,7 +210,7 @@ export function drawStory(ctx: CanvasRenderingContext2D, o: StoryOptions): void 
   ctx.clearRect(0, 0, STORY_W, STORY_H);
   ctx.fillStyle = '#EDE6DA';
   ctx.fillRect(0, 0, STORY_W, STORY_H);
-  drawPhoto(ctx, o.photo, o.placement);
+  drawStoryPhoto(ctx, o.photo, o.placement);
 
   const { text, palette, fonts } = o;
   const left = text.align === 'left';

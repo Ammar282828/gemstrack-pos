@@ -1000,9 +1000,9 @@
     "semantic_hash": ""
   },
   ".claude/launch.json": {
-    "mtime": 1790148627.7609966,
-    "seen": 1790149297.484951,
-    "ast_hash": "88fa23eda0f8bc172e66e2faebe4e501",
+    "mtime": 1790278762.8611825,
+    "seen": 1790278971.108135,
+    "ast_hash": "55f5fbce0aec3ab6d4e98dfdde60d41d",
     "semantic_hash": ""
   },
   ".claude/settings.json": {
@@ -3310,9 +3310,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790277596.6159604,
-    "seen": 1790277638.697332,
-    "ast_hash": "8b26098ebf6b2a0a19939d6e1a249ca9",
+    "mtime": 1790278964.443312,
+    "seen": 1790278971.108416,
+    "ast_hash": "c08b4b3345c1366e3b0ffbe65eba48a5",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3454,9 +3454,9 @@
     "semantic_hash": ""
   },
   "apphosting.taheri.yaml": {
-    "mtime": 1790277434.5343633,
-    "seen": 1790277638.697334,
-    "ast_hash": "fccbb41e5a49a123ec364caafdc31cd8",
+    "mtime": 1790278561.7339733,
+    "seen": 1790278971.108418,
+    "ast_hash": "889638d82648ac2be433799d1fe84596",
     "semantic_hash": ""
   },
   "src/lib/recents.ts": {
@@ -3646,9 +3646,9 @@
     "semantic_hash": ""
   },
   "src/app/website/post/page.tsx": {
-    "mtime": 1790277516.3516045,
-    "seen": 1790277638.697216,
-    "ast_hash": "af14597f07246e2d57babeb7b79939d4",
+    "mtime": 1790278589.6453986,
+    "seen": 1790278971.108302,
+    "ast_hash": "7bec5561f6339f10800a22278588055b",
     "semantic_hash": ""
   },
   "src/lib/social/caption.test.ts": {
@@ -3664,9 +3664,9 @@
     "semantic_hash": ""
   },
   "src/lib/social/story.ts": {
-    "mtime": 1790272956.9185138,
-    "seen": 1790273612.8716822,
-    "ast_hash": "969076267f8f86fbd3ae9392592b036d",
+    "mtime": 1790278589.6456664,
+    "seen": 1790278971.1083882,
+    "ast_hash": "f12104ed640f11b7dbd1ffcd59ae454d",
     "semantic_hash": ""
   },
   "output/imagegen/mina-catalogue-2026-09-23/final/locket-IMG_5860.png": {
@@ -3982,9 +3982,9 @@
     "semantic_hash": ""
   },
   "src/app/api/instagram/story/route.ts": {
-    "mtime": 1790277434.5338116,
-    "seen": 1790277638.697155,
-    "ast_hash": "96f1e05f517b7e305f44be0239b55c74",
+    "mtime": 1790278561.7333937,
+    "seen": 1790278971.108242,
+    "ast_hash": "a6a788b774eaae752f46b885ec4c1de7",
     "semantic_hash": ""
   },
   "src/app/api/public/social/[id]/route.ts": {
@@ -3994,21 +3994,21 @@
     "semantic_hash": ""
   },
   "src/app/api/website/post/ai/route.ts": {
-    "mtime": 1790277434.5331907,
-    "seen": 1790277638.697182,
-    "ast_hash": "8990c464d5e417aa91712dc2ae79761c",
+    "mtime": 1790278589.6451862,
+    "seen": 1790278971.108269,
+    "ast_hash": "bd657abac6d8184edb406b40c4551600",
     "semantic_hash": ""
   },
   "src/lib/social/ai.ts": {
-    "mtime": 1790277360.0710523,
-    "seen": 1790277638.697296,
-    "ast_hash": "1aeb13c6e00d3d49e851aaf999432c91",
+    "mtime": 1790278508.3874447,
+    "seen": 1790278971.1083798,
+    "ast_hash": "893cb55f7f8b54f77ee70383b8eaae51",
     "semantic_hash": ""
   },
   "src/lib/social/gate.ts": {
-    "mtime": 1790273143.0030725,
-    "seen": 1790273612.871679,
-    "ast_hash": "9943e3fa3652660537a034bb33064c3d",
+    "mtime": 1790278561.7332592,
+    "seen": 1790278971.108384,
+    "ast_hash": "95e700afdeccaee3c400671ec47c375b",
     "semantic_hash": ""
   },
   "src/lib/social/instagram.ts": {
@@ -4030,9 +4030,9 @@
     "semantic_hash": ""
   },
   "src/lib/social/prompts.ts": {
-    "mtime": 1790273576.2031233,
-    "seen": 1790273612.8716822,
-    "ast_hash": "4ce32418d796d426476dab2e58cc7dee",
+    "mtime": 1790278589.6455483,
+    "seen": 1790278971.108387,
+    "ast_hash": "ddd4b0a0351ae1f67993306de6ccc441",
     "semantic_hash": ""
   },
   "src/app/api/website/post/health/route.ts": {
@@ -4048,15 +4048,15 @@
     "semantic_hash": ""
   },
   "src/lib/social/diagnose.test.ts": {
-    "mtime": 1790277580.6602998,
-    "seen": 1790277638.6972969,
-    "ast_hash": "886f7e6ead2afd2cb2df34e086a66264",
+    "mtime": 1790278570.9245539,
+    "seen": 1790278971.108382,
+    "ast_hash": "e59a9657b7afdf39f35dd52f00816cc1",
     "semantic_hash": ""
   },
   "src/lib/social/diagnose.ts": {
-    "mtime": 1790277576.9674125,
-    "seen": 1790277638.6972978,
-    "ast_hash": "da6206763931d05b4c2e2840db469c99",
+    "mtime": 1790278561.7335668,
+    "seen": 1790278971.108383,
+    "ast_hash": "978f37f684a1a7dc44cd49a74c2cc5d1",
     "semantic_hash": ""
   },
   "src/lib/social/errors.ts": {
@@ -4066,9 +4066,21 @@
     "semantic_hash": ""
   },
   "src/lib/social/health.ts": {
-    "mtime": 1790277408.9392276,
-    "seen": 1790277638.6973,
-    "ast_hash": "dd996789e0e39cf4cc08108a2ada1c85",
+    "mtime": 1790278561.7334757,
+    "seen": 1790278971.108385,
+    "ast_hash": "ed07c7b3b05292e26e1a15e389c0f564",
+    "semantic_hash": ""
+  },
+  "src/app/website/post/story-editor.tsx": {
+    "mtime": 1790278130.426232,
+    "seen": 1790278971.108303,
+    "ast_hash": "fb9055419f1fbb311b8b926aca0bd2f9",
+    "semantic_hash": ""
+  },
+  "src/lib/social/editor.ts": {
+    "mtime": 1790277916.860859,
+    "seen": 1790278971.108383,
+    "ast_hash": "7dbd836b608c02909e5e06d2fa069a1d",
     "semantic_hash": ""
   }
 }

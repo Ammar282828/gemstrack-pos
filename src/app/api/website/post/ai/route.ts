@@ -30,7 +30,7 @@ import { rateLimit, callerKey } from '@/lib/website/ratelimit';
 import { AiError, CHECK_MODEL, aiConfigured, generateImage, generateJson, generateText, prepareImage, type InlineImage } from '@/lib/social/ai';
 import {
   ASPECTS, CAPTION_SCHEMA, CHECK_PROMPT, CHECK_SCHEMA, CHECK_SYSTEM, READ_PROMPT, SCENES,
-  captionSystem, captionUserPrompt, enhancePrompt, letteringPrompt, nearestAspect, reframePrompt, restagePrompt, sameText,
+  captionSystem, captionUserPrompt, customPrompt, enhancePrompt, letteringPrompt, nearestAspect, reframePrompt, restagePrompt, sameText,
   type Aspect, type CaptionResult, type CheckResult, type LetteringText,
 } from '@/lib/social/prompts';
 import { whatsappCaption } from '@/lib/social/caption';
@@ -108,13 +108,22 @@ export async function POST(req: NextRequest) {
     switch (op) {
       case 'enhance':
       case 'reframe':
-      case 'restage': {
+      case 'restage':
+      case 'custom': {
         need(1);
         const meta = await sharp(Buffer.from(images[0].data, 'base64')).metadata();
         const own = nearestAspect(meta.width || 1, meta.height || 1);
-        const aspect = op === 'enhance' ? own : aspectOf(params.aspect, '9:16');
+        // 'custom' keeps the photo's own shape unless a shape is asked for.
+        const aspect = op === 'enhance' || (op === 'custom' && !params.aspect) ? own : aspectOf(params.aspect, '9:16');
+        // The counter may edit the whole prompt on the page; theirs is used as written.
+        const raw = String(params.rawPrompt || '').trim().slice(0, 4000);
         let prompt: string;
-        if (op === 'enhance') prompt = enhancePrompt({ tidy });
+        if (raw) prompt = raw;
+        else if (op === 'custom') {
+          const instruction = String(params.instruction || '').trim().slice(0, 1000);
+          if (!instruction) throw new AiError('Say what you want changed.', 400);
+          prompt = customPrompt(instruction, params.aspect ? aspect : null);
+        } else if (op === 'enhance') prompt = enhancePrompt({ tidy });
         else if (op === 'reframe') prompt = reframePrompt(aspect, tidy);
         else {
           const custom = String(params.scene || '').trim().slice(0, 400);
@@ -151,6 +160,7 @@ export async function POST(req: NextRequest) {
             headline: String(facts.headline || ''), weight: String(facts.weight || ''), metal: String(facts.metal || ''),
             stones: String(facts.stones || ''), collection: String(facts.collection || ''), numbers, link: String(facts.link || ''),
             scenes: SCENES, palettes: PALETTES.map(p => ({ id: p.id, label: p.label })),
+            brief: String(facts.brief || '').slice(0, 500),
           }) }],
           schema: CAPTION_SCHEMA,
         });

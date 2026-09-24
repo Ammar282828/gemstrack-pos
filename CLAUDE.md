@@ -178,6 +178,17 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   from setup pinned in tests. Failures are logged to Firestore `social_errors` (server routes log their own; the page
   reports website/featured failures). The panel sits atop the page; the publish confirm lists failing checks for the
   chosen destinations. Locally the website checks fail — this Mac can't resolve taheri.shop — not a real outage.
+- **Story editor** (2026-09-25, owner: "a lot more features and freedom in prompts and positions"): the story is a layer
+  document (`src/lib/social/editor.ts`: text bound to the piece's fields or free, wordmark, arrow/line/circle/box, photo
+  insets; presets Left stack / Centred / Split / Bottom / Headline only; fonts condensed, Figtree 300/400/700, Bodoni Moda,
+  Futura) edited in `src/app/website/post/story-editor.tsx` (tap to select, drag, corner to resize, top dot to rotate,
+  pinch, centre/margin snapping, undo/redo, layouts saved per device). AI prompts: Ask AI (free instruction, op `custom`),
+  every prompt editable before sending (`rawPrompt`), a brief for Make it with AI (`sceneBrief`), a style for AI lettering.
+  **Instagram music:** the API can't add music; Share story opens Instagram's own editor for the music sticker. A video
+  story with a licensed track baked in was offered, not built (owner to choose).
+- **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).
+  The POS stayed usable at **https://studio--gemstrack-pos.us-central1.hosted.app** (App Hosting's own address; open access,
+  data loads). Instagram fetches story images from `SOCIAL_MEDIA_ORIGIN` (that address) so posting never depends on .shop.
 - Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**
   (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
   value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).

@@ -28,14 +28,13 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Sofia_Sans_Extra_Condensed, Figtree } from 'next/font/google';
+import { Sofia_Sans_Extra_Condensed, Figtree, Bodoni_Moda } from 'next/font/google';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -43,19 +42,24 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useToast } from '@/hooks/use-toast';
 import {
   Send, ImagePlus, Camera, X, Star, Loader2, Check, RotateCw, Share2, Download, Copy, ExternalLink, Instagram,
-  MessageCircle, Globe, Sparkles, Wand2, Expand, Palette as PaletteIcon, Type, ShieldCheck, ShieldAlert, Link2,
+  MessageCircle, Globe, Sparkles, Wand2, Expand, Palette as PaletteIcon, Type, ShieldCheck, ShieldAlert, Link2, MessageSquareText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_LINKS, STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL } from '@/lib/store-config';
 import { detailsLine, waNumberFromUrl, weightLabel, websiteFileName, whatsappCaption } from '@/lib/social/caption';
-import { PALETTES, STORY_H, STORY_W, drawStory, loadImage, loadStoryFonts, renderStoryJpeg, stampPhoto, suggestPalette, type Placement } from '@/lib/social/story';
-import { SCENES, type Aspect, type CaptionResult, type CheckResult } from '@/lib/social/prompts';
+import { PALETTES, STORY_H, STORY_W, canvasToJpeg, loadImage, loadStampFont, stampPhoto, suggestPalette } from '@/lib/social/story';
+import { SCENES, customPrompt, restagePrompt, type Aspect, type CaptionResult, type CheckResult } from '@/lib/social/prompts';
+import { applyPreset, emptyDoc, renderDoc, type Assets, type Bind, type Fields, type TextLayer } from '@/lib/social/editor';
+import type { Palette } from '@/lib/social/palettes';
+import { StoryEditor, useStoryDoc } from './story-editor';
 import { diagnose, type Where } from '@/lib/social/diagnose';
 import { HealthPanel, useHealth, reportError, ActionButton, type Check as HealthCheck } from './health-panel';
 
 const headlineFace = Sofia_Sans_Extra_Condensed({ subsets: ['latin'], weight: ['800'], display: 'swap' });
-const bodyFace = Figtree({ subsets: ['latin'], weight: ['300', '400'], display: 'swap' });
-const FONTS = { headline: headlineFace.style.fontFamily, body: bodyFace.style.fontFamily };
+const bodyFace = Figtree({ subsets: ['latin'], weight: ['300', '400', '700'], display: 'swap' });
+const serifFace = Bodoni_Moda({ subsets: ['latin'], weight: ['400', '500'], style: ['normal', 'italic'], display: 'swap' });
+const FONTS = { headline: headlineFace.style.fontFamily, body: bodyFace.style.fontFamily, serif: serifFace.style.fontFamily };
+const FILL = { mode: 'fill' as const, zoom: 1, focusX: 0.5, focusY: 0.5 };
 
 const SITE = (STORE_LINKS.website || '').replace(/\/+$/, '');
 const SITE_NAME = SITE.replace(/^https?:\/\//, '');
@@ -147,7 +151,6 @@ export default function PostAPiecePage() {
 
   // ── What the counter enters ──
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [heroId, setHeroId] = useState<string | null>(null);
   const [reading, setReading] = useState(0);
   const [kicker, setKicker] = useState('');
   const [headline, setHeadline] = useState('');
@@ -157,14 +160,13 @@ export default function PostAPiecePage() {
   const [stones, setStones] = useState('');
   const [hook, setHook] = useState('');
 
-  // ── The story's look ──
-  const [placement, setPlacement] = useState<Placement>({ mode: 'fill', zoom: 1, focusX: 0.5, focusY: 0.5 });
-  const [paletteId, setPaletteId] = useState<string | null>(null); // null = pick from the photo
-  const [align, setAlign] = useState<'left' | 'center'>('left');
+  // ── The story: a document of layers (see story-editor.tsx); its background photo is the story photo ──
+  const story = useStoryDoc(emptyDoc(null));
+  const [palette, setPalette] = useState<Palette>(PALETTES[0]);
   const [weightOwnLine, setWeightOwnLine] = useState(true);
-  const [showMark, setShowMark] = useState(true);
   const [lettering, setLettering] = useState<'ours' | 'ai'>('ours');
   const [lettered, setLettered] = useState<Lettered | null>(null);
+  const [letterStyle, setLetterStyle] = useState('');
 
   // ── AI ──
   const [aiBusy, setAiBusy] = useState<Record<string, string>>({}); // key → what it is doing
@@ -172,7 +174,13 @@ export default function PostAPiecePage() {
   const [restageFor, setRestageFor] = useState<{ photoId: string; aspect: Aspect } | null>(null);
   const [sceneId, setSceneId] = useState(SCENES[0].id);
   const [customScene, setCustomScene] = useState('');
+  const [restagePromptText, setRestagePromptText] = useState<string | null>(null); // edited by hand, else null
   const [tidy, setTidy] = useState(true);
+  const [askFor, setAskFor] = useState<{ photoId: string; aspect: Aspect | null } | null>(null);
+  const [askText, setAskText] = useState('');
+  const [askPromptText, setAskPromptText] = useState<string | null>(null);
+  const [wholeOpen, setWholeOpen] = useState(false);
+  const [wholeBrief, setWholeBrief] = useState('');
 
   // ── Where it goes ──
   const [collections, setCollections] = useState<Collection[] | null>(null);
@@ -195,27 +203,36 @@ export default function PostAPiecePage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
   const [publishing, setPublishing] = useState(false);
-  const [storyBlob, setStoryBlob] = useState<Blob | null>(null);
   const uploadedRef = useRef<Record<string, string>>({});   // photo id → website rel, so a retry never uploads twice
   const sentRef = useRef<Record<string, boolean>>({});        // WhatsApp message key → sent
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [marks, setMarks] = useState<{ dark: HTMLImageElement; light: HTMLImageElement } | null>(null);
   const [fontsReady, setFontsReady] = useState(false);
 
-  const hero = photos.find(p => p.id === heroId) ?? photos[0] ?? null;
+  const hero = photos.find(p => p.id === story.doc.bg.photoId) ?? photos[0] ?? null;
+  /** Make a photo the story's background (and so the lead photo everywhere). */
+  const setHeroId = (id: string | null) => story.change(d => ({ ...d, bg: { ...d.bg, photoId: id, placement: FILL } }), { key: 'hero' });
   const chosen = collections?.find(c => c.folder === folder);
   const link = collectionUrl(toWebsite ? chosen : undefined);
   const piece = useMemo(() => ({ headline, kicker, weight, weightEach, metal, stones, hook }), [headline, kicker, weight, weightEach, metal, stones, hook]);
   const wLabel = weightLabel(piece);
+  // The details line carries the weight only when the story has no weight line of its own.
+  const weightShown = story.doc.layers.some(l => l.kind === 'text' && l.bind === 'weight' && !l.hidden);
+  const fields: Fields = useMemo(() => ({ kicker, headline, weight: wLabel, details: detailsLine(piece, !weightShown) }), [kicker, headline, wLabel, piece, weightShown]);
+  const assets: Assets = useMemo(() => ({ photos: Object.fromEntries(photos.map(p => [p.id, p.img])), wordmark: marks, fonts: FONTS }), [photos, marks]);
   const busyAny = Object.keys(aiBusy).length > 0;
   const setBusy = (key: string, what: string | null) => setAiBusy(prev => { const n = { ...prev }; if (what) n[key] = what; else delete n[key]; return n; });
 
   // ── Loading what the page needs ──
   useEffect(() => {
-    loadStoryFonts(FONTS).then(() => setFontsReady(true));
+    Promise.all([
+      document.fonts.load(`800 100px ${FONTS.headline}`), document.fonts.load(`300 40px ${FONTS.body}`),
+      document.fonts.load(`400 40px ${FONTS.body}`), document.fonts.load(`700 40px ${FONTS.body}`),
+      document.fonts.load(`500 40px ${FONTS.serif}`), document.fonts.load(`italic 400 40px ${FONTS.serif}`),
+      loadStampFont(),
+    ]).catch(() => undefined).then(() => setFontsReady(true));
     Promise.all([loadImage(STORE_LOGO_URL), loadImage(STORE_LOGO_LIGHT_URL)])
       .then(([dark, light]) => setMarks({ dark, light }))
       .catch(() => setMarks(null));
@@ -268,31 +285,21 @@ export default function PostAPiecePage() {
     setCaption(headline.trim() ? whatsappCaption(piece, { whatsappNumbers: NUMBERS, link }) : '');
   }, [piece, link, captionEdited, headline]);
 
-  const palette = useMemo(() => {
-    if (paletteId) return PALETTES.find(p => p.id === paletteId) ?? PALETTES[0];
-    return hero ? suggestPalette(hero.img, placement) : PALETTES[0];
-  }, [paletteId, hero, placement]);
-
-  // With AI lettering on and made for this photo, the story IS that image; our text stays off it.
-  const aiLettered = lettering === 'ai' && lettered && hero && lettered.forId === hero.id ? lettered : null;
-  const storyOptions = useMemo(() => hero ? {
-    photo: aiLettered ? aiLettered.img : hero.img,
-    placement: aiLettered ? { mode: 'fill' as const, zoom: 1, focusX: 0.5, focusY: 0.5 } : placement,
-    palette,
-    fonts: FONTS,
-    wordmark: showMark ? marks : null,
-    text: aiLettered
-      ? { kicker: '', headline: '', weight: '', weightOwnLine: false, details: '', align }
-      : { kicker, headline, weight: wLabel, weightOwnLine, details: detailsLine(piece, !weightOwnLine), align },
-  } : null, [hero, aiLettered, placement, palette, showMark, marks, kicker, headline, wLabel, weightOwnLine, piece, align]);
-
-  // Redraw the preview whenever anything that shows in it changes.
+  // The first photo starts the story in the shop's usual layout, coloured for that photo.
   useEffect(() => {
-    const c = canvasRef.current;
-    if (!c || !storyOptions) return;
-    drawStory(c.getContext('2d')!, storyOptions);
-    setStoryBlob(null);
-  }, [storyOptions, fontsReady]);
+    if (!fontsReady || !photos.length || story.doc.layers.length || story.doc.bg.photoId) return;
+    const first = photos[0];
+    const p = suggestPalette(first.img, FILL);
+    setPalette(p);
+    story.reset(applyPreset(emptyDoc(first.id), 'stack-left', p, fields, assets, { weightOwnLine: true, wordmark: true }));
+  }, [fontsReady, photos, story, fields, assets]);
+  // A removed story photo hands over to the first one left.
+  useEffect(() => {
+    if (story.doc.bg.photoId && !photos.some(p => p.id === story.doc.bg.photoId)) setHeroId(photos[0]?.id ?? null);
+  }, [photos, story.doc.bg.photoId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // With AI lettering on and made for this photo, the story IS that image; our bound text stays off it.
+  const aiLettered = lettering === 'ai' && lettered && hero && lettered.forId === hero.id ? lettered : null;
 
   // ── Photos ──
   const addFiles = useCallback(async (files: FileList | File[]) => {
@@ -303,7 +310,6 @@ export default function PostAPiecePage() {
       try {
         const p = await readPhoto(f);
         setPhotos(prev => [...prev, p]);
-        setHeroId(h => h ?? p.id);
       } catch (e) {
         toast({ title: 'Could not read a photo', description: e instanceof Error ? e.message : f.name, variant: 'destructive' });
       } finally {
@@ -314,7 +320,6 @@ export default function PostAPiecePage() {
 
   const removePhoto = (id: string) => {
     setPhotos(prev => { prev.filter(p => p.id === id).forEach(p => URL.revokeObjectURL(p.url)); return prev.filter(p => p.id !== id); });
-    if (heroId === id) setHeroId(null);
   };
   const patchPhoto = (id: string, patch: Partial<Photo>) => setPhotos(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p));
   // Object URLs are a real allocation; let them go with the page.
@@ -329,25 +334,25 @@ export default function PostAPiecePage() {
    * takes over its parent's places (the counter asked for a better version of
    * that photo), and the parent steps back.
    */
-  const aiImage = async (source: Photo, op: 'enhance' | 'reframe' | 'restage', params: Record<string, unknown>, label: string) => {
+  const aiImage = async (source: Photo, op: 'enhance' | 'reframe' | 'restage' | 'custom', params: Record<string, unknown>, label: string) => {
     const key = `${op}-${source.id}-${Date.now()}`;
     setBusy(key, label);
     try {
       const d = await callAi<AiImageResponse & { aspect?: Aspect }>(op, [await forAi(source.img)], params);
       const { url, img } = await fromBase64(d.image.data, d.image.mimeType);
-      const story = d.aspect === '9:16';
+      const storyShaped = d.aspect === '9:16';
       const made: Photo = {
         id: newId('ai'), name: `${label}.jpg`, img, url,
         ai: { label, parentId: source.id, check: d.check ?? null },
-        toSite: !story && source.toSite, toWhatsApp: !story && source.toWhatsApp,
+        toSite: !storyShaped && source.toSite, toWhatsApp: !storyShaped && source.toWhatsApp,
       };
       setPhotos(prev => {
         const i = prev.findIndex(p => p.id === source.id);
-        const next = prev.map(p => (!story && p.id === source.id) ? { ...p, toSite: false, toWhatsApp: false } : p);
+        const next = prev.map(p => (!storyShaped && p.id === source.id) ? { ...p, toSite: false, toWhatsApp: false } : p);
         next.splice(i + 1, 0, made);
         return next;
       });
-      if (story || source.id === hero?.id) { setHeroId(made.id); setPlacement({ mode: 'fill', zoom: 1, focusX: 0.5, focusY: 0.5 }); }
+      if (storyShaped || source.id === hero?.id) setHeroId(made.id);
       if (!checkOk(d.check)) {
         toast({ title: d.check ? 'Check this one closely' : 'Could not check it', description: d.check?.differences[0] ?? 'Compare it with the original before posting.', variant: d.check ? 'destructive' : undefined });
       }
@@ -365,19 +370,32 @@ export default function PostAPiecePage() {
     const source = photos.find(p => p.id === restageFor.photoId);
     if (!source) return;
     const scene = SCENES.find(s => s.id === sceneId);
-    const params = customScene.trim() ? { scene: customScene.trim(), aspect: restageFor.aspect } : { sceneId, aspect: restageFor.aspect };
+    const base = customScene.trim() ? { scene: customScene.trim(), aspect: restageFor.aspect } : { sceneId, aspect: restageFor.aspect };
+    const params = restagePromptText?.trim() ? { ...base, rawPrompt: restagePromptText.trim() } : base;
     setRestageFor(null);
+    setRestagePromptText(null);
     await aiImage(source, 'restage', params, customScene.trim() ? 'New setting' : scene?.label ?? 'New setting');
   };
 
+  /** "Ask AI": the counter's own instruction, or their own whole prompt. */
+  const runAsk = async () => {
+    if (!askFor) return;
+    const source = photos.find(p => p.id === askFor.photoId);
+    if (!source || (!askText.trim() && !askPromptText?.trim())) return;
+    const params = { instruction: askText.trim(), ...(askFor.aspect ? { aspect: askFor.aspect } : {}), ...(askPromptText?.trim() ? { rawPrompt: askPromptText.trim() } : {}) };
+    setAskFor(null);
+    setAskPromptText(null);
+    await aiImage(source, 'custom', params, askText.trim().slice(0, 28) || 'Your edit');
+  };
+
   // ── AI words ──
-  const writeWithAi = async (opts: { quiet?: boolean } = {}): Promise<CaptionResult | null> => {
+  const writeWithAi = async (opts: { quiet?: boolean; brief?: string } = {}): Promise<CaptionResult | null> => {
     if (!hero) return null;
     setBusy('caption', 'Writing the captions');
     try {
       const imgs = [hero, ...photos.filter(p => p.id !== hero.id && !p.ai)].slice(0, 2);
       const d = await callAi<{ caption: CaptionResult & { rebuilt?: boolean } }>('caption', await Promise.all(imgs.map(p => forAi(p.img))), {
-        headline, weight: wLabel, metal, stones, collection: chosen?.collection ?? '', numbers: NUMBERS, link,
+        headline, weight: wLabel, metal, stones, collection: chosen?.collection ?? '', numbers: NUMBERS, link, brief: opts.brief ?? '',
       });
       const c = d.caption;
       setAiCaption(c);
@@ -395,22 +413,26 @@ export default function PostAPiecePage() {
     }
   };
 
-  /** One press: the words, the plan, and a story-shaped scene for the piece. */
-  const makeWholeStory = async () => {
+  /** One press: the words, the plan, and a story-shaped scene for the piece — steered by the counter's brief if they gave one. */
+  const makeWholeStory = async (brief: string) => {
     if (!hero) return;
     const source = hero.ai ? photos.find(p => p.id === hero.ai!.parentId) ?? hero : hero;
     setBusy('whole', 'Making the story');
     try {
-      const c = await writeWithAi({ quiet: true });
+      const c = await writeWithAi({ quiet: true, brief });
       if (!c) return;
       if (!kicker && c.kicker) setKicker(c.kicker);
-      setPaletteId(c.paletteId);
-      setAlign(c.align);
+      const p = PALETTES.find(x => x.id === c.paletteId) ?? palette;
+      setPalette(p);
       setWeightOwnLine(c.weightOwnLine);
       setLettering('ours');
+      // Lay it out with the words it is about to have, not the ones the form held a second ago.
+      const f2: Fields = { ...fields, headline: headline.trim() || c.headlines[0] || '', kicker: kicker || c.kicker };
+      story.change(d => applyPreset(d, c.align === 'center' ? 'center' : 'stack-left', p, f2, assets, { weightOwnLine: c.weightOwnLine, wordmark: true }));
       const scene = SCENES.find(s => s.id === c.sceneId) ?? SCENES[0];
-      const made = await aiImage(source, 'restage', { sceneId: scene.id, aspect: '9:16' }, scene.label);
-      if (made) toast({ title: 'Story made', description: `${scene.label}, lettered in the shop’s fonts. Change anything you like.` });
+      const custom = brief.trim() && c.sceneBrief?.trim();
+      const made = await aiImage(source, 'restage', custom ? { scene: c.sceneBrief, aspect: '9:16' } : { sceneId: scene.id, aspect: '9:16' }, custom ? 'Your story' : scene.label);
+      if (made) toast({ title: 'Story made', description: `${custom ? c.sceneBrief : scene.label} — lettered in the shop’s fonts. Move or change anything.` });
     } finally {
       setBusy('whole', null);
     }
@@ -420,9 +442,11 @@ export default function PostAPiecePage() {
     if (!hero || !headline.trim()) return;
     setBusy('letter', 'Lettering the story');
     try {
+      const headLayer = story.doc.layers.find(l => l.kind === 'text' && l.bind === 'headline') as TextLayer | undefined;
       const d = await callAi<AiImageResponse & { lettering: { verified: boolean; missing: string[] } }>('letter', [await forAi(hero.img)], {
-        kicker, headline, weight: weightOwnLine ? wLabel : '', details: detailsLine(piece, !weightOwnLine),
-        headlineColour: palette.headline, bodyColour: palette.body, align,
+        kicker, headline, weight: weightShown ? wLabel : '', details: fields.details,
+        headlineColour: headLayer?.color ?? palette.headline, bodyColour: palette.body, align: headLayer?.align === 'center' ? 'center' : 'left',
+        style: letterStyle.trim(),
       });
       const { url, img } = await fromBase64(d.image.data, d.image.mimeType);
       if (lettered) URL.revokeObjectURL(lettered.url);
@@ -436,35 +460,21 @@ export default function PostAPiecePage() {
     }
   };
 
-  // Drag the preview to move the photo inside the frame.
-  const drag = useRef<{ x: number; y: number; fx: number; fy: number } | null>(null);
-  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (aiLettered) return;
-    (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
-    drag.current = { x: e.clientX, y: e.clientY, fx: placement.focusX, fy: placement.focusY };
-  };
-  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const d = drag.current;
-    const c = canvasRef.current;
-    if (!d || !c || !hero) return;
-    const k = STORY_W / c.getBoundingClientRect().width; // css px → story px
-    const iw = hero.img.naturalWidth, ih = hero.img.naturalHeight;
-    const scale = (placement.mode === 'fill' ? Math.max(STORY_W / iw, STORY_H / ih) : Math.min(STORY_W / iw, STORY_H / ih)) * placement.zoom;
-    const spareX = Math.abs(iw * scale - STORY_W) || 1, spareY = Math.abs(ih * scale - STORY_H) || 1;
-    const dirX = iw * scale > STORY_W ? -1 : 1, dirY = ih * scale > STORY_H ? -1 : 1;
-    const clamp = (v: number) => Math.min(1, Math.max(0, v));
-    setPlacement(p => ({ ...p, focusX: clamp(d.fx + dirX * ((e.clientX - d.x) * k) / spareX), focusY: clamp(d.fy + dirY * ((e.clientY - d.y) * k) / spareY) }));
-  };
-  const onPointerUp = () => { drag.current = null; };
-
-  // ── The story file ──
+  // ── The story file: the same document the editor shows, rendered off-screen at full size ──
   const getStory = useCallback(async () => {
-    if (storyBlob) return storyBlob;
-    if (!storyOptions) throw new Error('Add a photo first');
-    const b = await renderStoryJpeg(storyOptions);
-    setStoryBlob(b);
-    return b;
-  }, [storyBlob, storyOptions]);
+    if (!hero) throw new Error('Add a photo first');
+    const c = document.createElement('canvas');
+    c.width = STORY_W; c.height = STORY_H;
+    renderDoc(c.getContext('2d')!, story.doc, fields, assets, aiLettered ? { background: aiLettered.img, hideBound: true } : {});
+    return canvasToJpeg(c, 0.93);
+  }, [hero, story.doc, fields, assets, aiLettered]);
+
+  /** Typing into a bound layer on the story edits the piece's field. */
+  const onField = (bind: Bind, value: string) => {
+    if (bind === 'headline') setHeadline(value);
+    else if (bind === 'kicker') setKicker(value);
+    else if (bind === 'weight') { setWeight(value.replace(/[^\d.]/g, '')); setWeightEach(/each/i.test(value)); }
+  };
 
   const fileNameBase = (headline.trim() || 'piece').replace(/[^\w-]+/g, '-').replace(/-+/g, '-').toLowerCase();
 
@@ -631,9 +641,9 @@ export default function PostAPiecePage() {
     if (lettered) URL.revokeObjectURL(lettered.url);
     setPhotos([]); setHeroId(null); setKicker(''); setHeadline(''); setWeight(''); setWeightEach(false);
     setStones(''); setHook(''); setCaptionEdited(false); setSiteNameEdited(false); setFeature(false);
-    setPlacement({ mode: 'fill', zoom: 1, focusX: 0.5, focusY: 0.5 }); setPaletteId(null);
+    story.reset(emptyDoc(null)); setPalette(PALETTES[0]);
     setLettering('ours'); setLettered(null); setAiCaption(null);
-    setSteps([]); setStoryBlob(null); uploadedRef.current = {}; sentRef.current = {};
+    setSteps([]); uploadedRef.current = {}; sentRef.current = {};
   };
 
   const published = steps.length > 0 && steps.every(s => s.status === 'done');
@@ -699,6 +709,7 @@ export default function PostAPiecePage() {
                     onEnhance={() => aiImage(p, 'enhance', { tidy }, 'Enhanced')}
                     onReframe={(aspect) => aiImage(p, 'reframe', { aspect, tidy }, aspect === '9:16' ? 'Story frame' : `Extended ${aspect}`)}
                     onRestage={(aspect) => setRestageFor({ photoId: p.id, aspect })}
+                    onAsk={() => { setAskFor({ photoId: p.id, aspect: null }); setAskText(''); setAskPromptText(null); }}
                   />
                 ))}
                 {Array.from({ length: Math.max(0, reading) }).map((_, i) => (
@@ -836,73 +847,52 @@ export default function PostAPiecePage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Instagram story</h2>
             {hero && (
-              <Button size="sm" onClick={makeWholeStory} disabled={busyAny}>
+              <Button size="sm" onClick={() => setWholeOpen(true)} disabled={busyAny}>
                 {aiBusy.whole ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Wand2 className="h-4 w-4 mr-1.5" />} Make it with AI
               </Button>
             )}
           </div>
-          <div className="mx-auto w-[270px] sm:w-[300px] relative">
-            {hero ? (
-              <canvas
-                ref={canvasRef}
-                width={STORY_W}
-                height={STORY_H}
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerCancel={onPointerUp}
-                className={cn('w-full rounded-xl shadow-md touch-none bg-muted', !aiLettered && 'cursor-grab active:cursor-grabbing')}
-                aria-label="Story preview — drag to move the photo"
-              />
-            ) : (
-              <div className="aspect-[9/16] rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground p-6 text-center">The story appears here once there is a photo.</div>
-            )}
-            {(aiBusy.whole || aiBusy.letter) && (
-              <div className="absolute inset-0 rounded-xl bg-black/45 text-white flex flex-col items-center justify-center gap-2 text-sm text-center p-6">
-                <Loader2 className="h-6 w-6 animate-spin" />{aiBusy.whole ? 'Writing, choosing a setting and photographing it… about a minute' : 'Lettering it and reading it back…'}
-              </div>
-            )}
-          </div>
-
-          {hero && (
-            <div className="space-y-3 text-sm">
-              <div className="flex flex-wrap gap-1.5">
-                <Button size="sm" variant="outline" disabled={busyAny} onClick={() => setRestageFor({ photoId: (hero.ai && photos.find(p => p.id === hero.ai!.parentId)?.id) || hero.id, aspect: '9:16' })}><PaletteIcon className="h-4 w-4 mr-1.5" /> New setting</Button>
-                <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(hero, 'reframe', { aspect: '9:16', tidy }, 'Story frame')}><Expand className="h-4 w-4 mr-1.5" /> Extend to story</Button>
-              </div>
+          {hero ? (<>
+            <div className="flex flex-wrap gap-1.5">
+              <Button size="sm" variant="outline" disabled={busyAny} onClick={() => setRestageFor({ photoId: (hero.ai && photos.find(p => p.id === hero.ai!.parentId)?.id) || hero.id, aspect: '9:16' })}><PaletteIcon className="h-4 w-4 mr-1.5" /> New setting</Button>
+              <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(hero, 'reframe', { aspect: '9:16', tidy }, 'Story frame')}><Expand className="h-4 w-4 mr-1.5" /> Extend to story</Button>
+              <Button size="sm" variant="outline" disabled={busyAny} onClick={() => { setAskFor({ photoId: hero.id, aspect: null }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-1.5" /> Ask AI</Button>
+            </div>
+            <StoryEditor
+              api={story}
+              fields={fields}
+              assets={assets}
+              photos={photos.map(p => ({ id: p.id, url: p.url, label: p.ai?.label }))}
+              palette={palette}
+              onPalette={setPalette}
+              lettered={aiLettered?.img ?? null}
+              onField={onField}
+              weightOwnLine={weightOwnLine}
+              websiteLabel={SITE_NAME || 'taheri.shop'}
+              overlay={(aiBusy.whole || aiBusy.letter) ? (
+                <div className="absolute inset-0 rounded-xl bg-black/45 text-white flex flex-col items-center justify-center gap-2 text-sm text-center p-6">
+                  <Loader2 className="h-6 w-6 animate-spin" />{aiBusy.whole ? 'Writing, choosing a setting and photographing it… about a minute' : 'Lettering it and reading it back…'}
+                </div>
+              ) : null}
+            />
+            <div className="rounded-lg border p-3 space-y-2 text-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <Seg value={lettering} options={[['ours', 'Our fonts'], ['ai', 'AI lettering']]} onChange={v => { setLettering(v as 'ours' | 'ai'); if (v === 'ai' && !aiLettered) letterWithAi(); }} />
                 {lettering === 'ai' && (
                   <button type="button" onClick={letterWithAi} disabled={busyAny || !headline.trim()} className="text-xs text-primary inline-flex items-center gap-1"><Type className="h-3 w-3" /> {aiLettered ? 'Letter again' : 'Letter it'}</button>
                 )}
               </div>
+              {lettering === 'ai' && (
+                <Input value={letterStyle} onChange={e => setLetterStyle(e.target.value)} placeholder="Lettering style, in your words (optional) — e.g. gold foil serif, elegant" className="h-8 text-xs" />
+              )}
               {aiLettered && (
                 <p className={cn('text-xs flex items-center gap-1', aiLettered.verified ? 'text-emerald-600' : 'text-amber-600')}>
                   {aiLettered.verified ? <><ShieldCheck className="h-3.5 w-3.5" /> Read back: every word and the weight are right.</> : <><ShieldAlert className="h-3.5 w-3.5" /> Could not read: {aiLettered.missing.join(', ')}. Check it or use our fonts.</>}
                 </p>
               )}
-              <div className="flex flex-wrap gap-1.5">
-                {PALETTES.map(p => (
-                  <button key={p.id} type="button" onClick={() => setPaletteId(p.id)} title={p.label}
-                    className={cn('h-8 w-8 rounded-full border-2 flex items-center justify-center', palette.id === p.id ? 'border-primary' : 'border-transparent')}
-                    style={{ background: p.dark ? '#2a2a2a' : '#EDE6DA' }}>
-                    <span className="h-4 w-4 rounded-full" style={{ background: p.headline }} />
-                  </button>
-                ))}
-                {paletteId && <button type="button" onClick={() => setPaletteId(null)} className="text-xs text-muted-foreground px-1">Auto</button>}
-              </div>
-              {!aiLettered && (<>
-                <div className="flex flex-wrap gap-1.5">
-                  <Seg value={align} options={[['left', 'Left'], ['center', 'Centre']]} onChange={v => setAlign(v as 'left' | 'center')} />
-                  <Seg value={placement.mode} options={[['fill', 'Fill'], ['fit', 'Whole photo']]} onChange={v => setPlacement(p => ({ ...p, mode: v as 'fill' | 'fit', focusX: 0.5, focusY: 0.5 }))} />
-                </div>
-                <label className="flex items-center gap-3"><span className="w-12 text-muted-foreground">Zoom</span>
-                  <Slider value={[placement.zoom]} min={1} max={2.5} step={0.05} onValueChange={([z]) => setPlacement(p => ({ ...p, zoom: z }))} className="flex-1" />
-                </label>
-                <label className="flex items-center gap-2"><Switch checked={weightOwnLine} onCheckedChange={setWeightOwnLine} /> Weight on its own line</label>
-              </>)}
-              <label className="flex items-center gap-2"><Switch checked={showMark} onCheckedChange={setShowMark} /> Wordmark top-right</label>
             </div>
+          </>) : (
+            <div className="mx-auto w-[270px] sm:w-[300px] aspect-[9/16] rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground p-6 text-center">The story appears here once there is a photo.</div>
           )}
 
           <div className="rounded-lg border p-4 space-y-3">
@@ -979,9 +969,63 @@ export default function PostAPiecePage() {
           {restageFor && (
             <Seg value={restageFor.aspect} options={[['9:16', 'Story 9:16'], ['4:5', 'Portrait 4:5'], ['1:1', 'Square']]} onChange={v => setRestageFor(r => r && { ...r, aspect: v as Aspect })} />
           )}
+          {restageFor && (
+            <PromptEditor
+              value={restagePromptText}
+              generated={restagePrompt(customScene.trim() || SCENES.find(s => s.id === sceneId)?.brief || '', restageFor.aspect)}
+              onChange={setRestagePromptText}
+            />
+          )}
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setRestageFor(null)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setRestageFor(null); setRestagePromptText(null); }}>Cancel</Button>
             <Button onClick={runRestage}><Sparkles className="h-4 w-4 mr-1.5" /> Photograph it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ask AI: anything, in the counter's words. */}
+      <Dialog open={!!askFor} onOpenChange={o => { if (!o) { setAskFor(null); setAskPromptText(null); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Ask AI to change this photo</DialogTitle>
+            <DialogDescription>Say it the way you’d tell a photographer. The piece itself is protected, and the result is checked against the original.</DialogDescription>
+          </DialogHeader>
+          {askFor && (() => { const src = photos.find(p => p.id === askFor.photoId); return src ? <img src={src.url} alt="" className="h-28 w-28 object-cover rounded-md mx-auto" /> : null; })()}
+          <Textarea value={askText} onChange={e => setAskText(e.target.value)} rows={3} autoFocus
+            placeholder="e.g. put it on white marble with a few rose petals · remove the hand · warmer evening light · make the background deep green velvet" />
+          <div className="flex flex-wrap gap-1.5">
+            {['Remove the hand and props', 'Warmer, golden-hour light', 'Deep green velvet background', 'Soft bokeh lights behind', 'Clean white studio background', 'Add a subtle reflection below'].map(t => (
+              <button key={t} type="button" onClick={() => setAskText(t)} className="text-xs rounded-full border px-2.5 py-1 text-muted-foreground hover:text-foreground">{t}</button>
+            ))}
+          </div>
+          {askFor && (
+            <Seg value={askFor.aspect ?? 'same'} options={[['same', 'Same shape'], ['9:16', 'Story 9:16'], ['4:5', 'Portrait 4:5'], ['1:1', 'Square']]} onChange={v => setAskFor(a => a && { ...a, aspect: v === 'same' ? null : v as Aspect })} />
+          )}
+          {askFor && <PromptEditor value={askPromptText} generated={customPrompt(askText || '…', askFor.aspect)} onChange={setAskPromptText} />}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setAskFor(null); setAskPromptText(null); }}>Cancel</Button>
+            <Button onClick={runAsk} disabled={!askText.trim() && !askPromptText?.trim()}><Sparkles className="h-4 w-4 mr-1.5" /> Do it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Make it with AI: optionally steered by a brief. */}
+      <Dialog open={wholeOpen} onOpenChange={setWholeOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Make the story with AI</DialogTitle>
+            <DialogDescription>AI writes the headline and captions, picks the colours and layout, and photographs the piece in a setting for a 9:16 story. Tell it what you have in mind, or leave it to choose.</DialogDescription>
+          </DialogHeader>
+          <Textarea value={wholeBrief} onChange={e => setWholeBrief(e.target.value)} rows={4}
+            placeholder="Optional — e.g. Eid collection, festive green and gold, on a carved wooden jewellery box with marigolds · or: minimal, for everyday wear, soft morning light" />
+          <div className="flex flex-wrap gap-1.5">
+            {['Eid collection, festive green and gold', 'Wedding season, rich and regal', 'Everyday wear, light and minimal', 'For her birthday, soft and romantic', 'Heritage piece, old-world and warm'].map(t => (
+              <button key={t} type="button" onClick={() => setWholeBrief(t)} className="text-xs rounded-full border px-2.5 py-1 text-muted-foreground hover:text-foreground">{t}</button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setWholeOpen(false)}>Cancel</Button>
+            <Button onClick={() => { setWholeOpen(false); makeWholeStory(wholeBrief); }}><Wand2 className="h-4 w-4 mr-1.5" /> Make it</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1016,10 +1060,10 @@ export default function PostAPiecePage() {
 }
 
 /** One photo: star for the story, AI actions, where it goes, and — for AI photos — whether it is still the same piece. */
-function PhotoTile({ photo: p, isHero, locked, busy, siteOn, waOn, onHero, onRemove, onToggle, onEnhance, onReframe, onRestage }: {
+function PhotoTile({ photo: p, isHero, locked, busy, siteOn, waOn, onHero, onRemove, onToggle, onEnhance, onReframe, onRestage, onAsk }: {
   photo: Photo; isHero: boolean; locked: boolean; busy: boolean; siteOn: boolean; waOn: boolean;
   onHero: () => void; onRemove: () => void; onToggle: (patch: Partial<Photo>) => void;
-  onEnhance: () => void; onReframe: (a: Aspect) => void; onRestage: (a: Aspect) => void;
+  onEnhance: () => void; onReframe: (a: Aspect) => void; onRestage: (a: Aspect) => void; onAsk: () => void;
 }) {
   const c = p.ai?.check;
   return (
@@ -1042,6 +1086,7 @@ function PhotoTile({ photo: p, isHero, locked, busy, siteOn, waOn, onHero, onRem
             <DropdownMenuItem onClick={() => onReframe('1:1')}>Extend to square</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onRestage('9:16')}>New setting…</DropdownMenuItem>
+            <DropdownMenuItem onClick={onAsk}>Ask AI… (anything, in your words)</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         {!locked && (
@@ -1077,6 +1122,24 @@ function Seg({ value, options, onChange }: { value: string; options: [string, st
       {options.map(([v, label]) => (
         <button key={v} type="button" onClick={() => onChange(v)} className={cn('rounded-full px-3 py-1 text-xs', value === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>{label}</button>
       ))}
+    </div>
+  );
+}
+
+/**
+ * The full prompt, shown and editable. Closed, the page sends what it built
+ * from the choices above; opened and edited, it sends exactly this text.
+ */
+function PromptEditor({ value, generated, onChange }: { value: string | null; generated: string; onChange: (v: string | null) => void }) {
+  const open = value !== null;
+  return (
+    <div className="space-y-1.5">
+      <button type="button" className="text-xs text-primary" onClick={() => onChange(open ? null : generated)}>
+        {open ? 'Use the built prompt instead' : 'Edit the full prompt (advanced)'}
+      </button>
+      {open && (
+        <Textarea value={value ?? ''} onChange={e => onChange(e.target.value)} rows={8} className="font-mono text-[11px] leading-snug" />
+      )}
     </div>
   );
 }
