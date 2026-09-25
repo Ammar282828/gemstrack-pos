@@ -27,6 +27,7 @@ export function diagnoseContext(): DiagnoseContext {
     metaAppId: process.env.INSTAGRAM_META_APP_ID || undefined,
     waLine: phone ? `+${phone}` : undefined,
     igUsername: process.env.INSTAGRAM_USERNAME || undefined,
+    wahaUrl: (process.env.WAHA_URL || '').replace(/\/+$/, '') || undefined,
   };
 }
 

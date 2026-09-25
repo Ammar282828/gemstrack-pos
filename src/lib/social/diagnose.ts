@@ -26,6 +26,7 @@ export interface DiagnoseContext {
   metaAppId?: string;          // the Meta app (dashboard id), not the Instagram app id
   waLine?: string;             // "+92 326 2275554"
   igUsername?: string;         // "collectionstaheri"
+  wahaUrl?: string;            // "https://35-184-20-165.sslip.io" — the WAHA server, when WhatsApp goes through it
 }
 
 const GREEN_CONSOLE = 'https://console.green-api.com';
@@ -93,6 +94,22 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
     }
 
     case 'whatsapp': {
+      // WAHA (the shop's own gateway on the `waha` VM) — its errors carry "WAHA".
+      if (/waha 401|waha.*(unauthori[sz]ed|api key)/.test(m)) {
+        return { title: 'WAHA refused the key', fix: 'WAHA_API_KEY in this shop’s settings doesn’t match the key the WAHA server holds (secret waha-api-key in gemstrack-pos). They must be the same version of that secret; after changing it, reset the waha VM so it picks the new one up.', action: { label: 'Open the secret', href: secretUrl(c, 'waha-api-key') }, retry: false };
+      }
+      if (/scan_qr_code|not linked to waha|waha.*(failed|stopped|starting)|(failed|stopped).*waha/.test(m)) {
+        return { title: 'The WhatsApp line is unlinked from WAHA', fix: `${line} needs linking to WAHA again. Open the WAHA dashboard, open the session “default”, and scan the QR code with the phone that has ${line} (WhatsApp → Linked devices → Link a device).`, action: c.wahaUrl ? { label: 'Open WAHA', href: `${c.wahaUrl}/dashboard` } : undefined, retry: true };
+      }
+      if (/waha (50[234])|waha.*(fetch failed|econnrefused|timed? ?out|aborted)|(fetch failed|econnrefused).*waha/.test(m)) {
+        return { title: 'The WAHA server isn’t answering', fix: 'The waha VM in Google Cloud (gemstrack-pos, us-central1-a) may be stopped or restarting. Start or reset it in Compute Engine → VM instances; WAHA and the linked line come back by themselves within a couple of minutes.', action: { label: 'Open VM instances', href: `https://console.cloud.google.com/compute/instances?project=${c.posProject || 'gemstrack-pos'}` }, retry: true };
+      }
+      if (/channel not found|newsletter.*not found/.test(m)) {
+        return { title: 'The channel could not be found', fix: `The WhatsApp channel set for this shop (WHATSAPP_CHANNEL_ID) isn’t visible to ${line}. Check the id, and that ${line} still follows the channel as an admin.`, retry: false };
+      }
+      if (/channel not admin|green api cannot post to a whatsapp channel/.test(m)) {
+        return { title: /green api/.test(m) ? 'Channels need WAHA' : 'The line is not an admin of the channel', fix: /green api/.test(m) ? 'Green API can’t post to WhatsApp channels. Set WAHA_URL and WAHA_API_KEY for this shop.' : `Only the channel’s owner and admins can post. In WhatsApp, open the channel → Channel info → Admins → invite ${line}, and accept the invite on that phone.`, retry: false };
+      }
       if (/notauthorized|not authorized|not_authorized|rescan|qr/.test(m) || status === 401) {
         return { title: 'The WhatsApp line is signed out', fix: `${line} has been logged out of Green API. Open the Green API console, open the instance, and scan the QR code with the phone that has ${line} (WhatsApp → Linked devices → Link a device).`, action: { label: 'Open Green API', href: GREEN_CONSOLE }, retry: true };
       }
@@ -111,8 +128,8 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
       if (/no whatsapp community is set|whatsapp_community_chat_id/.test(m)) {
         return { title: 'No community is set for this shop', fix: 'WHATSAPP_COMMUNITY_CHAT_ID isn’t set in this shop’s settings, so there’s nowhere to post.', retry: false };
       }
-      if (/is not configured|greenapi_id_instance/.test(m) || status === 503) {
-        return { title: 'The WhatsApp line isn’t set up', fix: 'GREENAPI_ID_INSTANCE and GREENAPI_API_TOKEN are missing from this shop’s settings.', retry: false };
+      if (/is not configured|greenapi_id_instance|waha_url/.test(m) || status === 503) {
+        return { title: 'The WhatsApp line isn’t set up', fix: 'This shop has no WhatsApp gateway: WAHA_URL and WAHA_API_KEY (or Green API’s GREENAPI_ID_INSTANCE and GREENAPI_API_TOKEN) are missing from its settings.', retry: false };
       }
       if (status === 429 || /too many/.test(m)) return { title: 'Sending too fast', fix: 'Green API asked us to slow down. Wait a minute and press Retry.', retry: true };
       break;

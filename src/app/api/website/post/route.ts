@@ -6,8 +6,9 @@
  *   POST  → one image (multipart: file, caption?) to that community
  *
  * The community is WHATSAPP_COMMUNITY_CHAT_ID — the announcements group of
- * the shop's community, which only admins can write to and which the Green
- * API line is an admin of. It comes from configuration alone: nothing in a
+ * the shop's community, which only admins can write to and which the shop's
+ * WhatsApp line is an admin of. With WAHA, the same post then goes to the
+ * shop's channel, WHATSAPP_CHANNEL_ID (…@newsletter), when one is set. It comes from configuration alone: nothing in a
  * request can point this route at another chat. A house without the variable
  * simply has no WhatsApp option on the page.
  *
@@ -23,7 +24,7 @@ import { STORE_POST_PIECE } from '@/lib/store-config';
 import { notInThisShop } from '@/lib/social/gate';
 import { roleForEmail } from '@/lib/roles';
 import { adminDb } from '@/lib/firebase-admin';
-import { sendWhatsAppFileToGroup, whatsAppGroupInfo, WhatsAppNotConfiguredError } from '@/lib/whatsapp';
+import { sendWhatsAppFileToGroup, whatsAppChannelInfo, whatsAppGroupInfo, whatsAppProvider, WhatsAppNotConfiguredError } from '@/lib/whatsapp';
 import { recordError } from '@/lib/social/errors';
 
 export const dynamic = 'force-dynamic';
@@ -43,14 +44,20 @@ async function gate(req: NextRequest): Promise<string | NextResponse> {
 }
 
 const communityId = () => (process.env.WHATSAPP_COMMUNITY_CHAT_ID || '').trim();
+/** The shop's WhatsApp channel (…@newsletter). Posts go there too, after the community — WAHA only. */
+const channelId = () => (whatsAppProvider() === 'waha' ? (process.env.WHATSAPP_CHANNEL_ID || '').trim() : '');
 
 export async function GET(req: NextRequest) {
   const who = await gate(req);
   if (who instanceof NextResponse) return who;
   const id = communityId();
   if (!id) return NextResponse.json({ community: null });
-  const info = await whatsAppGroupInfo(id);
-  return NextResponse.json({ community: { name: info?.name || 'WhatsApp community', size: info?.size ?? null, reachable: !!info } });
+  const ch = channelId();
+  const [info, channel] = await Promise.all([whatsAppGroupInfo(id), ch ? whatsAppChannelInfo(ch) : Promise.resolve(null)]);
+  return NextResponse.json({
+    community: { name: info?.name || 'WhatsApp community', size: info?.size ?? null, reachable: !!info },
+    channel: ch ? { name: channel?.name || 'WhatsApp channel', followers: channel?.followers ?? null, reachable: !!channel } : null,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -72,11 +79,27 @@ export async function POST(req: NextRequest) {
     const name = file.name && /\.(jpe?g|png)$/i.test(file.name) ? file.name : 'piece.jpg';
     const idMessage = await sendWhatsAppFileToGroup(id, file, name, caption);
     // A record of what went out and when, for "did that post?" later.
-    await adminDb.collection('social_posts').add({
-      at: new Date().toISOString(), by: who, destination: 'whatsapp-community', chatId: id,
-      idMessage, fileName: name, caption: caption.slice(0, 1024),
+    const log = (destination: string, chatId: string, messageId: string) => adminDb.collection('social_posts').add({
+      at: new Date().toISOString(), by: who, destination, chatId,
+      idMessage: messageId, fileName: name, caption: caption.slice(0, 1024),
     }).catch(e => console.warn('[post] could not log the send:', e instanceof Error ? e.message : e));
-    return NextResponse.json({ ok: true, idMessage });
+    await log('whatsapp-community', id, idMessage);
+    // Then the channel. The community post has already gone, so a channel failure
+    // is reported beside it rather than failing the whole send (a retry would post
+    // the community twice).
+    const ch = channelId();
+    let channel: { ok: true; idMessage: string } | { ok: false; error: string } | null = null;
+    if (ch) {
+      try {
+        const chMessage = await sendWhatsAppFileToGroup(ch, file, name, caption);
+        await log('whatsapp-channel', ch, chMessage);
+        channel = { ok: true, idMessage: chMessage };
+      } catch (e) {
+        await recordError('whatsapp', e, { by: who, destination: 'whatsapp-channel' });
+        channel = { ok: false, error: e instanceof Error ? e.message : 'Channel send failed' };
+      }
+    }
+    return NextResponse.json({ ok: true, idMessage, channel });
   } catch (e) {
     await recordError('whatsapp', e, { by: who });
     if (e instanceof WhatsAppNotConfiguredError) return NextResponse.json({ error: e.message }, { status: 503 });

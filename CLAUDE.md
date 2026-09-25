@@ -55,7 +55,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 | `/api/website/photos` | POS page Add Photos | relays a photo to `taheri.shop/api/upload.php` with `WEBSITE_UPLOAD_SECRET`; HEIC → JPEG on the way |
 | `/api/website/pieces` | POS page Photo Weights | counter-entered weights (`website_pieces`) for photos with no burned-in label |
 | `/api/website/featured` | Photo Weights / Add Photos | set or clear the set of the day |
-| `/api/website/post` | POS page Post a Piece | GET the community's name/size; POST one image + caption to `WHATSAPP_COMMUNITY_CHAT_ID` via Green API (`sendFileByUpload`), logged in `social_posts`. `/convert` turns HEIC into JPEG for the canvas |
+| `/api/website/post` | POS page Post a Piece | GET the community's name/size; POST one image + caption to `WHATSAPP_COMMUNITY_CHAT_ID` and then the channel `WHATSAPP_CHANNEL_ID`, via WAHA, logged in `social_posts`. `/convert` turns HEIC into JPEG for the canvas |
 | `/api/website/post/ai` | Post a Piece | Gemini on Vertex (`IMAGE_AI_PROJECT`): `enhance`, `reframe`, `restage`, `letter`, `caption`, `check`. Every image edit is compared with its source ("same piece?"); capped 300 calls/day shop-wide, 60/h per IP |
 | `/api/instagram/status`, `connect`, `callback`, `story` | Post a Piece | Instagram Login OAuth → 60-day token in **Secret Manager** (`instagram-token`, renewed on use), locked to `INSTAGRAM_USERNAME`; `story` publishes a 9:16 JPEG |
 | `/api/website/post/health` | Post a Piece | GET: every check + last day's `social_errors` + diagnosis context; POST: the page records a failure |
@@ -66,6 +66,15 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 CORS for `/api/public/*` is in `src/lib/website/cors.ts` (taheri.shop, www, and localhost:5180 in dev).
 Design and go-live checklist: `docs/website-checkout.md`. Go-live of online selling is still blocked by empty
 bank env vars and the open Firestore rules.
+
+## WhatsApp: WAHA (since 2026-09-25)
+
+Both POS send WhatsApp — alerts, customer messages, Post a Piece, Investments — through **WAHA**, the shop's own
+gateway on the `waha` VM in gemstrack-pos (https://35-184-20-165.sslip.io), with +92 326 2275554 linked to it.
+`src/lib/whatsapp.ts` uses it when `WAHA_URL` + `WAHA_API_KEY` (secret `waha-api-key`, in both projects) are set and falls
+back to Green API otherwise; Green API stays configured until the owner cancels it. WAHA also posts to the WhatsApp
+**channel** (`WHATSAPP_CHANNEL_ID`, Taheri's), which Green API never could. Runbook — relinking, resets, updates:
+**`ops/waha/README.md`**.
 
 ## Two houses, one codebase — the rules
 

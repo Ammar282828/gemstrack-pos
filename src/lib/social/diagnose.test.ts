@@ -71,3 +71,23 @@ describe('diagnose — anything', () => {
     expect(d.fix).toContain('something odd');
   });
 });
+
+describe('diagnose — WAHA, the WhatsApp gateway since 2026-09-25', () => {
+  const w = { ...ctx, wahaUrl: 'https://35-184-20-165.sslip.io' };
+  it('a refused key points at the secret, not at relinking', () => {
+    const d = diagnose('whatsapp', { status: 502, message: 'WAHA 401: {"message":"Unauthorized","statusCode":401}' }, w);
+    expect(d.title).toBe('WAHA refused the key');
+    expect(d.action?.href).toContain('waha-api-key');
+  });
+  it('an unlinked session (the health check’s words) sends you to relink in the dashboard', () => {
+    const d = diagnose('whatsapp', { message: 'notAuthorized SCAN_QR_CODE The line is not linked to WAHA — link it again (WhatsApp → Linked devices).' }, w);
+    expect(d.title).toMatch(/unlinked from WAHA/);
+    expect(d.action?.href).toBe('https://35-184-20-165.sslip.io/dashboard');
+  });
+  it('Caddy’s 502 with WAHA down points at the VM', () => {
+    expect(diagnose('whatsapp', { status: 502, message: 'WAHA 502: ' }, w).title).toBe('The WAHA server isn’t answering');
+  });
+  it('a channel send through Green API says channels need WAHA', () => {
+    expect(diagnose('whatsapp', 'Green API cannot post to a WhatsApp channel — that needs WAHA.', w).title).toBe('Channels need WAHA');
+  });
+});

@@ -12,7 +12,7 @@
 
 import { adminDb } from '@/lib/firebase-admin';
 import { STORE_CONFIG } from '@/lib/store-config';
-import { whatsAppDiagnostics, whatsAppStatus } from '@/lib/whatsapp';
+import { whatsAppChannelInfo, whatsAppDiagnostics, whatsAppProvider, whatsAppStatus } from '@/lib/whatsapp';
 import { loadFeatured } from '@/lib/website/featured';
 import { aiConfigured, aiPing, imageModelServed, IMAGE_MODEL } from './ai';
 import { instagramConfigured, instagramHealth, tokenStoreAccess } from './instagram';
@@ -78,29 +78,42 @@ function websiteChecks(): Promise<Check>[] {
 
 function whatsappChecks(): Promise<Check>[] {
   const community = (process.env.WHATSAPP_COMMUNITY_CHAT_ID || '').trim();
-  // One read of the line serves both checks below: Green API rate-limits its methods,
+  const channel = (process.env.WHATSAPP_CHANNEL_ID || '').trim();
+  // One read of the line serves the checks below: Green API rate-limits its methods,
   // and two reads at once made the second come back empty.
   const diag = whatsAppDiagnostics(community || undefined);
+  const gateway = () => (whatsAppProvider() === 'waha' ? 'WAHA' : 'Green API');
   return [
     guard('wa-line', 'WhatsApp', 'WhatsApp line is signed in', 'whatsapp', async () => {
       const s = await whatsAppStatus();
-      if (!s.configured) return { status: 'fail', detail: 'No Green API instance is set.', fix: diagnose('whatsapp', { status: 503, message: 'is not configured' }, ctx()).fix };
-      if (s.ok) return { status: 'ok', detail: 'Green API reports the line as authorized.' };
+      if (!s.configured) return { status: 'fail', detail: 'No WhatsApp gateway is set (WAHA or Green API).', fix: diagnose('whatsapp', { status: 503, message: 'is not configured' }, ctx()).fix };
+      if (s.ok) return { status: 'ok', detail: s.provider === 'waha' ? 'WAHA reports the line as connected (WORKING).' : 'Green API reports the line as authorized.' };
       const d = diagnose('whatsapp', { message: `notAuthorized ${s.state ?? ''} ${s.detail ?? ''}` }, ctx());
-      return { status: 'fail', detail: `Green API says the line is “${s.state ?? 'unknown'}”.`, fix: d.fix, action: d.action };
+      return { status: 'fail', detail: `${gateway()} says the line is “${s.state ?? s.detail ?? 'unknown'}”.`, fix: d.fix, action: d.action };
     }),
     guard('wa-community', 'WhatsApp', 'Can post in the community', 'whatsapp', async () => {
       if (!community) return { status: 'off', detail: 'No community is set for this shop (WHATSAPP_COMMUNITY_CHAT_ID), so the page won’t offer WhatsApp.' };
       const d = await diag;
       if (!d.group) return { status: 'fail', detail: 'The announcements group could not be read.', fix: diagnose('whatsapp', 'chat id not found', ctx()).fix };
-      const me = d.phone ? `${d.phone}@c.us` : '';
-      if (me && !d.group.admins.includes(me)) {
+      // Both lists are plain digits (whatsAppDiagnostics), whatever id form the gateway uses.
+      if (d.phone && !d.group.admins.includes(d.phone)) {
         return { status: 'fail', detail: `+${d.phone} is in “${d.group.name}” but isn’t an admin.`, fix: diagnose('whatsapp', 'not admin', ctx()).fix };
       }
       return { status: 'ok', detail: `“${d.group.name}”, ${d.group.size.toLocaleString()} members; the line is an admin.` };
     }),
+    guard('wa-channel', 'WhatsApp', 'Can post in the channel', 'whatsapp', async () => {
+      if (!channel) return { status: 'off', detail: 'No WhatsApp channel is set for this shop (WHATSAPP_CHANNEL_ID), so posts go to the community only.' };
+      if (whatsAppProvider() !== 'waha') return { status: 'warn', detail: 'A channel is set, but Green API can’t post to channels — it needs WAHA.' };
+      const c = await whatsAppChannelInfo(channel);
+      if (!c) return { status: 'fail', detail: 'The channel could not be read.', fix: diagnose('whatsapp', 'channel not found', ctx()).fix };
+      if (c.role && !/owner|admin/i.test(c.role)) {
+        return { status: 'fail', detail: `The line follows “${c.name}” but is ${c.role.toLowerCase()}, not an admin.`, fix: diagnose('whatsapp', 'channel not admin', ctx()).fix };
+      }
+      return { status: 'ok', detail: `“${c.name}”${c.followers != null ? `, ${c.followers.toLocaleString()} followers` : ''}; the line is ${c.role ? c.role.toLowerCase() : 'an admin'}.` };
+    }),
     guard('wa-queue', 'WhatsApp', 'Nothing stuck waiting to send', 'whatsapp', async () => {
       const d = await diag;
+      if (d.provider === 'waha') return { status: 'ok', detail: 'WAHA sends straight away — there is no queue to back up.' };
       if (d.queued === null) return { status: 'warn', detail: 'Could not read the send queue.' };
       if (d.queued > 3) return { status: 'warn', detail: `${d.queued} messages are waiting to go out.`, fix: 'The phone with the WhatsApp line may be off or without internet. Make sure it’s on and connected; the queue sends by itself once it is.' };
       return { status: 'ok', detail: d.queued ? `${d.queued} waiting — normal while sending.` : 'Queue is empty.' };

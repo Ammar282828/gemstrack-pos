@@ -133,8 +133,13 @@ env:
   - variable: WHATSAPP_COMMUNITY_CHAT_ID
     value: "120363360668200388@g.us"
     availability: [RUNTIME]
-  # The channel has no API this shop can post through; the page links to it
-  # and shares the image + caption by hand.
+  # The "Taheri Collections" WhatsApp channel (the line is its OWNER, 67 followers
+  # on 2026-09-25, read through WAHA's /channels). With WAHA, every Post a Piece
+  # WhatsApp send goes here too, after the community. Green API can't do channels.
+  - variable: WHATSAPP_CHANNEL_ID
+    value: "120363426877255473@newsletter"
+    availability: [RUNTIME]
+  # The channel's public link, for the page's "Open the WhatsApp channel".
   - variable: NEXT_PUBLIC_STORE_WA_CHANNEL_URL
     value: "https://whatsapp.com/channel/0029VbDHt507tkj3qtiehX0S"
     availability:
