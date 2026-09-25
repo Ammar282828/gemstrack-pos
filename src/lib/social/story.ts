@@ -133,20 +133,24 @@ export function suggestPalette(photo: StoryOptions['photo'], placement: Placemen
 
 // ── Drawing ────────────────────────────────────────────────────────────────
 
-/** The background photo, placed: filled and cropped, or shown whole on its own blurred light. */
-export function drawStoryPhoto(ctx: CanvasRenderingContext2D, photo: StoryOptions['photo'], p: Placement) {
+export interface Frame { w: number; h: number }
+export const STORY_FRAME: Frame = { w: STORY_W, h: STORY_H };
+
+/** The background photo, placed in a frame: filled and cropped, or shown whole on its own blurred light. */
+export function drawStoryPhoto(ctx: CanvasRenderingContext2D, photo: StoryOptions['photo'], p: Placement, frame: Frame = STORY_FRAME) {
   const iw = photo.width, ih = photo.height;
   if (!iw || !ih) return;
-  const cover = Math.max(STORY_W / iw, STORY_H / ih);
-  const contain = Math.min(STORY_W / iw, STORY_H / ih);
+  const W = frame.w, H = frame.h;
+  const cover = Math.max(W / iw, H / ih);
+  const contain = Math.min(W / iw, H / ih);
 
-  if (p.mode === 'fit') drawBackdrop(ctx, photo, cover);
+  if (p.mode === 'fit') drawBackdrop(ctx, photo, cover, frame);
 
   const scale = (p.mode === 'fill' ? cover : contain) * Math.max(1, p.zoom);
   const dw = iw * scale, dh = ih * scale;
   // Focus 0 puts the photo's left/top edge at the frame's; 1 its right/bottom.
-  const dx = dw > STORY_W ? -(dw - STORY_W) * p.focusX : (STORY_W - dw) * p.focusX;
-  const dy = dh > STORY_H ? -(dh - STORY_H) * p.focusY : (STORY_H - dh) * p.focusY;
+  const dx = dw > W ? -(dw - W) * p.focusX : (W - dw) * p.focusX;
+  const dy = dh > H ? -(dh - H) * p.focusY : (H - dh) * p.focusY;
   ctx.drawImage(photo, dx, dy, dw, dh);
 }
 
@@ -157,10 +161,11 @@ export function drawStoryPhoto(ctx: CanvasRenderingContext2D, photo: StoryOption
  * (older Safari) the photo is shrunk and grown back in steps, which blurs
  * without the blockiness a single tiny-to-full jump leaves.
  */
-function drawBackdrop(ctx: CanvasRenderingContext2D, photo: StoryOptions['photo'], cover: number) {
+function drawBackdrop(ctx: CanvasRenderingContext2D, photo: StoryOptions['photo'], cover: number, frame: Frame) {
   const iw = photo.width, ih = photo.height;
+  const W = frame.w, H = frame.h;
   const dw = iw * cover, dh = ih * cover;
-  const dx = (STORY_W - dw) / 2, dy = (STORY_H - dh) / 2;
+  const dx = (W - dw) / 2, dy = (H - dh) / 2;
   ctx.save();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
@@ -170,17 +175,18 @@ function drawBackdrop(ctx: CanvasRenderingContext2D, photo: StoryOptions['photo'
     ctx.drawImage(photo, dx - 120, dy - 120, dw + 240, dh + 240);
   } else {
     let src: CanvasImageSource = photo, sw = iw, sh = ih;
-    for (const [w, h] of [[135, 240], [34, 60], [135, 240], [540, 960]] as const) {
+    for (const k of [8, 32, 8, 2]) {
+      const w = Math.max(4, Math.round(W / k)), h = Math.max(4, Math.round(H / k));
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
       const t = c.getContext('2d')!;
       t.imageSmoothingEnabled = true;
       t.imageSmoothingQuality = 'high';
-      if (src === photo) t.drawImage(photo, (w - sw * Math.max(w / sw, h / sh)) / 2, (h - sh * Math.max(w / sw, h / sh)) / 2, sw * Math.max(w / sw, h / sh), sh * Math.max(w / sw, h / sh));
+      if (src === photo) { const f = Math.max(w / sw, h / sh); t.drawImage(photo, (w - sw * f) / 2, (h - sh * f) / 2, sw * f, sh * f); }
       else t.drawImage(src, 0, 0, w, h);
       src = c; sw = w; sh = h;
     }
-    ctx.drawImage(src, 0, 0, STORY_W, STORY_H);
+    ctx.drawImage(src, 0, 0, W, H);
   }
   ctx.restore();
 }

@@ -15,7 +15,7 @@
  * free.
  */
 
-import { STORY_H, STORY_W, drawStoryPhoto, type Placement } from './story';
+import { STORY_FRAME, drawStoryPhoto, type Frame, type Placement } from './story';
 import type { Palette } from './palettes';
 
 export type FontKey = 'condensed' | 'light' | 'regular' | 'bold' | 'serif' | 'serif-italic' | 'futura';
@@ -49,8 +49,15 @@ export interface TextLayer extends Base {
    * layer takes it out of the stack and leaves it where it was put.
    */
   flow?: { gap: number };
+  /** Pick white or near-black for whatever is behind it, per photo (the overlay tool's two variants). */
+  autoColor?: boolean;
 }
-export interface MarkLayer extends Base { kind: 'wordmark'; x: number; y: number; width: number; tone: 'dark' | 'light' }
+/**
+ * The shop's mark: the Didone wordmark image, or the catalogue stamp — the
+ * two spaced lines ("TAHERI / COLLECTIONS") the overlay tool puts in the
+ * corner of every catalogue photo, drawn as text so it stays sharp at any size.
+ */
+export interface MarkLayer extends Base { kind: 'wordmark'; mark?: 'wordmark' | 'stamp'; x: number; y: number; width: number; tone: 'dark' | 'light' | 'auto' }
 export interface ShapeLayer extends Base {
   kind: 'arrow' | 'line' | 'rect' | 'circle';
   /** For arrow/line: from (x, y) to (x + w, y + h). For rect/circle: the box. */
@@ -67,13 +74,31 @@ export type Layer = TextLayer | MarkLayer | ShapeLayer | ImageLayer;
 export interface StoryDoc {
   bg: { photoId: string | null; placement: Placement; dim: number; gradient: 'none' | 'top' | 'bottom' | 'both'; color: string };
   layers: Layer[];
+  /** Size in its own units: the story is 1080 × 1920 (the default), the square 1080 × 1080. */
+  frame?: Frame;
+  /**
+   * The square carries one set of layers for every photo it is used on, but a
+   * crop per photo: each photo's placement lives here, keyed by its id.
+   */
+  placements?: Record<string, Placement>;
 }
+
+export const SQUARE_FRAME: Frame = { w: 1080, h: 1080 };
+export const frameOf = (d: StoryDoc): Frame => d.frame ?? STORY_FRAME;
+const FILL: Placement = { mode: 'fill', zoom: 1, focusX: 0.5, focusY: 0.5 };
+/** The placement of the photo on show — per photo when the document keeps them. */
+export const placementOf = (d: StoryDoc): Placement =>
+  d.placements ? (d.bg.photoId ? d.placements[d.bg.photoId] : undefined) ?? FILL : d.bg.placement;
+export const withPlacement = (d: StoryDoc, p: Placement): StoryDoc =>
+  d.placements && d.bg.photoId ? { ...d, placements: { ...d.placements, [d.bg.photoId]: p } } : { ...d, bg: { ...d.bg, placement: p } };
 
 export interface FontFamilies { headline: string; body: string; serif: string }
 export interface Assets {
   photos: Record<string, HTMLImageElement>;
   wordmark: { dark: HTMLImageElement; light: HTMLImageElement } | null;
   fonts: FontFamilies;
+  /** The catalogue stamp's two lines, this house's ("TAHERI", "COLLECTIONS"). */
+  stamp: [string, string];
 }
 export type Fields = Record<Bind, string>;
 
@@ -180,6 +205,7 @@ export function layerBox(l: Layer, fields: Fields, a: Assets): Box {
       return { x, y: l.y - pad, w: Math.max(w, 20), h: Math.max(h, 20) };
     }
     case 'wordmark': {
+      if (l.mark === 'stamp') return { x: l.x, y: l.y, w: l.width, h: stampLayout(mctx(), l.width, a).h };
       const m = a.wordmark?.dark;
       const h = l.width * (m && m.naturalWidth ? m.naturalHeight / m.naturalWidth : 0.25);
       return { x: l.x, y: l.y, w: l.width, h };
@@ -334,30 +360,86 @@ function drawImageLayer(ctx: Ctx, l: ImageLayer, a: Assets) {
   ctx.restore();
 }
 
-function drawOverlay(ctx: Ctx, bg: StoryDoc['bg']) {
-  if (bg.dim > 0) { ctx.fillStyle = `rgba(0,0,0,${bg.dim})`; ctx.fillRect(0, 0, STORY_W, STORY_H); }
+function drawOverlay(ctx: Ctx, bg: StoryDoc['bg'], f: Frame) {
+  if (bg.dim > 0) { ctx.fillStyle = `rgba(0,0,0,${bg.dim})`; ctx.fillRect(0, 0, f.w, f.h); }
   const grad = (y0: number, y1: number) => {
     const g = ctx.createLinearGradient(0, y0, 0, y1);
     g.addColorStop(0, 'rgba(0,0,0,0.55)');
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
-    ctx.fillRect(0, Math.min(y0, y1), STORY_W, Math.abs(y1 - y0));
+    ctx.fillRect(0, Math.min(y0, y1), f.w, Math.abs(y1 - y0));
   };
-  if (bg.gradient === 'top' || bg.gradient === 'both') grad(0, STORY_H * 0.42);
-  if (bg.gradient === 'bottom' || bg.gradient === 'both') grad(STORY_H, STORY_H * 0.58);
+  if (bg.gradient === 'top' || bg.gradient === 'both') grad(0, f.h * 0.42);
+  if (bg.gradient === 'bottom' || bg.gradient === 'both') grad(f.h, f.h * 0.58);
+}
+
+// ── The catalogue stamp and automatic colour ───────────────────────────────
+
+/** The stamp's two lines sized to the same width: a wide spaced top line, a finer one under it. */
+function stampLayout(ctx: Ctx, width: number, a: Assets) {
+  const [top, bottom] = a.stamp;
+  const fit = (text: string, weight: number, spacing: number) => {
+    ctx.font = `${weight} 100px ${a.fonts.body}`;
+    setSpacing(ctx, spacing * 100);
+    // Letter spacing trails the last letter; leave it out of the width so both lines end flush.
+    const w = Math.max(1, ctx.measureText(text).width - spacing * 100);
+    return (width / w) * 100;
+  };
+  const s1 = fit(top, 400, 0.32);
+  // A one-line mark (the second line left empty) is just the first line.
+  if (!bottom) return { s1, s2: 0, gap: 0, h: s1 * 0.74 };
+  const s2 = fit(bottom, 300, 0.2);
+  const gap = s1 * 0.18;
+  return { s1, s2, gap, h: s1 * 0.74 + gap + s2 * 0.74 };
+}
+
+function drawStamp(ctx: Ctx, l: MarkLayer, a: Assets, colour: string) {
+  const t = stampLayout(ctx, l.width, a);
+  ctx.fillStyle = colour;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `400 ${t.s1}px ${a.fonts.body}`;
+  setSpacing(ctx, 0.32 * t.s1);
+  ctx.fillText(a.stamp[0], l.x, l.y + t.s1 * 0.74);
+  if (!a.stamp[1]) return;
+  ctx.font = `300 ${t.s2}px ${a.fonts.body}`;
+  setSpacing(ctx, 0.2 * t.s2);
+  ctx.fillText(a.stamp[1], l.x, l.y + t.s1 * 0.74 + t.gap + t.s2 * 0.74);
+}
+
+/**
+ * White or the tool's near-black, whichever reads over what is already drawn
+ * under this box. Reads the pixels through the current transform, so it works
+ * on the preview and on a 3000-px export alike.
+ */
+function autoInk(ctx: Ctx, b: Box): string {
+  try {
+    const m = ctx.getTransform();
+    const x = Math.max(0, Math.round(m.a * b.x + m.e)), y = Math.max(0, Math.round(m.d * b.y + m.f));
+    const w = Math.max(1, Math.round(m.a * b.w)), h = Math.max(1, Math.round(m.d * b.h));
+    const d = ctx.getImageData(x, y, Math.min(w, ctx.canvas.width - x), Math.min(h, ctx.canvas.height - y)).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 64) { sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]; n++; }
+    return n && sum / n > 170 ? '#1a1a1a' : '#ffffff';
+  } catch {
+    return '#ffffff';
+  }
 }
 
 export function renderDoc(ctx: Ctx, doc: StoryDoc, fields: Fields, a: Assets, opts: { background?: HTMLImageElement | null; hideBound?: boolean } = {}) {
+  const f = frameOf(doc);
   ctx.save();
-  ctx.clearRect(0, 0, STORY_W, STORY_H);
+  ctx.clearRect(0, 0, f.w, f.h);
   ctx.fillStyle = doc.bg.color;
-  ctx.fillRect(0, 0, STORY_W, STORY_H);
+  ctx.fillRect(0, 0, f.w, f.h);
   const photo = opts.background ?? (doc.bg.photoId ? a.photos[doc.bg.photoId] : null);
-  if (photo) drawStoryPhoto(ctx, photo, opts.background ? { mode: 'fill', zoom: 1, focusX: 0.5, focusY: 0.5 } : doc.bg.placement);
-  if (!opts.background) drawOverlay(ctx, doc.bg);
+  if (photo) drawStoryPhoto(ctx, photo, opts.background ? FILL : placementOf(doc), f);
+  if (!opts.background) drawOverlay(ctx, doc.bg, f);
   for (const l of doc.layers) {
     if (l.hidden || (opts.hideBound && l.kind === 'text' && l.bind)) continue;
     ctx.save();
+    // Automatic ink is decided from what is under the layer, before it is drawn or turned.
+    const ink = (l.kind === 'text' && l.autoColor) || (l.kind === 'wordmark' && l.tone === 'auto') ? autoInk(ctx, layerBox(l, fields, a)) : null;
     ctx.globalAlpha = l.opacity;
     if (l.rotate) {
       const b = layerBox(l, fields, a);
@@ -365,13 +447,31 @@ export function renderDoc(ctx: Ctx, doc: StoryDoc, fields: Fields, a: Assets, op
       ctx.rotate((l.rotate * Math.PI) / 180);
       ctx.translate(-(b.x + b.w / 2), -(b.y + b.h / 2));
     }
-    if (l.kind === 'text') drawText(ctx, l, fields, a);
-    else if (l.kind === 'wordmark') { const m = a.wordmark?.[l.tone]; const b = layerBox(l, fields, a); if (m) ctx.drawImage(m, b.x, b.y, b.w, b.h); }
+    if (l.kind === 'text') drawText(ctx, ink ? { ...l, color: ink } : l, fields, a);
+    else if (l.kind === 'wordmark' && l.mark === 'stamp') drawStamp(ctx, l, a, ink ?? (l.tone === 'dark' ? '#1a1a1a' : '#ffffff'));
+    else if (l.kind === 'wordmark') {
+      const tone = ink ? (ink === '#ffffff' ? 'light' : 'dark') : l.tone === 'auto' ? 'dark' : l.tone;
+      const m = a.wordmark?.[tone];
+      const b = layerBox(l, fields, a);
+      if (m) ctx.drawImage(m, b.x, b.y, b.w, b.h);
+    }
     else if (l.kind === 'image') drawImageLayer(ctx, l, a);
     else drawShape(ctx, l);
     ctx.restore();
   }
   ctx.restore();
+}
+
+/** The document drawn at `px` pixels wide, as a canvas — for export at full resolution. */
+export function renderDocTo(doc: StoryDoc, fields: Fields, a: Assets, px: number, opts: { background?: HTMLImageElement | null; hideBound?: boolean } = {}): HTMLCanvasElement {
+  const f = frameOf(doc);
+  const c = document.createElement('canvas');
+  c.width = Math.round(px); c.height = Math.round(px * (f.h / f.w));
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  ctx.scale(px / f.w, px / f.w);
+  ctx.imageSmoothingQuality = 'high';
+  renderDoc(ctx, doc, fields, a, opts);
+  return c;
 }
 
 // ── Making layers ──────────────────────────────────────────────────────────
@@ -390,7 +490,55 @@ export const newShape = (kind: ShapeLayer['kind'], color: string): ShapeLayer =>
 });
 export const newImageLayer = (photoId: string): ImageLayer => ({ id: newLayerId('image'), kind: 'image', photoId, x: 600, y: 1250, w: 380, radius: 24, border: '#ffffff', shadow: true, rotate: 0, opacity: 1 });
 export const newLinkPill = (label: string): TextLayer => text({ text: label, x: 540, y: 760, size: 46, font: 'regular', color: '#111111', align: 'center', width: 900, box: { color: '#ffffff', radius: 28, pad: 22 } });
-export const newWordmark = (dark: boolean): MarkLayer => ({ id: newLayerId('wordmark'), kind: 'wordmark', x: 708, y: 150, width: 300, tone: dark ? 'light' : 'dark', rotate: 0, opacity: 1 });
+export const newWordmark = (dark: boolean): MarkLayer => ({ id: newLayerId('wordmark'), kind: 'wordmark', mark: 'wordmark', x: 708, y: 150, width: 300, tone: dark ? 'light' : 'dark', rotate: 0, opacity: 1 });
+
+// ── The square (WhatsApp and the website) ──────────────────────────────────
+// The overlay tool's geometry, as fractions of a 3000-px square: the weight in
+// Futura LT Light at 143, 120 in, baseline at 100 + 143 × 1.1; the logo 580
+// wide, 125 in from the bottom-right corner. Here in 1080 units.
+const K = 1080 / 3000;
+const STAMP_SIZE = 143 * K, STAMP_X = 120 * K, STAMP_BASELINE = (100 + 143 * 1.1) * K;
+const LOGO_W = 580 * K, LOGO_PAD = 125 * K;
+
+export const newWeightStamp = (): TextLayer => text({
+  bind: 'weight', x: STAMP_X, y: STAMP_BASELINE - STAMP_SIZE * 0.82, size: Math.round(STAMP_SIZE * 10) / 10, font: 'futura',
+  color: '#ffffff', autoColor: true, width: 900, spacing: 2 / 143,
+});
+export function newStampMark(a: Assets): MarkLayer {
+  const h = stampLayout(mctx(), LOGO_W, a).h;
+  return { id: newLayerId('stamp'), kind: 'wordmark', mark: 'stamp', x: 1080 - LOGO_PAD - LOGO_W, y: 1080 - LOGO_PAD - h, width: LOGO_W, tone: 'auto', rotate: 0, opacity: 1 };
+}
+
+export type SquarePresetId = 'catalogue' | 'weight' | 'name' | 'clean';
+export const SQUARE_PRESETS: { id: SquarePresetId; label: string }[] = [
+  { id: 'catalogue', label: 'Catalogue stamp (weight + logo)' },
+  { id: 'weight', label: 'Weight only' },
+  { id: 'name', label: 'Name, weight and logo' },
+  { id: 'clean', label: 'Clean — nothing on it' },
+];
+
+/** The square's layers as a preset lays them down. Custom layers are kept. */
+export function applySquarePreset(doc: StoryDoc, preset: SquarePresetId, fields: Fields, a: Assets): StoryDoc {
+  const keep = doc.layers.filter(l => !(l.kind === 'text' && l.bind) && l.kind !== 'wordmark');
+  const out: Layer[] = [];
+  if (preset === 'catalogue' || preset === 'weight') out.push(newWeightStamp());
+  if (preset === 'catalogue') out.push(newStampMark(a));
+  if (preset === 'name') {
+    // The grid posts' look: the name in a Didone italic, the facts small beneath, bottom-left.
+    const name = text({ bind: 'headline', x: 64, y: 820, size: 76, font: 'serif-italic', color: '#ffffff', autoColor: true, width: 640, fit: true, lineHeight: 1 });
+    out.push({ ...name, flow: { gap: 0 } });
+    out.push(text({ bind: 'details', x: 64, y: 910, size: 30, font: 'regular', color: '#ffffff', autoColor: true, width: 640, flow: { gap: 14 }, lineHeight: 1.25 }));
+    out.push(newStampMark(a));
+  }
+  return reflow({ ...doc, layers: [...out, ...keep] }, fields, a);
+}
+
+export const emptySquare = (): StoryDoc => ({
+  bg: { photoId: null, placement: FILL, dim: 0, gradient: 'none', color: '#EDE6DA' },
+  layers: [],
+  frame: SQUARE_FRAME,
+  placements: {},
+});
 
 // ── Presets: the shop's story layouts ──────────────────────────────────────
 

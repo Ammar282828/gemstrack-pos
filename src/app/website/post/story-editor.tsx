@@ -23,11 +23,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useToast } from '@/hooks/use-toast';
 import { Undo2, Redo2, Plus, LayoutTemplate, Type, ArrowUpRight, Minus, Circle, Square, Link2, Image as ImageIcon, Copy, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Unlink, Save, BookmarkCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORY_H, STORY_W } from '@/lib/social/story';
 import { PALETTES, type Palette } from '@/lib/social/palettes';
 import {
-  FONT_LABEL, PRESETS, applyPalette, applyPreset, hitTest, layerBox, moveLayer, newImageLayer, newLayerId, newLinkPill, newShape, newText, newWordmark, reflow,
-  renderDoc, scaleLayer, type Assets, type Bind, type Box, type Fields, type FontKey, type Layer, type PresetId, type ShapeLayer, type StoryDoc, type TextLayer,
+  FONT_LABEL, applyPalette, frameOf, hitTest, layerBox, moveLayer, newImageLayer, newLayerId, newLinkPill, newShape, newStampMark, newText, newWordmark,
+  placementOf, reflow, renderDoc, scaleLayer, withPlacement,
+  type Assets, type Bind, type Box, type Fields, type FontKey, type Layer, type ShapeLayer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
 
 // ── The document and its history ───────────────────────────────────────────
@@ -69,9 +69,10 @@ export type StoryDocApi = ReturnType<typeof useStoryDoc>;
 // ── Templates (this device) ────────────────────────────────────────────────
 
 interface Template { name: string; layers: Layer[]; bg: Pick<StoryDoc['bg'], 'dim' | 'gradient' | 'color'> }
-const TEMPLATE_KEY = 'taheri_story_templates';
-const readTemplates = (): Template[] => { try { return JSON.parse(localStorage.getItem(TEMPLATE_KEY) || '[]'); } catch { return []; } };
-const writeTemplates = (t: Template[]) => { try { localStorage.setItem(TEMPLATE_KEY, JSON.stringify(t)); } catch { /* private mode */ } };
+// A square layout and a story layout are different shapes; each keeps its own list.
+const templateKey = (square: boolean) => square ? 'taheri_square_templates' : 'taheri_story_templates';
+const readTemplates = (square: boolean): Template[] => { try { return JSON.parse(localStorage.getItem(templateKey(square)) || '[]'); } catch { return []; } };
+const writeTemplates = (square: boolean, t: Template[]) => { try { localStorage.setItem(templateKey(square), JSON.stringify(t)); } catch { /* private mode */ } };
 
 // ── Colours offered everywhere ─────────────────────────────────────────────
 
@@ -128,13 +129,22 @@ export interface StoryEditorProps {
   weightOwnLine: boolean;
   overlay?: React.ReactNode;
   websiteLabel: string;
+  /** The layouts this frame offers, and laying one down. */
+  presets: { id: string; label: string }[];
+  onPreset: (id: string) => void;
+  /** The square (WhatsApp + website) rather than the story: its own marks, no palette, a crop per photo. */
+  square?: boolean;
+  /** Extra controls shown with the photo settings (the square's AI extend). */
+  photoTools?: React.ReactNode;
 }
 
-export function StoryEditor({ api, fields, assets, photos, palette, onPalette, lettered, onField, weightOwnLine, overlay, websiteLabel }: StoryEditorProps) {
+export function StoryEditor({ api, fields, assets, photos, palette, onPalette, lettered, onField, overlay, websiteLabel, presets, onPreset, square, photoTools }: StoryEditorProps) {
   const { toast } = useToast();
   const { doc, change, checkpoint, undo, redo, canUndo, canRedo } = api;
   // What is on screen: the document with its stacked lines placed for the current words.
   const view = React.useMemo(() => reflow(doc, fields, assets), [doc, fields, assets]);
+  const F = frameOf(doc);
+  const placement = placementOf(doc);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | 'bg' | null>(null);
@@ -145,7 +155,7 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
   const [templates, setTemplates] = useState<Template[]>([]);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { setTemplates(readTemplates()); }, []);
+  useEffect(() => { setTemplates(readTemplates(!!square)); }, [square]);
 
   // Draw on every change. The canvas is the export's twin, so nothing of the UI goes on it.
   useEffect(() => {
@@ -158,17 +168,17 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setScale(el.getBoundingClientRect().width / STORY_W));
+    const ro = new ResizeObserver(() => setScale(el.getBoundingClientRect().width / F.w));
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [F.w]);
 
   const layer = typeof selected === 'string' && selected !== 'bg' ? view.layers.find(l => l.id === selected) ?? null : null;
   const box: Box | null = layer ? layerBox(layer, fields, assets) : null;
 
   const toStory = (e: { clientX: number; clientY: number }) => {
     const r = canvasRef.current!.getBoundingClientRect();
-    return { x: (e.clientX - r.left) / r.width * STORY_W, y: (e.clientY - r.top) / r.height * STORY_H };
+    return { x: (e.clientX - r.left) / r.width * F.w, y: (e.clientY - r.top) / r.height * F.h };
   };
 
   const update = useCallback((id: string, patch: Partial<Layer> | ((l: Layer) => Layer), key?: string) => {
@@ -181,10 +191,14 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
     let sx = dx, sy = dy;
     const g: { v?: number; h?: number } = {};
     const nb = { ...b, x: b.x + dx, y: b.y + dy };
-    for (const [edge, target] of [[nb.x + nb.w / 2, 540], [nb.x, 96], [nb.x + nb.w, 984]] as const) {
+    // The story's text margin is 96; the square's is the overlay tool's 125/3000 inset.
+    const m = square ? 45 : 96;
+    for (const [edge, target] of [[nb.x + nb.w / 2, F.w / 2], [nb.x, m], [nb.x + nb.w, F.w - m]] as const) {
       if (Math.abs(edge - target) < T) { sx += target - edge; g.v = target; break; }
     }
-    if (Math.abs(nb.y + nb.h / 2 - 960) < T) { sy += 960 - (nb.y + nb.h / 2); g.h = 960; }
+    if (Math.abs(nb.y + nb.h / 2 - F.h / 2) < T) { sy += F.h / 2 - (nb.y + nb.h / 2); g.h = F.h / 2; }
+    else if (square && Math.abs(nb.y - m) < T) { sy += m - nb.y; g.h = m; }
+    else if (square && Math.abs(nb.y + nb.h - (F.h - m)) < T) { sy += F.h - m - (nb.y + nb.h); g.h = F.h - m; }
     return { dx: sx, dy: sy, g };
   };
 
@@ -196,7 +210,7 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
     if (pointers.current.size === 2) {
       const [a, b] = [...pointers.current.values()];
       const target = layer ? layer.id : 'bg';
-      drag.current = { mode: 'pinch', id: target, d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, orig: layer, zoom0: doc.bg.placement.zoom, before: doc };
+      drag.current = { mode: 'pinch', id: target, d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, orig: layer, zoom0: placement.zoom, before: doc };
       return;
     }
     if (lettered) { setSelected(null); return; }
@@ -206,7 +220,7 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
       drag.current = { mode: 'layer', id: hit.id, sx: p.x, sy: p.y, orig: hit, before: doc };
     } else {
       setSelected('bg');
-      drag.current = { mode: 'photo', sx: e.clientX, sy: e.clientY, fx: doc.bg.placement.focusX, fy: doc.bg.placement.focusY, before: doc };
+      drag.current = { mode: 'photo', sx: e.clientX, sy: e.clientY, fx: placement.focusX, fy: placement.focusY, before: doc };
     }
   };
 
@@ -218,7 +232,7 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
       const pts = [...pointers.current.values()];
       if (pts.length < 2) return;
       const k = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) / d.d0;
-      if (d.id === 'bg' || !d.orig) change(doc0 => ({ ...doc0, bg: { ...doc0.bg, placement: { ...doc0.bg.placement, zoom: Math.min(3, Math.max(1, d.zoom0 * k)) } } }), { live: true });
+      if (d.id === 'bg' || !d.orig) change(doc0 => withPlacement(doc0, { ...placementOf(doc0), zoom: Math.min(3, Math.max(1, d.zoom0 * k)) }), { live: true });
       else { const o = d.orig; change(doc0 => ({ ...doc0, layers: doc0.layers.map(l => l.id === o.id ? scaleLayer(o, k) : l) }), { live: true }); }
       return;
     }
@@ -238,14 +252,14 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
     } else if (d.mode === 'photo') {
       const photo = doc.bg.photoId ? assets.photos[doc.bg.photoId] : null;
       if (!photo) return;
-      const pl = doc.bg.placement;
+      const pl = placement;
       const iw = photo.naturalWidth, ih = photo.naturalHeight;
-      const sc = (pl.mode === 'fill' ? Math.max(STORY_W / iw, STORY_H / ih) : Math.min(STORY_W / iw, STORY_H / ih)) * pl.zoom;
-      const spareX = Math.abs(iw * sc - STORY_W) || 1, spareY = Math.abs(ih * sc - STORY_H) || 1;
-      const k = STORY_W / canvasRef.current!.getBoundingClientRect().width;
-      const dirX = iw * sc > STORY_W ? -1 : 1, dirY = ih * sc > STORY_H ? -1 : 1;
+      const sc = (pl.mode === 'fill' ? Math.max(F.w / iw, F.h / ih) : Math.min(F.w / iw, F.h / ih)) * pl.zoom;
+      const spareX = Math.abs(iw * sc - F.w) || 1, spareY = Math.abs(ih * sc - F.h) || 1;
+      const k = F.w / canvasRef.current!.getBoundingClientRect().width;
+      const dirX = iw * sc > F.w ? -1 : 1, dirY = ih * sc > F.h ? -1 : 1;
       const cl = (v: number) => Math.min(1, Math.max(0, v));
-      change(doc0 => ({ ...doc0, bg: { ...doc0.bg, placement: { ...pl, focusX: cl(d.fx + dirX * (e.clientX - d.sx) * k / spareX), focusY: cl(d.fy + dirY * (e.clientY - d.sy) * k / spareY) } } }), { live: true });
+      change(doc0 => withPlacement(doc0, { ...pl, focusX: cl(d.fx + dirX * (e.clientX - d.sx) * k / spareX), focusY: cl(d.fy + dirY * (e.clientY - d.sy) * k / spareY) }), { live: true });
     }
   };
 
@@ -295,19 +309,19 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
     [layers[i], layers[j]] = [layers[j], layers[i]];
     return { ...d, layers };
   });
-  const preset = (id: PresetId) => { change(d => applyPreset(d, id, palette, fields, assets, { weightOwnLine, wordmark: d.layers.some(l => l.kind === 'wordmark') || d.layers.length === 0 })); setSelected(null); };
+  const preset = (id: string) => { onPreset(id); setSelected(null); };
   const saveTemplate = () => {
     const name = window.prompt('Name this layout (it stays on this device):', `Layout ${templates.length + 1}`);
     if (!name) return;
     const t: Template = { name, layers: doc.layers.filter(l => l.kind !== 'image'), bg: { dim: doc.bg.dim, gradient: doc.bg.gradient, color: doc.bg.color } };
     const next = [...templates.filter(x => x.name !== name), t];
-    setTemplates(next); writeTemplates(next);
+    setTemplates(next); writeTemplates(!!square, next);
     toast({ title: 'Layout saved', description: `“${name}” is under Layouts on this device.` });
   };
   const useTemplate = (t: Template) => { change(d => ({ ...d, bg: { ...d.bg, ...t.bg }, layers: t.layers.map(l => ({ ...l, id: newLayerId(l.kind) })) })); setSelected(null); };
-  const dropTemplate = (name: string) => { const next = templates.filter(x => x.name !== name); setTemplates(next); writeTemplates(next); };
+  const dropTemplate = (name: string) => { const next = templates.filter(x => x.name !== name); setTemplates(next); writeTemplates(!!square, next); };
 
-  const layerName = (l: Layer) => l.kind === 'text' ? (l.bind ? l.bind[0].toUpperCase() + l.bind.slice(1) : `Text “${l.text.slice(0, 14)}”`) : l.kind === 'wordmark' ? 'Wordmark' : l.kind === 'image' ? 'Photo inset' : l.kind[0].toUpperCase() + l.kind.slice(1);
+  const layerName = (l: Layer) => l.kind === 'text' ? (l.bind ? l.bind[0].toUpperCase() + l.bind.slice(1) : `Text “${l.text.slice(0, 14)}”`) : l.kind === 'wordmark' ? (l.mark === 'stamp' ? 'Catalogue stamp' : 'Wordmark') : l.kind === 'image' ? 'Photo inset' : l.kind[0].toUpperCase() + l.kind.slice(1);
   const bgPhoto = doc.bg.photoId;
 
   return (
@@ -317,8 +331,8 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button size="sm" variant="outline"><LayoutTemplate className="h-4 w-4 mr-1.5" /> Layouts</Button></DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuLabel>The shop’s layouts</DropdownMenuLabel>
-            {PRESETS.map(p => <DropdownMenuItem key={p.id} onClick={() => preset(p.id)}>{p.label}</DropdownMenuItem>)}
+            <DropdownMenuLabel>{square ? 'Square layouts' : 'The shop’s layouts'}</DropdownMenuLabel>
+            {presets.map(p => <DropdownMenuItem key={p.id} onClick={() => preset(p.id)}>{p.label}</DropdownMenuItem>)}
             {templates.length > 0 && <><DropdownMenuSeparator /><DropdownMenuLabel>Saved on this device</DropdownMenuLabel></>}
             {templates.map(t => (
               <DropdownMenuItem key={t.name} onClick={() => useTemplate(t)} className="justify-between gap-4">
@@ -339,7 +353,8 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
             <DropdownMenuItem onClick={() => add(newShape('circle', '#FFFFFF'))}><Circle className="h-4 w-4 mr-2" /> Circle</DropdownMenuItem>
             <DropdownMenuItem onClick={() => add(newShape('rect', '#FFFFFF'))}><Square className="h-4 w-4 mr-2" /> Box</DropdownMenuItem>
             <DropdownMenuItem onClick={() => add(newLinkPill(websiteLabel))}><Link2 className="h-4 w-4 mr-2" /> Link pill ({websiteLabel})</DropdownMenuItem>
-            {!doc.layers.some(l => l.kind === 'wordmark') && <DropdownMenuItem onClick={() => add(newWordmark(palette.dark))}><Type className="h-4 w-4 mr-2" /> Wordmark</DropdownMenuItem>}
+            {!doc.layers.some(l => l.kind === 'wordmark' && l.mark !== 'stamp') && <DropdownMenuItem onClick={() => add(newWordmark(palette.dark))}><Type className="h-4 w-4 mr-2" /> Wordmark (taheri)</DropdownMenuItem>}
+            {!doc.layers.some(l => l.kind === 'wordmark' && l.mark === 'stamp') && <DropdownMenuItem onClick={() => add(newStampMark(assets))}><Type className="h-4 w-4 mr-2" /> Catalogue stamp ({assets.stamp.filter(Boolean).join(' ')})</DropdownMenuItem>}
             {photos.length > 1 && <DropdownMenuSeparator />}
             {photos.filter(p => p.id !== bgPhoto).map(p => (
               <DropdownMenuItem key={p.id} onClick={() => add(newImageLayer(p.id))}><ImageIcon className="h-4 w-4 mr-2" /> Photo inset {p.label ? `· ${p.label}` : ''}</DropdownMenuItem>
@@ -353,18 +368,18 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
       </div>
 
       {/* Canvas with the selection drawn over it in the DOM (never on the canvas itself) */}
-      <div ref={wrapRef} className="relative mx-auto w-[270px] sm:w-[300px] select-none"
+      <div ref={wrapRef} className={cn('relative mx-auto select-none', square ? 'w-[300px] sm:w-[340px]' : 'w-[270px] sm:w-[300px]')}
         onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
         <canvas
           ref={canvasRef}
-          width={STORY_W}
-          height={STORY_H}
+          width={F.w}
+          height={F.h}
           tabIndex={0}
           onPointerDown={onPointerDown}
           onKeyDown={onKeyDown}
           onDoubleClick={() => textRef.current?.focus()}
           className="w-full rounded-xl shadow-md touch-none bg-muted outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-crosshair"
-          aria-label="Story — tap something to select it, drag to move it"
+          aria-label={square ? 'Square photo — tap something to select it, drag to move it' : 'Story — tap something to select it, drag to move it'}
         />
         {guides.v !== undefined && <div className="pointer-events-none absolute top-0 bottom-0 w-px bg-pink-500" style={{ left: guides.v * scale }} />}
         {guides.h !== undefined && <div className="pointer-events-none absolute left-0 right-0 h-px bg-pink-500" style={{ top: guides.h * scale }} />}
@@ -393,7 +408,7 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
           onDeselect={() => setSelected(null)}
         />
       ) : (
-        <BackgroundInspector api={api} photos={photos} palette={palette} onPalette={onPalette} layers={doc.layers} layerName={layerName} onSelect={setSelected} />
+        <BackgroundInspector api={api} photos={photos} palette={palette} onPalette={onPalette} layers={doc.layers} layerName={layerName} onSelect={setSelected} square={!!square} photoTools={photoTools} />
       )}
     </div>
   );
@@ -448,6 +463,7 @@ function LayerInspector({ layer: l, box, fields, photos, textRef, name, onChange
           <label className="flex items-center gap-1.5"><Switch checked={l.fit} onCheckedChange={v => onChange({ fit: v })} /> Shrink to fit</label>
           <label className="flex items-center gap-1.5"><Switch checked={l.upper} onCheckedChange={v => onChange({ upper: v })} /> CAPITALS</label>
           <label className="flex items-center gap-1.5"><Switch checked={l.shadow} onCheckedChange={v => onChange({ shadow: v })} /> Shadow</label>
+          <label className="flex items-center gap-1.5" title="White or dark, whichever reads over each photo"><Switch checked={!!l.autoColor} onCheckedChange={v => onChange({ autoColor: v })} /> Auto colour</label>
           <label className="flex items-center gap-1.5"><Switch checked={!!l.box} onCheckedChange={v => onChange({ box: v ? { color: '#FFFFFF', radius: 24, pad: 20 } : null })} /> Background</label>
         </div>
         {l.box && <Row label="Background"><ColourRow value={l.box.color} onChange={c => onChange(x => ({ ...(x as TextLayer), box: { ...(x as TextLayer).box!, color: c } }), 'boxc')} /></Row>}
@@ -455,7 +471,7 @@ function LayerInspector({ layer: l, box, fields, photos, textRef, name, onChange
 
       {l.kind === 'wordmark' && (<>
         <Row label="Size"><Num value={l.width} min={80} max={1000} step={5} onChange={v => onChange({ width: v }, 'w')} /></Row>
-        <Row label="Colour"><Pills value={l.tone} options={[['dark', 'Dark'], ['light', 'Light']]} onChange={v => onChange({ tone: v as 'dark' | 'light' })} /></Row>
+        <Row label="Colour"><Pills value={l.tone} options={[['auto', 'Auto'], ['dark', 'Dark'], ['light', 'Light']]} onChange={v => onChange({ tone: v as 'dark' | 'light' | 'auto' })} /></Row>
       </>)}
 
       {l.kind === 'image' && (<>
@@ -497,28 +513,31 @@ function LayerInspector({ layer: l, box, fields, photos, textRef, name, onChange
   );
 }
 
-function BackgroundInspector({ api, photos, palette, onPalette, layers, layerName, onSelect }: {
+function BackgroundInspector({ api, photos, palette, onPalette, layers, layerName, onSelect, square, photoTools }: {
   api: StoryDocApi; photos: StoryEditorProps['photos']; palette: Palette; onPalette: (p: Palette) => void;
-  layers: Layer[]; layerName: (l: Layer) => string; onSelect: (id: string) => void;
+  layers: Layer[]; layerName: (l: Layer) => string; onSelect: (id: string) => void; square: boolean; photoTools?: React.ReactNode;
 }) {
   const { doc, change } = api;
   const bg = doc.bg;
   const setBg = (patch: Partial<StoryDoc['bg']>, key?: string) => change(d => ({ ...d, bg: { ...d.bg, ...patch } }), { key: key ? `bg:${key}` : undefined });
-  const pl = bg.placement;
+  const pl = placementOf(doc);
+  const setPl = (patch: Partial<typeof pl>, key?: string) => change(d => withPlacement(d, { ...placementOf(d), ...patch }), { key: key ? `pl:${key}` : undefined });
   return (
     <div className="rounded-lg border p-3 space-y-2.5">
-      <p className="text-sm font-medium">Photo &amp; colours</p>
-      <Row label="Photo">
+      <p className="text-sm font-medium">{square ? 'Photos & crop' : 'Photo & colours'}</p>
+      <Row label={square ? 'Editing' : 'Photo'}>
         <div className="flex gap-1.5 overflow-x-auto">{photos.map(p => (
-          <button key={p.id} type="button" onClick={() => setBg({ photoId: p.id, placement: { ...pl, focusX: 0.5, focusY: 0.5, zoom: 1 } })} className={cn('h-10 w-10 shrink-0 rounded overflow-hidden border-2', bg.photoId === p.id ? 'border-primary' : 'border-transparent')}><img src={p.url} alt="" className="h-full w-full object-cover" /></button>
+          <button key={p.id} type="button" onClick={() => setBg(square ? { photoId: p.id } : { photoId: p.id, placement: { ...pl, focusX: 0.5, focusY: 0.5, zoom: 1 } })} className={cn('h-10 w-10 shrink-0 rounded overflow-hidden border-2', bg.photoId === p.id ? 'border-primary' : 'border-transparent')}><img src={p.url} alt="" className="h-full w-full object-cover" /></button>
         ))}</div>
       </Row>
-      <Row label="Show"><Pills value={pl.mode} options={[['fill', 'Fill the frame'], ['fit', 'Whole photo']]} onChange={v => setBg({ placement: { ...pl, mode: v as 'fill' | 'fit', focusX: 0.5, focusY: 0.5 } })} /></Row>
-      <Row label="Zoom"><Num value={pl.zoom} min={1} max={3} step={0.05} onChange={v => setBg({ placement: { ...pl, zoom: v } }, 'zoom')} /></Row>
+      {square && <p className="text-[11px] text-muted-foreground">Every photo going to WhatsApp or the website is shown here. The words and marks are shared; each photo keeps its own crop — drag or pinch it to choose what shows.</p>}
+      <Row label="Show"><Pills value={pl.mode} options={[['fill', square ? 'Crop to square' : 'Fill the frame'], ['fit', 'Whole photo']]} onChange={v => setPl({ mode: v as 'fill' | 'fit', focusX: 0.5, focusY: 0.5 })} /></Row>
+      <Row label="Zoom"><Num value={pl.zoom} min={1} max={3} step={0.05} onChange={v => setPl({ zoom: v }, 'zoom')} /></Row>
+      {photoTools}
       <Row label="Darken"><Num value={bg.dim} min={0} max={0.7} step={0.05} onChange={v => setBg({ dim: v }, 'dim')} /></Row>
       <Row label="Shade"><Pills value={bg.gradient} options={[['none', 'None'], ['top', 'Top'], ['bottom', 'Bottom'], ['both', 'Both']]} onChange={v => setBg({ gradient: v as StoryDoc['bg']['gradient'] })} /></Row>
       <Row label="Behind"><ColourRow value={bg.color} onChange={c => setBg({ color: c }, 'color')} /></Row>
-      <Row label="Lettering">
+      {!square && <Row label="Lettering">
         <div className="flex flex-wrap gap-1.5">
           {PALETTES.map(p => (
             <button key={p.id} type="button" onClick={() => { onPalette(p); change(d => applyPalette(d, p)); }} title={p.label}
@@ -527,7 +546,7 @@ function BackgroundInspector({ api, photos, palette, onPalette, layers, layerNam
             </button>
           ))}
         </div>
-      </Row>
+      </Row>}
       {layers.length > 0 && (
         <div className="pt-1 border-t">
           <p className="text-xs text-muted-foreground mb-1.5">On the story — tap to edit</p>

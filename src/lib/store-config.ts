@@ -224,3 +224,13 @@ export const STORE_WHATSAPP_NUMBERS: string[] = (process.env.NEXT_PUBLIC_STORE_W
   .split(',').map((n) => n.trim()).filter(Boolean);
 export const STORE_POST_METAL = process.env.NEXT_PUBLIC_STORE_POST_METAL
   ?? (STORE_CONFIG.defaultMetal === 'silver' ? '925 Sterling Silver' : '21K Yellow Gold');
+
+/**
+ * The catalogue stamp in the corner of a square photo — the overlay tool's
+ * two spaced lines. "TAHERI|COLLECTIONS" by default; a house with a
+ * one-line mark leaves the second part empty ("HOUSE OF MINA|").
+ */
+export const STORE_STAMP_LINES: [string, string] = (() => {
+  const [a = 'TAHERI', b = ''] = (process.env.NEXT_PUBLIC_STORE_STAMP_LINES ?? 'TAHERI|COLLECTIONS').split('|').map((s) => s.trim());
+  return [a, b];
+})();

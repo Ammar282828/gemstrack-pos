@@ -45,11 +45,11 @@ import {
   MessageCircle, Globe, Sparkles, Wand2, Expand, Palette as PaletteIcon, Type, ShieldCheck, ShieldAlert, Link2, MessageSquareText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORE_LINKS, STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL } from '@/lib/store-config';
+import { STORE_LINKS, STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL, STORE_STAMP_LINES } from '@/lib/store-config';
 import { detailsLine, waNumberFromUrl, weightLabel, websiteFileName, whatsappCaption } from '@/lib/social/caption';
 import { PALETTES, STORY_H, STORY_W, canvasToJpeg, loadImage, loadStampFont, stampPhoto, suggestPalette } from '@/lib/social/story';
 import { SCENES, customPrompt, restagePrompt, type Aspect, type CaptionResult, type CheckResult } from '@/lib/social/prompts';
-import { applyPreset, emptyDoc, reflow, renderDoc, type Assets, type Bind, type Fields, type TextLayer } from '@/lib/social/editor';
+import { PRESETS, SQUARE_PRESETS, applyPreset, applySquarePreset, emptyDoc, emptySquare, reflow, renderDoc, renderDocTo, type Assets, type Bind, type Fields, type PresetId, type SquarePresetId, type StoryDoc, type TextLayer } from '@/lib/social/editor';
 import type { Palette } from '@/lib/social/palettes';
 import { StoryEditor, useStoryDoc } from './story-editor';
 import { diagnose, type Where } from '@/lib/social/diagnose';
@@ -189,11 +189,12 @@ export default function PostAPiecePage() {
   const [folder, setFolder] = useState('');
   const [siteName, setSiteName] = useState('');
   const [siteNameEdited, setSiteNameEdited] = useState(false);
-  const [stamp, setStamp] = useState(true);
+  // The square every WhatsApp and website photo is made from: shared words and marks, a crop per photo.
+  const square = useStoryDoc(emptySquare());
+  const [view, setView] = useState<'story' | 'square'>('story');
   const [feature, setFeature] = useState(false);
   const [community, setCommunity] = useState<{ name: string; size: number | null; reachable: boolean } | null>(null);
   const [toWhatsApp, setToWhatsApp] = useState(false);
-  const [waSend, setWaSend] = useState<'photos' | 'story'>('photos');
   const [caption, setCaption] = useState('');
   const [captionEdited, setCaptionEdited] = useState(false);
   const [ig, setIg] = useState<{ configured: boolean; connected: boolean; username: string | null } | null>(null);
@@ -221,7 +222,17 @@ export default function PostAPiecePage() {
   // The details line carries the weight only when the story has no weight line of its own.
   const weightShown = story.doc.layers.some(l => l.kind === 'text' && l.bind === 'weight' && !l.hidden);
   const fields: Fields = useMemo(() => ({ kicker, headline, weight: wLabel, details: detailsLine(piece, !weightShown) }), [kicker, headline, wLabel, piece, weightShown]);
-  const assets: Assets = useMemo(() => ({ photos: Object.fromEntries(photos.map(p => [p.id, p.img])), wordmark: marks, fonts: FONTS }), [photos, marks]);
+  const assets: Assets = useMemo(() => ({ photos: Object.fromEntries(photos.map(p => [p.id, p.img])), wordmark: marks, fonts: FONTS, stamp: STORE_STAMP_LINES }), [photos, marks]);
+  // Photos that go out as squares: everything ticked for the website or WhatsApp.
+  const squarePhotos = photos.filter(p => p.toSite || p.toWhatsApp);
+  const weightStamped = square.doc.layers.some(l => l.kind === 'text' && l.bind === 'weight' && !l.hidden);
+  /** A photo's square, as a JPEG `px` wide: the square's layers over that photo's own crop. */
+  const squareJpeg = async (p: Photo, px: number) => {
+    const doc: StoryDoc = { ...square.doc, bg: { ...square.doc.bg, photoId: p.id } };
+    return canvasToJpeg(renderDocTo(reflow(doc, fields, assets), fields, assets, px), 0.92);
+  };
+  /** Website squares at the catalogue's 3000 px when the photo has that much detail; never below 1080. */
+  const siteSize = (p: Photo) => Math.max(1080, Math.min(3000, Math.min(p.img.naturalWidth, p.img.naturalHeight)));
   const busyAny = Object.keys(aiBusy).length > 0;
   const setBusy = (key: string, what: string | null) => setAiBusy(prev => { const n = { ...prev }; if (what) n[key] = what; else delete n[key]; return n; });
 
@@ -293,6 +304,18 @@ export default function PostAPiecePage() {
     setPalette(p);
     story.reset(applyPreset(emptyDoc(first.id), 'stack-left', p, fields, assets, { weightOwnLine: true, wordmark: true }));
   }, [fontsReady, photos, story, fields, assets]);
+  // The square starts as the catalogue stamp, the way every catalogue photo already looks.
+  useEffect(() => {
+    if (!fontsReady || square.doc.layers.length) return;
+    square.reset(applySquarePreset(emptySquare(), 'catalogue', fields, assets));
+  }, [fontsReady, square, fields, assets]);
+  // The square shows a photo that is actually going out as one.
+  useEffect(() => {
+    const id = square.doc.bg.photoId;
+    if (squarePhotos.length && (!id || !squarePhotos.some(p => p.id === id))) {
+      square.change(d => ({ ...d, bg: { ...d.bg, photoId: squarePhotos[0].id } }), { live: true });
+    }
+  }, [squarePhotos, square]);
   // A removed story photo hands over to the first one left.
   useEffect(() => {
     if (story.doc.bg.photoId && !photos.some(p => p.id === story.doc.bg.photoId)) setHeroId(photos[0]?.id ?? null);
@@ -353,6 +376,7 @@ export default function PostAPiecePage() {
         return next;
       });
       if (storyShaped || source.id === hero?.id) setHeroId(made.id);
+      if (d.aspect === '1:1') square.change(doc => ({ ...doc, bg: { ...doc.bg, photoId: made.id } }), { live: true });
       if (!checkOk(d.check)) {
         toast({ title: d.check ? 'Check this one closely' : 'Could not check it', description: d.check?.differences[0] ?? 'Compare it with the original before posting.', variant: d.check ? 'destructive' : undefined });
       }
@@ -504,7 +528,8 @@ export default function PostAPiecePage() {
   const waPhotos = () => { const sel = photos.filter(p => p.toWhatsApp); return hero && sel.some(p => p.id === hero.id) ? [hero, ...sel.filter(p => p.id !== hero.id)] : sel; };
   const shareToChannel = async () => {
     const first = waPhotos()[0];
-    const b = waSend === 'story' || !first ? await getStory() : await stampPhoto(first.img, { text: stamp ? wLabel : '', colour: 'auto', maxEdge: 2560 });
+    if (!first) { toast({ title: 'No photo is ticked for WhatsApp', description: 'Tick WA on a photo first — the channel gets the same square.' }); return; }
+    const b = await squareJpeg(first, 1600);
     const f = new File([b], `${fileNameBase}.jpg`, { type: 'image/jpeg' });
     // WhatsApp often drops text shared alongside a file, so the caption goes on the clipboard too.
     try { await navigator.clipboard.writeText(caption); } catch { /* said below either way */ }
@@ -522,7 +547,7 @@ export default function PostAPiecePage() {
   // ── Publishing ──
   const sitePhotos = photos.filter(p => p.toSite);
   const siteOn = toWebsite && uploadsOn && !!folder && sitePhotos.length > 0;
-  const waOn = toWhatsApp && !!community && (waSend === 'story' || waPhotos().length > 0);
+  const waOn = toWhatsApp && !!community && waPhotos().length > 0;
   const igOn = toInstagram && !!ig?.connected;
   const ready = !!hero && !!headline.trim();
   const targets = [siteOn && SITE_NAME, waOn && 'WhatsApp', igOn && 'Instagram'].filter(Boolean) as string[];
@@ -540,7 +565,7 @@ export default function PostAPiecePage() {
 
   const uploadToWebsite = async (p: Photo, index: number, headers: Record<string, string>): Promise<string> => {
     if (uploadedRef.current[p.id]) return uploadedRef.current[p.id];
-    const jpeg = await stampPhoto(p.img, { text: stamp ? wLabel : '', colour: 'auto', maxEdge: 3000 });
+    const jpeg = await squareJpeg(p, siteSize(p));
     const name = websiteFileName(siteName || headline, index);
     const form = new FormData();
     form.set('folder', folder);
@@ -603,18 +628,14 @@ export default function PostAPiecePage() {
             sentRef.current.instagram = true;
           }
         } else if (s.id === 'whatsapp') {
-          if (waSend === 'story') {
-            await sendWhatsApp('story', await getStory(), `${fileNameBase}.jpg`, caption, headers);
-          } else {
-            // The caption rides on the first photo; the others follow without one.
-            const ordered = waPhotos();
-            for (let i = 0; i < ordered.length; i++) {
-              setStep(s.id, { note: `${i + 1} of ${ordered.length}` });
-              const jpeg = await stampPhoto(ordered[i].img, { text: stamp ? wLabel : '', colour: 'auto', maxEdge: 2560 });
-              await sendWhatsApp(`photo-${ordered[i].id}`, jpeg, `${fileNameBase}${i ? `-${i + 1}` : ''}.jpg`, i === 0 ? caption : '', headers);
-            }
-            setStep(s.id, { note: `${ordered.length} photo${ordered.length === 1 ? '' : 's'}` });
+          // The caption rides on the first square; the others follow without one.
+          const ordered = waPhotos();
+          for (let i = 0; i < ordered.length; i++) {
+            setStep(s.id, { note: `${i + 1} of ${ordered.length}` });
+            // 1600 px: WhatsApp makes no preview for images over 3000 px, and shrinks everything to about this anyway.
+            await sendWhatsApp(`photo-${ordered[i].id}`, await squareJpeg(ordered[i], 1600), `${fileNameBase}${i ? `-${i + 1}` : ''}.jpg`, i === 0 ? caption : '', headers);
           }
+          setStep(s.id, { note: `${ordered.length} square${ordered.length === 1 ? '' : 's'}` });
         }
         setStep(s.id, { status: 'done' });
       } catch (e) {
@@ -786,7 +807,11 @@ export default function PostAPiecePage() {
                     <Label htmlFor="sitename" className="text-xs">Name on the website</Label>
                     <Input id="sitename" value={siteName} onChange={e => { setSiteName(e.target.value); setSiteNameEdited(true); }} placeholder={chosen?.collection ?? 'Piece name'} />
                   </div>
-                  <label className="flex items-center gap-2 text-sm"><Switch checked={stamp} onCheckedChange={setStamp} disabled={!wLabel} /> Stamp {wLabel || 'the weight'} in the corner, like the rest of the catalogue</label>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <label className="flex items-center gap-2"><Switch checked={weightStamped} disabled={!wLabel}
+                      onCheckedChange={v => square.change(d => ({ ...d, layers: d.layers.map(l => l.kind === 'text' && l.bind === 'weight' ? { ...l, hidden: !v } : l) }))} /> {wLabel || 'Weight'} in the corner</label>
+                    <button type="button" className="text-xs text-primary" onClick={() => setView('square')}>Edit the square →</button>
+                  </div>
                   {STORE_WEBSITE_FEATURED && (
                     <label className="flex items-center gap-2 text-sm"><Switch checked={feature} onCheckedChange={setFeature} /> Make it the set of the day</label>
                   )}
@@ -803,7 +828,10 @@ export default function PostAPiecePage() {
                 </label>
                 {!community.reachable && <p className="text-sm text-amber-600">The WhatsApp line did not answer just now. Sending may fail; check Settings → Integrations.</p>}
                 {toWhatsApp && (
-                  <Seg value={waSend} options={[['photos', `The ticked photo${waPhotos().length === 1 ? '' : 's'} (${waPhotos().length})`], ['story', 'The story image']]} onChange={v => setWaSend(v as 'photos' | 'story')} />
+                  <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2">
+                    {waPhotos().length ? `${waPhotos().length} square photo${waPhotos().length === 1 ? '' : 's'}, the caption on the first.` : 'Tick WA on a photo to send it.'}
+                    <button type="button" className="text-primary" onClick={() => setView('square')}>Edit the square →</button>
+                  </p>
                 )}
               </div>
             )}
@@ -844,15 +872,18 @@ export default function PostAPiecePage() {
 
         {/* ── Right: the story, and what to press ── */}
         <aside className="space-y-4 lg:sticky lg:top-4 self-start">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Instagram story</h2>
-            {hero && (
+          <div className="flex items-center justify-between gap-2">
+            <div className="inline-flex rounded-full border p-0.5 text-xs">
+              <button type="button" onClick={() => setView('story')} className={cn('rounded-full px-3 py-1.5', view === 'story' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>Story <span className="opacity-70">9:16 · Instagram</span></button>
+              <button type="button" onClick={() => setView('square')} className={cn('rounded-full px-3 py-1.5', view === 'square' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>Square <span className="opacity-70">1:1 · WhatsApp + site</span></button>
+            </div>
+            {hero && view === 'story' && (
               <Button size="sm" onClick={() => setWholeOpen(true)} disabled={busyAny}>
                 {aiBusy.whole ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Wand2 className="h-4 w-4 mr-1.5" />} Make it with AI
               </Button>
             )}
           </div>
-          {hero ? (<>
+          {view === 'story' && (hero ? (<>
             <div className="flex flex-wrap gap-1.5">
               <Button size="sm" variant="outline" disabled={busyAny} onClick={() => setRestageFor({ photoId: (hero.ai && photos.find(p => p.id === hero.ai!.parentId)?.id) || hero.id, aspect: '9:16' })}><PaletteIcon className="h-4 w-4 mr-1.5" /> New setting</Button>
               <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(hero, 'reframe', { aspect: '9:16', tidy }, 'Story frame')}><Expand className="h-4 w-4 mr-1.5" /> Extend to story</Button>
@@ -869,6 +900,8 @@ export default function PostAPiecePage() {
               onField={onField}
               weightOwnLine={weightOwnLine}
               websiteLabel={SITE_NAME || 'taheri.shop'}
+              presets={PRESETS}
+              onPreset={id => story.change(d => applyPreset(d, id as PresetId, palette, fields, assets, { weightOwnLine, wordmark: d.layers.some(l => l.kind === 'wordmark') || d.layers.length === 0 }))}
               overlay={(aiBusy.whole || aiBusy.letter) ? (
                 <div className="absolute inset-0 rounded-xl bg-black/45 text-white flex flex-col items-center justify-center gap-2 text-sm text-center p-6">
                   <Loader2 className="h-6 w-6 animate-spin" />{aiBusy.whole ? 'Writing, choosing a setting and photographing it… about a minute' : 'Lettering it and reading it back…'}
@@ -893,7 +926,42 @@ export default function PostAPiecePage() {
             </div>
           </>) : (
             <div className="mx-auto w-[270px] sm:w-[300px] aspect-[9/16] rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground p-6 text-center">The story appears here once there is a photo.</div>
-          )}
+          ))}
+
+          {view === 'square' && (squarePhotos.length ? (() => {
+            const current = squarePhotos.find(p => p.id === square.doc.bg.photoId) ?? squarePhotos[0];
+            const notSquare = current && Math.abs(current.img.naturalWidth / current.img.naturalHeight - 1) > 0.02;
+            return (<>
+              <p className="text-xs text-muted-foreground">What WhatsApp and {SITE_NAME || 'the website'} get: every ticked photo as a square with these words and marks. Same editor as the story — tap, drag, resize, turn.</p>
+              <StoryEditor
+                api={square}
+                square
+                fields={fields}
+                assets={assets}
+                photos={squarePhotos.map(p => ({ id: p.id, url: p.url, label: p.ai?.label }))}
+                palette={palette}
+                onPalette={setPalette}
+                lettered={null}
+                onField={onField}
+                weightOwnLine={weightOwnLine}
+                websiteLabel={SITE_NAME || 'taheri.shop'}
+                presets={SQUARE_PRESETS}
+                onPreset={id => square.change(d => applySquarePreset(d, id as SquarePresetId, fields, assets))}
+                photoTools={current && (
+                  <div className="space-y-1.5">
+                    {notSquare && <p className="text-[11px] text-amber-600">This photo isn’t square, so its edges are cropped. Drag it to choose what shows, show the whole photo, or let AI widen it to a true square.</p>}
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(current, 'reframe', { aspect: '1:1', tidy }, 'Square')}><Expand className="h-4 w-4 mr-1.5" /> AI: make it a true square</Button>
+                      <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(current, 'enhance', { tidy }, 'Enhanced')}><Sparkles className="h-4 w-4 mr-1.5" /> AI: enhance</Button>
+                      <Button size="sm" variant="outline" disabled={busyAny} onClick={() => { setAskFor({ photoId: current.id, aspect: '1:1' }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-1.5" /> Ask AI</Button>
+                    </div>
+                  </div>
+                )}
+              />
+            </>);
+          })() : (
+            <div className="mx-auto w-[300px] aspect-square rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground p-6 text-center">Tick Site or WA on a photo and its square appears here.</div>
+          ))}
 
           <div className="rounded-lg border p-4 space-y-3">
             {steps.length > 0 && (
@@ -1037,8 +1105,8 @@ export default function PostAPiecePage() {
             <AlertDialogDescription asChild>
               <div className="space-y-1.5">
                 {igOn && <p>The story goes up on Instagram as @{ig?.username}.</p>}
-                {waOn && <p>{waSend === 'story' ? 'The story image' : `${waPhotos().length} photo${waPhotos().length === 1 ? '' : 's'}`} with the caption go{waSend === 'story' ? 'es' : ''} to {community?.name}{community?.size ? ` — ${community.size.toLocaleString()} members` : ''}.</p>}
-                {siteOn && <p>{sitePhotos.length} photo{sitePhotos.length === 1 ? '' : 's'} go{sitePhotos.length === 1 ? 'es' : ''} on {SITE_NAME}.</p>}
+                {waOn && <p>{waPhotos().length} square photo{waPhotos().length === 1 ? '' : 's'} with the caption go{waPhotos().length === 1 ? 'es' : ''} to {community?.name}{community?.size ? ` — ${community.size.toLocaleString()} members` : ''}.</p>}
+                {siteOn && <p>{sitePhotos.length} square photo{sitePhotos.length === 1 ? '' : 's'} go{sitePhotos.length === 1 ? 'es' : ''} on {SITE_NAME}.</p>}
                 <p>A post cannot be unsent from here.</p>
                 {blockers.length > 0 && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2.5 space-y-2 text-foreground">

@@ -186,6 +186,13 @@ env:
   # Add Photos sends photographs there; it reads the site's own folders from
   # /catalog-tree.json. The catalogue sells at fixed prices, so there is no
   # Photo Weights page and no set of the day.
+  # Post a Piece's square: the stamp in the corner. A guess until the owner says
+  # what Mina's photos should carry — never Taheri's "TAHERI | COLLECTIONS".
+  - variable: NEXT_PUBLIC_STORE_STAMP_LINES
+    value: "HOUSE OF MINA|"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_WEBSITE_URL
     value: https://catalogue.houseofmina.store
     availability:

@@ -186,6 +186,13 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   every prompt editable before sending (`rawPrompt`), a brief for Make it with AI (`sceneBrief`), a style for AI lettering.
   **Instagram music:** the API can't add music; Share story opens Instagram's own editor for the music sticker. A video
   story with a licensed track baked in was offered, not built (owner to choose).
+- **WhatsApp and taheri.shop only ever get 1:1** (owner, 2026-09-25). The page has two editors on one component: **Story
+  9:16** (Instagram) and **Square 1:1** (WhatsApp + website): one set of square layers for every ticked photo, a crop per photo
+  (`StoryDoc.placements`), rendered with `renderDocTo` at up to 3000 px for the site and 1600 px for WhatsApp. Square presets
+  (`SQUARE_PRESETS`): Catalogue stamp (the overlay tool's geometry — weight top-left in Futura LT Light, the
+  **"TAHERI / COLLECTIONS"** stamp bottom-right, both **auto colour** per photo), Weight only, Name + weight + logo (Didone
+  italic like the grid posts), Clean. The stamp's words are `NEXT_PUBLIC_STORE_STAMP_LINES` ("TAHERI|COLLECTIONS"; Mina's file
+  sets a guess, "HOUSE OF MINA|"). WhatsApp no longer offers "send the story image".
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).
   The POS stayed usable at **https://studio--gemstrack-pos.us-central1.hosted.app** (App Hosting's own address; open access,
   data loads). Instagram fetches story images from `SOCIAL_MEDIA_ORIGIN` (that address) so posting never depends on .shop.
