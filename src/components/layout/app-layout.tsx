@@ -11,13 +11,13 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator, useSidebar,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Globe, Wallet, Search, Sun, Moon } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Globe, Wallet, Search, Sun, Moon, Send } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
-import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS } from '@/lib/store-config';
+import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_POSTS } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -89,6 +89,10 @@ const navGroups: NavGroup[] = [
       ] },
       // The website pages exist only for a shop that has one (NEXT_PUBLIC_STORE_WEBSITE_URL).
       ...(STORE_LINKS.website ? ([
+        // A piece from the catalogue to the House of Mina community, with its link.
+        ...(STORE_SITE_POSTS ? [{ staff: true, href: '/website/from-site', label: 'Posts', icon: <Send />, tabs: [
+          { staff: true, href: '/website/from-site', label: 'From the website' },
+        ] as NavTab[] }] : []),
         { staff: true, href: '/website/photos', label: 'Website', icon: <Globe />, tabs: [
           { staff: true, href: '/website/photos', label: 'Add Photos' },
           ...(STORE_WEBSITE_WEIGHTS ? [{ staff: true, href: '/website/weights', label: 'Photo Weights' }] : []),

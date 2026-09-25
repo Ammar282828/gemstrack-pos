@@ -216,3 +216,22 @@ export const STORE_PARTNERSHIP = process.env.NEXT_PUBLIC_STORE_PARTNERSHIP === '
  */
 export const STORE_WEBSITE_WEIGHTS = process.env.NEXT_PUBLIC_STORE_WEBSITE_WEIGHTS !== '0';
 export const STORE_WEBSITE_FEATURED = process.env.NEXT_PUBLIC_STORE_WEBSITE_FEATURED !== '0';
+
+// ── Posts (ported from the shared main for Posts → From the website) ─────────
+/** The numbers a post's caption asks customers to write to. */
+export const STORE_WHATSAPP_NUMBERS: string[] = (process.env.NEXT_PUBLIC_STORE_WHATSAPP_NUMBERS ?? '')
+  .split(',').map((n) => n.trim()).filter(Boolean);
+export const STORE_POST_METAL = process.env.NEXT_PUBLIC_STORE_POST_METAL
+  ?? (STORE_CONFIG.defaultMetal === 'silver' ? '925 Sterling Silver' : '21K Yellow Gold');
+/** Post a Piece (Taheri's story and community posts) — not on this branch; its gate reads this. */
+export const STORE_POST_PIECE = process.env.NEXT_PUBLIC_STORE_POST_PIECE !== '0';
+/**
+ * Posts → From the website: a piece already on this house's website to its
+ * WhatsApp community with its link. "0" turns it off. The caption ends with the
+ * house's own lines when _POST_FOOTER is set, else "Ask for today's price" and the
+ * numbers; _POST_TAGLINE follows the piece's facts. A literal "\n" is a line break.
+ */
+export const STORE_SITE_POSTS = process.env.NEXT_PUBLIC_STORE_SITE_POSTS !== '0';
+const lines = (v: string | undefined) => (v ?? '').replace(/\\n/g, '\n').trim();
+export const STORE_POST_TAGLINE = lines(process.env.NEXT_PUBLIC_STORE_POST_TAGLINE);
+export const STORE_POST_FOOTER = lines(process.env.NEXT_PUBLIC_STORE_POST_FOOTER);
