@@ -9,6 +9,14 @@
 // every feature that wants one says so and works without it). Existing
 // non-empty secret lines in the file are kept, so re-running never blanks a
 // key you already pasted.
+//
+// Next still reads .env.local and .env.development.local — Taheri's hand-kept
+// files — and fills in any variable the process doesn't already have. So every
+// variable another house sets (or those files set, for a house that isn't
+// Taheri) and this house doesn't is written empty: Next leaves a variable alone
+// once the process has it, even empty, then drops it — exactly as on the
+// house's backend. Without this a local Mina borrowed Taheri's website, Post a
+// Piece and Investments (2026-09-25).
 
 import fs from 'node:fs';
 import yaml from 'yaml';
@@ -25,5 +33,10 @@ for (const [k, e] of merged) {
   if (e.secret !== undefined) lines.push(`# secret ${e.secret} — paste from Secret Manager, or leave empty`, `${k}=${existing.get(k) || ''}`);
   else lines.push(`${k}=${String(e.value)}`);
 }
+const keysOf = (f) => fs.existsSync(f) ? fs.readFileSync(f, 'utf8').split('\n').filter(l => /^[A-Z_0-9]+=/.test(l)).map(l => l.split('=')[0]) : [];
+const others = ['taheri', 'mina'].filter(h => h !== house).flatMap(h => load(`apphosting.${h}.yaml`).map(e => e.variable));
+const lent = house === 'taheri' ? [] : ['.env.local', '.env.development.local'].flatMap(keysOf);
+const blank = [...new Set([...others, ...lent])].filter(k => !merged.has(k));
+if (blank.length) lines.push('', `# Not ${house}'s: empty, so Next can't fill them from Taheri's .env.local / .env.development.local.`, ...blank.map(k => `${k}=`));
 fs.writeFileSync(out, lines.join('\n') + '\n');
-console.log(`wrote ${out}: ${merged.size} variables (${[...merged.values()].filter(e => e.secret !== undefined).length} secrets to fill)`);
+console.log(`wrote ${out}: ${merged.size} variables (${[...merged.values()].filter(e => e.secret !== undefined).length} secrets to fill), ${blank.length} left empty`);

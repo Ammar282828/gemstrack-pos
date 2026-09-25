@@ -87,7 +87,9 @@ bank env vars and the open Firestore rules.
   `NEXT_PUBLIC_STORE_PARTNERSHIP=1` — Mina's partnership book, whose ledgers live in Mina's Firestore);
   `voice/gemini.ts` (`VERTEX_PROJECT` bills Mina's voice to Taheri's project); the Website menu's **Photo Weights**
   and Add Photos' **Feature today** follow `NEXT_PUBLIC_STORE_WEBSITE_WEIGHTS` / `_FEATURED` (default on; Mina's
-  catalogue has neither, so its file sets both to "0" at go-live).
+  catalogue has neither, so its file sets both to "0" at go-live); **Post a Piece** and **Investments** follow
+  `NEXT_PUBLIC_STORE_POST_PIECE` / `_INVESTMENTS` (Taheri's accounts and series; Mina sets both "0", which hides the menu
+  entries and pages and makes their routes answer 404 — owner, 2026-09-25: "why are taheri features in mina pos").
 - A `secret:` in the base must exist in **both** projects; one in a house file only in that project.
 
 **Shipping a change to both houses:**
@@ -101,6 +103,10 @@ Push Taheri first, check it, then Mina. `main` here is the shared working branch
 **Running a house locally:** `npm run env:taheri` or `npm run env:mina` writes `.env.<house>.local`
 from the YAML files (secrets left blank to fill from Secret Manager), then `npm run dev:taheri`
 (port 3000) or `npm run dev:mina` (port 3001). `.env.local` is a hand-kept Taheri file that plain `npm run dev` uses.
+Next reads `.env.local` / `.env.development.local` even under `dev:mina` and fills any variable the process lacks, so the
+generator writes every variable that isn't the house's as **empty** (Next then leaves it alone). Re-run `npm run env:mina`
+after changing either YAML — a stale `.env.mina.local` is how a local Mina showed Taheri's Post a Piece, Investments and
+Photo Weights on 2026-09-25.
 
 ## House of Mina's catalogue (catalogue.houseofmina.store)
 

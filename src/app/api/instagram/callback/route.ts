@@ -5,13 +5,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { publicOrigin } from '@/lib/social/gate';
+import { publicOrigin, notInThisShop } from '@/lib/social/gate';
+import { STORE_POST_PIECE } from '@/lib/store-config';
 import { completeConnection } from '@/lib/social/instagram';
 import { recordError } from '@/lib/social/errors';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
+  if (!STORE_POST_PIECE) return notInThisShop();
   const origin = publicOrigin(req);
   const back = (q: Record<string, string>) => {
     const res = NextResponse.redirect(`${origin}/website/post?${new URLSearchParams(q)}`);

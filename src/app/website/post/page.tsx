@@ -45,7 +45,7 @@ import {
   MessageCircle, Globe, Sparkles, Wand2, Expand, Palette as PaletteIcon, Type, ShieldCheck, ShieldAlert, Link2, MessageSquareText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORE_LINKS, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL, STORE_MARK_SVG, STORE_MONOGRAM_SVG } from '@/lib/store-config';
+import { STORE_LINKS, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL, STORE_MARK_SVG, STORE_MONOGRAM_SVG, STORE_POST_PIECE } from '@/lib/store-config';
 import { detailsLine, waNumberFromUrl, weightLabel, websiteFileName, whatsappCaption } from '@/lib/social/caption';
 import { PALETTES, STORY_H, STORY_W, canvasToJpeg, loadImage, loadStampFont, stampPhoto, suggestPalette } from '@/lib/social/story';
 import { SCENES, customPrompt, restagePrompt, type Aspect, type CaptionResult, type CheckResult } from '@/lib/social/prompts';
@@ -139,7 +139,15 @@ const collectionUrl = (c: Collection | undefined) =>
 
 const checkOk = (c: CheckResult | null | undefined) => !!c && c.samePiece && c.confidence >= 0.8;
 
-export default function PostAPiecePage() {
+export default function PostAPieceRoute() {
+  // A wrapper, so the page's own hooks never sit behind an early return.
+  if (!STORE_POST_PIECE) {
+    return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn't post from the POS.</p>;
+  }
+  return <PostAPiecePage />;
+}
+
+function PostAPiecePage() {
   const { toast } = useToast();
   const health = useHealth();
   const dctx = health.report?.context ?? {};

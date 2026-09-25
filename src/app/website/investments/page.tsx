@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { TrendingUp, Send, Check, Loader2, Copy, Download, Instagram, MessageCircle, Megaphone, Plus, RefreshCw, Clock, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { diagnose } from '@/lib/social/diagnose';
+import { STORE_INVESTMENTS } from '@/lib/store-config';
 
 type Target = 'group' | 'teaser' | 'instagram';
 interface Sent { at: string; by: string; ref: string }
@@ -45,7 +46,15 @@ const TARGETS: { id: Target; label: string; to: string; icon: React.ReactNode }[
 const longDate = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 const time = (iso: string) => new Date(iso).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
 
-export default function InvestmentsPage() {
+export default function InvestmentsRoute() {
+  // A wrapper, so the page's own hooks never sit behind an early return.
+  if (!STORE_INVESTMENTS) {
+    return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">Investments by Taheri isn't part of this shop.</p>;
+  }
+  return <InvestmentsPage />;
+}
+
+function InvestmentsPage() {
   const { toast } = useToast();
   const [posts, setPosts] = useState<Post[] | null>(null);
   const [today, setToday] = useState('');

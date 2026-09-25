@@ -35,7 +35,8 @@ import {
 } from '@/lib/social/prompts';
 import { whatsappCaption } from '@/lib/social/caption';
 import { PALETTES } from '@/lib/social/palettes';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_POST_PIECE } from '@/lib/store-config';
+import { notInThisShop } from '@/lib/social/gate';
 import sharp from 'sharp';
 import { recordError } from '@/lib/social/errors';
 
@@ -47,6 +48,7 @@ const DAILY_CAP = Number(process.env.IMAGE_AI_DAILY_CAP) || 300;
 const MAX_BYTES = 25 * 1024 * 1024;
 
 async function gate(req: NextRequest): Promise<string | NextResponse> {
+  if (!STORE_POST_PIECE) return notInThisShop();
   if (OPEN_ACCESS) return 'counter';
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -199,6 +199,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Post a Piece (Instagram story, community post, AI) is built on Taheri's
+  # accounts; Mina's menu has no Post a Piece page and its routes answer 404.
+  - variable: NEXT_PUBLIC_STORE_POST_PIECE
+    value: "0"
+    availability:
+      - BUILD
+      - RUNTIME
   # Post a Piece's marks: Mina's own logo (filled to any colour by its shape) and
   # no monogram — never Taheri's "taheri" or "t".
   - variable: NEXT_PUBLIC_STORE_MARK_SVG

@@ -16,7 +16,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
-import { postGate } from '@/lib/social/gate';
+import { postGate, notInThisShop } from '@/lib/social/gate';
+import { STORE_INVESTMENTS } from '@/lib/store-config';
 import { isDateId, karachiDate, listInvestmentPosts, saveInvestmentPost, toCardJpeg, type CardKind } from '@/lib/investments';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,7 @@ function hasIngestToken(req: NextRequest): boolean {
 }
 
 export async function GET(req: NextRequest) {
-  const who = await postGate(req);
+  const who = await postGate(req, STORE_INVESTMENTS);
   if (who instanceof NextResponse) return who;
   const posts = await listInvestmentPosts();
   return NextResponse.json({
@@ -46,9 +47,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!STORE_INVESTMENTS) return notInThisShop();
   let source = 'routine';
   if (!hasIngestToken(req)) {
-    const who = await postGate(req);
+    const who = await postGate(req, STORE_INVESTMENTS);
     if (who instanceof NextResponse) return NextResponse.json({ error: 'Send the routine’s token as a Bearer header.' }, { status: 401 });
     source = `pos:${who}`;
   }

@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { postGate, mediaOrigin } from '@/lib/social/gate';
+import { STORE_INVESTMENTS } from '@/lib/store-config';
 import { recordError } from '@/lib/social/errors';
 import { getCard, getInvestmentPost, isDateId, markSent, type Target } from '@/lib/investments';
 import { sendWhatsAppFileToGroup, sendWhatsAppTextToGroup } from '@/lib/whatsapp';
@@ -26,7 +27,7 @@ export const maxDuration = 120;
 const CAPTION_MAX = 1024;
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const who = await postGate(req);
+  const who = await postGate(req, STORE_INVESTMENTS);
   if (who instanceof NextResponse) return who;
   const { id } = await params;
   if (!isDateId(id)) return NextResponse.json({ error: 'No such post.' }, { status: 404 });

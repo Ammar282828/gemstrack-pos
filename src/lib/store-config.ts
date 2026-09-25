@@ -248,3 +248,11 @@ export const STORE_MONOGRAM_SVG = process.env.NEXT_PUBLIC_STORE_MONOGRAM_SVG ?? 
  * series sets "0".
  */
 export const STORE_INVESTMENTS = process.env.NEXT_PUBLIC_STORE_INVESTMENTS !== '0';
+
+/**
+ * Post a Piece — the Instagram story, the community post and the AI behind
+ * them. Built on Taheri's accounts (@collectionstaheri, the Taheri Collections
+ * community, the shop's marks); a house without them sets "0" and the page,
+ * its menu entry and its server routes are gone.
+ */
+export const STORE_POST_PIECE = process.env.NEXT_PUBLIC_STORE_POST_PIECE !== '0';

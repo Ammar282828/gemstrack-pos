@@ -19,6 +19,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
+import { STORE_POST_PIECE } from '@/lib/store-config';
+import { notInThisShop } from '@/lib/social/gate';
 import { roleForEmail } from '@/lib/roles';
 import { adminDb } from '@/lib/firebase-admin';
 import { sendWhatsAppFileToGroup, whatsAppGroupInfo, WhatsAppNotConfiguredError } from '@/lib/whatsapp';
@@ -31,6 +33,7 @@ const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
 const MAX_BYTES = 16 * 1024 * 1024;
 
 async function gate(req: NextRequest): Promise<string | NextResponse> {
+  if (!STORE_POST_PIECE) return notInThisShop();
   if (OPEN_ACCESS) return 'counter';
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

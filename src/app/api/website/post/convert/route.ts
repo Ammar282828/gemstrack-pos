@@ -10,6 +10,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import convertHeic from 'heic-convert';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
+import { STORE_POST_PIECE } from '@/lib/store-config';
+import { notInThisShop } from '@/lib/social/gate';
 import { roleForEmail } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +21,7 @@ const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
 const MAX_BYTES = 25 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
+  if (!STORE_POST_PIECE) return notInThisShop();
   if (!OPEN_ACCESS) {
     const email = await verifyRequestEmail(req);
     const role = email ? roleForEmail(email) : null;
