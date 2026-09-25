@@ -242,7 +242,7 @@ env:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_STORE_MONOGRAM_SVG
-    value: ""
+    value: "none"
     availability:
       - BUILD
       - RUNTIME

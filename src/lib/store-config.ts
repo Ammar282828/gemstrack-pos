@@ -237,10 +237,12 @@ export const STORE_POST_METAL = process.env.NEXT_PUBLIC_STORE_POST_METAL
  * The shop's marks as SVGs, for Post a Piece's story and square: drawn in any
  * colour (their shape filled), so each file only needs to be the shape. The
  * wordmark is "taheri"; the monogram is the "t". A house without a monogram
- * sets it to "" and the option disappears. Paths are under public/.
+ * sets it to "none" and the option disappears. Paths are under public/.
  */
 export const STORE_MARK_SVG = process.env.NEXT_PUBLIC_STORE_MARK_SVG ?? '/brand/taheri-wordmark.svg';
-export const STORE_MONOGRAM_SVG = process.env.NEXT_PUBLIC_STORE_MONOGRAM_SVG ?? '/brand/taheri-t.svg';
+// "none" means no monogram: App Hosting refuses a variable whose value is "" (the whole rollout fails).
+const monogram = process.env.NEXT_PUBLIC_STORE_MONOGRAM_SVG?.trim();
+export const STORE_MONOGRAM_SVG = monogram === undefined ? '/brand/taheri-t.svg' : /^(none|off|0)?$/i.test(monogram) ? '' : monogram;
 
 /**
  * Investments by Taheri — the daily gold post the scheduled Claude routine
