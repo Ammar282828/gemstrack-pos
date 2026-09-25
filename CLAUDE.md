@@ -59,7 +59,8 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 | `/api/website/post/ai` | Post a Piece | Gemini on Vertex (`IMAGE_AI_PROJECT`): `enhance`, `reframe`, `restage`, `letter`, `caption`, `check`. Every image edit is compared with its source ("same piece?"); capped 300 calls/day shop-wide, 60/h per IP |
 | `/api/instagram/status`, `connect`, `callback`, `story` | Post a Piece | Instagram Login OAuth → 60-day token in **Secret Manager** (`instagram-token`, renewed on use), locked to `INSTAGRAM_USERNAME`; `story` publishes a 9:16 JPEG |
 | `/api/website/post/health` | Post a Piece | GET: every check + last day's `social_errors` + diagnosis context; POST: the page records a failure |
-| `/api/investments` (+ `/[id]/publish`, `/api/public/investments/[id]/[kind]`) | the Cowork routine; POS page Investments | file a day's gold post (Bearer ingest token or the POS); send each part; serve the cards |
+| `/api/investments` (+ `/[id]/publish`, `/[id]/plan`, `/schedule`, `/api/public/investments/[id]/[kind]`) | the Cowork routine; POS page Investments | file a day's gold post (Bearer ingest token or the POS); send each part; hold/approve a day; the owner's schedule; serve the cards |
+| `/api/investments/tick` | Cloud Scheduler `investments-tick` (every 5 min, Bearer `CRON_SECRET`) | send whatever part of today's post the schedule says is due; `?dry=1` sends nothing |
 | `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
 | `/api/website/orders/[id]` | POS order page | mark paid / shipped — **always verifies a token, even under open access** |
 
@@ -236,6 +237,14 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   `investment_media` (JPEG ≤ 900 KB). The page sends: post + square → `INVESTMENTS_GROUP_CHAT_ID` (120363362406867247@g.us, 469,
   admin-only, line is super admin; caption if ≤ 1024 chars else card then text), teaser → community announcements, story →
   Instagram (`/api/public/investments/[id]/story` via hosted.app). Each target once; resend asks. Manual add on the page too.
+  **Automatic sending** (2026-09-25, owner: "automate the investment by taheri post sending … decide and choose when and how often"):
+  the owner's schedule (`app_settings/investments_schedule`, rules in `src/lib/investments-schedule.ts`, tested) — on/off, days of the
+  week, per part (group, **channel** — the post + card to `WHATSAPP_CHANNEL_ID`, WAHA only — teaser, Instagram) on/off and a Karachi
+  time or "as soon as it arrives", a late cut-off, and "send by itself" or "wait for my OK". Cloud Scheduler job `investments-tick`
+  (us-central1, `*/5 * * * *` Asia/Karachi, Bearer `CRON_SECRET`; the Cloud Scheduler API was enabled for it) calls `/api/investments/tick`,
+  which sends only today's post, each part once (a Firestore-transaction claim guards overlaps), tries a failure three times, and writes
+  `lastTick` (the page warns when it's over 15 min old). Ships **off**. Per day: Hold / Let it send, Approve, Try again; **Send all**
+  sends every unsent part in order after one confirm. Both paths share `src/lib/investments-send.ts`.
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).
   The POS stayed usable at **https://studio--gemstrack-pos.us-central1.hosted.app** (App Hosting's own address; open access,
   data loads). Instagram fetches story images from `SOCIAL_MEDIA_ORIGIN` (that address) so posting never depends on .shop.
