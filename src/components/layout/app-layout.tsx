@@ -8,14 +8,14 @@ import { usePathname } from 'next/navigation';
 import {
   SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter,
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset,
-  SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator,
+  SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator, useSidebar,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Globe, Wallet } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Globe, Wallet, Search } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
-import { CommandPalette } from '@/components/search/command-palette';
+import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
 import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS } from '@/lib/store-config';
 import Image from 'next/image';
@@ -142,6 +142,30 @@ function forRole(item: NavItem, staff: boolean): NavItem | null {
   return { ...item, href: tabs[0].href, tabs };
 }
 
+/**
+ * Search, at the top of the sidebar: the Ctrl+K palette (any customer, karigar,
+ * piece or screen) for anyone who doesn't know the shortcut, or is on a phone.
+ * Looks like a search box when the sidebar is open, a magnifier when it is folded.
+ */
+function SidebarSearch() {
+  const { isMobile, setOpenMobile } = useSidebar();
+  return (
+    <SidebarMenu className="px-2 pt-1">
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          onClick={() => { if (isMobile) setOpenMobile(false); openCommandPalette(); }}
+          tooltip={{ children: 'Search (⌘K)' }}
+          className="justify-start gap-3 rounded-lg border border-input bg-background text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:border-0"
+        >
+          <Search />
+          <span className="flex-1 group-data-[collapsible=icon]:hidden">Search</span>
+          <kbd className="rounded border bg-muted px-1.5 font-sans text-2xs text-muted-foreground group-data-[collapsible=icon]:hidden">⌘K</kbd>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isStoreHydrated = useIsStoreHydrated();
@@ -232,6 +256,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                <Gem className="w-6 h-6 text-primary hidden group-data-[collapsible=icon]:block" />
             </Link>
           </SidebarHeader>
+
+          <SidebarSearch />
 
           <SidebarContent asChild>
             <ScrollArea className="h-full">

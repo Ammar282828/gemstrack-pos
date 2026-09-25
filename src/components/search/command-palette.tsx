@@ -61,6 +61,12 @@ const NEW: Array<Omit<Item, 'id'>> = [
  */
 const PHONETIC_FLOOR = 0.62;
 
+/** Open the palette from anywhere — the sidebar's Search entry uses this. */
+const OPEN_EVENT = 'command-palette:open';
+export function openCommandPalette(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(OPEN_EVENT));
+}
+
 export function CommandPalette() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -82,8 +88,10 @@ export function CommandPalette() {
         setOpen((v) => !v);
       }
     };
+    const onOpen = () => setOpen(true);
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => { document.removeEventListener('keydown', onKey); window.removeEventListener(OPEN_EVENT, onOpen); };
   }, []);
 
   // The lists are only worth fetching once somebody actually searches.
