@@ -93,8 +93,34 @@ export const STORE_LINKS = {
   /** The shop's WhatsApp channel (whatsapp.com/channel/…): the link page's first row; Post a Piece links to it for sharing by hand. */
   waChannel:  process.env.NEXT_PUBLIC_STORE_WA_CHANNEL_URL  ?? '',
   instagram:  process.env.NEXT_PUBLIC_STORE_INSTAGRAM_URL   ?? '',
+  tiktok:     process.env.NEXT_PUBLIC_STORE_TIKTOK_URL      ?? '',
   website:    process.env.NEXT_PUBLIC_STORE_WEBSITE_URL     ?? '',
+  /** An online shop apart from the website (House of Mina's Shopify store, houseofmina.store). */
+  shop:       process.env.NEXT_PUBLIC_STORE_SHOP_URL        ?? '',
   googleReview: process.env.NEXT_PUBLIC_STORE_GOOGLE_REVIEW_URL ?? '',
+};
+
+/**
+ * The link page's words, per house. The defaults are Taheri's; House of Mina's file
+ * states its own. `feature` is the top row — the WhatsApp channel, or the community
+ * when a house has no channel — written "lead|tail|line": the lead set large in the
+ * house's serif, the tail whispered beside it, the line beneath. `visit` is the
+ * footer, one line per row ("\n" between them). An empty value means the default
+ * (`||`, not `??`): the local env generator writes another house's variables empty.
+ */
+const nl = (v: string | undefined) => v?.replace(/\\n/g, '\n').trim();
+const [featureLead = '', featureTail = '', featureLine = ''] =
+  (process.env.NEXT_PUBLIC_STORE_LINKS_FEATURE || 'Collections|by Taheri|Every new piece, in your Updates — no group to join')
+    .split('|').map((s) => s.trim());
+export const STORE_LINKS_PAGE = {
+  tagline: process.env.NEXT_PUBLIC_STORE_LINKS_TAGLINE || 'Gold born from dust.',
+  welcome: process.env.NEXT_PUBLIC_STORE_LINKS_WELCOME
+    || 'Everything Taheri, in one place — new pieces as they are finished, the day’s rate, and a way to reach us that is not a queue.',
+  feature: { lead: featureLead, tail: featureTail, line: featureLine },
+  /** What the website row is called; the site's own host name without it. */
+  websiteLabel: process.env.NEXT_PUBLIC_STORE_LINKS_WEBSITE_LABEL ?? '',
+  visit: (nl(process.env.NEXT_PUBLIC_STORE_LINKS_VISIT)
+    || 'Najmi Market, Shop #40 & #16, Saddar, Karachi\n0335 2275553 · 0326 2275554').split('\n').map((s) => s.trim()).filter(Boolean),
 };
 
 /**

@@ -158,9 +158,54 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  # Mina's fork pointed the WhatsApp link at the community group; kept as it was.
+  # "Talk to us" on the link page: a chat with House of Mina's own line. Mina's fork had the
+  # community here; that is NEXT_PUBLIC_STORE_WA_COMMUNITY_URL since 2026-09-25.
   - variable: NEXT_PUBLIC_STORE_WHATSAPP_URL
+    value: "https://wa.me/923161930960"
+    availability:
+      - BUILD
+      - RUNTIME
+  # The "Exclusive Sterling Silver" community — the link page's top row (Mina has no channel).
+  - variable: NEXT_PUBLIC_STORE_WA_COMMUNITY_URL
     value: "https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_TIKTOK_URL
+    value: "https://www.tiktok.com/@houseofmina"
+    availability:
+      - BUILD
+      - RUNTIME
+  # The Shopify store, beside the catalogue on the link page.
+  - variable: NEXT_PUBLIC_STORE_SHOP_URL
+    value: "https://houseofmina.store"
+    availability:
+      - BUILD
+      - RUNTIME
+  # The link page's words (links.houseofmina.store; see STORE_LINKS_PAGE). Copy says
+  # Karachi, never Saddar.
+  - variable: NEXT_PUBLIC_STORE_LINKS_TAGLINE
+    value: "Bespoke, designed in-house."
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_LINKS_WELCOME
+    value: "Everything House of Mina, in one place — new pieces as they land, the whole catalogue, and a way to reach us that is not a queue."
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_LINKS_FEATURE
+    value: "Exclusives|Sterling Silver|Every new piece, the moment it lands"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_LINKS_WEBSITE_LABEL
+    value: "The catalogue"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_LINKS_VISIT
+    value: 'Studio open daily, 12:30 – 8 pm · Karachi\n0316 1930960'
     availability:
       - BUILD
       - RUNTIME
