@@ -11,7 +11,7 @@
  * body copy, so colour was carrying the load that size should carry and the page had no
  * focal point below the wordmark. There are four rungs now and they are far apart:
  *
- *   21px  Didone     the category — Diamonds, Gemstones, Watches
+ *   21px  Didone     the WhatsApp channel — the one thing to follow
  *   15px  Inter      the shop's utility links, which are verbs, not departments
  *   13px  Inter      the welcome and the invitation to visit
  *   11.5px Inter     what each channel actually carries
@@ -23,19 +23,15 @@
  * Nothing here is below white/50 (5.3:1) any more, and it still reads as furniture,
  * because 8.5px letterspaced caps whisper on their own without being faint too.
  *
- * ON THE SERIF. Five of the six channels are "X by Taheri". This page is already
- * Taheri, so the repeated half is the one part carrying no information, and it was
- * printed six times in the loudest position available. The distinguishing noun is now
- * set large in the wordmark's own Didone and the shared half whispers beside it, which
- * turns six brand names back into what they are — a jeweller's list of departments.
+ * ON THE SERIF. The page used to list six WhatsApp communities ("Diamonds by Taheri",
+ * …); since 2026-09-25 it leads with the WhatsApp channel alone, and the communities are
+ * gone. The channel keeps their setting: "Collections" large in the wordmark's own
+ * Didone, "by Taheri" whispering beside it — this page is already Taheri. A gold
+ * hairline at rest marks it as the thing to tap.
  *
- * The serif is the one liberty taken. My earlier note here said the storefront uses the
- * Didone only as wordmark artwork so this page would too; that was the right instinct
- * for decoration and the wrong one for hierarchy, because a second voice separates two
- * kinds of thing in a way that another two pixels never will. It is spent on six words
- * and nothing else. The utility rows below stay in Inter deliberately: "Talk to us" is
- * an action, not a department, and setting it in the same face as "Diamonds" would say
- * they are the same kind of thing.
+ * The serif is the one liberty taken, spent on one word. The utility rows below stay in
+ * Inter deliberately: "Talk to us" is an action, not a department, and setting it in the
+ * same face would say they are the same kind of thing.
  *
  * Public: no sign-in, no data, nothing out of the book.
  */
@@ -43,7 +39,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { Bodoni_Moda } from 'next/font/google';
-import { STORE_CONFIG, STORE_COMMUNITIES, STORE_LINKS, STORE_LOGO_LIGHT_URL } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_LINKS, STORE_LOGO_LIGHT_URL } from '@/lib/store-config';
 
 // Self-hosted by next/font, so it is one same-origin file rather than a round-trip to
 // Google — this page is often the first thing a customer loads on a slow phone.
@@ -51,7 +47,7 @@ const didone = Bodoni_Moda({ subsets: ['latin'], weight: ['400'], display: 'swap
 
 type IconName = 'whatsapp' | 'instagram' | 'globe' | 'star';
 
-interface Channel { href: string; label: string; lead: string; tail: string; sub: string }
+interface Channel { href: string; label: string; lead: string; tail: string; sub: string; action: string; featured?: boolean }
 interface Utility { href: string; label: string; sub: string; action: string; icon: IconName }
 
 export default function LinksPage() {
@@ -107,9 +103,16 @@ export default function LinksPage() {
           </p>
         </header>
 
-        <Block heading="Channels" note="Join any of them">
-          {STORE_COMMUNITIES.map((c) => <ChannelRow key={c.href} {...c} />)}
-        </Block>
+        {/* The WhatsApp channel, first and alone: one tap to follow, nothing to join,
+            and every new piece lands in Updates. The six community groups that were
+            listed here came off on 2026-09-25 (owner: "remove all community links"). */}
+        {STORE_LINKS.waChannel && (
+          <Block heading="WhatsApp channel">
+            <ChannelRow href={STORE_LINKS.waChannel} label="Taheri Collections channel on WhatsApp"
+                        lead="Collections" tail="by Taheri" action="Follow" featured
+                        sub="Every new piece, in your Updates — no group to join" />
+          </Block>
+        )}
 
         {utilities.length > 0 && (
           <Block heading="Find us">
@@ -151,14 +154,14 @@ function Block({ heading, note, children }: { heading: string; note?: string; ch
  * what WhatsApp shows on arrival — the split is a way of setting the words, not a
  * renaming.
  */
-function ChannelRow({ href, label, lead, tail, sub }: Channel) {
+function ChannelRow({ href, label, lead, tail, sub, action, featured }: Channel) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`${label} — ${sub}`}
-      className="btn mb-2.5 flex items-start gap-4 rounded-lg border border-white/10 px-5 py-[18px]"
+      className={`btn mb-2.5 flex items-start gap-4 rounded-lg border px-5 py-[18px] ${featured ? 'border-[#BE9F76]/45' : 'border-white/10'}`}
     >
       {/* Pinned to the name rather than floated to the middle of the card. The name is
           what the mark belongs to — centring it against a two-line block left it
@@ -174,7 +177,7 @@ function ChannelRow({ href, label, lead, tail, sub }: Channel) {
         <span className="mt-2 block text-[11.5px] font-light leading-snug text-white/55">{sub}</span>
       </span>
       <span className="shrink-0 self-center text-[9px] uppercase tracking-[0.2em] text-[#BE9F76]">
-        Join
+        {action}
       </span>
     </a>
   );

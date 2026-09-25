@@ -90,51 +90,12 @@ export const STORE_LINKS = {
   whatsapp:   process.env.NEXT_PUBLIC_STORE_WHATSAPP_URL    ?? '',
   /** The WhatsApp *community* invite, which is not the same as a wa.me chat link. */
   waCommunity: process.env.NEXT_PUBLIC_STORE_WA_COMMUNITY_URL ?? '',
-  /** The shop's WhatsApp channel (whatsapp.com/channel/…). Post a Piece links to it for sharing by hand. */
+  /** The shop's WhatsApp channel (whatsapp.com/channel/…): the link page's first row; Post a Piece links to it for sharing by hand. */
   waChannel:  process.env.NEXT_PUBLIC_STORE_WA_CHANNEL_URL  ?? '',
   instagram:  process.env.NEXT_PUBLIC_STORE_INSTAGRAM_URL   ?? '',
   website:    process.env.NEXT_PUBLIC_STORE_WEBSITE_URL     ?? '',
   googleReview: process.env.NEXT_PUBLIC_STORE_GOOGLE_REVIEW_URL ?? '',
 };
-
-/**
- * The shop's WhatsApp communities, one per line of business.
- *
- * A constant rather than env vars: six labelled links do not fit an environment
- * variable legibly, and NEXT_PUBLIC_* is baked at build time anyway — so a change
- * needs a deploy either way, and this at least reads like a list.
- *
- * The 925 silver community is House of Mina's, deliberately. That shop is the silver
- * side of the business; it is the one place these two are meant to meet.
- *
- * Which is why that row's `tail` reads "House of Mina" where the others read "by
- * Taheri". The tail slot answers "whose", and this is the single row whose answer is
- * different — a customer tapping it leaves Taheri's name behind and should know that
- * before the tap, not after WhatsApp has opened. Five rows agreeing and one differing
- * is not an inconsistency here; it is the only place the page has to say something.
- */
-/**
- * `lead` is the word that distinguishes the channel; `tail` is what every channel
- * shares. The link page sets the lead large and the tail as a whisper beside it — this
- * is a jeweller's list of departments, and "by Taheri" said six times in the loudest
- * position on Taheri's own page is noise. `label` keeps the channel's real name for the
- * accessible name, which is what a screen reader announces and what WhatsApp shows on
- * arrival.
- */
-export const STORE_COMMUNITIES: { label: string; lead: string; tail: string; sub: string; href: string }[] = [
-  { label: 'Taheri Collections', lead: 'Collections', tail: 'by Taheri',      sub: 'The first look at every new piece',
-    href: 'https://chat.whatsapp.com/HMeoF0Zcl0i9XobLspaCWl' },
-  { label: 'Diamonds by Taheri', lead: 'Diamonds', tail: 'by Taheri',      sub: 'Solitaires, studs and full sets',
-    href: 'https://chat.whatsapp.com/CYu06FaabSA9QR3khJbsqK?mode=gi_t' },
-  { label: 'Gemstones by Taheri', lead: 'Gemstones', tail: 'by Taheri',     sub: 'Emerald, ruby and sapphire, hand-picked',
-    href: 'https://chat.whatsapp.com/Ik4lxzfnVaE3ll9VLh4qbg?mode=gi_t' },
-  { label: 'Watches by Taheri', lead: 'Watches', tail: 'by Taheri',       sub: 'What has just reached the counter',
-    href: 'https://chat.whatsapp.com/KxWdhie753wBrxw7YpgNSR?mode=gi_t' },
-  { label: 'Investments by Taheri', lead: 'Investments', tail: 'by Taheri',   sub: 'Bars, coins and the day\u2019s rate',
-    href: 'https://chat.whatsapp.com/FITzh2W8W9eH9Fs2LUWkeA?mode=gi_t' },
-  { label: 'Exclusive Sterling Silver', lead: 'Silver', tail: 'House of Mina', sub: 'Everyday pieces in sterling 925',
-    href: 'https://chat.whatsapp.com/GspOCiFlp3tJWiNFkLfF0H' },
-];
 
 /**
  * Is this hostname the shop's link page (links.taheri.shop for Taheri)? Read
