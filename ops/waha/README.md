@@ -11,7 +11,7 @@ to **WhatsApp channels**, which Green API cannot.
 | Address | static `waha-ip` = 35.184.20.165, reached as **https://35-184-20-165.sslip.io** (sslip.io resolves the name to the IP; Caddy gets the certificate) |
 | Firewall | `waha-web`: tcp 80, 443 to the `waha` tag |
 | Containers | `waha` (`devlikeapro/waha:gows`, the GOWS engine — no browser, fits 1 GB) and `caddy` (HTTPS) |
-| Session | `default`, linked to **+92 326 2275554** (the line that is admin of the community and owner of the channel) |
+| Sessions | `default`: **+92 326 2275554**, Taheri's POS (admin of the community, owner of the channel). `mina`: **+92 316 1930960**, House of Mina's POS (`WAHA_SESSION=mina` in apphosting.mina.yaml) |
 | Secrets | `waha-api-key` (in gemstrack-pos **and** hom-pos, same value; the VM holds it sha512-hashed), `waha-dashboard-password` (gemstrack-pos) |
 | Setup | `startup.sh` here is the VM's startup script: it runs on every boot and can be re-run |
 
@@ -22,8 +22,9 @@ linked, an admin of the community and owner/admin of the channel.
 
 ## Things you may need to do
 
-**The line is unlinked** (checks say "unlinked from WAHA", or the session is `SCAN_QR_CODE` /
-`FAILED`): restart the session and link with a code.
+**A line is unlinked** (checks say "unlinked from WAHA", or the session is `SCAN_QR_CODE` /
+`FAILED`): restart the session and link with a code. For Mina's, use `mina` in place of `default`
+and 923161930960 as the number.
 
 ```
 K=$(gcloud secrets versions access latest --secret=waha-api-key --project gemstrack-pos)
