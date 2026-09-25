@@ -377,6 +377,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 })}
               </nav>
             )}
+            {/* On a phone the sidebar is behind a tap; search is one tap from here. */}
+            <button
+              type="button"
+              onClick={openCommandPalette}
+              aria-label="Search"
+              className="ml-auto -mr-1 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
+            >
+              <Search className="h-5 w-5" />
+            </button>
           </header>
 
           {/* Offline banner */}

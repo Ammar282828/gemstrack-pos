@@ -306,9 +306,19 @@ export function CommandPalette() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-xl gap-0 overflow-hidden p-0" onKeyDown={onKeyDown}>
+      {/* On a phone the palette is the whole screen (a centred box left the results under
+          the keyboard) with Cancel in place of the small ×; from sm up it is the usual box. */}
+      <DialogContent
+        onKeyDown={onKeyDown}
+        className={
+          'max-w-xl gap-0 overflow-hidden p-0 flex flex-col '
+          + 'max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:h-[100dvh] max-sm:max-w-none max-sm:rounded-none max-sm:border-0 '
+          + 'max-sm:data-[state=open]:slide-in-from-left-0 max-sm:data-[state=open]:slide-in-from-top-2 max-sm:data-[state=closed]:slide-out-to-left-0 max-sm:data-[state=closed]:slide-out-to-top-2 max-sm:data-[state=open]:zoom-in-100 '
+          + 'max-sm:[&>button:last-child]:hidden'
+        }
+      >
         <DialogTitle className="sr-only">Search</DialogTitle>
-        <div className="flex items-center gap-3 border-b px-4">
+        <div className="flex items-center gap-3 border-b px-4 max-sm:pt-[env(safe-area-inset-top)]">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             autoFocus
@@ -316,11 +326,20 @@ export function CommandPalette() {
             onChange={(e) => setQ(e.target.value)}
             placeholder="Find an order or invoice by name, or jump to a screen…"
             aria-label="Search"
-            className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            enterKeyHint="search"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            // 16px on a phone: iOS zooms the page into any field smaller than that.
+            className="h-14 w-full min-w-0 bg-transparent text-base outline-none placeholder:text-muted-foreground sm:h-12 sm:text-sm"
           />
+          <button type="button" onClick={() => setOpen(false)} className="shrink-0 py-2 text-sm font-medium text-primary sm:hidden">
+            Cancel
+          </button>
         </div>
 
-        <div ref={listRef} className="max-h-[60vh] overflow-y-auto p-2">
+        <div ref={listRef} className="max-h-[60vh] overflow-y-auto overscroll-contain p-2 max-sm:max-h-none max-sm:min-h-0 max-sm:flex-1 max-sm:pb-[max(env(safe-area-inset-bottom),0.5rem)]">
           {!items.length && (
             <div className="px-3 py-8 text-center text-sm text-muted-foreground">
               Nothing matches “{q}”
@@ -340,13 +359,18 @@ export function CommandPalette() {
                   data-on={i === cursor}
                   onMouseEnter={() => setCursor(i)}
                   onClick={() => run(it)}
-                  className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm ${
+                  className={`flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-[15px] sm:py-2 sm:text-sm ${
                     i === cursor ? 'bg-accent text-accent-foreground' : ''
                   }`}
                 >
                   <span className="shrink-0 text-muted-foreground">{it.icon}</span>
-                  <span className="flex-1 truncate">{it.label}</span>
-                  {it.sub && <span className="shrink-0 truncate text-xs text-muted-foreground">{it.sub}</span>}
+                  {/* The details go under the name on a phone, beside it from sm up, so a
+                      long name is never squeezed out by the order number and date. */}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{it.label}</span>
+                    {it.sub && <span className="block truncate text-xs text-muted-foreground sm:hidden">{it.sub}</span>}
+                  </span>
+                  {it.sub && <span className="hidden shrink-0 truncate text-xs text-muted-foreground sm:block">{it.sub}</span>}
                   <ArrowRight className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100" />
                 </button>
               </div>
@@ -354,7 +378,7 @@ export function CommandPalette() {
           })}
         </div>
 
-        <div className="flex gap-4 border-t px-4 py-2 text-xs text-muted-foreground">
+        <div className="hidden gap-4 border-t px-4 py-2 text-xs text-muted-foreground sm:flex">
           <span>↑↓ move</span><span>↵ open</span><span>esc close</span>
         </div>
       </DialogContent>
