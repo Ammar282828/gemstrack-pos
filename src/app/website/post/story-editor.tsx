@@ -2,7 +2,10 @@
 
 /**
  * The story and square editor — a small one beside the form, and a full-screen
- * designer in the manner of Canva.
+ * designer in the manner of Canva. The page makes the story and the post
+ * (square) of a piece together, so PairEditor holds both: live thumbnails of
+ * each, one open for editing, one designer that flips between them, and
+ * "Copy to the post / story" for anything selected.
  *
  * Tap a layer to select it (shift-tap or drag a box round several); drag to
  * move it — it snaps to the page's centre and margins and to the edges and
@@ -29,12 +32,13 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Undo2, Redo2, Plus, LayoutTemplate, Type, ArrowUpRight, Minus, Circle, Square, Link2, Image as ImageIcon, Trash2, Save, BookmarkCheck,
   Maximize2, Lock, Copy, MoreHorizontal, ArrowLeft, Download, ZoomIn, ZoomOut, Shapes, PaintBucket, Layers, Palette as PaletteIcon, Upload, Clipboard, Scissors,
-  ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Group, Ungroup, Unlock, Paintbrush, Pencil,
+  ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Group, Ungroup, Unlock, Paintbrush, Pencil, ArrowRightLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Palette } from '@/lib/social/palettes';
+import type { Frame } from '@/lib/social/story';
 import {
-  fontCss, frameOf, hitTest, layerBox, layoutText, loadUpload, moveLayer, newCornerMark, newImageLayer, newLayerId, newLinkPill, newMonogram, newShape, newText,
+  carryLayers, fontCss, frameOf, hitTest, layerBox, layoutText, loadUpload, moveLayer, newCornerMark, newImageLayer, newLayerId, newLinkPill, newMonogram, newShape, newText,
   newUploadLayer, newWordmark, placementOf, reflow, renderDoc, renderDocTo, scaleLayer, uploadedImage, withPlacement,
   type Assets, type Bind, type Box, type Fields, type Layer, type ShapeLayer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
@@ -142,6 +146,8 @@ export interface StoryEditorProps {
   photoTools?: React.ReactNode;
   /** The name downloads start with. */
   fileName?: string;
+  /** The other design on the page (the story's square, the square's story): the selection can be copied onto it. */
+  sendTo?: { name: string; send: (layers: Layer[], from: Frame) => void };
 }
 
 // ── The editor's state and actions ─────────────────────────────────────────
@@ -239,7 +245,14 @@ export function useEditor(p: StoryEditorProps) {
   const duplicate = (ids: string[] = sel) => add(clone(view.layers.filter(l => ids.includes(l.id)), 30));
   const copy = (ids: string[] = sel) => {
     const ls = view.layers.filter(l => ids.includes(l.id));
-    if (ls.length) { clipboard = ls.map(l => ({ ...l })); toast({ title: `Copied ${ls.length === 1 ? 'it' : `${ls.length} things`}`, description: `Paste here or on the ${square ? 'story' : 'square'} (⌘V).` }); }
+    if (ls.length) { clipboard = ls.map(l => ({ ...l })); toast({ title: `Copied ${ls.length === 1 ? 'it' : `${ls.length} things`}`, description: `Paste here or on the ${square ? 'story' : 'post'} (⌘V).` }); }
+  };
+  /** The selection copied onto the other design, at the same place on its page. */
+  const sendToOther = (ids: string[] = sel) => {
+    const ls = view.layers.filter(l => ids.includes(l.id));
+    if (!ls.length || !p.sendTo) return;
+    p.sendTo.send(ls, F);
+    toast({ title: `Copied to the ${p.sendTo.name}`, description: 'Same place on its page — move it there if it needs it.' });
   };
   const cut = () => { copy(); remove(); };
   const paste = () => {
@@ -394,7 +407,7 @@ export function useEditor(p: StoryEditorProps) {
   return {
     p, api, doc, view, F, fields, assets, square: !!square, onField, ver,
     sel, bgSel, one, selLayers, editing, setEditing, panel, setPanel, grouped,
-    select, selectBg, clear, withGroups, boxOf, update, updateSel, add, remove, duplicate, copy, cut, paste, copyStyle, pasteStyle, hasStyle: () => !!styleClipboard, hasClip: () => clipboard.length > 0,
+    select, selectBg, clear, withGroups, boxOf, update, updateSel, add, remove, duplicate, copy, cut, paste, copyStyle, pasteStyle, hasStyle: () => !!styleClipboard, hasClip: () => clipboard.length > 0, sendToOther,
     reorder, align, distribute, nudge, group, ungroup, toggleLock, change,
     templates, saveTemplate, useTemplate, templateDoc, dropTemplate, preset,
     uploadFiles, download, onKey, onPasteEvent, layerName,
@@ -855,6 +868,7 @@ function ContextMenu({ ed, at, width, onClose }: { ed: Editor; at: { x: number; 
     <Item icon={<Clipboard className="h-4 w-4" />} label="Paste" keys="⌘V" onClick={ed.paste} off={!ed.hasClip()} />
     <Item icon={<Scissors className="h-4 w-4" />} label="Cut" keys="⌘X" onClick={ed.cut} off={!has} />
     <Item icon={<Copy className="h-4 w-4" />} label="Duplicate" keys="⌘D" onClick={() => ed.duplicate()} off={!has} />
+    {ed.p.sendTo && <Item icon={<ArrowRightLeft className="h-4 w-4" />} label={`Copy to the ${ed.p.sendTo.name}`} onClick={() => ed.sendToOther()} off={!has} />}
     <Item icon={<Trash2 className="h-4 w-4" />} label="Delete" keys="⌫" onClick={() => ed.remove()} off={!has || allLocked} />
     <div className="col-span-2 my-1 border-t" />
     <Item icon={<Paintbrush className="h-4 w-4" />} label="Copy style" onClick={ed.copyStyle} off={!ed.one} />
@@ -888,91 +902,184 @@ function ContextMenu({ ed, at, width, onClose }: { ed: Editor; at: { x: number; 
   );
 }
 
-// ── The small editor beside the form ───────────────────────────────────────
+// ── The small editor beside the form: the story and the square together ────
 
-export function StoryEditor(props: StoryEditorProps) {
-  const ed = useEditor(props);
+export type PairKey = 'story' | 'square';
+/** One of the two designs: its editor's props, and what the page shows around it. */
+export interface PairSide {
+  props: StoryEditorProps;
+  /** Its tab: a name, and where it goes. */
+  label: string;
+  sub: string;
+  /** Shown instead of the editor while there is nothing to design yet (no photo). */
+  placeholder?: React.ReactNode;
+  /** The page's own tools for this design, above and below its editor. */
+  top?: React.ReactNode;
+  bottom?: React.ReactNode;
+}
+
+/**
+ * The story and the square as one piece of work: both always in view as live
+ * thumbnails, one of them open in the editor (a tap swaps them), one designer
+ * that flips between them, and anything on one copied onto the other in its
+ * place. Either can be left out (`show`) when only a story or only a post is
+ * being made.
+ */
+export function PairEditor({ story, square, show, active, onActive }: {
+  story: PairSide; square: PairSide; show: PairKey[]; active: PairKey; onActive: (k: PairKey) => void;
+}) {
+  const both = show.includes('story') && show.includes('square');
+  const carryTo = (to: PairSide) => (ls: Layer[], from: Frame) =>
+    to.props.api.change(d => ({ ...d, layers: [...d.layers, ...carryLayers(ls, from, d, to.props.fields, to.props.assets)] }));
+  const storyEd = useEditor({ ...story.props, sendTo: both && !square.placeholder ? { name: 'post', send: carryTo(square) } : undefined });
+  const squareEd = useEditor({ ...square.props, sendTo: both && !story.placeholder ? { name: 'story', send: carryTo(story) } : undefined });
+  const k: PairKey = show.includes(active) ? active : show[0];
+  const ed = k === 'square' ? squareEd : storyEd;
+  const side = k === 'square' ? square : story;
   const [designer, setDesigner] = useState(false);
-  const { palette, square, assets, photos, websiteLabel } = props;
-  const { api } = ed;
-  const F = ed.F;
+  const empty = !!side.placeholder;
+  // The designer closes if what it shows goes (its last photo removed).
+  useEffect(() => { if (empty) setDesigner(false); }, [empty]);
 
   // The browser's paste event carries a copied image; listen while the editor has focus.
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const onPaste = (e: ClipboardEvent) => { if (!designer && rootRef.current?.contains(document.activeElement)) ed.onPasteEvent(e); };
+    const onPaste = (e: ClipboardEvent) => { if (!designer && !empty && rootRef.current?.contains(document.activeElement)) ed.onPasteEvent(e); };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
   });
 
+  const sides = (['story', 'square'] as const).map(key => ({ key, side: key === 'story' ? story : square, ed: key === 'story' ? storyEd : squareEd }));
   return (
-    <div ref={rootRef} className="space-y-3" onKeyDown={e => { if (!designer) ed.onKey(e); }}>
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button size="sm" variant="outline"><LayoutTemplate className="h-4 w-4 mr-1.5" /> Layouts</Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>{square ? 'Square layouts' : 'The shop’s layouts'}</DropdownMenuLabel>
-            {props.presets.map(p => <DropdownMenuItem key={p.id} onClick={() => ed.preset(p.id)}>{p.label}</DropdownMenuItem>)}
-            {ed.templates.length > 0 && <><DropdownMenuSeparator /><DropdownMenuLabel>Saved on this device</DropdownMenuLabel></>}
-            {ed.templates.map(t => (
-              <DropdownMenuItem key={t.name} onClick={() => ed.useTemplate(t)} className="justify-between gap-4">
-                <span className="flex items-center gap-1.5"><BookmarkCheck className="h-3.5 w-3.5" /> {t.name}</span>
-                <span role="button" className="text-muted-foreground hover:text-destructive" onClick={e => { e.stopPropagation(); ed.dropTemplate(t.name); }}><Trash2 className="h-3.5 w-3.5" /></span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={ed.saveTemplate}><Save className="h-4 w-4 mr-1.5" /> Save this layout…</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1" /> Add</Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => ed.add(newText(palette.body))}><Type className="h-4 w-4 mr-2" /> Text</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => ed.add(newShape('arrow', '#FFFFFF'))}><ArrowUpRight className="h-4 w-4 mr-2" /> Arrow</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => ed.add(newShape('line', palette.headline))}><Minus className="h-4 w-4 mr-2" /> Line</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => ed.add(newShape('circle', '#FFFFFF'))}><Circle className="h-4 w-4 mr-2" /> Circle</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => ed.add(newShape('rect', '#FFFFFF'))}><Square className="h-4 w-4 mr-2" /> Box</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => ed.add(newLinkPill(websiteLabel))}><Link2 className="h-4 w-4 mr-2" /> Link pill ({websiteLabel})</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => ed.add(square ? newCornerMark('wordmark', assets) : newWordmark(palette.dark ? '#FFFFFF' : '#111111'))}><Type className="h-4 w-4 mr-2" /> Wordmark</DropdownMenuItem>
-            {assets.marks.t && <DropdownMenuItem onClick={() => ed.add(square ? newCornerMark('t', assets) : newMonogram(palette.dark ? '#FFFFFF' : '#111111'))}><Type className="h-4 w-4 mr-2" /> t mark</DropdownMenuItem>}
-            {photos.length > 1 && <DropdownMenuSeparator />}
-            {photos.filter(p => p.id !== api.doc.bg.photoId).map(p => (
-              <DropdownMenuItem key={p.id} onClick={() => ed.add(newImageLayer(p.id))}><ImageIcon className="h-4 w-4 mr-2" /> Photo inset {p.label ? `· ${p.label}` : ''}</DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => { setDesigner(true); ed.setPanel('elements'); }}><Shapes className="h-4 w-4 mr-2" /> Shapes, frames, stickers…</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Button size="sm" onClick={() => setDesigner(true)} title="Open the full designer"><Maximize2 className="h-4 w-4 mr-1.5" /> Design</Button>
-        <div className="ml-auto flex gap-1">
-          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={api.undo} disabled={!api.canUndo} title="Undo (⌘Z)"><Undo2 className="h-4 w-4" /></Button>
-          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={api.redo} disabled={!api.canRedo} title="Redo (⇧⌘Z)"><Redo2 className="h-4 w-4" /></Button>
+    <div ref={rootRef} className="space-y-3" onKeyDown={e => { if (!designer && !empty) ed.onKey(e); }}>
+      {both ? (
+        <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="The story and the post">
+          {sides.map(s => (
+            <PageTab key={s.key} ed={s.ed} label={s.side.label} sub={s.side.sub} active={k === s.key} empty={!!s.side.placeholder} onClick={() => onActive(s.key)} />
+          ))}
         </div>
-      </div>
-
-      {designer ? (
-        <button type="button" onClick={() => setDesigner(false)} className={cn('mx-auto flex items-center justify-center rounded-xl border-2 border-dashed text-sm text-muted-foreground', square ? 'w-[300px] sm:w-[340px] aspect-square' : 'w-[270px] sm:w-[300px] aspect-[9/16]')}>
-          Open in the designer
-        </button>
       ) : (
-        <Stage ed={ed} designer={false} className={cn('mx-auto', square ? 'w-[300px] sm:w-[340px]' : 'w-[270px] sm:w-[300px]')} />
+        <p className="text-sm font-semibold">{side.label} <span className="font-normal text-muted-foreground">· {side.sub}</span></p>
       )}
-      <p className="text-[11px] text-center text-muted-foreground">Tap to select · drag to move · corners to resize · dot below to turn · double-tap words to type · <button type="button" className="text-primary" onClick={() => setDesigner(true)}>full designer</button></p>
-
-      {/* Inspector */}
-      {props.lettered ? (
-        <p className="text-xs text-muted-foreground">AI lettering is on — switch to “Our fonts” to move and style the text yourself.</p>
-      ) : ed.one ? (
-        <LayerInspector ed={ed} layer={ed.one} />
-      ) : ed.selLayers.length > 1 ? (
-        <SelectionSummary ed={ed} />
-      ) : (
-        <BackgroundInspector ed={ed} />
+      {side.top}
+      {side.placeholder ?? <InlineEditor key={k} ed={ed} designer={designer} onDesign={panel => { if (panel) ed.setPanel(panel); setDesigner(true); }} />}
+      {!empty && side.bottom}
+      {designer && !empty && (
+        <Designer ed={ed} onClose={() => setDesigner(false)} F={ed.F}
+          frameLabel={ed.square ? 'Post · square 1:1 · WhatsApp + website' : 'Story 9:16 · Instagram'}
+          pages={both ? sides.map(s => ({ key: s.key, label: s.side.label, square: s.ed.square, off: !!s.side.placeholder })) : undefined}
+          current={k} onPage={onActive} />
       )}
-      {designer && <Designer ed={ed} onClose={() => setDesigner(false)} frameLabel={square ? 'Square 1:1 · WhatsApp + website' : 'Story 9:16 · Instagram'} F={F} />}
     </div>
   );
+}
+
+/** A design's tab: a live thumbnail, its name and where it goes. */
+function PageTab({ ed, label, sub, active, empty, onClick }: { ed: Editor; label: string; sub: string; active: boolean; empty: boolean; onClick: () => void }) {
+  return (
+    <button type="button" role="tab" aria-selected={active} onClick={onClick}
+      className={cn('flex min-w-0 items-center gap-2 rounded-lg border p-1.5 text-left transition-colors', active ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:border-foreground/30')}>
+      <span className="flex h-[72px] w-[60px] shrink-0 items-center justify-center">
+        {empty
+          ? <span className={cn('rounded-[3px] border-2 border-dashed border-muted-foreground/40', ed.square ? 'h-[56px] w-[56px]' : 'h-[72px] w-[40px]')} />
+          : <Thumb ed={ed} h={ed.square ? 58 : 72} />}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold">{label}</span>
+        <span className="block break-words text-[11px] leading-tight text-muted-foreground">{sub}</span>
+      </span>
+    </button>
+  );
+}
+
+/** The design drawn small — a moment after it stops changing, so a drag on the big one stays smooth. */
+function Thumb({ ed, h }: { ed: Editor; h: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const { F, view, fields, assets, ver } = ed;
+  const lettered = ed.p.lettered;
+  const w = Math.round((h * F.w) / F.h);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const c = ref.current;
+      if (!c) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+      const ctx = c.getContext('2d')!;
+      ctx.setTransform(c.width / F.w, 0, 0, c.height / F.h, 0, 0);
+      renderDoc(ctx, view, fields, assets, lettered ? { background: lettered, hideBound: true } : {});
+    }, 150);
+    return () => clearTimeout(t);
+  }, [view, fields, assets, lettered, ver, w, h, F]);
+  return <canvas ref={ref} aria-hidden className="rounded-[3px] bg-muted shadow-sm" style={{ width: w, height: h }} />;
+}
+
+/** One design's small editor: its toolbar, the canvas, and the inspector for what is selected. */
+function InlineEditor({ ed, designer, onDesign }: { ed: Editor; designer: boolean; onDesign: (panel?: SidePanel) => void }) {
+  const { api, square, p } = ed;
+  const { palette, assets, photos, websiteLabel } = p;
+  return (<>
+    <div className="flex flex-wrap items-center gap-1.5">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild><Button size="sm" variant="outline"><LayoutTemplate className="h-4 w-4 mr-1.5" /> Layouts</Button></DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>{square ? 'Post layouts' : 'The shop’s layouts'}</DropdownMenuLabel>
+          {p.presets.map(x => <DropdownMenuItem key={x.id} onClick={() => ed.preset(x.id)}>{x.label}</DropdownMenuItem>)}
+          {ed.templates.length > 0 && <><DropdownMenuSeparator /><DropdownMenuLabel>Saved on this device</DropdownMenuLabel></>}
+          {ed.templates.map(t => (
+            <DropdownMenuItem key={t.name} onClick={() => ed.useTemplate(t)} className="justify-between gap-4">
+              <span className="flex items-center gap-1.5"><BookmarkCheck className="h-3.5 w-3.5" /> {t.name}</span>
+              <span role="button" className="text-muted-foreground hover:text-destructive" onClick={e => { e.stopPropagation(); ed.dropTemplate(t.name); }}><Trash2 className="h-3.5 w-3.5" /></span>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={ed.saveTemplate}><Save className="h-4 w-4 mr-1.5" /> Save this layout…</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild><Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1" /> Add</Button></DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuItem onClick={() => ed.add(newText(palette.body))}><Type className="h-4 w-4 mr-2" /> Text</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => ed.add(newShape('arrow', '#FFFFFF'))}><ArrowUpRight className="h-4 w-4 mr-2" /> Arrow</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => ed.add(newShape('line', palette.headline))}><Minus className="h-4 w-4 mr-2" /> Line</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => ed.add(newShape('circle', '#FFFFFF'))}><Circle className="h-4 w-4 mr-2" /> Circle</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => ed.add(newShape('rect', '#FFFFFF'))}><Square className="h-4 w-4 mr-2" /> Box</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => ed.add(newLinkPill(websiteLabel))}><Link2 className="h-4 w-4 mr-2" /> Link pill ({websiteLabel})</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => ed.add(square ? newCornerMark('wordmark', assets) : newWordmark(palette.dark ? '#FFFFFF' : '#111111'))}><Type className="h-4 w-4 mr-2" /> Wordmark</DropdownMenuItem>
+          {assets.marks.t && <DropdownMenuItem onClick={() => ed.add(square ? newCornerMark('t', assets) : newMonogram(palette.dark ? '#FFFFFF' : '#111111'))}><Type className="h-4 w-4 mr-2" /> t mark</DropdownMenuItem>}
+          {photos.length > 1 && <DropdownMenuSeparator />}
+          {photos.filter(x => x.id !== api.doc.bg.photoId).map(x => (
+            <DropdownMenuItem key={x.id} onClick={() => ed.add(newImageLayer(x.id))}><ImageIcon className="h-4 w-4 mr-2" /> Photo inset {x.label ? `· ${x.label}` : ''}</DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => onDesign('elements')}><Shapes className="h-4 w-4 mr-2" /> Shapes, frames, stickers…</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Button size="sm" onClick={() => onDesign()} title="Open the full designer"><Maximize2 className="h-4 w-4 mr-1.5" /> Design</Button>
+      <div className="ml-auto flex gap-1">
+        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={api.undo} disabled={!api.canUndo} title="Undo (⌘Z)"><Undo2 className="h-4 w-4" /></Button>
+        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={api.redo} disabled={!api.canRedo} title="Redo (⇧⌘Z)"><Redo2 className="h-4 w-4" /></Button>
+      </div>
+    </div>
+
+    {designer ? (
+      <p className={cn('mx-auto flex items-center justify-center rounded-xl border-2 border-dashed text-sm text-muted-foreground', square ? 'w-[300px] sm:w-[340px] aspect-square' : 'w-[270px] sm:w-[300px] aspect-[9/16]')}>
+        Open in the designer
+      </p>
+    ) : (
+      <Stage ed={ed} designer={false} className={cn('mx-auto', square ? 'w-[300px] sm:w-[340px]' : 'w-[270px] sm:w-[300px]')} />
+    )}
+    <p className="text-[11px] text-center text-muted-foreground">Tap to select · drag to move · corners to resize · dot below to turn · double-tap words to type · <button type="button" className="text-primary" onClick={() => onDesign()}>full designer</button></p>
+
+    {p.lettered ? (
+      <p className="text-xs text-muted-foreground">AI lettering is on — switch to “Our fonts” to move and style the text yourself.</p>
+    ) : ed.one ? (
+      <LayerInspector ed={ed} layer={ed.one} />
+    ) : ed.selLayers.length > 1 ? (
+      <SelectionSummary ed={ed} />
+    ) : (
+      <BackgroundInspector ed={ed} />
+    )}
+  </>);
 }
 
 // ── The full-screen designer ───────────────────────────────────────────────
@@ -1012,7 +1119,11 @@ function useVisibleViewport() {
   return vp;
 }
 
-function Designer({ ed, onClose, frameLabel, F }: { ed: Editor; onClose: () => void; frameLabel: string; F: { w: number; h: number } }) {
+function Designer({ ed, onClose, frameLabel, F, pages, current, onPage }: {
+  ed: Editor; onClose: () => void; frameLabel: string; F: { w: number; h: number };
+  /** With the story and the post both being made: a switch between them in the header. */
+  pages?: { key: PairKey; label: string; square: boolean; off: boolean }[]; current?: PairKey; onPage?: (k: PairKey) => void;
+}) {
   const { api } = ed;
   const areaRef = useRef<HTMLDivElement>(null);
   const [area, setArea] = useState({ w: 800, h: 600 });
@@ -1121,7 +1232,19 @@ function Designer({ ed, onClose, frameLabel, F }: { ed: Editor; onClose: () => v
       style={{ top: vp?.top ?? 0, height: vp ? vp.h : '100dvh' }} role="dialog" aria-label="Designer">
       <header className="flex h-12 shrink-0 items-center gap-1 border-b px-1.5 pt-[env(safe-area-inset-top)] md:gap-2 md:px-2">
         <Button size="sm" variant="ghost" onClick={onClose} className="px-2"><ArrowLeft className="h-4 w-4 md:mr-1.5" /><span className="hidden md:inline">Done</span></Button>
-        <span className="min-w-0 truncate text-sm font-medium">{mobile ? (ed.square ? 'Square' : 'Story') : frameLabel}</span>
+        {pages ? (<>
+          <div className="flex shrink-0 items-center rounded-full border p-0.5" role="tablist" aria-label="The story and the post">
+            {pages.map(pg => (
+              <button key={pg.key} type="button" role="tab" aria-selected={current === pg.key} disabled={pg.off} onClick={() => onPage?.(pg.key)}
+                className={cn('flex min-h-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium disabled:opacity-40', current === pg.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>
+                <span aria-hidden className={cn('inline-block rounded-[2px] border-[1.5px] border-current', pg.square ? 'h-3 w-3' : 'h-3.5 w-2')} />{pg.label}
+              </button>
+            ))}
+          </div>
+          <span className="hidden min-w-0 truncate text-xs text-muted-foreground lg:inline">{frameLabel}</span>
+        </>) : (
+          <span className="min-w-0 truncate text-sm font-medium">{mobile ? (ed.square ? 'Post' : 'Story') : frameLabel}</span>
+        )}
         <div className="ml-auto flex items-center gap-0.5 md:gap-1">
           <Button size="icon" variant="ghost" className="h-9 w-9" onClick={api.undo} disabled={!api.canUndo} title="Undo (⌘Z)" aria-label="Undo"><Undo2 className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" className="h-9 w-9" onClick={api.redo} disabled={!api.canRedo} title="Redo (⇧⌘Z)" aria-label="Redo"><Redo2 className="h-4 w-4" /></Button>
@@ -1163,12 +1286,12 @@ function Designer({ ed, onClose, frameLabel, F }: { ed: Editor; onClose: () => v
           {!mobile && <ContextToolbar ed={ed} />}
           <div ref={areaRef} className={cn('relative min-h-0 flex-1 overflow-auto bg-muted/60', zoom === 'fit' && 'touch-none')}>
             <div className="flex min-h-full min-w-full items-center justify-center p-3 md:p-8" style={{ width: zoom === 'fit' ? undefined : cssW + pad }}>
-              <Stage ed={ed} designer width={cssW} />
+              <Stage key={ed.square ? 'square' : 'story'} ed={ed} designer width={cssW} />
             </div>
           </div>
           {!mobile && (
             <footer className="flex h-10 shrink-0 items-center gap-1 border-t px-2 text-xs text-muted-foreground">
-              <span className="truncate">Drag a box round several · double-click words to type · ⌘C / ⌘V between story and square · right-click for more</span>
+              <span className="truncate">Drag a box round several · double-click words to type · ⌘C / ⌘V between story and post · right-click for more</span>
               <div className="ml-auto flex items-center gap-1">
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => stepZoom(-1)} title="Zoom out (⌘ scroll)"><ZoomOut className="h-4 w-4" /></Button>
                 <input type="range" min={8} max={300} value={pct} onChange={e => setZoomTo(Number(e.target.value) / 100)} className="w-24 accent-primary" aria-label="Zoom" />

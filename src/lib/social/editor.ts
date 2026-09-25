@@ -430,6 +430,31 @@ export function scaleLayer(l: Layer, k: number): Layer {
   }
 }
 
+/**
+ * Layers carried from one design to the other — the story's to the square, or
+ * back. Each lands with its centre at the same fraction of the new page's width
+ * and height, shrinks going to the shorter page (and never grows going to the
+ * taller one), and gets new ids (and new group ids). A bound line the other
+ * design already shows comes across as free text, as a paste would.
+ */
+export function carryLayers(layers: Layer[], from: Frame, to: StoryDoc, fields: Fields, a: Assets): Layer[] {
+  const tf = frameOf(to);
+  const k = Math.min(1, Math.sqrt((tf.w * tf.h) / (from.w * from.h)));
+  const groups = new Map<string, string>();
+  return layers.map(src => {
+    let l = { ...(k < 1 ? scaleLayer(src, k) : src), id: newLayerId(src.kind), locked: false } as Layer;
+    const b0 = layerBox(src, fields, a), b = layerBox(l, fields, a);
+    const cx = ((b0.x + b0.w / 2) / from.w) * tf.w, cy = ((b0.y + b0.h / 2) / from.h) * tf.h;
+    l = moveLayer(l, Math.round(cx - (b.x + b.w / 2)), Math.round(cy - (b.y + b.h / 2)));
+    if (l.group) { if (!groups.has(l.group)) groups.set(l.group, newLayerId('grp')); l = { ...l, group: groups.get(l.group) }; }
+    if (l.kind === 'text' && l.bind) {
+      const bind = l.bind;
+      if (to.layers.some(x => x.kind === 'text' && x.bind === bind)) l = { ...l, bind: undefined, text: fields[bind] };
+    }
+    return l;
+  });
+}
+
 // ── Drawing ────────────────────────────────────────────────────────────────
 
 /** "#RRGGBB" at an alpha, for shadows and glows. */

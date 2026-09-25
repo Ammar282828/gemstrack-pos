@@ -12,6 +12,13 @@
  * on WAHA, otherwise it goes by hand), the Instagram story — and hands anything
  * else to the phone's share sheet.
  *
+ * A piece usually goes out as both a story and a post, so the two are made
+ * together — both in view side by side, one designer that flips between them,
+ * one Publish for both — and either can be left out: "Story only" or "Post
+ * only" (remembered on this device) hides the other one and everything that
+ * only it needs. A story Instagram doesn't take by itself (not connected, or
+ * switched off to add music) becomes the last step: share it from the phone.
+ *
  * Or several pieces in one go: "Add to queue" keeps a finished piece (its
  * squares and story exactly as drawn here) on the server and clears the page
  * for the next; the queue then sends them all now, or spread over the day at
@@ -45,6 +52,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import {
   Send, ImagePlus, Camera, X, Star, Loader2, Check, RotateCw, Share2, Download, Copy, ExternalLink, Instagram,
   MessageCircle, Globe, Sparkles, Wand2, Expand, Palette as PaletteIcon, Type, ShieldCheck, ShieldAlert, Link2, MessageSquareText,
@@ -57,7 +65,7 @@ import { PALETTES, STORY_H, STORY_W, canvasToJpeg, loadImage, loadStampFont, sta
 import { SCENES, customPrompt, restagePrompt, type Aspect, type CaptionResult, type CheckResult } from '@/lib/social/prompts';
 import { PRESETS, SQUARE_PRESETS, applyPreset, applySquarePreset, emptyDoc, emptySquare, reflow, renderDoc, renderDocTo, type Assets, type Bind, type Fields, type PresetId, type SquarePresetId, type StoryDoc, type TextLayer } from '@/lib/social/editor';
 import type { Palette } from '@/lib/social/palettes';
-import { StoryEditor, useStoryDoc } from './story-editor';
+import { PairEditor, useStoryDoc, type PairKey } from './story-editor';
 import { FONTS, headlineFace, bodyFace } from './fonts';
 import { diagnose, type Where } from '@/lib/social/diagnose';
 import { HealthPanel, useHealth, reportError, ActionButton, type Check as HealthCheck } from './health-panel';
@@ -85,7 +93,11 @@ interface Photo {
   toWhatsApp: boolean;
 }
 type StepStatus = 'waiting' | 'running' | 'done' | 'failed';
-interface Step { id: string; label: string; status: StepStatus; error?: string; errStatus?: number; note?: string }
+/** `manual`: a step the counter does from the phone (sharing the story); Publish lists it but doesn't run it. */
+interface Step { id: string; label: string; status: StepStatus; error?: string; errStatus?: number; note?: string; manual?: boolean }
+/** What this piece is made into: a story and a post (the usual), or just one of them. */
+type Formats = 'both' | 'story' | 'square';
+const FORMATS_KEY = 'taheri_post_formats';
 const STEP_WHERE: Record<string, Where> = { website: 'website', featured: 'featured', whatsapp: 'whatsapp', instagram: 'instagram' };
 /** A step's place for diagnose(): each WhatsApp destination is a step of its own ("wa:announcements"). */
 const whereOfStep = (id: string): Where => STEP_WHERE[id] ?? (id.startsWith('wa:') ? 'whatsapp' : 'page');
@@ -208,7 +220,14 @@ function PostAPiecePage() {
   const [siteNameEdited, setSiteNameEdited] = useState(false);
   // The square every WhatsApp and website photo is made from: shared words and marks, a crop per photo.
   const square = useStoryDoc(emptySquare());
-  const [view, setView] = useState<'story' | 'square'>('story');
+  // The design open in the editor; the other stays in view beside it.
+  const [view, setView] = useState<PairKey>('story');
+  const [formats, setFormats] = useState<Formats>('both');
+  const makeStory = formats !== 'square';
+  const makeSquare = formats !== 'story';
+  const editorRef = useRef<HTMLDivElement>(null);
+  /** Open a design in the editor and bring it into view (on a phone it sits below the form). */
+  const showDesign = (k: PairKey) => { setView(k); editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   const [feature, setFeature] = useState(false);
   const [community, setCommunity] = useState<{ name: string; size: number | null; reachable: boolean } | null>(null);
   // The WhatsApp channel the route can post to (WAHA only); null when it has to be shared by hand.
@@ -226,6 +245,8 @@ function PostAPiecePage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [steps, setSteps] = useState<Step[]>([]);
   const [publishing, setPublishing] = useState(false);
+  // The story has been shared or saved from this page — the queue can't carry one Instagram won't take by itself.
+  const [storyOut, setStoryOut] = useState(false);
   const uploadedRef = useRef<Record<string, string>>({});   // photo id → website rel, so a retry never uploads twice
   const sentRef = useRef<Record<string, boolean>>({});        // WhatsApp message key → sent
 
@@ -310,6 +331,14 @@ function PostAPiecePage() {
     })();
   }, [toast]);
   useEffect(() => { if (folder) try { localStorage.setItem('taheri_post_folder', folder); } catch { /* fine */ } }, [folder]);
+  useEffect(() => {
+    try { const f = localStorage.getItem(FORMATS_KEY); if (f === 'story' || f === 'square' || f === 'both') { setFormats(f); if (f === 'square') setView('square'); } } catch { /* fine */ }
+  }, []);
+  const chooseFormats = (f: Formats) => {
+    setFormats(f);
+    setView(v => f === 'story' ? 'story' : f === 'square' ? 'square' : v);
+    try { localStorage.setItem(FORMATS_KEY, f); } catch { /* fine */ }
+  };
 
   // The website name follows the headline until someone types their own.
   useEffect(() => {
@@ -344,6 +373,11 @@ function PostAPiecePage() {
       square.change(d => ({ ...d, bg: { ...d.bg, photoId: squarePhotos[0].id } }), { live: true });
     }
   }, [squarePhotos, square]);
+  // The starred photo leads both: when it changes, the post shows it too (if it goes out as a square).
+  const heroId = hero?.id;
+  useEffect(() => {
+    if (heroId && squarePhotos.some(p => p.id === heroId)) square.change(d => d.bg.photoId === heroId ? d : ({ ...d, bg: { ...d.bg, photoId: heroId } }), { live: true });
+  }, [heroId]); // eslint-disable-line react-hooks/exhaustive-deps
   // A removed story photo hands over to the first one left.
   useEffect(() => {
     if (story.doc.bg.photoId && !photos.some(p => p.id === story.doc.bg.photoId)) setHeroId(photos[0]?.id ?? null);
@@ -548,6 +582,31 @@ function PostAPiecePage() {
     const b = await getStory();
     const f = new File([b], `${fileNameBase}-story.jpg`, { type: 'image/jpeg' });
     if (!(await shareFiles([f]))) { download(b, f.name); toast({ title: 'Story saved', description: 'This browser cannot share files — post it from your phone’s photos.' }); }
+    setStoryOut(true);
+  };
+  const saveStory = async () => { download(await getStory(), `${fileNameBase}-story.jpg`); setStoryOut(true); };
+  /**
+   * The story and the post squares in one go — on a phone the share sheet
+   * offers "Save images" (all of them to Photos at once); elsewhere they download.
+   */
+  const saveBoth = async () => {
+    const squares = hero && squarePhotos.some(p => p.id === hero.id) ? [hero, ...squarePhotos.filter(p => p.id !== hero.id)] : squarePhotos;
+    const files = [
+      new File([await getStory()], `${fileNameBase}-story.jpg`, { type: 'image/jpeg' }),
+      ...await Promise.all(squares.map(async (p, i) => new File([await squareJpeg(p, 1600)], `${fileNameBase}-post${i ? `-${i + 1}` : ''}.jpg`, { type: 'image/jpeg' }))),
+    ];
+    setStoryOut(true);
+    const data: ShareData = { files };
+    if (!navigator.canShare?.(data)) { files.forEach((f, i) => setTimeout(() => download(f, f.name), i * 300)); return; }
+    try { await navigator.share(data); }
+    catch (e) {
+      if ((e as Error).name === 'AbortError') return;
+      // Drawing them took longer than this browser allows after a tap: they're ready now, so one more tap opens the sheet.
+      toast({
+        title: `${files.length} images ready`, description: 'Tap Save to put them in your photos.',
+        action: <ToastAction altText="Save the images" onClick={() => { navigator.share(data).catch(() => undefined); }}>Save</ToastAction>,
+      });
+    }
   };
   const copyText = async (text: string, what: string) => {
     try { await navigator.clipboard.writeText(text); toast({ title: `${what} copied` }); }
@@ -556,7 +615,7 @@ function PostAPiecePage() {
   const waPhotos = () => { const sel = photos.filter(p => p.toWhatsApp); return hero && sel.some(p => p.id === hero.id) ? [hero, ...sel.filter(p => p.id !== hero.id)] : sel; };
   const shareToChannel = async () => {
     const first = waPhotos()[0];
-    if (!first) { toast({ title: 'No photo is ticked for WhatsApp', description: 'Tick WA on a photo first — the channel gets the same square.' }); return; }
+    if (!first) { toast({ title: 'No photo is ticked for WhatsApp', description: 'Tick WA on a photo first — the channel gets the same post.' }); return; }
     const b = await squareJpeg(first, 1600);
     const f = new File([b], `${fileNameBase}.jpg`, { type: 'image/jpeg' });
     // WhatsApp often drops text shared alongside a file, so the caption goes on the clipboard too.
@@ -573,15 +632,18 @@ function PostAPiecePage() {
   };
 
   // ── Publishing ──
-  const sitePhotos = photos.filter(p => p.toSite);
-  const siteOn = toWebsite && uploadsOn && !!folder && sitePhotos.length > 0;
+  // The starred photo first on the website too: it is the one the set of the day shows.
+  const sitePhotos = [...photos.filter(p => p.toSite && p.id === hero?.id), ...photos.filter(p => p.toSite && p.id !== hero?.id)];
+  const siteOn = makeSquare && toWebsite && uploadsOn && !!folder && sitePhotos.length > 0;
   /** What a WhatsApp destination is called, and how many it reaches. */
   const waName = (k: string) => (k === 'channel' ? waChannel?.name ?? 'Channel' : waGroups.find(g => g.key === k)?.name ?? k);
   const waReach = (k: string) => (k === 'channel' ? (waChannel?.followers ? `${waChannel.followers.toLocaleString()} followers` : '') : (() => { const n = waGroups.find(g => g.key === k)?.size; return n ? `${n.toLocaleString()} members` : ''; })());
   // In the order they are offered: the groups, then the channel.
   const waChosen = [...waGroups.map(g => g.key), ...(waChannel ? ['channel'] : [])].filter(k => waTargets.includes(k));
-  const waOn = toWhatsApp && !!community && waPhotos().length > 0 && waChosen.length > 0;
-  const igOn = toInstagram && !!ig?.connected;
+  const waOn = makeSquare && toWhatsApp && !!community && waPhotos().length > 0 && waChosen.length > 0;
+  const igOn = makeStory && toInstagram && !!ig?.connected;
+  // A story Instagram won't take by itself (not connected here, or switched off to add music) goes from the phone.
+  const storyByHand = makeStory && !igOn;
   const ready = !!hero && !!headline.trim();
   const targets = [siteOn && SITE_NAME, waOn && 'WhatsApp', igOn && 'Instagram'].filter(Boolean) as string[];
   // Checks that are failing for somewhere this post is about to go.
@@ -590,12 +652,14 @@ function PostAPiecePage() {
   const problems: string[] = [];
   if (!photos.length) problems.push('Add a photo.');
   if (!headline.trim()) problems.push('Give it a headline.');
-  if (toWebsite && !folder) problems.push(`Choose where it goes on ${SITE_NAME}, or switch the website off.`);
-  if (toWhatsApp && !caption.trim()) problems.push('The WhatsApp caption is empty.');
-  if (toWhatsApp && community && !waChosen.length) problems.push('Choose a WhatsApp group or the channel, or switch WhatsApp off.');
-  if (lettering === 'ai' && !aiLettered) problems.push('AI lettering is on but not made for this photo — letter it, or switch to our fonts.');
+  if (makeSquare && SITE && toWebsite && !folder) problems.push(`Choose where it goes on ${SITE_NAME}, or switch the website off.`);
+  if (makeSquare && toWhatsApp && community && !caption.trim()) problems.push('The WhatsApp caption is empty.');
+  if (makeSquare && toWhatsApp && community && !waChosen.length) problems.push('Choose a WhatsApp group or the channel, or switch WhatsApp off.');
+  if (makeStory && lettering === 'ai' && !aiLettered) problems.push('AI lettering is on but not made for this photo — letter it, or switch to our fonts.');
 
   const setStep = (id: string, patch: Partial<Step>) => setSteps(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s));
+  // Shared or saved from anywhere on the page, the by-hand story step is done.
+  useEffect(() => { if (storyOut) setSteps(prev => prev.map(s => s.id === 'story-hand' ? { ...s, status: 'done' } : s)); }, [storyOut]);
 
   const uploadToWebsite = async (p: Photo, index: number, headers: Record<string, string>): Promise<string> => {
     if (uploadedRef.current[p.id]) return uploadedRef.current[p.id];
@@ -635,9 +699,11 @@ function PostAPiecePage() {
       ...(igOn ? [{ id: 'instagram', label: `Instagram story · @${ig?.username}`, status: 'waiting' as const }] : []),
       // Each destination its own step, so one that fails is retried alone — never a group twice.
       ...(waOn ? waChosen.map(k => ({ id: `wa:${k}`, label: `WhatsApp · ${waName(k)}${k === 'channel' ? ' (channel)' : ''}`, status: 'waiting' as const })) : []),
+      // Last, and by hand: the story, when Instagram isn't taking it by itself.
+      ...(storyByHand ? [{ id: 'story-hand', label: 'Instagram story — share it from your phone', status: storyOut ? 'done' as const : 'waiting' as const, manual: true }] : []),
     ];
     if (!only) setSteps(plan);
-    const todo = plan.filter(s => (only ? s.id === only : true) && s.status !== 'done');
+    const todo = plan.filter(s => (only ? s.id === only : true) && s.status !== 'done' && !s.manual);
     let failedAny = false;
 
     for (const s of todo) {
@@ -697,6 +763,11 @@ function PostAPiecePage() {
   const addToQueue = async () => {
     if (problems.length) { toast({ title: 'Not yet', description: problems.join(' '), variant: 'destructive' }); return; }
     if (!hero || !(siteOn || waOn || igOn)) { toast({ title: 'It isn’t going anywhere', description: 'Switch on the website, WhatsApp or Instagram for this piece first.' }); return; }
+    // The queue sends by itself; a story that goes by hand would be lost when the page clears for the next piece.
+    if (storyByHand && !storyOut) {
+      toast({ title: 'Share the story first', description: 'The queue only carries what sends by itself, and this story goes from your phone. Share or save it below, then queue the post — or choose Post only.' });
+      return;
+    }
     // The story's photo leads on the website too: it is the one the set of the day shows.
     const site = siteOn ? [...sitePhotos.filter(p => p.id === hero.id), ...sitePhotos.filter(p => p.id !== hero.id)] : [];
     const wa = waOn ? waPhotos() : [];
@@ -731,6 +802,11 @@ function PostAPiecePage() {
     if (waOn || igOn || blockers.length) setConfirmOpen(true);
     else runPublish();
   };
+  /** A story on its own that Instagram won't take by itself: the phone's share sheet is the publish. */
+  const onShareOnly = () => {
+    if (problems.length) { toast({ title: 'Not yet', description: problems.join(' '), variant: 'destructive' }); return; }
+    shareStory();
+  };
 
   const startOver = () => {
     photos.forEach(p => URL.revokeObjectURL(p.url));
@@ -739,10 +815,11 @@ function PostAPiecePage() {
     setStones(''); setHook(''); setCaptionEdited(false); setSiteNameEdited(false); setFeature(false);
     story.reset(emptyDoc(null)); setPalette(PALETTES[0]);
     setLettering('ours'); setLettered(null); setAiCaption(null);
-    setSteps([]); uploadedRef.current = {}; sentRef.current = {};
+    setSteps([]); uploadedRef.current = {}; sentRef.current = {}; setStoryOut(false);
   };
 
-  const published = steps.length > 0 && steps.every(s => s.status === 'done');
+  // Everything that sends by itself has gone; a by-hand story may still be waiting for the phone.
+  const published = steps.length > 0 && steps.every(s => s.status === 'done' || s.manual);
   const grouped = useMemo(() => {
     const g = new Map<string, Collection[]>();
     for (const c of collections || []) { const a = g.get(c.category) || []; a.push(c); g.set(c.category, a); }
@@ -768,6 +845,8 @@ function PostAPiecePage() {
         )}
       </div>
 
+      <FormatPicker value={formats} onChange={chooseFormats} disabled={publishing || steps.length > 0} siteName={SITE_NAME || 'the website'} />
+
       <HealthPanel health={health} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -784,7 +863,7 @@ function PostAPiecePage() {
                 <Button type="button" variant="secondary" onClick={() => fileRef.current?.click()}><ImagePlus className="h-4 w-4 mr-2" /> Choose photos</Button>
                 <Button type="button" variant="outline" onClick={() => cameraRef.current?.click()} className="sm:hidden"><Camera className="h-4 w-4 mr-2" /> Take a photo</Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">Or drag them here. The starred one is the story; <Sparkles className="inline h-3 w-3" /> on a photo for AI.</p>
+              <p className="text-xs text-muted-foreground mt-2">Or drag them here. {formats === 'both' ? 'The starred one leads: the story’s photo and the first post' : formats === 'story' ? 'The starred one is the story' : 'The starred one goes first'}; <Sparkles className="inline h-3 w-3" /> on a photo for AI.</p>
               <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
               <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
             </div>
@@ -795,10 +874,11 @@ function PostAPiecePage() {
                     key={p.id}
                     photo={p}
                     isHero={hero?.id === p.id}
+                    starLabel={formats === 'square' ? 'Send this one first' : formats === 'story' ? 'Use for the story' : 'Lead photo: the story and the first post'}
                     locked={publishing}
                     busy={busyAny}
-                    siteOn={toWebsite && !!SITE}
-                    waOn={toWhatsApp && !!community}
+                    siteOn={makeSquare && toWebsite && !!SITE}
+                    waOn={makeSquare && toWhatsApp && !!community}
                     onHero={() => setHeroId(p.id)}
                     onRemove={() => removePhoto(p.id)}
                     onToggle={patch => patchPhoto(p.id, patch)}
@@ -859,7 +939,7 @@ function PostAPiecePage() {
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">3 · Where it goes</h2>
 
-            {SITE && (
+            {makeSquare && SITE && (
               <div className="rounded-lg border p-4 space-y-3">
                 <label className="flex items-center justify-between gap-3">
                   <span className="flex items-center gap-2 font-medium"><Globe className="h-4 w-4" /> {SITE_NAME}<span className="text-muted-foreground font-normal text-sm">· {sitePhotos.length} photo{sitePhotos.length === 1 ? '' : 's'}</span></span>
@@ -885,7 +965,7 @@ function PostAPiecePage() {
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <label className="flex items-center gap-2"><Switch checked={weightStamped} disabled={!wLabel}
                       onCheckedChange={v => square.change(d => ({ ...d, layers: d.layers.map(l => l.kind === 'text' && l.bind === 'weight' ? { ...l, hidden: !v } : l) }))} /> {wLabel || 'Weight'} in the corner</label>
-                    <button type="button" className="text-xs text-primary" onClick={() => setView('square')}>Edit the square →</button>
+                    <button type="button" className="text-xs text-primary" onClick={() => showDesign('square')}>Edit the post →</button>
                   </div>
                   {STORE_WEBSITE_FEATURED && (
                     <label className="flex items-center gap-2 text-sm"><Switch checked={feature} onCheckedChange={setFeature} /> Make it the set of the day</label>
@@ -895,7 +975,7 @@ function PostAPiecePage() {
               </div>
             )}
 
-            {community && (
+            {makeSquare && community && (
               <div className="rounded-lg border p-4 space-y-3">
                 <label className="flex items-center justify-between gap-3">
                   <span className="flex items-center gap-2 font-medium"><MessageCircle className="h-4 w-4" /> {community.name}{community.size ? <span className="text-muted-foreground font-normal text-sm">· {community.size.toLocaleString()} members</span> : null}</span>
@@ -923,25 +1003,29 @@ function PostAPiecePage() {
                     {!waPhotos().length ? 'Tick WA on a photo to send it.'
                       : !waChosen.length ? 'Choose where it goes.'
                       : `${waPhotos().length} square photo${waPhotos().length === 1 ? '' : 's'}, the caption on the first — to ${listOf(waChosen.map(k => k === 'channel' ? 'the channel' : waName(k)))}.`}
-                    <button type="button" className="text-primary" onClick={() => setView('square')}>Edit the square →</button>
+                    <button type="button" className="text-primary" onClick={() => showDesign('square')}>Edit the post →</button>
                   </p>
                 )}
               </div>
             )}
 
-            <div className="rounded-lg border p-4 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <span className="flex items-center gap-2 font-medium"><Instagram className="h-4 w-4" /> Instagram story{ig?.connected && <span className="text-muted-foreground font-normal text-sm">· @{ig.username}</span>}</span>
-                {ig?.connected ? <Switch checked={toInstagram} onCheckedChange={setToInstagram} /> : null}
+            {makeStory && (
+              <div className="rounded-lg border p-4 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2 font-medium"><Instagram className="h-4 w-4" /> Instagram story{ig?.connected && <span className="text-muted-foreground font-normal text-sm">· @{ig.username}</span>}</span>
+                  {ig?.connected ? <Switch checked={toInstagram} onCheckedChange={setToInstagram} /> : null}
+                </div>
+                {ig?.connected && !toInstagram && <p className="text-xs text-muted-foreground">Off — you’ll share it from your phone instead, to add music or stickers.</p>}
+                {!ig?.connected && (
+                  ig?.configured
+                    ? <Button variant="outline" size="sm" onClick={connectInstagram}><Link2 className="h-4 w-4 mr-1.5" /> Connect Instagram</Button>
+                    : <p className="text-xs text-muted-foreground">Not connected to this shop&apos;s Instagram — the story is shared from your phone.</p>
+                )}
+                <button type="button" className="text-xs text-primary" onClick={() => showDesign('story')}>Edit the story →</button>
               </div>
-              {!ig?.connected && (
-                ig?.configured
-                  ? <Button variant="outline" size="sm" onClick={connectInstagram}><Link2 className="h-4 w-4 mr-1.5" /> Connect Instagram</Button>
-                  : <p className="text-xs text-muted-foreground">Not connected to this shop&apos;s Instagram yet — share the story from your phone below.</p>
-              )}
-            </div>
+            )}
 
-            <div className="space-y-1.5">
+            {makeSquare && <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="caption">WhatsApp caption</Label>
                 <div className="flex items-center gap-3">
@@ -959,106 +1043,107 @@ function PostAPiecePage() {
                   <p className="whitespace-pre-wrap text-muted-foreground">{aiCaption.instagramCaption}</p>
                 </div>
               )}
-            </div>
+            </div>}
           </section>
         </div>
 
         {/* ── Right: the story, and what to press ── */}
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-4 self-start">
-          <div className="flex items-center justify-between gap-2">
-            <div className="inline-flex rounded-full border p-0.5 text-xs">
-              <button type="button" onClick={() => setView('story')} className={cn('rounded-full px-3 py-1.5', view === 'story' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>Story <span className="hidden sm:inline opacity-70">9:16 · Instagram</span></button>
-              <button type="button" onClick={() => setView('square')} className={cn('rounded-full px-3 py-1.5', view === 'square' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>Square <span className="hidden sm:inline opacity-70">1:1 · WhatsApp + site</span></button>
-            </div>
-            {hero && view === 'story' && (
-              <Button size="sm" onClick={() => setWholeOpen(true)} disabled={busyAny}>
-                {aiBusy.whole ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Wand2 className="h-4 w-4 mr-1.5" />} Make it with AI
-              </Button>
-            )}
-          </div>
-          {view === 'story' && (hero ? (<>
-            <div className="flex flex-wrap gap-1.5">
-              <Button size="sm" variant="outline" disabled={busyAny} onClick={() => setRestageFor({ photoId: (hero.ai && photos.find(p => p.id === hero.ai!.parentId)?.id) || hero.id, aspect: '9:16' })}><PaletteIcon className="h-4 w-4 mr-1.5" /> New setting</Button>
-              <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(hero, 'reframe', { aspect: '9:16', tidy }, 'Story frame')}><Expand className="h-4 w-4 mr-1.5" /> Extend to story</Button>
-              <Button size="sm" variant="outline" disabled={busyAny} onClick={() => { setAskFor({ photoId: hero.id, aspect: null }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-1.5" /> Ask AI</Button>
-            </div>
-            <StoryEditor
-              api={story}
-              fields={fields}
-              assets={assets}
-              photos={photos.map(p => ({ id: p.id, url: p.url, label: p.ai?.label }))}
-              palette={palette}
-              onPalette={setPalette}
-              lettered={aiLettered?.img ?? null}
-              onField={onField}
-              weightOwnLine={weightOwnLine}
-              websiteLabel={SITE_NAME || 'taheri.shop'}
-              presets={PRESETS}
-              onPreset={id => story.change(d => applyPreset(d, id as PresetId, palette, fields, assets, { weightOwnLine, wordmark: d.layers.some(l => l.kind === 'wordmark') || d.layers.length === 0 }))}
-              previewPreset={id => applyPreset(story.doc, id as PresetId, palette, fields, assets, { weightOwnLine, wordmark: story.doc.layers.some(l => l.kind === 'wordmark') || story.doc.layers.length === 0 })}
-              fileName={fileNameBase}
-              overlay={(aiBusy.whole || aiBusy.letter) ? (
-                <div className="absolute inset-0 rounded-xl bg-black/45 text-white flex flex-col items-center justify-center gap-2 text-sm text-center p-6">
-                  <Loader2 className="h-6 w-6 animate-spin" />{aiBusy.whole ? 'Writing, choosing a setting and photographing it… about a minute' : 'Lettering it and reading it back…'}
-                </div>
-              ) : null}
-            />
-            <div className="rounded-lg border p-3 space-y-2 text-sm">
-              <div className="flex flex-wrap items-center gap-2">
-                <Seg value={lettering} options={[['ours', 'Our fonts'], ['ai', 'AI lettering']]} onChange={v => { setLettering(v as 'ours' | 'ai'); if (v === 'ai' && !aiLettered) letterWithAi(); }} />
-                {lettering === 'ai' && (
-                  <button type="button" onClick={letterWithAi} disabled={busyAny || !headline.trim()} className="text-xs text-primary inline-flex items-center gap-1"><Type className="h-3 w-3" /> {aiLettered ? 'Letter again' : 'Letter it'}</button>
-                )}
-              </div>
-              {lettering === 'ai' && (
-                <Input value={letterStyle} onChange={e => setLetterStyle(e.target.value)} placeholder="Lettering style, in your words (optional) — e.g. gold foil serif, elegant" className="h-8 text-xs" />
-              )}
-              {aiLettered && (
-                <p className={cn('text-xs flex items-center gap-1', aiLettered.verified ? 'text-emerald-600' : 'text-amber-600')}>
-                  {aiLettered.verified ? <><ShieldCheck className="h-3.5 w-3.5" /> Read back: every word and the weight are right.</> : <><ShieldAlert className="h-3.5 w-3.5" /> Could not read: {aiLettered.missing.join(', ')}. Check it or use our fonts.</>}
-                </p>
-              )}
-            </div>
-          </>) : (
-            <div className="mx-auto w-[270px] sm:w-[300px] aspect-[9/16] rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground p-6 text-center">The story appears here once there is a photo.</div>
-          ))}
-
-          {view === 'square' && (squarePhotos.length ? (() => {
+          {(() => {
             const current = squarePhotos.find(p => p.id === square.doc.bg.photoId) ?? squarePhotos[0];
             const notSquare = current && Math.abs(current.img.naturalWidth / current.img.naturalHeight - 1) > 0.02;
-            return (<>
-              <p className="text-xs text-muted-foreground">What WhatsApp and {SITE_NAME || 'the website'} get: every ticked photo as a square with these words and marks. Same editor as the story — tap, drag, resize, turn.</p>
-              <StoryEditor
-                api={square}
-                square
-                fields={fields}
-                assets={assets}
-                photos={squarePhotos.map(p => ({ id: p.id, url: p.url, label: p.ai?.label }))}
-                palette={palette}
-                onPalette={setPalette}
-                lettered={null}
-                onField={onField}
-                weightOwnLine={weightOwnLine}
-                websiteLabel={SITE_NAME || 'taheri.shop'}
-                presets={SQUARE_PRESETS}
-                onPreset={id => square.change(d => applySquarePreset(d, id as SquarePresetId, fields, assets))}
-                previewPreset={id => applySquarePreset(square.doc, id as SquarePresetId, fields, assets)}
-                fileName={fileNameBase}
-                photoTools={current && (
-                  <div className="space-y-1.5">
-                    {notSquare && <p className="text-[11px] text-amber-600">This photo isn’t square, so its edges are cropped. Drag it to choose what shows, show the whole photo, or let AI widen it to a true square.</p>}
-                    <div className="flex flex-wrap gap-1.5">
-                      <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(current, 'reframe', { aspect: '1:1', tidy }, 'Square')}><Expand className="h-4 w-4 mr-1.5" /> AI: make it a true square</Button>
-                      <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(current, 'enhance', { tidy }, 'Enhanced')}><Sparkles className="h-4 w-4 mr-1.5" /> AI: enhance</Button>
-                      <Button size="sm" variant="outline" disabled={busyAny} onClick={() => { setAskFor({ photoId: current.id, aspect: '1:1' }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-1.5" /> Ask AI</Button>
-                    </div>
-                  </div>
-                )}
-              />
-            </>);
-          })() : (
-            <div className="mx-auto w-[300px] aspect-square rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground p-6 text-center">Tick Site or WA on a photo and its square appears here.</div>
-          ))}
+            const squareGoes = listOf([waOn && 'WhatsApp', siteOn && SITE_NAME].filter((x): x is string => !!x));
+            return (
+              <div ref={editorRef} className="scroll-mt-20">
+                <PairEditor
+                  show={formats === 'both' ? ['story', 'square'] : formats === 'story' ? ['story'] : ['square']}
+                  active={view}
+                  onActive={setView}
+                  story={{
+                    label: 'Story',
+                    sub: igOn ? 'Instagram, by itself' : 'Instagram, from your phone',
+                    placeholder: hero ? undefined : (
+                      <div className="mx-auto w-[270px] sm:w-[300px] aspect-[9/16] rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground p-6 text-center">The story appears here once there is a photo.</div>
+                    ),
+                    top: hero ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button size="sm" onClick={() => setWholeOpen(true)} disabled={busyAny}>
+                          {aiBusy.whole ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Wand2 className="h-4 w-4 mr-1.5" />} Make it with AI
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={busyAny} onClick={() => setRestageFor({ photoId: (hero.ai && photos.find(p => p.id === hero.ai!.parentId)?.id) || hero.id, aspect: '9:16' })}><PaletteIcon className="h-4 w-4 mr-1.5" /> New setting</Button>
+                        <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(hero, 'reframe', { aspect: '9:16', tidy }, 'Story frame')}><Expand className="h-4 w-4 mr-1.5" /> Extend to story</Button>
+                        <Button size="sm" variant="outline" disabled={busyAny} onClick={() => { setAskFor({ photoId: hero.id, aspect: null }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-1.5" /> Ask AI</Button>
+                      </div>
+                    ) : null,
+                    bottom: (
+                      <div className="rounded-lg border p-3 space-y-2 text-sm">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Seg value={lettering} options={[['ours', 'Our fonts'], ['ai', 'AI lettering']]} onChange={v => { setLettering(v as 'ours' | 'ai'); if (v === 'ai' && !aiLettered) letterWithAi(); }} />
+                          {lettering === 'ai' && (
+                            <button type="button" onClick={letterWithAi} disabled={busyAny || !headline.trim()} className="text-xs text-primary inline-flex items-center gap-1"><Type className="h-3 w-3" /> {aiLettered ? 'Letter again' : 'Letter it'}</button>
+                          )}
+                        </div>
+                        {lettering === 'ai' && (
+                          <Input value={letterStyle} onChange={e => setLetterStyle(e.target.value)} placeholder="Lettering style, in your words (optional) — e.g. gold foil serif, elegant" className="h-8 text-xs" />
+                        )}
+                        {aiLettered && (
+                          <p className={cn('text-xs flex items-center gap-1', aiLettered.verified ? 'text-emerald-600' : 'text-amber-600')}>
+                            {aiLettered.verified ? <><ShieldCheck className="h-3.5 w-3.5" /> Read back: every word and the weight are right.</> : <><ShieldAlert className="h-3.5 w-3.5" /> Could not read: {aiLettered.missing.join(', ')}. Check it or use our fonts.</>}
+                          </p>
+                        )}
+                      </div>
+                    ),
+                    props: {
+                      api: story, fields, assets,
+                      photos: photos.map(p => ({ id: p.id, url: p.url, label: p.ai?.label })),
+                      palette, onPalette: setPalette,
+                      lettered: aiLettered?.img ?? null,
+                      onField, weightOwnLine,
+                      websiteLabel: SITE_NAME || 'taheri.shop',
+                      presets: PRESETS,
+                      onPreset: id => story.change(d => applyPreset(d, id as PresetId, palette, fields, assets, { weightOwnLine, wordmark: d.layers.some(l => l.kind === 'wordmark') || d.layers.length === 0 })),
+                      previewPreset: id => applyPreset(story.doc, id as PresetId, palette, fields, assets, { weightOwnLine, wordmark: story.doc.layers.some(l => l.kind === 'wordmark') || story.doc.layers.length === 0 }),
+                      fileName: fileNameBase,
+                      overlay: (aiBusy.whole || aiBusy.letter) ? (
+                        <div className="absolute inset-0 rounded-xl bg-black/45 text-white flex flex-col items-center justify-center gap-2 text-sm text-center p-6">
+                          <Loader2 className="h-6 w-6 animate-spin" />{aiBusy.whole ? 'Writing, choosing a setting and photographing it… about a minute' : 'Lettering it and reading it back…'}
+                        </div>
+                      ) : null,
+                    },
+                  }}
+                  square={{
+                    label: 'Post',
+                    sub: `Square · ${squareGoes || `WhatsApp + ${SITE_NAME || 'website'}`}`,
+                    placeholder: squarePhotos.length ? undefined : (
+                      <div className="mx-auto w-[300px] aspect-square rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground p-6 text-center">Tick Site or WA on a photo and its post appears here.</div>
+                    ),
+                    props: {
+                      api: square, square: true, fields, assets,
+                      photos: squarePhotos.map(p => ({ id: p.id, url: p.url, label: p.ai?.label })),
+                      palette, onPalette: setPalette,
+                      lettered: null,
+                      onField, weightOwnLine,
+                      websiteLabel: SITE_NAME || 'taheri.shop',
+                      presets: SQUARE_PRESETS,
+                      onPreset: id => square.change(d => applySquarePreset(d, id as SquarePresetId, fields, assets)),
+                      previewPreset: id => applySquarePreset(square.doc, id as SquarePresetId, fields, assets),
+                      fileName: fileNameBase,
+                      photoTools: current && (
+                        <div className="space-y-1.5">
+                          {notSquare && <p className="text-[11px] text-amber-600">This photo isn’t square, so its edges are cropped. Drag it to choose what shows, show the whole photo, or let AI widen it to a true square.</p>}
+                          <div className="flex flex-wrap gap-1.5">
+                            <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(current, 'reframe', { aspect: '1:1', tidy }, 'Square')}><Expand className="h-4 w-4 mr-1.5" /> AI: make it a true square</Button>
+                            <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(current, 'enhance', { tidy }, 'Enhanced')}><Sparkles className="h-4 w-4 mr-1.5" /> AI: enhance</Button>
+                            <Button size="sm" variant="outline" disabled={busyAny} onClick={() => { setAskFor({ photoId: current.id, aspect: '1:1' }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-1.5" /> Ask AI</Button>
+                          </div>
+                        </div>
+                      ),
+                    },
+                  }}
+                />
+              </div>
+            );
+          })()}
 
           <QueuePanel api={queue} destinationName={waName} blockers={queueBlockers} />
 
@@ -1068,7 +1153,7 @@ function PostAPiecePage() {
                 {steps.map(s => (
                   <li key={s.id} className="flex items-start gap-2">
                     <span className="mt-0.5">
-                      {s.status === 'done' ? <Check className="h-4 w-4 text-emerald-600" /> : s.status === 'failed' ? <X className="h-4 w-4 text-destructive" /> : s.status === 'running' ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="block h-4 w-4 rounded-full border" />}
+                      {s.status === 'done' ? <Check className="h-4 w-4 text-emerald-600" /> : s.status === 'failed' ? <X className="h-4 w-4 text-destructive" /> : s.status === 'running' ? <Loader2 className="h-4 w-4 animate-spin" /> : s.manual ? <Instagram className="h-4 w-4 text-muted-foreground" /> : <span className="block h-4 w-4 rounded-full border" />}
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="block truncate">{s.label}{s.note ? <span className="text-muted-foreground"> · {s.note}</span> : null}</span>
@@ -1084,16 +1169,27 @@ function PostAPiecePage() {
                       })()}
                     </span>
                     {s.status === 'failed' && !publishing && <button type="button" onClick={() => runPublish(s.id)} className="text-xs text-primary flex items-center gap-1"><RotateCw className="h-3 w-3" /> Retry</button>}
+                    {s.manual && s.status !== 'done' && <Button size="sm" variant="secondary" className="h-7 px-2.5 text-xs" onClick={shareStory}><Share2 className="h-3.5 w-3.5 mr-1" /> Share</Button>}
                   </li>
                 ))}
               </ul>
             )}
             {!published ? (<>
-              <Button className="w-full h-12 text-base" onClick={onPublish} disabled={publishing || busyAny || !ready || targets.length === 0 || steps.length > 0 || !!queue.adding}>
-                {publishing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Publishing…</> : <><Send className="h-4 w-4 mr-2" /> Publish{targets.length ? ` to ${targets.join(' + ')}` : ''}</>}
-              </Button>
+              {targets.length === 0 && storyByHand ? (
+                // A story on its own that Instagram won't take by itself: the share sheet is the publish.
+                <Button className="w-full h-12 text-base" onClick={onShareOnly} disabled={busyAny || !ready}>
+                  <Share2 className="h-4 w-4 mr-2" /> Share the story
+                </Button>
+              ) : (
+                <Button className="w-full h-12 text-base" onClick={onPublish} disabled={publishing || busyAny || !ready || targets.length === 0 || steps.length > 0 || !!queue.adding}>
+                  {publishing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Publishing…</> : <><Send className="h-4 w-4 mr-2" /> Publish{targets.length ? ` to ${targets.join(' + ')}` : ''}</>}
+                </Button>
+              )}
+              {targets.length > 0 && storyByHand && steps.length === 0 && (
+                <p className="text-xs text-muted-foreground flex items-start gap-1.5"><Instagram className="h-3.5 w-3.5 mt-px shrink-0" /> Then the story, from your phone — it’s the last step after Publish.</p>
+              )}
               {/* Several pieces in one go: keep this one, make the next, send them together or through the day. */}
-              {steps.length === 0 && (
+              {steps.length === 0 && targets.length > 0 && (
                 <Button variant="outline" className="w-full" onClick={addToQueue} disabled={publishing || busyAny || !ready || targets.length === 0 || !!queue.adding}>
                   {queue.adding ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {queue.adding}</> : <><ListPlus className="h-4 w-4 mr-2" /> Add to queue{queue.items.some(e => e.status === 'held' || e.status === 'scheduled' || e.status === 'failed') ? '' : ' — send later or with others'}</>}
                 </Button>
@@ -1106,13 +1202,16 @@ function PostAPiecePage() {
             <div className="border-t pt-3 space-y-2">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">From your phone</p>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary" size="sm" disabled={!ready} onClick={shareStory}><Instagram className="h-4 w-4 mr-1.5" /> Share story</Button>
-                <Button variant="outline" size="sm" disabled={!ready} onClick={async () => download(await getStory(), `${fileNameBase}-story.jpg`)}><Download className="h-4 w-4 mr-1.5" /> Save story</Button>
+                {formats === 'both' && (
+                  <Button variant="secondary" size="sm" className="col-span-2" disabled={!ready || !squarePhotos.length} onClick={saveBoth}><Download className="h-4 w-4 mr-1.5" /> Save the story and the post{squarePhotos.length > 1 ? 's' : ''}</Button>
+                )}
+                {makeStory && !(targets.length === 0 && storyByHand) && <Button variant="secondary" size="sm" disabled={!ready} onClick={shareStory}><Instagram className="h-4 w-4 mr-1.5" /> Share story</Button>}
+                {makeStory && <Button variant="outline" size="sm" disabled={!ready} onClick={saveStory}><Download className="h-4 w-4 mr-1.5" /> Save story</Button>}
                 {/* With the channel posted automatically, sharing by hand would post it twice: this becomes a plain share. */}
-                <Button variant="secondary" size="sm" disabled={!ready} onClick={shareToChannel}><Share2 className="h-4 w-4 mr-1.5" /> {waChannel ? 'Share square' : 'Channel'}</Button>
-                <Button variant="outline" size="sm" disabled={!caption} onClick={() => copyText(caption, 'Caption')}><Copy className="h-4 w-4 mr-1.5" /> Caption</Button>
+                {makeSquare && <Button variant="secondary" size="sm" disabled={!ready} onClick={shareToChannel}><Share2 className="h-4 w-4 mr-1.5" /> {waChannel ? 'Share post' : 'Channel'}</Button>}
+                {makeSquare && <Button variant="outline" size="sm" disabled={!caption} onClick={() => copyText(caption, 'Caption')}><Copy className="h-4 w-4 mr-1.5" /> Caption</Button>}
               </div>
-              {STORE_LINKS.waChannel && (
+              {makeSquare && STORE_LINKS.waChannel && (
                 <a href={STORE_LINKS.waChannel} target="_blank" rel="noopener" className="text-xs text-primary inline-flex items-center gap-1">Open the WhatsApp channel <ExternalLink className="h-3 w-3" /></a>
               )}
             </div>
@@ -1218,6 +1317,7 @@ function PostAPiecePage() {
                   </div>
                 )}
                 {siteOn && <p>{sitePhotos.length} square photo{sitePhotos.length === 1 ? '' : 's'} go{sitePhotos.length === 1 ? 'es' : ''} on {SITE_NAME}.</p>}
+                {storyByHand && <p>Then share the story from your phone — it’s the last step.</p>}
                 <p>A post cannot be unsent from here.</p>
                 {blockers.length > 0 && (
                   <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2.5 space-y-2 text-foreground">
@@ -1239,8 +1339,8 @@ function PostAPiecePage() {
 }
 
 /** One photo: star for the story, AI actions, where it goes, and — for AI photos — whether it is still the same piece. */
-function PhotoTile({ photo: p, isHero, locked, busy, siteOn, waOn, onHero, onRemove, onToggle, onEnhance, onReframe, onRestage, onAsk }: {
-  photo: Photo; isHero: boolean; locked: boolean; busy: boolean; siteOn: boolean; waOn: boolean;
+function PhotoTile({ photo: p, isHero, starLabel, locked, busy, siteOn, waOn, onHero, onRemove, onToggle, onEnhance, onReframe, onRestage, onAsk }: {
+  photo: Photo; isHero: boolean; starLabel: string; locked: boolean; busy: boolean; siteOn: boolean; waOn: boolean;
   onHero: () => void; onRemove: () => void; onToggle: (patch: Partial<Photo>) => void;
   onEnhance: () => void; onReframe: (a: Aspect) => void; onRestage: (a: Aspect) => void; onAsk: () => void;
 }) {
@@ -1249,7 +1349,7 @@ function PhotoTile({ photo: p, isHero, locked, busy, siteOn, waOn, onHero, onRem
     <li className={cn('rounded-lg overflow-hidden border-2 bg-muted/30', isHero ? 'border-amber-500' : 'border-transparent')}>
       <div className="relative aspect-square">
         <img src={p.url} alt="" className="w-full h-full object-cover" />
-        <button type="button" onClick={onHero} aria-label="Use for the story" className={cn('absolute bottom-1.5 left-1.5 h-7 w-7 rounded-full flex items-center justify-center', isHero ? 'bg-amber-500 text-black' : 'bg-black/55 text-white')}>
+        <button type="button" onClick={onHero} aria-label={starLabel} title={starLabel} className={cn('absolute bottom-1.5 left-1.5 h-7 w-7 rounded-full flex items-center justify-center', isHero ? 'bg-amber-500 text-black' : 'bg-black/55 text-white')}>
           <Star className={cn('h-4 w-4', isHero && 'fill-current')} />
         </button>
         <DropdownMenu>
@@ -1319,6 +1419,32 @@ function PromptEditor({ value, generated, onChange }: { value: string | null; ge
       {open && (
         <Textarea value={value ?? ''} onChange={e => onChange(e.target.value)} rows={8} className="font-mono text-[11px] leading-snug" />
       )}
+    </div>
+  );
+}
+
+/** What the piece becomes: a story and a post (the usual), or only one of them. */
+function FormatPicker({ value, onChange, disabled, siteName }: { value: Formats; onChange: (f: Formats) => void; disabled?: boolean; siteName: string }) {
+  const story = <span aria-hidden className="inline-block h-[18px] w-[11px] rounded-[2px] border-2 border-current" />;
+  const post = <span aria-hidden className="inline-block h-[14px] w-[14px] rounded-[2px] border-2 border-current" />;
+  const options: [Formats, string, string, React.ReactNode][] = [
+    ['both', 'Story + post', `Instagram · WhatsApp · ${siteName}`, <>{story}{post}</>],
+    ['story', 'Story only', 'Instagram', story],
+    ['square', 'Post only', `WhatsApp · ${siteName}`, post],
+  ];
+  return (
+    <div role="radiogroup" aria-label="What are you making?" className="grid grid-cols-3 gap-1 rounded-xl border bg-muted/30 p-1">
+      {options.map(([v, label, sub, icon]) => (
+        <button key={v} type="button" role="radio" aria-checked={value === v} disabled={disabled} onClick={() => onChange(v)}
+          className={cn('flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-center disabled:opacity-50 sm:flex-row sm:justify-start sm:gap-3 sm:px-3 sm:text-left',
+            value === v ? 'bg-background text-foreground shadow-sm ring-1 ring-primary' : 'text-muted-foreground hover:text-foreground')}>
+          <span className={cn('flex h-5 shrink-0 items-end gap-1', value === v && 'text-primary')}>{icon}</span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold leading-tight">{label}</span>
+            <span className="hidden truncate text-[11px] leading-tight text-muted-foreground sm:block">{sub}</span>
+          </span>
+        </button>
+      ))}
     </div>
   );
 }

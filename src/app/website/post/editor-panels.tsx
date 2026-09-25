@@ -23,6 +23,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
   AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, FlipHorizontal2, FlipVertical2, Sparkles, Move, Droplet, SlidersHorizontal, Minus, Plus,
   Upload, GripVertical, Type, Image as ImageIcon, Shapes, Paintbrush, Spline, Save, Trash, Frame as FrameIcon, Wand2, Link2, Pencil, Check, Keyboard, Palette as PaletteIcon, MoreHorizontal,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PALETTES } from '@/lib/social/palettes';
@@ -139,6 +140,7 @@ export function LayerInspector({ ed, layer: l, bare }: { ed: Editor; layer: Laye
         <Button size="icon" variant="ghost" className={IB} title={l.hidden ? 'Show' : 'Hide'} onClick={() => set({ hidden: !l.hidden })}>{l.hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</Button>
         <Button size="icon" variant="ghost" className={IB} title={l.locked ? 'Unlock' : 'Lock'} onClick={() => set({ locked: !l.locked })}>{l.locked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}</Button>
         <Button size="icon" variant="ghost" className={IB} title="Duplicate (⌘D)" onClick={() => ed.duplicate([l.id])}><Copy className="h-3.5 w-3.5" /></Button>
+        {ed.p.sendTo && <Button size="icon" variant="ghost" className={IB} title={`Copy to the ${ed.p.sendTo.name}`} onClick={() => ed.sendToOther([l.id])}><ArrowRightLeft className="h-3.5 w-3.5" /></Button>}
         <Button size="icon" variant="ghost" className={cn(IB, 'text-destructive')} title="Delete" onClick={() => ed.remove([l.id])} disabled={l.locked}><Trash2 className="h-3.5 w-3.5" /></Button>
         {!bare && <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={ed.clear}>Done</Button>}
       </div>
@@ -389,6 +391,7 @@ export function SelectionSummary({ ed }: { ed: Editor }) {
         <Button size="icon" variant="ghost" className={IB} title={ed.grouped ? 'Ungroup (⇧⌘G)' : 'Group (⌘G)'} onClick={ed.grouped ? ed.ungroup : ed.group}>{ed.grouped ? <Ungroup className="h-3.5 w-3.5" /> : <Group className="h-3.5 w-3.5" />}</Button>
         <Button size="icon" variant="ghost" className={IB} title="Lock" onClick={ed.toggleLock}><Lock className="h-3.5 w-3.5" /></Button>
         <Button size="icon" variant="ghost" className={IB} title="Duplicate (⌘D)" onClick={() => ed.duplicate()}><Copy className="h-3.5 w-3.5" /></Button>
+        {ed.p.sendTo && <Button size="icon" variant="ghost" className={IB} title={`Copy to the ${ed.p.sendTo.name}`} onClick={() => ed.sendToOther()}><ArrowRightLeft className="h-3.5 w-3.5" /></Button>}
         <Button size="icon" variant="ghost" className={cn(IB, 'text-destructive')} title="Delete" onClick={() => ed.remove()}><Trash2 className="h-3.5 w-3.5" /></Button>
         <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={ed.clear}>Done</Button>
       </div>
@@ -491,6 +494,7 @@ export function ContextToolbar({ ed }: { ed: Editor }) {
       <Tool title="Copy style" onClick={ed.copyStyle} disabled={!l}><Paintbrush className="h-4 w-4" /></Tool>
       <Tool title={ed.selLayers.every(x => x.locked) ? 'Unlock' : 'Lock'} active={ed.selLayers.every(x => x.locked)} onClick={ed.toggleLock}>{ed.selLayers.every(x => x.locked) ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}</Tool>
       <Tool title="Duplicate (⌘D)" onClick={() => ed.duplicate()}><Copy className="h-4 w-4" /></Tool>
+      {ed.p.sendTo && <Tool title={`Copy to the ${ed.p.sendTo.name}, in the same place`} onClick={() => ed.sendToOther()}><ArrowRightLeft className="h-4 w-4" /><span className="hidden 2xl:inline">To the {ed.p.sendTo.name}</span></Tool>}
       <Tool title="Delete" onClick={() => ed.remove()}><Trash2 className="h-4 w-4" /></Tool>
     </>
   );
@@ -1022,6 +1026,7 @@ export function MobileToolbar({ ed }: { ed: Editor }) {
     <Item icon={<Move className={i} />} label="Position" active={ed.panel === 'position'} onClick={() => open('position')} />
     <Item icon={<Droplet className={i} />} label="Transparency" active={ed.panel === 'transparency'} onClick={() => open('transparency')} />
     <Item icon={<Copy className={i} />} label="Duplicate" onClick={() => ed.duplicate()} />
+    {ed.p.sendTo && <Item icon={<ArrowRightLeft className={i} />} label={`To the ${ed.p.sendTo.name}`} onClick={() => ed.sendToOther()} />}
     <Item icon={locked ? <Unlock className={i} /> : <Lock className={i} />} label={locked ? 'Unlock' : 'Lock'} onClick={ed.toggleLock} />
     <Item icon={<Trash2 className={i} />} label="Delete" onClick={() => ed.remove()} off={locked} />
   </>);

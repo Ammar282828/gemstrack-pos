@@ -234,6 +234,16 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   `min-h-0` — and `[@media(pointer:coarse)]:` classes must be written out literally (Tailwind can't see interpolated ones).
   Checked in headless Chrome as an iPhone and at 1440 px (puppeteer with the Mac's own Chrome as `executablePath`; the cached
   puppeteer Chrome is broken) through the gate's dev-only `?dev=1`.
+- **Story + post together** (2026-09-25, owner: "the workflow is usually story and post together … optimize this workflow, allow for
+  either or workflows"): Post a Piece opens on **Story + post / Story only / Post only** (`FormatPicker`, remembered per device in
+  `taheri_post_formats`); the choice hides the other design and everything only it needs (website + WhatsApp cards, caption and Site/WA
+  ticks for the post; the Instagram card and story AI for the story) and gates `siteOn`/`waOn`/`igOn`. Both designs live in one
+  `PairEditor` (`story-editor.tsx`): live thumbnails of each as tabs, one open in the small editor, one designer with a Story/Post switch
+  in its header, and **Copy to the post / story** on any selection (`carryLayers` in `editor.ts`, tested: same place on the page, ×0.75
+  going to the square, never bigger going back). The starred photo leads both (the post follows it). A story Instagram won't take by
+  itself (not connected — always on Mina — or switched off for music) is Publish's last step, **by hand** (a Share button in the step
+  list); story only then makes the main button "Share the story"; the queue refuses until it has been shared or saved (it would be lost
+  when the page clears). "Save the story and the post" hands every image to the share sheet at once (Photos on a phone).
 - **Posts → From the website** (`/website/from-site`, 2026-09-25; owner: "give me an option to take any post from taheri.shop (or
   randomize) … add the post link to whatsapp community from right there", then the same for House of Mina): search, collection chips,
   **Shuffle** (skips pieces sent in the last 30 days — `social_posts.sitePiece`), the photo as it is on the site (it already carries the
