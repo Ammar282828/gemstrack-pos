@@ -21,9 +21,9 @@ const run = (period: Period, invoices: any[], orders: any[], extraRevenues: any[
   cashInForPeriod({ invoices, orders, invoiced: invoicedOrderIds(orders, invoices), extraRevenues, period });
 
 describe('cashInForPeriod', () => {
-  it('an open order: its cash advances on their own days, its gold apart from the cash', () => {
-    expect(run(august, [], [order])).toMatchObject({ orderAdvances: 50000, total: 50000, exchange: 30000, exchangeCountedInRevenue: 30000 });
-    expect(run(september, [], [order])).toMatchObject({ orderAdvances: 20000, total: 20000, exchange: 0 });
+  it('an open order: its cash advances on their own days, its gold as cash on the order day', () => {
+    expect(run(august, [], [order])).toMatchObject({ orderAdvances: 50000, exchange: 30000, total: 80000, exchangeOffInvoices: 0 });
+    expect(run(september, [], [order])).toMatchObject({ orderAdvances: 20000, exchange: 0, total: 20000 });
   });
 
   it('finalising the order moves nothing: its advances are counted once, on the invoice', () => {
@@ -38,8 +38,8 @@ describe('cashInForPeriod', () => {
       invoices: [invoice], orders: [finalised], invoiced: invoicedOrderIds([finalised], [invoice]), extraRevenues: [], period,
       invoiceDate: () => order.createdAt, // its revenue date, the order's
     });
-    expect(cashIn(august)).toMatchObject({ invoicePayments: 50000, orderAdvances: 0, total: 50000, exchange: 30000, exchangeCountedInRevenue: 0 });
-    expect(cashIn(september)).toMatchObject({ invoicePayments: 45000, orderAdvances: 0, total: 45000, exchange: 0 });
+    expect(cashIn(august)).toMatchObject({ invoicePayments: 50000, orderAdvances: 0, exchange: 30000, total: 80000, exchangeOffInvoices: 30000 });
+    expect(cashIn(september)).toMatchObject({ invoicePayments: 45000, orderAdvances: 0, exchange: 0, total: 45000 });
   });
 
   it('an order only its invoice points to (older data) is not counted again', () => {
@@ -48,7 +48,7 @@ describe('cashInForPeriod', () => {
     expect(run(august, [invoice], [unlinked])).toMatchObject({ invoicePayments: 50000, orderAdvances: 0, total: 50000 });
   });
 
-  it("an older invoice's lumped order advance counts only its cash", () => {
+  it("an older invoice's lumped order advance counts whole, its gold under exchange", () => {
     const invoice = {
       createdAt: '2026-08-25T09:00:00.000Z', sourceOrderId: 'ORD-000050',
       paymentHistory: [
@@ -56,7 +56,13 @@ describe('cashInForPeriod', () => {
         { amount: 10000, date: '2026-08-25T09:00:00.000Z' },
       ],
     };
-    expect(run(august, [invoice], [])).toMatchObject({ invoicePayments: 60000, total: 60000, exchange: 30000, exchangeCountedInRevenue: 30000 });
+    expect(run(august, [invoice], [])).toMatchObject({ invoicePayments: 60000, exchange: 30000, total: 90000, exchangeOffInvoices: 0 });
+  });
+
+  it('gold taken at the counter is cash on the day of the sale', () => {
+    const invoice = { createdAt: '2026-09-12T09:00:00.000Z', exchangeDescription: 'Old bangle', exchangeAmount1: 40000, paymentHistory: [{ amount: 60000, date: '2026-09-12T09:00:00.000Z' }] };
+    expect(run(september, [invoice], [])).toMatchObject({ invoicePayments: 60000, exchange: 40000, total: 100000, exchangeOffInvoices: 40000 });
+    expect(run(august, [invoice], []).total).toBe(0);
   });
 
   it('cancelled and refunded orders and refunded invoices bring no cash', () => {
@@ -69,7 +75,7 @@ describe('cashInForPeriod', () => {
   it('extra revenue in the period is cash; no period counts everything', () => {
     const extras = [{ date: '2026-09-05T00:00:00.000Z', amount: 4000 }, { date: '2026-08-05T00:00:00.000Z', amount: 1000 }];
     expect(run(september, [], [], extras)).toMatchObject({ extraRevenue: 4000, total: 4000 });
-    expect(run({ from: null, to: null }, [], [order], extras)).toMatchObject({ orderAdvances: 70000, extraRevenue: 5000, total: 75000, exchange: 30000 });
+    expect(run({ from: null, to: null }, [], [order], extras)).toMatchObject({ orderAdvances: 70000, exchange: 30000, extraRevenue: 5000, total: 105000 });
   });
 });
 

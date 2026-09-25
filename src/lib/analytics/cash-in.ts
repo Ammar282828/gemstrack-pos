@@ -1,6 +1,5 @@
 /**
- * Cash in over a period: the money that actually came into the shop, each rupee once, on the
- * day it came.
+ * Cash in over a period: what came into the shop, each rupee once, on the day it came.
  *
  * - Payments on invoices, whatever day the invoice was written.
  * - Cash advances on orders that are not an invoice yet (orderAdvancePayments: the one taken
@@ -9,16 +8,16 @@
  *   there and not here, and a period's cash does not move when an order is finalised. An order
  *   counts as invoiced when it names its invoice or an invoice names it (older data has only
  *   the invoice's `sourceOrderId`).
+ * - Gold (or anything) taken in exchange, at the value agreed: the owner counts it as cash
+ *   (2026-09-25). An invoice's exchange on the invoice's revenue date, an open order's on the
+ *   order's, which is the same day once the order is invoiced.
  * - Extra revenue.
- *
- * Gold taken in exchange is not cash. It is reported on its own (`exchange`) on the day it was
- * taken: an invoice's exchange on the invoice's revenue date, an open order's on the order's.
  *
  * Invoices made from an order before 2026-09-25 carry the order's advance as ONE payment whose
  * amount is the cash and the exchange together, noted "Advance from Order. Cash: X. Exchange: Y
- * (…)". Only X's share of it is cash. The share is taken from the note rather than subtracting
- * Y, because a bill with a coin on it reaches here already split pro rata (analytics/coins.ts),
- * which scales the amount but not the note.
+ * (…)". It is all counted; Y's share goes under `exchange` so the parts add up. The share is
+ * taken from the note rather than subtracting Y, because a bill with a coin on it reaches here
+ * already split pro rata (analytics/coins.ts), which scales the amount but not the note.
  */
 
 import { parseISO } from 'date-fns';
@@ -30,18 +29,18 @@ import { exchangeTotal, invoiceExchanges, orderExchanges } from '@/lib/exchange'
 export interface Period { from: Date | null; to: Date | null }
 
 export interface CashIn {
+  /** Cash paid on invoices (an older order advance's exchange share is under `exchange`). */
   invoicePayments: number;
   /** Cash advances on orders not invoiced yet. */
   orderAdvances: number;
-  extraRevenue: number;
-  /** invoicePayments + orderAdvances + extraRevenue. */
-  total: number;
-  /** Gold (or anything) taken in exchange, at the value agreed. Not in `total`. */
+  /** Gold (or anything) taken in exchange, at the value agreed. */
   exchange: number;
-  /** The part of `exchange` that revenue counts in full: an open order's (its revenue is its
-   *  whole subtotal) and an older invoice's, inside its advance payment. An invoice's own
-   *  exchange is already off its grand total. Revenue less cash less this is what is still owed. */
-  exchangeCountedInRevenue: number;
+  extraRevenue: number;
+  /** All four. */
+  total: number;
+  /** The part of `exchange` taken off an invoice's grand total, which revenue therefore never
+   *  counted. Revenue less (total less this) is what is still owed. */
+  exchangeOffInvoices: number;
 }
 
 type CashInvoice = Pick<Invoice, 'status' | 'createdAt' | 'paymentHistory' | 'exchanges' | 'exchangeDescription' | 'exchangeAmount1' | 'exchangeAmount2'>;
@@ -58,8 +57,7 @@ const inPeriod = (iso: string | undefined, { from, to }: Period) => {
 
 const LEGACY_ORDER_ADVANCE = /^Advance from Order\. Cash: (\S*)\. Exchange: (-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)/i;
 
-/** How much of a payment was gold taken in exchange rather than cash: only an older order
- *  advance ever held any. */
+/** How much of a payment was gold taken in exchange: only an older order advance ever held any. */
 export function paymentExchangePart(p: Pick<Payment, 'amount' | 'notes'>): number {
   const amount = Number(p.amount) || 0;
   const m = amount > 0 && p.notes ? LEGACY_ORDER_ADVANCE.exec(p.notes) : null;
@@ -118,12 +116,13 @@ export function cashInForPeriod<I extends CashInvoice>({
 
   const extraRevenue = extraRevenues.reduce((s, r) => s + (r && inPeriod(r.date, period) ? Number(r.amount) || 0 : 0), 0);
 
+  const exchange = invoiceExchange + legacyExchange + orderExchange;
   return {
     invoicePayments,
     orderAdvances,
+    exchange,
     extraRevenue,
-    total: invoicePayments + orderAdvances + extraRevenue,
-    exchange: invoiceExchange + legacyExchange + orderExchange,
-    exchangeCountedInRevenue: legacyExchange + orderExchange,
+    total: invoicePayments + orderAdvances + exchange + extraRevenue,
+    exchangeOffInvoices: invoiceExchange,
   };
 }

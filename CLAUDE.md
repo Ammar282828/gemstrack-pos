@@ -168,6 +168,10 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   the same transaction with `repairId`; deleting a repair deletes those rows. Receipt: `src/lib/repair-pdf.ts`.
 - **Analytics money reads in lac and crore** (`src/lib/money.ts`: `pkrLac`, `lacCrore`, `axisLac`): exact below 1 lac,
   then `4.5 lac` / `1.25 crore` to two decimals, chart axes `50k · 2.5L · 1.2Cr`. Grams, tola and counts are untouched.
+- **Exchange gold counts as cash** in Analytics' Cash In (owner, 2026-09-25: "count exchange gold as cash only"): every exchange —
+  at the counter, on an open order, on an invoice made from an order, inside an older invoice's lumped "Advance from Order.
+  Cash: X. Exchange: Y" payment — is a Cash In part of its own ("Exchange gold"). Each advance is counted once: on the order
+  while it is open, on the invoice once an order is invoiced (either side's link counts). `src/lib/analytics/cash-in.ts`, tested.
 - In a component, no hook after an early `return` (the `/orders/add` crash of 2026-09-22 was exactly that).
 - **One invoice PDF builder**: `src/lib/invoice-pdf.ts` (`saveInvoicePdf`) draws the customer's copy for the invoices list,
   the cart's post-sale screen and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
