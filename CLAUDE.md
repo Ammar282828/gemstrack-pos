@@ -236,7 +236,12 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   **Shuffle** (skips pieces sent in the last 30 days — `social_posts.sitePiece`), the photo as it is on the site (it already carries the
   house's marks: weight top-left + wordmark top-right on taheri.shop, the MINA mark on the catalogue), the caption from `sitePieceCaption`
   (name, weight, facts, 🌐 the piece's link, then `NEXT_PUBLIC_STORE_POST_FOOTER` or "Ask for today's price" + numbers; Mina also
-  `_POST_TAGLINE`), Write with AI where Post a Piece is on, and Send → `/api/website/post` (community, plus the channel on WAHA).
+  `_POST_TAGLINE`), **Write with AI** for both houses (`/api/website/site-pieces/caption`: the model writes only a line and the facts, in
+  the house's voice with its own community posts as examples; the POS builds the frame), a **weight overlay** (stampPhoto, on by default
+  only where the site photo doesn't show the weight — `weightSource !== 'label'`), and where it goes: any of the community's groups
+  (`WHATSAPP_POST_GROUPS`, Label=chat id; Taheri: Announcements, Diamonds, Gemstones, Investments, Exclusives, Watches), the channel, or
+  **Both** — `/api/website/post` with `targets` (keys, never chat ids; without them it still does community + channel for Post a Piece).
+  Mina's POS got the page as a port onto its branch (c045a60; recorded in main with a `-s ours` merge, the other session's way).
   Both sites were changed to publish links: taheri-site's prerender adds `path` to `catalog-attributes.json` (2,565 of 2,601 photos have a
   page); mina-catalogue's prerender writes `catalog-pieces.json` (599 pieces). `NEXT_PUBLIC_STORE_SITE_POSTS` (default on); Mina's
   community is `120363422611483809@g.us`. The community's own posts were read through WAHA to match their look.

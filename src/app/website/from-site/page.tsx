@@ -32,7 +32,10 @@ import { loadImage, stampPhoto } from '@/lib/social/story';
 import { STORE_SITE_POSTS, STORE_POST_METAL, STORE_POST_FOOTER, STORE_POST_TAGLINE, STORE_WHATSAPP_NUMBERS, STORE_LINKS } from '@/lib/store-config';
 
 interface Piece { id: string; name: string; url: string; image: string; thumb: string; collection: string; weightGrams: number | null; weightOnPhoto: boolean; facts: string[]; about: string }
-interface Audience { community: { name: string; size: number | null; reachable: boolean } | null; channel: { name: string; followers: number | null } | null }
+interface Group { key: string; label: string; name: string; size: number | null; reachable: boolean }
+interface Audience { community: { name: string; size: number | null; reachable: boolean } | null; channel: { name: string; followers: number | null } | null; groups: Group[] }
+/** "Announcements, Diamonds and the channel". */
+const listOf = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
 async function authHeaders(): Promise<Record<string, string>> {
   try { const t = await firebaseAuth?.currentUser?.getIdToken(); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; }
@@ -57,7 +60,9 @@ function FromSitePage() {
   const [pieces, setPieces] = useState<Piece[] | null>(null);
   const [site, setSite] = useState('');
   const [posted, setPosted] = useState<Record<string, string>>({});
-  const [audience, setAudience] = useState<Audience>({ community: null, channel: null });
+  const [audience, setAudience] = useState<Audience>({ community: null, channel: null, groups: [] });
+  // The community's groups this post goes to (Announcements by default); the channel is its own button.
+  const [chosenGroups, setChosenGroups] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [collection, setCollection] = useState('');
@@ -67,7 +72,7 @@ function FromSitePage() {
   const [caption, setCaption] = useState('');
   const [edited, setEdited] = useState(false);
   const [busy, setBusy] = useState<'send' | 'ai' | null>(null);
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState<string[] | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
   // The weight on the photo, and the AI's words for the caption.
   const [overlay, setOverlay] = useState(false);
@@ -89,7 +94,12 @@ function FromSitePage() {
       const d = await pr.json().catch(() => ({}));
       if (!pr.ok) throw new Error(d.error || `${pr.status}`);
       setPieces(d.pieces); setSite(d.site); setPosted(d.posted || {});
-      if (ar.ok) { const a = await ar.json(); setAudience({ community: a.community ?? null, channel: a.channel ?? null }); }
+      if (ar.ok) {
+        const a = await ar.json();
+        const groups: Group[] = a.groups ?? [];
+        setAudience({ community: a.community ?? null, channel: a.channel ?? null, groups });
+        setChosenGroups(prev => (prev.length ? prev : groups.slice(0, 1).map(g => g.key)));
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -178,8 +188,12 @@ function FromSitePage() {
       setBusy(null);
     }
   };
-  const send = async () => {
-    if (!pick) return;
+  /** What a destination key is called on the page. */
+  const labelOf = (k: string) => (k === 'channel' ? 'the channel' : audience.groups.find(g => g.key === k)?.label ?? k);
+  const reachOf = (k: string) => (k === 'channel' ? audience.channel?.followers ?? null : audience.groups.find(g => g.key === k)?.size ?? null);
+  /** Send to exactly these destinations (group keys and/or "channel"), one after another. */
+  const send = async (targets: string[]) => {
+    if (!pick || !targets.length) return;
     setBusy('send');
     try {
       const form = new FormData();
@@ -187,15 +201,17 @@ function FromSitePage() {
       form.set('file', new File([await outgoing(pick)], `${slug}.jpg`, { type: 'image/jpeg' }));
       form.set('caption', caption);
       form.set('sitePiece', pick.id);
+      form.set('targets', targets.join(','));
       const res = await fetch('/api/website/post', { method: 'POST', headers: await authHeaders(), body: form });
       const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw Object.assign(new Error(d.error || `${res.status}`), { status: res.status });
+      const results = (d.results ?? []) as { key: string; ok: boolean; error?: string }[];
+      if (!res.ok && !results.some(r => r.ok)) throw Object.assign(new Error(d.error || `${res.status}`), { status: res.status });
       setPosted(prev => ({ ...prev, [pick.id]: new Date().toISOString() }));
-      const ch = d.channel as { ok: boolean; error?: string } | null;
+      const sent = results.filter(r => r.ok).map(r => labelOf(r.key)), missed = results.filter(r => !r.ok);
       toast({
-        title: `Sent to ${audience.community?.name ?? 'the community'}`,
-        description: ch ? (ch.ok ? `And to ${audience.channel?.name ?? 'the channel'}.` : `The channel didn’t take it: ${ch.error}`) : `${pick.name}, with its link.`,
-        variant: ch && !ch.ok ? 'destructive' : undefined,
+        title: `Sent to ${listOf(sent)}`,
+        description: missed.length ? `Didn’t go to ${listOf(missed.map(r => labelOf(r.key)))}: ${missed[0].error}` : `${pick.name}, with its link.`,
+        variant: missed.length ? 'destructive' : undefined,
       });
     } catch (e) {
       const dg = diagnose('whatsapp', { status: (e as { status?: number }).status, message: e instanceof Error ? e.message : String(e) });
@@ -213,7 +229,7 @@ function FromSitePage() {
       <div ref={topRef} className="scroll-mt-20">
         <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Globe className="mr-3 h-7 w-7" /> Post from {siteName}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Pick any piece from the website — or shuffle — and send it to {community ? <b>{community.name}</b> : 'the community'}{community?.size ? ` (${community.size.toLocaleString()} members)` : ''}{audience.channel ? <> and <b>{audience.channel.name}</b></> : null}, with its link.
+          Pick any piece from the website — or shuffle — and send it with its link to {community ? <b>{community.name}</b> : 'the community'}{audience.groups.length > 1 ? '’s groups' : ''}{audience.channel ? <>, <b>{audience.channel.name}</b>’s channel, or both</> : null}.
         </p>
       </div>
 
@@ -265,17 +281,40 @@ function FromSitePage() {
                   </div>
                   <Textarea value={caption} onChange={e => { setCaption(e.target.value); setEdited(true); }} rows={10} className="font-mono text-xs leading-relaxed" />
                 </div>
-                <div className="grid grid-cols-[1fr_auto] gap-2">
-                  <Button className="h-11" disabled={!!busy || !community || !caption.trim()} onClick={() => setConfirm(true)}>
-                    {busy === 'send' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />} Send to the community
+                {/* Where it goes: any of the community's groups, the channel, or both. */}
+                {audience.groups.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium flex items-center gap-1.5"><MessageCircle className="h-3.5 w-3.5" /> Groups</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {audience.groups.map(g => {
+                        const on = chosenGroups.includes(g.key);
+                        return (
+                          <button key={g.key} type="button" onClick={() => setChosenGroups(c => on ? c.filter(k => k !== g.key) : [...c, g.key])}
+                            className={cn('rounded-full border px-3 py-1.5 text-xs', on ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground')}>
+                            {on && <Check className="inline h-3 w-3 mr-1 -mt-0.5" />}{g.label}{g.size ? <span className="opacity-70"> · {g.size.toLocaleString()}</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                <div className={cn('grid gap-2', audience.channel ? 'grid-cols-2' : 'grid-cols-1')}>
+                  <Button className="h-11" disabled={!!busy || !chosenGroups.length || !caption.trim()} onClick={() => setConfirm(chosenGroups)}>
+                    {busy === 'send' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />} {chosenGroups.length > 1 ? `${chosenGroups.length} groups` : chosenGroups.length ? labelOf(chosenGroups[0]) : 'Choose a group'}
                   </Button>
-                  <Button variant="outline" className="h-11" disabled={!!busy} onClick={shuffle} aria-label="Another piece"><Shuffle className="h-4 w-4" /></Button>
+                  {audience.channel && (
+                    <Button variant="secondary" className="h-11" disabled={!!busy || !caption.trim()} onClick={() => setConfirm(['channel'])}><Radio className="h-4 w-4 mr-1.5" /> Channel</Button>
+                  )}
+                  {audience.channel && (
+                    <Button variant="default" className="col-span-2 h-11" disabled={!!busy || !chosenGroups.length || !caption.trim()} onClick={() => setConfirm([...chosenGroups, 'channel'])}>
+                      <Send className="h-4 w-4 mr-1.5" /> Both — {chosenGroups.length > 1 ? `${chosenGroups.length} groups` : chosenGroups.length ? labelOf(chosenGroups[0]) : 'groups'} and the channel
+                    </Button>
+                  )}
                 </div>
-                <p className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" /> {community?.name ?? 'Community'}</span>
-                  {audience.channel && <span className="inline-flex items-center gap-1"><Radio className="h-3 w-3" /> {audience.channel.name} too</span>}
-                  <span>{overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it.` : 'The photo as it is on the website.'}</span>
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] text-muted-foreground">{overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it.` : 'The photo as it is on the website.'}</p>
+                  <Button variant="ghost" size="sm" className="h-8 shrink-0" disabled={!!busy} onClick={shuffle}><Shuffle className="h-4 w-4 mr-1.5" /> Another</Button>
+                </div>
               </div>
             </div>
           ) : (
@@ -324,20 +363,22 @@ function FromSitePage() {
         </section>
       </div>
 
-      <AlertDialog open={confirm} onOpenChange={setConfirm}>
+      <AlertDialog open={!!confirm} onOpenChange={o => { if (!o) setConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Send it to {community?.name ?? 'the community'}?</AlertDialogTitle>
+            <AlertDialogTitle>Send it to {confirm ? listOf(confirm.map(labelOf)) : ''}?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
-                {pick && <div className="flex gap-3"><img src={preview ?? pick.thumb} alt="" className="h-16 w-16 rounded-md object-cover" /><div><p className="font-medium text-foreground">{pick.name}</p><p className="text-xs">{community?.size ? `${community.size.toLocaleString()} members` : ''}{audience.channel ? ` · and ${audience.channel.name}${audience.channel.followers ? ` (${audience.channel.followers})` : ''}` : ''}</p></div></div>}
+                {pick && <div className="flex gap-3"><img src={preview ?? pick.thumb} alt="" className="h-16 w-16 rounded-md object-cover" /><div><p className="font-medium text-foreground">{pick.name}</p>
+                  <ul className="text-xs mt-0.5">{(confirm ?? []).map(k => <li key={k}>{k === 'channel' ? (audience.channel?.name ?? 'Channel') + ' (channel)' : labelOf(k)}{reachOf(k) ? ` — ${reachOf(k)!.toLocaleString()} ${k === 'channel' ? 'followers' : 'members'}` : ''}</li>)}</ul>
+                </div></div>}
                 <p className="text-xs">{overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it` : 'The photo as it is on the website'}, with the caption and its link. It can’t be unsent from here.</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Not yet</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setConfirm(false); send(); }}>Send</AlertDialogAction>
+            <AlertDialogAction onClick={() => { const t = confirm ?? []; setConfirm(null); send(t); }}>Send</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

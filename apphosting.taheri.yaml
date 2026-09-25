@@ -133,6 +133,12 @@ env:
   - variable: WHATSAPP_COMMUNITY_CHAT_ID
     value: "120363360668200388@g.us"
     availability: [RUNTIME]
+  # The community's groups a post can go to from Posts → From the website, in the
+  # order the page shows them (the first is the default). Read from WAHA on
+  # 2026-09-25; the line is admin or super admin of every one. Label=chat id.
+  - variable: WHATSAPP_POST_GROUPS
+    value: "Announcements=120363360668200388@g.us,Diamonds=120363363549180252@g.us,Gemstones=120363375962914214@g.us,Investments=120363362406867247@g.us,Exclusives=120363423583500843@g.us,Watches=120363420544501251@g.us"
+    availability: [RUNTIME]
   # The "Taheri Collections" WhatsApp channel (the line is its OWNER, 67 followers
   # on 2026-09-25, read through WAHA's /channels). With WAHA, every Post a Piece
   # WhatsApp send goes here too, after the community. Green API can't do channels.

@@ -96,13 +96,13 @@ export async function getSitePiece(id: string): Promise<SitePiece | null> {
   return (await getSitePieces()).pieces.find(p => p.id === id) ?? null;
 }
 
-/** When each website piece last went to the community (from the send log), so a shuffle can skip the recent ones. */
+/** When each website piece last went to WhatsApp (any group or the channel, from the send log), so a shuffle can skip the recent ones. */
 export async function lastPosted(): Promise<Record<string, string>> {
   const snap = await adminDb.collection('social_posts').orderBy('at', 'desc').limit(1500).get();
   const out: Record<string, string> = {};
   for (const d of snap.docs) {
     const x = d.data() as { sitePiece?: string; at?: string; destination?: string };
-    if (x.sitePiece && x.at && x.destination === 'whatsapp-community' && !out[x.sitePiece]) out[x.sitePiece] = x.at;
+    if (x.sitePiece && x.at && x.destination?.startsWith('whatsapp') && !out[x.sitePiece]) out[x.sitePiece] = x.at;
   }
   return out;
 }
