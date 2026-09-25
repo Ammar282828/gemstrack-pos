@@ -104,6 +104,9 @@ back to Green API otherwise; Green API stays configured until the owner cancels 
   catalogue has neither, so its file sets both to "0" at go-live); **Post a Piece** and **Investments** follow
   `NEXT_PUBLIC_STORE_POST_PIECE` / `_INVESTMENTS` (Taheri's accounts and series; Mina sets both "0", which hides the menu
   entries and pages and makes their routes answer 404 — owner, 2026-09-25: "why are taheri features in mina pos").
+  **Expense categories** are `NEXT_PUBLIC_STORE_EXPENSE_CATEGORIES` (`lib/expense-categories.ts`; Taheri's list by default,
+  Mina's own 15 since 2026-09-25, worked out from all its expenses); Partner Drawings, Partner Salary and Other are always
+  added — `lib/partnership.ts` reads the first two by name. The expenses filter also offers any other name an expense carries.
 - A `secret:` in the base must exist in **both** projects; one in a house file only in that project.
 
 **Shipping a change to both houses:**
