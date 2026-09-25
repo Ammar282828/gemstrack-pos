@@ -20,7 +20,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
-import { STORE_POST_PIECE } from '@/lib/store-config';
+import { STORE_POST_PIECE, STORE_SITE_POSTS } from '@/lib/store-config';
 import { notInThisShop } from '@/lib/social/gate';
 import { roleForEmail } from '@/lib/roles';
 import { adminDb } from '@/lib/firebase-admin';
@@ -34,7 +34,8 @@ const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
 const MAX_BYTES = 16 * 1024 * 1024;
 
 async function gate(req: NextRequest): Promise<string | NextResponse> {
-  if (!STORE_POST_PIECE) return notInThisShop();
+  // Post a Piece and Posts → From the website both send through here.
+  if (!STORE_POST_PIECE && !STORE_SITE_POSTS) return notInThisShop();
   if (OPEN_ACCESS) return 'counter';
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -71,6 +72,8 @@ export async function POST(req: NextRequest) {
   catch { return NextResponse.json({ error: 'Send the image as multipart/form-data.' }, { status: 400 }); }
   const file = form.get('file');
   const caption = String(form.get('caption') || '');
+  // A piece from the website (Posts → From the website): logged, so a shuffle can skip what went out lately.
+  const sitePiece = String(form.get('sitePiece') || '').slice(0, 300) || undefined;
   if (!(file instanceof File)) return NextResponse.json({ error: 'No image was received.' }, { status: 400 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: 'That image is over 16 MB.' }, { status: 413 });
   if (!/^image\/(jpeg|png)$/i.test(file.type)) return NextResponse.json({ error: 'Send a JPEG or PNG.' }, { status: 415 });
@@ -81,7 +84,7 @@ export async function POST(req: NextRequest) {
     // A record of what went out and when, for "did that post?" later.
     const log = (destination: string, chatId: string, messageId: string) => adminDb.collection('social_posts').add({
       at: new Date().toISOString(), by: who, destination, chatId,
-      idMessage: messageId, fileName: name, caption: caption.slice(0, 1024),
+      idMessage: messageId, fileName: name, caption: caption.slice(0, 1024), ...(sitePiece ? { sitePiece } : {}),
     }).catch(e => console.warn('[post] could not log the send:', e instanceof Error ? e.message : e));
     await log('whatsapp-community', id, idMessage);
     // Then the channel. The community post has already gone, so a channel failure

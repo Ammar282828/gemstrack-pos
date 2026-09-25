@@ -199,6 +199,23 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Posts → From the website: a piece from the catalogue, with its link, to the
+  # House of Mina community's announcements ("House of Mina by Taheri Collections",
+  # 441 members on 2026-09-25; the WAHA line +92 326 2275554 is an admin). The
+  # caption closes in the house's own words; a literal \n is a line break.
+  - variable: WHATSAPP_COMMUNITY_CHAT_ID
+    value: "120363422611483809@g.us"
+    availability: [RUNTIME]
+  - variable: NEXT_PUBLIC_STORE_POST_TAGLINE
+    value: "Bespoke, designed in-house."
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_POST_FOOTER
+    value: '📩 DM to order — *+923161930960*\n💳 Card / Bank Transfer\n🌍 Worldwide Shipping'
+    availability:
+      - BUILD
+      - RUNTIME
   # Post a Piece (Instagram story, community post, AI) is built on Taheri's
   # accounts; Mina's menu has no Post a Piece page and its routes answer 404.
   - variable: NEXT_PUBLIC_STORE_POST_PIECE

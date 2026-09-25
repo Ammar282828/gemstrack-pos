@@ -17,7 +17,7 @@ import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
-import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_INVESTMENTS, STORE_POST_PIECE } from '@/lib/store-config';
+import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_SITE_POSTS } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -91,8 +91,10 @@ const navGroups: NavGroup[] = [
       ...(STORE_LINKS.website ? ([
         // Everything that goes out to WhatsApp and Instagram, under one entry (the
         // owner, 2026-09-25: Investments belongs with Post a Piece).
-        ...(STORE_POST_PIECE || STORE_INVESTMENTS ? [{ staff: true, href: '/website/post', label: 'Posts', icon: <Send />, tabs: [
+        ...(STORE_POST_PIECE || STORE_INVESTMENTS || STORE_SITE_POSTS ? [{ staff: true, href: STORE_POST_PIECE ? '/website/post' : STORE_SITE_POSTS ? '/website/from-site' : '/website/investments', label: 'Posts', icon: <Send />, tabs: [
           ...(STORE_POST_PIECE ? [{ staff: true, href: '/website/post', label: 'Post a Piece' }] : []),
+          // A piece already on the website, to the community with its link (both houses).
+          ...(STORE_SITE_POSTS ? [{ staff: true, href: '/website/from-site', label: 'From the website' }] : []),
           ...(STORE_INVESTMENTS ? [{ staff: true, href: '/website/investments', label: 'Investments' }] : []),
         ] as NavTab[] }] : []),
         { staff: true, href: '/website/photos', label: 'Website', icon: <Globe />, tabs: [

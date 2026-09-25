@@ -256,3 +256,17 @@ export const STORE_INVESTMENTS = process.env.NEXT_PUBLIC_STORE_INVESTMENTS !== '
  * its menu entry and its server routes are gone.
  */
 export const STORE_POST_PIECE = process.env.NEXT_PUBLIC_STORE_POST_PIECE !== '0';
+
+/**
+ * Posts → From the website: a piece already on this house's website (picked,
+ * searched or shuffled) goes to its WhatsApp community with its link. Both
+ * houses; "0" turns it off. The caption ends with the house's own lines when
+ * `_POST_FOOTER` is set (Mina: DM to order, card / bank transfer, worldwide
+ * shipping), else "Ask for today's price" and the WhatsApp numbers; `_POST_TAGLINE`
+ * follows the piece's facts ("Bespoke, designed in-house."). A literal "\n" in
+ * either is a line break.
+ */
+export const STORE_SITE_POSTS = process.env.NEXT_PUBLIC_STORE_SITE_POSTS !== '0';
+const lines = (v: string | undefined) => (v ?? '').replace(/\\n/g, '\n').trim();
+export const STORE_POST_TAGLINE = lines(process.env.NEXT_PUBLIC_STORE_POST_TAGLINE);
+export const STORE_POST_FOOTER = lines(process.env.NEXT_PUBLIC_STORE_POST_FOOTER);

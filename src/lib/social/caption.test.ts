@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detailsLine, waNumberFromUrl, websiteFileName, weightLabel, whatsappCaption } from './caption';
+import { detailsLine, sitePieceCaption, waNumberFromUrl, websiteFileName, weightLabel, whatsappCaption } from './caption';
 
 describe('weightLabel', () => {
   it('keeps the weight exactly as typed', () => {
@@ -64,5 +64,26 @@ describe('websiteFileName', () => {
   it('keeps URL-breaking characters out', () => {
     expect(websiteFileName('Bangle & Ring #1?', 0)).toBe('Bangle and Ring 1.jpg');
     expect(websiteFileName('a/b', 0)).toBe('a b.jpg');
+  });
+});
+
+describe('sitePieceCaption', () => {
+  it('writes a Taheri piece with its weight, facts and link, and asks for the price', () => {
+    const c = sitePieceCaption({ name: 'Turquoise Floral Cluster Tops', url: 'https://taheri.shop/tops/turquoise-floral-cluster-tops', weightGrams: 3.84, facts: ['Turquoise', 'None', 'Floral'] },
+      { metal: '21K Gold', whatsappNumbers: ['+923352275553', '+923262275554'] });
+    expect(c.split('\n')[0]).toBe('✨ *Turquoise Floral Cluster Tops* — _21K Gold | 3.84g_');
+    expect(c).toContain('_Turquoise · Floral_');
+    expect(c).toContain('🌐 See it: *https://taheri.shop/tops/turquoise-floral-cluster-tops*');
+    expect(c).toContain('💬 WhatsApp: +923352275553, +923262275554');
+    expect(c).not.toMatch(/najmi|saddar/i);
+  });
+  it('writes a Mina piece in its own voice, with no weight and its own closing lines', () => {
+    const c = sitePieceCaption({ name: 'Aurora Eternity Band', url: 'https://catalogue.houseofmina.store/rings-and-bands/aurora-eternity-band', about: 'Round stones run unbroken around the band.', facts: ['American Diamond', 'rhodium plated'] },
+      { metal: '925 Sterling Silver', tagline: 'Bespoke, designed in-house.', footer: '📩 DM to order — *+923161930960*\n💳 Card / Bank Transfer\n🌍 Worldwide Shipping', whatsappNumbers: [] });
+    expect(c.split('\n')[0]).toBe('✨ *Aurora Eternity Band*');
+    expect(c).toContain('Round stones run unbroken around the band.');
+    expect(c).toContain('_American Diamond · rhodium plated_ Bespoke, designed in-house.');
+    expect(c.trim().endsWith('🌍 Worldwide Shipping')).toBe(true);
+    expect(c).not.toContain('today’s price');
   });
 });

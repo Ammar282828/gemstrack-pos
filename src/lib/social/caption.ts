@@ -84,3 +84,50 @@ export function websiteFileName(name: string, index: number): string {
   const base = name.replace(/&/g, ' and ').replace(/[\\/:*?"<>|#%]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Piece';
   return `${base}${index > 0 ? ` ${index + 1}` : ''}.jpg`;
 }
+
+// ── A piece from the house's own website ───────────────────────────────────
+
+/** A piece as the website publishes it (see src/lib/website/site-pieces.ts). */
+export interface SitePieceText {
+  name: string;
+  /** The piece's own page, in full. */
+  url: string;
+  weightGrams?: number | null;
+  /** Stones, cut, style, plating — whatever the site knows, most telling first. */
+  facts?: string[];
+  /** The site's own words about it (Mina's catalogue has a paragraph per piece). */
+  about?: string;
+}
+export interface SitePieceContext {
+  /** Shown beside the weight: "21K Gold". Only used when there is a weight. */
+  metal?: string;
+  /** The house's line after the facts: "Bespoke, designed in-house." */
+  tagline?: string;
+  /** The closing lines, as the house writes them. Without them, "Ask for today's price" and the numbers. */
+  footer?: string;
+  whatsappNumbers: string[];
+}
+
+/**
+ * A community post for a piece already on the website, in the house's shape:
+ *
+ *   ✨ *Turquoise Floral Cluster Tops* — _21K Gold | 3.84g_
+ *   (the site's paragraph about it, when it has one)
+ *   _Turquoise · Floral_
+ *   🌐 See it: *https://taheri.shop/tops/turquoise-floral-cluster-tops*
+ *   *Ask for today's price:* … (or the house's own closing lines)
+ */
+export function sitePieceCaption(p: SitePieceText, ctx: SitePieceContext): string {
+  const w = p.weightGrams && p.weightGrams > 0 ? `${Number(p.weightGrams.toFixed(3))}g` : '';
+  const header = w ? [ctx.metal?.trim(), w].filter(Boolean).join(' | ') : '';
+  const lines: string[] = [`✨ *${p.name.trim()}*${header ? ` — _${header}_` : ''}`];
+  if (p.about?.trim()) lines.push('', p.about.trim());
+  const facts = (p.facts ?? []).map(f => f.trim()).filter(f => f && !/^none$/i.test(f));
+  const tail = [facts.length ? `_${facts.join(' · ')}_` : '', ctx.tagline?.trim() || ''].filter(Boolean);
+  if (tail.length) lines.push('', tail.join(' '));
+  lines.push('', `🌐 See it: *${p.url}*`);
+  const footer = ctx.footer?.trim();
+  if (footer) lines.push('', footer);
+  else if (ctx.whatsappNumbers.length) lines.push('', '*Ask for today’s price:*', `💬 WhatsApp: ${ctx.whatsappNumbers.join(', ')}`);
+  return lines.join('\n');
+}

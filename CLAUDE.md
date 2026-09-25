@@ -61,6 +61,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 | `/api/website/post/health` | Post a Piece | GET: every check + last day's `social_errors` + diagnosis context; POST: the page records a failure |
 | `/api/investments` (+ `/[id]/publish`, `/[id]/plan`, `/schedule`, `/api/public/investments/[id]/[kind]`) | the Cowork routine; POS page Investments | file a day's gold post (Bearer ingest token or the POS); send each part; hold/approve a day; the owner's schedule; serve the cards |
 | `/api/investments/tick` | Cloud Scheduler `investments-tick` (every 5 min, Bearer `CRON_SECRET`) | send whatever part of today's post the schedule says is due; `?dry=1` sends nothing |
+| `/api/website/site-pieces` (+ `/image?id=`) | POS page Posts → From the website | the house website's pieces (taheri.shop: `catalog-attributes.json`, which carries each photo's page `path`; the Mina catalogue: `catalog-pieces.json`) and when each last went out; a piece's photo as a JPEG from this server (only listed pieces) |
 | `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
 | `/api/website/orders/[id]` | POS order page | mark paid / shipped — **always verifies a token, even under open access** |
 
@@ -230,6 +231,15 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   `min-h-0` — and `[@media(pointer:coarse)]:` classes must be written out literally (Tailwind can't see interpolated ones).
   Checked in headless Chrome as an iPhone and at 1440 px (puppeteer with the Mac's own Chrome as `executablePath`; the cached
   puppeteer Chrome is broken) through the gate's dev-only `?dev=1`.
+- **Posts → From the website** (`/website/from-site`, 2026-09-25; owner: "give me an option to take any post from taheri.shop (or
+  randomize) … add the post link to whatsapp community from right there", then the same for House of Mina): search, collection chips,
+  **Shuffle** (skips pieces sent in the last 30 days — `social_posts.sitePiece`), the photo as it is on the site (it already carries the
+  house's marks: weight top-left + wordmark top-right on taheri.shop, the MINA mark on the catalogue), the caption from `sitePieceCaption`
+  (name, weight, facts, 🌐 the piece's link, then `NEXT_PUBLIC_STORE_POST_FOOTER` or "Ask for today's price" + numbers; Mina also
+  `_POST_TAGLINE`), Write with AI where Post a Piece is on, and Send → `/api/website/post` (community, plus the channel on WAHA).
+  Both sites were changed to publish links: taheri-site's prerender adds `path` to `catalog-attributes.json` (2,565 of 2,601 photos have a
+  page); mina-catalogue's prerender writes `catalog-pieces.json` (599 pieces). `NEXT_PUBLIC_STORE_SITE_POSTS` (default on); Mina's
+  community is `120363422611483809@g.us`. The community's own posts were read through WAHA to match their look.
 - **Investments by Taheri in the POS** (`/website/investments`, 2026-09-25): the daily gold post is written by the owner's
   scheduled **Cowork routine on claude.ai** ("Investments by Taheri — daily post", 11:00; not editable from Claude Code) whose last
   step POSTs the four deliverables to `/api/investments` (multipart post/teaser/square/story, `Authorization: Bearer` the token in
