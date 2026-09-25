@@ -182,6 +182,14 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # The link page's own address: the QR on invoices, order slips and repair receipts
+  # points here (and prints it), and the middleware sends every path on this host to
+  # /links. App Hosting custom domain on hom-pos since 2026-09-26 (DNS at GoDaddy).
+  - variable: NEXT_PUBLIC_STORE_LINKS_URL
+    value: "https://links.houseofmina.store"
+    availability:
+      - BUILD
+      - RUNTIME
   # The link page's words (links.houseofmina.store; see STORE_LINKS_PAGE). Copy says
   # Karachi, never Saddar.
   - variable: NEXT_PUBLIC_STORE_LINKS_TAGLINE
