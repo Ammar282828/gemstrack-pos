@@ -178,37 +178,68 @@ body {
      variables override on the body for everything inside it. `brand-taheri`
      has no block of its own, exactly as `theme-taheri` has none: it is the
      absence of this override. */
-  .dark .brand-mina {
-    --background: 0 30% 8%;
-    --foreground: 0 12% 97%;
-    --card: 0 26% 12.5%;
-    --card-foreground: 0 12% 97%;
-    --popover: 0 26% 12.5%;
-    --popover-foreground: 0 12% 97%;
-    --primary: 0 74% 64%;
-    --primary-foreground: 0 60% 12%;
-    --secondary: 0 20% 18%;
-    --secondary-foreground: 0 10% 93%;
-    --muted: 0 20% 18%;
-    --muted-foreground: 0 9% 70%;
-    --accent: 0 28% 24%;
-    --accent-foreground: 0 12% 97%;
-    --destructive: 12 58% 34%;
+  /* `:not(.theme-default)`: the body carries both `theme-<x>` and `brand-mina`, and
+     `.dark .brand-mina` (two classes) outranked `.theme-default` (one), so Mina could
+     never be light — its light theme came up maroon (fixed 2026-09-25). */
+  .dark .brand-mina:not(.theme-default) {
+    /* A muted burgundy, and Mina's dusty rose (#E8A5AE, the catalogue's accent) as
+       the accent — the owner, 2026-09-25: the old palette was a saturated red-black
+       with a coral primary. Burgundy sits at hue 345 (a blue-red), kept below 25%
+       saturation so the ground reads as wine, not as red; the rose is the only
+       saturated colour, so buttons and headings carry it. Destructive is brick
+       (hue 8) so it never reads as the rose. */
+    --background: 345 24% 9%;
+    --foreground: 20 22% 94%;
+    --card: 345 21% 12.5%;
+    --card-foreground: 20 22% 94%;
+    --popover: 345 21% 12.5%;
+    --popover-foreground: 20 22% 94%;
+    --primary: 352 52% 76%;
+    --primary-foreground: 345 32% 11%;
+    --secondary: 345 16% 18%;
+    --secondary-foreground: 20 16% 90%;
+    --muted: 345 16% 18%;
+    --muted-foreground: 15 10% 68%;
+    --accent: 345 20% 22%;
+    --accent-foreground: 20 22% 94%;
+    --destructive: 8 58% 46%;
     --destructive-foreground: 0 0% 100%;
-    --success: 142 62% 52%;
+    --success: 142 45% 52%;
     --success-foreground: 145 60% 8%;
-    --warning: 40 92% 60%;
+    --warning: 38 85% 60%;
     --warning-foreground: 40 60% 10%;
-    --border: 0 17% 24%;
-    --input: 0 17% 24%;
-    --ring: 0 74% 64%;
-    --chart-1: 0 74% 64%;
-    --chart-2: 22 78% 60%;
-    --chart-3: 40 88% 62%;
-    --chart-4: 340 65% 62%;
-    --chart-5: 190 60% 58%;
+    --border: 345 14% 22%;
+    --input: 345 14% 22%;
+    --ring: 352 52% 76%;
+    --chart-1: 352 52% 76%;
+    --chart-2: 36 45% 62%;
+    --chart-3: 190 30% 58%;
+    --chart-4: 290 22% 66%;
+    --chart-5: 150 25% 55%;
+    /* Re-declared here, not inherited: `.dark` sets these as var(--background) etc.
+       on <html>, where the var()s resolve to Taheri's ground before this block
+       applies on <body> — so Mina's sidebar was Taheri's green-black. */
+    --sidebar-background: var(--background);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--accent-foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
   }
 
+
+
+  /* Mina's light theme: the shared light palette, with Mina's own maroon — the ink
+     of its wordmark, #380000 — where Taheri's light theme has its near-black navy
+     (buttons, headings, focus rings). Was Taheri's navy on both houses. */
+  .brand-mina.theme-default {
+    --primary: 0 100% 11%;
+    --primary-foreground: 0 20% 98%;
+    --ring: 0 100% 11%;
+    --chart-1: 0 100% 11%;
+  }
 
   /* `theme-taheri` deliberately has no block of its own. <html> always carries
      `.dark`, and the light palette is applied by `.theme-default` on <body>
@@ -297,3 +328,5 @@ body {
  */
 html.boot-light { background-color: hsl(220 30% 99.4%); }
 html.boot-dark  { background-color: hsl(180 24% 5%); }
+/* Mina's dark ground, so its first paint is maroon-black, not Taheri's green-black. */
+html[data-brand="mina"].boot-dark { background-color: hsl(345 24% 9%); }

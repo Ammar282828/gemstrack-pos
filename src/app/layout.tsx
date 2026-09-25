@@ -13,7 +13,7 @@ import React, { useEffect } from 'react';
 import Script from 'next/script';
 import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
 import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, isLinksHost } from '@/lib/store-config';
-import { readCachedTheme, writeCachedTheme } from '@/lib/theme-cache';
+import { readCachedTheme, writeCachedTheme, LIGHT_THEME } from '@/lib/theme-cache';
 import { warmPdfLogo } from '@/lib/pdf-logo';
 
 const inter = Inter({
@@ -81,6 +81,14 @@ function AppBody({ children }: { children: React.ReactNode }) {
   // logo load was being paid inside that window. See pdf-logo.ts.
   React.useEffect(() => { warmPdfLogo(); }, []);
 
+  // The phone's browser bar follows the theme: the house's dark ground on the dark
+  // palette, the page's own white on the light one (it stayed dark over a white app).
+  const chromeTheme = hasSettingsLoaded && theme ? theme : cachedTheme;
+  React.useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', chromeTheme === LIGHT_THEME ? '#FCFCFD' : STORE_THEME_COLOR);
+  }, [chromeTheme]);
+
   if (!isHydrated) {
     return (
       <body suppressHydrationWarning className={`${inter.variable} font-sans antialiased theme-${cachedTheme} brand-${STORE_BRAND}`}>
@@ -122,7 +130,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html lang="en" suppressHydrationWarning className="dark" data-brand={STORE_BRAND}>
       <head>
         <title>{STORE_CONFIG.name}</title>
         <meta name="description" content="Jewellery Inventory & Point-of-Sale System" />
