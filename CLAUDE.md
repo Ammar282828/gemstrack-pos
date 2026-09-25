@@ -253,7 +253,9 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   show right after the headline; on a computer 3 and 5 sit beside the form. Folded until asked for: the piece's metal/stones/small line
   ("More details"), the website name ("Change"), the caption's extra line, the editor's "Photo & colours". One tool row per design
   (Layouts · Add · AI menu · Design; the AI menu holds Make the whole story, New setting, Extend, Ask AI, AI lettering and "remove tags");
-  "From your phone" is one button plus a More menu.
+  "From your phone" is one button plus a More menu. Each step is a card of its own with a numbered badge (`STEP`, owner: "requires
+  more separation"); panels inside a step are tinted, not bordered. On a phone the design toolbar is four equal tiles, icon over word.
+  WhatsApp never just disappears: with no settings (a local copy) or a failed load, its card says why.
 - **Posts → From the website** (`/website/from-site`, 2026-09-25; owner: "give me an option to take any post from taheri.shop (or
   randomize) … add the post link to whatsapp community from right there", then the same for House of Mina): opens on **New arrivals**
   (owner: "by default show new arrivals"; `src/lib/website/new-arrivals.ts`, tested — the catalogue's own shelf, `newArrival` in

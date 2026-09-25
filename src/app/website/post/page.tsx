@@ -861,9 +861,9 @@ function PostAPiecePage() {
         so the story and the post show as soon as there is a headline; on a computer the designs and
         Send sit beside the form. The two columns are `contents` on a phone, so `order` can interleave them.
       */}
-      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-6">
-        <div className="contents lg:block lg:min-w-0 lg:space-y-8">
-          <section className="order-1 min-w-0 space-y-3"
+      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="contents lg:block lg:min-w-0 lg:space-y-6">
+          <section className={cn(STEP, 'order-1')}
             onDragOver={e => e.preventDefault()}
             onDrop={e => { e.preventDefault(); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files); }}>
             <div className="flex items-center justify-between gap-2">
@@ -918,7 +918,7 @@ function PostAPiecePage() {
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
           </section>
 
-          <section className="order-2 min-w-0 space-y-3">
+          <section className={cn(STEP, 'order-2')}>
             <StepTitle n={2}>The piece</StepTitle>
             <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2.5 sm:grid-cols-[minmax(0,1fr)_9rem] sm:gap-3">
               <div className="min-w-0 space-y-1.5">
@@ -967,11 +967,11 @@ function PostAPiecePage() {
             )}
           </section>
 
-          <section className="order-4 min-w-0 space-y-3">
+          <section className={cn(STEP, 'order-4')}>
             <StepTitle n={4}>Where it goes</StepTitle>
 
             {makeSquare && SITE && (
-              <div className="rounded-lg border p-3 space-y-2.5">
+              <div className="rounded-xl bg-muted/40 p-3 space-y-2.5">
                 <label className="flex items-center justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2 font-medium"><Globe className="h-4 w-4 shrink-0" /> <span className="truncate">{SITE_NAME}</span><span className="shrink-0 text-muted-foreground font-normal text-xs">· {sitePhotos.length} photo{sitePhotos.length === 1 ? '' : 's'}</span></span>
                   <Switch checked={toWebsite} onCheckedChange={setToWebsite} />
@@ -1007,7 +1007,7 @@ function PostAPiecePage() {
             )}
 
             {makeSquare && community && (
-              <div className="rounded-lg border p-3 space-y-2.5">
+              <div className="rounded-xl bg-muted/40 p-3 space-y-2.5">
                 <label className="flex items-center justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2 font-medium"><MessageCircle className="h-4 w-4 shrink-0" /> <span className="truncate">{community.name}</span>{community.size ? <span className="shrink-0 text-muted-foreground font-normal text-xs">· {community.size.toLocaleString()}</span> : null}</span>
                   <Switch checked={toWhatsApp} onCheckedChange={setToWhatsApp} />
@@ -1041,7 +1041,7 @@ function PostAPiecePage() {
 
             {makeSquare && !community && (
               // Never just gone: say why there's nothing to tick.
-              <div className="rounded-lg border border-dashed p-3 space-y-1">
+              <div className="rounded-xl border border-dashed p-3 space-y-1">
                 <span className="flex items-center gap-2 font-medium text-muted-foreground"><MessageCircle className="h-4 w-4" /> WhatsApp</span>
                 <p className="text-xs text-muted-foreground">
                   {waState === 'loading' ? 'Loading the groups and the channel…'
@@ -1052,7 +1052,7 @@ function PostAPiecePage() {
             )}
 
             {makeStory && (
-              <div className="rounded-lg border p-3 space-y-2">
+              <div className="rounded-xl bg-muted/40 p-3 space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2 font-medium"><Instagram className="h-4 w-4 shrink-0" /> <span className="truncate">Instagram story</span>{ig?.connected && <span className="shrink-0 truncate text-muted-foreground font-normal text-xs">· @{ig.username}</span>}</span>
                   {ig?.connected ? <Switch checked={toInstagram} onCheckedChange={setToInstagram} /> : null}
@@ -1066,7 +1066,7 @@ function PostAPiecePage() {
               </div>
             )}
 
-            {makeSquare && <div className="space-y-1.5">
+            {makeSquare && <div className="space-y-1.5 border-t pt-4">
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="caption">WhatsApp caption</Label>
                 <div className="flex items-center gap-3">
@@ -1089,7 +1089,7 @@ function PostAPiecePage() {
           </section>
         </div>
 
-        <aside className="contents lg:block lg:min-w-0 lg:space-y-8 lg:sticky lg:top-4 lg:self-start">
+        <aside className="contents lg:block lg:min-w-0 lg:space-y-6 lg:sticky lg:top-4 lg:self-start">
           {(() => {
             const current = squarePhotos.find(p => p.id === square.doc.bg.photoId) ?? squarePhotos[0];
             const notSquare = current && Math.abs(current.img.naturalWidth / current.img.naturalHeight - 1) > 0.02;
@@ -1103,7 +1103,7 @@ function PostAPiecePage() {
             );
             const tidyItem = <DropdownMenuCheckboxItem checked={tidy} onCheckedChange={v => setTidy(!!v)} onSelect={e => e.preventDefault()}>Also remove tags and strings</DropdownMenuCheckboxItem>;
             return (
-              <section ref={editorRef} className="order-3 min-w-0 space-y-3 scroll-mt-20">
+              <section ref={editorRef} className={cn(STEP, 'order-3 scroll-mt-20')}>
                 <StepTitle n={3}>{formats === 'both' ? 'The story and the post' : formats === 'story' ? 'The story' : 'The post'}</StepTitle>
                 <PairEditor
                   show={formats === 'both' ? ['story', 'square'] : formats === 'story' ? ['story'] : ['square']}
@@ -1134,7 +1134,7 @@ function PostAPiecePage() {
                       </DropdownMenu>
                     ) : null,
                     bottom: lettering === 'ai' ? (
-                      <div className="rounded-lg border p-3 space-y-2 text-sm">
+                      <div className="rounded-xl bg-muted/40 p-3 space-y-2 text-sm">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <span className="font-medium flex-1">AI lettering</span>
                           <button type="button" onClick={letterWithAi} disabled={busyAny || !headline.trim()} className="min-h-0 text-xs text-primary inline-flex items-center gap-1"><Type className="h-3 w-3" /> {aiLettered ? 'Letter again' : 'Letter it'}</button>
@@ -1204,11 +1204,11 @@ function PostAPiecePage() {
             );
           })()}
 
-          <section className="order-5 min-w-0 space-y-3">
+          <section className={cn(STEP, 'order-5')}>
             <StepTitle n={5}>Send</StepTitle>
             <QueuePanel api={queue} destinationName={waName} blockers={queueBlockers} />
 
-            <div className="rounded-lg border p-4 space-y-3">
+            <div className="space-y-3">
               {steps.length > 0 && (
                 <ul className="space-y-2 text-sm">
                   {steps.map(s => (
@@ -1525,7 +1525,15 @@ function FormatPicker({ value, onChange, disabled, siteName }: { value: Formats;
   );
 }
 
-/** A step's heading: "1 · Photos". */
+/** A step: a card of its own, so the five read apart at a glance. */
+const STEP = 'min-w-0 space-y-4 rounded-2xl border bg-card p-3.5 shadow-sm sm:p-5';
+
+/** A step's heading: its number in a badge, and its name. */
 function StepTitle({ n, children }: { n: number; children: React.ReactNode }) {
-  return <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{n} · {children}</h2>;
+  return (
+    <h2 className="flex items-center gap-2.5 text-base font-semibold">
+      <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">{n}</span>
+      {children}
+    </h2>
+  );
 }

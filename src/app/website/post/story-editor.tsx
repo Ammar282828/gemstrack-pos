@@ -1024,7 +1024,10 @@ function InlineEditor({ ed, tools, designer, onDesign }: { ed: Editor; tools?: R
   const { palette, assets, photos, websiteLabel } = p;
   const [bgOpen, setBgOpen] = useState(false);
   return (<>
-    <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 [&>button]:px-2.5 sm:[&>button]:px-3">
+    {/* A phone gets four equal tiles, icon over word (like the designer's bottom bar); wider screens one row. */}
+    <div className={cn('grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap sm:items-center',
+      '[&>button]:h-auto [&>button]:flex-col [&>button]:gap-1 [&>button]:px-1 [&>button]:py-2 [&>button]:text-[11px] [&>button>svg]:mr-0',
+      'sm:[&>button]:h-9 sm:[&>button]:flex-row sm:[&>button]:gap-0 sm:[&>button]:px-3 sm:[&>button]:py-0 sm:[&>button]:text-sm sm:[&>button>svg]:mr-1.5')}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button size="sm" variant="outline"><LayoutTemplate className="h-4 w-4 mr-1.5" /> Layouts</Button></DropdownMenuTrigger>
         <DropdownMenuContent align="start">
