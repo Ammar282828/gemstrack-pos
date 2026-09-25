@@ -27,10 +27,10 @@ export async function PUT(req: NextRequest) {
   if (who instanceof NextResponse) return who;
   const b = await req.json().catch(() => null) as { schedule?: unknown } | null;
   if (!b?.schedule) return NextResponse.json({ error: 'Send the schedule.' }, { status: 400 });
+  // Stored as chosen. A part this server can't reach is left alone by the check rather than
+  // switched off here — a local copy of the POS (no WhatsApp settings) saves to the same database.
   const next = normalizeSchedule(b.schedule);
-  // A part this shop can't send can't be scheduled either.
   const can = destinations();
-  for (const t of TARGET_ORDER) if (!can[t]) next.targets[t].on = false;
   if (next.enabled && !next.days.length) return NextResponse.json({ error: 'Choose at least one day, or switch it off.' }, { status: 400 });
   const saved = await saveSchedule(next, who);
   console.log(`[investments/schedule] ${saved.enabled ? 'on' : 'off'} by ${who}`);

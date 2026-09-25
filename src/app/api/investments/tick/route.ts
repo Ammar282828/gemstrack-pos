@@ -19,7 +19,7 @@ import { mediaOrigin, notInThisShop } from '@/lib/social/gate';
 import { recordError } from '@/lib/social/errors';
 import { STORE_INVESTMENTS } from '@/lib/store-config';
 import { autoFailed, autoSucceeded, claimAuto, getInvestmentPost, getSchedule, touchTick } from '@/lib/investments';
-import { sendInvestmentPart } from '@/lib/investments-send';
+import { destinationOf, sendInvestmentPart } from '@/lib/investments-send';
 import { dueTargets, karachiNow } from '@/lib/investments-schedule';
 
 export const dynamic = 'force-dynamic';
@@ -36,7 +36,8 @@ export async function POST(req: NextRequest) {
   if (!schedule.enabled && !dry) return NextResponse.json({ ok: true, now, enabled: false });
 
   const day = await getInvestmentPost(now.date);
-  const due = dueTargets(schedule, day, now);
+  // A part with nowhere to go on this server (not set up here) is skipped, not failed.
+  const due = dueTargets(schedule, day, now).filter(t => destinationOf(t));
   if (dry) return NextResponse.json({ ok: true, dry: true, now, arrived: !!day, due });
   const results: { target: string; ok: boolean; ref?: string; error?: string }[] = [];
   for (const target of due) {

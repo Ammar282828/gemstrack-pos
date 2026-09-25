@@ -187,7 +187,11 @@ function SchedulePanel({ schedule, destinations, onSaved }: { schedule: Schedule
     }
   };
   // Turning it on says exactly what will go out, where; turning it off is immediate.
-  const flip = (on: boolean) => { if (on) setConfirmOn(true); else save({ ...draft, enabled: false }); };
+  const flip = (on: boolean) => {
+    if (!on) { save({ ...draft, enabled: false }); return; }
+    if (!going.length || !draft.days.length) { setOpen(true); toast({ title: 'Choose what goes first', description: 'Switch on at least one part below, and pick its days — then switch it on.' }); return; }
+    setConfirmOn(true);
+  };
 
   const summary = (s: Schedule) => {
     const parts = usable.filter(t => s.targets[t].on).map(t => `${t === 'teaser' ? 'teaser' : t === 'instagram' ? 'Instagram' : t === 'channel' ? 'channel' : 'group'} ${s.targets[t].at === 'arrival' ? 'on arrival' : clock(s.targets[t].at)}`);
