@@ -30,6 +30,8 @@ export interface SitePiece {
   thumb: string;
   collection: string;
   weightGrams: number | null;
+  /** The photograph already shows the weight (taheri.shop's burned-in label), so it isn't stamped again. */
+  weightOnPhoto: boolean;
   facts: string[];
   about: string;
 }
@@ -52,7 +54,7 @@ async function fromCatalogPieces(site: string): Promise<SitePiece[] | null> {
   const abs = (u: string) => (/^https?:\/\//.test(u) ? u : `${site}${u.startsWith('/') ? '' : '/'}${u}`);
   return d.pieces.filter(p => p.id && p.name && p.path && p.image).map(p => ({
     id: p.id, name: p.name, url: abs(p.path), image: abs(p.image), thumb: abs(p.thumb || p.image),
-    collection: p.collection || '', weightGrams: null,
+    collection: p.collection || '', weightGrams: null, weightOnPhoto: false,
     facts: [...(p.stones ?? []), plated(p.plating)].filter(Boolean),
     about: (p.about || '').trim(),
   }));
@@ -73,6 +75,7 @@ async function fromAttributes(site: string): Promise<SitePiece[]> {
         thumb: `${site}/catalog-thumb/${encodeURI(key)}`,
         collection: collectionOfKey(key),
         weightGrams: x.weightGrams ?? null,
+        weightOnPhoto: x.weightSource === 'label',
         facts: [x.stone, x.cut, x.style].filter((f): f is string => !!f && !/^none$/i.test(f)),
         about: '',
       };

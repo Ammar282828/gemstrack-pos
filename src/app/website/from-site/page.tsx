@@ -6,10 +6,12 @@
  *
  * The site's photographs already carry the house's marks (taheri.shop: the
  * weight top-left and the wordmark top-right, as the community's own posts do;
- * the Mina catalogue: the MINA wordmark), so the photo goes as it is. The
- * caption is the house's shape (sitePieceCaption: its name, weight, facts, the
- * link, and the house's closing lines), editable, or written by AI where the
- * house has it. The send is the same route Post a Piece uses: the community,
+ * the Mina catalogue: the MINA wordmark), so the photo goes as it is — or with
+ * the weight stamped on in the overlay tool's geometry (Futura LT Light,
+ * top-left; stampPhoto), on by default only where the photo doesn't show it
+ * already. The caption is the house's shape (sitePieceCaption: its name,
+ * weight, facts, the link, and the house's closing lines), editable, or with
+ * its line and facts written by AI in the house's voice. The send is the same route Post a Piece uses: the community,
  * and the channel too when the line is on WAHA; each send is logged with the
  * piece, so Shuffle skips what went out lately.
  */
@@ -26,9 +28,10 @@ import { Shuffle, Send, Loader2, Search, ExternalLink, Sparkles, RotateCcw, Chec
 import { cn } from '@/lib/utils';
 import { diagnose } from '@/lib/social/diagnose';
 import { sitePieceCaption } from '@/lib/social/caption';
-import { STORE_SITE_POSTS, STORE_POST_PIECE, STORE_POST_METAL, STORE_POST_FOOTER, STORE_POST_TAGLINE, STORE_WHATSAPP_NUMBERS, STORE_LINKS } from '@/lib/store-config';
+import { loadImage, stampPhoto } from '@/lib/social/story';
+import { STORE_SITE_POSTS, STORE_POST_METAL, STORE_POST_FOOTER, STORE_POST_TAGLINE, STORE_WHATSAPP_NUMBERS, STORE_LINKS } from '@/lib/store-config';
 
-interface Piece { id: string; name: string; url: string; image: string; thumb: string; collection: string; weightGrams: number | null; facts: string[]; about: string }
+interface Piece { id: string; name: string; url: string; image: string; thumb: string; collection: string; weightGrams: number | null; weightOnPhoto: boolean; facts: string[]; about: string }
 interface Audience { community: { name: string; size: number | null; reachable: boolean } | null; channel: { name: string; followers: number | null } | null }
 
 async function authHeaders(): Promise<Record<string, string>> {
@@ -39,6 +42,8 @@ const daysAgo = (iso: string) => Math.floor((Date.now() - Date.parse(iso)) / 86_
 const agoLabel = (iso: string) => { const d = daysAgo(iso); return d <= 0 ? 'posted today' : d === 1 ? 'posted yesterday' : `posted ${d} days ago`; };
 /** Pieces posted within this many days are skipped by Shuffle (unless it runs out). */
 const FRESH_DAYS = 30;
+/** A weight as typed ("3.84", "12") — a positive number, or nothing. */
+const validWeight = (w: string) => /^\d+(\.\d+)?$/.test(w.trim()) && Number(w) > 0;
 const PAGE = 60;
 
 export default function FromSiteRoute() {
@@ -64,6 +69,14 @@ function FromSitePage() {
   const [busy, setBusy] = useState<'send' | 'ai' | null>(null);
   const [confirm, setConfirm] = useState(false);
   const topRef = useRef<HTMLDivElement>(null);
+  // The weight on the photo, and the AI's words for the caption.
+  const [overlay, setOverlay] = useState(false);
+  const [weight, setWeight] = useState('');
+  const [ink, setInk] = useState<'auto' | 'white' | 'dark'>('auto');
+  const [preview, setPreview] = useState<string | null>(null);
+  const [aiWords, setAiWords] = useState<{ line: string; facts: string } | null>(null);
+  const photos = useRef(new Map<string, Blob>());
+  const stamped = useRef<{ key: string; blob: Blob } | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -93,14 +106,21 @@ function FromSitePage() {
   }, [pieces, q, collection, freshOnly, posted]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setShown(PAGE); }, [q, collection, freshOnly]);
 
-  const houseCaption = (p: Piece) => sitePieceCaption(
-    { name: p.name, url: p.url, weightGrams: p.weightGrams, facts: p.facts, about: p.about },
+  /** The house's caption for a piece: its weight as it will show, and the AI's line and facts when there are some. */
+  const houseCaption = (p: Piece, w = weight, words = aiWords) => sitePieceCaption(
+    { name: p.name, url: p.url, weightGrams: validWeight(w) ? Number(w) : null, facts: words ? [words.facts] : p.facts, about: words ? words.line : p.about },
     { metal: STORE_POST_METAL, tagline: STORE_POST_TAGLINE, footer: STORE_POST_FOOTER, whatsappNumbers: STORE_WHATSAPP_NUMBERS },
   );
   const choose = (p: Piece) => {
-    setPick(p); setCaption(houseCaption(p)); setEdited(false);
+    const w = p.weightGrams ? String(p.weightGrams) : '';
+    setPick(p); setWeight(w); setAiWords(null); setEdited(false);
+    // Stamp the weight only where the photo doesn't already show it.
+    setOverlay(!!p.weightGrams && !p.weightOnPhoto);
+    setCaption(houseCaption(p, w, null));
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+  // Typing a weight keeps an untouched caption in step with it.
+  useEffect(() => { if (pick && !edited) setCaption(houseCaption(pick)); }, [weight, aiWords]); // eslint-disable-line react-hooks/exhaustive-deps
   /** A piece at random from what's showing — the ones not posted lately, unless there are none. */
   const shuffle = () => {
     const pool = filtered.filter(p => !recent(p) && p.id !== pick?.id);
@@ -109,27 +129,48 @@ function FromSitePage() {
     choose(from[Math.floor(Math.random() * from.length)]);
   };
 
+  /** The website's photograph, fetched once through this server (the site doesn't share it with other pages). */
   const photo = async (p: Piece): Promise<Blob> => {
+    const have = photos.current.get(p.id);
+    if (have) return have;
     const res = await fetch(`/api/website/site-pieces/image?id=${encodeURIComponent(p.id)}`, { headers: await authHeaders() });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `The photograph didn’t come (${res.status}).`);
-    return res.blob();
+    const b = await res.blob();
+    photos.current.set(p.id, b);
+    return b;
   };
+  /** The photo that goes out: stamped with the weight when the overlay is on. */
+  const outgoing = async (p: Piece): Promise<Blob> => {
+    if (!overlay || !validWeight(weight)) return photo(p);
+    const key = `${p.id}|${weight}|${ink}`;
+    if (stamped.current?.key === key) return stamped.current.blob;
+    const blob = await stampPhoto(await loadImage(await photo(p)), { text: `${weight.trim()}g`, colour: ink, maxEdge: 2048 });
+    stamped.current = { key, blob };
+    return blob;
+  };
+  // The preview shows exactly what will go: the stamped photo while the overlay is on.
+  useEffect(() => {
+    if (!pick || !overlay || !validWeight(weight)) { setPreview(null); return; }
+    let alive = true, url = '';
+    const t = setTimeout(async () => {
+      try { const b = await outgoing(pick); if (alive) { url = URL.createObjectURL(b); setPreview(url); } }
+      catch (e) { if (alive) toast({ title: 'Could not put the weight on', description: e instanceof Error ? e.message : '', variant: 'destructive' }); }
+    }, 250);
+    return () => { alive = false; clearTimeout(t); if (url) URL.revokeObjectURL(url); };
+  }, [pick, overlay, weight, ink]); // eslint-disable-line react-hooks/exhaustive-deps
   const writeWithAi = async () => {
     if (!pick) return;
     setBusy('ai');
     try {
-      const form = new FormData();
-      form.set('op', 'caption');
-      form.set('params', JSON.stringify({
-        headline: pick.name, weight: pick.weightGrams ? `${pick.weightGrams}g` : '', metal: STORE_POST_METAL, stones: pick.facts.join(', '),
-        collection: pick.collection, numbers: STORE_WHATSAPP_NUMBERS, link: pick.url, brief: '',
-      }));
-      form.append('image', await photo(pick), 'piece.jpg');
-      const res = await fetch('/api/website/post/ai', { method: 'POST', headers: await authHeaders(), body: form });
+      const res = await fetch('/api/website/site-pieces/caption', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+        body: JSON.stringify({ id: pick.id, weight: validWeight(weight) ? `${weight.trim()}g` : '' }),
+      });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw Object.assign(new Error(d.error || `${res.status}`), { status: res.status });
-      setCaption(d.caption.whatsappCaption); setEdited(true);
-      toast({ title: 'Caption written', description: 'Read it over before sending.' });
+      const words = { line: d.line as string, facts: d.facts as string };
+      setAiWords(words); setEdited(false); setCaption(houseCaption(pick, weight, words));
+      toast({ title: 'Caption written', description: 'Read it over before sending — the link and the closing lines are the house’s own.' });
     } catch (e) {
       const dg = diagnose('caption', { status: (e as { status?: number }).status, message: e instanceof Error ? e.message : String(e) });
       toast({ title: dg.title, description: dg.fix, variant: 'destructive' });
@@ -143,7 +184,7 @@ function FromSitePage() {
     try {
       const form = new FormData();
       const slug = pick.url.split('/').filter(Boolean).pop() || 'piece';
-      form.set('file', new File([await photo(pick)], `${slug}.jpg`, { type: 'image/jpeg' }));
+      form.set('file', new File([await outgoing(pick)], `${slug}.jpg`, { type: 'image/jpeg' }));
       form.set('caption', caption);
       form.set('sitePiece', pick.id);
       const res = await fetch('/api/website/post', { method: 'POST', headers: await authHeaders(), body: form });
@@ -184,8 +225,30 @@ function FromSitePage() {
         <aside className="order-1 lg:order-2 min-w-0 lg:sticky lg:top-4 self-start space-y-3">
           {pick ? (
             <div className="rounded-xl border overflow-hidden">
-              <a href={pick.url} target="_blank" rel="noopener" className="block bg-muted"><img src={pick.image} alt={pick.name} className="w-full aspect-square object-cover" /></a>
+              <a href={pick.url} target="_blank" rel="noopener" className="block bg-muted"><img src={preview ?? pick.image} alt={pick.name} className="w-full aspect-square object-contain" /></a>
               <div className="p-3 space-y-3">
+                {/* The weight on the photo, as the catalogue's own overlay draws it. */}
+                <div className="rounded-lg border px-3 py-2 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="flex items-center gap-2 text-sm font-medium"><Switch checked={overlay} onCheckedChange={setOverlay} /> Weight on the photo</label>
+                    <div className="ml-auto flex items-center gap-1">
+                      <Input value={weight} onChange={e => setWeight(e.target.value.replace(/[^\d.]/g, ''))} onFocus={e => e.currentTarget.select()} inputMode="decimal" placeholder="0.00" className="h-9 w-20 text-right tabular-nums" aria-label="Weight in grams" />
+                      <span className="text-sm text-muted-foreground">g</span>
+                    </div>
+                  </div>
+                  {overlay && (
+                    <div className="inline-flex rounded-full border p-0.5 text-xs">
+                      {(['auto', 'white', 'dark'] as const).map(c => (
+                        <button key={c} type="button" onClick={() => setInk(c)} className={cn('rounded-full px-3 py-1', ink === c ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>{c === 'auto' ? 'Auto colour' : c === 'white' ? 'White' : 'Dark'}</button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    {pick.weightOnPhoto
+                      ? overlay ? 'This photo already shows its weight — with this on it shows twice.' : 'This photo already shows its weight.'
+                      : overlay && !validWeight(weight) ? 'Type the weight to put it on.' : 'Top-left, in the catalogue’s own lettering. It also goes in the caption.'}
+                  </p>
+                </div>
                 <div>
                   <p className="font-semibold leading-tight">{pick.name}</p>
                   <p className="text-xs text-muted-foreground">{[pick.collection, pick.weightGrams ? `${pick.weightGrams}g` : ''].filter(Boolean).join(' · ')}</p>
@@ -196,8 +259,8 @@ function FromSitePage() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-medium">Caption</span>
                     <div className="flex items-center gap-2">
-                      {edited && <button type="button" className="text-xs text-muted-foreground inline-flex items-center gap-1" onClick={() => { setCaption(houseCaption(pick)); setEdited(false); }}><RotateCcw className="h-3 w-3" /> House caption</button>}
-                      {STORE_POST_PIECE && <Button size="sm" variant="secondary" className="h-7 text-xs" disabled={!!busy} onClick={writeWithAi}>{busy === 'ai' ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />} Write with AI</Button>}
+                      {(edited || aiWords) && <button type="button" className="text-xs text-muted-foreground inline-flex items-center gap-1" onClick={() => { setAiWords(null); setCaption(houseCaption(pick, weight, null)); setEdited(false); }}><RotateCcw className="h-3 w-3" /> House caption</button>}
+                      <Button size="sm" variant="secondary" className="h-7 text-xs" disabled={!!busy} onClick={writeWithAi}>{busy === 'ai' ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />} Write with AI</Button>
                     </div>
                   </div>
                   <Textarea value={caption} onChange={e => { setCaption(e.target.value); setEdited(true); }} rows={10} className="font-mono text-xs leading-relaxed" />
@@ -211,7 +274,7 @@ function FromSitePage() {
                 <p className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" /> {community?.name ?? 'Community'}</span>
                   {audience.channel && <span className="inline-flex items-center gap-1"><Radio className="h-3 w-3" /> {audience.channel.name} too</span>}
-                  <span>The photo goes as it is on the website.</span>
+                  <span>{overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it.` : 'The photo as it is on the website.'}</span>
                 </p>
               </div>
             </div>
@@ -267,8 +330,8 @@ function FromSitePage() {
             <AlertDialogTitle>Send it to {community?.name ?? 'the community'}?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
-                {pick && <div className="flex gap-3"><img src={pick.thumb} alt="" className="h-16 w-16 rounded-md object-cover" /><div><p className="font-medium text-foreground">{pick.name}</p><p className="text-xs">{community?.size ? `${community.size.toLocaleString()} members` : ''}{audience.channel ? ` · and ${audience.channel.name}${audience.channel.followers ? ` (${audience.channel.followers})` : ''}` : ''}</p></div></div>}
-                <p className="text-xs">The photo as it is on the website, with the caption and its link. It can’t be unsent from here.</p>
+                {pick && <div className="flex gap-3"><img src={preview ?? pick.thumb} alt="" className="h-16 w-16 rounded-md object-cover" /><div><p className="font-medium text-foreground">{pick.name}</p><p className="text-xs">{community?.size ? `${community.size.toLocaleString()} members` : ''}{audience.channel ? ` · and ${audience.channel.name}${audience.channel.followers ? ` (${audience.channel.followers})` : ''}` : ''}</p></div></div>}
+                <p className="text-xs">{overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it` : 'The photo as it is on the website'}, with the caption and its link. It can’t be unsent from here.</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
