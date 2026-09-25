@@ -329,3 +329,8 @@ env:
   # value is in ~/domains/catalogue.houseofmina.store/.website-upload-secret.
   - variable: WEBSITE_UPLOAD_SECRET
     secret: website-upload-secret
+  # Ads: the Instagram account House of Mina's ads run as — picked automatically on
+  # Ads → Setup, and Taheri's (the same login may see it) is flagged as not this shop's.
+  - variable: META_ADS_INSTAGRAM
+    value: "houseofmina__"
+    availability: [RUNTIME]

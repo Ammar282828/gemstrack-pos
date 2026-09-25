@@ -267,3 +267,8 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Ads: the Instagram account Taheri's ads run as — picked automatically on
+  # Ads → Setup, and any other one there is flagged as not this shop's.
+  - variable: META_ADS_INSTAGRAM
+    value: "collectionstaheri"
+    availability: [RUNTIME]

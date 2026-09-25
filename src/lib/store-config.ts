@@ -256,6 +256,15 @@ export const STORE_POST_PIECE = process.env.NEXT_PUBLIC_STORE_POST_PIECE !== '0'
  * either is a line break.
  */
 export const STORE_SITE_POSTS = process.env.NEXT_PUBLIC_STORE_SITE_POSTS !== '0';
+
+/**
+ * Ads — this house's Meta ad account in the POS (/ads): what the ads cost and
+ * brought, running them, creating them, audiences. Both houses, each with its
+ * own Facebook connection and ad account; "0" turns it off. Open like the rest
+ * of the POS (the owner, 2026-09-25) — under NEXT_PUBLIC_OPEN_ACCESS anyone
+ * with the POS open can create and fund an ad.
+ */
+export const STORE_META_ADS = process.env.NEXT_PUBLIC_STORE_META_ADS !== '0';
 const lines = (v: string | undefined) => (v ?? '').replace(/\\n/g, '\n').trim();
 export const STORE_POST_TAGLINE = lines(process.env.NEXT_PUBLIC_STORE_POST_TAGLINE);
 export const STORE_POST_FOOTER = lines(process.env.NEXT_PUBLIC_STORE_POST_FOOTER);

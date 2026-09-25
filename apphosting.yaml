@@ -62,3 +62,15 @@ env:
     secret: GREENAPI_API_TOKEN
     availability:
       - RUNTIME
+
+  # Ads (/ads, NEXT_PUBLIC_STORE_META_ADS): each house's Meta ad account in its own
+  # POS, through the shop's one Meta app — the same app Taheri's Instagram stories
+  # use. Each POS connects its own Facebook login (token in that project's Secret
+  # Manager, "meta-ads-token", runtime account: accessor + version adder) and reads
+  # the app secret from "meta-app-secret" at runtime, so neither is declared here
+  # and a missing one is a step on Ads → Setup, not a failed rollout. Redirect URIs
+  # registered with the app: https://pos.taheri.shop/api/ads/callback and
+  # https://pos.houseofmina.store/api/ads/callback.
+  - variable: META_APP_ID
+    value: "1075984878628188"
+    availability: [RUNTIME]

@@ -67,6 +67,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 | `/api/website/site-pieces` (+ `/image?id=`) | POS page Posts → From the website | the house website's pieces (taheri.shop: `catalog-attributes.json`, which carries each photo's page `path`; the Mina catalogue: `catalog-pieces.json`) and when each last went out; a piece's photo as a JPEG from this server (only listed pieces) |
 | `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
 | `/api/website/orders/[id]` | POS order page | mark paid / shipped — **always verifies a token, even under open access** |
+| `/api/ads/*` (`status`, `connect`, `callback`, `setup`, `overview`, `campaigns`, `object/[id]`, `create`, `images`, `media`, `preview`, `estimate`, `search`, `audiences`, `rules`) | POS pages under **Ads** | this house's Meta ad account through the Marketing API (Graph v26.0) — see "Ads" below |
 
 CORS for `/api/public/*` is in `src/lib/website/cors.ts` (taheri.shop, www, and localhost:5180 in dev).
 Design and go-live checklist: `docs/website-checkout.md`. Go-live of online selling is still blocked by empty
@@ -332,6 +333,29 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
 - Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**
   (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
   value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).
+- **Ads** (`/ads`, 2026-09-26; owner: "connect my Ad account api and have all ad related functionality for both
+  @collectionstaheri and @houseofmina__ on each respective pos"): Overview (spend, reach, results vs the period before, day by
+  day, top ads, age/gender · placement · region, flagged ads), Campaigns (tree with run/pause switches, budget, end date,
+  audience, rename, duplicate, archive, delete, Meta's previews and review notes), New ad, Audiences, Rules, Setup. Owner's
+  answers: **open like the rest of the POS** (no sign-in to spend), and **ad spend stays out of the books** (no expenses,
+  not in Analytics). One Meta app for both houses (`META_APP_ID` 1075984878628188 in the base yaml, the same app Taheri's
+  Instagram stories use); each POS connects its own Facebook login (`/api/ads/connect` → `callback`, redirect
+  `https://<pos>/api/ads/callback` registered with the app) and keeps the token in **its own project's** Secret Manager
+  `meta-ads-token` (runtime account: accessor + version adder; a system-user token pasted raw also works); the app secret is
+  read at runtime from `meta-app-secret`, so neither is declared in the yaml and a missing one is a Setup step, never a
+  failed rollout (`src/lib/secret-manager.ts`). Ad account / Page / Instagram chosen on Setup (`app_settings/meta_ads`);
+  `META_ADS_INSTAGRAM` per house picks the house's own account and flags the other house's; every object route checks
+  the object is this house's ad account. **Meta needs a Facebook Page behind every new ad** (even Instagram-only) — reading
+  and running existing ads needs none. New ads (`src/lib/ads/plan.ts`, tested): goals WhatsApp chats, Instagram messages,
+  website visits, profile visits (least documented), engagement (existing posts only), reach; one campaign → one ad set →
+  one ad, created paused and switched on bottom-up only if asked, the half-made campaign deleted on any failure
+  (`create.ts`); `is_adset_budget_sharing_enabled: false` (required since v24); `targeting_automation` always sent
+  (Advantage+ fixes age_max 65 and a firm age_min ≤ 25; the asked range goes in as `age_range`); no Explore placement
+  (v26 refuses it). **Photos are never changed by Meta:** every Advantage+ creative feature is `OPT_OUT`
+  (`NO_ENHANCEMENTS`; an unknown key Meta rejects is dropped and retried). Audiences: POS customers by segment
+  (all / bought / last year / lapsed), SHA-256 on the server (`audience-rows.ts`, tested), Instagram engagers, lookalikes.
+  Rules are Meta's own automated rules (`adrules_library`). Every change is logged in Firestore `ads_log` (shown on Rules).
+  Not yet run against the live API when shipped — field names come from Meta's v25/v26 docs; errors show Meta's own words.
 
 ## graphify
 

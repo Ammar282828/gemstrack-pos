@@ -11,13 +11,13 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator, useSidebar,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Send, Globe, Wallet, Search, Sun, Moon } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Send, Globe, Wallet, Search, Sun, Moon, Megaphone } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
-import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_SITE_POSTS } from '@/lib/store-config';
+import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_SITE_POSTS, STORE_META_ADS } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -102,6 +102,15 @@ const navGroups: NavGroup[] = [
           ...(STORE_WEBSITE_WEIGHTS ? [{ staff: true, href: '/website/weights', label: 'Photo Weights' }] : []),
         ] as NavTab[] },
       ] as NavItem[]) : []),
+      // This house's Meta ad account (NEXT_PUBLIC_STORE_META_ADS). Owners: it is money.
+      ...(STORE_META_ADS ? [{ href: '/ads', label: 'Ads', icon: <Megaphone />, tabs: [
+        { href: '/ads', label: 'Overview' },
+        { href: '/ads/campaigns', label: 'Campaigns' },
+        { href: '/ads/new', label: 'New ad' },
+        { href: '/ads/audiences', label: 'Audiences' },
+        { href: '/ads/rules', label: 'Rules' },
+        { href: '/ads/setup', label: 'Setup' },
+      ] as NavTab[] }] : []),
     ],
   },
   {
