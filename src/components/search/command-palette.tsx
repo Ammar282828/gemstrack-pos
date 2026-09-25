@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * Ctrl+K — find anyone, or jump anywhere.
+ * Ctrl+K (or Search at the top of the sidebar) — find an order or an invoice by the
+ * customer's name, or jump anywhere.
  *
- * A customer is standing at the counter and the question is asked mid-sentence. Reaching
- * for the sidebar, finding Customers, waiting for the list and scrolling it is four
- * actions too many, so the whole book answers to one keystroke and a few letters.
+ * A customer is standing at the counter and the question is asked mid-sentence: where is
+ * my order, what do I owe. So the search goes straight to their orders and invoices by
+ * name — or by number or phone — rather than to the customer's record (the owner,
+ * 2026-09-25: no customer search). Karigars and products are still found by name.
  *
  * Names are matched by SOUND as well as by spelling. The book is full of Bohra names that
  * every person in the shop spells differently — Fatema/Fathima, Batul/Batool — and a
@@ -28,6 +30,21 @@ interface Item {
   icon: React.ReactNode;
   href: string;
 }
+
+/** Search results grouped under these headings, in this order when they score alike. */
+const GROUP_ORDER = ['Go to', 'Create', 'Orders', 'Invoices', 'Karigars', 'Products'];
+
+const shortDate = (iso?: string) => {
+  const d = iso ? new Date(iso) : null;
+  return d && !isNaN(d.getTime()) ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+};
+/** A phone as it is saved (+92 335…) and as it is said at the counter (0335…), so either finds it. */
+const phoneForms = (p?: string) => {
+  const d = String(p || '').replace(/\D/g, '');
+  if (!d) return '';
+  return d.startsWith('92') ? `${d} 0${d.slice(2)}` : d;
+};
+const pkr = (n: number) => (n >= 100000 ? `PKR ${(n / 100000).toFixed(n >= 1000000 ? 1 : 2).replace(/\.?0+$/, '')} lac` : `PKR ${Math.round(n).toLocaleString('en-PK')}`);
 
 const DESTINATIONS: Array<Omit<Item, 'id'>> = [
   { label: 'Home', group: 'Go to', icon: <Home className="h-4 w-4" />, href: '/' },
@@ -74,10 +91,12 @@ export function CommandPalette() {
   const [cursor, setCursor] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const customers = useAppStore((s) => s.customers);
+  const orders = useAppStore((s) => s.orders);
+  const invoices = useAppStore((s) => s.generatedInvoices);
   const karigars = useAppStore((s) => s.karigars);
   const products = useAppStore((s) => s.products);
-  const loadCustomers = useAppStore((s) => s.loadCustomers);
+  const loadOrders = useAppStore((s) => s.loadOrders);
+  const loadInvoices = useAppStore((s) => s.loadGeneratedInvoices);
   const loadKarigars = useAppStore((s) => s.loadKarigars);
 
   // Ctrl+K / Cmd+K anywhere, including from inside a field.
@@ -97,11 +116,12 @@ export function CommandPalette() {
   // The lists are only worth fetching once somebody actually searches.
   useEffect(() => {
     if (!open) return;
-    loadCustomers();
+    loadOrders();
+    loadInvoices();
     loadKarigars();
     setQ('');
     setCursor(0);
-  }, [open, loadCustomers, loadKarigars]);
+  }, [open, loadOrders, loadInvoices, loadKarigars]);
 
   const items = useMemo<Item[]>(() => {
     const needle = q.trim().toLowerCase();
@@ -110,7 +130,7 @@ export function CommandPalette() {
 
     if (!needle) return destinations.slice(0, 10);
 
-    const people: Array<{ item: Item; score: number }> = [];
+    const people: Array<{ item: Item; score: number; at?: string }> = [];
 
     const consider = (
       id: string,
@@ -120,9 +140,12 @@ export function CommandPalette() {
       icon: React.ReactNode,
       href: string,
       haystack: string,
+      when?: string,
+      exact = false,
     ) => {
       const hay = haystack.toLowerCase();
       const at = hay.indexOf(needle);
+      if (exact) { people.push({ item: { id, label: name, sub, group, icon, href }, score: 5, at: when }); return; }
       // A literal match always beats a sound-alike, and a match at the start of the name
       // beats one buried in a phone number.
       let score = -1;
@@ -133,18 +156,48 @@ export function CommandPalette() {
         if (phonetic >= PHONETIC_FLOOR) score = 1 + phonetic;
       }
       if (score < 0) return;
-      people.push({ item: { id, label: name, sub, group, icon, href }, score });
+      people.push({ item: { id, label: name, sub, group, icon, href }, score, at: when });
     };
 
-    for (const c of customers) {
+
+    // "31", "000031", "ord-31" or "inv-17" is that document's own number: it goes to the
+    // top, above everything that merely has those digits in a phone number.
+    // "inv"/"ord" in front narrows it to that kind.
+    const numberQuery = /^(inv|ord|in|or|i|o)?[\s#-]*0*(\d+)$/.exec(needle);
+    const wantKind = numberQuery?.[1]?.[0];            // 'i' | 'o' | undefined
+    const wantNumber = numberQuery?.[2];
+    const isNumber = (docId: string) => !!wantNumber
+      && (!wantKind || docId.toLowerCase().startsWith(wantKind))
+      && docId.replace(/\D/g, '').replace(/^0+/, '') === wantNumber;
+
+    // Orders and invoices by the customer's name (or number, or phone).
+    for (const o of orders) {
+      const name = o.customerName || 'Walk-in customer';
       consider(
-        `c${c.id}`,
-        c.name,
-        [c.phone, c.city].filter(Boolean).join(' · ') || undefined,
-        'Customers',
-        <Users className="h-4 w-4" />,
-        `/customers/${c.id}`,
-        `${c.name} ${c.phone ?? ''} ${c.altPhone ?? ''} ${c.city ?? ''}`,
+        `o${o.id}`,
+        name,
+        [o.id, shortDate(o.createdAt), o.status].filter(Boolean).join(' · '),
+        'Orders',
+        <ClipboardList className="h-4 w-4" />,
+        `/orders/${o.id}`,
+        `${name} ${o.id} ${phoneForms(o.customerContact)} ${o.summary ?? ''}`,
+        o.createdAt,
+        isNumber(o.id),
+      );
+    }
+    for (const inv of invoices) {
+      const name = inv.customerName || 'Walk-in customer';
+      const due = Number(inv.balanceDue) || 0;
+      consider(
+        `i${inv.id}`,
+        name,
+        [inv.id, shortDate(inv.createdAt), due > 0 ? `${pkr(due)} due` : 'paid'].filter(Boolean).join(' · '),
+        'Invoices',
+        <Receipt className="h-4 w-4" />,
+        `/cart?invoice_id=${inv.id}`,
+        `${name} ${inv.id} ${phoneForms(inv.customerContact)}`,
+        inv.createdAt,
+        isNumber(inv.id),
       );
     }
     for (const k of karigars) {
@@ -179,11 +232,26 @@ export function CommandPalette() {
       .filter((d) => d.label.toLowerCase().includes(needle))
       .map((item) => ({ item, score: 3 }));
 
-    return [...matchedDestinations, ...people]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 40)
-      .map((x) => x.item);
-  }, [q, customers, karigars, products]);
+    // A document number typed exactly: show those documents alone, not every phone
+    // number that happens to contain the digits.
+    if (people.some(p => p.score >= 5)) {
+      const exact = people.filter(p => p.score >= 5);
+      people.length = 0;
+      people.push(...exact);
+    }
+
+    // Best matches first, newest first among equals, then each group kept together
+    // (a customer's three orders sit under one heading, not interleaved with invoices).
+    const ranked = [...matchedDestinations, ...people]
+      .sort((a, b) => (b.score - a.score) || ((b as { at?: string }).at || '').localeCompare((a as { at?: string }).at || ''))
+      .slice(0, 40);
+    const groupRank = new Map<string, number>();
+    ranked.forEach((x, i) => { if (!groupRank.has(x.item.group)) groupRank.set(x.item.group, i * 10 + GROUP_ORDER.indexOf(x.item.group)); });
+    return ranked
+      .map((x, i) => ({ x, i }))
+      .sort((a, b) => (groupRank.get(a.x.item.group)! - groupRank.get(b.x.item.group)!) || (a.i - b.i))
+      .map(({ x }) => x.item);
+  }, [q, orders, invoices, karigars, products]);
 
   useEffect(() => setCursor(0), [q]);
 
@@ -222,7 +290,7 @@ export function CommandPalette() {
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search a name, or jump to a screen…"
+            placeholder="Find an order or invoice by name, or jump to a screen…"
             aria-label="Search"
             className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
