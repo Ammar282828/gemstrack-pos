@@ -35,7 +35,7 @@ import {
 } from '@/lib/social/prompts';
 import { whatsappCaption } from '@/lib/social/caption';
 import { PALETTES } from '@/lib/social/palettes';
-import { STORE_CONFIG, STORE_POST_PIECE } from '@/lib/store-config';
+import { STORE_BRAND, STORE_CONFIG, STORE_POST_FOOTER, STORE_POST_PIECE, STORE_POST_TAGLINE } from '@/lib/store-config';
 import { notInThisShop } from '@/lib/social/gate';
 import sharp from 'sharp';
 import { recordError } from '@/lib/social/errors';
@@ -156,11 +156,12 @@ export async function POST(req: NextRequest) {
         const facts = params as Record<string, string | string[]>;
         const numbers = Array.isArray(facts.numbers) ? facts.numbers.map(String) : [];
         const c = await generateJson<CaptionResult>({
-          system: captionSystem(shopName()),
+          system: captionSystem(shopName(), STORE_BRAND),
           parts: [...images.slice(0, 2).map(i => ({ inlineData: i })), { text: captionUserPrompt({
             shop: shopName(),
             headline: String(facts.headline || ''), weight: String(facts.weight || ''), metal: String(facts.metal || ''),
             stones: String(facts.stones || ''), collection: String(facts.collection || ''), numbers, link: String(facts.link || ''),
+            tagline: STORE_POST_TAGLINE, footer: STORE_POST_FOOTER,
             scenes: SCENES, palettes: PALETTES.map(p => ({ id: p.id, label: p.label })),
             brief: String(facts.brief || '').slice(0, 500),
           }) }],
@@ -170,11 +171,12 @@ export async function POST(req: NextRequest) {
         // the weight or a number, keep the model's words but rebuild the frame around them.
         const weight = String(facts.weight || '');
         const faithful = (!weight || c.whatsappCaption.includes(weight)) && numbers.every(n => c.whatsappCaption.includes(n))
+          && (!STORE_POST_FOOTER || c.whatsappCaption.includes(STORE_POST_FOOTER))
           && !/najmi|saddar/i.test(c.whatsappCaption);
         if (!faithful) {
           c.whatsappCaption = whatsappCaption(
             { headline: String(facts.headline || c.headlines[0] || ''), metal: String(facts.metal || ''), weight: weight.replace(/g(\s*each)?$/i, ''), weightEach: /each$/i.test(weight), stones: String(facts.stones || ''), hook: c.hook },
-            { whatsappNumbers: numbers, link: String(facts.link || '') },
+            { whatsappNumbers: numbers, link: String(facts.link || ''), tagline: STORE_POST_TAGLINE, footer: STORE_POST_FOOTER },
           );
         }
         if (!SCENES.some(s => s.id === c.sceneId)) c.sceneId = SCENES[0].id;

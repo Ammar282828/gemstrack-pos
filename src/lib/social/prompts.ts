@@ -153,6 +153,10 @@ export interface CaptionFacts {
   collection: string;
   numbers: string[];
   link: string;
+  /** The house's line after the stones ("Bespoke, designed in-house."), if it has one. */
+  tagline?: string;
+  /** The house's own closing lines, used as given in place of "Ask for today's price" (House of Mina). */
+  footer?: string;
   /** Scene ids the plan may choose from. */
   scenes: { id: string; label: string; suits: string }[];
   palettes: { id: string; label: string }[];
@@ -160,10 +164,18 @@ export interface CaptionFacts {
   brief?: string;
 }
 
-export function captionSystem(shop: string): string {
-  return `You write for ${shop}, a family jewellery house in Karachi, established 1989, known for gold and certified diamond jewellery made at its own bench. Its customers are a close, generational community who buy on trust.
+/** Who the house is and how it sounds — each house in its own words (its community posts, 2026-09-25). */
+const HOUSE_VOICE: Record<'taheri' | 'mina', (shop: string) => string> = {
+  taheri: shop => `You write for ${shop}, a family jewellery house in Karachi, established 1989, known for gold and certified diamond jewellery made at its own bench. Its customers are a close, generational community who buy on trust.
 
-Voice: a trusted family elder who is impeccably refined. Premium, warm, restrained, never salesy. Evocative rather than descriptive: the occasion, the feeling, the wearer — in few words.
+Voice: a trusted family elder who is impeccably refined. Premium, warm, restrained, never salesy. Evocative rather than descriptive: the occasion, the feeling, the wearer — in few words.`,
+  mina: () => `You write for House of Mina, a jewellery house making bespoke pieces in 925 sterling silver, designed in-house, shipped worldwide.
+
+Voice: modern, confident and clean — short, vivid lines with a little wit; colour and light first; never gushing, never salesy. Its own posts read like "Cut to catch every light in the room." and "Red, blue, green. Pick your side."`,
+};
+
+export function captionSystem(shop: string, house: 'taheri' | 'mina' = 'taheri'): string {
+  return `${HOUSE_VOICE[house](shop)}
 
 Hard rules:
 - Never invent facts. Weight, karat/metal and stone names come only from what you are given; if stones are not given, you may describe what you see only by colour and shape (for example "red stones", "green pear-cut stones") and never call them natural, real, certified or name a gemstone.
@@ -192,9 +204,16 @@ Return:
 - whatsappCaption: the WhatsApp post, in exactly this shape —
   line 1: ✨ *<headline>* — _<metal> | <weight>_   (leave out whichever of metal/weight is blank; keep the weight exactly as given, e.g. 18.8g)
   blank line, then the hook
-  blank line, then an italic line of stones · occasion · feeling, e.g. _Rubies & pearls · festive evenings · heirloom_
-  blank line, then *Ask for today's price:* on its own line, then "💬 WhatsApp: " followed by the numbers exactly as given, then (if a link was given) "🌐 See it at *<link>*".
-- instagramCaption: a short feed caption: the piece and its facts in one line, one line of feeling, "Ask for today's price on WhatsApp — <first number>", the link if given, then four to six hashtags from #taheri #taheridiamonds #karachijewellery #goldjewellerykarachi #pakistanijewellery and one for the piece type.
+${f.footer?.trim()
+    ? `  blank line, then an italic line of stones · occasion · feeling${f.tagline?.trim() ? `, followed on the same line by "${f.tagline.trim()}"` : ''}
+  blank line, then (if a link was given) "🌐 See it: *<link>*"
+  blank line, then these closing lines exactly as given, character for character:
+${f.footer.trim()}`
+    : `  blank line, then an italic line of stones · occasion · feeling, e.g. _Rubies & pearls · festive evenings · heirloom_
+  blank line, then *Ask for today's price:* on its own line, then "💬 WhatsApp: " followed by the numbers exactly as given, then (if a link was given) "🌐 See it at *<link>*".`}
+- instagramCaption: ${f.footer?.trim()
+    ? 'a short feed caption: the piece and its facts in one line, one line of feeling, "DM to order", the link if given, then four to six hashtags from #houseofmina #sterlingsilver #925silver #silverjewellery #pakistanijewellery and one for the piece type.'
+    : `a short feed caption: the piece and its facts in one line, one line of feeling, "Ask for today's price on WhatsApp — <first number>", the link if given, then four to six hashtags from #taheri #taheridiamonds #karachijewellery #goldjewellerykarachi #pakistanijewellery and one for the piece type.`}
 - sceneBrief: ${f.brief?.trim() ? 'one sentence describing the setting to photograph the piece in, following the brief below' : '""'} (plain scene description only — surface, props, light; no text, no people's faces).
 - sceneId: the best backdrop for this piece's story from: ${f.scenes.map(s => `${s.id} (${s.label}; suits ${s.suits})`).join('; ')}.
 - paletteId: the lettering colours that will read best and suit the scene, from: ${f.palettes.map(p => `${p.id} (${p.label})`).join(', ')}.

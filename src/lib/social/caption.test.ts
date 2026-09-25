@@ -49,6 +49,19 @@ describe('whatsappCaption', () => {
     const c = whatsappCaption({ headline: 'Rubies', hook: 'For the evening.' }, { whatsappNumbers: [] });
     expect(c).toBe('✨ *Rubies*\n\nFor the evening.');
   });
+  it('closes in the house\'s own words when it has them (House of Mina)', () => {
+    const c = whatsappCaption(
+      { headline: 'Ocean Halo Ring', metal: '925 Sterling Silver', weight: '4.2', stones: 'Blue cubic zirconia' },
+      { whatsappNumbers: [], link: 'https://catalogue.houseofmina.store/rings', tagline: 'Bespoke, designed in-house.', footer: '📩 DM to order — *+923161930960*\n💳 Card / Bank Transfer' },
+    );
+    expect(c).toBe([
+      '✨ *Ocean Halo Ring* — _925 Sterling Silver | 4.2g_', '',
+      '_Blue cubic zirconia_ Bespoke, designed in-house.', '',
+      '🌐 See it: *https://catalogue.houseofmina.store/rings*', '',
+      '📩 DM to order — *+923161930960*\n💳 Card / Bank Transfer',
+    ].join('\n'));
+    expect(c).not.toContain('today’s price');
+  });
 });
 
 describe('waNumberFromUrl', () => {

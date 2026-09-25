@@ -7,10 +7,15 @@
  * the weight and a headline once, and the page makes everything else from
  * that: the Instagram story in the shop's own style, the WhatsApp caption, and
  * the website photo with the weight stamped in the corner. One press then
- * sends it all — the website, the set of the day, the WhatsApp community, the
- * Instagram story (the WhatsApp channel rides along with the community post
- * when the line is on WAHA; otherwise it goes by hand) — and hands anything else to the
- * phone's share sheet.
+ * sends it all — the website, the set of the day, the community's groups and
+ * the WhatsApp channel (each a tick of its own; the channel only when the line is
+ * on WAHA, otherwise it goes by hand), the Instagram story — and hands anything
+ * else to the phone's share sheet.
+ *
+ * Or several pieces in one go: "Add to queue" keeps a finished piece (its
+ * squares and story exactly as drawn here) on the server and clears the page
+ * for the next; the queue then sends them all now, or spread over the day at
+ * times the counter can change (src/lib/social/queue.ts, sent by the tick).
  *
  * AI does as much or as little as asked (Gemini on Vertex, /api/website/post/ai):
  * retouch a photo, extend it to the story's shape, put the piece in one of the
@@ -43,9 +48,10 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Send, ImagePlus, Camera, X, Star, Loader2, Check, RotateCw, Share2, Download, Copy, ExternalLink, Instagram,
   MessageCircle, Globe, Sparkles, Wand2, Expand, Palette as PaletteIcon, Type, ShieldCheck, ShieldAlert, Link2, MessageSquareText,
+  Radio, ListPlus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORE_LINKS, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL, STORE_MARK_SVG, STORE_MONOGRAM_SVG, STORE_POST_PIECE } from '@/lib/store-config';
+import { STORE_LINKS, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL, STORE_MARK_SVG, STORE_MONOGRAM_SVG, STORE_POST_PIECE, STORE_POST_TAGLINE, STORE_POST_FOOTER } from '@/lib/store-config';
 import { detailsLine, waNumberFromUrl, weightLabel, websiteFileName, whatsappCaption } from '@/lib/social/caption';
 import { PALETTES, STORY_H, STORY_W, canvasToJpeg, loadImage, loadStampFont, stampPhoto, suggestPalette } from '@/lib/social/story';
 import { SCENES, customPrompt, restagePrompt, type Aspect, type CaptionResult, type CheckResult } from '@/lib/social/prompts';
@@ -55,6 +61,7 @@ import { StoryEditor, useStoryDoc } from './story-editor';
 import { FONTS, headlineFace, bodyFace } from './fonts';
 import { diagnose, type Where } from '@/lib/social/diagnose';
 import { HealthPanel, useHealth, reportError, ActionButton, type Check as HealthCheck } from './health-panel';
+import { QueuePanel, useQueue, listOf } from './queue-panel';
 
 const FILL = { mode: 'fill' as const, zoom: 1, focusX: 0.5, focusY: 0.5 };
 
@@ -80,6 +87,10 @@ interface Photo {
 type StepStatus = 'waiting' | 'running' | 'done' | 'failed';
 interface Step { id: string; label: string; status: StepStatus; error?: string; errStatus?: number; note?: string }
 const STEP_WHERE: Record<string, Where> = { website: 'website', featured: 'featured', whatsapp: 'whatsapp', instagram: 'instagram' };
+/** A step's place for diagnose(): each WhatsApp destination is a step of its own ("wa:announcements"). */
+const whereOfStep = (id: string): Where => STEP_WHERE[id] ?? (id.startsWith('wa:') ? 'whatsapp' : 'page');
+/** One of the community's groups a post can go to (destinations.ts), as GET /api/website/post names it. */
+interface WaGroup { key: string; label: string; name: string; size: number | null; reachable: boolean }
 /** An Error that remembers the HTTP status it came with, for diagnose(). */
 const httpError = (message: string, status: number) => Object.assign(new Error(message), { status });
 const errStatus = (e: unknown) => (typeof (e as { status?: unknown })?.status === 'number' ? (e as { status: number }).status : undefined);
@@ -147,6 +158,7 @@ export default function PostAPieceRoute() {
 function PostAPiecePage() {
   const { toast } = useToast();
   const health = useHealth();
+  const queue = useQueue();
   const dctx = health.report?.context ?? {};
   /** A toast that says what went wrong and what to do, never the raw error. */
   const explain = (where: Where, e: unknown) => {
@@ -199,8 +211,11 @@ function PostAPiecePage() {
   const [view, setView] = useState<'story' | 'square'>('story');
   const [feature, setFeature] = useState(false);
   const [community, setCommunity] = useState<{ name: string; size: number | null; reachable: boolean } | null>(null);
-  // The WhatsApp channel the route posts to after the community (WAHA only); null when it has to be shared by hand.
+  // The WhatsApp channel the route can post to (WAHA only); null when it has to be shared by hand.
   const [waChannel, setWaChannel] = useState<{ name: string; followers: number | null; reachable: boolean } | null>(null);
+  const [waGroups, setWaGroups] = useState<WaGroup[]>([]);
+  // Where this post's squares go: group keys, and "channel". The first group and the channel to start with.
+  const [waTargets, setWaTargets] = useState<string[]>([]);
   const [toWhatsApp, setToWhatsApp] = useState(false);
   const [caption, setCaption] = useState('');
   const [captionEdited, setCaptionEdited] = useState(false);
@@ -289,6 +304,9 @@ function PostAPiecePage() {
       const d = await res.json();
       if (d.community) { setCommunity(d.community); setToWhatsApp(true); }
       if (d.channel) setWaChannel(d.channel);
+      const groups: WaGroup[] = d.groups ?? [];
+      setWaGroups(groups);
+      setWaTargets([...groups.slice(0, 1).map(g => g.key), ...(d.channel ? ['channel'] : [])]);
     })();
   }, [toast]);
   useEffect(() => { if (folder) try { localStorage.setItem('taheri_post_folder', folder); } catch { /* fine */ } }, [folder]);
@@ -303,7 +321,7 @@ function PostAPiecePage() {
   // The caption follows the fields until someone (or the AI) writes it.
   useEffect(() => {
     if (captionEdited) return;
-    setCaption(headline.trim() ? whatsappCaption(piece, { whatsappNumbers: NUMBERS, link }) : '');
+    setCaption(headline.trim() ? whatsappCaption(piece, { whatsappNumbers: NUMBERS, link, tagline: STORE_POST_TAGLINE, footer: STORE_POST_FOOTER }) : '');
   }, [piece, link, captionEdited, headline]);
 
   // The first photo starts the story in the shop's usual layout, coloured for that photo.
@@ -544,7 +562,7 @@ function PostAPiecePage() {
     // WhatsApp often drops text shared alongside a file, so the caption goes on the clipboard too.
     try { await navigator.clipboard.writeText(caption); } catch { /* said below either way */ }
     if (!(await shareFiles([f], caption))) download(b, f.name);
-    toast({ title: 'Caption is on the clipboard', description: waChannel ? 'Paste it under the photo wherever you shared it. (The channel gets it automatically when you publish to WhatsApp.)' : 'Paste it under the photo in the channel.' });
+    toast({ title: 'Caption is on the clipboard', description: waChannel ? `Paste it under the photo wherever you shared it.${waTargets.includes('channel') ? ' (The channel gets it automatically when you publish to WhatsApp.)' : ''}` : 'Paste it under the photo in the channel.' });
   };
 
   const connectInstagram = async () => {
@@ -557,7 +575,12 @@ function PostAPiecePage() {
   // ── Publishing ──
   const sitePhotos = photos.filter(p => p.toSite);
   const siteOn = toWebsite && uploadsOn && !!folder && sitePhotos.length > 0;
-  const waOn = toWhatsApp && !!community && waPhotos().length > 0;
+  /** What a WhatsApp destination is called, and how many it reaches. */
+  const waName = (k: string) => (k === 'channel' ? waChannel?.name ?? 'Channel' : waGroups.find(g => g.key === k)?.name ?? k);
+  const waReach = (k: string) => (k === 'channel' ? (waChannel?.followers ? `${waChannel.followers.toLocaleString()} followers` : '') : (() => { const n = waGroups.find(g => g.key === k)?.size; return n ? `${n.toLocaleString()} members` : ''; })());
+  // In the order they are offered: the groups, then the channel.
+  const waChosen = [...waGroups.map(g => g.key), ...(waChannel ? ['channel'] : [])].filter(k => waTargets.includes(k));
+  const waOn = toWhatsApp && !!community && waPhotos().length > 0 && waChosen.length > 0;
   const igOn = toInstagram && !!ig?.connected;
   const ready = !!hero && !!headline.trim();
   const targets = [siteOn && SITE_NAME, waOn && 'WhatsApp', igOn && 'Instagram'].filter(Boolean) as string[];
@@ -569,6 +592,7 @@ function PostAPiecePage() {
   if (!headline.trim()) problems.push('Give it a headline.');
   if (toWebsite && !folder) problems.push(`Choose where it goes on ${SITE_NAME}, or switch the website off.`);
   if (toWhatsApp && !caption.trim()) problems.push('The WhatsApp caption is empty.');
+  if (toWhatsApp && community && !waChosen.length) problems.push('Choose a WhatsApp group or the channel, or switch WhatsApp off.');
   if (lettering === 'ai' && !aiLettered) problems.push('AI lettering is on but not made for this photo — letter it, or switch to our fonts.');
 
   const setStep = (id: string, patch: Partial<Step>) => setSteps(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s));
@@ -588,17 +612,17 @@ function PostAPiecePage() {
     return d.rel;
   };
 
-  /** One square to the community (and, when the route has one, the channel). Returns how the channel went. */
-  const sendWhatsApp = async (key: string, blob: Blob, name: string, text: string, headers: Record<string, string>): Promise<{ ok: boolean; error?: string } | null> => {
-    if (sentRef.current[key]) return null;
+  /** One square to one WhatsApp destination (a group's key, or "channel"), once. */
+  const sendWhatsApp = async (key: string, blob: Blob, name: string, text: string, target: string, headers: Record<string, string>) => {
+    if (sentRef.current[key]) return;
     const form = new FormData();
     form.set('file', new File([blob], name, { type: 'image/jpeg' }));
     if (text) form.set('caption', text);
+    form.set('targets', target);
     const res = await fetch('/api/website/post', { method: 'POST', headers, body: form });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw httpError(d.error || `WhatsApp send failed (${res.status})`, res.status);
     sentRef.current[key] = true;
-    return d.channel ?? null;
   };
 
   const runPublish = async (only?: string) => {
@@ -609,7 +633,8 @@ function PostAPiecePage() {
       ...(siteOn ? [{ id: 'website', label: `${SITE_NAME} · ${chosen?.collection ?? ''}`, status: 'waiting' as const }] : []),
       ...(siteOn && feature && STORE_WEBSITE_FEATURED ? [{ id: 'featured', label: 'Set of the day on the home page', status: 'waiting' as const }] : []),
       ...(igOn ? [{ id: 'instagram', label: `Instagram story · @${ig?.username}`, status: 'waiting' as const }] : []),
-      ...(waOn ? [{ id: 'whatsapp', label: `WhatsApp · ${community?.name}`, status: 'waiting' as const }] : []),
+      // Each destination its own step, so one that fails is retried alone — never a group twice.
+      ...(waOn ? waChosen.map(k => ({ id: `wa:${k}`, label: `WhatsApp · ${waName(k)}${k === 'channel' ? ' (channel)' : ''}`, status: 'waiting' as const })) : []),
     ];
     if (!only) setSteps(plan);
     const todo = plan.filter(s => (only ? s.id === only : true) && s.status !== 'done');
@@ -639,20 +664,16 @@ function PostAPiecePage() {
             if (!res.ok) throw httpError(d.error || `Instagram failed (${res.status})`, res.status);
             sentRef.current.instagram = true;
           }
-        } else if (s.id === 'whatsapp') {
+        } else if (s.id.startsWith('wa:')) {
           // The caption rides on the first square; the others follow without one.
+          const target = s.id.slice(3);
           const ordered = waPhotos();
-          const channelMisses: string[] = [];
-          let channelSent = 0;
           for (let i = 0; i < ordered.length; i++) {
             setStep(s.id, { note: `${i + 1} of ${ordered.length}` });
             // 1600 px: WhatsApp makes no preview for images over 3000 px, and shrinks everything to about this anyway.
-            const ch = await sendWhatsApp(`photo-${ordered[i].id}`, await squareJpeg(ordered[i], 1600), `${fileNameBase}${i ? `-${i + 1}` : ''}.jpg`, i === 0 ? caption : '', headers);
-            if (ch?.ok) channelSent++; else if (ch && !ch.ok) channelMisses.push(ch.error || 'failed');
+            await sendWhatsApp(`${s.id}:photo-${ordered[i].id}`, await squareJpeg(ordered[i], 1600), `${fileNameBase}${i ? `-${i + 1}` : ''}.jpg`, i === 0 ? caption : '', target, headers);
           }
-          // The community has it either way; a channel miss is said beside it, not retried (that would post the community twice).
-          const squares = `${ordered.length} square${ordered.length === 1 ? '' : 's'}`;
-          setStep(s.id, { note: channelMisses.length ? `${squares} · the channel didn’t take ${channelMisses.length}: ${channelMisses[0]}` : channelSent ? `${squares} · also on ${waChannel?.name ?? 'the channel'}` : squares });
+          setStep(s.id, { note: `${ordered.length} square${ordered.length === 1 ? '' : 's'}` });
         }
         setStep(s.id, { status: 'done' });
       } catch (e) {
@@ -667,6 +688,43 @@ function PostAPiecePage() {
     setPublishing(false);
     if (failedAny) health.refresh();
   };
+
+  /**
+   * Keep this piece in the queue, exactly as it is now — its squares at the
+   * website's and WhatsApp's sizes and its story, drawn here — and clear the
+   * page for the next one. Nothing is sent until the queue says so.
+   */
+  const addToQueue = async () => {
+    if (problems.length) { toast({ title: 'Not yet', description: problems.join(' '), variant: 'destructive' }); return; }
+    if (!hero || !(siteOn || waOn || igOn)) { toast({ title: 'It isn’t going anywhere', description: 'Switch on the website, WhatsApp or Instagram for this piece first.' }); return; }
+    // The story's photo leads on the website too: it is the one the set of the day shows.
+    const site = siteOn ? [...sitePhotos.filter(p => p.id === hero.id), ...sitePhotos.filter(p => p.id !== hero.id)] : [];
+    const wa = waOn ? waPhotos() : [];
+    try {
+      const ok = await queue.add({
+        headline: headline.trim(), caption, fileBase: fileNameBase || 'piece',
+        targets: {
+          website: siteOn ? { folder, collection: chosen?.collection ?? folder, names: site.map((_, i) => websiteFileName(siteName || headline, i)), featured: feature && STORE_WEBSITE_FEATURED } : null,
+          instagram: igOn,
+          whatsapp: waOn ? waChosen : [],
+        },
+        site: await Promise.all(site.map(p => squareJpeg(p, siteSize(p)))),
+        wa: await Promise.all(wa.map(p => squareJpeg(p, 1600))),
+        story: igOn ? await getStory() : null,
+        thumb: await squareJpeg(hero, 240).catch(() => null),
+      });
+      if (ok) {
+        startOver();
+        toast({ title: `“${headline.trim()}” is in the queue`, description: 'Make the next piece — then send them all, or spread them over the day.' });
+      }
+    } catch (e) {
+      explain('page', e);
+    }
+  };
+
+  /** Checks failing now for anywhere these queued pieces go. */
+  const queueBlockers = (entries: { website: unknown; instagram: boolean; whatsapp: string[] }[]) => (health.report?.checks ?? []).filter(c => c.status === 'fail' && (
+    (c.group === 'Website' && entries.some(e => e.website)) || (c.group === 'Instagram' && entries.some(e => e.instagram)) || (c.group === 'WhatsApp' && entries.some(e => e.whatsapp.length))));
 
   const onPublish = () => {
     if (problems.length) { toast({ title: 'Not yet', description: problems.join(' '), variant: 'destructive' }); return; }
@@ -844,9 +902,27 @@ function PostAPiecePage() {
                   <Switch checked={toWhatsApp} onCheckedChange={setToWhatsApp} />
                 </label>
                 {!community.reachable && <p className="text-sm text-amber-600">The WhatsApp line did not answer just now. Sending may fail; check Settings → Integrations.</p>}
+                {toWhatsApp && (waGroups.length > 1 || waChannel) && (
+                  // Where it goes: any of the community's groups, the channel, or both — each its own tick.
+                  <div className="flex flex-wrap gap-1.5">
+                    {[...waGroups.map(g => ({ key: g.key, label: g.label, reach: waReach(g.key), channel: false })), ...(waChannel ? [{ key: 'channel', label: waChannel.name, reach: waReach('channel'), channel: true }] : [])].map(o => {
+                      const on = waTargets.includes(o.key);
+                      return (
+                        <button key={o.key} type="button" disabled={publishing} aria-pressed={on}
+                          onClick={() => setWaTargets(t => on ? t.filter(k => k !== o.key) : [...t, o.key])}
+                          className={cn('rounded-full border px-3 py-1.5 text-xs inline-flex items-center gap-1.5', on ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground')}>
+                          {o.channel ? <Radio className="h-3.5 w-3.5" /> : on ? <Check className="h-3.5 w-3.5" /> : <MessageCircle className="h-3.5 w-3.5" />}
+                          {o.channel ? `Channel · ${o.label}` : o.label}{o.reach ? <span className="opacity-70">· {o.reach}</span> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 {toWhatsApp && (
                   <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2">
-                    {waPhotos().length ? `${waPhotos().length} square photo${waPhotos().length === 1 ? '' : 's'}, the caption on the first${waChannel ? ` — and the same to ${waChannel.name}` : ''}.` : 'Tick WA on a photo to send it.'}
+                    {!waPhotos().length ? 'Tick WA on a photo to send it.'
+                      : !waChosen.length ? 'Choose where it goes.'
+                      : `${waPhotos().length} square photo${waPhotos().length === 1 ? '' : 's'}, the caption on the first — to ${listOf(waChosen.map(k => k === 'channel' ? 'the channel' : waName(k)))}.`}
                     <button type="button" className="text-primary" onClick={() => setView('square')}>Edit the square →</button>
                   </p>
                 )}
@@ -984,6 +1060,8 @@ function PostAPiecePage() {
             <div className="mx-auto w-[300px] aspect-square rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground p-6 text-center">Tick Site or WA on a photo and its square appears here.</div>
           ))}
 
+          <QueuePanel api={queue} destinationName={waName} blockers={queueBlockers} />
+
           <div className="rounded-lg border p-4 space-y-3">
             {steps.length > 0 && (
               <ul className="space-y-2 text-sm">
@@ -995,7 +1073,7 @@ function PostAPiecePage() {
                     <span className="flex-1 min-w-0">
                       <span className="block truncate">{s.label}{s.note ? <span className="text-muted-foreground"> · {s.note}</span> : null}</span>
                       {s.error && (() => {
-                        const d = diagnose(STEP_WHERE[s.id] ?? 'page', { status: s.errStatus, message: s.error }, dctx);
+                        const d = diagnose(whereOfStep(s.id), { status: s.errStatus, message: s.error }, dctx);
                         return (
                           <span className="block mt-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 space-y-1">
                             <span className="block text-xs font-semibold text-destructive">{d.title}</span>
@@ -1010,11 +1088,17 @@ function PostAPiecePage() {
                 ))}
               </ul>
             )}
-            {!published ? (
-              <Button className="w-full h-12 text-base" onClick={onPublish} disabled={publishing || busyAny || !ready || targets.length === 0 || steps.length > 0}>
+            {!published ? (<>
+              <Button className="w-full h-12 text-base" onClick={onPublish} disabled={publishing || busyAny || !ready || targets.length === 0 || steps.length > 0 || !!queue.adding}>
                 {publishing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Publishing…</> : <><Send className="h-4 w-4 mr-2" /> Publish{targets.length ? ` to ${targets.join(' + ')}` : ''}</>}
               </Button>
-            ) : (
+              {/* Several pieces in one go: keep this one, make the next, send them together or through the day. */}
+              {steps.length === 0 && (
+                <Button variant="outline" className="w-full" onClick={addToQueue} disabled={publishing || busyAny || !ready || targets.length === 0 || !!queue.adding}>
+                  {queue.adding ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {queue.adding}</> : <><ListPlus className="h-4 w-4 mr-2" /> Add to queue{queue.items.some(e => e.status === 'held' || e.status === 'scheduled' || e.status === 'failed') ? '' : ' — send later or with others'}</>}
+                </Button>
+              )}
+            </>) : (
               <Button variant="outline" className="w-full" onClick={startOver}>Post another piece</Button>
             )}
             {!ready && <p className="text-xs text-muted-foreground">{problems.slice(0, 2).join(' ')}</p>}
@@ -1127,7 +1211,12 @@ function PostAPiecePage() {
             <AlertDialogDescription asChild>
               <div className="space-y-1.5">
                 {igOn && <p>The story goes up on Instagram as @{ig?.username}.</p>}
-                {waOn && <p>{waPhotos().length} square photo{waPhotos().length === 1 ? '' : 's'} with the caption go{waPhotos().length === 1 ? 'es' : ''} to {community?.name}{community?.size ? ` — ${community.size.toLocaleString()} members` : ''}.</p>}
+                {waOn && (
+                  <div>
+                    <p>{waPhotos().length} square photo{waPhotos().length === 1 ? '' : 's'} with the caption go{waPhotos().length === 1 ? 'es' : ''} to:</p>
+                    <ul className="text-xs mt-0.5">{waChosen.map(k => <li key={k}>{waName(k)}{k === 'channel' ? ' (channel)' : ''}{waReach(k) ? ` — ${waReach(k)}` : ''}</li>)}</ul>
+                  </div>
+                )}
                 {siteOn && <p>{sitePhotos.length} square photo{sitePhotos.length === 1 ? '' : 's'} go{sitePhotos.length === 1 ? 'es' : ''} on {SITE_NAME}.</p>}
                 <p>A post cannot be unsent from here.</p>
                 {blockers.length > 0 && (

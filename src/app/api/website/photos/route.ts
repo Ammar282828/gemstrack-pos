@@ -22,6 +22,7 @@ import { roleForEmail } from '@/lib/roles';
 import { getCatalogAttributes } from '@/lib/website/catalog-source';
 import { collectionOfKey } from '@/lib/website/pricing';
 import convertHeic from 'heic-convert';
+import { SiteUploadError, siteOrigin, uploadToSite } from '@/lib/website/upload';
 
 export const dynamic = 'force-dynamic';
 // A photograph can be several megabytes; the default body cap is far smaller.
@@ -56,7 +57,6 @@ async function gate(req: NextRequest): Promise<string | NextResponse> {
   return email;
 }
 
-const siteOrigin = () => (process.env.WEBSITE_ORIGIN || 'https://taheri.shop').replace(/\/+$/, '');
 
 /**
  * The site's folder tree, as it stands on disk at taheri.shop. Two jobs: the
@@ -198,38 +198,11 @@ export async function POST(req: NextRequest) {
     }
     base = base.replace(/\.hei[cf]$/i, '') + '.jpg';
   }
-  const rel = `${folder}/${base}`;
-
-  const out = new FormData();
-  out.set('rel', rel);
-  out.set('file', body, base);
-
   try {
-    const res = await fetch(`${siteOrigin()}/api/upload.php`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${secret}` },
-      body: out,
-      signal: AbortSignal.timeout(55_000),
-    });
-    const text = await res.text();
-    let data: Record<string, unknown>;
-    try { data = JSON.parse(text); }
-    catch { return NextResponse.json({ error: `The website returned an unexpected reply (${res.status}).`, detail: text.slice(0, 200) }, { status: 502 }); }
-    if (!res.ok || data.ok !== true) {
-      return NextResponse.json({ error: String(data.error || `Upload refused (${res.status}).`) }, { status: res.status === 401 ? 502 : res.status });
-    }
-    return NextResponse.json({
-      ok: true,
-      rel: data.rel,
-      bytes: data.bytes,
-      thumb: `${siteOrigin()}${data.thumb}`,
-      collection: collectionOfKey(String(data.rel)),
-      uploadedBy: who,
-    });
+    const up = await uploadToSite(body, folder, base);
+    return NextResponse.json({ ok: true, ...up, uploadedBy: who });
   } catch (e) {
-    const msg = e instanceof Error && e.name === 'TimeoutError'
-      ? 'The website did not answer in time. The photograph may still have arrived — check the collection before retrying.'
-      : e instanceof Error ? e.message : 'Upload failed';
-    return NextResponse.json({ error: msg }, { status: 504 });
+    if (e instanceof SiteUploadError) return NextResponse.json({ error: e.message, ...(e.detail ? { detail: e.detail } : {}) }, { status: e.status });
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Upload failed' }, { status: 504 });
   }
 }

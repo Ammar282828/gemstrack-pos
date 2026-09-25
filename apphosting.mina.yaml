@@ -208,7 +208,7 @@ env:
       - RUNTIME
   # Posts → From the website: a piece from the catalogue, with its link, to the
   # House of Mina community's announcements ("House of Mina by Taheri Collections",
-  # 441 members on 2026-09-25; the WAHA line +92 326 2275554 is an admin). The
+  # 441 members on 2026-09-25; Mina's own WAHA line +92 316 1930960 is an admin). The
   # caption closes in the house's own words; a literal \n is a line break.
   - variable: WHATSAPP_COMMUNITY_CHAT_ID
     value: "120363422611483809@g.us"
@@ -223,10 +223,14 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  # Post a Piece (Instagram story, community post, AI) is built on Taheri's
-  # accounts; Mina's menu has no Post a Piece page and its routes answer 404.
+  # Post a Piece, exactly Taheri's (the owner, 2026-09-25): the story, the square
+  # and the caption made at the counter, sent to the catalogue (Add Photos' relay)
+  # and the community's announcements from Mina's own line (WAHA session "mina",
+  # +92 316 1930960, an admin there), one piece or a queue of them. No Instagram
+  # app and no channel here, so the story is shared by hand. AI bills to
+  # VERTEX_PROJECT (Taheri's gemstrack-pos), as Mina's voice does.
   - variable: NEXT_PUBLIC_STORE_POST_PIECE
-    value: "0"
+    value: "1"
     availability:
       - BUILD
       - RUNTIME

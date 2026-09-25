@@ -41,6 +41,8 @@ export class AiError extends Error {
 }
 
 export const aiConfigured = () => Boolean(PROJECT);
+/** The Google Cloud project AI calls bill to (Taheri: Murtaza's; House of Mina: VERTEX_PROJECT, Taheri's). */
+export const aiProject = () => PROJECT;
 
 export interface InlineImage { mimeType: string; data: string }
 type Part = { text: string } | { inlineData: InlineImage };

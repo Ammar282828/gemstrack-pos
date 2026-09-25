@@ -55,6 +55,10 @@ export interface CaptionContext {
   whatsappNumbers: string[];
   /** Where to see it: the collection's page, or the site itself. */
   link?: string;
+  /** The house's line after the stones: "Bespoke, designed in-house." (NEXT_PUBLIC_STORE_POST_TAGLINE). */
+  tagline?: string;
+  /** The house's own closing lines (NEXT_PUBLIC_STORE_POST_FOOTER); without them, "Ask for today's price" and the numbers. */
+  footer?: string;
 }
 
 /**
@@ -67,7 +71,15 @@ export function whatsappCaption(p: PieceText, ctx: CaptionContext): string {
   const lines: string[] = [];
   lines.push(`✨ *${headline}*${header ? ` — _${header}_` : ''}`);
   if (p.hook?.trim()) lines.push('', p.hook.trim());
-  if (p.stones?.trim()) lines.push('', `_${p.stones.trim()}_`);
+  const tail = [p.stones?.trim() ? `_${p.stones.trim()}_` : '', ctx.tagline?.trim() || ''].filter(Boolean);
+  if (tail.length) lines.push('', tail.join(' '));
+  const footer = ctx.footer?.trim();
+  if (footer) {
+    // A house with its own closing (Mina: DM to order, card / bank transfer, shipping) has no prices to ask for.
+    if (ctx.link) lines.push('', `🌐 See it: *${ctx.link}*`);
+    lines.push('', footer);
+    return lines.join('\n');
+  }
   const ask: string[] = [];
   if (ctx.whatsappNumbers.length) ask.push(`💬 WhatsApp: ${ctx.whatsappNumbers.join(', ')}`);
   if (ctx.link) ask.push(`🌐 See it at *${ctx.link}*`);

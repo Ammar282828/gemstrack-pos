@@ -58,6 +58,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 | `/api/website/post` | POS page Post a Piece | GET the community's name/size; POST one image + caption to `WHATSAPP_COMMUNITY_CHAT_ID` and then the channel `WHATSAPP_CHANNEL_ID`, via WAHA, logged in `social_posts`. `/convert` turns HEIC into JPEG for the canvas |
 | `/api/website/post/ai` | Post a Piece | Gemini on Vertex (`IMAGE_AI_PROJECT`): `enhance`, `reframe`, `restage`, `letter`, `caption`, `check`. Every image edit is compared with its source ("same piece?"); capped 300 calls/day shop-wide, 60/h per IP |
 | `/api/instagram/status`, `connect`, `callback`, `story` | Post a Piece | Instagram Login OAuth → 60-day token in **Secret Manager** (`instagram-token`, renewed on use), locked to `INSTAGRAM_USERNAME`; `story` publishes a 9:16 JPEG |
+| `/api/website/post/queue`, `queue/[id]`, `[id]/send`, `queue/tick` | Post a Piece (queue); Cloud Scheduler `social-queue-tick` | several finished pieces kept in `social_queue` (+ images in `social_queue_media`), sent now or at their times — see "Post a Piece queue" below |
 | `/api/website/post/health` | Post a Piece | GET: every check + last day's `social_errors` + diagnosis context; POST: the page records a failure |
 | `/api/investments` (+ `/[id]/publish`, `/[id]/plan`, `/schedule`, `/api/public/investments/[id]/[kind]`) | the Cowork routine; POS page Investments | file a day's gold post (Bearer ingest token or the POS); send each part; hold/approve a day; the owner's schedule; serve the cards |
 | `/api/investments/tick` | Cloud Scheduler `investments-tick` (every 5 min, Bearer `CRON_SECRET`) | send whatever part of today's post the schedule says is due; `?dry=1` sends nothing |
@@ -240,11 +241,25 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   the house's voice with its own community posts as examples; the POS builds the frame), a **weight overlay** (stampPhoto, on by default
   only where the site photo doesn't show the weight — `weightSource !== 'label'`), and where it goes: any of the community's groups
   (`WHATSAPP_POST_GROUPS`, Label=chat id; Taheri: Announcements, Diamonds, Gemstones, Investments, Exclusives, Watches), the channel, or
-  **Both** — `/api/website/post` with `targets` (keys, never chat ids; without them it still does community + channel for Post a Piece).
+  **Both** — `/api/website/post` with `targets` (keys, never chat ids; Post a Piece sends with `targets` too since 2026-09-25).
   Mina's POS got the page as a port onto its branch (c045a60; recorded in main with a `-s ours` merge, the other session's way).
   Both sites were changed to publish links: taheri-site's prerender adds `path` to `catalog-attributes.json` (2,565 of 2,601 photos have a
   page); mina-catalogue's prerender writes `catalog-pieces.json` (599 pieces). `NEXT_PUBLIC_STORE_SITE_POSTS` (default on); Mina's
   community is `120363422611483809@g.us`. The community's own posts were read through WAHA to match their look.
+- **Post a Piece: channel tick, queue, and House of Mina** (2026-09-25, owner: "make a post on houseofmina pos also, same style" /
+  "incorporate channel option and bulk sending"). Where the squares go is a tick per destination — the community's groups
+  (`WHATSAPP_POST_GROUPS`) and the channel, first group + channel on by default — and each is its own publish step, sent with `targets`,
+  so a failure is retried alone. **Queue** ("several pieces in one go"): *Add to queue* renders the piece exactly as Publish would (site
+  squares ≤ 3000 px, WA squares 1600 px, story, a 240-px thumb), uploads them to `social_queue` / `social_queue_media` (900 KB parts) and
+  clears the page; the panel then does **Send all now** (one confirm; the page calls `/queue/[id]/send` per piece) or **Spread over the
+  day** (evenly between two times, default now+10 min → 30 min before closing; per-piece time / hold / remove). Server:
+  `src/lib/social/queue.ts` (claim in a transaction, every single send recorded in `done`, so a retry sends only what didn't go;
+  `sendItem` takes fake senders for tests), pure planning in `queue-plan.ts` (tested). The tick (`/api/website/post/queue/tick`, Cloud
+  Scheduler `social-queue-tick` every 5 min in **both** projects, Bearer `CRON_SECRET`) sends due pieces, three tries, and sweeps
+  drafts > 6 h and sent pieces > 7 days. Website relay and Instagram story are shared helpers (`src/lib/website/upload.ts`,
+  `src/lib/social/story-post.ts`). **House of Mina** has Post a Piece (`NEXT_PUBLIC_STORE_POST_PIECE "1"`): catalogue + community
+  announcements from its own line, no Instagram app, no channel, no set of the day; the caption and "Write with AI" close with
+  `_POST_TAGLINE` / `_POST_FOOTER` in Mina's voice (`captionSystem(shop, house)`); AI bills to `VERTEX_PROJECT` (gemstrack-pos).
 - **Investments by Taheri in the POS** (`/website/investments`, 2026-09-25): the daily gold post is written by the owner's
   scheduled **Cowork routine on claude.ai** ("Investments by Taheri — daily post", 11:00; not editable from Claude Code) whose last
   step POSTs the four deliverables to `/api/investments` (multipart post/teaser/square/story, `Authorization: Bearer` the token in
