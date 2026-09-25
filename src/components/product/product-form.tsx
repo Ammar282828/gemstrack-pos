@@ -28,6 +28,7 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { PageBack } from '@/components/shared/page-back';
 import { FormSection, PriceModeToggle } from '@/components/shared/piece-form';
 import { STORE_CONFIG } from '@/lib/store-config';
+import { readablePhoto } from '@/lib/photo-file';
 
 
 // Schema for the form data
@@ -230,9 +231,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   }, [isGoldCoin, hasDiamondsValue, hasStonesValue, selectedMetalType, isMensRing, selectedSecondaryMetalType, setValue, getValues]);
   
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = event.target.files?.[0];
+    if (!picked) return;
+    // A HEIC from a Mac's Photos library is stored as a JPEG, which every browser can show.
+    let file: File;
+    try { file = await readablePhoto(picked); }
+    catch (e) { toast({ title: "Could not read that photo", description: e instanceof Error ? e.message : "Try another photo.", variant: "destructive" }); return; }
 
     if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast({ title: "File too large", description: "Please upload an image file smaller than 5MB.", variant: "destructive" });
@@ -612,7 +617,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   <FormItem>
                       <FormLabel>Product photo</FormLabel>
                       <FormControl>
-                          <Input id="image-upload" type="file" accept="image/*" onChange={handleImageUpload} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
+                          <Input id="image-upload" type="file" accept="image/*,.heic,.heif" onChange={handleImageUpload} className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20" />
                       </FormControl>
                       {isUploading && uploadProgress !== null && (
                           <div className="mt-2">

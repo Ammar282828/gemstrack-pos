@@ -31,8 +31,9 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Camera, Check, Images, Loader2, Plus, TriangleAlert, X } from 'lucide-react';
+import { Camera, Check, Images, Loader2, TriangleAlert, X } from 'lucide-react';
 import { authedFetch } from '@/lib/voice/authed-fetch';
+import { readablePhoto } from '@/lib/photo-file';
 
 /**
  * Bigger than the sample-image limits elsewhere in the app, and deliberately so. Those
@@ -46,8 +47,9 @@ const MAX_PHOTOS = 6;
 
 interface Photo { dataUri: string; base64: string }
 
-async function downscale(file: File): Promise<Photo> {
-  const bitmap = await createImageBitmap(file);
+async function downscale(picked: File): Promise<Photo> {
+  // A HEIC from a Mac's Photos library comes back a JPEG first (lib/photo-file.ts).
+  const bitmap = await createImageBitmap(await readablePhoto(picked));
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(bitmap.width * scale);
@@ -163,7 +165,7 @@ export function OrderScanner({
             roll, which is right for a slip on the counter and wrong for one that came in
             on WhatsApp. The gallery input has no capture and takes several at once. */}
         <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFiles} />
-        <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={onFiles} />
+        <input ref={galleryRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={onFiles} />
 
         {photos.length === 0 && !busy && (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -181,7 +183,7 @@ export function OrderScanner({
               className="flex flex-col items-center gap-3 rounded-lg border border-dashed p-8 hover:bg-accent/50"
             >
               <Images className="h-8 w-8 text-muted-foreground" />
-              <span className="text-sm">Upload photos</span>
+              <span className="text-sm">From Photos</span>
               <span className="text-xs text-muted-foreground">Front and back, or a few pages, together</span>
             </button>
           </div>
@@ -232,7 +234,7 @@ export function OrderScanner({
                     <Camera className="mr-2 h-4 w-4" /> Take another
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => galleryRef.current?.click()}>
-                    <Plus className="mr-2 h-4 w-4" /> Add from photos
+                    <Images className="mr-2 h-4 w-4" /> From Photos
                   </Button>
                 </div>
               )}

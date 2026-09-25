@@ -13,7 +13,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Upload, Camera, X, Loader2 } from 'lucide-react';
+import { Images, Camera, X, Loader2 } from 'lucide-react';
+import { readablePhoto } from '@/lib/photo-file';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -87,13 +88,14 @@ export const SampleImageInput: React.FC<{
     const file = e.target.files?.[0];
     e.target.value = ''; // allow re-picking the same file
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
+    // Chrome gives a HEIC from the Photos app no type at all; its name still says what it is.
+    if (!file.type.startsWith('image/') && !/\.(heic|heif)$/i.test(file.name)) {
       toast({ title: 'Not an image', description: 'Pick a photo file.', variant: 'destructive' });
       return;
     }
     setBusy(true);
     try {
-      const img = await loadImage(file);
+      const img = await loadImage(await readablePhoto(file));
       onChange(await compressToDataUri(img, img.naturalWidth, img.naturalHeight));
     } catch {
       toast({ title: 'Could not read that image', description: 'Try another photo.', variant: 'destructive' });
@@ -148,12 +150,12 @@ export const SampleImageInput: React.FC<{
       ) : (
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
-            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}Upload
+            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Images className="mr-2 h-4 w-4" />}From Photos
           </Button>
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setCameraOpen(true)}>
-            <Camera className="mr-2 h-4 w-4" />Photo
+            <Camera className="mr-2 h-4 w-4" />Camera
           </Button>
-          <Input type="file" ref={fileRef} onChange={handleFile} className="hidden" accept="image/*" />
+          <Input type="file" ref={fileRef} onChange={handleFile} className="hidden" accept="image/*,.heic,.heif" />
         </div>
       )}
 

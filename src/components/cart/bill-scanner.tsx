@@ -13,7 +13,7 @@
  * be able to see that at a glance rather than discover it.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import type { Product } from '@/lib/store';
 import { blankCartItem } from '@/components/cart/edit-cart-item-dialog';
@@ -31,15 +31,18 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Camera, Check, Loader2, TriangleAlert } from 'lucide-react';
+import { Check, Loader2, TriangleAlert } from 'lucide-react';
 import { authedFetch } from '@/lib/voice/authed-fetch';
+import { readablePhoto } from '@/lib/photo-file';
+import { PhotoPick } from '@/components/shared/photo-pick';
 
 /** Handwriting needs the pixels — see the same note on the parchi scanner. */
 const MAX_EDGE = 1600;
 const JPEG_QUALITY = 0.85;
 
-async function downscale(file: File): Promise<{ dataUri: string; base64: string }> {
-  const bitmap = await createImageBitmap(file);
+async function downscale(picked: File): Promise<{ dataUri: string; base64: string }> {
+  // A HEIC from a Mac's Photos library comes back a JPEG first (lib/photo-file.ts).
+  const bitmap = await createImageBitmap(await readablePhoto(picked));
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(bitmap.width * scale);
@@ -76,7 +79,6 @@ export function BillScanner({
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const reset = () => { setPhoto(null); setDraft(null); setSkipped(new Set()); setError(null); };
 
@@ -149,29 +151,11 @@ export function BillScanner({
           </DialogDescription>
         </DialogHeader>
 
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            // Same file twice in a row must re-fire change, so clear the value.
-            e.target.value = '';
-            if (f) void scan(f);
-          }}
-        />
-
+        {/* The camera for a bill on the counter; the Photos library for one already saved
+            or sent on WhatsApp. */}
         {!photo && !busy && (
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="flex w-full flex-col items-center gap-3 rounded-lg border border-dashed p-10 hover:bg-accent/50"
-          >
-            <Camera className="h-8 w-8 text-muted-foreground" />
-            <span className="text-sm">Take a photo of the bill, or choose one</span>
-          </button>
+          <PhotoPick onFiles={(files) => void scan(files[0])} takeLabel="Take a photo of the bill"
+            pickLabel="From Photos" pickHint="A bill already on this phone or computer" />
         )}
 
         {busy && (
@@ -192,9 +176,7 @@ export function BillScanner({
             <div className="space-y-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={photo} alt="The bill that was read" className="w-full rounded-lg border" />
-              <Button variant="outline" size="sm" className="w-full" onClick={() => fileRef.current?.click()}>
-                <Camera className="mr-2 h-4 w-4" /> Another photo
-              </Button>
+              <PhotoPick variant="buttons" onFiles={(files) => void scan(files[0])} takeLabel="Retake" pickLabel="From Photos" />
             </div>
 
             <div className="space-y-4">

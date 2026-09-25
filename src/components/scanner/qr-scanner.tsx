@@ -9,10 +9,14 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { ZoomIn, ZoomOut, Loader2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Loader2, Images } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { readablePhoto } from '@/lib/photo-file';
 import { cn } from '@/lib/utils';
 
 const qrReaderElementId = "qr-reader-container";
+// A second reader for photographs: html5-qrcode cannot read a file while its camera runs.
+const qrFileElementId = "qr-file-reader";
 
 let audioContext: AudioContext | null = null;
 const playBeep = () => {
@@ -70,6 +74,9 @@ export default function QrScanner({ isActive }: QrScannerProps) {
   const [zoom, setZoom] = useState(1);
   const [hwZoom, setHwZoom] = useState<{ min: number; max: number; step: number } | null>(null);
   const [cameraCapabilities, setCameraCapabilities] = useState<MediaTrackCapabilities | null>(null);
+  const fileReaderRef = useRef<Html5Qrcode | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [readingPhoto, setReadingPhoto] = useState(false);
 
   const onScanSuccess: QrcodeSuccessCallback = useCallback((decodedText) => {
     const now = Date.now();
@@ -106,6 +113,29 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         }
     }
   }, [toast]);
+
+  // A tag photographed earlier, or sent on WhatsApp, read from the Photos library (the owner,
+  // 2026-09-25: every action needing a photo takes one from the Photos app too). A HEIC from a
+  // Mac comes back a JPEG first (lib/photo-file.ts).
+  const scanPhoto = useCallback(async (picked: File) => {
+    setReadingPhoto(true);
+    try {
+      const file = await readablePhoto(picked);
+      if (!fileReaderRef.current) {
+        fileReaderRef.current = new Html5Qrcode(qrFileElementId, {
+          verbose: false,
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+        });
+      }
+      const text = await fileReaderRef.current.scanFile(file, false);
+      lastScanRef.current = null; // a photo is picked on purpose — never debounced away
+      onScanSuccess(text, {} as Parameters<QrcodeSuccessCallback>[1]);
+    } catch {
+      toast({ title: 'No code found in that photo', description: 'Use a photo with the tag flat, close and in focus.', variant: 'destructive' });
+    } finally {
+      setReadingPhoto(false);
+    }
+  }, [onScanSuccess, toast]);
 
 
   useEffect(() => {
@@ -260,6 +290,15 @@ export default function QrScanner({ isActive }: QrScannerProps) {
         </div>
       )}
       
+      <div id={qrFileElementId} className="hidden" aria-hidden="true" />
+      <input ref={photoInputRef} type="file" accept="image/*,.heic,.heif" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void scanPhoto(f); }} />
+      <Button type="button" variant="outline" className="w-full max-w-lg mx-auto flex" disabled={readingPhoto}
+        onClick={() => photoInputRef.current?.click()}>
+        {readingPhoto ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Images className="mr-2 h-4 w-4" />}
+        Scan a photo instead
+      </Button>
+
       {scannerState === 'error' && (
         <Alert variant="destructive" className="mt-4">
           <AlertTitle>Camera Access Denied or Scanner Error</AlertTitle>
