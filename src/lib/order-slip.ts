@@ -17,6 +17,7 @@ import { staticCategories, categorySingular } from '@/lib/store';
 import { describeMetal, describeSettings } from '@/lib/materials';
 import type { ItemBlock } from '@/lib/invoice-item-cell';
 import { drawTotals, type TotalRow } from '@/lib/pdf-chrome';
+import { orderExchanges, describeExchangeEntry } from '@/lib/exchange';
 
 const money = (n: number) => `PKR ${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
@@ -90,7 +91,8 @@ export function drawOrderTotals(
   const cash = order.advancePayment || 0;
   const inKind = order.advanceInExchangeValue || 0;
   const discount = order.discountAmount || 0;
-  const what = order.advanceInExchangeDescription?.trim();
+  // One line per thing taken in exchange (lib/exchange.ts); older orders have one.
+  const exchanges = orderExchanges(order);
 
   // order.grandTotal is stored NET of both discount and advance
   // (order-form: `subtotal - discount - totalAdvance`), i.e. it is already the
@@ -107,7 +109,14 @@ export function drawOrderTotals(
 
   const after: TotalRow[] = [];
   if (cash > 0) after.push({ label: 'Advance paid', value: `- ${money(cash)}` });
-  if (inKind > 0) after.push({ label: what ? `Advance in exchange (${what})` : 'Advance in exchange', value: `- ${money(inKind)}` });
+  if (inKind > 0) {
+    if (exchanges.length > 1) {
+      for (const e of exchanges) after.push({ label: `Exchange: ${describeExchangeEntry(e)}`, value: `- ${money(e.value)}` });
+    } else {
+      const what = exchanges[0] ? describeExchangeEntry(exchanges[0]) : '';
+      after.push({ label: what ? `Exchange (${what})` : 'Exchange', value: `- ${money(inKind)}` });
+    }
+  }
 
   return drawTotals(doc, {
     pageWidth, pageHeight, margin, startY, onNewPage,

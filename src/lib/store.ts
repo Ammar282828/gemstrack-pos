@@ -184,6 +184,8 @@ function effectiveRole(): 'owner' | 'staff' | 'none' {
 }
 import { clientPort } from '@/lib/db-client-port';
 import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
+import { type ExchangeEntry, exchangeTotal, invoiceExchangeFields, orderExchanges } from '@/lib/exchange';
+import { orderAdvancePayments } from '@/lib/order-payment';
 import { createOrder } from '@/lib/writes/create-order';
 import { STORE_CONFIG } from '@/lib/store-config';
 export type { OverheadItem, OverheadPlan };
@@ -484,6 +486,9 @@ export interface Invoice {
   items: InvoiceItem[];
   subtotal: number;
   discountAmount: number;
+  /** Gold (or anything) taken in exchange, one row each — lib/exchange.ts. The three fields
+   *  below are kept as totals of these rows (older invoices have only them). */
+  exchanges?: ExchangeEntry[];
   exchangeDescription?: string;
   exchangeAmount1?: number;
   exchangeAmount2?: number;
@@ -640,6 +645,11 @@ export interface Order {
    *  so a price settled with the customer does not have to be re-entered. */
   discountAmount?: number;
   advancePayment: number;
+  /** How the first advance (taken with the order) was paid. Undefined on older orders. */
+  advanceMethod?: PaymentType;
+  /** Advances recorded after the order was placed, each with its date and how it was paid.
+   *  advancePayment stays the running total of all cash advances, the first included. */
+  advances?: Payment[];
   advanceGoldDetails?: string;
   grandTotal: number;
   summary?: string;
@@ -647,6 +657,9 @@ export interface Order {
   customerName?: string;
   customerContact?: string;
   source?: CustomerSource; // Per-order acquisition channel override (defaults to the customer's source)
+  /** Gold (or anything) taken in exchange, one row each — lib/exchange.ts. The two fields
+   *  below are kept as totals of these rows (older orders have only them). */
+  exchanges?: ExchangeEntry[];
   advanceInExchangeDescription?: string; // For gold/diamonds given by customer
   advanceInExchangeValue?: number; // Estimated value of the exchange
   invoiceId?: string; // Set when order is finalized into an invoice
@@ -659,6 +672,17 @@ export interface Order {
   shopifyOrderNumber?: number;
   shopifyDraftOrderId?: string; // Set while the order is in-progress (pre-invoice) and mirrored to Shopify as a draft order
   shopifyDraftOrderName?: string; // Shopify-assigned draft name (e.g. #D1)
+}
+
+/** What an invoice keeps about where it came from when it is edited and saved again. */
+const INVOICE_PROVENANCE = [
+  'sourceOrderId', 'source', 'notes', 'acquisitionSource', 'shopifyFulfillment', 'shopifyFinancialStatus',
+  'shopifyOrderName', 'shopifyOrderId', 'shopifyOrderNumber', 'shopifyDraftOrderId', 'shopifyCheckoutUrl',
+] as const;
+function pickDefined<T extends object, K extends keyof T>(obj: T, keys: readonly K[]): Partial<Pick<T, K>> {
+  const out: Partial<Pick<T, K>> = {};
+  for (const k of keys) if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') out[k] = obj[k];
+  return out;
 }
 
 /**
@@ -1329,7 +1353,8 @@ export interface AppState {
     customerInfo: { id?: string; name: string; phone?: string },
     invoiceRates: Partial<Settings>,
     discountAmount: number,
-    exchangeInfo?: { description: string; amount1: number; amount2: number },
+    /** What the customer handed over, one row each (lib/exchange.ts). */
+    exchanges?: ExchangeEntry[],
     existingInvoiceId?: string,
     delivery?: DeliveryInfo,
     takenBy?: TakenBy,
@@ -1372,7 +1397,7 @@ export interface AppState {
   ) => Promise<Invoice | null>;
   revertOrderFromInvoice: (orderId: string, invoiceId: string) => Promise<void>;
   refundOrder: (orderId: string) => Promise<void>;
-  recordOrderAdvance: (orderId: string, amount: number, notes: string) => Promise<Order | null>;
+  recordOrderAdvance: (orderId: string, amount: number, notes: string, method?: PaymentType) => Promise<Order | null>;
 
   loadHisaab: () => void;
   addHisaabEntry: (entryData: Omit<HisaabEntry, 'id'>) => Promise<HisaabEntry | null>;
@@ -2557,7 +2582,7 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?, takenBy?, hideRates?, internalNote?, payments?) => {
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchanges?, existingInvoiceId?, delivery?, takenBy?, hideRates?, internalNote?, payments?) => {
         if(get().settings.databaseLocked) return null;
         const { cart } = get();
         if (cart.length === 0) return null;
@@ -2672,8 +2697,7 @@ export const useAppStore = create<AppState>()(
                 }
 
                 const calculatedDiscountAmount = Math.max(0, Math.min(subtotal, Number(discountAmount) || 0));
-                const exchangeTotal = (exchangeInfo?.amount1 || 0) + (exchangeInfo?.amount2 || 0);
-                const grandTotal = subtotal - calculatedDiscountAmount - exchangeTotal;
+                const grandTotal = subtotal - calculatedDiscountAmount - exchangeTotal(exchanges);
                 const existingAdjustmentsAmount = getInvoiceAdjustmentsAmount(existingInvoiceData);
 
                 // Reuse existing ID when editing so the invoice number is never consumed twice
@@ -2721,9 +2745,11 @@ export const useAppStore = create<AppState>()(
                     customerId: finalCustomerId,
                     customerContact: customerInfo.phone ? normalizePhoneNumber(customerInfo.phone) : customerInfo.phone,
                     ...(existingAdjustmentsAmount !== 0 && { adjustmentsAmount: existingAdjustmentsAmount }),
-                    ...(exchangeInfo?.description && { exchangeDescription: exchangeInfo.description }),
-                    ...(exchangeInfo?.amount1 && { exchangeAmount1: exchangeInfo.amount1 }),
-                    ...(exchangeInfo?.amount2 && { exchangeAmount2: exchangeInfo.amount2 }),
+                    ...invoiceExchangeFields(exchanges || []),
+                    // Re-saving an invoice keeps where it came from: the order it was made
+                    // from, the Shopify order it mirrors, the channel the sale is credited to.
+                    // Without these an edited order-born invoice lost its order.
+                    ...(existingInvoiceData ? pickDefined(existingInvoiceData, INVOICE_PROVENANCE) : {}),
                     // Recorded only when the piece is actually going out, so an
                     // unticked box does not stamp every invoice with an empty
                     // delivery object.
@@ -3729,22 +3755,27 @@ export const useAppStore = create<AppState>()(
                 ...(finalizedData.isManualPrice && { isManualPrice: true }),
                 ...(originalItem.itemCategory && { itemCategory: originalItem.itemCategory }),
                 ...(originalItem.adminNote && { adminNote: originalItem.adminNote }),
+                // Silver's plating was left behind, so a Mina order's "21K gold plating,
+                // nickel-free" vanished from its invoice.
+                ...(originalItem.platingType && { platingType: originalItem.platingType }),
+                ...(originalItem.platingNote && { platingNote: originalItem.platingNote }),
+                ...(originalItem.nickelFree && { nickelFree: true }),
             };
             finalInvoiceItems.push(cleanObject(itemToAdd));
         });
 
+        // Everything the order settled is carried over as what it is (the owner, 2026-09-25):
+        // gold taken in exchange is the invoice's exchange, row for row, and comes off its
+        // total like an exchange at the counter; each cash advance is a payment of its own,
+        // with the day it was taken and how. (Until now the exchange and the advances were
+        // lumped into one "Advance from Order" payment.)
         const totalDiscount = additionalDiscount;
-        const grandTotal = finalSubtotal - totalDiscount;
+        const exchanges = orderExchanges(order);
+        const grandTotal = finalSubtotal - totalDiscount - exchangeTotal(exchanges);
 
-        const advancePayment: Payment = {
-            amount: (order.advancePayment || 0) + (order.advanceInExchangeValue || 0),
-            date: order.createdAt,
-            notes: `Advance from Order. Cash: ${order.advancePayment || 0}. Exchange: ${order.advanceInExchangeValue || 0} (${order.advanceInExchangeDescription || ''})`,
-        };
-
-        const paymentHistory: Payment[] = advancePayment.amount > 0 ? [advancePayment] : [];
-        const amountPaid = advancePayment.amount;
-        const balanceDue = finalSubtotal - amountPaid - totalDiscount;
+        const paymentHistory: Payment[] = orderAdvancePayments(order).map(p => cleanObject(p));
+        const amountPaid = paymentHistory.reduce((sum, p) => sum + p.amount, 0);
+        const balanceDue = grandTotal - amountPaid;
 
         const baseInvoiceData: Omit<Invoice, 'id'> = {
             items: finalInvoiceItems,
@@ -3762,6 +3793,11 @@ export const useAppStore = create<AppState>()(
             ...(order.source && { acquisitionSource: order.source }),
             sourceOrderId: order.id,
             ...(order.hideRates ? { hideRates: true } : {}),
+            ...invoiceExchangeFields(exchanges),
+            ...(order.takenBy ? { takenBy: order.takenBy } : {}),
+            // The order's notes are the shop's; on the invoice they are its note for the shop,
+            // which is never printed.
+            ...(order.notes?.trim() ? { internalNote: order.notes.trim() } : {}),
             // The address the customer gave when ordering is the address it
             // ships to. Without this the invoice was raised with no delivery
             // details at all and they had to be typed in again.
@@ -3923,7 +3959,7 @@ export const useAppStore = create<AppState>()(
             throw error;
         }
       },
-      recordOrderAdvance: async (orderId, amount, notes) => {
+      recordOrderAdvance: async (orderId, amount, notes, method) => {
         if (get().settings.databaseLocked) return null;
         const orderRef = doc(db, FIRESTORE_COLLECTIONS.ORDERS, orderId);
 
@@ -3937,21 +3973,32 @@ export const useAppStore = create<AppState>()(
                 
                 const currentAdvance = Number(orderData.advancePayment) || 0;
                 const newAdvancePayment = currentAdvance + amount;
-                const newGrandTotal = orderData.subtotal - newAdvancePayment - (orderData.advanceInExchangeValue || 0);
+                // The balance as the order form works it out: less the discount too, which
+                // this used to leave out, so a discounted order showed more owing after an advance.
+                const newGrandTotal = orderData.subtotal - (Number(orderData.discountAmount) || 0) - newAdvancePayment - (orderData.advanceInExchangeValue || 0);
+                // Each advance is kept with its day and how it was paid, and becomes a payment of
+                // its own on the invoice (generateInvoiceFromOrder).
+                const advance: Payment = cleanObject({
+                    amount, date: new Date().toISOString(),
+                    ...(notes?.trim() && { notes: notes.trim() }),
+                    ...(method && { method }),
+                });
+                const advances = [...(orderData.advances || []), advance];
 
                 transaction.update(orderRef, {
                     advancePayment: newAdvancePayment,
                     grandTotal: newGrandTotal,
+                    advances,
                 });
                 
                 // No hisaab entry here — the advance is captured as cashCredit when
                 // the order is finalized to an invoice, avoiding double-counting.
 
-                return { ...orderData, advancePayment: newAdvancePayment, grandTotal: newGrandTotal } as Order;
+                return { ...orderData, advancePayment: newAdvancePayment, grandTotal: newGrandTotal, advances } as Order;
             });
             syncOrderShopify(orderId, 'upsert');
             if (updatedOrder) {
-              await addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${amount.toLocaleString()}`, orderId);
+              await addActivityLog('order.update', `Advance recorded for Order ${orderId}`, `Amount: ${amount.toLocaleString()}${method ? ` (${method})` : ''}${notes?.trim() ? ` | ${notes.trim()}` : ''}`, orderId);
             }
             return updatedOrder;
         } catch (error) {

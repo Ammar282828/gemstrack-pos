@@ -16,8 +16,9 @@ import { KarigarAssign, KarigarBulkAssign } from '@/components/karigar/karigar-a
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
-import { getOrderPaymentStatus, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
+import { useAppStore, Order, OrderStatus, ORDER_STATUSES, KaratValue, OrderItem, Settings, Invoice, Product, MetalType, Karigar, CUSTOMER_SOURCE_LABELS, PAYMENT_TYPES } from '@/lib/store';
+import { orderExchanges, describeExchangeEntry } from '@/lib/exchange';
+import { getOrderPaymentStatus, orderAdvancePayments, type PaymentStatus as OrderPaymentStatus } from '@/lib/order-payment';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -321,7 +322,9 @@ const FinalizeOrderDialog: React.FC<{
                 <DialogHeader>
                     <DialogTitle>Finalize Order & Generate Invoice</DialogTitle>
                     <DialogDescription>
-                        Confirm or update the final weights and charges for each item before creating the sales invoice. The initial advance payment will be automatically applied.
+                        Confirm or update the final weights and charges for each item. Everything settled on the order carries over
+                        to the invoice: each advance as a payment with its date and how it was paid, the gold taken in exchange,
+                        the discount, who took the order, the delivery address and the notes.
                     </DialogDescription>
                 </DialogHeader>
                  <Form {...form}>
@@ -399,6 +402,7 @@ const FinalizeOrderDialog: React.FC<{
 const recordAdvanceSchema = z.object({
   amount: z.coerce.number().positive("Amount must be a positive number."),
   notes: z.string().min(3, "Please add a brief note for the payment.").default('Advance payment received'),
+  method: z.enum(PAYMENT_TYPES).default('Cash'),
 });
 type RecordAdvanceFormData = z.infer<typeof recordAdvanceSchema>;
 
@@ -411,15 +415,15 @@ const RecordAdvanceDialog: React.FC<{
     const { toast } = useToast();
     const form = useForm<RecordAdvanceFormData>({
       resolver: zodResolver(recordAdvanceSchema),
-      defaultValues: { amount: undefined, notes: 'Advance payment received' }
+      defaultValues: { amount: undefined, notes: 'Advance payment received', method: 'Cash' }
     });
 
     const handleRecordAdvance = async (data: RecordAdvanceFormData) => {
         try {
-            await recordOrderAdvance(order.id, data.amount, data.notes);
+            await recordOrderAdvance(order.id, data.amount, data.notes, data.method);
             toast({
                 title: "Advance Recorded",
-                description: `PKR ${data.amount.toLocaleString()} has been added to the advance for order ${order.id}.`,
+                description: `PKR ${data.amount.toLocaleString()} by ${data.method} has been added to the advance for order ${order.id}.`,
             });
             onOpenChange(false);
             form.reset();
@@ -445,6 +449,14 @@ const RecordAdvanceDialog: React.FC<{
                     <form onSubmit={form.handleSubmit(handleRecordAdvance)} className="space-y-4 pt-4">
                         <FormField control={form.control} name="amount" render={({ field }) => (
                            <FormItem><FormLabel>Advance Amount (PKR)</FormLabel><FormControl><AmountInput placeholder="Enter amount received" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="method" render={({ field }) => (
+                           <FormItem><FormLabel>Paid by</FormLabel>
+                             <Select value={field.value} onValueChange={field.onChange}>
+                               <FormControl><SelectTrigger aria-label="Advance paid by"><SelectValue /></SelectTrigger></FormControl>
+                               <SelectContent>{PAYMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                             </Select>
+                           <FormMessage /></FormItem>
                         )}/>
                         <FormField control={form.control} name="notes" render={({ field }) => (
                            <FormItem><FormLabel>Notes</FormLabel><FormControl><Input placeholder="e.g., Second advance payment" {...field} /></FormControl><FormMessage /></FormItem>
@@ -844,6 +856,9 @@ export default function OrderDetailPage() {
   // slip: price after discount, then less anything already paid.
   const discountAmount = typeof order.discountAmount === 'number' ? order.discountAmount : 0;
   const grandTotal = subtotal - discountAmount - advancePayment - advanceInExchangeValue;
+  // The advances as they will land on the invoice: the one taken with the order, then each
+  // recorded after it (lib/order-payment.ts).
+  const advanceLines = orderAdvancePayments(order, '').map(a => ({ ...a, notes: a.notes?.replace(/^: /, '') || (a.date === order.createdAt ? 'With the order' : '') }));
 
   const ratesApplied = order.ratesApplied || {};
   
@@ -1347,14 +1362,30 @@ export default function OrderDetailPage() {
                             <div className="flex justify-between text-destructive"><span>Discount:</span> <span className="font-semibold">- PKR {discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
                           )}
                           <div className="flex justify-between text-destructive"><span>Advance paid:</span> <span className="font-semibold">- PKR {advancePayment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
-                          {advanceInExchangeValue > 0 && (
-                            <div className="flex justify-between text-destructive"><span>Advance in exchange:</span> <span className="font-semibold">- PKR {advanceInExchangeValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          {/* Each advance with its day and how it was paid — these become the
+                              invoice's payments when the order is finalised. */}
+                          {advanceLines.length > 1 && (
+                            <ul className="text-xs text-muted-foreground space-y-0.5 pl-3">
+                              {advanceLines.map((a, i) => (
+                                <li key={i} className="flex justify-between gap-3">
+                                  <span>{format(parseISO(a.date), 'dd MMM yyyy')}{a.method ? ` · ${a.method}` : ''}{a.notes ? ` · ${a.notes}` : ''}</span>
+                                  <span className="tabular-nums">{a.amount.toLocaleString()}</span>
+                                </li>
+                              ))}
+                            </ul>
                           )}
-                          {order.advanceInExchangeDescription && (
-                              <div className="pt-2 text-sm text-muted-foreground">
-                                  <p className="font-semibold">Given in exchange</p>
-                                  <p className="whitespace-pre-wrap">{order.advanceInExchangeDescription}</p>
-                              </div>
+                          {advanceInExchangeValue > 0 && (
+                            <div className="flex justify-between text-destructive"><span>Taken in exchange:</span> <span className="font-semibold">- PKR {advanceInExchangeValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                          )}
+                          {orderExchanges(order).length > 0 && (
+                              <ul className="pt-1 text-xs text-muted-foreground space-y-0.5 pl-3">
+                                  {orderExchanges(order).map((e, i) => (
+                                    <li key={i} className="flex justify-between gap-3">
+                                      <span className="whitespace-pre-wrap">{describeExchangeEntry(e)}</span>
+                                      {orderExchanges(order).length > 1 && <span className="tabular-nums">{e.value.toLocaleString()}</span>}
+                                    </li>
+                                  ))}
+                              </ul>
                           )}
                           <Separator className="my-2 bg-muted-foreground/20"/>
                           <div className="flex justify-between font-bold text-xl"><span className="text-primary">Balance Due:</span> <span className="text-primary">PKR {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>

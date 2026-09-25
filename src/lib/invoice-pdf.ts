@@ -29,6 +29,7 @@ import { format } from 'date-fns';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { drawItemCell, itemCellHeight, type ItemBlock, wastageLine } from '@/lib/invoice-item-cell';
 import { drawDocHeader, drawDocFooter, tableStyles, drawRowRule, alignHeadCell, label, drawTotals, type TotalRow } from '@/lib/pdf-chrome';
+import { describeExchangeEntry } from '@/lib/exchange';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -102,6 +103,9 @@ export function splitInvoicePerPiece(inv: Invoice): PieceInvoice[] {
       discountAmount: discount[i],
       exchangeAmount1: exchange1[i] || undefined,
       exchangeAmount2: exchange2[i] || undefined,
+      // The rows carry the whole bill's values; a piece shows its share of the total
+      // under the rows' description instead (exchangeDescription).
+      exchanges: undefined,
       adjustmentsAmount: adjustments[i] || undefined,
       grandTotal,
       amountPaid: paid[i],
@@ -301,7 +305,15 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   const totalRows: TotalRow[] = [{ label: 'Subtotal', value: pkr(inv.subtotal) }];
   if (inv.discountAmount > 0) totalRows.push({ label: 'Discount', value: `- ${pkr(inv.discountAmount)}`, tone: 'ink' });
   if (adjustmentsAmount !== 0) totalRows.push({ label: 'Adjustments', value: pkr(adjustmentsAmount) });
-  if (inv.exchangeAmount1 || inv.exchangeAmount2) {
+  // One line per thing taken in exchange (lib/exchange.ts); an older invoice, or one piece
+  // of a split, has a description and its amounts.
+  const exchangeRows = (inv.exchanges || []).filter(e => e.value > 0);
+  if (exchangeRows.length === 1) {
+    totalRows.push({ label: `Exchange (${describeExchangeEntry(exchangeRows[0])})`, value: `- ${pkr(exchangeRows[0].value)}` });
+  } else if (exchangeRows.length > 1) {
+    totalRows.push({ label: 'Exchange', value: '', tone: 'ink' });
+    for (const e of exchangeRows) totalRows.push({ label: describeExchangeEntry(e), value: `- ${pkr(e.value)}` });
+  } else if (inv.exchangeAmount1 || inv.exchangeAmount2) {
     totalRows.push({ label: inv.exchangeDescription ? `Exchange (${inv.exchangeDescription})` : 'Exchange', value: '', tone: 'ink' });
     if (inv.exchangeAmount1) totalRows.push({ label: '', value: `- ${pkr(inv.exchangeAmount1)}` });
     if (inv.exchangeAmount2) totalRows.push({ label: '', value: `- ${pkr(inv.exchangeAmount2)}` });

@@ -164,7 +164,11 @@ export function summarizeDraft(draft: Draft): DraftSummary {
   // basket that was never in here.
   const parts = [
     num(data, 'discountAmountInput') > 0 ? `discount PKR ${num(data, 'discountAmountInput').toLocaleString()}` : '',
-    str(data, 'exchangeDescription') ? 'exchange noted' : '',
+    // Exchange rows since 2026-09-25 (components/shared/exchange-rows.tsx); a description before.
+    (str(data, 'exchangeDescription') || (Array.isArray(data.exchangeRows)
+      && (data.exchangeRows as { description?: string; value?: string }[]).some((r) => r?.description?.trim() || Number(r?.value) > 0)))
+      ? 'exchange noted' : '',
+    Array.isArray(data.salePayments) && (data.salePayments as { amount?: string }[]).some((r) => Number(r?.amount) > 0) ? 'payment entered' : '',
     str(data, 'internalNote') ? 'note for the shop' : '',
     str(data, 'walkInCustomerPhone') ? 'phone entered' : '',
   ].filter(Boolean);

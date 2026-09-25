@@ -51,6 +51,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { AmountInput } from '@/components/ui/amount-input';
+import { ExchangeRows, type ExchangeRow, blankExchangeRow, rowsFromExchanges, exchangesFromRows, exchangeRowsTotal } from '@/components/shared/exchange-rows';
+import { invoiceExchanges, describeExchangeEntry } from '@/lib/exchange';
 import { FormSkeleton } from '@/components/shared/skeletons';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
@@ -145,15 +147,14 @@ export default function CartPage() {
   
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
 
-  const [exchangeDescription, setExchangeDescription] = useState('');
 
   const [takenBy, setTakenBy] = useState<TakenBy | undefined>(undefined);
   // Print the bill without the per-gram rates. Pricing is unaffected; see Invoice.hideRates.
   const [hideRates, setHideRates] = useState(false);
   // See Invoice.internalNote: for the shop, never for the customer.
   const [internalNote, setInternalNote] = useState('');
-  const [exchangeAmount1Input, setExchangeAmount1Input] = useState<string>('');
-  const [exchangeAmount2Input, setExchangeAmount2Input] = useState<string>('');
+  // Gold (or anything) taken in exchange — the same rows as on an order (lib/exchange.ts).
+  const [exchangeRows, setExchangeRows] = useState<ExchangeRow[]>(() => [blankExchangeRow()]);
   // Payments taken as the invoice is written (the owner, 2026-09-25: "add payments as we make
   // the invoice"). One row to start; more for a bill paid part cash, part card. Blank rows
   // are ignored; generateInvoice files the rest in the invoice's payment history.
@@ -163,9 +164,9 @@ export default function CartPage() {
   // store; this is the rest of the sale.
   const invoiceDraftValue = useMemo(() => ({
     walkInCustomerName, walkInCustomerPhone, discountAmountInput,
-    exchangeDescription, exchangeAmount1Input, exchangeAmount2Input, internalNote, salePayments,
+    exchangeRows, internalNote, salePayments,
   }), [walkInCustomerName, walkInCustomerPhone, discountAmountInput,
-       exchangeDescription, exchangeAmount1Input, exchangeAmount2Input, internalNote, salePayments]);
+       exchangeRows, internalNote, salePayments]);
 
 
   
@@ -192,9 +193,10 @@ export default function CartPage() {
     setWalkInCustomerName(d.walkInCustomerName || '');
     setWalkInCustomerPhone(d.walkInCustomerPhone || '');
     setDiscountAmountInput(d.discountAmountInput || '0');
-    setExchangeDescription(d.exchangeDescription || '');
-    setExchangeAmount1Input(d.exchangeAmount1Input || '');
-    setExchangeAmount2Input(d.exchangeAmount2Input || '');
+    // A draft from before the exchange rows had a description and two amounts.
+    const legacy = d as unknown as { exchangeDescription?: string; exchangeAmount1Input?: string; exchangeAmount2Input?: string };
+    if (Array.isArray(d.exchangeRows) && d.exchangeRows.length) setExchangeRows(d.exchangeRows);
+    else setExchangeRows(rowsFromExchanges(invoiceExchanges({ exchangeDescription: legacy.exchangeDescription, exchangeAmount1: parseFloat(legacy.exchangeAmount1Input || '') || 0, exchangeAmount2: parseFloat(legacy.exchangeAmount2Input || '') || 0 })));
     setInternalNote(d.internalNote || '');
     if (Array.isArray(d.salePayments) && d.salePayments.length) setSalePayments(d.salePayments);
     discardInvoiceDraft();
@@ -435,16 +437,15 @@ export default function CartPage() {
     });
 
     const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
-    const parsedExchange1 = parseFloat(exchangeAmount1Input) || 0;
-    const parsedExchange2 = parseFloat(exchangeAmount2Input) || 0;
-    const grandTotal = currentSubtotal - parsedDiscountAmount - parsedExchange1 - parsedExchange2;
+    const parsedExchange = exchangeRowsTotal(exchangeRows);
+    const grandTotal = currentSubtotal - parsedDiscountAmount - parsedExchange;
 
     return {
         subtotal: currentSubtotal,
         grandTotal: grandTotal,
         items: estimatedItems,
     };
-  }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, exchangeAmount1Input, exchangeAmount2Input, cartMetalInfo]);
+  }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, exchangeRows, cartMetalInfo]);
 
   // What the payment rows come to. Editing an invoice, what it had already been paid
   // stays paid; these rows are added on top.
@@ -580,15 +581,13 @@ export default function CartPage() {
     // valid. Old hisaab cleanup is handled inside generateInvoice after the
     // transaction succeeds, so payment history can never be lost.
 
-    const exchangeInfo = (exchangeDescription.trim() || parseFloat(exchangeAmount1Input) || parseFloat(exchangeAmount2Input))
-        ? { description: exchangeDescription.trim(), amount1: parseFloat(exchangeAmount1Input) || 0, amount2: parseFloat(exchangeAmount2Input) || 0 }
-        : undefined;
+    const exchanges = exchangesFromRows(exchangeRows);
 
     setIsGeneratingEstimate(true);
     let invoice;
     try {
-      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy, hideRates, internalNote, paymentsNow);
-      if (invoice) { invoiceDraftDone(); setSalePayments([blankSalePayment()]); }
+      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchanges, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy, hideRates, internalNote, paymentsNow);
+      if (invoice) { invoiceDraftDone(); setSalePayments([blankSalePayment()]); setExchangeRows([blankExchangeRow()]); }
     } catch (error) {
       console.error("[Cart handleGenerateInvoice] Failed:", error);
       toast({
@@ -678,9 +677,7 @@ export default function CartPage() {
         silver: (generatedInvoice.ratesApplied.silverRatePerGram || settings.silverRatePerGram || 0).toFixed(2),
     });
     setDiscountAmountInput(String(generatedInvoice.discountAmount));
-    setExchangeDescription(generatedInvoice.exchangeDescription || '');
-    setExchangeAmount1Input(generatedInvoice.exchangeAmount1 ? String(generatedInvoice.exchangeAmount1) : '');
-    setExchangeAmount2Input(generatedInvoice.exchangeAmount2 ? String(generatedInvoice.exchangeAmount2) : '');
+    setExchangeRows(rowsFromExchanges(invoiceExchanges(generatedInvoice)));
     setEditingInvoiceId(generatedInvoice.id);
     setSalePayments([blankSalePayment()]);
     setGeneratedInvoice(null);
@@ -1028,12 +1025,12 @@ export default function CartPage() {
                         {getInvoiceExchangeTotal(generatedInvoice) > 0 && (
                           <div className="flex justify-end items-start gap-4">
                             <span className="text-muted-foreground text-right">
-                              Exchange{generatedInvoice.exchangeDescription ? ` (${generatedInvoice.exchangeDescription})` : ''}:
-                              {!!generatedInvoice.exchangeAmount1 && !!generatedInvoice.exchangeAmount2 && (
-                                <span className="block text-xs">
-                                  {generatedInvoice.exchangeAmount1.toLocaleString()} + {generatedInvoice.exchangeAmount2.toLocaleString()}
+                              Exchange:
+                              {invoiceExchanges(generatedInvoice).map((e, i) => (
+                                <span key={i} className="block text-xs">
+                                  {describeExchangeEntry(e)}{invoiceExchanges(generatedInvoice).length > 1 ? ` — ${e.value.toLocaleString()}` : ''}
                                 </span>
-                              )}
+                              ))}
                             </span>
                             <span className="w-32 font-medium flex-shrink-0">- PKR {getInvoiceExchangeTotal(generatedInvoice).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                           </div>
@@ -1532,12 +1529,8 @@ export default function CartPage() {
                               className="w-32 text-right" placeholder="0" aria-label="Discount" />
                         </div>
                         <div className="space-y-2 p-3 border rounded-md bg-muted/40">
-                            <Label className="text-sm font-medium">Exchange / Trade-in</Label>
-                            <Input placeholder="Description (e.g. Old 22k ring)" value={exchangeDescription} onChange={e => setExchangeDescription(e.target.value)}  aria-label="Exchange / Trade-in"/>
-                            <div className="grid grid-cols-2 gap-2">
-                                <AmountInput placeholder="Amount 1 (PKR)" value={exchangeAmount1Input} onValueChange={v => setExchangeAmount1Input(v === undefined ? '' : String(v))}  aria-label="Amount 1 (PKR)"/>
-                                <AmountInput placeholder="Amount 2 (PKR)" value={exchangeAmount2Input} onValueChange={v => setExchangeAmount2Input(v === undefined ? '' : String(v))}  aria-label="Amount 2 (PKR)"/>
-                            </div>
+                            <Label className="text-sm font-medium">Exchange gold / trade-in</Label>
+                            <ExchangeRows rows={exchangeRows} onChange={setExchangeRows} />
                         </div>
                         <Separator />
                         <div className="flex justify-between font-bold text-xl"><span className="text-primary">Total</span><span>PKR {estimatedInvoice?.grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) || '...'}</span></div>

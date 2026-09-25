@@ -1,4 +1,4 @@
-import type { Order } from '@/lib/store';
+import type { Order, Payment } from '@/lib/store';
 
 export type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
 
@@ -28,4 +28,28 @@ export function getOrderPaymentStatus(order: Order): PaymentStatus {
   if (balance <= 0) return 'Paid';
   if (totalAdvance > 0) return 'Partial';
   return 'Unpaid';
+}
+
+/**
+ * An order's cash advances as the invoice's payments, each with its day and how it was paid
+ * (the owner, 2026-09-25: "carry over all details from order to invoice, such as advances").
+ *
+ * `advancePayment` is the running total of every cash advance; `advances` lists the ones
+ * recorded after the order was placed. What the list does not account for was taken with the
+ * order, on the order's date, by `advanceMethod`. If the total was edited below its list, the
+ * total is trusted as one advance. `label` is what each payment's note says ("Advance on order
+ * ORD-000123"); the order page shows the same lines.
+ */
+export function orderAdvancePayments(order: Pick<Order, 'id' | 'createdAt' | 'advancePayment' | 'advanceMethod' | 'advances'>, label = `Advance on order ${order.id}`): Payment[] {
+  const cash = Number(order.advancePayment) || 0;
+  const later = (order.advances || []).filter((p) => Number(p.amount) > 0);
+  const laterSum = later.reduce((sum, p) => sum + Number(p.amount), 0);
+  if (laterSum > cash + 0.5) {
+    return cash > 0 ? [{ amount: cash, date: order.createdAt, notes: label }] : [];
+  }
+  const first = cash - laterSum;
+  return [
+    ...(first > 0.5 ? [{ amount: first, date: order.createdAt, notes: label, ...(order.advanceMethod ? { method: order.advanceMethod } : {}) }] : []),
+    ...later.map((p) => ({ ...p, amount: Number(p.amount), notes: p.notes?.trim() ? `${label}: ${p.notes.trim()}` : label })),
+  ];
 }

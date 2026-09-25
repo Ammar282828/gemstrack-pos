@@ -301,6 +301,19 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   **Shop mode** in Settings (Firestore, live on every screen) only decides devices that never chose. `<html>` carries `.dark`
   **only on the dark palette** now (`applyThemeToDocument`, and the boot script before paint) — it used to be there always, so
   every `dark:` style showed in light mode — plus `color-scheme` and the first-paint class, kept in step on every switch.
+- **Exchange gold is one set of rows everywhere** (2026-09-25, owner: "make the exchange gold field uniform and add the
+  ability to add another"): `components/shared/exchange-rows.tsx` in the order form and the cart — what it is, karat, grams,
+  rate/g, value (grams × rate until typed), **Add another exchange**. Stored as `exchanges` on orders and invoices
+  (`lib/exchange.ts`); every write also keeps the old fields as totals (`advanceInExchangeValue`/`Description` on orders,
+  `exchangeAmount1` + `exchangeDescription` on invoices), so balances, analytics, Shopify and the per-piece split read them
+  unchanged. Old documents are read through `orderExchanges` / `invoiceExchanges`. PDFs and the order slip print a line each.
+- **An order carries everything to its invoice** (2026-09-25, owner: "carry over all details from order to invoice, such
+  as advances, exchange gold"): exchange rows become the invoice's exchange (off its total, like the cart), each cash
+  advance a payment of its own with its date and method (`orderAdvancePayments` in `lib/order-payment.ts`; `Order.advances`
+  is written by Record an advance, `advanceMethod` by the order form), plus discount, taken by, delivery, notes (as the
+  invoice's never-printed `internalNote`), hide-rates, source and item plating. Until then exchange and advances were one
+  lumped "Advance from Order" payment. Re-saving an invoice from the cart keeps `sourceOrderId`, Shopify links and source
+  (`INVOICE_PROVENANCE`). Payments can also be taken in the cart as the invoice is written (`generateInvoice(…, payments)`).
 - Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**
   (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
   value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).

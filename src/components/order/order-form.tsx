@@ -13,7 +13,7 @@ import { SizePicker } from '@/components/shared/size-picker';
 import { KarigarPicker } from '@/components/karigar/karigar-picker';
 import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/shared/delivery-fields';
 import { KARAT_VALUES as karatValues, METAL_TYPES as metalTypeValues, metalLabel, karatsFor, metalHasKarat } from '@/lib/materials';
-import { useAppStore, Settings, KaratValue, DeliveryInfo, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, CUSTOMER_SOURCES, TAKEN_BY, CUSTOMER_SOURCE_LABELS } from '@/lib/store';
+import { useAppStore, Settings, KaratValue, DeliveryInfo, calculateProductCosts, Order, OrderItem, Customer, MetalType, Product, Karigar, staticCategories, CUSTOMER_SOURCES, TAKEN_BY, CUSTOMER_SOURCE_LABELS, PAYMENT_TYPES } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,6 +38,8 @@ import { Label } from '@/components/ui/label';
 import { cn, normalizePhoneNumber } from '@/lib/utils';
 import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
+import { ExchangeRows, type ExchangeRow, blankExchangeRow, rowsFromExchanges, exchangesFromRows } from '@/components/shared/exchange-rows';
+import { orderExchanges, orderExchangeFields, exchangeTotal, describeExchanges } from '@/lib/exchange';
 import { Switch } from '@/components/ui/switch';
 import { addDays, differenceInCalendarDays, format as formatDate, parseISO, startOfDay } from 'date-fns';
 import { DEFAULT_PROMISE_DAYS, URGENT_WINDOW_DAYS } from '@/lib/order-timing';
@@ -148,6 +150,15 @@ const orderFormSchema = z.object({
     hideRates: z.boolean().default(false),
     discountAmount: z.coerce.number().min(0).default(0),
     advancePayment: z.coerce.number().min(0).default(0),
+    /** How the advance taken with the order was paid. */
+    advanceMethod: z.enum(PAYMENT_TYPES).optional(),
+    // The exchange rows as typed (components/shared/exchange-rows.tsx). Part of the form so an
+    // unfinished order's draft keeps them; the two fields below are their totals, kept in step
+    // by setExchangeRows, and are what every total on this form reads.
+    exchangeRows: z.array(z.object({
+      id: z.string(), description: z.string(), karat: z.string(), weightG: z.string(),
+      ratePerGram: z.string(), value: z.string(), valueTyped: z.boolean(),
+    })).default([]),
     advanceInExchangeDescription: z.string().optional(),
     advanceInExchangeValue: z.coerce.number().min(0).default(0),
     customerId: z.string().optional(),
@@ -377,6 +388,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
       palladiumRate18k: 0, palladiumRate12k: 0,
       discountAmount: 0,
       advancePayment: 0,
+      advanceMethod: 'Cash',
+      exchangeRows: [blankExchangeRow()],
       advanceInExchangeDescription: '',
       advanceInExchangeValue: 0,
       customerId: WALK_IN_CUSTOMER_VALUE,
@@ -421,6 +434,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         hideRates: !!order.hideRates,
         discountAmount: Number(order.discountAmount) || 0,
         advancePayment: Number(order.advancePayment) || 0,
+        advanceMethod: order.advanceMethod,
+        exchangeRows: rowsFromExchanges(orderExchanges(order)),
         advanceInExchangeDescription: order.advanceInExchangeDescription || '',
         advanceInExchangeValue: Number(order.advanceInExchangeValue) || 0,
         customerId: order.customerId || WALK_IN_CUSTOMER_VALUE,
@@ -445,6 +460,14 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
 
 
   const formValues = form.watch();
+
+  // The exchange rows, and the totals every figure on this form reads, kept in step.
+  const setExchangeRows = React.useCallback((rows: ExchangeRow[]) => {
+    const list = exchangesFromRows(rows);
+    form.setValue('exchangeRows', rows, { shouldDirty: true });
+    form.setValue('advanceInExchangeValue', exchangeTotal(list), { shouldDirty: true });
+    form.setValue('advanceInExchangeDescription', describeExchanges(list), { shouldDirty: true });
+  }, [form]);
 
   // An unfinished order is kept on this device and offered back. Editing is
   // skipped: that record already exists, so there is nothing to lose.
@@ -592,8 +615,11 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
             }
         }
         
+        const { exchangeRows: editedRows, ...fields } = data;
         const updatedOrderData: Partial<Order> = {
-            ...data,
+            ...fields,
+            ...orderExchangeFields(exchangesFromRows(editedRows || [])),
+            ...(Number(data.advancePayment) > 0 ? {} : { advanceMethod: null as unknown as undefined }),
             customerId: finalCustomerId,
             customerName: finalCustomerName || 'Walk-in Customer', // Ensure name is not undefined
             items: enrichedItems,
@@ -633,8 +659,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
             // here is how a field ends up saving on edit and vanishing on create.
             ...(data.takenBy ? { takenBy: data.takenBy } : {}),
             advancePayment: data.advancePayment,
-            advanceInExchangeDescription: data.advanceInExchangeDescription,
-            advanceInExchangeValue: data.advanceInExchangeValue,
+            ...(Number(data.advancePayment) > 0 && data.advanceMethod ? { advanceMethod: data.advanceMethod } : {}),
+            ...orderExchangeFields(exchangesFromRows(data.exchangeRows || [])),
             subtotal,
             discountAmount: discount,
             grandTotal,
@@ -748,9 +774,17 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
     // Old gold against the order. The description carries everything the slip said about
     // it — weight, karat, its own rate — and the value is only what the slip priced it at.
     if (scan.exchange) {
-      const ex = exchangeValue(scan.exchange);
-      form.setValue('advanceInExchangeDescription', describeExchange(scan.exchange));
-      if (ex.value > 0) form.setValue('advanceInExchangeValue', ex.value);
+      const x = scan.exchange;
+      const ex = exchangeValue(x);
+      setExchangeRows([{
+        ...blankExchangeRow(),
+        description: String(x.description ?? '').trim() || describeExchange(x),
+        karat: Number(x.karat) > 0 ? `${Math.round(Number(x.karat))}k` : '',
+        weightG: Number(x.weightG) > 0 ? String(x.weightG) : '',
+        ratePerGram: Number(x.ratePerGram) > 0 ? String(Math.round(Number(x.ratePerGram))) : '',
+        value: ex.value > 0 ? String(ex.value) : '',
+        valueTyped: ex.from === 'written',
+      }]);
     }
 
     const karigarId = scan.karigar?.pinned?.id ?? '';
@@ -1437,23 +1471,27 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                         </FormItem>
                     )}/>
 
+                    <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
                     <FormField control={form.control} name="advancePayment" render={({ field }) => (
                        <FormItem>
-                            <FormLabel className="text-xs">Advance paid (cash)</FormLabel>
+                            <FormLabel className="text-xs">Advance paid</FormLabel>
                             <FormControl><AmountInput {...field} /></FormControl><FormMessage />
                         </FormItem>
                     )}/>
+                    <FormField control={form.control} name="advanceMethod" render={({ field }) => (
+                       <FormItem>
+                            <FormLabel className="text-xs">Paid by</FormLabel>
+                            <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                              <FormControl><SelectTrigger className="w-36" aria-label="Advance paid by"><SelectValue placeholder="How?" /></SelectTrigger></FormControl>
+                              <SelectContent>{PAYMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </FormItem>
+                    )}/>
+                    </div>
                     
                     <div className="p-3 border rounded-md bg-muted/30">
-                        <p className="text-xs font-medium mb-2">Advance in exchange (gold / diamonds)</p>
-                        <div className="space-y-2">
-                            <FormField control={form.control} name="advanceInExchangeDescription" render={({ field }) => (
-                               <FormItem><FormLabel className="text-xs">What was received</FormLabel><FormControl><Textarea placeholder="e.g., Old gold ring (21k, ~5.2g)" {...field} rows={2} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="advanceInExchangeValue" render={({ field }) => (
-                               <FormItem><FormLabel className="text-xs">Its value (PKR)</FormLabel><FormControl><AmountInput {...field} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                        </div>
+                        <p className="text-xs font-medium mb-2">Exchange gold / trade-in</p>
+                        <ExchangeRows rows={formValues.exchangeRows?.length ? formValues.exchangeRows : [blankExchangeRow()]} onChange={setExchangeRows} />
                     </div>
                     </PanelSection>
 
