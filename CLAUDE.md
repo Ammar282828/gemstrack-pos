@@ -71,7 +71,11 @@ bank env vars and the open Firestore rules.
   baked into code; leave one out and Mina comes up wearing Taheri's name.
 - What the variables drive: `src/lib/store-config.ts` (name, contacts, bank, links, allowed emails,
   default metal, margin, **brand**, logo and its aspect, **counter staff** for "Taken by"); `globals.css`
-  (`.dark .brand-mina` is Mina's maroon dark palette; Taheri's is the plain `.dark`); `layout.tsx`
+  (`.dark .brand-mina:not(.theme-default)` is Mina's dark palette — muted burgundy with the catalogue's dusty rose
+  #E8A5AE as the accent, 2026-09-25 — and `.brand-mina.theme-default` gives its light theme Mina's maroon #380000; Taheri's
+  dark is the plain `.dark`. A palette block on <body> must re-declare the `--sidebar-*` vars, which otherwise resolve on
+  <html> to Taheri's colours. Each house's logo has a white cut for dark grounds, `NEXT_PUBLIC_STORE_LOGO_LIGHT_URL`:
+  `taheri-logo-light.png` by default, Mina's `house-of-mina-logo-light.png`); `layout.tsx`
   (brand class, theme-colour, links host); `app-layout.tsx` (the Website menu exists only when
   `NEXT_PUBLIC_STORE_WEBSITE_URL` is set; **Shareholder Finances** and "paid by Mina/Ammar" on an expense only when
   `NEXT_PUBLIC_STORE_PARTNERSHIP=1` — Mina's partnership book, whose ledgers live in Mina's Firestore);

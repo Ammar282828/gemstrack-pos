@@ -22,14 +22,21 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  # The maroon of the wordmark, for the browser chrome (globals.css .brand-mina).
+  # Mina's muted burgundy ground, for the browser chrome (globals.css .brand-mina).
   - variable: NEXT_PUBLIC_STORE_THEME_COLOR
-    value: "#1A0E0E"
+    value: "#1C1114"
     availability:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_STORE_LOGO_URL
     value: /house-of-mina-logo.png
+    availability:
+      - BUILD
+      - RUNTIME
+  # The same wordmark in off-white, for the dark palette and the links page — the
+  # maroon one cannot be seen on Mina's own maroon ground.
+  - variable: NEXT_PUBLIC_STORE_LOGO_LIGHT_URL
+    value: /house-of-mina-logo-light.png
     availability:
       - BUILD
       - RUNTIME
