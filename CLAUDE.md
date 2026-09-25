@@ -244,6 +244,12 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   itself (not connected — always on Mina — or switched off for music) is Publish's last step, **by hand** (a Share button in the step
   list); story only then makes the main button "Share the story"; the queue refuses until it has been shared or saved (it would be lost
   when the page clears). "Save the story and the post" hands every image to the share sheet at once (Photos on a phone).
+  **Layout** (owner: "quite cluttered and hard to navigate"): five numbered steps — Photos, The piece, The story and the post, Where it
+  goes, Send. On a phone they run in that order (the two columns are `contents` below `lg`, sections carry `order-*`), so the designs
+  show right after the headline; on a computer 3 and 5 sit beside the form. Folded until asked for: the piece's metal/stones/small line
+  ("More details"), the website name ("Change"), the caption's extra line, the editor's "Photo & colours". One tool row per design
+  (Layouts · Add · AI menu · Design; the AI menu holds Make the whole story, New setting, Extend, Ask AI, AI lettering and "remove tags");
+  "From your phone" is one button plus a More menu.
 - **Posts → From the website** (`/website/from-site`, 2026-09-25; owner: "give me an option to take any post from taheri.shop (or
   randomize) … add the post link to whatsapp community from right there", then the same for House of Mina): opens on **New arrivals**
   (owner: "by default show new arrivals"; `src/lib/website/new-arrivals.ts`, tested — the catalogue's own shelf, `newArrival` in

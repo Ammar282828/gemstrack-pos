@@ -32,7 +32,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Undo2, Redo2, Plus, LayoutTemplate, Type, ArrowUpRight, Minus, Circle, Square, Link2, Image as ImageIcon, Trash2, Save, BookmarkCheck,
   Maximize2, Lock, Copy, MoreHorizontal, ArrowLeft, Download, ZoomIn, ZoomOut, Shapes, PaintBucket, Layers, Palette as PaletteIcon, Upload, Clipboard, Scissors,
-  ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Group, Ungroup, Unlock, Paintbrush, Pencil, ArrowRightLeft,
+  ChevronsUp, ChevronsDown, ArrowUp, ArrowDown, Group, Ungroup, Unlock, Paintbrush, Pencil, ArrowRightLeft, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Palette } from '@/lib/social/palettes';
@@ -913,7 +913,8 @@ export interface PairSide {
   sub: string;
   /** Shown instead of the editor while there is nothing to design yet (no photo). */
   placeholder?: React.ReactNode;
-  /** The page's own tools for this design, above and below its editor. */
+  /** The page's own tools for this design: in the editor's toolbar (its AI menu), and above and below the editor. */
+  tools?: React.ReactNode;
   top?: React.ReactNode;
   bottom?: React.ReactNode;
 }
@@ -962,7 +963,7 @@ export function PairEditor({ story, square, show, active, onActive }: {
         <p className="text-sm font-semibold">{side.label} <span className="font-normal text-muted-foreground">· {side.sub}</span></p>
       )}
       {side.top}
-      {side.placeholder ?? <InlineEditor key={k} ed={ed} designer={designer} onDesign={panel => { if (panel) ed.setPanel(panel); setDesigner(true); }} />}
+      {side.placeholder ?? <InlineEditor key={k} ed={ed} tools={side.tools} designer={designer} onDesign={panel => { if (panel) ed.setPanel(panel); setDesigner(true); }} />}
       {!empty && side.bottom}
       {designer && !empty && (
         <Designer ed={ed} onClose={() => setDesigner(false)} F={ed.F}
@@ -1013,12 +1014,17 @@ function Thumb({ ed, h }: { ed: Editor; h: number }) {
   return <canvas ref={ref} aria-hidden className="rounded-[3px] bg-muted shadow-sm" style={{ width: w, height: h }} />;
 }
 
-/** One design's small editor: its toolbar, the canvas, and the inspector for what is selected. */
-function InlineEditor({ ed, designer, onDesign }: { ed: Editor; designer: boolean; onDesign: (panel?: SidePanel) => void }) {
+/**
+ * One design's small editor: one row of tools, the canvas, undo and redo under
+ * it, and the settings for what is selected — the photo's own settings folded
+ * away until asked for (the designer has everything).
+ */
+function InlineEditor({ ed, tools, designer, onDesign }: { ed: Editor; tools?: React.ReactNode; designer: boolean; onDesign: (panel?: SidePanel) => void }) {
   const { api, square, p } = ed;
   const { palette, assets, photos, websiteLabel } = p;
+  const [bgOpen, setBgOpen] = useState(false);
   return (<>
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 [&>button]:px-2.5 sm:[&>button]:px-3">
       <DropdownMenu>
         <DropdownMenuTrigger asChild><Button size="sm" variant="outline"><LayoutTemplate className="h-4 w-4 mr-1.5" /> Layouts</Button></DropdownMenuTrigger>
         <DropdownMenuContent align="start">
@@ -1054,11 +1060,8 @@ function InlineEditor({ ed, designer, onDesign }: { ed: Editor; designer: boolea
           <DropdownMenuItem onClick={() => onDesign('elements')}><Shapes className="h-4 w-4 mr-2" /> Shapes, frames, stickers…</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {tools}
       <Button size="sm" onClick={() => onDesign()} title="Open the full designer"><Maximize2 className="h-4 w-4 mr-1.5" /> Design</Button>
-      <div className="ml-auto flex gap-1">
-        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={api.undo} disabled={!api.canUndo} title="Undo (⌘Z)"><Undo2 className="h-4 w-4" /></Button>
-        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={api.redo} disabled={!api.canRedo} title="Redo (⇧⌘Z)"><Redo2 className="h-4 w-4" /></Button>
-      </div>
     </div>
 
     {designer ? (
@@ -1068,16 +1071,30 @@ function InlineEditor({ ed, designer, onDesign }: { ed: Editor; designer: boolea
     ) : (
       <Stage ed={ed} designer={false} className={cn('mx-auto', square ? 'w-[300px] sm:w-[340px]' : 'w-[270px] sm:w-[300px]')} />
     )}
-    <p className="text-[11px] text-center text-muted-foreground">Tap to select · drag to move · corners to resize · dot below to turn · double-tap words to type · <button type="button" className="text-primary" onClick={() => onDesign()}>full designer</button></p>
+    <div className="flex items-center gap-1">
+      <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={api.undo} disabled={!api.canUndo} title="Undo (⌘Z)" aria-label="Undo"><Undo2 className="h-4 w-4" /></Button>
+      <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={api.redo} disabled={!api.canRedo} title="Redo (⇧⌘Z)" aria-label="Redo"><Redo2 className="h-4 w-4" /></Button>
+      <p className="min-w-0 flex-1 text-right text-[11px] leading-tight text-muted-foreground">Tap to select and drag · double-tap words to type</p>
+    </div>
 
     {p.lettered ? (
-      <p className="text-xs text-muted-foreground">AI lettering is on — switch to “Our fonts” to move and style the text yourself.</p>
+      <p className="text-xs text-muted-foreground">AI lettering is on — switch back to our fonts (AI menu) to move and style the text yourself.</p>
     ) : ed.one ? (
       <LayerInspector ed={ed} layer={ed.one} />
     ) : ed.selLayers.length > 1 ? (
       <SelectionSummary ed={ed} />
+    ) : bgOpen ? (
+      <div className="space-y-1">
+        <button type="button" onClick={() => setBgOpen(false)} className="ml-auto flex min-h-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground">Hide <ChevronUp className="h-3.5 w-3.5" /></button>
+        <BackgroundInspector ed={ed} />
+      </div>
     ) : (
-      <BackgroundInspector ed={ed} />
+      <button type="button" onClick={() => setBgOpen(true)}
+        className="flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm hover:bg-muted/50">
+        <PaintBucket className="h-4 w-4 text-muted-foreground" />
+        <span className="flex-1">{square ? 'Photos & crop' : 'Photo & colours'}</span>
+        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      </button>
     )}
   </>);
 }

@@ -50,13 +50,13 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import {
   Send, ImagePlus, Camera, X, Star, Loader2, Check, RotateCw, Share2, Download, Copy, ExternalLink, Instagram,
   MessageCircle, Globe, Sparkles, Wand2, Expand, Palette as PaletteIcon, Type, ShieldCheck, ShieldAlert, Link2, MessageSquareText,
-  Radio, ListPlus,
+  Radio, ListPlus, ChevronDown, MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_LINKS, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL, STORE_MARK_SVG, STORE_MONOGRAM_SVG, STORE_POST_PIECE, STORE_POST_TAGLINE, STORE_POST_FOOTER } from '@/lib/store-config';
@@ -188,6 +188,10 @@ function PostAPiecePage() {
   const [metal, setMetal] = useState(STORE_POST_METAL);
   const [stones, setStones] = useState('');
   const [hook, setHook] = useState('');
+  // Folded until asked for: the piece's other details, the website name, the caption's extra line.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [hookOpen, setHookOpen] = useState(false);
 
   // ── The story: a document of layers (see story-editor.tsx); its background photo is the story photo ──
   const story = useStoryDoc(emptyDoc(null));
@@ -836,7 +840,7 @@ function PostAPiecePage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Send className="mr-3 h-7 w-7" /> Post a Piece</h1>
-          <p className="text-sm text-muted-foreground mt-1">Photos and a weight in; the story, the captions and the website photo out — with AI wherever you want it.</p>
+          <p className="text-sm text-muted-foreground mt-1">One piece in — its story, its post and its caption out, sent from here.</p>
         </div>
         {busyList.length > 0 && (
           <div className="flex items-center gap-2 text-sm rounded-full bg-primary/10 text-primary px-3 py-1.5">
@@ -849,26 +853,35 @@ function PostAPiecePage() {
 
       <HealthPanel health={health} />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        {/* ── Left: what goes in ── */}
-        <div className="space-y-6 min-w-0">
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">1 · Photos</h2>
-            <div
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => { e.preventDefault(); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files); }}
-              className="rounded-xl border-2 border-dashed border-muted-foreground/25 p-5 text-center"
-            >
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <Button type="button" variant="secondary" onClick={() => fileRef.current?.click()}><ImagePlus className="h-4 w-4 mr-2" /> Choose photos</Button>
-                <Button type="button" variant="outline" onClick={() => cameraRef.current?.click()} className="sm:hidden"><Camera className="h-4 w-4 mr-2" /> Take a photo</Button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">Or drag them here. {formats === 'both' ? 'The starred one leads: the story’s photo and the first post' : formats === 'story' ? 'The starred one is the story' : 'The starred one goes first'}; <Sparkles className="inline h-3 w-3" /> on a photo for AI.</p>
-              <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
-              <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
+      {/*
+        The steps. On a phone they run in order — photos, the piece, the designs, where it goes, send —
+        so the story and the post show as soon as there is a headline; on a computer the designs and
+        Send sit beside the form. The two columns are `contents` on a phone, so `order` can interleave them.
+      */}
+      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-6">
+        <div className="contents lg:block lg:min-w-0 lg:space-y-8">
+          <section className="order-1 min-w-0 space-y-3"
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => { e.preventDefault(); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files); }}>
+            <div className="flex items-center justify-between gap-2">
+              <StepTitle n={1}>Photos</StepTitle>
+              {(photos.length > 0 || reading > 0) && (
+                <div className="flex gap-1.5">
+                  <Button type="button" size="sm" variant="outline" onClick={() => fileRef.current?.click()}><ImagePlus className="h-4 w-4 mr-1.5" /> Add</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => cameraRef.current?.click()} className="sm:hidden" aria-label="Take a photo"><Camera className="h-4 w-4" /></Button>
+                </div>
+              )}
             </div>
-            {(photos.length > 0 || reading > 0) && (
-              <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {!photos.length && !reading ? (
+              <div className="rounded-xl border-2 border-dashed border-muted-foreground/25 p-5 text-center">
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button type="button" variant="secondary" onClick={() => fileRef.current?.click()}><ImagePlus className="h-4 w-4 mr-2" /> Choose photos</Button>
+                  <Button type="button" variant="outline" onClick={() => cameraRef.current?.click()} className="sm:hidden"><Camera className="h-4 w-4 mr-2" /> Take a photo</Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Or drag them here.</p>
+              </div>
+            ) : (<>
+              <ul className="grid grid-cols-3 gap-2 sm:gap-3">
                 {photos.map(p => (
                   <PhotoTile
                     key={p.id}
@@ -879,6 +892,8 @@ function PostAPiecePage() {
                     busy={busyAny}
                     siteOn={makeSquare && toWebsite && !!SITE}
                     waOn={makeSquare && toWhatsApp && !!community}
+                    tidy={tidy}
+                    onTidy={setTidy}
                     onHero={() => setHeroId(p.id)}
                     onRemove={() => removePhoto(p.id)}
                     onToggle={patch => patchPhoto(p.id, patch)}
@@ -892,57 +907,70 @@ function PostAPiecePage() {
                   <li key={`r${i}`} className="aspect-square rounded-lg border bg-muted/40 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></li>
                 ))}
               </ul>
-            )}
-            {photos.length > 0 && (
-              <label className="flex items-center gap-2 text-xs text-muted-foreground"><Switch checked={tidy} onCheckedChange={setTidy} /> AI also removes price tags, strings and old labels</label>
-            )}
+              {photos.length > 0 && (
+                <p className="text-xs text-muted-foreground"><Star className="inline h-3 w-3 -mt-0.5" /> {formats === 'both' ? 'leads: the story’s photo and the first post' : formats === 'story' ? 'is the story' : 'goes first'} · <Sparkles className="inline h-3 w-3 -mt-0.5" /> AI on any photo</p>
+              )}
+            </>)}
+            <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
           </section>
 
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">2 · The piece</h2>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5 sm:col-span-2">
+          <section className="order-2 min-w-0 space-y-3">
+            <StepTitle n={2}>The piece</StepTitle>
+            <div className="grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2.5 sm:grid-cols-[minmax(0,1fr)_9rem] sm:gap-3">
+              <div className="min-w-0 space-y-1.5">
                 <Label htmlFor="headline">Headline</Label>
                 <Input id="headline" value={headline} onChange={e => setHeadline(e.target.value)} placeholder="Bangle & Ring" className="h-12 text-lg" />
-                <div className="flex flex-wrap gap-1.5">
-                  {[...(aiCaption?.headlines ?? []), 'Set of the Day', chosen?.collection]
-                    .filter((s, i, a): s is string => !!s && s !== headline && a.indexOf(s) === i)
-                    .slice(0, 5)
-                    .map(s => (
-                      <button key={s} type="button" onClick={() => setHeadline(s)} className="text-xs rounded-full border px-2.5 py-1 text-muted-foreground hover:text-foreground">{s}</button>
-                    ))}
-                </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="weight">Weight (grams)</Label>
+                <Label htmlFor="weight">Weight (g)</Label>
                 <Input id="weight" inputMode="decimal" value={weight} onChange={e => setWeight(e.target.value.replace(/[^\d.]/g, ''))} onFocus={e => e.currentTarget.select()} placeholder="18.8" className="h-12 text-lg tabular-nums" />
-                <label className="flex items-center gap-2 text-xs text-muted-foreground"><Switch checked={weightEach} onCheckedChange={setWeightEach} /> Weight is for each piece</label>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="kicker">Small line above <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                <Input id="kicker" value={kicker} onChange={e => setKicker(e.target.value)} placeholder="Lightweight" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="metal">Metal</Label>
-                <Input id="metal" value={metal} onChange={e => setMetal(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="stones">Stones <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                <Input id="stones" value={stones} onChange={e => setStones(e.target.value)} placeholder="Simulated Sapphires" />
-                {aiCaption?.stonesSeen && !stones && <p className="text-xs text-muted-foreground">AI sees: {aiCaption.stonesSeen}. Name them if you know.</p>}
               </div>
             </div>
+            {(() => {
+              const ideas = [...(aiCaption?.headlines ?? []), 'Set of the Day', chosen?.collection]
+                .filter((s, i, a): s is string => !!s && s !== headline && a.indexOf(s) === i).slice(0, 4);
+              return ideas.length ? (
+                <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1">
+                  {ideas.map(s => (
+                    <button key={s} type="button" onClick={() => setHeadline(s)} className="shrink-0 whitespace-nowrap text-xs rounded-full border px-2.5 py-1 text-muted-foreground hover:text-foreground">{s}</button>
+                  ))}
+                </div>
+              ) : null;
+            })()}
+            <button type="button" onClick={() => setDetailsOpen(o => !o)} aria-expanded={detailsOpen}
+              className="flex min-h-0 w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm hover:bg-muted/50">
+              <span className="font-medium">More details</span>
+              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{[metal, stones, kicker && `“${kicker}”`, weightEach && 'weight each'].filter(Boolean).join(' · ')}</span>
+              <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', detailsOpen && 'rotate-180')} />
+            </button>
+            {detailsOpen && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="metal">Metal</Label>
+                  <Input id="metal" value={metal} onChange={e => setMetal(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="stones">Stones <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Input id="stones" value={stones} onChange={e => setStones(e.target.value)} placeholder="Simulated Sapphires" />
+                  {aiCaption?.stonesSeen && !stones && <p className="text-xs text-muted-foreground">AI sees: {aiCaption.stonesSeen}. Name them if you know.</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="kicker">Small line above the headline <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                  <Input id="kicker" value={kicker} onChange={e => setKicker(e.target.value)} placeholder="Lightweight" />
+                </div>
+                <label className="flex items-center gap-2 text-sm sm:self-end sm:pb-2.5"><Switch checked={weightEach} onCheckedChange={setWeightEach} /> The weight is for each piece</label>
+              </div>
+            )}
           </section>
 
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">3 · Where it goes</h2>
+          <section className="order-4 min-w-0 space-y-3">
+            <StepTitle n={4}>Where it goes</StepTitle>
 
             {makeSquare && SITE && (
-              <div className="rounded-lg border p-4 space-y-3">
+              <div className="rounded-lg border p-3 space-y-2.5">
                 <label className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 font-medium"><Globe className="h-4 w-4" /> {SITE_NAME}<span className="text-muted-foreground font-normal text-sm">· {sitePhotos.length} photo{sitePhotos.length === 1 ? '' : 's'}</span></span>
+                  <span className="flex min-w-0 items-center gap-2 font-medium"><Globe className="h-4 w-4 shrink-0" /> <span className="truncate">{SITE_NAME}</span><span className="shrink-0 text-muted-foreground font-normal text-xs">· {sitePhotos.length} photo{sitePhotos.length === 1 ? '' : 's'}</span></span>
                   <Switch checked={toWebsite} onCheckedChange={setToWebsite} />
                 </label>
                 {toWebsite && (<>
@@ -958,61 +986,60 @@ function PostAPiecePage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="sitename" className="text-xs">Name on the website</Label>
-                    <Input id="sitename" value={siteName} onChange={e => { setSiteName(e.target.value); setSiteNameEdited(true); }} placeholder={chosen?.collection ?? 'Piece name'} />
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
                     <label className="flex items-center gap-2"><Switch checked={weightStamped} disabled={!wLabel}
-                      onCheckedChange={v => square.change(d => ({ ...d, layers: d.layers.map(l => l.kind === 'text' && l.bind === 'weight' ? { ...l, hidden: !v } : l) }))} /> {wLabel || 'Weight'} in the corner</label>
-                    <button type="button" className="text-xs text-primary" onClick={() => showDesign('square')}>Edit the post →</button>
+                      onCheckedChange={v => square.change(d => ({ ...d, layers: d.layers.map(l => l.kind === 'text' && l.bind === 'weight' ? { ...l, hidden: !v } : l) }))} /> {wLabel || 'Weight'} on the photo</label>
+                    {STORE_WEBSITE_FEATURED && <label className="flex items-center gap-2"><Switch checked={feature} onCheckedChange={setFeature} /> Set of the day</label>}
                   </div>
-                  {STORE_WEBSITE_FEATURED && (
-                    <label className="flex items-center gap-2 text-sm"><Switch checked={feature} onCheckedChange={setFeature} /> Make it the set of the day</label>
+                  {renameOpen ? (
+                    <div className="space-y-1">
+                      <Label htmlFor="sitename" className="text-xs">Name on the website</Label>
+                      <Input id="sitename" value={siteName} onChange={e => { setSiteName(e.target.value); setSiteNameEdited(true); }} placeholder={chosen?.collection ?? 'Piece name'} autoFocus />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground truncate">Named “{siteName || headline || '…'}” · <button type="button" className="text-primary" onClick={() => setRenameOpen(true)}>Change</button></p>
                   )}
-                  <p className="text-xs text-muted-foreground">Tick <Globe className="inline h-3 w-3" /> on each photo that should go up — AI versions included.</p>
                 </>)}
               </div>
             )}
 
             {makeSquare && community && (
-              <div className="rounded-lg border p-4 space-y-3">
+              <div className="rounded-lg border p-3 space-y-2.5">
                 <label className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 font-medium"><MessageCircle className="h-4 w-4" /> {community.name}{community.size ? <span className="text-muted-foreground font-normal text-sm">· {community.size.toLocaleString()} members</span> : null}</span>
+                  <span className="flex min-w-0 items-center gap-2 font-medium"><MessageCircle className="h-4 w-4 shrink-0" /> <span className="truncate">{community.name}</span>{community.size ? <span className="shrink-0 text-muted-foreground font-normal text-xs">· {community.size.toLocaleString()}</span> : null}</span>
                   <Switch checked={toWhatsApp} onCheckedChange={setToWhatsApp} />
                 </label>
                 {!community.reachable && <p className="text-sm text-amber-600">The WhatsApp line did not answer just now. Sending may fail; check Settings → Integrations.</p>}
                 {toWhatsApp && (waGroups.length > 1 || waChannel) && (
                   // Where it goes: any of the community's groups, the channel, or both — each its own tick.
                   <div className="flex flex-wrap gap-1.5">
-                    {[...waGroups.map(g => ({ key: g.key, label: g.label, reach: waReach(g.key), channel: false })), ...(waChannel ? [{ key: 'channel', label: waChannel.name, reach: waReach('channel'), channel: true }] : [])].map(o => {
+                    {[...waGroups.map(g => ({ key: g.key, label: g.label, n: g.size, channel: false })), ...(waChannel ? [{ key: 'channel', label: 'Channel', n: waChannel.followers, channel: true }] : [])].map(o => {
                       const on = waTargets.includes(o.key);
                       return (
-                        <button key={o.key} type="button" disabled={publishing} aria-pressed={on}
+                        <button key={o.key} type="button" disabled={publishing} aria-pressed={on} title={`${waName(o.key)}${waReach(o.key) ? ` — ${waReach(o.key)}` : ''}`}
                           onClick={() => setWaTargets(t => on ? t.filter(k => k !== o.key) : [...t, o.key])}
-                          className={cn('rounded-full border px-3 py-1.5 text-xs inline-flex items-center gap-1.5', on ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground')}>
-                          {o.channel ? <Radio className="h-3.5 w-3.5" /> : on ? <Check className="h-3.5 w-3.5" /> : <MessageCircle className="h-3.5 w-3.5" />}
-                          {o.channel ? `Channel · ${o.label}` : o.label}{o.reach ? <span className="opacity-70">· {o.reach}</span> : null}
+                          className={cn('min-h-0 rounded-full border px-2.5 py-1 text-xs inline-flex items-center gap-1', on ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground')}>
+                          {o.channel ? <Radio className="h-3 w-3" /> : on ? <Check className="h-3 w-3" /> : null}
+                          {o.label}{o.n ? <span className="tabular-nums opacity-60">{o.n.toLocaleString()}</span> : null}
                         </button>
                       );
                     })}
                   </div>
                 )}
-                {toWhatsApp && (
-                  <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2">
+                {toWhatsApp && (!waPhotos().length || !waChosen.length || waPhotos().length > 1) && (
+                  <p className="text-xs text-muted-foreground">
                     {!waPhotos().length ? 'Tick WA on a photo to send it.'
                       : !waChosen.length ? 'Choose where it goes.'
-                      : `${waPhotos().length} square photo${waPhotos().length === 1 ? '' : 's'}, the caption on the first — to ${listOf(waChosen.map(k => k === 'channel' ? 'the channel' : waName(k)))}.`}
-                    <button type="button" className="text-primary" onClick={() => showDesign('square')}>Edit the post →</button>
+                      : `${waPhotos().length} photos — the caption rides on the first.`}
                   </p>
                 )}
               </div>
             )}
 
             {makeStory && (
-              <div className="rounded-lg border p-4 space-y-2">
+              <div className="rounded-lg border p-3 space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 font-medium"><Instagram className="h-4 w-4" /> Instagram story{ig?.connected && <span className="text-muted-foreground font-normal text-sm">· @{ig.username}</span>}</span>
+                  <span className="flex min-w-0 items-center gap-2 font-medium"><Instagram className="h-4 w-4 shrink-0" /> <span className="truncate">Instagram story</span>{ig?.connected && <span className="shrink-0 truncate text-muted-foreground font-normal text-xs">· @{ig.username}</span>}</span>
                   {ig?.connected ? <Switch checked={toInstagram} onCheckedChange={setToInstagram} /> : null}
                 </div>
                 {ig?.connected && !toInstagram && <p className="text-xs text-muted-foreground">Off — you’ll share it from your phone instead, to add music or stickers.</p>}
@@ -1021,7 +1048,6 @@ function PostAPiecePage() {
                     ? <Button variant="outline" size="sm" onClick={connectInstagram}><Link2 className="h-4 w-4 mr-1.5" /> Connect Instagram</Button>
                     : <p className="text-xs text-muted-foreground">Not connected to this shop&apos;s Instagram — the story is shared from your phone.</p>
                 )}
-                <button type="button" className="text-xs text-primary" onClick={() => showDesign('story')}>Edit the story →</button>
               </div>
             )}
 
@@ -1029,14 +1055,15 @@ function PostAPiecePage() {
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="caption">WhatsApp caption</Label>
                 <div className="flex items-center gap-3">
-                  {captionEdited && <button type="button" className="text-xs text-muted-foreground" onClick={() => { setCaptionEdited(false); setAiCaption(null); }}>Plain version</button>}
+                  {captionEdited && <button type="button" className="min-h-0 text-xs text-muted-foreground" onClick={() => { setCaptionEdited(false); setAiCaption(null); }}>Plain version</button>}
                   <Button type="button" size="sm" variant="secondary" onClick={() => writeWithAi()} disabled={!hero || !!aiBusy.caption}>
                     {aiBusy.caption ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />} Write with AI
                   </Button>
                 </div>
               </div>
-              <Input value={hook} onChange={e => setHook(e.target.value)} placeholder="One line about it (optional) — goes under the header" />
-              <Textarea id="caption" value={caption} onChange={e => { setCaption(e.target.value); setCaptionEdited(true); }} rows={9} className="font-mono text-sm" placeholder="Type a headline and the caption writes itself — or let AI write it from the photo." />
+              {(hookOpen || hook) && <Input value={hook} onChange={e => setHook(e.target.value)} placeholder="One line about it — goes under the header" autoFocus={hookOpen && !hook} />}
+              <Textarea id="caption" value={caption} onChange={e => { setCaption(e.target.value); setCaptionEdited(true); }} rows={6} className="font-mono text-sm" placeholder="Type a headline and the caption writes itself — or let AI write it from the photo." />
+              {!hookOpen && !hook && <button type="button" className="min-h-0 text-xs text-primary" onClick={() => setHookOpen(true)}>+ A line about it</button>}
               {aiCaption?.instagramCaption && (
                 <div className="rounded-md bg-muted/50 p-3 text-xs space-y-1.5">
                   <div className="flex items-center justify-between"><span className="font-medium">Instagram feed caption (AI)</span><button type="button" className="text-primary inline-flex items-center gap-1" onClick={() => copyText(aiCaption.instagramCaption, 'Instagram caption')}><Copy className="h-3 w-3" /> Copy</button></div>
@@ -1047,14 +1074,22 @@ function PostAPiecePage() {
           </section>
         </div>
 
-        {/* ── Right: the story, and what to press ── */}
-        <aside className="min-w-0 space-y-4 lg:sticky lg:top-4 self-start">
+        <aside className="contents lg:block lg:min-w-0 lg:space-y-8 lg:sticky lg:top-4 lg:self-start">
           {(() => {
             const current = squarePhotos.find(p => p.id === square.doc.bg.photoId) ?? squarePhotos[0];
             const notSquare = current && Math.abs(current.img.naturalWidth / current.img.naturalHeight - 1) > 0.02;
             const squareGoes = listOf([waOn && 'WhatsApp', siteOn && SITE_NAME].filter((x): x is string => !!x));
+            const aiTrigger = (
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" disabled={busyAny}>
+                  {busyAny ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />} AI
+                </Button>
+              </DropdownMenuTrigger>
+            );
+            const tidyItem = <DropdownMenuCheckboxItem checked={tidy} onCheckedChange={v => setTidy(!!v)} onSelect={e => e.preventDefault()}>Also remove tags and strings</DropdownMenuCheckboxItem>;
             return (
-              <div ref={editorRef} className="scroll-mt-20">
+              <section ref={editorRef} className="order-3 min-w-0 space-y-3 scroll-mt-20">
+                <StepTitle n={3}>{formats === 'both' ? 'The story and the post' : formats === 'story' ? 'The story' : 'The post'}</StepTitle>
                 <PairEditor
                   show={formats === 'both' ? ['story', 'square'] : formats === 'story' ? ['story'] : ['square']}
                   active={view}
@@ -1063,36 +1098,41 @@ function PostAPiecePage() {
                     label: 'Story',
                     sub: igOn ? 'Instagram, by itself' : 'Instagram, from your phone',
                     placeholder: hero ? undefined : (
-                      <div className="mx-auto w-[270px] sm:w-[300px] aspect-[9/16] rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground p-6 text-center">The story appears here once there is a photo.</div>
+                      <p className="rounded-xl border-2 border-dashed p-6 text-center text-sm text-muted-foreground">Add a photo and the story appears here.</p>
                     ),
-                    top: hero ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        <Button size="sm" onClick={() => setWholeOpen(true)} disabled={busyAny}>
-                          {aiBusy.whole ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Wand2 className="h-4 w-4 mr-1.5" />} Make it with AI
-                        </Button>
-                        <Button size="sm" variant="outline" disabled={busyAny} onClick={() => setRestageFor({ photoId: (hero.ai && photos.find(p => p.id === hero.ai!.parentId)?.id) || hero.id, aspect: '9:16' })}><PaletteIcon className="h-4 w-4 mr-1.5" /> New setting</Button>
-                        <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(hero, 'reframe', { aspect: '9:16', tidy }, 'Story frame')}><Expand className="h-4 w-4 mr-1.5" /> Extend to story</Button>
-                        <Button size="sm" variant="outline" disabled={busyAny} onClick={() => { setAskFor({ photoId: hero.id, aspect: null }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-1.5" /> Ask AI</Button>
-                      </div>
+                    tools: hero ? (
+                      <DropdownMenu>
+                        {aiTrigger}
+                        <DropdownMenuContent align="start" className="w-64">
+                          <DropdownMenuLabel>AI — the piece stays as it is</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => setWholeOpen(true)}><Wand2 className="h-4 w-4 mr-2" /> Make the whole story…</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setRestageFor({ photoId: (hero.ai && photos.find(p => p.id === hero.ai!.parentId)?.id) || hero.id, aspect: '9:16' })}><PaletteIcon className="h-4 w-4 mr-2" /> New setting…</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => aiImage(hero, 'reframe', { aspect: '9:16', tidy }, 'Story frame')}><Expand className="h-4 w-4 mr-2" /> Extend the photo to 9:16</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setAskFor({ photoId: hero.id, aspect: null }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-2" /> Ask AI…</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {lettering === 'ai'
+                            ? <DropdownMenuItem onClick={() => setLettering('ours')}><Type className="h-4 w-4 mr-2" /> Back to our fonts</DropdownMenuItem>
+                            : <DropdownMenuItem disabled={!headline.trim()} onClick={() => { setLettering('ai'); if (!aiLettered) letterWithAi(); }}><Type className="h-4 w-4 mr-2" /> AI lettering</DropdownMenuItem>}
+                          <DropdownMenuSeparator />
+                          {tidyItem}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     ) : null,
-                    bottom: (
+                    bottom: lettering === 'ai' ? (
                       <div className="rounded-lg border p-3 space-y-2 text-sm">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Seg value={lettering} options={[['ours', 'Our fonts'], ['ai', 'AI lettering']]} onChange={v => { setLettering(v as 'ours' | 'ai'); if (v === 'ai' && !aiLettered) letterWithAi(); }} />
-                          {lettering === 'ai' && (
-                            <button type="button" onClick={letterWithAi} disabled={busyAny || !headline.trim()} className="text-xs text-primary inline-flex items-center gap-1"><Type className="h-3 w-3" /> {aiLettered ? 'Letter again' : 'Letter it'}</button>
-                          )}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="font-medium flex-1">AI lettering</span>
+                          <button type="button" onClick={letterWithAi} disabled={busyAny || !headline.trim()} className="min-h-0 text-xs text-primary inline-flex items-center gap-1"><Type className="h-3 w-3" /> {aiLettered ? 'Letter again' : 'Letter it'}</button>
+                          <button type="button" onClick={() => setLettering('ours')} className="min-h-0 text-xs text-muted-foreground">Back to our fonts</button>
                         </div>
-                        {lettering === 'ai' && (
-                          <Input value={letterStyle} onChange={e => setLetterStyle(e.target.value)} placeholder="Lettering style, in your words (optional) — e.g. gold foil serif, elegant" className="h-8 text-xs" />
-                        )}
+                        <Input value={letterStyle} onChange={e => setLetterStyle(e.target.value)} placeholder="Style, in your words (optional) — e.g. gold foil serif" className="h-8 text-xs" />
                         {aiLettered && (
                           <p className={cn('text-xs flex items-center gap-1', aiLettered.verified ? 'text-emerald-600' : 'text-amber-600')}>
                             {aiLettered.verified ? <><ShieldCheck className="h-3.5 w-3.5" /> Read back: every word and the weight are right.</> : <><ShieldAlert className="h-3.5 w-3.5" /> Could not read: {aiLettered.missing.join(', ')}. Check it or use our fonts.</>}
                           </p>
                         )}
                       </div>
-                    ),
+                    ) : null,
                     props: {
                       api: story, fields, assets,
                       photos: photos.map(p => ({ id: p.id, url: p.url, label: p.ai?.label })),
@@ -1115,8 +1155,22 @@ function PostAPiecePage() {
                     label: 'Post',
                     sub: `Square · ${squareGoes || `WhatsApp + ${SITE_NAME || 'website'}`}`,
                     placeholder: squarePhotos.length ? undefined : (
-                      <div className="mx-auto w-[300px] aspect-square rounded-xl border-2 border-dashed flex items-center justify-center text-sm text-muted-foreground p-6 text-center">Tick Site or WA on a photo and its post appears here.</div>
+                      <p className="rounded-xl border-2 border-dashed p-6 text-center text-sm text-muted-foreground">{photos.length ? 'Tick Site or WA on a photo and the post appears here.' : 'Add a photo and the post appears here.'}</p>
                     ),
+                    top: notSquare ? <p className="text-xs text-amber-600">This photo isn’t square, so its edges are cropped — drag it on the post, or AI → Make it a true square.</p> : null,
+                    tools: current ? (
+                      <DropdownMenu>
+                        {aiTrigger}
+                        <DropdownMenuContent align="start" className="w-64">
+                          <DropdownMenuLabel>AI — the piece stays as it is</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => aiImage(current, 'reframe', { aspect: '1:1', tidy }, 'Square')}><Expand className="h-4 w-4 mr-2" /> Make it a true square</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => aiImage(current, 'enhance', { tidy }, 'Enhanced')}><Sparkles className="h-4 w-4 mr-2" /> Enhance the photo</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setAskFor({ photoId: current.id, aspect: '1:1' }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-2" /> Ask AI…</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {tidyItem}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null,
                     props: {
                       api: square, square: true, fields, assets,
                       photos: squarePhotos.map(p => ({ id: p.id, url: p.url, label: p.ai?.label })),
@@ -1128,94 +1182,98 @@ function PostAPiecePage() {
                       onPreset: id => square.change(d => applySquarePreset(d, id as SquarePresetId, fields, assets)),
                       previewPreset: id => applySquarePreset(square.doc, id as SquarePresetId, fields, assets),
                       fileName: fileNameBase,
-                      photoTools: current && (
-                        <div className="space-y-1.5">
-                          {notSquare && <p className="text-[11px] text-amber-600">This photo isn’t square, so its edges are cropped. Drag it to choose what shows, show the whole photo, or let AI widen it to a true square.</p>}
-                          <div className="flex flex-wrap gap-1.5">
-                            <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(current, 'reframe', { aspect: '1:1', tidy }, 'Square')}><Expand className="h-4 w-4 mr-1.5" /> AI: make it a true square</Button>
-                            <Button size="sm" variant="outline" disabled={busyAny} onClick={() => aiImage(current, 'enhance', { tidy }, 'Enhanced')}><Sparkles className="h-4 w-4 mr-1.5" /> AI: enhance</Button>
-                            <Button size="sm" variant="outline" disabled={busyAny} onClick={() => { setAskFor({ photoId: current.id, aspect: '1:1' }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-1.5" /> Ask AI</Button>
-                          </div>
-                        </div>
-                      ),
                     },
                   }}
                 />
-              </div>
+              </section>
             );
           })()}
 
-          <QueuePanel api={queue} destinationName={waName} blockers={queueBlockers} />
+          <section className="order-5 min-w-0 space-y-3">
+            <StepTitle n={5}>Send</StepTitle>
+            <QueuePanel api={queue} destinationName={waName} blockers={queueBlockers} />
 
-          <div className="rounded-lg border p-4 space-y-3">
-            {steps.length > 0 && (
-              <ul className="space-y-2 text-sm">
-                {steps.map(s => (
-                  <li key={s.id} className="flex items-start gap-2">
-                    <span className="mt-0.5">
-                      {s.status === 'done' ? <Check className="h-4 w-4 text-emerald-600" /> : s.status === 'failed' ? <X className="h-4 w-4 text-destructive" /> : s.status === 'running' ? <Loader2 className="h-4 w-4 animate-spin" /> : s.manual ? <Instagram className="h-4 w-4 text-muted-foreground" /> : <span className="block h-4 w-4 rounded-full border" />}
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block truncate">{s.label}{s.note ? <span className="text-muted-foreground"> · {s.note}</span> : null}</span>
-                      {s.error && (() => {
-                        const d = diagnose(whereOfStep(s.id), { status: s.errStatus, message: s.error }, dctx);
-                        return (
-                          <span className="block mt-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 space-y-1">
-                            <span className="block text-xs font-semibold text-destructive">{d.title}</span>
-                            <span className="block text-xs">{d.fix}</span>
-                            {d.action && <ActionButton action={d.action} />}
-                          </span>
-                        );
-                      })()}
-                    </span>
-                    {s.status === 'failed' && !publishing && <button type="button" onClick={() => runPublish(s.id)} className="text-xs text-primary flex items-center gap-1"><RotateCw className="h-3 w-3" /> Retry</button>}
-                    {s.manual && s.status !== 'done' && <Button size="sm" variant="secondary" className="h-7 px-2.5 text-xs" onClick={shareStory}><Share2 className="h-3.5 w-3.5 mr-1" /> Share</Button>}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {!published ? (<>
-              {targets.length === 0 && storyByHand ? (
-                // A story on its own that Instagram won't take by itself: the share sheet is the publish.
-                <Button className="w-full h-12 text-base" onClick={onShareOnly} disabled={busyAny || !ready}>
-                  <Share2 className="h-4 w-4 mr-2" /> Share the story
-                </Button>
-              ) : (
-                <Button className="w-full h-12 text-base" onClick={onPublish} disabled={publishing || busyAny || !ready || targets.length === 0 || steps.length > 0 || !!queue.adding}>
-                  {publishing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Publishing…</> : <><Send className="h-4 w-4 mr-2" /> Publish{targets.length ? ` to ${targets.join(' + ')}` : ''}</>}
-                </Button>
+            <div className="rounded-lg border p-4 space-y-3">
+              {steps.length > 0 && (
+                <ul className="space-y-2 text-sm">
+                  {steps.map(s => (
+                    <li key={s.id} className="flex items-start gap-2">
+                      <span className="mt-0.5">
+                        {s.status === 'done' ? <Check className="h-4 w-4 text-emerald-600" /> : s.status === 'failed' ? <X className="h-4 w-4 text-destructive" /> : s.status === 'running' ? <Loader2 className="h-4 w-4 animate-spin" /> : s.manual ? <Instagram className="h-4 w-4 text-muted-foreground" /> : <span className="block h-4 w-4 rounded-full border" />}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block truncate">{s.label}{s.note ? <span className="text-muted-foreground"> · {s.note}</span> : null}</span>
+                        {s.error && (() => {
+                          const d = diagnose(whereOfStep(s.id), { status: s.errStatus, message: s.error }, dctx);
+                          return (
+                            <span className="block mt-1 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5 space-y-1">
+                              <span className="block text-xs font-semibold text-destructive">{d.title}</span>
+                              <span className="block text-xs">{d.fix}</span>
+                              {d.action && <ActionButton action={d.action} />}
+                            </span>
+                          );
+                        })()}
+                      </span>
+                      {s.status === 'failed' && !publishing && <button type="button" onClick={() => runPublish(s.id)} className="text-xs text-primary flex items-center gap-1"><RotateCw className="h-3 w-3" /> Retry</button>}
+                      {s.manual && s.status !== 'done' && <Button size="sm" variant="secondary" className="h-7 px-2.5 text-xs" onClick={shareStory}><Share2 className="h-3.5 w-3.5 mr-1" /> Share</Button>}
+                    </li>
+                  ))}
+                </ul>
               )}
-              {targets.length > 0 && storyByHand && steps.length === 0 && (
-                <p className="text-xs text-muted-foreground flex items-start gap-1.5"><Instagram className="h-3.5 w-3.5 mt-px shrink-0" /> Then the story, from your phone — it’s the last step after Publish.</p>
-              )}
-              {/* Several pieces in one go: keep this one, make the next, send them together or through the day. */}
-              {steps.length === 0 && targets.length > 0 && (
-                <Button variant="outline" className="w-full" onClick={addToQueue} disabled={publishing || busyAny || !ready || targets.length === 0 || !!queue.adding}>
-                  {queue.adding ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {queue.adding}</> : <><ListPlus className="h-4 w-4 mr-2" /> Add to queue{queue.items.some(e => e.status === 'held' || e.status === 'scheduled' || e.status === 'failed') ? '' : ' — send later or with others'}</>}
-                </Button>
-              )}
-            </>) : (
-              <Button variant="outline" className="w-full" onClick={startOver}>Post another piece</Button>
-            )}
-            {!ready && <p className="text-xs text-muted-foreground">{problems.slice(0, 2).join(' ')}</p>}
-
-            <div className="border-t pt-3 space-y-2">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">From your phone</p>
-              <div className="grid grid-cols-2 gap-2">
-                {formats === 'both' && (
-                  <Button variant="secondary" size="sm" className="col-span-2" disabled={!ready || !squarePhotos.length} onClick={saveBoth}><Download className="h-4 w-4 mr-1.5" /> Save the story and the post{squarePhotos.length > 1 ? 's' : ''}</Button>
+              {!published ? (<>
+                {targets.length === 0 && storyByHand ? (
+                  // A story on its own that Instagram won't take by itself: the share sheet is the publish.
+                  <Button className="w-full h-12 text-base" onClick={onShareOnly} disabled={busyAny || !ready}>
+                    <Share2 className="h-4 w-4 mr-2" /> Share the story
+                  </Button>
+                ) : (
+                  <Button className="w-full h-12 text-base" onClick={onPublish} disabled={publishing || busyAny || !ready || targets.length === 0 || steps.length > 0 || !!queue.adding}>
+                    {publishing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Publishing…</> : <><Send className="h-4 w-4 mr-2" /> Publish{targets.length ? ` to ${targets.join(' + ')}` : ''}</>}
+                  </Button>
                 )}
-                {makeStory && !(targets.length === 0 && storyByHand) && <Button variant="secondary" size="sm" disabled={!ready} onClick={shareStory}><Instagram className="h-4 w-4 mr-1.5" /> Share story</Button>}
-                {makeStory && <Button variant="outline" size="sm" disabled={!ready} onClick={saveStory}><Download className="h-4 w-4 mr-1.5" /> Save story</Button>}
-                {/* With the channel posted automatically, sharing by hand would post it twice: this becomes a plain share. */}
-                {makeSquare && <Button variant="secondary" size="sm" disabled={!ready} onClick={shareToChannel}><Share2 className="h-4 w-4 mr-1.5" /> {waChannel ? 'Share post' : 'Channel'}</Button>}
-                {makeSquare && <Button variant="outline" size="sm" disabled={!caption} onClick={() => copyText(caption, 'Caption')}><Copy className="h-4 w-4 mr-1.5" /> Caption</Button>}
-              </div>
-              {makeSquare && STORE_LINKS.waChannel && (
-                <a href={STORE_LINKS.waChannel} target="_blank" rel="noopener" className="text-xs text-primary inline-flex items-center gap-1">Open the WhatsApp channel <ExternalLink className="h-3 w-3" /></a>
+                {targets.length > 0 && storyByHand && steps.length === 0 && (
+                  <p className="text-xs text-muted-foreground flex items-start gap-1.5"><Instagram className="h-3.5 w-3.5 mt-px shrink-0" /> Then the story, from your phone — it’s the last step after Publish.</p>
+                )}
+                {/* Several pieces in one go: keep this one, make the next, send them together or through the day. */}
+                {steps.length === 0 && targets.length > 0 && (
+                  <Button variant="outline" className="w-full" onClick={addToQueue} disabled={publishing || busyAny || !ready || targets.length === 0 || !!queue.adding}>
+                    {queue.adding ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {queue.adding}</> : <><ListPlus className="h-4 w-4 mr-2" /> Add to queue{queue.items.some(e => e.status === 'held' || e.status === 'scheduled' || e.status === 'failed') ? '' : ' — send later'}</>}
+                  </Button>
+                )}
+              </>) : (
+                <Button variant="outline" className="w-full" onClick={startOver}>Post another piece</Button>
               )}
+              {!ready && <p className="text-xs text-muted-foreground">{problems.slice(0, 2).join(' ')}</p>}
+
+              {/* From the phone: the one thing most often wanted, and the rest in a menu. */}
+              {(() => {
+                const main = formats === 'both'
+                  ? { label: `Save story + post${squarePhotos.length > 1 ? 's' : ''}`, icon: <Download className="h-4 w-4 mr-1.5" />, run: saveBoth, off: !ready || !squarePhotos.length }
+                  : formats === 'story'
+                    ? { label: 'Save the story', icon: <Download className="h-4 w-4 mr-1.5" />, run: saveStory, off: !ready }
+                    : { label: waChannel ? 'Share the post' : 'Share to the channel', icon: <Share2 className="h-4 w-4 mr-1.5" />, run: shareToChannel, off: !ready };
+                return (
+                  <div className="flex items-center gap-2 border-t pt-3">
+                    <span className="hidden text-xs text-muted-foreground sm:inline lg:hidden xl:inline">Phone:</span>
+                    <Button variant="secondary" size="sm" className="flex-1" disabled={main.off} onClick={main.run}>{main.icon}{main.label}</Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild><Button variant="outline" size="sm" aria-label="More ways to share"><MoreHorizontal className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">More</span></Button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        {makeStory && <DropdownMenuItem disabled={!ready} onClick={shareStory}><Instagram className="h-4 w-4 mr-2" /> Share the story</DropdownMenuItem>}
+                        {makeStory && formats !== 'story' && <DropdownMenuItem disabled={!ready} onClick={saveStory}><Download className="h-4 w-4 mr-2" /> Save the story</DropdownMenuItem>}
+                        {/* With the channel posted automatically, sharing by hand would post it twice: this is a plain share. */}
+                        {makeSquare && formats !== 'square' && <DropdownMenuItem disabled={!ready} onClick={shareToChannel}><Share2 className="h-4 w-4 mr-2" /> {waChannel ? 'Share the post' : 'Share to the channel'}</DropdownMenuItem>}
+                        {makeSquare && <DropdownMenuItem disabled={!caption} onClick={() => copyText(caption, 'Caption')}><Copy className="h-4 w-4 mr-2" /> Copy the caption</DropdownMenuItem>}
+                        {makeSquare && STORE_LINKS.waChannel && (
+                          <DropdownMenuItem asChild><a href={STORE_LINKS.waChannel} target="_blank" rel="noopener"><ExternalLink className="h-4 w-4 mr-2" /> Open the WhatsApp channel</a></DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                );
+              })()}
             </div>
-          </div>
+          </section>
         </aside>
       </div>
 
@@ -1339,8 +1397,9 @@ function PostAPiecePage() {
 }
 
 /** One photo: star for the story, AI actions, where it goes, and — for AI photos — whether it is still the same piece. */
-function PhotoTile({ photo: p, isHero, starLabel, locked, busy, siteOn, waOn, onHero, onRemove, onToggle, onEnhance, onReframe, onRestage, onAsk }: {
+function PhotoTile({ photo: p, isHero, starLabel, locked, busy, siteOn, waOn, tidy, onTidy, onHero, onRemove, onToggle, onEnhance, onReframe, onRestage, onAsk }: {
   photo: Photo; isHero: boolean; starLabel: string; locked: boolean; busy: boolean; siteOn: boolean; waOn: boolean;
+  tidy: boolean; onTidy: (v: boolean) => void;
   onHero: () => void; onRemove: () => void; onToggle: (patch: Partial<Photo>) => void;
   onEnhance: () => void; onReframe: (a: Aspect) => void; onRestage: (a: Aspect) => void; onAsk: () => void;
 }) {
@@ -1366,6 +1425,8 @@ function PhotoTile({ photo: p, isHero, starLabel, locked, busy, siteOn, waOn, on
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onRestage('9:16')}>New setting…</DropdownMenuItem>
             <DropdownMenuItem onClick={onAsk}>Ask AI… (anything, in your words)</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuCheckboxItem checked={tidy} onCheckedChange={v => onTidy(!!v)} onSelect={e => e.preventDefault()}>Also remove tags and strings</DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
         {!locked && (
@@ -1447,4 +1508,9 @@ function FormatPicker({ value, onChange, disabled, siteName }: { value: Formats;
       ))}
     </div>
   );
+}
+
+/** A step's heading: "1 · Photos". */
+function StepTitle({ n, children }: { n: number; children: React.ReactNode }) {
+  return <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{n} · {children}</h2>;
 }
