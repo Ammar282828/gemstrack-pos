@@ -1,7 +1,7 @@
 # Graph Report - silly-goldberg-62b7c5  (2026-09-25)
 
 ## Corpus Check
-- 476 files · ~456,968 words
+- 476 files · ~457,097 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 13 file(s) not represented in the graph (top: (none) 4, .cache 2, .nix 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b831a5a7`
+- Built from commit: `39512495`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1017,7 +1017,7 @@ Nodes (4): fmt(), MyWorkPage(), OrderGroupedJobs(), groupJobsByOrder()
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `firebase` connect `firebase` to `import-shopify-customers.mjs`, `invoices/page.tsx`, `add-bank-account.mjs`, `store.ts`, `delete-bad-invoices.mjs`, `diagnose-dbs.mjs`, `import-shopify-orders.mjs`, `fix-dates.mjs`, `fix-invoice-dates.mjs`, `package.json`, `link-all-karigar-expenses.mjs`, `link-invoice-hisaab.mjs`, `link-uzair-expenses.mjs`, `restore-orders.mjs`, `restore-settings.mjs`, `DbPort`, `fix-bareeka.mjs`, `add-bareeka-invoice.mjs`, `add-uzair-skipped-entries.mjs`, `delete-sherbano-invoice.mjs`, `diagnose-orders.mjs`, `do-refund-fatima.mjs`, `link-uzair-stones.mjs`, `google-auth-gate.tsx`, `list-invoices.mjs`, `add-mina-payment.mjs`, `react`, `preview-karigar-links.mjs`, `add-ali-customer.mjs`, `add-order-1141.mjs`, `sync-hisaab-balances.mjs`, `reset-and-reimport.mjs`, `fix-invoice-skus.mjs`, `refund-fatima.mjs`, `clean-hisaab.mjs`, `renumber-zahra.mjs`, `check-counters.mjs`, `import-expenses.mjs`, `renumber-orders.mjs`, `ShareholderFinancesPage`, `backfill-payment-credits.mjs`, `backfill-source-orders.mjs`, `fix-overwritten-invoices.mjs`, `working-capital-floor.tsx`, `check-orders.mjs`, `diagnose-counter.mjs`, `useAppStore`, `order-form.tsx`, `link-new-karigars.mjs`, `fix-zahra-invoice.mjs`?**
-  _High betweenness centrality (0.302) - this node is a cross-community bridge._
+  _High betweenness centrality (0.303) - this node is a cross-community bridge._
 - **Why does `next` connect `next` to `invoices/page.tsx`, `voice-bubble.tsx`, `use-toast.ts`, `google-auth-gate.tsx`, `workshop/page.tsx`, `orders/[id]/page.tsx`, `package.json`, `roleForEmail`, `whatsapp.ts`, `fulfilment.ts`, `investments.ts`, `pieces/route.ts`, `react`, `fonts.ts`, `verifyRequestEmail`, `run/route.ts`, `roles.ts`, `workshop.ts`, `website/featured/route.ts`, `ai/route.ts`, `_lib.ts`, `app-layout.tsx`, `post/route.ts`, `write/route.ts`, `health.ts`, `public/me/route.ts`, `useAppStore`, `order-form.tsx`, `postGate`, `instagram.ts`, `store-config.ts`, `queue.ts`, `command-palette.tsx`, `photos/route.ts`, `gate.ts`, `shopifyRequest`, `gold-rates/route.ts`, `tcs/route.ts`, `caption/route.ts`, `website/pricing.ts`?**
   _High betweenness centrality (0.143) - this node is a cross-community bridge._
 - **Why does `cn()` connect `cn` to `invoices/page.tsx`, `voice-bubble.tsx`, `use-toast.ts`, `workshop/page.tsx`, `orders/[id]/page.tsx`, `package.json`, `size-picker.tsx`, `story-editor.tsx`, `DocumentsPage`, `OrderForm`, `OrderRow`, `react`, `post/page.tsx`, `app-layout.tsx`, `toast.tsx`, `chart.tsx`, `newLayerId`, `loadKarigars`, `DocumentCard`, `editor-panels.tsx`, `ShareholderFinancesPage`, `design.ts`, `FromSitePage`, `bill-scanner.tsx`, `menubar.tsx`, `investments/page.tsx`, `working-capital-floor.tsx`, `useAppStore`, `MyWorkPage`, `order-form.tsx`, `QueuePanel`, `AnalyticsPage`, `recents.ts`, `layerBox`, `format`, `order-timing.ts`, `sheet.tsx`?**
