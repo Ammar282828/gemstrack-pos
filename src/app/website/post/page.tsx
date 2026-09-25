@@ -234,6 +234,8 @@ function PostAPiecePage() {
   const showDesign = (k: PairKey) => { setView(k); editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   const [feature, setFeature] = useState(false);
   const [community, setCommunity] = useState<{ name: string; size: number | null; reachable: boolean } | null>(null);
+  // Whether WhatsApp could be asked about at all: a POS without WhatsApp settings (a local copy) says so rather than hiding it.
+  const [waState, setWaState] = useState<'loading' | 'ready' | 'off' | 'error'>('loading');
   // The WhatsApp channel the route can post to (WAHA only); null when it has to be shared by hand.
   const [waChannel, setWaChannel] = useState<{ name: string; followers: number | null; reachable: boolean } | null>(null);
   const [waGroups, setWaGroups] = useState<WaGroup[]>([]);
@@ -324,9 +326,10 @@ function PostAPiecePage() {
       try { const last = localStorage.getItem('taheri_post_folder'); if (last && d.collections.some((c: Collection) => c.folder === last)) setFolder(last); } catch { /* fine */ }
     })();
     (async () => {
-      const res = await fetch('/api/website/post', { headers: await authHeaders(), cache: 'no-store' });
-      if (!res.ok) return;
+      const res = await fetch('/api/website/post', { headers: await authHeaders(), cache: 'no-store' }).catch(() => null);
+      if (!res?.ok) { setWaState('error'); return; }
       const d = await res.json();
+      setWaState(d.community ? 'ready' : 'off');
       if (d.community) { setCommunity(d.community); setToWhatsApp(true); }
       if (d.channel) setWaChannel(d.channel);
       const groups: WaGroup[] = d.groups ?? [];
@@ -1033,6 +1036,18 @@ function PostAPiecePage() {
                       : `${waPhotos().length} photos — the caption rides on the first.`}
                   </p>
                 )}
+              </div>
+            )}
+
+            {makeSquare && !community && (
+              // Never just gone: say why there's nothing to tick.
+              <div className="rounded-lg border border-dashed p-3 space-y-1">
+                <span className="flex items-center gap-2 font-medium text-muted-foreground"><MessageCircle className="h-4 w-4" /> WhatsApp</span>
+                <p className="text-xs text-muted-foreground">
+                  {waState === 'loading' ? 'Loading the groups and the channel…'
+                    : waState === 'error' ? 'Couldn’t load the WhatsApp groups just now — reload the page, or sign in again.'
+                    : 'This copy of the POS has no WhatsApp settings, so it can’t send here (the live POS can). Share the post from your phone under Send.'}
+                </p>
               </div>
             )}
 
