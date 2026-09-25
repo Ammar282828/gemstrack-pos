@@ -2122,9 +2122,9 @@
     "semantic_hash": ""
   },
   "src/app/layout.tsx": {
-    "mtime": 1790019826.4120681,
-    "seen": 1790020482.509182,
-    "ast_hash": "eefea58bcbf1f224dc4a22427950a4cd",
+    "mtime": 1790318414.317176,
+    "seen": 1790318969.693404,
+    "ast_hash": "4220fe99fb2d191062c0ccebf85d8c69",
     "semantic_hash": ""
   },
   "src/app/links/page.tsx": {
@@ -2404,9 +2404,9 @@
     "semantic_hash": ""
   },
   "src/components/layout/app-layout.tsx": {
-    "mtime": 1790317769.803092,
-    "seen": 1790318058.970463,
-    "ast_hash": "b29c68a8282326a2f343c545c4ae7500",
+    "mtime": 1790318886.11952,
+    "seen": 1790318969.693436,
+    "ast_hash": "4ebe57d8745cf563aa1da853b8edafc7",
     "semantic_hash": ""
   },
   "src/components/layout/main-app.tsx": {
@@ -3052,9 +3052,9 @@
     "semantic_hash": ""
   },
   "src/lib/store-config.ts": {
-    "mtime": 1790317889.332963,
-    "seen": 1790318058.97054,
-    "ast_hash": "ee2bc4d164a4d4d80d06f6764163660b",
+    "mtime": 1790318886.1182482,
+    "seen": 1790318969.693512,
+    "ast_hash": "71dd1551e1d3dc30dd3854ceed7c8175",
     "semantic_hash": ""
   },
   "src/lib/store.ts": {
@@ -3310,9 +3310,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790318016.3619332,
-    "seen": 1790318058.9705758,
-    "ast_hash": "942456c6080914930340ce3a362f19b7",
+    "mtime": 1790318950.7072623,
+    "seen": 1790318969.69354,
+    "ast_hash": "04206177112954c7bee68ad3b0dbfa11",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3442,15 +3442,15 @@
     "semantic_hash": ""
   },
   "scripts/env-for-house.mjs": {
-    "mtime": 1790019980.7619328,
-    "seen": 1790020482.5091069,
-    "ast_hash": "26d10eb09e849111501f3b9ecc263c12",
+    "mtime": 1790318913.6988723,
+    "seen": 1790318969.693324,
+    "ast_hash": "534a53ec58d538afdabcfce7f0ea718e",
     "semantic_hash": ""
   },
   "apphosting.mina.yaml": {
-    "mtime": 1790317921.1792977,
-    "seen": 1790318058.970577,
-    "ast_hash": "cb5ba6fbe20a4723b3742399d3a24070",
+    "mtime": 1790318900.0328867,
+    "seen": 1790318969.693541,
+    "ast_hash": "974afa75f5eb91b46457cdfdcd7b357e",
     "semantic_hash": ""
   },
   "apphosting.taheri.yaml": {
@@ -3634,21 +3634,21 @@
     "semantic_hash": ""
   },
   "src/app/api/website/post/convert/route.ts": {
-    "mtime": 1790271670.7522836,
-    "seen": 1790272054.904611,
-    "ast_hash": "edba2945aa10de54dd246575cf9140ad",
+    "mtime": 1790318886.1234214,
+    "seen": 1790318969.6933918,
+    "ast_hash": "dd29e29de47d694f80e1368cb67f98d3",
     "semantic_hash": ""
   },
   "src/app/api/website/post/route.ts": {
-    "mtime": 1790277434.5326674,
-    "seen": 1790277638.697184,
-    "ast_hash": "79022083bb4f1f568b505f702b4c75af",
+    "mtime": 1790318886.122979,
+    "seen": 1790318969.693394,
+    "ast_hash": "82537b61de9f9f329a5d05a9f04807ac",
     "semantic_hash": ""
   },
   "src/app/website/post/page.tsx": {
-    "mtime": 1790317930.1109843,
-    "seen": 1790318058.970453,
-    "ast_hash": "b67568141a5eef68a9bb766cef849867",
+    "mtime": 1790318886.1206696,
+    "seen": 1790318969.693426,
+    "ast_hash": "15a8e92f3f9191d622fcd52aa29927bb",
     "semantic_hash": ""
   },
   "src/lib/social/caption.test.ts": {
@@ -3964,9 +3964,9 @@
     "semantic_hash": ""
   },
   "src/app/api/instagram/callback/route.ts": {
-    "mtime": 1790277434.5340762,
-    "seen": 1790277638.697153,
-    "ast_hash": "eb988627c5888e0b5a7ae7f4e4ff9e41",
+    "mtime": 1790318886.1237874,
+    "seen": 1790318969.693362,
+    "ast_hash": "9a331ff5581d4a7dafa96ca9843bba1f",
     "semantic_hash": ""
   },
   "src/app/api/instagram/connect/route.ts": {
@@ -3994,9 +3994,9 @@
     "semantic_hash": ""
   },
   "src/app/api/website/post/ai/route.ts": {
-    "mtime": 1790278589.6451862,
-    "seen": 1790278971.108269,
-    "ast_hash": "bd657abac6d8184edb406b40c4551600",
+    "mtime": 1790318886.1231236,
+    "seen": 1790318969.6933918,
+    "ast_hash": "d5af63082b2723b0260cae1398684da9",
     "semantic_hash": ""
   },
   "src/lib/social/ai.ts": {
@@ -4006,9 +4006,9 @@
     "semantic_hash": ""
   },
   "src/lib/social/gate.ts": {
-    "mtime": 1790278561.7332592,
-    "seen": 1790278971.108384,
-    "ast_hash": "95e700afdeccaee3c400671ec47c375b",
+    "mtime": 1790318886.122252,
+    "seen": 1790318969.693507,
+    "ast_hash": "48ef1ee789e3bdfe9ab3a9849edfc7a6",
     "semantic_hash": ""
   },
   "src/lib/social/instagram.ts": {
@@ -4084,15 +4084,15 @@
     "semantic_hash": ""
   },
   "src/app/api/investments/[id]/publish/route.ts": {
-    "mtime": 1790317707.8067968,
-    "seen": 1790318058.970389,
-    "ast_hash": "e2ef50ae749a1eca6ee78e641f758cfc",
+    "mtime": 1790318886.1241016,
+    "seen": 1790318969.693365,
+    "ast_hash": "0384b357ed1a0c92b14fbe3c1977e9eb",
     "semantic_hash": ""
   },
   "src/app/api/investments/route.ts": {
-    "mtime": 1790317691.117875,
-    "seen": 1790318058.970389,
-    "ast_hash": "e99685a6e0a79ad98d3d275b54d270c1",
+    "mtime": 1790318886.1239533,
+    "seen": 1790318969.693365,
+    "ast_hash": "c844e84fad2c832c4ef3fe75a34b0441",
     "semantic_hash": ""
   },
   "src/app/api/public/investments/[id]/[kind]/route.ts": {
@@ -4102,9 +4102,9 @@
     "semantic_hash": ""
   },
   "src/app/website/investments/page.tsx": {
-    "mtime": 1790317761.1752887,
-    "seen": 1790318058.970452,
-    "ast_hash": "66a8749c6bd6578d5c1056b0c2db642f",
+    "mtime": 1790318886.121767,
+    "seen": 1790318969.6934242,
+    "ast_hash": "7d1f8341dcd2b4b6589dfcf78acd9537",
     "semantic_hash": ""
   },
   "src/lib/investments.ts": {
@@ -4123,6 +4123,12 @@
     "mtime": 1790317831.8583813,
     "seen": 1790318058.9706109,
     "ast_hash": "1bf1fcb2fd1e66639f76b341ed8450c5",
+    "semantic_hash": ""
+  },
+  "public/house-of-mina-logo-light.png": {
+    "mtime": 1790318147.4528072,
+    "seen": 1790318969.693578,
+    "ast_hash": "bc275fcf7dc0a10f284f87de55dc3f99",
     "semantic_hash": ""
   }
 }
