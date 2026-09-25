@@ -8,7 +8,8 @@
  * that: the Instagram story in the shop's own style, the WhatsApp caption, and
  * the website photo with the weight stamped in the corner. One press then
  * sends it all — the website, the set of the day, the WhatsApp community, the
- * Instagram story — and hands the WhatsApp channel (which has no API) to the
+ * Instagram story (the WhatsApp channel rides along with the community post
+ * when the line is on WAHA; otherwise it goes by hand) — and hands anything else to the
  * phone's share sheet.
  *
  * AI does as much or as little as asked (Gemini on Vertex, /api/website/post/ai):
@@ -28,7 +29,6 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Sofia_Sans_Extra_Condensed, Figtree, Bodoni_Moda } from 'next/font/google';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,13 +52,10 @@ import { SCENES, customPrompt, restagePrompt, type Aspect, type CaptionResult, t
 import { PRESETS, SQUARE_PRESETS, applyPreset, applySquarePreset, emptyDoc, emptySquare, reflow, renderDoc, renderDocTo, type Assets, type Bind, type Fields, type PresetId, type SquarePresetId, type StoryDoc, type TextLayer } from '@/lib/social/editor';
 import type { Palette } from '@/lib/social/palettes';
 import { StoryEditor, useStoryDoc } from './story-editor';
+import { FONTS, headlineFace, bodyFace } from './fonts';
 import { diagnose, type Where } from '@/lib/social/diagnose';
 import { HealthPanel, useHealth, reportError, ActionButton, type Check as HealthCheck } from './health-panel';
 
-const headlineFace = Sofia_Sans_Extra_Condensed({ subsets: ['latin'], weight: ['800'], display: 'swap' });
-const bodyFace = Figtree({ subsets: ['latin'], weight: ['300', '400', '700'], display: 'swap' });
-const serifFace = Bodoni_Moda({ subsets: ['latin'], weight: ['400', '500'], style: ['normal', 'italic'], display: 'swap' });
-const FONTS = { headline: headlineFace.style.fontFamily, body: bodyFace.style.fontFamily, serif: serifFace.style.fontFamily };
 const FILL = { mode: 'fill' as const, zoom: 1, focusX: 0.5, focusY: 0.5 };
 
 const SITE = (STORE_LINKS.website || '').replace(/\/+$/, '');
@@ -202,6 +199,8 @@ function PostAPiecePage() {
   const [view, setView] = useState<'story' | 'square'>('story');
   const [feature, setFeature] = useState(false);
   const [community, setCommunity] = useState<{ name: string; size: number | null; reachable: boolean } | null>(null);
+  // The WhatsApp channel the route posts to after the community (WAHA only); null when it has to be shared by hand.
+  const [waChannel, setWaChannel] = useState<{ name: string; followers: number | null; reachable: boolean } | null>(null);
   const [toWhatsApp, setToWhatsApp] = useState(false);
   const [caption, setCaption] = useState('');
   const [captionEdited, setCaptionEdited] = useState(false);
@@ -289,6 +288,7 @@ function PostAPiecePage() {
       if (!res.ok) return;
       const d = await res.json();
       if (d.community) { setCommunity(d.community); setToWhatsApp(true); }
+      if (d.channel) setWaChannel(d.channel);
     })();
   }, [toast]);
   useEffect(() => { if (folder) try { localStorage.setItem('taheri_post_folder', folder); } catch { /* fine */ } }, [folder]);
@@ -544,7 +544,7 @@ function PostAPiecePage() {
     // WhatsApp often drops text shared alongside a file, so the caption goes on the clipboard too.
     try { await navigator.clipboard.writeText(caption); } catch { /* said below either way */ }
     if (!(await shareFiles([f], caption))) download(b, f.name);
-    toast({ title: 'Caption is on the clipboard', description: 'Paste it under the photo in the channel.' });
+    toast({ title: 'Caption is on the clipboard', description: waChannel ? 'Paste it under the photo wherever you shared it. (The channel gets it automatically when you publish to WhatsApp.)' : 'Paste it under the photo in the channel.' });
   };
 
   const connectInstagram = async () => {
@@ -588,8 +588,9 @@ function PostAPiecePage() {
     return d.rel;
   };
 
-  const sendWhatsApp = async (key: string, blob: Blob, name: string, text: string, headers: Record<string, string>) => {
-    if (sentRef.current[key]) return;
+  /** One square to the community (and, when the route has one, the channel). Returns how the channel went. */
+  const sendWhatsApp = async (key: string, blob: Blob, name: string, text: string, headers: Record<string, string>): Promise<{ ok: boolean; error?: string } | null> => {
+    if (sentRef.current[key]) return null;
     const form = new FormData();
     form.set('file', new File([blob], name, { type: 'image/jpeg' }));
     if (text) form.set('caption', text);
@@ -597,6 +598,7 @@ function PostAPiecePage() {
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw httpError(d.error || `WhatsApp send failed (${res.status})`, res.status);
     sentRef.current[key] = true;
+    return d.channel ?? null;
   };
 
   const runPublish = async (only?: string) => {
@@ -640,12 +642,17 @@ function PostAPiecePage() {
         } else if (s.id === 'whatsapp') {
           // The caption rides on the first square; the others follow without one.
           const ordered = waPhotos();
+          const channelMisses: string[] = [];
+          let channelSent = 0;
           for (let i = 0; i < ordered.length; i++) {
             setStep(s.id, { note: `${i + 1} of ${ordered.length}` });
             // 1600 px: WhatsApp makes no preview for images over 3000 px, and shrinks everything to about this anyway.
-            await sendWhatsApp(`photo-${ordered[i].id}`, await squareJpeg(ordered[i], 1600), `${fileNameBase}${i ? `-${i + 1}` : ''}.jpg`, i === 0 ? caption : '', headers);
+            const ch = await sendWhatsApp(`photo-${ordered[i].id}`, await squareJpeg(ordered[i], 1600), `${fileNameBase}${i ? `-${i + 1}` : ''}.jpg`, i === 0 ? caption : '', headers);
+            if (ch?.ok) channelSent++; else if (ch && !ch.ok) channelMisses.push(ch.error || 'failed');
           }
-          setStep(s.id, { note: `${ordered.length} square${ordered.length === 1 ? '' : 's'}` });
+          // The community has it either way; a channel miss is said beside it, not retried (that would post the community twice).
+          const squares = `${ordered.length} square${ordered.length === 1 ? '' : 's'}`;
+          setStep(s.id, { note: channelMisses.length ? `${squares} · the channel didn’t take ${channelMisses.length}: ${channelMisses[0]}` : channelSent ? `${squares} · also on ${waChannel?.name ?? 'the channel'}` : squares });
         }
         setStep(s.id, { status: 'done' });
       } catch (e) {
@@ -705,7 +712,7 @@ function PostAPiecePage() {
 
       <HealthPanel health={health} />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* ── Left: what goes in ── */}
         <div className="space-y-6 min-w-0">
           <section className="space-y-3">
@@ -839,7 +846,7 @@ function PostAPiecePage() {
                 {!community.reachable && <p className="text-sm text-amber-600">The WhatsApp line did not answer just now. Sending may fail; check Settings → Integrations.</p>}
                 {toWhatsApp && (
                   <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2">
-                    {waPhotos().length ? `${waPhotos().length} square photo${waPhotos().length === 1 ? '' : 's'}, the caption on the first.` : 'Tick WA on a photo to send it.'}
+                    {waPhotos().length ? `${waPhotos().length} square photo${waPhotos().length === 1 ? '' : 's'}, the caption on the first${waChannel ? ` — and the same to ${waChannel.name}` : ''}.` : 'Tick WA on a photo to send it.'}
                     <button type="button" className="text-primary" onClick={() => setView('square')}>Edit the square →</button>
                   </p>
                 )}
@@ -881,11 +888,11 @@ function PostAPiecePage() {
         </div>
 
         {/* ── Right: the story, and what to press ── */}
-        <aside className="space-y-4 lg:sticky lg:top-4 self-start">
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-4 self-start">
           <div className="flex items-center justify-between gap-2">
             <div className="inline-flex rounded-full border p-0.5 text-xs">
-              <button type="button" onClick={() => setView('story')} className={cn('rounded-full px-3 py-1.5', view === 'story' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>Story <span className="opacity-70">9:16 · Instagram</span></button>
-              <button type="button" onClick={() => setView('square')} className={cn('rounded-full px-3 py-1.5', view === 'square' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>Square <span className="opacity-70">1:1 · WhatsApp + site</span></button>
+              <button type="button" onClick={() => setView('story')} className={cn('rounded-full px-3 py-1.5', view === 'story' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>Story <span className="hidden sm:inline opacity-70">9:16 · Instagram</span></button>
+              <button type="button" onClick={() => setView('square')} className={cn('rounded-full px-3 py-1.5', view === 'square' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>Square <span className="hidden sm:inline opacity-70">1:1 · WhatsApp + site</span></button>
             </div>
             {hero && view === 'story' && (
               <Button size="sm" onClick={() => setWholeOpen(true)} disabled={busyAny}>
@@ -912,6 +919,8 @@ function PostAPiecePage() {
               websiteLabel={SITE_NAME || 'taheri.shop'}
               presets={PRESETS}
               onPreset={id => story.change(d => applyPreset(d, id as PresetId, palette, fields, assets, { weightOwnLine, wordmark: d.layers.some(l => l.kind === 'wordmark') || d.layers.length === 0 }))}
+              previewPreset={id => applyPreset(story.doc, id as PresetId, palette, fields, assets, { weightOwnLine, wordmark: story.doc.layers.some(l => l.kind === 'wordmark') || story.doc.layers.length === 0 })}
+              fileName={fileNameBase}
               overlay={(aiBusy.whole || aiBusy.letter) ? (
                 <div className="absolute inset-0 rounded-xl bg-black/45 text-white flex flex-col items-center justify-center gap-2 text-sm text-center p-6">
                   <Loader2 className="h-6 w-6 animate-spin" />{aiBusy.whole ? 'Writing, choosing a setting and photographing it… about a minute' : 'Lettering it and reading it back…'}
@@ -957,6 +966,8 @@ function PostAPiecePage() {
                 websiteLabel={SITE_NAME || 'taheri.shop'}
                 presets={SQUARE_PRESETS}
                 onPreset={id => square.change(d => applySquarePreset(d, id as SquarePresetId, fields, assets))}
+                previewPreset={id => applySquarePreset(square.doc, id as SquarePresetId, fields, assets)}
+                fileName={fileNameBase}
                 photoTools={current && (
                   <div className="space-y-1.5">
                     {notSquare && <p className="text-[11px] text-amber-600">This photo isn’t square, so its edges are cropped. Drag it to choose what shows, show the whole photo, or let AI widen it to a true square.</p>}
@@ -1013,7 +1024,8 @@ function PostAPiecePage() {
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="secondary" size="sm" disabled={!ready} onClick={shareStory}><Instagram className="h-4 w-4 mr-1.5" /> Share story</Button>
                 <Button variant="outline" size="sm" disabled={!ready} onClick={async () => download(await getStory(), `${fileNameBase}-story.jpg`)}><Download className="h-4 w-4 mr-1.5" /> Save story</Button>
-                <Button variant="secondary" size="sm" disabled={!ready} onClick={shareToChannel}><Share2 className="h-4 w-4 mr-1.5" /> Channel</Button>
+                {/* With the channel posted automatically, sharing by hand would post it twice: this becomes a plain share. */}
+                <Button variant="secondary" size="sm" disabled={!ready} onClick={shareToChannel}><Share2 className="h-4 w-4 mr-1.5" /> {waChannel ? 'Share square' : 'Channel'}</Button>
                 <Button variant="outline" size="sm" disabled={!caption} onClick={() => copyText(caption, 'Caption')}><Copy className="h-4 w-4 mr-1.5" /> Caption</Button>
               </div>
               {STORE_LINKS.waChannel && (

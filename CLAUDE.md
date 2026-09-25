@@ -215,6 +215,20 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   taheri-post-kit/taheri_logo.svg, cropped to its letters) and `public/brand/taheri-t.svg` (the t monogram), filled with any
   colour through their shape (`drawMark`); `NEXT_PUBLIC_STORE_MARK_SVG` / `_MONOGRAM_SVG` per house (Mina: its PNG logo, no
   monogram). A text "TAHERI / COLLECTIONS" stamp was tried and rejected. WhatsApp no longer offers "send the story image".
+- **The designer** (2026-09-25, owner: "add canva like design functionality to the story and post editor", then "OPTIMIZE HEAVILY
+  FOR MOBILE, ALSO FOR DESKTOP"): **Design** on the story or the square opens a full-screen, Canva-style editor of the same document
+  (`Designer` in `story-editor.tsx`; panels in `editor-panels.tsx`; shapes, frames, photo filters, align/distribute and magnetic
+  guides in `src/lib/social/design.ts`, tested). Rail: Templates (thumbnails drawn from the real piece via `previewPreset`), Elements
+  (shapes, lines, frames = a photo cut to a shape, stickers, the marks), Text (heading/subheading/body, the bound fields, font
+  combinations), Photos & uploads (uploads stored as data URLs so saved layouts carry them), Brand, Layers, Background. Selection
+  toolbar, 8 text effects + curved text, filters by pixel maths (Safari has no `ctx.filter`), multi-select/group/lock, copy/paste
+  between story and square, PNG/JPG download, 5 extra fonts (`fonts.ts`, loaded on first use). **Phones:** bottom bar = the rail or
+  the selection's tools; panels are bottom sheets and the design refits above them and above the keyboard (`visualViewport`);
+  long-press = menu; tap selected words again = type; two-finger pinch + twist; the typing box is never under 16 px (iOS zooms into
+  smaller fields). The app's global coarse-pointer rule gives every `<button>` `min-height: 2.75rem` — round buttons need
+  `min-h-0` — and `[@media(pointer:coarse)]:` classes must be written out literally (Tailwind can't see interpolated ones).
+  Checked in headless Chrome as an iPhone and at 1440 px (puppeteer with the Mac's own Chrome as `executablePath`; the cached
+  puppeteer Chrome is broken) through the gate's dev-only `?dev=1`.
 - **Investments by Taheri in the POS** (`/website/investments`, 2026-09-25): the daily gold post is written by the owner's
   scheduled **Cowork routine on claude.ai** ("Investments by Taheri — daily post", 11:00; not editable from Claude Code) whose last
   step POSTs the four deliverables to `/api/investments` (multipart post/teaser/square/story, `Authorization: Bearer` the token in
