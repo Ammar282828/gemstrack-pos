@@ -37,9 +37,23 @@ env:
     availability:
       - RUNTIME
 
-  # WhatsApp, through Green API. Deliberately the SAME instance for both houses:
-  # the shop runs one bot across both stores, so messages from either go out from
-  # the one number. RUNTIME only; read per request in src/lib/whatsapp.ts.
+  # WhatsApp, through WAHA (WhatsApp HTTP API) since 2026-09-25 — the shop's own
+  # gateway on the `waha` VM in gemstrack-pos (ops/waha/), with +92 326 2275554
+  # linked to it as a device. Deliberately the SAME line for both houses: the shop
+  # runs one bot across both stores. `waha-api-key` exists in both projects with
+  # the same value (the VM holds it hashed). src/lib/whatsapp.ts prefers WAHA when
+  # these two are set; remove them to fall back to Green API below.
+  - variable: WAHA_URL
+    value: "https://35-184-20-165.sslip.io"
+    availability:
+      - RUNTIME
+  - variable: WAHA_API_KEY
+    secret: waha-api-key
+    availability:
+      - RUNTIME
+
+  # Green API — the gateway before WAHA, kept configured as the fallback until
+  # it is cancelled. Same line. RUNTIME only.
   - variable: GREENAPI_ID_INSTANCE
     secret: GREENAPI_ID_INSTANCE
     availability:

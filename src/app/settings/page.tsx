@@ -192,8 +192,9 @@ function NotificationsCard() {
   const [newPhone, setNewPhone] = React.useState('');
   const phones = settings.notifPhones || [];
 
-  // A Green API instance drops out of "authorized" when the linked phone is
-  // offline too long, and the only symptom is messages quietly not arriving.
+  // The gateway (WAHA, or Green API as the fallback) drops out when the linked
+  // phone is unlinked or offline too long, and the only symptom is messages
+  // quietly not arriving.
   const [health, setHealth] = React.useState<{ ok: boolean; configured: boolean; state?: string; detail?: string } | null>(null);
   const [checking, setChecking] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
@@ -279,7 +280,7 @@ function NotificationsCard() {
           WhatsApp Notifications
         </CardTitle>
         <CardDescription>
-          Shop alerts sent through Green API. Needs <code className="text-xs bg-muted px-1 rounded">GREENAPI_ID_INSTANCE</code> and <code className="text-xs bg-muted px-1 rounded">GREENAPI_API_TOKEN</code>.
+          Shop alerts sent through WAHA, the shop's own WhatsApp gateway (<code className="text-xs bg-muted px-1 rounded">WAHA_URL</code>, <code className="text-xs bg-muted px-1 rounded">WAHA_API_KEY</code>), or Green API when those are not set.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
