@@ -36,6 +36,8 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 - `apphosting.yaml` holds every env var. A `secret:` it declares **must exist in Secret Manager and
   be readable by the three App Hosting service accounts** (mirror `CRON_SECRET`'s IAM) *before* it is
   declared, or the rollout fails. Names are case-sensitive: the upload secret is `website-upload-secret`.
+  A variable with `value: ""` also fails the rollout ("either 'value' or 'secret' field is required") — write
+  a word the code reads as off (`"none"`, `"0"`) instead.
 - Firebase CLI login is broken on the owner's Mac. Use **`gcloud`** (authenticated as the owner):
   `gcloud secrets …`, `gcloud builds list`, `gcloud run revisions list` — all `--project gemstrack-pos --region us-central1`.
   Never print a secret value; compare `sha256` of trimmed values instead.
