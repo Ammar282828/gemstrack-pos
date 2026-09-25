@@ -71,7 +71,14 @@ const mediaId = (id: string, key: string, part: number) => `${id}__${key}__${par
 
 export function toView(d: QueueItem): QueueItemView {
   const { thumb, stored: _stored, ...rest } = d;
-  return { ...rest, thumb: thumb ? `data:image/jpeg;base64,${Buffer.from(thumb).toString('base64')}` : null, units: queueUnits(d, d.counts) };
+  // A send that died part-way (the request timed out) shows as failed, so the counter can retry what didn't go.
+  const stalled = d.status === 'sending' && (!d.claimedAt || Date.now() - Date.parse(d.claimedAt) >= CLAIM_MS);
+  return {
+    ...rest,
+    ...(stalled ? { status: 'failed' as const, errors: { ...d.errors, stalled: { message: 'It stopped part-way', at: d.claimedAt || d.createdAt } } } : {}),
+    thumb: thumb ? `data:image/jpeg;base64,${Buffer.from(thumb).toString('base64')}` : null,
+    units: queueUnits(d, d.counts),
+  };
 }
 
 // ── Making a piece ───────────────────────────────────────────────────────────
@@ -138,7 +145,8 @@ export async function changeItem(id: string, change: { action: 'ready' } | { act
   return adminDb.runTransaction(async tx => {
     const d = (await tx.get(ref)).data() as QueueItem | undefined;
     if (!d) throw statusError('That piece is no longer in the queue.', 404);
-    if (d.status === 'sending') throw statusError('That piece is being sent right now.', 409);
+    const live = d.status === 'sending' && !!d.claimedAt && Date.now() - Date.parse(d.claimedAt) < CLAIM_MS;
+    if (live) throw statusError('That piece is being sent right now.', 409);
     if (d.status === 'sent') throw statusError('That piece has already gone out.', 409);
     let patch: Partial<QueueItem>;
     if (change.action === 'ready') {
@@ -149,11 +157,12 @@ export async function changeItem(id: string, change: { action: 'ready' } | { act
     } else if (d.status === 'draft') {
       throw statusError('That piece has not finished arriving.', 409);
     } else if (change.action === 'hold') {
-      patch = { status: d.status === 'failed' ? 'failed' : 'held', dueAt: null };
+      // Something already went (or may have): it stays "failed" so the list says what is left.
+      patch = { status: d.status === 'failed' || d.status === 'sending' ? 'failed' : 'held', dueAt: null, claimedAt: null };
     } else {
       if (!Number.isFinite(Date.parse(change.dueAt))) throw statusError('That time could not be read.', 400);
       // Scheduling again is also how the counter gives a failed piece its tries back.
-      patch = { status: 'scheduled', dueAt: new Date(change.dueAt).toISOString(), attempts: 0 };
+      patch = { status: 'scheduled', dueAt: new Date(change.dueAt).toISOString(), attempts: 0, claimedAt: null };
     }
     tx.update(ref, patch);
     return { ...d, ...patch };
