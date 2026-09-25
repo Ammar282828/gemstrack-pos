@@ -156,6 +156,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # House of Mina's own WhatsApp line for everything its POS sends: +92 316 1930960,
+  # linked to the WAHA session "mina" on the shared WAHA server (the owner,
+  # 2026-09-25). Taheri's POS uses the session "default", +92 326 2275554.
+  # WAHA_URL and WAHA_API_KEY come from apphosting.yaml.
+  - variable: WAHA_SESSION
+    value: "mina"
+    availability: [RUNTIME]
 
   # ── Mina's own integrations ──────────────────────────────────────────────
   # Shopify: the storefront and its webhooks. Secrets live in hom-pos.
