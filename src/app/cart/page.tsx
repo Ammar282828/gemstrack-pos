@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { EditCartItemDialog, blankCartItem } from '@/components/cart/edit-cart-item-dialog';
 import { DeliveryFields, EMPTY_DELIVERY, knownAddressesFor } from '@/components/shared/delivery-fields';
 import { useRouter } from 'next/navigation';
-import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, DeliveryInfo, PAYMENT_TYPES, PaymentType } from '@/lib/store';
+import { useAppStore, Customer, Settings, InvoiceItem, Invoice as InvoiceType, calculateProductCosts, Product, MetalType, KaratValue, DeliveryInfo, PAYMENT_TYPES, PaymentType, SalePayment } from '@/lib/store';
 import { describeMetal, describeSettings, describeDelivery, describePlating } from '@/lib/materials';
 import { categorySingular } from '@/lib/categories';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Plus, Minus, ShoppingCart, FileText, ClipboardList, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban, CheckCircle, Camera, TriangleAlert, Lock } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingCart, FileText, ClipboardList, User, XCircle, Settings as SettingsIcon, Percent, Info, Loader2, MessageSquare, Check, Banknote, Edit, ArrowLeft, PlusCircle, CalendarIcon, List, RotateCcw, Ban, CheckCircle, Camera, TriangleAlert, Lock, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { alignHeadCell, label } from '@/lib/pdf-chrome';
 
@@ -75,6 +75,11 @@ type RateInputs = {
 
 
 const WALK_IN_CUSTOMER_VALUE = "__WALK_IN__";
+
+/** One "Payment received" row in the cart, as typed (the amount stays a string until the invoice is written). */
+interface SalePaymentRow { id: string; amount: string; method: PaymentType; reference: string }
+const blankSalePayment = (method: PaymentType = 'Cash'): SalePaymentRow =>
+  ({ id: Math.random().toString(36).slice(2, 9), amount: '', method, reference: '' });
 
 // A temporary structure to hold the real-time calculated invoice preview
 type EstimatedInvoice = {
@@ -149,14 +154,18 @@ export default function CartPage() {
   const [internalNote, setInternalNote] = useState('');
   const [exchangeAmount1Input, setExchangeAmount1Input] = useState<string>('');
   const [exchangeAmount2Input, setExchangeAmount2Input] = useState<string>('');
+  // Payments taken as the invoice is written (the owner, 2026-09-25: "add payments as we make
+  // the invoice"). One row to start; more for a bill paid part cash, part card. Blank rows
+  // are ignored; generateInvoice files the rest in the invoice's payment history.
+  const [salePayments, setSalePayments] = useState<SalePaymentRow[]>(() => [blankSalePayment()]);
   // Everything typed around the cart — who it is for, the discount, anything
   // taken in exchange. The items themselves already survive a reload via the
   // store; this is the rest of the sale.
   const invoiceDraftValue = useMemo(() => ({
     walkInCustomerName, walkInCustomerPhone, discountAmountInput,
-    exchangeDescription, exchangeAmount1Input, exchangeAmount2Input, internalNote,
+    exchangeDescription, exchangeAmount1Input, exchangeAmount2Input, internalNote, salePayments,
   }), [walkInCustomerName, walkInCustomerPhone, discountAmountInput,
-       exchangeDescription, exchangeAmount1Input, exchangeAmount2Input, internalNote]);
+       exchangeDescription, exchangeAmount1Input, exchangeAmount2Input, internalNote, salePayments]);
 
 
   
@@ -187,6 +196,7 @@ export default function CartPage() {
     setExchangeAmount1Input(d.exchangeAmount1Input || '');
     setExchangeAmount2Input(d.exchangeAmount2Input || '');
     setInternalNote(d.internalNote || '');
+    if (Array.isArray(d.salePayments) && d.salePayments.length) setSalePayments(d.salePayments);
     discardInvoiceDraft();
     toast({ title: 'Draft restored', description: 'Picking up where you left off.' });
   };
@@ -267,9 +277,14 @@ export default function CartPage() {
     bill.items.forEach(addProductToCart);
     if (bill.customerId) setSelectedCustomerId(bill.customerId);
     setScannedBillTotal(bill.writtenTotal);
+    // What the paper says was paid goes into the payment rows, unless some are typed already.
+    const paidOnBill = bill.amountPaid && bill.amountPaid > 0 ? bill.amountPaid : null;
+    if (paidOnBill) setSalePayments(rows => (rows.some(r => parseFloat(r.amount) > 0) ? rows : [{ ...blankSalePayment(), amount: String(paidOnBill) }]));
     toast({
       title: `${bill.items.length} line${bill.items.length === 1 ? '' : 's'} added`,
-      description: 'Check them against the bill before invoicing.',
+      description: paidOnBill
+        ? `Check them against the bill before invoicing. Paid PKR ${paidOnBill.toLocaleString()} is filled in as cash — change it if it was paid another way.`
+        : 'Check them against the bill before invoicing.',
     });
   };
 
@@ -431,6 +446,22 @@ export default function CartPage() {
     };
   }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, exchangeAmount1Input, exchangeAmount2Input, cartMetalInfo]);
 
+  // What the payment rows come to. Editing an invoice, what it had already been paid
+  // stays paid; these rows are added on top.
+  const paidBefore = isEditingEstimate ? (editingInvoiceOriginalRef.current?.amountPaid || 0) : 0;
+  const paidNow = salePayments.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+  const balanceAfterPayments = estimatedInvoice ? estimatedInvoice.grandTotal - paidBefore - paidNow : null;
+  const overpaid = balanceAfterPayments !== null && balanceAfterPayments < -0.5;
+  const setSalePayment = (id: string, patch: Partial<SalePaymentRow>) =>
+    setSalePayments(rows => rows.map(r => (r.id === id ? { ...r, ...patch } : r)));
+  // "Paid in full": the row takes whatever the others leave outstanding.
+  const payRestWith = (id: string) => {
+    if (!estimatedInvoice) return;
+    const others = salePayments.filter(r => r.id !== id).reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    const rest = Math.max(0, Math.round(estimatedInvoice.grandTotal - paidBefore - others));
+    setSalePayment(id, { amount: rest ? String(rest) : '' });
+  };
+
 
   /**
    * Why the Create Invoice button is disabled, in words.
@@ -455,8 +486,9 @@ export default function CartPage() {
     if (missing.length > 0) {
       return `Enter a ${missing.join(' and ')} gold rate above — it is currently zero, so the total cannot be worked out.`;
     }
+    if (overpaid) return 'The payments come to more than the total. Check the amounts received.';
     return null;
-  }, [appReady, settings, cartItemsFromStore, rateInputs, cartMetalInfo]);
+  }, [appReady, settings, cartItemsFromStore, rateInputs, cartMetalInfo, overpaid]);
 
   const handleGenerateInvoice = async () => {
     if (isGeneratingEstimate) return; // Prevent double-submit
@@ -516,6 +548,14 @@ export default function CartPage() {
         toast({ title: "Invalid Discount", description: "Discount cannot be greater than the subtotal.", variant: "destructive" });
         return;
     }
+
+    if (overpaid) {
+      toast({ title: "More than the total", description: `The payments come to PKR ${(paidBefore + paidNow).toLocaleString()}, the invoice to PKR ${estimatedInvoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}.`, variant: "destructive" });
+      return;
+    }
+    const paymentsNow: SalePayment[] = salePayments
+      .map(r => ({ amount: parseFloat(r.amount) || 0, method: r.method, reference: r.method === 'Cash' ? '' : r.reference }))
+      .filter(p => p.amount > 0);
     
     const ratesForInvoice: Partial<Settings> = {
         ...(cartMetalInfo.metals.has('gold') && {
@@ -547,8 +587,8 @@ export default function CartPage() {
     setIsGeneratingEstimate(true);
     let invoice;
     try {
-      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy, hideRates, internalNote);
-      if (invoice) invoiceDraftDone();
+      invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchangeInfo, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy, hideRates, internalNote, paymentsNow);
+      if (invoice) { invoiceDraftDone(); setSalePayments([blankSalePayment()]); }
     } catch (error) {
       console.error("[Cart handleGenerateInvoice] Failed:", error);
       toast({
@@ -586,7 +626,12 @@ export default function CartPage() {
       setIsEditingEstimate(false);
       isEditingEstimateRef.current = false;
       setEditingInvoiceId(undefined);
-      toast({ title: "Invoice created", description: `${invoice.id} is ready to print or send.` });
+      toast({
+        title: "Invoice created",
+        description: paymentsNow.length
+          ? `${invoice.id}: PKR ${invoice.amountPaid.toLocaleString()} paid${invoice.balanceDue > 0 ? `, PKR ${invoice.balanceDue.toLocaleString()} still due` : ' — paid in full'}.`
+          : `${invoice.id} is ready to print or send.`,
+      });
     } else {
       toast({ title: "Could not create the invoice", description: "Check the figures and try again.", variant: "destructive" });
     }
@@ -637,6 +682,7 @@ export default function CartPage() {
     setExchangeAmount1Input(generatedInvoice.exchangeAmount1 ? String(generatedInvoice.exchangeAmount1) : '');
     setExchangeAmount2Input(generatedInvoice.exchangeAmount2 ? String(generatedInvoice.exchangeAmount2) : '');
     setEditingInvoiceId(generatedInvoice.id);
+    setSalePayments([blankSalePayment()]);
     setGeneratedInvoice(null);
   };
   
@@ -1516,9 +1562,66 @@ export default function CartPage() {
                             </Alert>
                           );
                         })()}
+                        <Separator />
+                        {/* Payment received — taken as the invoice is written, and filed in its
+                            payment history with it (generateInvoice). A bill paid part cash, part
+                            card is two rows. Nothing typed means nothing paid yet. */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                                <Label className="flex items-center"><Banknote className="mr-2 h-4 w-4"/>Payment received</Label>
+                                {paidBefore > 0 && <span className="text-xs text-muted-foreground tabular-nums">Paid before: PKR {paidBefore.toLocaleString()}</span>}
+                            </div>
+                            {salePayments.map((row, i) => (
+                              <div key={row.id} className="space-y-2 rounded-md border p-2.5">
+                                <div className="flex items-center gap-2">
+                                  <AmountInput value={row.amount}
+                                    onValueChange={v => setSalePayment(row.id, { amount: v === undefined ? '' : String(v) })}
+                                    placeholder="Amount (PKR)" className="flex-1 text-right" aria-label={`Payment ${i + 1}, amount`} />
+                                  <Button type="button" variant="outline" size="sm" className="shrink-0" disabled={!estimatedInvoice}
+                                    onClick={() => payRestWith(row.id)}>
+                                    {salePayments.length > 1 ? 'The rest' : 'Paid in full'}
+                                  </Button>
+                                  {salePayments.length > 1 && (
+                                    <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label={`Remove payment ${i + 1}`}
+                                      onClick={() => setSalePayments(rows => rows.filter(r => r.id !== row.id))}>
+                                      <X className="h-4 w-4"/>
+                                    </Button>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Select value={row.method} onValueChange={v => setSalePayment(row.id, { method: v as PaymentType })}>
+                                    <SelectTrigger aria-label={`Payment ${i + 1}, paid by`}><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {PAYMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                  <Input value={row.method === 'Cash' ? '' : row.reference} disabled={row.method === 'Cash'}
+                                    onChange={e => setSalePayment(row.id, { reference: e.target.value })}
+                                    placeholder={row.method === 'Cheque' ? 'Cheque no.' : row.method === 'Card' ? 'Last 4 digits' : row.method === 'Bank Transfer' ? 'Reference' : 'No reference'}
+                                    aria-label={`Payment ${i + 1}, reference`} />
+                                </div>
+                              </div>
+                            ))}
+                            <Button type="button" variant="ghost" size="sm" className="w-full"
+                              onClick={() => setSalePayments(rows => [...rows, blankSalePayment(rows[rows.length - 1]?.method === 'Cash' ? 'Card' : 'Cash')])}>
+                              <Plus className="mr-2 h-4 w-4"/> Add another payment
+                            </Button>
+                            {balanceAfterPayments !== null && (paidNow > 0 || paidBefore > 0) ? (
+                              <div className={`flex justify-between font-semibold ${overpaid ? 'text-destructive' : ''}`}>
+                                <span>{overpaid ? 'More than the total by' : balanceAfterPayments <= 0.5 ? 'Paid in full' : 'Balance due'}</span>
+                                <span className="tabular-nums">
+                                  {overpaid ? `PKR ${Math.abs(balanceAfterPayments).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                                    : balanceAfterPayments <= 0.5 ? <CheckCircle className="inline h-4 w-4" aria-label="Paid in full"/>
+                                    : `PKR ${balanceAfterPayments.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">Leave it empty if nothing is paid yet — a payment can still be recorded after.</p>
+                            )}
+                        </div>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-2">
-                         <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate}>
+                         <Button size="lg" className="w-full" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate || overpaid}>
                             {isGeneratingEstimate ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <FileText className="mr-2 h-5 w-5"/>}
                             {isEditingEstimate ? 'Update invoice' : 'Create invoice'}
                         </Button>
@@ -1557,8 +1660,13 @@ export default function CartPage() {
                     <p className="text-base font-semibold tabular-nums truncate">
                         PKR {estimatedInvoice ? estimatedInvoice.grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '…'}
                     </p>
+                    {balanceAfterPayments !== null && paidNow > 0 && (
+                      <p className={`text-2xs tabular-nums truncate ${overpaid ? 'text-destructive' : 'text-muted-foreground'}`}>
+                        {overpaid ? 'Paid more than the total' : balanceAfterPayments <= 0.5 ? 'Paid in full' : `Due PKR ${balanceAfterPayments.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                      </p>
+                    )}
                 </div>
-                <Button size="lg" className="shrink-0" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate}>
+                <Button size="lg" className="shrink-0" onClick={handleGenerateInvoice} disabled={!estimatedInvoice || isGeneratingEstimate || overpaid}>
                     {isGeneratingEstimate ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <FileText className="mr-2 h-5 w-5"/>}
                     {isEditingEstimate ? 'Update invoice' : 'Create invoice'}
                 </Button>

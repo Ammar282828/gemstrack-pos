@@ -434,6 +434,17 @@ export interface InvoiceItem {
 export const PAYMENT_TYPES = ['Cash', 'Card', 'Bank Transfer', 'Cheque'] as const;
 export type PaymentType = typeof PAYMENT_TYPES[number];
 
+/**
+ * A payment taken at the counter while the invoice is being written (the cart's
+ * "Payment received" rows). generateInvoice stamps it with the invoice's time and
+ * files it in the payment history exactly as a later payment would be.
+ */
+export interface SalePayment {
+  amount: number;
+  method?: PaymentType;
+  reference?: string;
+}
+
 export interface Payment {
   amount: number;
   date: string; // ISO string
@@ -1323,7 +1334,9 @@ export interface AppState {
     delivery?: DeliveryInfo,
     takenBy?: TakenBy,
     hideRates?: boolean,
-    internalNote?: string
+    internalNote?: string,
+    /** Payments taken as the invoice is written; added to any it already had. */
+    payments?: SalePayment[]
   ) => Promise<Invoice | null>;
   updateInvoicePayment: (invoiceId: string, paymentAmount: number, paymentDate: string, method?: PaymentType, reference?: string) => Promise<Invoice | null>;
   refundInvoicePartial: (invoiceId: string, refundAmount: number, reason?: string) => Promise<Invoice | null>;
@@ -2544,7 +2557,7 @@ export const useAppStore = create<AppState>()(
         });
       }),
 
-      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?, takenBy?, hideRates?, internalNote?) => {
+      generateInvoice: async (customerInfo, invoiceRates, discountAmount, exchangeInfo?, existingInvoiceId?, delivery?, takenBy?, hideRates?, internalNote?, payments?) => {
         if(get().settings.databaseLocked) return null;
         const { cart } = get();
         if (cart.length === 0) return null;
@@ -2673,17 +2686,37 @@ export const useAppStore = create<AppState>()(
                     transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });
                 }
 
+                // Payments taken at the counter as the invoice is written go into the
+                // same history, in the same shape, as a payment recorded afterwards
+                // (writes/invoice-payment.ts) — so the balance, the hisaab entry and
+                // the sale message below are right the first time. Paid is recomputed
+                // from the whole history, as recordInvoicePayment does.
+                const paidAt = new Date().toISOString();
+                const takenNow: Payment[] = (payments || [])
+                    .filter(p => Number.isFinite(p.amount) && p.amount > 0)
+                    .map(p => ({
+                        amount: p.amount, date: paidAt,
+                        notes: p.method ? `Payment received (${p.method})` : 'Payment received',
+                        ...(p.method && { method: p.method }),
+                        ...(p.reference?.trim() && { reference: p.reference.trim() }),
+                    }));
+                const paymentHistory = [...existingPaymentHistory, ...takenNow];
+                const amountPaid = paymentHistory.reduce((acc, p) => acc + (p.amount || 0), 0);
+                if (takenNow.length && amountPaid > grandTotal + 0.5) {
+                    throw new Error(`The payments (PKR ${amountPaid.toLocaleString()}) come to more than the invoice (PKR ${grandTotal.toLocaleString()}).`);
+                }
+
                 const newInvoiceData: Omit<Invoice, 'id'> = {
                     items: invoiceItems, subtotal, discountAmount: calculatedDiscountAmount, grandTotal,
-                    amountPaid: existingAmountPaid,
-                    balanceDue: grandTotal - existingAmountPaid,
+                    amountPaid,
+                    balanceDue: grandTotal - amountPaid,
                     createdAt: existingCreatedAt || new Date().toISOString(),
                     ratesApplied: ratesForInvoice,
                     // Only set when the counter chose someone; undefined stays out of Firestore.
                     ...(takenBy ? { takenBy } : {}),
                     ...(hideRates ? { hideRates: true } : {}),
                     ...(internalNote?.trim() ? { internalNote: internalNote.trim() } : {}),
-                    paymentHistory: existingPaymentHistory,
+                    paymentHistory,
                     customerName: finalCustomerName || 'Walk-in Customer',
                     customerId: finalCustomerId,
                     customerContact: customerInfo.phone ? normalizePhoneNumber(customerInfo.phone) : customerInfo.phone,
@@ -2713,6 +2746,10 @@ export const useAppStore = create<AppState>()(
             if (result) {
               addActivityLog('invoice.create', `Created invoice ${result.id}`,
                 `Customer: ${result.customerName || 'Walk-in'} | Total: ${Number(result.grandTotal || 0).toLocaleString()}`, result.id);
+              for (const p of (payments || []).filter(x => Number.isFinite(x.amount) && x.amount > 0)) {
+                addActivityLog('invoice.payment', `Payment received for invoice ${result.id}`,
+                  `Amount: ${p.amount.toLocaleString()}${p.method ? ` (${p.method})` : ''} | Customer: ${result.customerName || 'Walk-in'} | taken with the invoice`, result.id);
+              }
             }
 
             // This line should be outside the transaction, in the main function body.
