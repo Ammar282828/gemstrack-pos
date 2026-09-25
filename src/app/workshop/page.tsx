@@ -12,7 +12,7 @@ import {
 import { STORE_CONFIG } from '@/lib/store-config';
 import { KarigarAssign } from '@/components/karigar/karigar-assign';
 import { KarigarGlance } from '@/components/karigar/karigar-glance';
-import { AgeBadge, BoardJobCard } from '@/components/karigar/job-card';
+import { AgeBadge, BoardJobCard, TakenByTag } from '@/components/karigar/job-card';
 import { SampleImageInput } from '@/components/shared/sample-image-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -113,6 +113,7 @@ const JobRow: React.FC<{
               {job.karigarName}
             </Badge>
           )}
+          <TakenByTag job={job} />
           {meta && <span>{meta}</span>}
         </div>
 
@@ -793,6 +794,7 @@ const JobCardMobile: React.FC<{
                   ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
                   : <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
               {job.customerName && <span className="truncate">{job.customerName}</span>}
+              <TakenByTag job={job} />
               <span>· {format(parseISO(job.assignedDate), 'dd MMM yy')}</span>
             </div>
 

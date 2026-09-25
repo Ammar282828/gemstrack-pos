@@ -15,9 +15,24 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Pencil } from 'lucide-react';
+import { Pencil, UserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
+
+/**
+ * Who took the order (or wrote the invoice) a piece came off — on every order in the Workshop
+ * (the owner, 2026-09-25). An older order with nobody recorded says so rather than hiding it;
+ * stock jobs are not orders and show nothing.
+ */
+export const TakenByTag: React.FC<{ job: WorkshopJob }> = ({ job }) => {
+  if (job.source === 'manual') return null;
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap" title="Taken by">
+      <UserRound className="h-3 w-3" aria-hidden="true" />
+      {job.takenBy ? <span className="text-foreground/80">{job.takenBy}</span> : <span className="italic">not recorded</span>}
+    </span>
+  );
+};
 
 export const AgeBadge: React.FC<{ job: WorkshopJob }> = ({ job }) => {
   if (job.status === 'completed') {
@@ -93,6 +108,7 @@ const BoardJobCard: React.FC<{
               ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
               : null}
           {job.customerName && <span className="truncate">{job.customerName}</span>}
+          <TakenByTag job={job} />
         </div>
 
         {/* The assign dropdown below already names the karigar, so the badge
