@@ -1347,7 +1347,7 @@ export default function WorkshopPage() {
                     <TableHead className="w-10"></TableHead>
                     <TableHead>Job Details</TableHead>
                     <TableHead className="hidden md:table-cell">Given</TableHead>
-                    <TableHead>Order / Customer</TableHead>
+                    <TableHead>Order / Customer / Taken by</TableHead>
                     <TableHead>Karigar</TableHead>
                     <TableHead className="text-right">Age</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -1418,6 +1418,7 @@ export default function WorkshopPage() {
                               ? <Link href={`/orders/${j.orderId}`} className="font-mono text-sm text-primary hover:underline">{j.orderId}</Link>
                               : <span className="text-sm text-muted-foreground">—</span>}
                           {j.customerName && <div className="text-xs text-muted-foreground truncate max-w-[11rem]">{j.customerName}</div>}
+                          <div className="text-xs text-muted-foreground mt-0.5"><TakenByTag job={j} /></div>
                         </TableCell>
 
                         <TableCell className="align-middle">
