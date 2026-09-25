@@ -20,7 +20,8 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { nameScore } from '@/lib/voice/phonetics';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Search, Users, Briefcase, Gem, Home, PlusCircle, Receipt, Hammer, ClipboardList, BookUser, TrendingUp, Settings as SettingsIcon, CreditCard, Calendar, ArrowRight, RotateCcw, Mic, Wrench } from 'lucide-react';
+import { Search, Users, Briefcase, Gem, Home, PlusCircle, Receipt, Hammer, ClipboardList, BookUser, TrendingUp, Settings as SettingsIcon, CreditCard, Calendar, ArrowRight, RotateCcw, Mic, Wrench, Package, ImagePlus, Scale, Coins, Target, PieChart, Landmark, ArchiveRestore, History } from 'lucide-react';
+import { STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS } from '@/lib/store-config';
 
 interface Item {
   id: string;
@@ -46,24 +47,39 @@ const phoneForms = (p?: string) => {
 };
 const pkr = (n: number) => (n >= 100000 ? `PKR ${(n / 100000).toFixed(n >= 1000000 ? 1 : 2).replace(/\.?0+$/, '')} lac` : `PKR ${Math.round(n).toLocaleString('en-PK')}`);
 
-const DESTINATIONS: Array<Omit<Item, 'id'>> = [
-  { label: 'Home', group: 'Go to', icon: <Home className="h-4 w-4" />, href: '/' },
-  { label: 'New Sale', group: 'Go to', icon: <PlusCircle className="h-4 w-4" />, href: '/new' },
+/** Every page, including the ones that are now tabs of a sidebar entry (Given items,
+ *  Overheads, Payment methods…), with the other words people use for them. Pages a
+ *  house has switched off are left out, as in the sidebar. */
+const DESTINATIONS: Array<Omit<Item, 'id'> & { keywords?: string[] }> = [
+  { label: 'Home', group: 'Go to', icon: <Home className="h-4 w-4" />, href: '/', keywords: ['dashboard'] },
+  { label: 'New Sale', group: 'Go to', icon: <PlusCircle className="h-4 w-4" />, href: '/new', keywords: ['sale', 'sell'] },
   { label: 'Orders', group: 'Go to', icon: <ClipboardList className="h-4 w-4" />, href: '/orders' },
-  { label: 'Invoices', group: 'Go to', icon: <Receipt className="h-4 w-4" />, href: '/invoices' },
-  { label: 'Repairs', group: 'Go to', icon: <Wrench className="h-4 w-4" />, href: '/repairs' },
-  { label: 'Workshop', group: 'Go to', icon: <Hammer className="h-4 w-4" />, href: '/workshop' },
-  { label: 'Products', group: 'Go to', icon: <Gem className="h-4 w-4" />, href: '/products' },
+  { label: 'Invoices', group: 'Go to', icon: <Receipt className="h-4 w-4" />, href: '/invoices', keywords: ['bills'] },
+  { label: 'Repairs', group: 'Go to', icon: <Wrench className="h-4 w-4" />, href: '/repairs', keywords: ['repair', 'fix'] },
   { label: 'Customers', group: 'Go to', icon: <Users className="h-4 w-4" />, href: '/customers' },
-  { label: 'Karigars', group: 'Go to', icon: <Briefcase className="h-4 w-4" />, href: '/karigars' },
-  { label: 'Hisaab / Ledger', group: 'Go to', icon: <BookUser className="h-4 w-4" />, href: '/hisaab' },
-  { label: 'Expenses', group: 'Go to', icon: <CreditCard className="h-4 w-4" />, href: '/expenses' },
-  { label: 'Calendar', group: 'Go to', icon: <Calendar className="h-4 w-4" />, href: '/calendar' },
-  { label: 'Analytics', group: 'Go to', icon: <TrendingUp className="h-4 w-4" />, href: '/analytics' },
-  { label: 'Settings', group: 'Go to', icon: <SettingsIcon className="h-4 w-4" />, href: '/settings' },
-  { label: 'Voice', group: 'Go to', icon: <Mic className="h-4 w-4" />, href: '/settings/voice' },
-  { label: 'Recently removed', group: 'Go to', icon: <RotateCcw className="h-4 w-4" />, href: '/settings/recently-removed' },
+  { label: 'Calendar', group: 'Go to', icon: <Calendar className="h-4 w-4" />, href: '/calendar', keywords: ['due dates'] },
+  { label: 'Workshop', group: 'Go to', icon: <Hammer className="h-4 w-4" />, href: '/workshop', keywords: ['jobs', 'bench'] },
+  { label: 'Karigars', group: 'Go to', icon: <Briefcase className="h-4 w-4" />, href: '/karigars', keywords: ['craftsmen', 'kaarigar'] },
+  { label: 'Given Items', group: 'Go to', icon: <Package className="h-4 w-4" />, href: '/given', keywords: ['given', 'gold given', 'issued'] },
+  { label: 'Products', group: 'Go to', icon: <Gem className="h-4 w-4" />, href: '/products', keywords: ['stock', 'inventory'] },
+  ...(STORE_LINKS.website ? [
+    { label: 'Add Photos', group: 'Go to', icon: <ImagePlus className="h-4 w-4" />, href: '/website/photos', keywords: ['website', 'upload', 'photos'] },
+    ...(STORE_WEBSITE_WEIGHTS ? [{ label: 'Photo Weights', group: 'Go to', icon: <Scale className="h-4 w-4" />, href: '/website/weights', keywords: ['weights', 'website'] }] : []),
+  ] : []),
+  { label: 'Expenses', group: 'Go to', icon: <CreditCard className="h-4 w-4" />, href: '/expenses', keywords: ['money', 'spend'] },
+  { label: 'Extra Revenue', group: 'Go to', icon: <Coins className="h-4 w-4" />, href: '/additional-revenue', keywords: ['income', 'revenue', 'money'] },
+  { label: 'Monthly Overheads', group: 'Go to', icon: <Target className="h-4 w-4" />, href: '/overheads', keywords: ['overheads', 'rent', 'salaries', 'bills'] },
+  { label: 'Hisaab / Ledger', group: 'Go to', icon: <BookUser className="h-4 w-4" />, href: '/hisaab', keywords: ['khata', 'ledger', 'accounts', 'owed'] },
+  ...(STORE_PARTNERSHIP ? [{ label: 'Shareholder Finances', group: 'Go to', icon: <PieChart className="h-4 w-4" />, href: '/shareholders', keywords: ['shareholders', 'partners'] }] : []),
+  { label: 'Analytics', group: 'Go to', icon: <TrendingUp className="h-4 w-4" />, href: '/analytics', keywords: ['reports', 'sales report'] },
+  { label: 'Settings', group: 'Go to', icon: <SettingsIcon className="h-4 w-4" />, href: '/settings', keywords: ['gold rate', 'theme'] },
+  { label: 'Payment Methods', group: 'Go to', icon: <Landmark className="h-4 w-4" />, href: '/settings/payment-methods', keywords: ['bank', 'payment'] },
+  { label: 'Backups', group: 'Go to', icon: <ArchiveRestore className="h-4 w-4" />, href: '/settings/backups', keywords: ['backup', 'export'] },
+  { label: 'Voice', group: 'Go to', icon: <Mic className="h-4 w-4" />, href: '/settings/voice', keywords: ['microphone'] },
+  { label: 'Activity Log', group: 'Go to', icon: <History className="h-4 w-4" />, href: '/activity-log', keywords: ['history', 'who changed'] },
+  { label: 'Recently removed', group: 'Go to', icon: <RotateCcw className="h-4 w-4" />, href: '/settings/recently-removed', keywords: ['deleted', 'trash', 'restore'] },
 ];
+
 
 const NEW: Array<Omit<Item, 'id'>> = [
   { label: 'New customer', group: 'Create', icon: <Users className="h-4 w-4" />, href: '/customers/add' },
@@ -228,9 +244,17 @@ export function CommandPalette() {
       });
     }
 
+    // A page by its name or by another word for it; a name that starts with what was
+    // typed ranks above one that only contains it.
     const matchedDestinations = destinations
-      .filter((d) => d.label.toLowerCase().includes(needle))
-      .map((item) => ({ item, score: 3 }));
+      .map((item) => {
+        const label = item.label.toLowerCase();
+        const words = (item as { keywords?: string[] }).keywords || [];
+        const score = label.startsWith(needle) ? 4 : label.includes(needle) ? 3
+          : words.some((k) => k.startsWith(needle)) ? 3 : words.some((k) => k.includes(needle)) ? 2.5 : -1;
+        return { item, score };
+      })
+      .filter((x) => x.score > 0);
 
     // A document number typed exactly: show those documents alone, not every phone
     // number that happens to contain the digits.
