@@ -13,7 +13,7 @@ import React, { useEffect } from 'react';
 import Script from 'next/script';
 import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
 import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, isLinksHost } from '@/lib/store-config';
-import { readCachedTheme, writeCachedTheme, LIGHT_THEME } from '@/lib/theme-cache';
+import { readCachedTheme, writeCachedTheme, LIGHT_THEME, readDeviceTheme, DEVICE_THEME_EVENT, applyThemeToDocument } from '@/lib/theme-cache';
 import { warmPdfLogo } from '@/lib/pdf-logo';
 
 const inter = Inter({
@@ -71,9 +71,9 @@ function AppBody({ children }: { children: React.ReactNode }) {
   // dark screen that flipped to white once settings arrived.
   const cachedTheme = React.useMemo(() => readCachedTheme(), []);
 
-  // Keep the hint current for next time.
+  // Keep the hint current for next time (this device's own mode, when it has one).
   React.useEffect(() => {
-    if (hasSettingsLoaded && theme) writeCachedTheme(theme);
+    if (hasSettingsLoaded && theme && !readDeviceTheme()) writeCachedTheme(theme);
   }, [hasSettingsLoaded, theme]);
 
   // Have the wordmark ready for the first print before anyone has pressed anything.
@@ -81,24 +81,34 @@ function AppBody({ children }: { children: React.ReactNode }) {
   // logo load was being paid inside that window. See pdf-logo.ts.
   React.useEffect(() => { warmPdfLogo(); }, []);
 
-  // The phone's browser bar follows the theme: the house's dark ground on the dark
-  // palette, the page's own white on the light one (it stayed dark over a white app).
-  const chromeTheme = hasSettingsLoaded && theme ? theme : cachedTheme;
+  // This device's own mode (the sun/moon in the top bar), when it has one, wins over
+  // the shop's; see theme-cache.ts.
+  const [deviceTheme, setDeviceTheme] = React.useState<string | null>(() => readDeviceTheme());
   React.useEffect(() => {
+    const on = (e: Event) => setDeviceTheme((e as CustomEvent<string | null>).detail ?? null);
+    window.addEventListener(DEVICE_THEME_EVENT, on);
+    return () => window.removeEventListener(DEVICE_THEME_EVENT, on);
+  }, []);
+  const shownTheme = deviceTheme || (hasSettingsLoaded && theme ? theme : cachedTheme);
+
+  // <html> and the phone's browser bar follow what is shown: the house's dark ground
+  // on the dark palette, the page's own white on the light one.
+  React.useEffect(() => {
+    applyThemeToDocument(shownTheme);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', chromeTheme === LIGHT_THEME ? '#FCFCFD' : STORE_THEME_COLOR);
-  }, [chromeTheme]);
+    if (meta) meta.setAttribute('content', shownTheme === LIGHT_THEME ? '#FCFCFD' : STORE_THEME_COLOR);
+  }, [shownTheme]);
 
   if (!isHydrated) {
     return (
-      <body suppressHydrationWarning className={`${inter.variable} font-sans antialiased theme-${cachedTheme} brand-${STORE_BRAND}`}>
+      <body suppressHydrationWarning className={`${inter.variable} font-sans antialiased theme-${deviceTheme || cachedTheme} brand-${STORE_BRAND}`}>
       </body>
     );
   }
 
   // Hydrated, but settings may still be in flight — keep showing the cached
   // theme rather than the store's default until the real one lands.
-  const activeTheme = hasSettingsLoaded && theme ? theme : cachedTheme;
+  const activeTheme = shownTheme;
 
   return (
     <body className={`${inter.variable} font-sans antialiased theme-${activeTheme} brand-${STORE_BRAND}`}>
@@ -151,9 +161,11 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{
-              var t=localStorage.getItem('gemstrack:theme')||'default';
-              document.documentElement.classList.add(t==='default'?'boot-light':'boot-dark');
-            }catch(e){document.documentElement.classList.add('boot-light');}})();`,
+              var t=localStorage.getItem('gemstrack:theme-device')||localStorage.getItem('gemstrack:theme')||'default';
+              var h=document.documentElement;
+              h.classList.add(t==='default'?'boot-light':'boot-dark');
+              if(t==='default')h.classList.remove('dark');
+            }catch(e){document.documentElement.classList.add('boot-light');document.documentElement.classList.remove('dark');}})();`,
           }}
         />
         <Script src="https://unpkg.com/zebra-browser-print-wrapper@3.0.0/js/zebra_browser_print_wrapper.js" type="text/javascript"></Script>
