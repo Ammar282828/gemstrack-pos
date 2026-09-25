@@ -118,6 +118,24 @@ export async function sendWhatsAppFileToGroup(chatId: string, file: Blob, fileNa
   return data.idMessage;
 }
 
+/** A text message to a group (the Investments post, the community teaser). Resolves to Green API's message id. */
+export async function sendWhatsAppTextToGroup(chatId: string, text: string): Promise<string> {
+  const creds = credentials();
+  if (!creds) throw new WhatsAppNotConfiguredError();
+  if (!/@g\.us$/.test(chatId)) throw new Error(`Not a group chat id: ${chatId}`);
+  const res = await fetch(`${creds.base}/waInstance${creds.id}/sendMessage/${creds.token}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chatId, message: text }),
+  });
+  const body = await res.text();
+  if (!res.ok) throw new Error(`Green API ${res.status}: ${body.slice(0, 200)}`);
+  let data: { idMessage?: string } = {};
+  try { data = JSON.parse(body); } catch { /* reported below */ }
+  if (!data.idMessage) throw new Error(`Green API did not accept the message: ${body.slice(0, 200)}`);
+  return data.idMessage;
+}
+
 /** A group's name and member count, for saying where a post is about to go. */
 export async function whatsAppGroupInfo(chatId: string): Promise<{ name: string; size: number } | null> {
   const creds = credentials();

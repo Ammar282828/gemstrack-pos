@@ -226,11 +226,17 @@ export const STORE_POST_METAL = process.env.NEXT_PUBLIC_STORE_POST_METAL
   ?? (STORE_CONFIG.defaultMetal === 'silver' ? '925 Sterling Silver' : '21K Yellow Gold');
 
 /**
- * The catalogue stamp in the corner of a square photo — the overlay tool's
- * two spaced lines. "TAHERI|COLLECTIONS" by default; a house with a
- * one-line mark leaves the second part empty ("HOUSE OF MINA|").
+ * The shop's marks as SVGs, for Post a Piece's story and square: drawn in any
+ * colour (their shape filled), so each file only needs to be the shape. The
+ * wordmark is "taheri"; the monogram is the "t". A house without a monogram
+ * sets it to "" and the option disappears. Paths are under public/.
  */
-export const STORE_STAMP_LINES: [string, string] = (() => {
-  const [a = 'TAHERI', b = ''] = (process.env.NEXT_PUBLIC_STORE_STAMP_LINES ?? 'TAHERI|COLLECTIONS').split('|').map((s) => s.trim());
-  return [a, b];
-})();
+export const STORE_MARK_SVG = process.env.NEXT_PUBLIC_STORE_MARK_SVG ?? '/brand/taheri-wordmark.svg';
+export const STORE_MONOGRAM_SVG = process.env.NEXT_PUBLIC_STORE_MONOGRAM_SVG ?? '/brand/taheri-t.svg';
+
+/**
+ * Investments by Taheri — the daily gold post the scheduled Claude routine
+ * files in the POS (Website → Investments). Taheri's; a house without the
+ * series sets "0".
+ */
+export const STORE_INVESTMENTS = process.env.NEXT_PUBLIC_STORE_INVESTMENTS !== '0';

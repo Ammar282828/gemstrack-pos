@@ -25,9 +25,9 @@ import { Undo2, Redo2, Plus, LayoutTemplate, Type, ArrowUpRight, Minus, Circle, 
 import { cn } from '@/lib/utils';
 import { PALETTES, type Palette } from '@/lib/social/palettes';
 import {
-  FONT_LABEL, applyPalette, frameOf, hitTest, layerBox, moveLayer, newImageLayer, newLayerId, newLinkPill, newShape, newStampMark, newText, newWordmark,
+  FONT_LABEL, applyPalette, frameOf, hitTest, layerBox, moveLayer, newCornerMark, newImageLayer, newLayerId, newLinkPill, newMonogram, newShape, newText, newWordmark,
   placementOf, reflow, renderDoc, scaleLayer, withPlacement,
-  type Assets, type Bind, type Box, type Fields, type FontKey, type Layer, type ShapeLayer, type StoryDoc, type TextLayer,
+  type Assets, type Bind, type Box, type Fields, type FontKey, type Layer, type MarkLayer, type ShapeLayer, type StoryDoc, type TextLayer,
 } from '@/lib/social/editor';
 
 // ── The document and its history ───────────────────────────────────────────
@@ -321,7 +321,7 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
   const useTemplate = (t: Template) => { change(d => ({ ...d, bg: { ...d.bg, ...t.bg }, layers: t.layers.map(l => ({ ...l, id: newLayerId(l.kind) })) })); setSelected(null); };
   const dropTemplate = (name: string) => { const next = templates.filter(x => x.name !== name); setTemplates(next); writeTemplates(!!square, next); };
 
-  const layerName = (l: Layer) => l.kind === 'text' ? (l.bind ? l.bind[0].toUpperCase() + l.bind.slice(1) : `Text “${l.text.slice(0, 14)}”`) : l.kind === 'wordmark' ? (l.mark === 'stamp' ? 'Catalogue stamp' : 'Wordmark') : l.kind === 'image' ? 'Photo inset' : l.kind[0].toUpperCase() + l.kind.slice(1);
+  const layerName = (l: Layer) => l.kind === 'text' ? (l.bind ? l.bind[0].toUpperCase() + l.bind.slice(1) : `Text “${l.text.slice(0, 14)}”`) : l.kind === 'wordmark' ? (l.mark === 't' ? 't mark' : 'Wordmark') : l.kind === 'image' ? 'Photo inset' : l.kind[0].toUpperCase() + l.kind.slice(1);
   const bgPhoto = doc.bg.photoId;
 
   return (
@@ -353,8 +353,8 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
             <DropdownMenuItem onClick={() => add(newShape('circle', '#FFFFFF'))}><Circle className="h-4 w-4 mr-2" /> Circle</DropdownMenuItem>
             <DropdownMenuItem onClick={() => add(newShape('rect', '#FFFFFF'))}><Square className="h-4 w-4 mr-2" /> Box</DropdownMenuItem>
             <DropdownMenuItem onClick={() => add(newLinkPill(websiteLabel))}><Link2 className="h-4 w-4 mr-2" /> Link pill ({websiteLabel})</DropdownMenuItem>
-            {!doc.layers.some(l => l.kind === 'wordmark' && l.mark !== 'stamp') && <DropdownMenuItem onClick={() => add(newWordmark(palette.dark))}><Type className="h-4 w-4 mr-2" /> Wordmark (taheri)</DropdownMenuItem>}
-            {!doc.layers.some(l => l.kind === 'wordmark' && l.mark === 'stamp') && <DropdownMenuItem onClick={() => add(newStampMark(assets))}><Type className="h-4 w-4 mr-2" /> Catalogue stamp ({assets.stamp.filter(Boolean).join(' ')})</DropdownMenuItem>}
+            <DropdownMenuItem onClick={() => add(square ? newCornerMark('wordmark', assets) : newWordmark(palette.dark ? '#FFFFFF' : '#111111'))}><Type className="h-4 w-4 mr-2" /> Wordmark</DropdownMenuItem>
+            {assets.marks.t && <DropdownMenuItem onClick={() => add(square ? newCornerMark('t', assets) : newMonogram(palette.dark ? '#FFFFFF' : '#111111'))}><Type className="h-4 w-4 mr-2" /> t mark</DropdownMenuItem>}
             {photos.length > 1 && <DropdownMenuSeparator />}
             {photos.filter(p => p.id !== bgPhoto).map(p => (
               <DropdownMenuItem key={p.id} onClick={() => add(newImageLayer(p.id))}><ImageIcon className="h-4 w-4 mr-2" /> Photo inset {p.label ? `· ${p.label}` : ''}</DropdownMenuItem>
@@ -399,7 +399,7 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
         <p className="text-xs text-muted-foreground">AI lettering is on — switch to “Our fonts” to move and style the text yourself.</p>
       ) : layer ? (
         <LayerInspector
-          layer={layer} box={box!} fields={fields} photos={photos} textRef={textRef}
+          layer={layer} box={box!} fields={fields} photos={photos} textRef={textRef} hasMonogram={!!assets.marks.t}
           name={layerName(layer)}
           onChange={(patch, key) => update(layer.id, patch, key)}
           onField={onField}
@@ -416,8 +416,8 @@ export function StoryEditor({ api, fields, assets, photos, palette, onPalette, l
 
 // ── Inspectors ─────────────────────────────────────────────────────────────
 
-function LayerInspector({ layer: l, box, fields, photos, textRef, name, onChange, onField, onDelete, onDuplicate, onForward, onBack, onDeselect }: {
-  layer: Layer; box: Box; fields: Fields; photos: StoryEditorProps['photos']; textRef: React.RefObject<HTMLTextAreaElement>; name: string;
+function LayerInspector({ layer: l, box, fields, photos, textRef, name, hasMonogram, onChange, onField, onDelete, onDuplicate, onForward, onBack, onDeselect }: {
+  layer: Layer; box: Box; fields: Fields; photos: StoryEditorProps['photos']; hasMonogram: boolean; textRef: React.RefObject<HTMLTextAreaElement>; name: string;
   onChange: (patch: Partial<Layer> | ((l: Layer) => Layer), key?: string) => void; onField: (b: Bind, v: string) => void;
   onDelete: () => void; onDuplicate: () => void; onForward: () => void; onBack: () => void; onDeselect: () => void;
 }) {
@@ -470,8 +470,16 @@ function LayerInspector({ layer: l, box, fields, photos, textRef, name, onChange
       </>)}
 
       {l.kind === 'wordmark' && (<>
-        <Row label="Size"><Num value={l.width} min={80} max={1000} step={5} onChange={v => onChange({ width: v }, 'w')} /></Row>
-        <Row label="Colour"><Pills value={l.tone} options={[['auto', 'Auto'], ['dark', 'Dark'], ['light', 'Light']]} onChange={v => onChange({ tone: v as 'dark' | 'light' | 'auto' })} /></Row>
+        {hasMonogram && <Row label="Mark"><Pills value={l.mark} options={[['wordmark', 'taheri'], ['t', 't']]} onChange={v => onChange(x => {
+          // Keep it about the same height on screen when switching between the wide and the tall mark.
+          const m = x as MarkLayer;
+          const next = v as MarkLayer['mark'];
+          const width = next === m.mark ? m.width : next === 't' ? Math.max(24, Math.round(m.width * 0.25 / 2)) : Math.round(m.width * 2 / 0.25);
+          return { ...m, mark: next, width: Math.min(width, 1000) };
+        })} /></Row>}
+        <Row label="Size"><Num value={l.width} min={20} max={1000} step={2} onChange={v => onChange({ width: v }, 'w')} /></Row>
+        <label className="flex items-center gap-1.5 text-xs" title="White or dark, whichever reads over each photo"><Switch checked={l.autoColor} onCheckedChange={v => onChange({ autoColor: v })} /> Auto colour (white or dark by the photo)</label>
+        {!l.autoColor && <Row label="Colour"><ColourRow value={l.color} onChange={c => onChange({ color: c }, 'color')} /></Row>}
       </>)}
 
       {l.kind === 'image' && (<>

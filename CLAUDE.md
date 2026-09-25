@@ -59,6 +59,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 | `/api/website/post/ai` | Post a Piece | Gemini on Vertex (`IMAGE_AI_PROJECT`): `enhance`, `reframe`, `restage`, `letter`, `caption`, `check`. Every image edit is compared with its source ("same piece?"); capped 300 calls/day shop-wide, 60/h per IP |
 | `/api/instagram/status`, `connect`, `callback`, `story` | Post a Piece | Instagram Login OAuth → 60-day token in **Secret Manager** (`instagram-token`, renewed on use), locked to `INSTAGRAM_USERNAME`; `story` publishes a 9:16 JPEG |
 | `/api/website/post/health` | Post a Piece | GET: every check + last day's `social_errors` + diagnosis context; POST: the page records a failure |
+| `/api/investments` (+ `/[id]/publish`, `/api/public/investments/[id]/[kind]`) | the Cowork routine; POS page Investments | file a day's gold post (Bearer ingest token or the POS); send each part; serve the cards |
 | `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
 | `/api/website/orders/[id]` | POS order page | mark paid / shipped — **always verifies a token, even under open access** |
 
@@ -189,10 +190,19 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
 - **WhatsApp and taheri.shop only ever get 1:1** (owner, 2026-09-25). The page has two editors on one component: **Story
   9:16** (Instagram) and **Square 1:1** (WhatsApp + website): one set of square layers for every ticked photo, a crop per photo
   (`StoryDoc.placements`), rendered with `renderDocTo` at up to 3000 px for the site and 1600 px for WhatsApp. Square presets
-  (`SQUARE_PRESETS`): Catalogue stamp (the overlay tool's geometry — weight top-left in Futura LT Light, the
-  **"TAHERI / COLLECTIONS"** stamp bottom-right, both **auto colour** per photo), Weight only, Name + weight + logo (Didone
-  italic like the grid posts), Clean. The stamp's words are `NEXT_PUBLIC_STORE_STAMP_LINES` ("TAHERI|COLLECTIONS"; Mina's file
-  sets a guess, "HOUSE OF MINA|"). WhatsApp no longer offers "send the story image".
+  (`SQUARE_PRESETS`): weight + wordmark (the overlay tool's geometry — weight top-left in Futura LT Light, the mark bottom-right,
+  both **auto colour** per photo), weight + t mark, weight only, name + weight + wordmark (Didone italic like the grid posts), clean.
+  **Marks are SVGs** (owner: "the logo should be an svg so I can change colour"): `public/brand/taheri-wordmark.svg` (from
+  taheri-post-kit/taheri_logo.svg, cropped to its letters) and `public/brand/taheri-t.svg` (the t monogram), filled with any
+  colour through their shape (`drawMark`); `NEXT_PUBLIC_STORE_MARK_SVG` / `_MONOGRAM_SVG` per house (Mina: its PNG logo, no
+  monogram). A text "TAHERI / COLLECTIONS" stamp was tried and rejected. WhatsApp no longer offers "send the story image".
+- **Investments by Taheri in the POS** (`/website/investments`, 2026-09-25): the daily gold post is written by the owner's
+  scheduled **Cowork routine on claude.ai** ("Investments by Taheri — daily post", 11:00; not editable from Claude Code) whose last
+  step POSTs the four deliverables to `/api/investments` (multipart post/teaser/square/story, `Authorization: Bearer` the token in
+  `taheri-post-kit/.pos-ingest-token` = secret `investments-ingest-token`). Filed per day in `investment_posts/{date}` + cards in
+  `investment_media` (JPEG ≤ 900 KB). The page sends: post + square → `INVESTMENTS_GROUP_CHAT_ID` (120363362406867247@g.us, 469,
+  admin-only, line is super admin; caption if ≤ 1024 chars else card then text), teaser → community announcements, story →
+  Instagram (`/api/public/investments/[id]/story` via hosted.app). Each target once; resend asks. Manual add on the page too.
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).
   The POS stayed usable at **https://studio--gemstrack-pos.us-central1.hosted.app** (App Hosting's own address; open access,
   data loads). Instagram fetches story images from `SOCIAL_MEDIA_ORIGIN` (that address) so posting never depends on .shop.

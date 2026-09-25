@@ -45,7 +45,7 @@ import {
   MessageCircle, Globe, Sparkles, Wand2, Expand, Palette as PaletteIcon, Type, ShieldCheck, ShieldAlert, Link2, MessageSquareText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORE_LINKS, STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL, STORE_STAMP_LINES } from '@/lib/store-config';
+import { STORE_LINKS, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL, STORE_MARK_SVG, STORE_MONOGRAM_SVG } from '@/lib/store-config';
 import { detailsLine, waNumberFromUrl, weightLabel, websiteFileName, whatsappCaption } from '@/lib/social/caption';
 import { PALETTES, STORY_H, STORY_W, canvasToJpeg, loadImage, loadStampFont, stampPhoto, suggestPalette } from '@/lib/social/story';
 import { SCENES, customPrompt, restagePrompt, type Aspect, type CaptionResult, type CheckResult } from '@/lib/social/prompts';
@@ -209,7 +209,7 @@ export default function PostAPiecePage() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
-  const [marks, setMarks] = useState<{ dark: HTMLImageElement; light: HTMLImageElement } | null>(null);
+  const [marks, setMarks] = useState<Assets['marks']>({});
   const [fontsReady, setFontsReady] = useState(false);
 
   const hero = photos.find(p => p.id === story.doc.bg.photoId) ?? photos[0] ?? null;
@@ -222,7 +222,7 @@ export default function PostAPiecePage() {
   // The details line carries the weight only when the story has no weight line of its own.
   const weightShown = story.doc.layers.some(l => l.kind === 'text' && l.bind === 'weight' && !l.hidden);
   const fields: Fields = useMemo(() => ({ kicker, headline, weight: wLabel, details: detailsLine(piece, !weightShown) }), [kicker, headline, wLabel, piece, weightShown]);
-  const assets: Assets = useMemo(() => ({ photos: Object.fromEntries(photos.map(p => [p.id, p.img])), wordmark: marks, fonts: FONTS, stamp: STORE_STAMP_LINES }), [photos, marks]);
+  const assets: Assets = useMemo(() => ({ photos: Object.fromEntries(photos.map(p => [p.id, p.img])), marks, fonts: FONTS }), [photos, marks]);
   // Photos that go out as squares: everything ticked for the website or WhatsApp.
   const squarePhotos = photos.filter(p => p.toSite || p.toWhatsApp);
   const weightStamped = square.doc.layers.some(l => l.kind === 'text' && l.bind === 'weight' && !l.hidden);
@@ -243,10 +243,12 @@ export default function PostAPiecePage() {
       document.fonts.load(`400 40px ${FONTS.body}`), document.fonts.load(`700 40px ${FONTS.body}`),
       document.fonts.load(`500 40px ${FONTS.serif}`), document.fonts.load(`italic 400 40px ${FONTS.serif}`),
       loadStampFont(),
+      // The marks too: layouts measure them when they place them.
+      Promise.all([
+        loadImage(STORE_MARK_SVG).then(img => ({ wordmark: img })).catch(() => ({})),
+        STORE_MONOGRAM_SVG ? loadImage(STORE_MONOGRAM_SVG).then(img => ({ t: img })).catch(() => ({})) : Promise.resolve({}),
+      ]).then(([w, t]) => setMarks({ ...w, ...t })),
     ]).catch(() => undefined).then(() => setFontsReady(true));
-    Promise.all([loadImage(STORE_LOGO_URL), loadImage(STORE_LOGO_LIGHT_URL)])
-      .then(([dark, light]) => setMarks({ dark, light }))
-      .catch(() => setMarks(null));
   }, []);
 
   useEffect(() => {

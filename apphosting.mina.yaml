@@ -186,10 +186,21 @@ env:
   # Add Photos sends photographs there; it reads the site's own folders from
   # /catalog-tree.json. The catalogue sells at fixed prices, so there is no
   # Photo Weights page and no set of the day.
-  # Post a Piece's square: the stamp in the corner. A guess until the owner says
-  # what Mina's photos should carry — never Taheri's "TAHERI | COLLECTIONS".
-  - variable: NEXT_PUBLIC_STORE_STAMP_LINES
-    value: "HOUSE OF MINA|"
+  # Investments by Taheri is Taheri's series; Mina's menu has no Investments page.
+  - variable: NEXT_PUBLIC_STORE_INVESTMENTS
+    value: "0"
+    availability:
+      - BUILD
+      - RUNTIME
+  # Post a Piece's marks: Mina's own logo (filled to any colour by its shape) and
+  # no monogram — never Taheri's "taheri" or "t".
+  - variable: NEXT_PUBLIC_STORE_MARK_SVG
+    value: "/house-of-mina-logo.png"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_STORE_MONOGRAM_SVG
+    value: ""
     availability:
       - BUILD
       - RUNTIME

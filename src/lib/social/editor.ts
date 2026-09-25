@@ -53,11 +53,12 @@ export interface TextLayer extends Base {
   autoColor?: boolean;
 }
 /**
- * The shop's mark: the Didone wordmark image, or the catalogue stamp — the
- * two spaced lines ("TAHERI / COLLECTIONS") the overlay tool puts in the
- * corner of every catalogue photo, drawn as text so it stays sharp at any size.
+ * The shop's mark, from its SVG: the "taheri" wordmark or the "t" monogram.
+ * Drawn in any colour (the SVG's shape filled with `color`), or white /
+ * near-black by what is under it when `autoColor` is on.
  */
-export interface MarkLayer extends Base { kind: 'wordmark'; mark?: 'wordmark' | 'stamp'; x: number; y: number; width: number; tone: 'dark' | 'light' | 'auto' }
+export type MarkKind = 'wordmark' | 't';
+export interface MarkLayer extends Base { kind: 'wordmark'; mark: MarkKind; x: number; y: number; width: number; color: string; autoColor: boolean }
 export interface ShapeLayer extends Base {
   kind: 'arrow' | 'line' | 'rect' | 'circle';
   /** For arrow/line: from (x, y) to (x + w, y + h). For rect/circle: the box. */
@@ -95,10 +96,9 @@ export const withPlacement = (d: StoryDoc, p: Placement): StoryDoc =>
 export interface FontFamilies { headline: string; body: string; serif: string }
 export interface Assets {
   photos: Record<string, HTMLImageElement>;
-  wordmark: { dark: HTMLImageElement; light: HTMLImageElement } | null;
+  /** This house's marks, loaded from their SVGs; a house without a monogram has no `t`. */
+  marks: Partial<Record<MarkKind, HTMLImageElement>>;
   fonts: FontFamilies;
-  /** The catalogue stamp's two lines, this house's ("TAHERI", "COLLECTIONS"). */
-  stamp: [string, string];
 }
 export type Fields = Record<Bind, string>;
 
@@ -205,9 +205,8 @@ export function layerBox(l: Layer, fields: Fields, a: Assets): Box {
       return { x, y: l.y - pad, w: Math.max(w, 20), h: Math.max(h, 20) };
     }
     case 'wordmark': {
-      if (l.mark === 'stamp') return { x: l.x, y: l.y, w: l.width, h: stampLayout(mctx(), l.width, a).h };
-      const m = a.wordmark?.dark;
-      const h = l.width * (m && m.naturalWidth ? m.naturalHeight / m.naturalWidth : 0.25);
+      const m = a.marks[l.mark] ?? a.marks.wordmark;
+      const h = l.width * (m && m.naturalWidth ? m.naturalHeight / m.naturalWidth : l.mark === 't' ? 2 : 0.25);
       return { x: l.x, y: l.y, w: l.width, h };
     }
     case 'image': {
@@ -375,36 +374,29 @@ function drawOverlay(ctx: Ctx, bg: StoryDoc['bg'], f: Frame) {
 
 // ── The catalogue stamp and automatic colour ───────────────────────────────
 
-/** The stamp's two lines sized to the same width: a wide spaced top line, a finer one under it. */
-function stampLayout(ctx: Ctx, width: number, a: Assets) {
-  const [top, bottom] = a.stamp;
-  const fit = (text: string, weight: number, spacing: number) => {
-    ctx.font = `${weight} 100px ${a.fonts.body}`;
-    setSpacing(ctx, spacing * 100);
-    // Letter spacing trails the last letter; leave it out of the width so both lines end flush.
-    const w = Math.max(1, ctx.measureText(text).width - spacing * 100);
-    return (width / w) * 100;
-  };
-  const s1 = fit(top, 400, 0.32);
-  // A one-line mark (the second line left empty) is just the first line.
-  if (!bottom) return { s1, s2: 0, gap: 0, h: s1 * 0.74 };
-  const s2 = fit(bottom, 300, 0.2);
-  const gap = s1 * 0.18;
-  return { s1, s2, gap, h: s1 * 0.74 + gap + s2 * 0.74 };
-}
-
-function drawStamp(ctx: Ctx, l: MarkLayer, a: Assets, colour: string) {
-  const t = stampLayout(ctx, l.width, a);
-  ctx.fillStyle = colour;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.font = `400 ${t.s1}px ${a.fonts.body}`;
-  setSpacing(ctx, 0.32 * t.s1);
-  ctx.fillText(a.stamp[0], l.x, l.y + t.s1 * 0.74);
-  if (!a.stamp[1]) return;
-  ctx.font = `300 ${t.s2}px ${a.fonts.body}`;
-  setSpacing(ctx, 0.2 * t.s2);
-  ctx.fillText(a.stamp[1], l.x, l.y + t.s1 * 0.74 + t.gap + t.s2 * 0.74);
+/**
+ * A mark filled with one colour: its SVG drawn at the size it will appear (in
+ * device pixels, so a 3000-px export is as sharp as the preview), then painted
+ * over through its own shape. Kept, per mark, colour and size, for redraws.
+ */
+const tintCache = new Map<string, HTMLCanvasElement>();
+function drawMark(ctx: Ctx, img: HTMLImageElement, b: Box, colour: string) {
+  const m = ctx.getTransform();
+  const pw = Math.max(1, Math.round(b.w * Math.hypot(m.a, m.b))), ph = Math.max(1, Math.round(b.h * Math.hypot(m.c, m.d)));
+  const key = `${img.src}|${colour}|${pw}x${ph}`;
+  let c = tintCache.get(key);
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = pw; c.height = ph;
+    const t = c.getContext('2d')!;
+    t.drawImage(img, 0, 0, pw, ph);
+    t.globalCompositeOperation = 'source-in';
+    t.fillStyle = colour;
+    t.fillRect(0, 0, pw, ph);
+    if (tintCache.size > 60) tintCache.clear();
+    tintCache.set(key, c);
+  }
+  ctx.drawImage(c, b.x, b.y, b.w, b.h);
 }
 
 /**
@@ -439,7 +431,7 @@ export function renderDoc(ctx: Ctx, doc: StoryDoc, fields: Fields, a: Assets, op
     if (l.hidden || (opts.hideBound && l.kind === 'text' && l.bind)) continue;
     ctx.save();
     // Automatic ink is decided from what is under the layer, before it is drawn or turned.
-    const ink = (l.kind === 'text' && l.autoColor) || (l.kind === 'wordmark' && l.tone === 'auto') ? autoInk(ctx, layerBox(l, fields, a)) : null;
+    const ink = (l.kind === 'text' || l.kind === 'wordmark') && l.autoColor ? autoInk(ctx, layerBox(l, fields, a)) : null;
     ctx.globalAlpha = l.opacity;
     if (l.rotate) {
       const b = layerBox(l, fields, a);
@@ -448,12 +440,9 @@ export function renderDoc(ctx: Ctx, doc: StoryDoc, fields: Fields, a: Assets, op
       ctx.translate(-(b.x + b.w / 2), -(b.y + b.h / 2));
     }
     if (l.kind === 'text') drawText(ctx, ink ? { ...l, color: ink } : l, fields, a);
-    else if (l.kind === 'wordmark' && l.mark === 'stamp') drawStamp(ctx, l, a, ink ?? (l.tone === 'dark' ? '#1a1a1a' : '#ffffff'));
     else if (l.kind === 'wordmark') {
-      const tone = ink ? (ink === '#ffffff' ? 'light' : 'dark') : l.tone === 'auto' ? 'dark' : l.tone;
-      const m = a.wordmark?.[tone];
-      const b = layerBox(l, fields, a);
-      if (m) ctx.drawImage(m, b.x, b.y, b.w, b.h);
+      const m = a.marks[l.mark] ?? a.marks.wordmark;
+      if (m) drawMark(ctx, m, layerBox(l, fields, a), ink ?? l.color);
     }
     else if (l.kind === 'image') drawImageLayer(ctx, l, a);
     else drawShape(ctx, l);
@@ -490,7 +479,9 @@ export const newShape = (kind: ShapeLayer['kind'], color: string): ShapeLayer =>
 });
 export const newImageLayer = (photoId: string): ImageLayer => ({ id: newLayerId('image'), kind: 'image', photoId, x: 600, y: 1250, w: 380, radius: 24, border: '#ffffff', shadow: true, rotate: 0, opacity: 1 });
 export const newLinkPill = (label: string): TextLayer => text({ text: label, x: 540, y: 760, size: 46, font: 'regular', color: '#111111', align: 'center', width: 900, box: { color: '#ffffff', radius: 28, pad: 22 } });
-export const newWordmark = (dark: boolean): MarkLayer => ({ id: newLayerId('wordmark'), kind: 'wordmark', mark: 'wordmark', x: 708, y: 150, width: 300, tone: dark ? 'light' : 'dark', rotate: 0, opacity: 1 });
+export const newWordmark = (color: string): MarkLayer => ({ id: newLayerId('wordmark'), kind: 'wordmark', mark: 'wordmark', x: 708, y: 150, width: 300, color, autoColor: false, rotate: 0, opacity: 1 });
+/** The "t" monogram, a tall narrow mark; placed top-right like the wordmark. */
+export const newMonogram = (color: string): MarkLayer => ({ id: newLayerId('t'), kind: 'wordmark', mark: 't', x: 930, y: 140, width: 60, color, autoColor: false, rotate: 0, opacity: 1 });
 
 // ── The square (WhatsApp and the website) ──────────────────────────────────
 // The overlay tool's geometry, as fractions of a 3000-px square: the weight in
@@ -504,16 +495,21 @@ export const newWeightStamp = (): TextLayer => text({
   bind: 'weight', x: STAMP_X, y: STAMP_BASELINE - STAMP_SIZE * 0.82, size: Math.round(STAMP_SIZE * 10) / 10, font: 'futura',
   color: '#ffffff', autoColor: true, width: 900, spacing: 2 / 143,
 });
-export function newStampMark(a: Assets): MarkLayer {
-  const h = stampLayout(mctx(), LOGO_W, a).h;
-  return { id: newLayerId('stamp'), kind: 'wordmark', mark: 'stamp', x: 1080 - LOGO_PAD - LOGO_W, y: 1080 - LOGO_PAD - h, width: LOGO_W, tone: 'auto', rotate: 0, opacity: 1 };
+/** A mark in the square's bottom-right corner, the overlay tool's inset from both edges. */
+export function newCornerMark(mark: MarkKind, a: Assets): MarkLayer {
+  // The wordmark is the tool's 580/3000 wide; the t mark is sized to about the wordmark's height × 2.
+  const width = mark === 't' ? 58 : LOGO_W;
+  const img = a.marks[mark] ?? a.marks.wordmark;
+  const h = width * (img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : mark === 't' ? 2 : 0.25);
+  return { id: newLayerId(mark), kind: 'wordmark', mark, x: 1080 - LOGO_PAD - width, y: 1080 - LOGO_PAD - h, width, color: '#ffffff', autoColor: true, rotate: 0, opacity: 1 };
 }
 
-export type SquarePresetId = 'catalogue' | 'weight' | 'name' | 'clean';
+export type SquarePresetId = 'catalogue' | 'catalogue-t' | 'weight' | 'name' | 'clean';
 export const SQUARE_PRESETS: { id: SquarePresetId; label: string }[] = [
-  { id: 'catalogue', label: 'Catalogue stamp (weight + logo)' },
+  { id: 'catalogue', label: 'Weight + taheri wordmark' },
+  { id: 'catalogue-t', label: 'Weight + t mark' },
   { id: 'weight', label: 'Weight only' },
-  { id: 'name', label: 'Name, weight and logo' },
+  { id: 'name', label: 'Name, weight and wordmark' },
   { id: 'clean', label: 'Clean — nothing on it' },
 ];
 
@@ -521,14 +517,15 @@ export const SQUARE_PRESETS: { id: SquarePresetId; label: string }[] = [
 export function applySquarePreset(doc: StoryDoc, preset: SquarePresetId, fields: Fields, a: Assets): StoryDoc {
   const keep = doc.layers.filter(l => !(l.kind === 'text' && l.bind) && l.kind !== 'wordmark');
   const out: Layer[] = [];
-  if (preset === 'catalogue' || preset === 'weight') out.push(newWeightStamp());
-  if (preset === 'catalogue') out.push(newStampMark(a));
+  if (preset === 'catalogue' || preset === 'catalogue-t' || preset === 'weight') out.push(newWeightStamp());
+  if (preset === 'catalogue') out.push(newCornerMark('wordmark', a));
+  if (preset === 'catalogue-t') out.push(newCornerMark(a.marks.t ? 't' : 'wordmark', a));
   if (preset === 'name') {
     // The grid posts' look: the name in a Didone italic, the facts small beneath, bottom-left.
     const name = text({ bind: 'headline', x: 64, y: 820, size: 76, font: 'serif-italic', color: '#ffffff', autoColor: true, width: 640, fit: true, lineHeight: 1 });
     out.push({ ...name, flow: { gap: 0 } });
     out.push(text({ bind: 'details', x: 64, y: 910, size: 30, font: 'regular', color: '#ffffff', autoColor: true, width: 640, flow: { gap: 14 }, lineHeight: 1.25 }));
-    out.push(newStampMark(a));
+    out.push(newCornerMark('wordmark', a));
   }
   return reflow({ ...doc, layers: [...out, ...keep] }, fields, a);
 }
@@ -568,7 +565,7 @@ export function applyPreset(doc: StoryDoc, preset: PresetId, palette: Palette, f
     out.push(stacked);
     if (textOf(l, fields).trim()) y = l.y + layerBox(stacked, fields, a).h;
   };
-  if (opts.wordmark) out.push(newWordmark(palette.dark));
+  if (opts.wordmark) out.push(newWordmark(palette.dark ? '#FFFFFF' : '#111111'));
   push(text({ bind: 'kicker', x, y, size: 54, font: 'regular', color: palette.body, align }), 0);
   const headline = text({ bind: 'headline', x, y: y + (fields.kicker.trim() ? 6 : 0), size: preset === 'minimal' ? 230 : 210, font: 'condensed', color: palette.headline, align, width: 888, fit: true, lineHeight: 0.92 });
   push(headline, 6);
@@ -590,7 +587,7 @@ export function applyPalette(doc: StoryDoc, palette: Palette): StoryDoc {
   return {
     ...doc,
     layers: doc.layers.map(l => {
-      if (l.kind === 'wordmark') return { ...l, tone: palette.dark ? 'light' : 'dark' };
+      if (l.kind === 'wordmark' && !l.autoColor) return { ...l, color: palette.dark ? '#FFFFFF' : '#111111' };
       if (l.kind === 'text' && l.bind) return { ...l, color: l.bind === 'headline' ? palette.headline : palette.body };
       return l;
     }),
