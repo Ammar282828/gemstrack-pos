@@ -11,7 +11,7 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator, useSidebar,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Send, Globe, Wallet, Search } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Send, Globe, Wallet, Search, Sun, Moon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { roleForEmail } from '@/lib/roles';
 import { devRole, captureDevRole } from '@/lib/dev-role';
+import { writeDeviceTheme } from '@/lib/theme-cache';
 
 /** A page that shares a sidebar entry with its siblings, shown as a tab in the top bar. */
 interface NavTab {
@@ -146,6 +147,34 @@ function forRole(item: NavItem, staff: boolean): NavItem | null {
   const tabs = staff ? item.tabs.filter(t => t.staff) : item.tabs;
   if (!tabs.length) return null;
   return { ...item, href: tabs[0].href, tabs };
+}
+
+/**
+ * Light / dark for THIS device, in the top bar. Switches at once and is kept on the
+ * device; the shop's mode in Settings only decides devices that have never chosen.
+ * Reads the mode off <html>, which the layout keeps in step with what is shown.
+ */
+function ThemeToggle() {
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    const html = document.documentElement;
+    const read = () => setDark(html.classList.contains('dark'));
+    read();
+    const mo = new MutationObserver(read);
+    mo.observe(html, { attributes: true, attributeFilter: ['class'] });
+    return () => mo.disconnect();
+  }, []);
+  return (
+    <button
+      type="button"
+      onClick={() => writeDeviceTheme(dark ? 'default' : 'taheri')}
+      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={dark ? 'Light mode (this device)' : 'Dark mode (this device)'}
+      className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+    >
+      {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+    </button>
+  );
 }
 
 /**
@@ -383,15 +412,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 })}
               </nav>
             )}
+            <div className="ml-auto -mr-1 flex items-center">
+            <ThemeToggle />
             {/* On a phone the sidebar is behind a tap; search is one tap from here. */}
             <button
               type="button"
               onClick={openCommandPalette}
               aria-label="Search"
-              className="ml-auto -mr-1 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
+              className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
             >
               <Search className="h-5 w-5" />
             </button>
+            </div>
           </header>
 
           {/* Offline banner */}

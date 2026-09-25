@@ -326,6 +326,10 @@ body {
  * Background only — everything else follows the theme class as usual, and
  * these are overridden the moment the body's theme lands.
  */
+/* Native parts — scrollbars, date pickers, form controls — follow the mode shown,
+   not the phone's own setting. <html> carries `.dark` only on the dark palette. */
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
 html.boot-light { background-color: hsl(220 30% 99.4%); }
 html.boot-dark  { background-color: hsl(180 24% 5%); }
 /* Mina's dark ground, so its first paint is maroon-black, not Taheri's green-black. */

@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { readDeviceTheme, writeDeviceTheme, DEVICE_THEME_EVENT } from '@/lib/theme-cache';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { auth as firebaseAuth } from '@/lib/firebase';
@@ -555,6 +556,14 @@ export default function SettingsPage() {
   
   const [isFetchingRates, setIsFetchingRates] = useState(false);
   const [tab, setTab] = useState<string>('shop');
+  // This device's own light/dark (the top bar's sun/moon), shown beside the shop's mode.
+  const [deviceTheme, setDeviceTheme] = useState<string | null>(null);
+  useEffect(() => {
+    setDeviceTheme(readDeviceTheme());
+    const on = (e: Event) => setDeviceTheme((e as CustomEvent<string | null>).detail ?? null);
+    window.addEventListener(DEVICE_THEME_EVENT, on);
+    return () => window.removeEventListener(DEVICE_THEME_EVENT, on);
+  }, []);
 
   const fetchGoldRates = async () => {
     setIsFetchingRates(true);
@@ -833,7 +842,7 @@ export default function SettingsPage() {
                   name="theme"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4 text-muted-foreground" />Mode</FormLabel>
+                      <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4 text-muted-foreground" />Shop mode</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="sm:max-w-xs"><SelectValue placeholder="Select a mode" /></SelectTrigger>
@@ -849,6 +858,14 @@ export default function SettingsPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <p className="text-xs text-muted-foreground">
+                        For every device that hasn’t chosen its own. Each device switches for itself with the sun / moon in the top bar.
+                        {deviceTheme && (
+                          <> This device uses its own ({deviceTheme === 'default' ? 'light' : 'dark'}) —{' '}
+                            <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => { writeDeviceTheme(null); setDeviceTheme(null); }}>follow the shop</button>.
+                          </>
+                        )}
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
