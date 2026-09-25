@@ -1054,7 +1054,7 @@ function PostAPiecePage() {
             {makeStory && (
               <div className="rounded-xl bg-muted/40 p-3 space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="flex min-w-0 items-center gap-2 font-medium"><Instagram className="h-4 w-4 shrink-0" /> <span className="truncate">Instagram story</span>{ig?.connected && <span className="shrink-0 truncate text-muted-foreground font-normal text-xs">· @{ig.username}</span>}</span>
+                  <span className="flex min-w-0 items-center gap-2 font-medium"><Instagram className="h-4 w-4 shrink-0" /> <span className="shrink-0">Instagram story</span>{ig?.connected && <span className="min-w-0 truncate text-muted-foreground font-normal text-xs">· @{ig.username}</span>}</span>
                   {ig?.connected ? <Switch checked={toInstagram} onCheckedChange={setToInstagram} /> : null}
                 </div>
                 {ig?.connected && !toInstagram && <p className="text-xs text-muted-foreground">Off — you’ll share it from your phone instead, to add music or stickers.</p>}
