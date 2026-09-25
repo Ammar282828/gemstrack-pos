@@ -18,6 +18,8 @@ import { describeMetal, describeSettings } from '@/lib/materials';
 import type { ItemBlock } from '@/lib/invoice-item-cell';
 import { drawTotals, type TotalRow } from '@/lib/pdf-chrome';
 import { orderExchanges, describeExchangeEntry } from '@/lib/exchange';
+import { orderAdvancePayments } from '@/lib/order-payment';
+import { format, parseISO } from 'date-fns';
 
 const money = (n: number) => `PKR ${(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
@@ -108,7 +110,16 @@ export function drawOrderTotals(
   if (discount > 0) rows.push({ label: 'Discount', value: `- ${money(discount)}`, tone: 'ink' });
 
   const after: TotalRow[] = [];
-  if (cash > 0) after.push({ label: 'Advance paid', value: `- ${money(cash)}` });
+  // Each advance on a line of its own — with its day and how it was paid — when there is
+  // more than one, or when how is known (lib/order-payment.ts, as the invoice will carry them).
+  const advances = orderAdvancePayments(order, '');
+  if (advances.length > 1 || advances.some(a => a.method)) {
+    for (const a of advances) {
+      const when = format(parseISO(a.date), 'd MMM yyyy');
+      const note = a.notes?.replace(/^: /, '').trim();
+      after.push({ label: `Advance ${when}${a.method ? ` · ${a.method}` : ''}${a.reference ? ` ${a.reference}` : ''}${note ? ` · ${note}` : ''}`, value: `- ${money(a.amount)}` });
+    }
+  } else if (cash > 0) after.push({ label: 'Advance paid', value: `- ${money(cash)}` });
   if (inKind > 0) {
     if (exchanges.length > 1) {
       for (const e of exchanges) after.push({ label: `Exchange: ${describeExchangeEntry(e)}`, value: `- ${money(e.value)}` });

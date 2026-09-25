@@ -53,6 +53,7 @@ import { format } from 'date-fns';
 import { AmountInput } from '@/components/ui/amount-input';
 import { ExchangeRows, type ExchangeRow, blankExchangeRow, rowsFromExchanges, exchangesFromRows, exchangeRowsTotal } from '@/components/shared/exchange-rows';
 import { invoiceExchanges, describeExchangeEntry } from '@/lib/exchange';
+import { OrderCarryOver } from '@/components/invoice/order-carry-over';
 import { FormSkeleton } from '@/components/shared/skeletons';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
@@ -872,6 +873,7 @@ export default function CartPage() {
                       {generatedInvoice.customerName || 'Walk-in Customer'}
                       {' · '}
                       {new Date(generatedInvoice.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {generatedInvoice.takenBy && <>{' · taken by '}{generatedInvoice.takenBy}</>}
                     </CardDescription>
                     <div className="flex items-center gap-2 mt-2">
                       {(generatedInvoice.balanceDue || 0) > 0 ? (
@@ -907,6 +909,8 @@ export default function CartPage() {
                     <p className="text-warning whitespace-pre-wrap mt-1">{generatedInvoice.internalNote}</p>
                   </div>
                 )}
+                {/* An order's advances, exchange and the rest, read from the order itself. */}
+                <OrderCarryOver invoice={generatedInvoice} />
                 <div className="p-4 border rounded-md bg-background">
                     {(() => {
                       const shipTo = describeDelivery(generatedInvoice.delivery);

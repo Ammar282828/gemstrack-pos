@@ -34,6 +34,11 @@ export const BAND: RGB = [247, 243, 243];
 const setInk = (doc: jsPDF, c: RGB) => doc.setTextColor(c[0], c[1], c[2]);
 const setDraw = (doc: jsPDF, c: RGB) => doc.setDrawColor(c[0], c[1], c[2]);
 
+/** A totals label wraps at this width (mm), onto at most this many lines, this far apart. */
+const LABEL_WRAP = 105;
+const MAX_LABEL_LINES = 6;
+const LABEL_LINE_H = 3.6;
+
 /** Right-aligned at `x`, shortened with an ellipsis if it will not fit. */
 function fitTextRight(doc: jsPDF, text: string, x: number, y: number, maxWidth: number): void {
   let t = text;
@@ -252,8 +257,21 @@ export function drawTotals(doc: jsPDF, o: TotalsOpts): number {
   // customer is looking for — was drawn off the bottom and simply not there.
   // Two of the four builders guarded against this and two did not; doing it
   // here means none of them can forget.
+  // Labels wrap rather than being cut (the owner, 2026-09-25: long advances and exchange
+  // details were cut off): each continues on further lines, right-aligned under itself,
+  // and the block grows by that much. Wrapped no wider than LABEL_WRAP so a long one stays
+  // a readable column rather than a line across the page.
+  const wrapW = Math.min(labelW, LABEL_WRAP);
+  const linesOf = (r: TotalRow, size: number, bold: boolean): string[] => {
+    if (!r.label) return [];
+    doc.setFont('helvetica', bold ? 'bold' : 'normal').setFontSize(size);
+    return doc.splitTextToSize(r.label, wrapW) as string[];
+  };
+  const extra = (r: TotalRow, size: number, bold: boolean) =>
+    Math.max(0, Math.min(linesOf(r, size, bold).length, MAX_LABEL_LINES) - 1) * LABEL_LINE_H;
   const height =
-    rows.length * 5 + 6 + 5.5 + after.length * 5 + (closing ? 11 : 0) + 2;
+    rows.length * 5 + rows.reduce((h, r) => h + extra(r, 8, false), 0) + 6 + 5.5 +
+    after.length * 5 + after.reduce((h, r) => h + extra(r, 8, false), 0) + (closing ? 11 : 0) + 2;
   let y = startY;
   if (y + height > pageHeight - FOOTER_HEIGHT) {
     doc.addPage();
@@ -261,24 +279,31 @@ export function drawTotals(doc: jsPDF, o: TotalsOpts): number {
     y = 30;
   }
 
-  const line = (r: TotalRow, bold: boolean, size: number, colour: RGB) => {
+  // Draws one row at y; returns how much taller than one line its label made it.
+  const line = (r: TotalRow, bold: boolean, size: number, colour: RGB): number => {
+    const lines = linesOf(r, size, bold);
     doc.setFont('helvetica', bold ? 'bold' : 'normal').setFontSize(size);
     setInk(doc, colour);
-    // Truncated rather than allowed to run: an exchange description is
-    // free text and grows leftwards out of the column.
-    if (r.label) fitTextRight(doc, r.label, labelX, y, labelW);
+    const shown = lines.slice(0, MAX_LABEL_LINES);
+    shown.forEach((text, i) => {
+      const at = y + i * LABEL_LINE_H;
+      // Beyond MAX_LABEL_LINES the last line is shortened — a paragraph belongs elsewhere.
+      if (i === shown.length - 1 && lines.length > shown.length) fitTextRight(doc, `${text} ${lines.slice(shown.length).join(' ')}`, labelX, at, wrapW);
+      else doc.text(text, labelX, at, { align: 'right' });
+    });
     if (r.value) doc.text(r.value, totalsX, y, { align: 'right' });
     setInk(doc, INK);
+    return Math.max(0, shown.length - 1) * LABEL_LINE_H;
   };
 
-  rows.forEach(r => { line(r, false, 8, r.tone === 'ink' ? INK : MUTED); y += 5; });
+  rows.forEach(r => { y += line(r, false, 8, r.tone === 'ink' ? INK : MUTED) + 5; });
 
   hairline(doc, labelX - 16, y, totalsX, 'rule');
   y += 6;
   line(total, true, 9, INK);
   y += 5.5;
 
-  after.forEach(r => { line(r, false, 8, r.tone === 'ink' ? INK : MUTED); y += 5; });
+  after.forEach(r => { y += line(r, false, 8, r.tone === 'ink' ? INK : MUTED) + 5; });
 
   if (closing) {
     y += 1;

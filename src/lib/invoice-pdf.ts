@@ -286,13 +286,21 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
     doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(0);
     doc.text('Payment History', margin, finalY);
     finalY += 4;
+    // How each was paid — an order's advances arrive here one by one, each with its method —
+    // and notes that wrap rather than run off the page.
     doc.autoTable({
-      head: [['Date', 'Amount', 'Notes']],
-      body: inv.paymentHistory.map(p => [format(new Date(p.date), 'PP'), pkr(p.amount), p.notes || 'Payment received']),
+      head: [['Date', 'How', 'Notes', 'Amount']],
+      body: inv.paymentHistory.map(p => [
+        format(new Date(p.date), 'PP'),
+        [p.method, p.reference].filter(Boolean).join(' · ') || '—',
+        p.notes || 'Payment received',
+        pkr(p.amount),
+      ]),
       startY: finalY, theme: 'striped',
       margin: { left: margin, right: margin },
       headStyles: { fillColor: [240, 240, 240], textColor: 50, fontSize: 8 },
-      styles: { fontSize: 7 },
+      styles: { fontSize: 7, overflow: 'linebreak', valign: 'top' },
+      columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 30 }, 2: { cellWidth: 'auto' }, 3: { cellWidth: 26, halign: 'right' } },
     });
     finalY = doc.lastAutoTable.finalY || finalY;
   }
