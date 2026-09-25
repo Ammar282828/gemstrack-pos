@@ -36,7 +36,9 @@ for (const [k, e] of merged) {
 const keysOf = (f) => fs.existsSync(f) ? fs.readFileSync(f, 'utf8').split('\n').filter(l => /^[A-Z_0-9]+=/.test(l)).map(l => l.split('=')[0]) : [];
 const others = ['taheri', 'mina'].filter(h => h !== house).flatMap(h => load(`apphosting.${h}.yaml`).map(e => e.variable));
 const lent = house === 'taheri' ? [] : ['.env.local', '.env.development.local'].flatMap(keysOf);
-const blank = [...new Set([...others, ...lent])].filter(k => !merged.has(k));
+// A local credential file is this Mac's, not a house's: every house's AI signs with it (IMAGE_AI_CREDENTIALS, Murtaza's ADC).
+const machine = new Set(['IMAGE_AI_CREDENTIALS']);
+const blank = [...new Set([...others, ...lent])].filter(k => !merged.has(k) && !machine.has(k));
 if (blank.length) lines.push('', `# Not ${house}'s: empty, so Next can't fill them from Taheri's .env.local / .env.development.local.`, ...blank.map(k => `${k}=`));
 fs.writeFileSync(out, lines.join('\n') + '\n');
 console.log(`wrote ${out}: ${merged.size} variables (${[...merged.values()].filter(e => e.secret !== undefined).length} secrets to fill), ${blank.length} left empty`);

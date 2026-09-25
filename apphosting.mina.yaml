@@ -227,13 +227,20 @@ env:
   # and the caption made at the counter, sent to the catalogue (Add Photos' relay)
   # and the community's announcements from Mina's own line (WAHA session "mina",
   # +92 316 1930960, an admin there), one piece or a queue of them. No Instagram
-  # app and no channel here, so the story is shared by hand. AI bills to
-  # VERTEX_PROJECT (Taheri's gemstrack-pos), as Mina's voice does.
+  # app and no channel here, so the story is shared by hand.
   - variable: NEXT_PUBLIC_STORE_POST_PIECE
     value: "1"
     availability:
       - BUILD
       - RUNTIME
+  # Post a Piece's and From the website's AI bill to Murtaza's "Jewel Gen"
+  # project, as Taheri's do (the owner, 2026-09-25). That project grants this
+  # backend's service account (firebase-app-hosting-compute@hom-pos-52710474-ceeea)
+  # roles/aiplatform.user; without the grant every AI button answers 403.
+  # Mina's voice still uses VERTEX_PROJECT above.
+  - variable: IMAGE_AI_PROJECT
+    value: "jewelgen-mm-e3d43ecb"
+    availability: [RUNTIME]
   # Post a Piece's marks: Mina's own logo (filled to any colour by its shape) and
   # no monogram — never Taheri's "taheri" or "t".
   - variable: NEXT_PUBLIC_STORE_MARK_SVG
