@@ -55,7 +55,7 @@ interface NavGroup {
  *
  * Pages that are siblings share one entry and appear as tabs in the top bar —
  * Workshop / Karigars / Given items, the four money books, the website's photo
- * pages, the settings pages — and Settings sits in the footer as a gear. Every
+ * pages, Post a Piece / Investments under Posts, the settings pages — and Settings sits in the footer as a gear. Every
  * page keeps its own address, so links and bookmarks land on the right tab, and
  * Ctrl+K still finds any page by name.
  *
@@ -88,11 +88,15 @@ const navGroups: NavGroup[] = [
       ] },
       // The website pages exist only for a shop that has one (NEXT_PUBLIC_STORE_WEBSITE_URL).
       ...(STORE_LINKS.website ? ([
-        ...(STORE_POST_PIECE ? [{ staff: true, href: '/website/post', label: 'Post a Piece', icon: <Send /> }] : []),
+        // Everything that goes out to WhatsApp and Instagram, under one entry (the
+        // owner, 2026-09-25: Investments belongs with Post a Piece).
+        ...(STORE_POST_PIECE || STORE_INVESTMENTS ? [{ staff: true, href: '/website/post', label: 'Posts', icon: <Send />, tabs: [
+          ...(STORE_POST_PIECE ? [{ staff: true, href: '/website/post', label: 'Post a Piece' }] : []),
+          ...(STORE_INVESTMENTS ? [{ staff: true, href: '/website/investments', label: 'Investments' }] : []),
+        ] as NavTab[] }] : []),
         { staff: true, href: '/website/photos', label: 'Website', icon: <Globe />, tabs: [
           { staff: true, href: '/website/photos', label: 'Add Photos' },
           ...(STORE_WEBSITE_WEIGHTS ? [{ staff: true, href: '/website/weights', label: 'Photo Weights' }] : []),
-          ...(STORE_INVESTMENTS ? [{ staff: true, href: '/website/investments', label: 'Investments' }] : []),
         ] as NavTab[] },
       ] as NavItem[]) : []),
     ],
