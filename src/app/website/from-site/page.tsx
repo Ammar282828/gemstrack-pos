@@ -14,6 +14,10 @@
  * its line and facts written by AI in the house's voice. The send is the same route Post a Piece uses: the community,
  * and the channel too when the line is on WAHA; each send is logged with the
  * piece, so Shuffle skips what went out lately.
+ *
+ * It opens on the website's new arrivals (the owner, 2026-09-25: "by default
+ * show new arrivals" — src/lib/website/new-arrivals.ts), newest first; Shuffle
+ * picks from whatever is showing.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -31,7 +35,9 @@ import { sitePieceCaption } from '@/lib/social/caption';
 import { loadImage, stampPhoto } from '@/lib/social/story';
 import { STORE_SITE_POSTS, STORE_POST_METAL, STORE_POST_FOOTER, STORE_POST_TAGLINE, STORE_WHATSAPP_NUMBERS, STORE_LINKS } from '@/lib/store-config';
 
-interface Piece { id: string; name: string; url: string; image: string; thumb: string; collection: string; weightGrams: number | null; weightOnPhoto: boolean; facts: string[]; about: string }
+interface Piece { id: string; name: string; url: string; image: string; thumb: string; collection: string; weightGrams: number | null; weightOnPhoto: boolean; facts: string[]; about: string; added: number | null; newArrival: boolean }
+/** The "collection" chip for the new arrivals — what the page opens on. */
+const NEW = '__new';
 interface Group { key: string; label: string; name: string; size: number | null; reachable: boolean }
 interface Audience { community: { name: string; size: number | null; reachable: boolean } | null; channel: { name: string; followers: number | null } | null; groups: Group[] }
 /** "Announcements, Diamonds and the channel". */
@@ -65,7 +71,7 @@ function FromSitePage() {
   const [chosenGroups, setChosenGroups] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
-  const [collection, setCollection] = useState('');
+  const [collection, setCollection] = useState(NEW);
   const [freshOnly, setFreshOnly] = useState(true);
   const [shown, setShown] = useState(PAGE);
   const [pick, setPick] = useState<Piece | null>(null);
@@ -107,13 +113,16 @@ function FromSitePage() {
   useEffect(() => { load(); }, [load]);
 
   const collections = useMemo(() => [...new Set((pieces ?? []).map(p => p.collection).filter(Boolean))].sort(), [pieces]);
+  // A site that gives no dates has no new arrivals: the page shows everything instead.
+  const hasNew = !!pieces?.some(p => p.newArrival);
+  const showing = collection === NEW && pieces && !hasNew ? '' : collection;
   const recent = (p: Piece) => !!posted[p.id] && daysAgo(posted[p.id]) < FRESH_DAYS;
   const filtered = useMemo(() => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-    return (pieces ?? []).filter(p => (!collection || p.collection === collection)
+    return (pieces ?? []).filter(p => (showing === NEW ? p.newArrival : !showing || p.collection === showing)
       && (!freshOnly || !recent(p))
       && words.every(w => `${p.name} ${p.collection} ${p.facts.join(' ')}`.toLowerCase().includes(w)));
-  }, [pieces, q, collection, freshOnly, posted]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pieces, q, showing, freshOnly, posted]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setShown(PAGE); }, [q, collection, freshOnly]);
 
   /** The house's caption for a piece: its weight as it will show, and the AI's line and facts when there are some. */
@@ -334,9 +343,11 @@ function FromSitePage() {
             <Button variant="outline" className="h-10" disabled={!pieces?.length} onClick={shuffle}><Shuffle className="h-4 w-4 mr-1.5" /> Shuffle</Button>
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-            {['', ...collections].map(c => (
+            {[...(hasNew ? [NEW] : []), '', ...collections].map(c => (
               <button key={c || 'all'} type="button" onClick={() => setCollection(c)}
-                className={cn('shrink-0 rounded-full border px-3 py-1.5 text-xs whitespace-nowrap', collection === c ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground')}>{c || 'Everything'}</button>
+                className={cn('shrink-0 rounded-full border px-3 py-1.5 text-xs whitespace-nowrap inline-flex items-center gap-1', showing === c ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground')}>
+                {c === NEW ? <><Sparkles className="h-3 w-3" /> New arrivals</> : c || 'Everything'}
+              </button>
             ))}
           </div>
           <label className="flex items-center gap-2 text-xs text-muted-foreground"><Switch checked={freshOnly} onCheckedChange={setFreshOnly} /> Hide pieces posted in the last {FRESH_DAYS} days</label>
@@ -350,6 +361,7 @@ function FromSitePage() {
                   <span className="relative block aspect-square bg-muted">
                     <img src={p.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
                     {pick?.id === p.id && <span className="absolute right-1.5 top-1.5 rounded-full bg-primary p-1 text-primary-foreground"><Check className="h-3 w-3" /></span>}
+                    {p.newArrival && showing !== NEW && <span className="absolute left-1.5 top-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] text-white">New</span>}
                   </span>
                   <span className="block px-2 py-1.5">
                     <span className="block text-xs font-medium leading-tight line-clamp-2">{p.name}</span>

@@ -10,6 +10,8 @@
  *                             counter's weights (website_pieces) are merged in
  *
  * Only pieces with a page are offered: a post always carries a working link.
+ * Newest first, each marked if it is one of the site's new arrivals (new-arrivals.ts),
+ * which the page opens on.
  * Cached ten minutes per instance, like the attributes themselves.
  *
  * Server-only.
@@ -19,6 +21,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getCatalogAttributes } from '@/lib/website/catalog-source';
 import { getPosWeights, mergeWeights } from '@/lib/website/weights';
 import { collectionOfKey } from '@/lib/website/pricing';
+import { byNewest, newArrivalIds } from '@/lib/website/new-arrivals';
 
 export interface SitePiece {
   /** The site's own key: a photograph's path on taheri.shop, mina/piece/<handle> on the catalogue. */
@@ -34,6 +37,9 @@ export interface SitePiece {
   weightOnPhoto: boolean;
   facts: string[];
   about: string;
+  /** When it went on the site (epoch ms), if the site says. */
+  added: number | null;
+  newArrival: boolean;
 }
 
 const TTL_MS = 10 * 60 * 1000;
@@ -41,7 +47,7 @@ let cache: { at: number; site: string; pieces: SitePiece[] } | null = null;
 
 export const siteOrigin = () => (process.env.WEBSITE_ORIGIN || process.env.NEXT_PUBLIC_STORE_WEBSITE_URL || '').trim().replace(/\/+$/, '');
 
-type Published = { site?: string; pieces?: { id: string; name: string; path: string; image: string; thumb?: string; collection?: string; stones?: string[]; plating?: string[]; about?: string }[] };
+type Published = { site?: string; pieces?: { id: string; name: string; path: string; image: string; thumb?: string; collection?: string; stones?: string[]; plating?: string[]; about?: string; added?: string | null; newArrival?: boolean }[] };
 
 /** "Rhodium", "Gold" → "rhodium or gold plated". */
 const plated = (p: string[] = []) => (p.length ? `${p.map(x => x.toLowerCase()).join(' or ')} plated` : '');
@@ -57,6 +63,8 @@ async function fromCatalogPieces(site: string): Promise<SitePiece[] | null> {
     collection: p.collection || '', weightGrams: null, weightOnPhoto: false,
     facts: [...(p.stones ?? []), plated(p.plating)].filter(Boolean),
     about: (p.about || '').trim(),
+    added: p.added ? Date.parse(p.added) || null : null,
+    newArrival: !!p.newArrival,
   }));
 }
 
@@ -66,7 +74,7 @@ async function fromAttributes(site: string): Promise<SitePiece[]> {
   return Object.entries(merged)
     .filter(([, a]) => typeof (a as { path?: unknown }).path === 'string')
     .map(([key, a]) => {
-      const x = a as typeof a & { name?: string; path: string };
+      const x = a as typeof a & { name?: string; path: string; added?: number };
       return {
         id: key,
         name: x.name || key.split('/').pop()!.replace(/\.webp$/i, ''),
@@ -78,6 +86,8 @@ async function fromAttributes(site: string): Promise<SitePiece[]> {
         weightOnPhoto: x.weightSource === 'label',
         facts: [x.stone, x.cut, x.style].filter((f): f is string => !!f && !/^none$/i.test(f)),
         about: '',
+        added: typeof x.added === 'number' ? x.added * 1000 : null,
+        newArrival: false,
       };
     });
 }
@@ -86,8 +96,9 @@ export async function getSitePieces(): Promise<{ site: string; pieces: SitePiece
   const site = siteOrigin();
   if (!site) return { site: '', pieces: [] };
   if (cache && cache.site === site && Date.now() - cache.at < TTL_MS) return cache;
-  const pieces = (await fromCatalogPieces(site)) ?? (await fromAttributes(site));
-  pieces.sort((a, b) => a.collection.localeCompare(b.collection) || a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const listed = (await fromCatalogPieces(site)) ?? (await fromAttributes(site));
+  const fresh = newArrivalIds(listed);
+  const pieces = listed.map(p => ({ ...p, newArrival: fresh.has(p.id) })).sort(byNewest);
   cache = { at: Date.now(), site, pieces };
   return cache;
 }

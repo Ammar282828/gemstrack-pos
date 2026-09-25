@@ -245,7 +245,10 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   list); story only then makes the main button "Share the story"; the queue refuses until it has been shared or saved (it would be lost
   when the page clears). "Save the story and the post" hands every image to the share sheet at once (Photos on a phone).
 - **Posts → From the website** (`/website/from-site`, 2026-09-25; owner: "give me an option to take any post from taheri.shop (or
-  randomize) … add the post link to whatsapp community from right there", then the same for House of Mina): search, collection chips,
+  randomize) … add the post link to whatsapp community from right there", then the same for House of Mina): opens on **New arrivals**
+  (owner: "by default show new arrivals"; `src/lib/website/new-arrivals.ts`, tested — the catalogue's own shelf, `newArrival` in
+  `catalog-pieces.json`; taheri.shop: added in the last 30 days, never fewer than the newest 24, from the `added` each photo carries in
+  `catalog-attributes.json` since taheri-site 72bcde3), everything newest first; search, collection chips,
   **Shuffle** (skips pieces sent in the last 30 days — `social_posts.sitePiece`), the photo as it is on the site (it already carries the
   house's marks: weight top-left + wordmark top-right on taheri.shop, the MINA mark on the catalogue), the caption from `sitePieceCaption`
   (name, weight, facts, 🌐 the piece's link, then `NEXT_PUBLIC_STORE_POST_FOOTER` or "Ask for today's price" + numbers; Mina also
