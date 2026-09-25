@@ -38,6 +38,11 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
   declared, or the rollout fails. Names are case-sensitive: the upload secret is `website-upload-secret`.
   A variable with `value: ""` also fails the rollout ("either 'value' or 'secret' field is required") — write
   a word the code reads as off (`"none"`, `"0"`) instead.
+- **Taheri's backend also has console `overrideEnv`** (19 variables — Firebase config, `NEXT_PUBLIC_STORE_NAME` "Taheri",
+  contacts, bank line, Instagram) and **they beat the YAML**. Read them with the App Hosting REST API
+  (`GET …/projects/gemstrack-pos/locations/us-central1/backends/studio`, field `overrideEnv`); what a build actually used
+  is `builds/<id>` → `config.env`. On 2026-09-26 its `NEXT_PUBLIC_STORE_WHATSAPP_URL` (the Collections community invite)
+  was removed so the YAML's `wa.me` chat applies. Mina's backend has none.
 - Firebase CLI login is broken on the owner's Mac. Use **`gcloud`** (authenticated as the owner):
   `gcloud secrets …`, `gcloud builds list`, `gcloud run revisions list` — all `--project gemstrack-pos --region us-central1`.
   Never print a secret value; compare `sha256` of trimmed values instead.
@@ -312,6 +317,17 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).
   The POS stayed usable at **https://studio--gemstrack-pos.us-central1.hosted.app** (App Hosting's own address; open access,
   data loads). Instagram fetches story images from `SOCIAL_MEDIA_ORIGIN` (that address) so posting never depends on .shop.
+- **The link page, both houses** (`/links`; links.taheri.shop, and **links.houseofmina.store** since 2026-09-26): what the one
+  "Our links" QR on invoices, order slips and repair receipts opens (`storeLinksUrl()` ← `NEXT_PUBLIC_STORE_LINKS_URL`, else
+  the POS's own `/links`). Words and links are variables (`STORE_LINKS`, `STORE_LINKS_PAGE` in `store-config.ts`: tagline,
+  welcome, the top row `"lead|tail|line"`, website label, footer `visit`; TikTok, a separate online shop); the dress follows
+  `STORE_BRAND` (Taheri #0A1111 / gold / Bodoni; Mina #140B0B / rose #E8A5AE / Newsreader). The top row is the **WhatsApp
+  channel**, or the community for a house without one. Taheri's six community rows were removed (owner, 2026-09-25: "remove
+  all community links"). Mina's: the Exclusive Sterling Silver community on top, Instagram, TikTok, a chat with +92 316 1930960
+  (`NEXT_PUBLIC_STORE_WHATSAPP_URL`; the community moved to `_WA_COMMUNITY_URL`), the catalogue, houseofmina.store (Shopify),
+  "Studio open daily, 12:30 – 8 pm · Karachi". links.houseofmina.store is an App Hosting custom domain on hom-pos; its DNS
+  (A → 35.219.200.7, `fah-claim` TXT, ACME CNAME) was added through the GoDaddy API. Taheri's footer still prints
+  "Najmi Market … Saddar" (the default of `NEXT_PUBLIC_STORE_LINKS_VISIT`), against the copy rule — waiting on the owner's wording.
 - **Light / dark is per device** (owner, 2026-09-25: "switching is buggy"): the sun/moon in the top bar sets this device's
   mode (`gemstrack:theme-device` in localStorage, `writeDeviceTheme` in `src/lib/theme-cache.ts`) and switches at once; the
   **Shop mode** in Settings (Firestore, live on every screen) only decides devices that never chose. `<html>` carries `.dark`
