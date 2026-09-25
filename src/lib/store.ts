@@ -723,19 +723,9 @@ export interface HisaabEntry {
   linkedInvoiceId?: string; // Set for auto-managed outstanding balance entries
 }
 
-export const EXPENSE_CATEGORIES = [
-  'Rent', 'Salaries', 'Utilities', 'Marketing', 'Supplies', 
-  'Repairs & Maintenance', 'Taxes', 'Travel', 'Making Charges',
-  // Money a shareholder takes out. Kept out of the partnership P&L — see
-  // the note in lib/partnership.ts — but it is real cash leaving the till,
-  // so it belongs in the expense list.
-  'Partner Drawings',
-  // A partner paying themselves for work. A real business cost, so unlike a
-  // drawing this one does count against profit.
-  'Partner Salary',
-  'Other'
-] as const;
-export type ExpenseCategory = typeof EXPENSE_CATEGORIES[number];
+// This shop's expense categories — a per-house variable, see lib/expense-categories.ts.
+export { EXPENSE_CATEGORIES, type ExpenseCategory } from '@/lib/expense-categories';
+import type { ExpenseCategory } from '@/lib/expense-categories';
 
 export type PaidBy = 'business' | 'ammar' | 'mina';
 

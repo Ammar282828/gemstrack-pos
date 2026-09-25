@@ -184,7 +184,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onSubmitSucce
               value={field.value || ''}
               onChange={field.onChange}
               options={EXPENSE_CATEGORIES.map(c => ({ value: c, label: c }))}
-              recentsKey="expense-category"
+              recentsKey="expense-category-v2"
               placeholder="Select a category"
               searchPlaceholder="Type a category…"
               allowCustom

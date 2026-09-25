@@ -64,6 +64,12 @@ export default function ExpensesPage() {
     karigars, loadKarigars, karigarBatches, loadKarigarBatches,
   } = useAppStore();
   const { toast } = useToast();
+  // The shop's list, then any other name an expense carries (typed in, or from before the
+  // list changed), so every expense can still be found by its category.
+  const filterCategories = useMemo(() => {
+    const extra = [...new Set(expenses.map(e => e.category).filter((c): c is string => !!c && !EXPENSE_CATEGORIES.includes(c)))].sort();
+    return [...EXPENSE_CATEGORIES, ...extra];
+  }, [expenses]);
 
   useEffect(() => {
     if (appReady) { loadExpenses(); loadKarigars(); loadKarigarBatches(); }
@@ -322,11 +328,13 @@ export default function ExpensesPage() {
             {PERIODS.map(p => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter} recentsKey="expense-category">
+        {/* "v2": the list is per house since 2026-09-25, and a device's Recent should not keep
+            offering a category this shop no longer uses. */}
+        <Select value={categoryFilter} onValueChange={setCategoryFilter} recentsKey="expense-category-v2">
           <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="All categories" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="All">All categories</SelectItem>
-            {EXPENSE_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+            {filterCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
           </SelectContent>
         </Select>
       </FilterBar>

@@ -115,6 +115,14 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Mina's own expense categories (lib/expense-categories.ts), worked out from all 379 of its
+  # expenses on 2026-09-25 at the owner's ask. Comma-separated, so no commas in a name.
+  # Partner Drawings, Partner Salary and Other are always added by the code.
+  - variable: NEXT_PUBLIC_STORE_EXPENSE_CATEGORIES
+    value: "Stock & Karigars,Custom Orders,Stones & Pearls,Plating & Finishing,Packaging & Display,Rent,Salaries,Utilities,Shop Setup & Repairs,Marketing,Ad Spend,Photoshoots & Models,Pop-ups & Exhibitions,Travel,Daily Expenses"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_CONTACT1_NAME
     value: "Mina Khalid"
     availability:
