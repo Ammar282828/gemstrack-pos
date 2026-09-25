@@ -49,6 +49,9 @@ function side(inv: Invoice, items: InvoiceItem[], share: number): Invoice {
     amountPaid: scale(inv.amountPaid),
     balanceDue: scale(inv.balanceDue),
     paymentHistory: paymentHistory as Payment[],
+    ...(Array.isArray(inv.exchanges) && { exchanges: inv.exchanges.map(e => ({ ...e, value: scale(e?.value) })) }),
+    ...(inv.exchangeAmount1 != null && { exchangeAmount1: scale(inv.exchangeAmount1) }),
+    ...(inv.exchangeAmount2 != null && { exchangeAmount2: scale(inv.exchangeAmount2) }),
   };
 }
 

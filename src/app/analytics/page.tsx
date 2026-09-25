@@ -25,6 +25,7 @@ import { isBusinessCost } from '@/lib/partnership';
 import { pkrLac, lacCrore, axisLac } from '@/lib/money';
 import { STORE_EST_MARGIN } from '@/lib/store-config';
 import { splitAllCoinSales, summariseCoins } from '@/lib/analytics/coins';
+import { cashInForPeriod, invoicedOrderIds } from '@/lib/analytics/cash-in';
 import { toTola, formatWeight } from '@/lib/units';
 
 // Helper types for chart data
@@ -288,6 +289,9 @@ export default function AnalyticsPage() {
         cashInFromInvoicePayments: 0,
         cashInFromOrderAdvances: 0,
         cashInFromExtraRevenue: 0,
+        /** Gold taken in exchange: not cash, shown beside it. */
+        exchangeTaken: 0,
+        exchangeCountedInRevenue: 0,
         cashOut: 0,
         netCashFlow: 0,
         // ── Acquisition source ──────────────────────────────────────────────
@@ -564,39 +568,36 @@ export default function AnalyticsPage() {
       });
 
     // ── Cash flow ─────────────────────────────────────────────────────────
-    // Cash IN = invoice payments collected in this period + order advances
-    // received in this period + extra revenue logged in this period.
+    // Cash IN = invoice payments collected in this period (on ALL invoices: a payment
+    // in the range may belong to an invoice written earlier) + cash advances on orders
+    // not invoiced yet, each on its own day + extra revenue. A finalised order's advances
+    // are its invoice's payments, so they are counted there only; gold taken in exchange
+    // is not cash and is reported apart (lib/analytics/cash-in.ts).
     // Cash OUT = expenses paid in this period.
-    // We iterate ALL invoices (not just filteredInvoices) because a payment
-    // recorded in the date range may belong to an invoice created earlier.
-    let cashInFromInvoicePayments = 0;
     const rangeFrom = dateRange?.from ? startOfDay(dateRange.from) : null;
     const rangeTo = dateRange?.to ? endOfDay(dateRange.to) : (dateRange?.from ? endOfDay(new Date()) : null);
-    jewelleryInvoices.forEach(inv => {
-      if (!inv || inv.status === 'Refunded' || !Array.isArray(inv.paymentHistory)) return;
-      inv.paymentHistory.forEach(p => {
-        if (!p?.date) return;
-        const d = parseISO(p.date);
-        if (rangeFrom && rangeTo && !isWithinInterval(d, { start: rangeFrom, end: rangeTo })) return;
-        cashInFromInvoicePayments += Number(p.amount || 0);
-      });
+    const cash = cashInForPeriod({
+      invoices: jewelleryInvoices,
+      orders,
+      invoiced: invoicedOrderIds(orders, generatedInvoices),
+      extraRevenues: additionalRevenues,
+      period: { from: rangeFrom, to: rangeTo },
+      invoiceDate: inv => getInvoiceRevenueDate(inv, ordersById),
     });
-
-    const cashInFromOrderAdvances = filteredOrders.reduce((s, o) =>
-      s + (Number(o?.advancePayment) || 0) + (Number(o?.advanceInExchangeValue) || 0), 0);
-    const cashInFromExtraRevenue = filteredAdditionalRevenues.reduce((s, r) => s + (Number(r?.amount) || 0), 0);
-    const cashIn = cashInFromInvoicePayments + cashInFromOrderAdvances + cashInFromExtraRevenue;
+    const cashIn = cash.total;
     const cashOut = calcData.totalExpenses; // every logged expense is cash out
     calcData.cashIn = cashIn;
-    calcData.cashInFromInvoicePayments = cashInFromInvoicePayments;
-    calcData.cashInFromOrderAdvances = cashInFromOrderAdvances;
-    calcData.cashInFromExtraRevenue = cashInFromExtraRevenue;
+    calcData.cashInFromInvoicePayments = cash.invoicePayments;
+    calcData.cashInFromOrderAdvances = cash.orderAdvances;
+    calcData.cashInFromExtraRevenue = cash.extraRevenue;
+    calcData.exchangeTaken = cash.exchange;
+    calcData.exchangeCountedInRevenue = cash.exchangeCountedInRevenue;
     calcData.cashOut = cashOut;
     calcData.netCashFlow = cashIn - cashOut;
 
     return calcData;
 
-  }, [filteredInvoices, filteredOrders, filteredExpenses, filteredAdditionalRevenues, products, categories, customers, jewelleryInvoices, dateRange, ordersById]);
+  }, [filteredInvoices, filteredOrders, filteredExpenses, filteredAdditionalRevenues, products, categories, customers, jewelleryInvoices, generatedInvoices, orders, additionalRevenues, dateRange, ordersById]);
   
   const dailyBreakdown = useMemo(() => {
     if (!selectedDayData) return { invoices: [], products: [] };
@@ -950,8 +951,9 @@ export default function AnalyticsPage() {
 
           {/* ── Cash Flow ── */}
           {(() => {
-            const { cashIn, cashOut, netCashFlow, cashInFromInvoicePayments, cashInFromOrderAdvances, cashInFromExtraRevenue } = analyticsData;
-            const accrualVsCashGap = analyticsData.totalSales - cashIn;
+            const { cashIn, cashOut, netCashFlow, cashInFromInvoicePayments, cashInFromOrderAdvances, cashInFromExtraRevenue, exchangeTaken, exchangeCountedInRevenue } = analyticsData;
+            // Gold taken against revenue is collected, just not in cash.
+            const accrualVsCashGap = analyticsData.totalSales - cashIn - exchangeCountedInRevenue;
             return (
               <Card>
                 <CardHeader className="pb-3">
@@ -977,9 +979,14 @@ export default function AnalyticsPage() {
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         Invoice payments: {pkrLac(cashInFromInvoicePayments)}
-                        {cashInFromOrderAdvances > 0 && <> · Advances incl. trade-ins: {pkrLac(cashInFromOrderAdvances)}</>}
+                        {cashInFromOrderAdvances > 0 && <> · Order advances: {pkrLac(cashInFromOrderAdvances)}</>}
                         {cashInFromExtraRevenue > 0 && <> · Extra: {pkrLac(cashInFromExtraRevenue)}</>}
                       </p>
+                      {exchangeTaken > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Not counted: gold taken in exchange, {pkrLac(exchangeTaken)}
+                        </p>
+                      )}
                     </div>
                     <div className="rounded-lg border border-destructive/40 p-4">
                       <div className="flex flex-row items-center justify-between pb-2">
@@ -1008,7 +1015,7 @@ export default function AnalyticsPage() {
                   </div>
                   {accrualVsCashGap > 0 && (
                     <div className="mt-3 rounded-md border bg-warning/10 border-warning/40 p-3 text-xs text-warning">
-                      <span className="font-semibold">{pkrLac(accrualVsCashGap)}</span> of recognised revenue is <em>not yet collected</em> — sitting as customer receivables and uninvoiced open orders. That gap is the difference between &ldquo;Total Revenue&rdquo; (accrual) and &ldquo;Cash In&rdquo;.
+                      <span className="font-semibold">{pkrLac(accrualVsCashGap)}</span> of recognised revenue is <em>not yet collected</em> — sitting as customer receivables and uninvoiced open orders. That gap is &ldquo;Total Revenue&rdquo; (accrual) less &ldquo;Cash In&rdquo; and less the gold taken in exchange against it.
                     </div>
                   )}
                 </CardContent>
