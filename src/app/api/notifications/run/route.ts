@@ -9,6 +9,7 @@ import { lateOrders, orderTiming, timingLabel } from '@/lib/order-timing';
 // These reports go to the shop's own staff, so they must carry the shop's own name.
 // They were hardcoded to MINA from the repo this was based on.
 import { STORE_CONFIG } from '@/lib/store-config';
+import { fromThisPos } from '@/lib/notify-label';  // the owner gets both houses' reports
 const SHOP = STORE_CONFIG.name.toUpperCase();
 
 function daysSince(isoDate: string) {
@@ -107,7 +108,7 @@ async function sendDailyChecklist(phone: string) {
   }
 
   lines.push(``, `━━━━━━━━━━━━━━━━━━`, `Have a productive day! 💎`);
-  await sendWhatsAppMessage(phone, lines.join('\n'));
+  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
 }
 
 async function sendEndOfDaySummary(phone: string) {
@@ -167,7 +168,7 @@ async function sendEndOfDaySummary(phone: string) {
     `Good night! Rest well. 🌙`
   );
 
-  await sendWhatsAppMessage(phone, lines.join('\n'));
+  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
 }
 
 async function sendDailyReport(phone: string) {
@@ -264,7 +265,7 @@ async function sendDailyReport(phone: string) {
     `Good night! 🌙`,
   );
 
-  await sendWhatsAppMessage(phone, lines.join('\n'));
+  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
 }
 
 async function sendWeeklyReport(phone: string) {
@@ -387,7 +388,7 @@ async function sendWeeklyReport(phone: string) {
     `Have a great week ahead! 💎`
   );
 
-  await sendWhatsAppMessage(phone, lines.join('\n'));
+  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
 }
 
 async function checkOverdueOrders(phone: string) {
@@ -432,7 +433,7 @@ async function checkOverdueOrders(phone: string) {
   }
 
   lines.push(``, `━━━━━━━━━━━━━━━━━━`);
-  await sendWhatsAppMessage(phone, lines.join('\n'));
+  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
 }
 
 async function checkGivenItems(phone: string) {
@@ -459,7 +460,7 @@ async function checkGivenItems(phone: string) {
   });
 
   lines.push(``, `Total items out: ${allOut.length}`, `━━━━━━━━━━━━━━━━━━`);
-  await sendWhatsAppMessage(phone, lines.join('\n'));
+  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
 }
 
 async function checkKarigarPayments(phone: string) {
@@ -486,7 +487,7 @@ async function checkKarigarPayments(phone: string) {
   });
 
   lines.push(``, `━━━━━━━━━━━━━━━━━━`);
-  await sendWhatsAppMessage(phone, lines.join('\n'));
+  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
 }
 
 // ── Gold market update tasks ────────────────────────────────────────────────

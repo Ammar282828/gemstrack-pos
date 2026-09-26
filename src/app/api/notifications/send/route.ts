@@ -3,6 +3,7 @@ import { sendWhatsAppMessage, WhatsAppNotConfiguredError } from '@/lib/whatsapp'
 import { isCronAuthorized } from '@/lib/api-auth';
 import { verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
 import { adminDb } from '@/lib/firebase-admin';
+import { fromThisPos } from '@/lib/notify-label';
 
 const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
 
@@ -73,7 +74,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await sendWhatsAppMessage(to, message);
+    // Named after this POS, since the owner gets both houses' alerts (lib/notify-label.ts).
+    await sendWhatsAppMessage(to, fromThisPos(message));
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     const notConfigured = err instanceof WhatsAppNotConfiguredError;

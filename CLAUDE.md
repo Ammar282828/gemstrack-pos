@@ -113,6 +113,9 @@ back to Green API otherwise; Green API stays configured until the owner cancels 
   **Expense categories** are `NEXT_PUBLIC_STORE_EXPENSE_CATEGORIES` (`lib/expense-categories.ts`; Taheri's list by default,
   Mina's own 15 since 2026-09-25, worked out from all its expenses); Partner Drawings, Partner Salary and Other are always
   added — `lib/partnership.ts` reads the first two by name. The expenses filter also offers any other name an expense carries.
+  **WhatsApp alerts name their POS** (`lib/notify-label.ts`, owner 2026-09-26: "I get both"): every alert to the owner —
+  live ones through `/api/notifications/send`, the scheduled reports, a website order to the shop — starts `*Taheri POS* · …`,
+  or Mina's `NEXT_PUBLIC_STORE_NOTIFY_LABEL` ("House of Mina POS"). Messages to customers and the gold updates are not labelled.
 - A `secret:` in the base must exist in **both** projects; one in a house file only in that project.
 
 **Shipping a change to both houses:**

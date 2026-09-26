@@ -118,6 +118,13 @@ env:
   # Mina's own expense categories (lib/expense-categories.ts), worked out from all 379 of its
   # expenses on 2026-09-25 at the owner's ask. Comma-separated, so no commas in a name.
   # Partner Drawings, Partner Salary and Other are always added by the code.
+  # The name at the front of every WhatsApp alert to the owner, who gets both houses'
+  # (lib/notify-label.ts; Taheri's default is "Taheri POS").
+  - variable: NEXT_PUBLIC_STORE_NOTIFY_LABEL
+    value: "House of Mina POS"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_EXPENSE_CATEGORIES
     value: "Stock & Karigars,Custom Orders,Stones & Pearls,Plating & Finishing,Packaging & Display,Rent,Salaries,Utilities,Shop Setup & Repairs,Marketing,Ad Spend,Photoshoots & Models,Pop-ups & Exhibitions,Travel,Daily Expenses"
     availability:

@@ -26,6 +26,7 @@ import { getCatalogAttributes, normalisePieceKey } from './catalog-source';
 import { getPosWeights, mergeWeights } from './weights';
 import { deliveryChargeFor, quotePiece, type QuoteRates } from './pricing';
 import { customerPlacedMessage, shopPlacedMessage, shopNumber, trySend } from './notify';
+import { fromThisPos } from '@/lib/notify-label';
 import type { PieceAttrs, PublicOrderView, Quote, WebsiteBankDetails, WebsiteConfig, WebsiteOrderMeta } from './types';
 
 // ─── Request ────────────────────────────────────────────────────────────────
@@ -263,7 +264,7 @@ export async function placeWebsiteOrder(raw: unknown, meta: { caller: string; or
   const summary = { id: created.id, customerName: String(built.order.customerName), customerPhone: String(built.order.customerContact), city: (built.order.delivery as { city: string }).city, lines: built.lines, subtotal: built.subtotal, deliveryCharge: built.deliveryCharge, grandTotal: built.grandTotal, statusUrl: url };
   const [toCustomer, toShop] = await Promise.all([
     trySend(summary.customerPhone, customerPlacedMessage(summary, bank)),
-    trySend(shopNumber(), shopPlacedMessage(summary)),
+    trySend(shopNumber(), fromThisPos(shopPlacedMessage(summary))),
   ]);
   if (toCustomer || toShop) {
     await adminDb.collection('orders').doc(created.id).update({ 'website.notify': { customer: toCustomer, shop: toShop, at: new Date().toISOString() } });
