@@ -1119,7 +1119,7 @@ function PostAPiecePage() {
                     onRemove={() => removePhoto(p.id)}
                     onToggle={patch => patchPhoto(p.id, patch)}
                     onEnhance={() => aiImage(p, 'enhance', { tidy }, 'Enhanced')}
-                    onRetouch={() => aiImage(p, 'retouch', {}, 'Retouched')}
+                    onRetouch={() => aiImage(p, 'retouch', { tidy }, 'Retouched')}
                     onReframe={(aspect) => aiImage(p, 'reframe', { aspect, tidy }, aspect === '9:16' ? 'Story frame' : `Extended ${aspect}`)}
                     onRestage={(aspect) => setRestageFor({ photoId: p.id, aspect })}
                     onAsk={() => { setAskFor({ photoId: p.id, aspect: null }); setAskText(''); setAskPromptText(null); }}
@@ -1406,7 +1406,7 @@ function PostAPiecePage() {
                           <DropdownMenuLabel>AI — the piece stays as it is</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => aiImage(current, 'reframe', { aspect: '1:1', tidy }, 'Square')}><Expand className="h-4 w-4 mr-2" /> Make it a true square</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => aiImage(current, 'enhance', { tidy }, 'Enhanced')}><Sparkles className="h-4 w-4 mr-2" /> Enhance the photo</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => aiImage(current, 'retouch', {}, 'Retouched')}><Wand2 className="h-4 w-4 mr-2" /> Retouch — Magnific detail</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => aiImage(current, 'retouch', { tidy }, 'Retouched')}><Wand2 className="h-4 w-4 mr-2" /> Retouch — piece, background, light</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setAskFor({ photoId: current.id, aspect: '1:1' }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-2" /> Ask AI…</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {tidyItem}
@@ -1660,7 +1660,7 @@ function PhotoTile({ photo: p, isHero, starLabel, locked, busy, siteOn, waOn, ti
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>AI — the piece stays as it is</DropdownMenuLabel>
             <DropdownMenuItem onClick={onEnhance}>Enhance — clean, colour, sparkle</DropdownMenuItem>
-            <DropdownMenuItem onClick={onRetouch}>Retouch — Magnific: crisp detail, same piece</DropdownMenuItem>
+            <DropdownMenuItem onClick={onRetouch}>Retouch — piece, background, light (GPT Image + Magnific)</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onReframe('9:16')}>Extend to story (9:16)</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onReframe('4:5')}>Extend to portrait (4:5)</DropdownMenuItem>

@@ -586,11 +586,14 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   (not touched).
 - **From the website → Instagram story** (2026-09-26): the square site photo whole on the house's ground with its mark, name and
   metal · weight (`src/lib/social/site-story.ts`), posted through `/api/instagram/story` when connected, else the share sheet.
-- **Retouch** (2026-09-26, owner: "photo retouching … in both pos using magnific api", then "magnific only"; Post a Piece and
-  Add Photos): op `retouch` on `/api/website/post/ai` → `src/lib/social/retouch.ts`: Magnific's Precision upscaler (no prompt,
-  nothing redrawn; crisp metal, prongs and stones; ≤3000 px), then the usual "same piece?" check. Key `magnific-api-key` in each
-  project's Secret Manager, read at runtime (App Hosting account has secretAccessor). ≈ 70 s, with the check ≈ 2 min.
-  Add Photos: Retouch / Original (undo) per photo before upload. Locally the key comes from `.env.development.local`.
+- **Retouch** (2026-09-26, owner: "photo retouching … jewelry and background and photo … magnific api open ai model image", then
+  "magnific only", then "magnific api should use open ai image gen"; Post a Piece and Add Photos): op `retouch` on
+  `/api/website/post/ai` → `src/lib/social/retouch.ts`, all on the **Magnific API** (one key): GPT Image 2.5 Edit (OpenAI's model,
+  `sunburst` variant, quality high; square photos at 2k, others 1k with `auto` to keep their shape) cleans piece, background and
+  light with the piece pinned (and removes tags when "remove tags and strings" is ticked), then Magnific Precision only when the
+  edit came back under 2000 px — a bonus: its queue can stall, and then the GPT result is kept. Then the usual "same piece?" check.
+  Key `magnific-api-key` in each project's Secret Manager (created 2026-09-26; App Hosting compute account: accessor + viewer),
+  read at runtime. GPT Image ≈ 55 s. Add Photos: Retouch / Original (undo) per photo. Locally the key is in `.env.development.local`.
 - Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**
   (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
   value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).
