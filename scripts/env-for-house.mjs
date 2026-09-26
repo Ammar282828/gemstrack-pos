@@ -46,8 +46,9 @@ const houseProject = String(merged.get('NEXT_PUBLIC_FIREBASE_PROJECT_ID')?.value
 const lent = ['.env.local', '.env.development.local']
   .filter(f => house !== 'taheri' || (projectOf(f) && projectOf(f) !== houseProject))
   .flatMap(keysOf);
-// A local credential file is this Mac's, not a house's: every house's AI signs with it (IMAGE_AI_CREDENTIALS, Murtaza's ADC).
-const machine = new Set(['IMAGE_AI_CREDENTIALS']);
+// This Mac's own credentials, not a house's, so every house keeps them: Google (GOOGLE_APPLICATION_CREDENTIALS), the AI's
+// signer (IMAGE_AI_CREDENTIALS, Murtaza's ADC) and the retouching keys (one account each, used by both houses).
+const machine = new Set(['IMAGE_AI_CREDENTIALS', 'GOOGLE_APPLICATION_CREDENTIALS', 'MAGNIFIC_API_KEY', 'OPENAI_API_KEY']);
 const blank = [...new Set([...others, ...lent])].filter(k => !merged.has(k) && !machine.has(k));
 if (blank.length) lines.push('', `# Not ${house}'s: empty, so Next can't fill them from Taheri's .env.local / .env.development.local.`, ...blank.map(k => `${k}=`));
 fs.writeFileSync(out, lines.join('\n') + '\n');
