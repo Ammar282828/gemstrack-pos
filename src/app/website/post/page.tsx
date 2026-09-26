@@ -433,7 +433,7 @@ function PostAPiecePage() {
    * takes over its parent's places (the counter asked for a better version of
    * that photo), and the parent steps back.
    */
-  const aiImage = async (source: Photo, op: 'enhance' | 'reframe' | 'restage' | 'custom', params: Record<string, unknown>, label: string) => {
+  const aiImage = async (source: Photo, op: 'enhance' | 'reframe' | 'restage' | 'custom' | 'retouch', params: Record<string, unknown>, label: string) => {
     const key = `${op}-${source.id}-${Date.now()}`;
     setBusy(key, label);
     try {
@@ -909,6 +909,7 @@ function PostAPiecePage() {
                     onRemove={() => removePhoto(p.id)}
                     onToggle={patch => patchPhoto(p.id, patch)}
                     onEnhance={() => aiImage(p, 'enhance', { tidy }, 'Enhanced')}
+                    onRetouch={() => aiImage(p, 'retouch', {}, 'Retouched')}
                     onReframe={(aspect) => aiImage(p, 'reframe', { aspect, tidy }, aspect === '9:16' ? 'Story frame' : `Extended ${aspect}`)}
                     onRestage={(aspect) => setRestageFor({ photoId: p.id, aspect })}
                     onAsk={() => { setAskFor({ photoId: p.id, aspect: null }); setAskText(''); setAskPromptText(null); }}
@@ -1195,6 +1196,7 @@ function PostAPiecePage() {
                           <DropdownMenuLabel>AI — the piece stays as it is</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => aiImage(current, 'reframe', { aspect: '1:1', tidy }, 'Square')}><Expand className="h-4 w-4 mr-2" /> Make it a true square</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => aiImage(current, 'enhance', { tidy }, 'Enhanced')}><Sparkles className="h-4 w-4 mr-2" /> Enhance the photo</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => aiImage(current, 'retouch', {}, 'Retouched')}><Wand2 className="h-4 w-4 mr-2" /> Retouch — OpenAI + Magnific</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setAskFor({ photoId: current.id, aspect: '1:1' }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-2" /> Ask AI…</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {tidyItem}
@@ -1427,11 +1429,11 @@ function PostAPiecePage() {
 }
 
 /** One photo: star for the story, AI actions, where it goes, and — for AI photos — whether it is still the same piece. */
-function PhotoTile({ photo: p, isHero, starLabel, locked, busy, siteOn, waOn, tidy, onTidy, onHero, onRemove, onToggle, onEnhance, onReframe, onRestage, onAsk }: {
+function PhotoTile({ photo: p, isHero, starLabel, locked, busy, siteOn, waOn, tidy, onTidy, onHero, onRemove, onToggle, onEnhance, onRetouch, onReframe, onRestage, onAsk }: {
   photo: Photo; isHero: boolean; starLabel: string; locked: boolean; busy: boolean; siteOn: boolean; waOn: boolean;
   tidy: boolean; onTidy: (v: boolean) => void;
   onHero: () => void; onRemove: () => void; onToggle: (patch: Partial<Photo>) => void;
-  onEnhance: () => void; onReframe: (a: Aspect) => void; onRestage: (a: Aspect) => void; onAsk: () => void;
+  onEnhance: () => void; onRetouch: () => void; onReframe: (a: Aspect) => void; onRestage: (a: Aspect) => void; onAsk: () => void;
 }) {
   const c = p.ai?.check;
   return (
@@ -1448,6 +1450,7 @@ function PhotoTile({ photo: p, isHero, starLabel, locked, busy, siteOn, waOn, ti
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>AI — the piece stays as it is</DropdownMenuLabel>
             <DropdownMenuItem onClick={onEnhance}>Enhance — clean, colour, sparkle</DropdownMenuItem>
+            <DropdownMenuItem onClick={onRetouch}>Retouch — piece, background, light (OpenAI + Magnific)</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onReframe('9:16')}>Extend to story (9:16)</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onReframe('4:5')}>Extend to portrait (4:5)</DropdownMenuItem>

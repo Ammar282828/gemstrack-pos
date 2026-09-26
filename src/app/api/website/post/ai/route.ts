@@ -11,6 +11,8 @@
  *   caption   image[0..1], {facts} → headlines, hook, WhatsApp and Instagram captions,
  *             and a plan for the story (scene, colours, layout)
  *   check     image[0] = reference, image[1] = edit → is it the same piece?
+ *   retouch   image[0], {parts: jewelry|background|light} → the same photo retouched by
+ *             OpenAI's image model, then its detail restored by Magnific (lib/social/retouch.ts)
  *
  * Every image edit is checked against the photo it came from before it is
  * returned — a model that quietly moves a stone must not reach a customer
@@ -39,6 +41,7 @@ import { STORE_BRAND, STORE_CONFIG, STORE_POST_FOOTER, STORE_POST_PIECE, STORE_P
 import { notInThisShop } from '@/lib/social/gate';
 import sharp from 'sharp';
 import { recordError } from '@/lib/social/errors';
+import { RETOUCH_PARTS, retouchPhoto, type RetouchPart } from '@/lib/social/retouch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -136,6 +139,16 @@ export async function POST(req: NextRequest) {
         const image = await generateImage({ images, prompt, aspect });
         const check = await checkSame(images[0], { mimeType: image.mimeType, data: image.data });
         result = { image, check, aspect };
+        break;
+      }
+      case 'retouch': {
+        need(1);
+        const asked = Array.isArray(params.parts) ? params.parts.filter((x): x is RetouchPart => (RETOUCH_PARTS as string[]).includes(String(x))) : [];
+        const meta = await sharp(Buffer.from(images[0].data, 'base64')).metadata();
+        const { image, steps } = await retouchPhoto(Buffer.from(images[0].data, 'base64'), asked);
+        // The check reads a 2048-px copy, like every other edit it compares.
+        const check = await checkSame(images[0], await prepareImage(Buffer.from(image.data, 'base64')));
+        result = { image, check, aspect: nearestAspect(meta.width || 1, meta.height || 1), steps };
         break;
       }
       case 'letter': {

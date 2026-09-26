@@ -32,7 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { ImagePlus, Upload, Check, X, Loader2, Camera, RotateCw, Scale, ExternalLink, AlertTriangle, Star } from 'lucide-react';
+import { ImagePlus, Upload, Check, X, Loader2, Camera, RotateCw, Scale, ExternalLink, AlertTriangle, Star, Wand2, Undo2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_LINKS, STORE_WEBSITE_FEATURED } from '@/lib/store-config';
 import { MAISON_HOUSES, isMaisonFolder, maisonFileName, maisonFullName } from '@/lib/website/maisons';
@@ -44,7 +44,12 @@ const SITE_NAME = SITE.replace(/^https?:\/\//, '');
 /** `path` is where the collection's page is, when the site says (its own catalog-tree.json). */
 interface Collection { collection: string; category: string; count: number; folder: string; sample: string; path?: string }
 type Status = 'queued' | 'uploading' | 'done' | 'failed';
-interface Item { id: string; file: File; preview: string; name: string; status: Status; error?: string; rel?: string; progress: number; house?: string; model?: string }
+interface Item {
+  id: string; file: File; preview: string; name: string; status: Status; error?: string; rel?: string; progress: number; house?: string; model?: string;
+  /** Retouch (OpenAI + Magnific, lib/social/retouch.ts): running, the photo as it came (for Undo), and the "same piece?" check. */
+  retouching?: boolean; original?: { file: File; preview: string; name: string };
+  check?: { samePiece: boolean; confidence: number; differences: string[] } | null;
+}
 
 async function authHeaders(): Promise<Record<string, string>> {
   try { const t = await firebaseAuth?.currentUser?.getIdToken(); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; }
@@ -87,6 +92,42 @@ export default function AddPhotosPage() {
   // The Maisons: every photograph needs its house and the model's official name.
   const maison = isMaisonFolder(folder);
   const [lastHouse, setLastHouse] = useState('');
+  const patchItem = (id: string, f: (i: Item) => Item) => setItems(prev => prev.map(i => (i.id === id ? f(i) : i)));
+  /** Retouch one photo before it goes up; the original is kept for Undo. */
+  const retouch = async (item: Item) => {
+    patchItem(item.id, i => ({ ...i, retouching: true }));
+    try {
+      const headers = await authHeaders();
+      let src: Blob = item.file;
+      // The server's image library can't read HEIC; the converter Post a Piece uses can.
+      if (/\.(heic|heif)$/i.test(item.name) || /heic|heif/i.test(item.file.type)) {
+        const cf = new FormData(); cf.set('file', item.file);
+        const cr = await fetch('/api/website/post/convert', { method: 'POST', headers, body: cf });
+        if (!cr.ok) throw new Error('This HEIC photo couldn’t be read.');
+        src = await cr.blob();
+      }
+      const form = new FormData();
+      form.set('op', 'retouch'); form.set('params', '{}'); form.append('image', src, 'photo.jpg');
+      const res = await fetch('/api/website/post/ai', { method: 'POST', headers, body: form });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || `Retouch failed (${res.status})`);
+      const bytes = Uint8Array.from(atob(d.image.data), c => c.charCodeAt(0));
+      const name = item.name.replace(/\.[^.]+$/, '') + '.jpg';
+      const file = new File([bytes], name, { type: 'image/jpeg' });
+      patchItem(item.id, i => ({ ...i, retouching: false, original: i.original ?? { file: i.file, preview: i.preview, name: i.name }, file, name, preview: URL.createObjectURL(file), check: d.check ?? null }));
+      const ok = d.check?.samePiece && d.check.confidence >= 0.8;
+      toast({ title: ok ? 'Retouched' : d.check ? 'Retouched — check it closely' : 'Retouched (not checked)', description: ok ? (d.steps ?? []).join(' → ') : d.check?.differences?.[0] ?? 'Compare it with the original before sending.', variant: d.check && !ok ? 'destructive' : undefined });
+    } catch (e) {
+      patchItem(item.id, i => ({ ...i, retouching: false }));
+      toast({ title: 'Couldn’t retouch it', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    }
+  };
+  const undoRetouch = (item: Item) => patchItem(item.id, i => {
+    if (!i.original) return i;
+    URL.revokeObjectURL(i.preview);
+    return { ...i, file: i.original.file, preview: i.original.preview, name: i.original.name, original: undefined, check: undefined };
+  });
+
   const setPiece = (id: string, patch: Partial<Pick<Item, 'house' | 'model'>>) => {
     if (patch.house) setLastHouse(patch.house);
     setItems(prev => prev.map(i => i.id === id ? { ...i, ...patch } : i));
@@ -279,7 +320,7 @@ export default function AddPhotosPage() {
       {items.length > 0 && (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={uploadAll} disabled={busy || !folder || !configured || counts.queued + counts.failed === 0 || unnamed > 0} className="h-11">
+            <Button onClick={uploadAll} disabled={busy || !folder || !configured || counts.queued + counts.failed === 0 || unnamed > 0 || items.some(i => i.retouching)} className="h-11">
               {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending…</> : <><Upload className="h-4 w-4 mr-2" /> Send {counts.queued + counts.failed} to the website</>}
             </Button>
             {counts.done > 0 && <Button variant="ghost" onClick={clearDone} disabled={busy}>Clear {counts.done} sent</Button>}
@@ -300,6 +341,12 @@ export default function AddPhotosPage() {
                     <ImagePlus className="h-7 w-7 mb-1" />
                     <span className="text-[11px] uppercase tracking-wide">{item.name.split('.').pop()?.toUpperCase()}</span>
                   </div>
+                  {item.retouching && (
+                    <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center text-white text-center px-2">
+                      <Loader2 className="h-5 w-5 animate-spin mb-1.5" />
+                      <span className="text-xs">Retouching… about a minute</span>
+                    </div>
+                  )}
                   {item.status === 'uploading' && (
                     <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center text-white">
                       <Loader2 className="h-5 w-5 animate-spin mb-1.5" />
@@ -308,7 +355,7 @@ export default function AddPhotosPage() {
                   )}
                   {item.status === 'done' && <span className="absolute top-2 right-2 h-6 w-6 rounded-full bg-emerald-600 text-white flex items-center justify-center"><Check className="h-4 w-4" /></span>}
                   {item.status === 'failed' && <span className="absolute top-2 right-2 h-6 w-6 rounded-full bg-destructive text-white flex items-center justify-center"><X className="h-4 w-4" /></span>}
-                  {item.status === 'queued' && !busy && (
+                  {item.status === 'queued' && !busy && !item.retouching && (
                     <button type="button" onClick={() => remove(item.id)} aria-label={`Remove ${item.name}`} className="absolute top-2 right-2 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"><X className="h-3.5 w-3.5" /></button>
                   )}
                 </div>
@@ -328,6 +375,23 @@ export default function AddPhotosPage() {
                   <p className="text-[11px] text-muted-foreground tabular-nums">
                     {item.status === 'failed' ? <span className="text-destructive">{item.error}</span> : prettyBytes(item.file.size)}
                   </p>
+                  {item.original && item.check !== undefined && !(item.check?.samePiece && item.check.confidence >= 0.8) && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400 flex gap-1"><AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" /> {item.check?.differences?.[0] ?? 'Not checked — compare with the original.'}</p>
+                  )}
+                  {(item.status === 'queued' || item.status === 'failed') && !busy && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <button type="button" disabled={item.retouching} onClick={() => retouch(item)}
+                        className="inline-flex items-center gap-1 text-[11px] rounded-full border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:border-foreground/40 disabled:opacity-50 min-h-0">
+                        <Wand2 className="h-3 w-3" /> {item.original ? 'Retouch again' : 'Retouch'}
+                      </button>
+                      {item.original && !item.retouching && (
+                        <button type="button" onClick={() => undoRetouch(item)}
+                          className="inline-flex items-center gap-1 text-[11px] rounded-full border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:border-foreground/40 min-h-0">
+                          <Undo2 className="h-3 w-3" /> Original
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {item.status === 'done' && item.rel && STORE_WEBSITE_FEATURED && (
                     <button type="button" onClick={() => featureItem(item.rel!)} className={cn('mt-1.5 inline-flex items-center gap-1 text-[11px] rounded-full border px-2 py-0.5 transition-colors', featuredRel === item.rel ? 'bg-amber-500 text-black border-amber-500' : 'text-muted-foreground hover:text-foreground hover:border-foreground/40')}>
                       <Star className={cn('h-3 w-3', featuredRel === item.rel && 'fill-current')} /> {featuredRel === item.rel ? 'Set of the day' : 'Feature today'}
