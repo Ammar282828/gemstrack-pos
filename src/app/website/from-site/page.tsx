@@ -15,6 +15,11 @@
  * and the channel too when the line is on WAHA; each send is logged with the
  * piece, so Shuffle skips what went out lately.
  *
+ * It also makes the piece an Instagram story (the owner, 2026-09-26): the square
+ * photo whole on the house's ground with its mark, name and weight
+ * (lib/social/site-story.ts), posted straight to the house's Instagram when it is
+ * connected, or handed to the share sheet to post by hand when it isn't (Mina).
+ *
  * It opens on the website's new arrivals (the owner, 2026-09-25: "by default
  * show new arrivals" — src/lib/website/new-arrivals.ts), newest first; Shuffle
  * picks from whatever is showing.
@@ -28,12 +33,14 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Shuffle, Send, Loader2, Search, ExternalLink, Sparkles, RotateCcw, Check, Globe, MessageCircle, Radio, Megaphone } from 'lucide-react';
+import { Shuffle, Send, Loader2, Search, ExternalLink, Sparkles, RotateCcw, Check, Globe, MessageCircle, Radio, Megaphone, Instagram, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { diagnose } from '@/lib/social/diagnose';
 import { sitePieceCaption } from '@/lib/social/caption';
 import { loadImage, stampPhoto } from '@/lib/social/story';
-import { STORE_SITE_POSTS, STORE_POST_METAL, STORE_POST_FOOTER, STORE_POST_TAGLINE, STORE_WHATSAPP_NUMBERS, STORE_LINKS, STORE_META_ADS } from '@/lib/store-config';
+import { STORE_SITE_POSTS, STORE_POST_METAL, STORE_POST_FOOTER, STORE_POST_TAGLINE, STORE_WHATSAPP_NUMBERS, STORE_LINKS, STORE_META_ADS, STORE_BRAND, STORE_MARK_SVG } from '@/lib/store-config';
+import { siteStoryJpeg, HOUSE_STORY_COLOURS } from '@/lib/social/site-story';
+import { FONTS } from '@/app/website/post/fonts';
 import Link from 'next/link';
 
 interface Piece { id: string; name: string; url: string; image: string; thumb: string; collection: string; weightGrams: number | null; weightOnPhoto: boolean; facts: string[]; about: string; added: number | null; newArrival: boolean }
@@ -78,7 +85,11 @@ function FromSitePage() {
   const [pick, setPick] = useState<Piece | null>(null);
   const [caption, setCaption] = useState('');
   const [edited, setEdited] = useState(false);
-  const [busy, setBusy] = useState<'send' | 'ai' | null>(null);
+  const [busy, setBusy] = useState<'send' | 'ai' | 'story' | null>(null);
+  // Instagram: posted straight to when connected; otherwise the story goes to the share sheet.
+  const [ig, setIg] = useState<{ configured: boolean; connected: boolean; username: string | null } | null>(null);
+  const [story, setStory] = useState<{ url: string; blob: Blob } | null>(null);
+  const mark = useRef<Promise<HTMLImageElement | null> | null>(null);
   const [confirm, setConfirm] = useState<string[] | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
   // The weight on the photo, and the AI's words for the caption.
@@ -98,6 +109,7 @@ function FromSitePage() {
         fetch('/api/website/site-pieces', { headers, cache: 'no-store' }),
         fetch('/api/website/post', { headers, cache: 'no-store' }),
       ]);
+      fetch('/api/instagram/status', { headers, cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(setIg).catch(() => undefined);
       const d = await pr.json().catch(() => ({}));
       if (!pr.ok) throw new Error(d.error || `${pr.status}`);
       setPieces(d.pieces); setSite(d.site); setPosted(d.posted || {});
@@ -231,6 +243,58 @@ function FromSitePage() {
     }
   };
 
+  /** The piece as a 9:16 story: the photo that would go to WhatsApp (weight on it or not), whole, with the name and weight. */
+  const makeStory = async () => {
+    if (!pick) return;
+    setBusy('story');
+    try {
+      mark.current ??= loadImage(STORE_MARK_SVG).catch(() => null);
+      const [img, wordmark] = await Promise.all([
+        outgoing(pick).then(loadImage),
+        mark.current,
+        document.fonts.load(`800 100px ${FONTS.headline}`), document.fonts.load(`400 40px ${FONTS.body}`),
+      ]);
+      // The Maisons are the great houses' pieces, not the house's own metal.
+      const metal = /maison/i.test(pick.collection) ? '' : STORE_POST_METAL;
+      const details = [metal, validWeight(weight) ? `${weight.trim()}g` : ''].filter(Boolean).join(' | ');
+      const blob = await siteStoryJpeg(img, { headline: pick.name, details }, { marks: wordmark ? { wordmark } : {}, fonts: FONTS }, HOUSE_STORY_COLOURS[STORE_BRAND]);
+      setStory(prev => { if (prev) URL.revokeObjectURL(prev.url); return { url: URL.createObjectURL(blob), blob }; });
+    } catch (e) {
+      toast({ title: 'Couldn’t make the story', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally {
+      setBusy(null);
+    }
+  };
+  const closeStory = () => setStory(prev => { if (prev) URL.revokeObjectURL(prev.url); return null; });
+  const postStory = async () => {
+    if (!story || !pick) return;
+    setBusy('story');
+    try {
+      const form = new FormData();
+      form.set('file', new File([story.blob], 'story.jpg', { type: 'image/jpeg' }));
+      const res = await fetch('/api/instagram/story', { method: 'POST', headers: await authHeaders(), body: form });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw Object.assign(new Error(d.error || `${res.status}`), { status: res.status });
+      toast({ title: `Story posted${ig?.username ? ` to @${ig.username}` : ''}`, description: pick.name });
+      closeStory();
+    } catch (e) {
+      const dg = diagnose('instagram', { status: (e as { status?: number }).status, message: e instanceof Error ? e.message : String(e) });
+      toast({ title: dg.title, description: dg.fix, variant: 'destructive' });
+    } finally {
+      setBusy(null);
+    }
+  };
+  /** By hand: the share sheet on a phone (Instagram is one of its apps), a download elsewhere. */
+  const saveStory = async () => {
+    if (!story || !pick) return;
+    const file = new File([story.blob], `${pick.url.split('/').filter(Boolean).pop() || 'piece'}-story.jpg`, { type: 'image/jpeg' });
+    try {
+      if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+    } catch (e) { if ((e as Error).name === 'AbortError') return; }
+    const a = document.createElement('a');
+    a.href = story.url; a.download = file.name; a.click();
+  };
+
   const siteName = site ? host(site) : host(STORE_LINKS.website || '') || 'the website';
   const community = audience.community;
 
@@ -321,6 +385,9 @@ function FromSitePage() {
                     </Button>
                   )}
                 </div>
+                <Button variant="outline" className="h-11 w-full" disabled={!!busy} onClick={makeStory}>
+                  {busy === 'story' && !story ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Instagram className="h-4 w-4 mr-1.5" />} Instagram story{ig?.connected && ig.username ? <span className="ml-1 text-muted-foreground font-normal">· @{ig.username}</span> : null}
+                </Button>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[11px] text-muted-foreground">{overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it.` : 'The photo as it is on the website.'}</p>
                   <div className="flex shrink-0">
@@ -378,6 +445,28 @@ function FromSitePage() {
           {filtered.length > shown && <Button variant="outline" className="w-full" onClick={() => setShown(n => n + PAGE)}>Show more ({(filtered.length - shown).toLocaleString()} left)</Button>}
         </section>
       </div>
+
+      <AlertDialog open={!!story} onOpenChange={o => { if (!o && busy !== 'story') closeStory(); }}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{ig?.connected ? `Post this story${ig.username ? ` to @${ig.username}` : ''}?` : 'The story'}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                {story && <img src={story.url} alt="The story" className="mx-auto max-h-[55vh] rounded-lg border object-contain" style={{ aspectRatio: '9 / 16' }} />}
+                <p className="text-xs">{ig?.connected
+                  ? 'It goes up on Instagram at once and can’t be taken down from here. Instagram’s API can’t add a link sticker — add one by hand in the app if you want it.'
+                  : ig?.configured ? 'Instagram isn’t connected on this POS (Post a Piece → Instagram connects it), so save it and post it from the Instagram app.'
+                  : 'This POS doesn’t post to Instagram by itself — save it and post it from the Instagram app.'}</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy === 'story'}>Not now</AlertDialogCancel>
+            <Button variant={ig?.connected ? 'outline' : 'default'} onClick={saveStory} disabled={busy === 'story'}><Download className="h-4 w-4 mr-1.5" /> Save / share</Button>
+            {ig?.connected && <Button onClick={postStory} disabled={busy === 'story'}>{busy === 'story' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Instagram className="h-4 w-4 mr-1.5" />} Post story</Button>}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!confirm} onOpenChange={o => { if (!o) setConfirm(null); }}>
         <AlertDialogContent>

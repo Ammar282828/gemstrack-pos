@@ -226,7 +226,8 @@ export const STORE_POST_METAL = process.env.NEXT_PUBLIC_STORE_POST_METAL
  * wordmark is "taheri"; the monogram is the "t". A house without a monogram
  * sets it to "none" and the option disappears. Paths are under public/.
  */
-export const STORE_MARK_SVG = process.env.NEXT_PUBLIC_STORE_MARK_SVG ?? '/brand/taheri-wordmark.svg';
+// A blank value (a local .env written by env-for-house) means unset, like on the backend.
+export const STORE_MARK_SVG = process.env.NEXT_PUBLIC_STORE_MARK_SVG?.trim() || '/brand/taheri-wordmark.svg';
 // "none" means no monogram: App Hosting refuses a variable whose value is "" (the whole rollout fails).
 const monogram = process.env.NEXT_PUBLIC_STORE_MONOGRAM_SVG?.trim();
 export const STORE_MONOGRAM_SVG = monogram === undefined ? '/brand/taheri-t.svg' : /^(none|off|0)?$/i.test(monogram) ? '' : monogram;
