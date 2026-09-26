@@ -41,6 +41,11 @@ function Step({ n, done, title, children, tone }: { n: number; done: boolean | n
   );
 }
 
+/** "https://pos.taheri.shop/api/ads/callback" → "taheri.shop" — what Meta's App domains field wants (it covers pos.). */
+function redirectHost(uri: string): string {
+  try { return new URL(uri).hostname.split('.').slice(-2).join('.'); } catch { return uri; }
+}
+
 function CopyLine({ value }: { value: string }) {
   const { toast } = useToast();
   return (
@@ -127,8 +132,11 @@ function AdsSetup() {
             {app.id ? <p>The shop’s Meta app <a className="text-primary inline-flex items-center gap-1" href={appUrl} target="_blank" rel="noopener">{app.id} <ExternalLink className="h-3 w-3" /></a> — the same one Instagram stories post through. Once, in its dashboard:</p>
               : <p className="text-destructive">No Meta app is set for this shop (META_APP_ID in apphosting.yaml).</p>}
             <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
-              <li><span className="text-foreground">Add products</span> → <b>Marketing API</b> and <b>Facebook Login for Business</b>.</li>
-              <li><span className="text-foreground">Facebook Login for Business → Settings → Valid OAuth redirect URIs</span>, add this address (Mina’s POS adds its own):
+              <li><span className="text-foreground">Add products</span> (newer dashboards: <span className="text-foreground">Add use case</span>) → <b>Marketing API</b> and <b>Facebook Login for Business</b>.</li>
+              {/* Without these two, Facebook stops at "Can't load URL — the domain of this URL isn't included in the app's domains" (2026-09-26). */}
+              <li><span className="text-foreground">App settings → Basic → App domains</span>: add this shop’s domain (and, if asked, <b>Add platform → Website</b> with the POS address as Site URL). Save.
+                <CopyLine value={redirectHost(app.redirectUri)} /></li>
+              <li><span className="text-foreground">Facebook Login for Business → Settings</span>: <b>Client OAuth login</b> and <b>Web OAuth login</b> on, and under <b>Valid OAuth redirect URIs</b> add this address (Mina’s POS adds its own):
                 <CopyLine value={app.redirectUri} /></li>
               <li><span className="text-foreground">App roles</span>: whoever connects must be an admin or developer of the app (it stays in development mode — no review is needed for the shop’s own ad accounts).</li>
             </ol>
