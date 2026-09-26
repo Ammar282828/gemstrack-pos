@@ -15,6 +15,7 @@
 import { calculateProductPrice } from '@/lib/pricing';
 import type { KaratValue, MetalType } from '@/lib/materials';
 import type { PieceAttrs, Quote, WebsiteCategoryPricing, WebsiteConfig } from './types';
+import { isMaisonFolder } from './maisons';
 
 /** The rates a quote is struck at — the same fields Settings carries. */
 export interface QuoteRates {
@@ -40,6 +41,8 @@ export function quotePiece(key: string, attrs: PieceAttrs | undefined, config: W
   const collection = collectionOfKey(key);
   if (!attrs) return { key, collection, priceable: false, reason: 'unknown_piece' };
   if (!config.enabled) return { key, collection, priceable: false, reason: 'not_configured' };
+  // A great house's own piece is not gold by the gram: its price is asked for, never quoted.
+  if (attrs.house || isMaisonFolder(key.split('/').slice(0, 2).join('/'))) return { key, collection, priceable: false, reason: 'maison_enquire' };
 
   const weightGrams = typeof attrs.weightGrams === 'number' && attrs.weightGrams > 0 ? attrs.weightGrams : 0;
   if (!weightGrams) return { key, collection, priceable: false, reason: 'no_weight' };

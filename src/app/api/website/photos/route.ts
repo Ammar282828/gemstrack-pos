@@ -69,7 +69,7 @@ async function gate(req: NextRequest): Promise<string | NextResponse> {
 const KNOWN_TREE_ORIGIN = 'https://taheri.shop';
 const KNOWN_TREE: Record<string, string[]> = {
   'Rings & Bands': ['Rings', 'Diamond Rings', 'Bands', 'Palladium Bands for Him'],
-  'Wristwear': ['Bangles', 'Thin Bangles', 'Kara Churi set', 'Karay', 'Stone Bangles', 'Diamond Bangles', 'Bracelet', 'Diamond Bracelets', 'String Bracelets', 'Bangle & Ring'],
+  'Wristwear': ['Bangles', 'Thin Bangles', 'Kara Churi set', 'Karay', 'Stone Bangles', 'Diamond Bangles', 'Bracelet', 'Diamond Bracelets', 'String Bracelets', 'Bangle & Ring', 'The Maisons'],
   'Chains & Lockets': ['Chains', 'Lockets', 'Contemporary Lockets', 'Takhti', 'Taweez'],
   'Sets': ['Gold Sets', 'Diamond Sets', 'Stone Sets', 'String Set', 'Locket Set With Bangle', 'Locket sets without Bangle'],
   'Earrings': ['Tops', 'Diamond Tops', 'Jhumki', 'Baali'],

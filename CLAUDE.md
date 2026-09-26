@@ -299,6 +299,13 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   like Taheri's (`IMAGE_AI_PROJECT` in `apphosting.mina.yaml`; `firebase-app-hosting-compute@hom-pos-52710474-ceeea` was granted
   `roles/aiplatform.user` there, with the mmurtaza1970 gcloud account on this Mac). Mina's voice stays on `VERTEX_PROJECT`.
   Locally both houses sign AI with Murtaza's ADC (`IMAGE_AI_CREDENTIALS`, which `env-for-house` never blanks).
+- **The Maisons from the counter** (2026-09-26, the owner: "add pos functionality for maison"): taheri.shop's collection of the
+  great houses' genuine pieces (Wristwear/The Maisons; the site's side is in taheri-site's CLAUDE.md). **Add Photos**: choosing The
+  Maisons gives every photo a house picker and an official-name field; it goes up as `"<House> — <Model>.jpg"`
+  (`src/lib/website/maisons.ts`, tested — the house list must match the site's `MAISON_HOUSES`), which the site reads so it shows
+  under its house at once. **Post a Piece**: the same when its website collection is The Maisons (house picker; the name is the
+  official one; the metal line moves to 18K). `quotePiece` refuses a house piece (`maison_enquire`: by `house` in the attributes or
+  the folder), so neither the site nor checkout can price one by the gram.
 - **Investments by Taheri in the POS** (`/website/investments`, 2026-09-25): the daily gold post is written by the owner's
   scheduled **Cowork routine on claude.ai** ("Investments by Taheri — daily post", 11:00; not editable from Claude Code) whose last
   step POSTs the four deliverables to `/api/investments` (multipart post/teaser/square/story, `Authorization: Bearer` the token in

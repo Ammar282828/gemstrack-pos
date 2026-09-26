@@ -87,9 +87,11 @@ export interface PieceAttrs {
   cut: string;
   style: string;
   weightGrams?: number;
+  /** A great house's own piece (The Maisons on taheri.shop): "Cartier". */
+  house?: string;
 }
 
-export type QuoteReason = 'unknown_piece' | 'not_configured' | 'no_weight' | 'diamond_enquire';
+export type QuoteReason = 'unknown_piece' | 'not_configured' | 'no_weight' | 'diamond_enquire' | 'maison_enquire';
 
 export interface QuoteBreakdown {
   metalType: MetalType;

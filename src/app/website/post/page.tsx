@@ -70,6 +70,7 @@ import { FONTS, headlineFace, bodyFace } from './fonts';
 import { diagnose, type Where } from '@/lib/social/diagnose';
 import { HealthPanel, useHealth, reportError, ActionButton, type Check as HealthCheck } from './health-panel';
 import { QueuePanel, useQueue, listOf } from './queue-panel';
+import { MAISON_HOUSES, isMaisonFolder, maisonFileName } from '@/lib/website/maisons';
 
 const FILL = { mode: 'fill' as const, zoom: 1, focusX: 0.5, focusY: 0.5 };
 
@@ -265,6 +266,10 @@ function PostAPiecePage() {
   /** Make a photo the story's background (and so the lead photo everywhere). */
   const setHeroId = (id: string | null) => story.change(d => ({ ...d, bg: { ...d.bg, photoId: id, placement: FILL } }), { key: 'hero' });
   const chosen = collections?.find(c => c.folder === folder);
+  // The Maisons (a house's own piece): the website name is the model's official name, under its house.
+  const maisonSite = isMaisonFolder(folder);
+  const [maisonHouse, setMaisonHouse] = useState('');
+  const siteFileName = (i: number) => (maisonSite ? maisonFileName(maisonHouse, siteName || headline, i) : websiteFileName(siteName || headline, i));
   const link = collectionUrl(toWebsite ? chosen : undefined);
   const piece = useMemo(() => ({ headline, kicker, weight, weightEach, metal, stones, hook }), [headline, kicker, weight, weightEach, metal, stones, hook]);
   const wLabel = weightLabel(piece);
@@ -338,6 +343,8 @@ function PostAPiecePage() {
     })();
   }, [toast]);
   useEffect(() => { if (folder) try { localStorage.setItem('taheri_post_folder', folder); } catch { /* fine */ } }, [folder]);
+  // A house's piece is 18k: move the metal line off the house's usual, never off something typed.
+  useEffect(() => { if (isMaisonFolder(folder) && toWebsite) setMetal(m => (m === STORE_POST_METAL ? '18K Yellow Gold' : m)); }, [folder, toWebsite]);
   useEffect(() => {
     try { const f = localStorage.getItem(FORMATS_KEY); if (f === 'story' || f === 'square' || f === 'both') { setFormats(f); if (f === 'square') setView('square'); } } catch { /* fine */ }
   }, []);
@@ -660,6 +667,7 @@ function PostAPiecePage() {
   if (!photos.length) problems.push('Add a photo.');
   if (!headline.trim()) problems.push('Give it a headline.');
   if (makeSquare && SITE && toWebsite && !folder) problems.push(`Choose where it goes on ${SITE_NAME}, or switch the website off.`);
+  if (makeSquare && SITE && toWebsite && maisonSite && !maisonHouse) problems.push('Choose the piece’s house for The Maisons.');
   if (makeSquare && toWhatsApp && community && !caption.trim()) problems.push('The WhatsApp caption is empty.');
   if (makeSquare && toWhatsApp && community && !waChosen.length) problems.push('Choose a WhatsApp group or the channel, or switch WhatsApp off.');
   if (makeStory && lettering === 'ai' && !aiLettered) problems.push('AI lettering is on but not made for this photo — letter it, or switch to our fonts.');
@@ -671,7 +679,7 @@ function PostAPiecePage() {
   const uploadToWebsite = async (p: Photo, index: number, headers: Record<string, string>): Promise<string> => {
     if (uploadedRef.current[p.id]) return uploadedRef.current[p.id];
     const jpeg = await squareJpeg(p, siteSize(p));
-    const name = websiteFileName(siteName || headline, index);
+    const name = siteFileName(index);
     const form = new FormData();
     form.set('folder', folder);
     form.set('name', name);
@@ -782,7 +790,7 @@ function PostAPiecePage() {
       const ok = await queue.add({
         headline: headline.trim(), caption, fileBase: fileNameBase || 'piece',
         targets: {
-          website: siteOn ? { folder, collection: chosen?.collection ?? folder, names: site.map((_, i) => websiteFileName(siteName || headline, i)), featured: feature && STORE_WEBSITE_FEATURED } : null,
+          website: siteOn ? { folder, collection: chosen?.collection ?? folder, names: site.map((_, i) => siteFileName(i)), featured: feature && STORE_WEBSITE_FEATURED } : null,
           instagram: igOn,
           whatsapp: waOn ? waChosen : [],
         },
@@ -994,10 +1002,17 @@ function PostAPiecePage() {
                       onCheckedChange={v => square.change(d => ({ ...d, layers: d.layers.map(l => l.kind === 'text' && l.bind === 'weight' ? { ...l, hidden: !v } : l) }))} /> {wLabel || 'Weight'} on the photo</label>
                     {STORE_WEBSITE_FEATURED && <label className="flex items-center gap-2"><Switch checked={feature} onCheckedChange={setFeature} /> Set of the day</label>}
                   </div>
-                  {renameOpen ? (
+                  {maisonSite && (
+                    <Select value={maisonHouse} onValueChange={setMaisonHouse} recentsKey="maison-house">
+                      <SelectTrigger className="h-10" aria-label="House"><SelectValue placeholder="The house — Cartier, Van Cleef & Arpels…" /></SelectTrigger>
+                      <SelectContent>{MAISON_HOUSES.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent>
+                    </Select>
+                  )}
+                  {renameOpen || maisonSite ? (
                     <div className="space-y-1">
-                      <Label htmlFor="sitename" className="text-xs">Name on the website</Label>
-                      <Input id="sitename" value={siteName} onChange={e => { setSiteName(e.target.value); setSiteNameEdited(true); }} placeholder={chosen?.collection ?? 'Piece name'} autoFocus />
+                      <Label htmlFor="sitename" className="text-xs">{maisonSite ? 'Official name, as the house names it' : 'Name on the website'}</Label>
+                      <Input id="sitename" value={siteName} onChange={e => { setSiteName(e.target.value); setSiteNameEdited(true); }} placeholder={maisonSite ? 'LOVE Bracelet, Classic' : chosen?.collection ?? 'Piece name'} autoFocus={!maisonSite} />
+                      {maisonSite && <p className="text-[11px] text-muted-foreground">Shown under its house, in 18k, with no gold-rate price.</p>}
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground truncate">Named “{siteName || headline || '…'}” · <button type="button" className="text-primary" onClick={() => setRenameOpen(true)}>Change</button></p>

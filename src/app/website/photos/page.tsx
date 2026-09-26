@@ -13,6 +13,11 @@
  * drop folder at load time, so there is no build and no deploy between the
  * counter and the customer.
  *
+ * The Maisons (the great houses' own pieces, taheri.shop): each photograph
+ * asks for its house and official name, and goes up named "<House> — <Model>",
+ * which is how the site shows it under its house straight away
+ * (src/lib/website/maisons.ts).
+ *
  * No sign-in of its own: the page runs on whatever the POS runs on. Under
  * open access that is nobody, and the counter can still add photographs —
  * decided by Ammar on 2026-09-20. The route behind it says the same.
@@ -30,6 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ImagePlus, Upload, Check, X, Loader2, Camera, RotateCw, Scale, ExternalLink, AlertTriangle, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_LINKS, STORE_WEBSITE_FEATURED } from '@/lib/store-config';
+import { MAISON_HOUSES, isMaisonFolder, maisonFileName, maisonFullName } from '@/lib/website/maisons';
 
 /** This house's website: taheri.shop for Taheri, the catalogue for House of Mina. */
 const SITE = (STORE_LINKS.website || 'https://taheri.shop').replace(/\/+$/, '');
@@ -38,7 +44,7 @@ const SITE_NAME = SITE.replace(/^https?:\/\//, '');
 /** `path` is where the collection's page is, when the site says (its own catalog-tree.json). */
 interface Collection { collection: string; category: string; count: number; folder: string; sample: string; path?: string }
 type Status = 'queued' | 'uploading' | 'done' | 'failed';
-interface Item { id: string; file: File; preview: string; name: string; status: Status; error?: string; rel?: string; progress: number }
+interface Item { id: string; file: File; preview: string; name: string; status: Status; error?: string; rel?: string; progress: number; house?: string; model?: string }
 
 async function authHeaders(): Promise<Record<string, string>> {
   try { const t = await firebaseAuth?.currentUser?.getIdToken(); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; }
@@ -78,6 +84,21 @@ export default function AddPhotosPage() {
   useEffect(() => () => { items.forEach(i => URL.revokeObjectURL(i.preview)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const chosen = collections?.find(c => c.folder === folder);
+  // The Maisons: every photograph needs its house and the model's official name.
+  const maison = isMaisonFolder(folder);
+  const [lastHouse, setLastHouse] = useState('');
+  const setPiece = (id: string, patch: Partial<Pick<Item, 'house' | 'model'>>) => {
+    if (patch.house) setLastHouse(patch.house);
+    setItems(prev => prev.map(i => i.id === id ? { ...i, ...patch } : i));
+  };
+  /** A Maisons photograph's file name: the house, the name, and " 2" for a second photo of the same piece. */
+  const fileNameFor = (item: Item, all: Item[]) => {
+    if (!maison) return item.name;
+    const same = all.filter(i => (i.house || '') === (item.house || '') && (i.model || '').trim().toLowerCase() === (item.model || '').trim().toLowerCase());
+    const ext = item.name.split('.').pop() || 'jpg';
+    return maisonFileName(item.house || '', item.model || '', Math.max(0, same.findIndex(i => i.id === item.id)), ext);
+  };
+  const unnamed = maison ? items.filter(i => (i.status === 'queued' || i.status === 'failed') && (!i.house || !(i.model || '').trim())).length : 0;
   const grouped = useMemo(() => {
     const g = new Map<string, Collection[]>();
     for (const c of collections || []) { const a = g.get(c.category) || []; a.push(c); g.set(c.category, a); }
@@ -92,11 +113,11 @@ export default function AddPhotosPage() {
       // so the extension counts too. The server turns it into a JPEG.
       const ok = /^image\/(jpeg|png|webp|heic|heif)/i.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name);
       if (!ok) { rejected.push(f.name); continue; }
-      accepted.push({ id: `${f.name}-${f.size}-${Math.random().toString(36).slice(2, 7)}`, file: f, preview: URL.createObjectURL(f), name: f.name, status: 'queued', progress: 0 });
+      accepted.push({ id: `${f.name}-${f.size}-${Math.random().toString(36).slice(2, 7)}`, file: f, preview: URL.createObjectURL(f), name: f.name, status: 'queued', progress: 0, house: lastHouse || undefined });
     }
     if (accepted.length) setItems(prev => [...prev, ...accepted]);
     if (rejected.length) toast({ title: `Skipped ${rejected.length} file${rejected.length === 1 ? '' : 's'}`, description: 'Only JPEG, PNG, WebP and HEIC photographs can go on the website.', variant: 'destructive' });
-  }, [toast]);
+  }, [toast, lastHouse]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragging(false);
@@ -106,10 +127,10 @@ export default function AddPhotosPage() {
   // One at a time, with progress. XMLHttpRequest rather than fetch because it
   // is the only way to see bytes move — and on a phone at the counter, a
   // 6 MB photo with no feedback looks like a hung page.
-  const uploadOne = (item: Item, headers: Record<string, string>) => new Promise<void>((resolve) => {
+  const uploadOne = (item: Item, headers: Record<string, string>, name: string) => new Promise<void>((resolve) => {
     const form = new FormData();
     form.set('folder', folder);
-    form.set('name', item.name);
+    form.set('name', name);
     form.set('file', item.file, item.name);
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/website/photos');
@@ -139,16 +160,17 @@ export default function AddPhotosPage() {
 
   const uploadAll = useCallback(async () => {
     if (!folder || busy) return;
+    if (unnamed) { toast({ title: 'Name every piece first', description: 'In The Maisons each photograph needs its house and the model’s official name.', variant: 'destructive' }); return; }
     setBusy(true);
     const headers = await authHeaders();
     // Sequential on purpose: shop wifi, big files. Five parallel uploads on a
     // slow line finish later than five in a row, and look worse doing it.
     const pending = items.filter(i => i.status === 'queued' || i.status === 'failed');
-    for (const item of pending) await uploadOne(item, headers);
+    for (const item of pending) await uploadOne(item, headers, fileNameFor(item, items));
     setBusy(false);
     const done = pending.length;
     if (done) toast({ title: `${done} photograph${done === 1 ? '' : 's'} sent`, description: `They are on ${SITE_NAME} in ${chosen?.collection} now.` });
-  }, [folder, busy, items, chosen, toast]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [folder, busy, items, chosen, toast, unnamed, maison]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const counts = useMemo(() => ({
     queued: items.filter(i => i.status === 'queued').length,
@@ -223,6 +245,13 @@ export default function AddPhotosPage() {
             {chosen.count > 0 ? `, which has ${chosen.count} pieces today.` : '.'}
           </p>
         )}
+        {maison && (
+          <p className="text-xs text-muted-foreground max-w-2xl">
+            The houses’ own pieces. Give each photograph its house and the model’s official name, exactly as the house names it
+            (“LOVE Bracelet, Classic”, “Vintage Alhambra Bracelet, 5 Motifs, Onyx”). The site shows it under its house, in 18k, with no gold-rate price.
+            Several photographs of one piece: give them the same name.
+          </p>
+        )}
       </div>
 
       {/* The drop target. Big, because it is the whole point of the screen. */}
@@ -250,10 +279,11 @@ export default function AddPhotosPage() {
       {items.length > 0 && (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={uploadAll} disabled={busy || !folder || !configured || counts.queued + counts.failed === 0} className="h-11">
+            <Button onClick={uploadAll} disabled={busy || !folder || !configured || counts.queued + counts.failed === 0 || unnamed > 0} className="h-11">
               {busy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending…</> : <><Upload className="h-4 w-4 mr-2" /> Send {counts.queued + counts.failed} to the website</>}
             </Button>
             {counts.done > 0 && <Button variant="ghost" onClick={clearDone} disabled={busy}>Clear {counts.done} sent</Button>}
+            {unnamed > 0 && <span className="text-sm text-amber-700 dark:text-amber-400">{unnamed} still need{unnamed === 1 ? 's' : ''} a house and a name</span>}
             <div className="ml-auto flex items-center gap-2 text-sm tabular-nums">
               {counts.done > 0 && <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-300">{counts.done} sent</Badge>}
               {counts.failed > 0 && <Badge variant="outline" className="border-destructive/40 text-destructive">{counts.failed} failed</Badge>}
@@ -283,7 +313,18 @@ export default function AddPhotosPage() {
                   )}
                 </div>
                 <div className="p-2">
-                  <p className="text-xs truncate" title={item.name}>{item.name}</p>
+                  {maison && (item.status === 'queued' || item.status === 'failed') && (
+                    <div className="space-y-1.5 mb-1.5">
+                      <Select value={item.house || ''} onValueChange={v => setPiece(item.id, { house: v })} recentsKey="maison-house">
+                        <SelectTrigger className="h-8 text-xs" aria-label="House"><SelectValue placeholder="House…" /></SelectTrigger>
+                        <SelectContent>{MAISON_HOUSES.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Input value={item.model || ''} onChange={e => setPiece(item.id, { model: e.target.value })} placeholder="Official name, e.g. LOVE Bracelet, Classic" className="h-8 text-xs" aria-label="Official name" />
+                    </div>
+                  )}
+                  {maison && item.house && item.model?.trim()
+                    ? <p className="text-xs truncate font-medium" title={maisonFullName(item.house, item.model)}>{maisonFullName(item.house, item.model)}</p>
+                    : <p className="text-xs truncate" title={item.name}>{item.name}</p>}
                   <p className="text-[11px] text-muted-foreground tabular-nums">
                     {item.status === 'failed' ? <span className="text-destructive">{item.error}</span> : prettyBytes(item.file.size)}
                   </p>

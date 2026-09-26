@@ -33,6 +33,13 @@ describe('quotePiece', () => {
     expect(q.price).toBe(283625);
   });
 
+  it('never prices a great house\'s piece by the gram (The Maisons): by its house, or by its folder', () => {
+    const love = quotePiece('Wristwear/Karay/Karay 88.webp', { metal: 'Yellow Gold', stone: 'None', cut: 'None', style: 'Contemporary', weightGrams: 27, house: 'Cartier' }, config, rates);
+    expect(love).toMatchObject({ priceable: false, reason: 'maison_enquire' });
+    const dropped = quotePiece('Wristwear/The Maisons/Cartier — LOVE Bracelet, Classic.jpg', { metal: 'Yellow Gold', stone: 'None', cut: 'None', style: 'Contemporary', weightGrams: 27 }, config, rates);
+    expect(dropped).toMatchObject({ priceable: false, reason: 'maison_enquire' });
+  });
+
   it('adds the stone default for coloured stones and pearls, not for plain gold', () => {
     const plain = quotePiece('Earrings/Jhumki/J 1.webp', { metal: 'Yellow Gold', stone: 'None', cut: 'None', style: 'Traditional', weightGrams: 2 }, config, rates);
     const ruby  = quotePiece('Earrings/Jhumki/J 2.webp', { metal: 'Yellow Gold', stone: 'Ruby', cut: 'Oval', style: 'Traditional', weightGrams: 2 }, config, rates);
