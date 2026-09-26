@@ -1533,7 +1533,7 @@ export default function CartPage() {
                               className="w-32 text-right" placeholder="0" aria-label="Discount" />
                         </div>
                         <div className="space-y-2 p-3 border rounded-md bg-muted/40">
-                            <Label className="text-sm font-medium">Exchange gold / trade-in</Label>
+                            <Label className="text-sm font-medium">Exchange / trade-in</Label>
                             <ExchangeRows rows={exchangeRows} onChange={setExchangeRows} />
                         </div>
                         <Separator />

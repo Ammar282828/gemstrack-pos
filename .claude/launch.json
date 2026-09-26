@@ -58,7 +58,7 @@
       "runtimeExecutable": "/bin/sh",
       "runtimeArgs": [
         "-c",
-        "[ -f \"$GOOGLE_APPLICATION_CREDENTIALS\" ] || unset GOOGLE_APPLICATION_CREDENTIALS; PATH=/opt/homebrew/opt/node@20/bin:$PATH exec npm run dev:taheri"
+        "[ -f \"$GOOGLE_APPLICATION_CREDENTIALS\" ] || unset GOOGLE_APPLICATION_CREDENTIALS; PATH=/opt/homebrew/opt/node@20/bin:$PATH NEXT_DIST_DIR=.next-taheri exec npm run dev:taheri"
       ],
       "port": 3000
     },
@@ -67,7 +67,7 @@
       "runtimeExecutable": "/bin/sh",
       "runtimeArgs": [
         "-c",
-        "[ -f \"$GOOGLE_APPLICATION_CREDENTIALS\" ] || unset GOOGLE_APPLICATION_CREDENTIALS; PATH=/opt/homebrew/opt/node@20/bin:$PATH exec npm run dev:mina"
+        "[ -f \"$GOOGLE_APPLICATION_CREDENTIALS\" ] || unset GOOGLE_APPLICATION_CREDENTIALS; PATH=/opt/homebrew/opt/node@20/bin:$PATH NEXT_DIST_DIR=.next-mina exec npm run dev:mina"
       ],
       "port": 3001
     },

@@ -29,9 +29,9 @@ const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : N
 export const exchangeTotal = (list: ExchangeEntry[] | undefined | null) =>
   (list || []).reduce((sum, e) => sum + num(e.value), 0);
 
-/** "Old ring · 22k · 5.2 g at 22,000/g" */
+/** "Old ring · 22k · 5.2 g at 22,000/g"; an unnamed row is "Gold" when weighed, else plain "Exchange". */
 export function describeExchangeEntry(e: ExchangeEntry): string {
-  const parts = [e.description?.trim() || 'Gold'];
+  const parts = [e.description?.trim() || (e.karat || num(e.weightG) > 0 ? 'Gold' : 'Exchange')];
   if (e.karat) parts.push(e.karat);
   if (num(e.weightG) > 0) parts.push(`${num(e.weightG)} g${num(e.ratePerGram) > 0 ? ` at ${Math.round(num(e.ratePerGram)).toLocaleString('en-PK')}/g` : ''}`);
   return parts.join(' · ');

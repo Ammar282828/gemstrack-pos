@@ -125,7 +125,8 @@ back to Green API otherwise; Green API stays configured until the owner cancels 
 git push taheri main:taheri-next     # Taheri rolls out (~5 min)
 git push hom main:main               # House of Mina rolls out
 ```
-Push Taheri first, check it, then Mina. `main` here is the shared working branch (the old dead
+**Push both together, always** (owner, 2026-09-26: "push both together always") — no waiting on Taheri's rollout before
+Mina's. `main` here is the shared working branch (the old dead
 `main` is kept as tag `old-main-2026-06`). `website-checkout` is retired.
 
 **Running a house locally:** `npm run env:taheri` or `npm run env:mina` writes `.env.<house>.local`

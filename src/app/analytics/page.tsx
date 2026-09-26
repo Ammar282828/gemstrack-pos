@@ -979,7 +979,7 @@ export default function AnalyticsPage() {
                       <p className="text-xs text-muted-foreground mt-1">
                         Invoice payments: {pkrLac(cashInFromInvoicePayments)}
                         {cashInFromOrderAdvances > 0 && <> · Order advances: {pkrLac(cashInFromOrderAdvances)}</>}
-                        {cashInFromExchange > 0 && <> · Exchange gold: {pkrLac(cashInFromExchange)}</>}
+                        {cashInFromExchange > 0 && <> · Exchange: {pkrLac(cashInFromExchange)}</>}
                         {cashInFromExtraRevenue > 0 && <> · Extra: {pkrLac(cashInFromExtraRevenue)}</>}
                       </p>
                     </div>
