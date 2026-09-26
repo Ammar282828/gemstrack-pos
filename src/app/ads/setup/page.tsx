@@ -27,6 +27,9 @@ export default function AdsSetupRoute() {
   return <Suspense fallback={null}><AdsSetup /></Suspense>;
 }
 
+/** Both houses' POS — the Meta app they share must allow each one's return address. */
+const POS_ORIGINS = ['https://pos.taheri.shop', 'https://pos.houseofmina.store'];
+
 interface Assets { accounts: AccountChoice[]; pages: PageChoice[]; instagram: InstagramChoice[]; settings: AdsSettings; houseInstagram: string | null }
 
 function Step({ n, done, title, children, tone }: { n: number; done: boolean | null; title: React.ReactNode; children?: React.ReactNode; tone?: 'bad' }) {
@@ -112,6 +115,9 @@ function AdsSetup() {
   const chosenIg = assets?.instagram.find(i => i.id === settings?.instagramUserId) ?? null;
   const chosenPage = assets?.pages.find(p => p.id === settings?.pageId) ?? null;
   const wrongHouse = house && settings?.instagramUsername && settings.instagramUsername.toLowerCase() !== house;
+  // One Meta app serves both houses, so its dashboard needs both POS addresses — this one first.
+  const redirectOrigin = app?.redirectUri ? new URL(app.redirectUri).origin : POS_ORIGINS[0];
+  const redirectUris = [...new Set([app?.redirectUri, ...POS_ORIGINS.map(o => `${o}/api/ads/callback`)].filter((u): u is string => !!u))];
 
   return (
     <PageShell title="Ads setup" icon={<Settings2 className="h-7 w-7" />} width="narrow"
@@ -127,9 +133,11 @@ function AdsSetup() {
             {app.id ? <p>The shop’s Meta app <a className="text-primary inline-flex items-center gap-1" href={appUrl} target="_blank" rel="noopener">{app.id} <ExternalLink className="h-3 w-3" /></a> — the same one Instagram stories post through. Once, in its dashboard:</p>
               : <p className="text-destructive">No Meta app is set for this shop (META_APP_ID in apphosting.yaml).</p>}
             <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
-              <li><span className="text-foreground">Add products</span> → <b>Marketing API</b> and <b>Facebook Login for Business</b>.</li>
-              <li><span className="text-foreground">Facebook Login for Business → Settings → Valid OAuth redirect URIs</span>, add this address (Mina’s POS adds its own):
-                <CopyLine value={app.redirectUri} /></li>
+              <li><span className="text-foreground">Add products</span> (newer dashboard: <span className="text-foreground">Add use case</span>) → <b>Marketing API</b> (“Create &amp; manage ads”) and <b>Facebook Login for Business</b>.</li>
+              <li><span className="text-foreground">App settings → Basic → App domains</span>, add both houses’ domains, then Save. If it asks for a platform: Add platform → Website, Site URL <code>{redirectOrigin}/</code>.
+                {POS_ORIGINS.map(o => <CopyLine key={o} value={new URL(o).hostname.replace(/^pos\./, '')} />)}</li>
+              <li><span className="text-foreground">Facebook Login for Business → Settings</span>: <b>Client OAuth login</b> and <b>Web OAuth login</b> on, and under <b>Valid OAuth redirect URIs</b> both houses’ addresses, then Save. Without them Facebook stops at “Can’t load URL — the domain of this URL isn’t included in the app’s domains”.
+                {redirectUris.map(u => <CopyLine key={u} value={u} />)}</li>
               <li><span className="text-foreground">App roles</span>: whoever connects must be an admin or developer of the app (it stays in development mode — no review is needed for the shop’s own ad accounts).</li>
             </ol>
           </Step>

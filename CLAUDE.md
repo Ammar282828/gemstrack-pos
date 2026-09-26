@@ -25,7 +25,9 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 
 ## Running locally
 
-- **Node 20**, not the Mac's default: launch config "POS (node 20)" (`PATH=/opt/homebrew/opt/node@20/bin:$PATH npm run dev`, port 3000). On Node 26 the Google auth library fails ("Premature close").
+- **Node 20**, not the Mac's default: launch config "POS (node 20)" (`PATH=/opt/homebrew/opt/node@20/bin:$PATH npm run dev`, port 3000), or per house
+  "Taheri (node 20)" (port 3000) / "Mina (node 20)" (port 3001). On Node 26 the Google auth library fails ("Premature close"). The per-house
+  configs drop a `GOOGLE_APPLICATION_CREDENTIALS` that points at a missing file (the second laptop's `~/.zshrc` does), which otherwise breaks every Google call.
 - The app is behind Google sign-in locally; production runs `NEXT_PUBLIC_OPEN_ACCESS=1` (the owner's
   choice since 2026-09-07, paired with open `firestore.rules`; `firestore.rules.locked` holds the real rules).
   Don't reintroduce the open-access flag for local checks — ask the user to sign in on the preview.
@@ -132,7 +134,9 @@ from the YAML files (secrets left blank to fill from Secret Manager), then `npm 
 Next reads `.env.local` / `.env.development.local` even under `dev:mina` and fills any variable the process lacks, so the
 generator writes every variable that isn't the house's as **empty** (Next then leaves it alone). Re-run `npm run env:mina`
 after changing either YAML — a stale `.env.mina.local` is how a local Mina showed Taheri's Post a Piece, Investments and
-Photo Weights on 2026-09-25.
+Photo Weights on 2026-09-25. `.env.local` is not Taheri's on every machine (on the second laptop it is Mina's, with Mina's
+service-account key): when it names another Firebase project, `env:taheri` blanks its variables too, so a local Taheri never
+signs in to Mina's project (2026-09-26).
 
 ## House of Mina's catalogue (catalogue.houseofmina.store)
 
@@ -155,6 +159,16 @@ sorted by its file name). Add Photos names and links to **this house's** website
 Since 2026-09-25 the catalogue has **customer accounts** like taheri.shop's (Google sign-in on hom-pos's own Firebase
 project; `catalogue.houseofmina.store` added to its authorised domains), talking to Mina's POS `/api/public/me` — no POS
 change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the table above for the key shape).
+
+## In progress
+
+- **Editing existing website pieces from the POS** (owner, 2026-09-26: "fix/crop/add logo weight overlay to existing,
+  change desc etc in taheri.shop or catalogue.houseofmina.store"). Mapped across the POS, taheri-site and mina-catalogue,
+  designed, **not built**, four questions open for the owner: **`docs/edit-website-pieces.md`**.
+- **Meta app settings for Ads** (2026-09-26): Connect stopped at Facebook's "Can't load URL — the domain of this URL isn't
+  included in the app's domains". Fix is in the Meta app (1075984878628188), not the POS: App domains `taheri.shop` +
+  `houseofmina.store`, Client and Web OAuth login on, both `https://pos.<house>/api/ads/callback` as redirect URIs.
+  Ads → Setup step 1 now lists exactly these with copy buttons. Whether the owner has saved them in Meta is unconfirmed.
 
 ## Open items after the reconvergence (2026-09-22)
 
