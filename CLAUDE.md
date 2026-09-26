@@ -376,12 +376,11 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   open grams and rate (and karat only where `defaultMetal` is gold). Labels say "Exchange", not "Exchange gold".
 - **From the website → Instagram story** (2026-09-26): the square site photo whole on the house's ground with its mark, name and
   metal · weight (`src/lib/social/site-story.ts`), posted through `/api/instagram/story` when connected, else the share sheet.
-- **Retouch** (2026-09-26, owner: "photo retouching … jewelry and background and photo … magnific api open ai model image", in
-  Post a Piece and Add Photos): op `retouch` on `/api/website/post/ai` → `src/lib/social/retouch.ts`: OpenAI image edit
-  (`OPENAI_IMAGE_MODEL`, default `gpt-image-2`, piece pinned, ≤1536 px) then Magnific Precision upscaler (detail back, ≤3000 px),
-  then the usual "same piece?" check. Keys are read at runtime from each project's Secret Manager, `openai-api-key` and
-  `magnific-api-key` (App Hosting account needs secretAccessor); either alone works. Magnific alone ≈ 70 s, with the check ≈ 2 min.
-  Add Photos: Retouch / Original (undo) per photo before upload. Locally the keys come from `.env.development.local`.
+- **Retouch** (2026-09-26, owner: "photo retouching … in both pos using magnific api", then "magnific only"; Post a Piece and
+  Add Photos): op `retouch` on `/api/website/post/ai` → `src/lib/social/retouch.ts`: Magnific's Precision upscaler (no prompt,
+  nothing redrawn; crisp metal, prongs and stones; ≤3000 px), then the usual "same piece?" check. Key `magnific-api-key` in each
+  project's Secret Manager, read at runtime (App Hosting account has secretAccessor). ≈ 70 s, with the check ≈ 2 min.
+  Add Photos: Retouch / Original (undo) per photo before upload. Locally the key comes from `.env.development.local`.
 - Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**
   (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
   value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).

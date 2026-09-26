@@ -46,7 +46,7 @@ interface Collection { collection: string; category: string; count: number; fold
 type Status = 'queued' | 'uploading' | 'done' | 'failed';
 interface Item {
   id: string; file: File; preview: string; name: string; status: Status; error?: string; rel?: string; progress: number; house?: string; model?: string;
-  /** Retouch (OpenAI + Magnific, lib/social/retouch.ts): running, the photo as it came (for Undo), and the "same piece?" check. */
+  /** Retouch (Magnific, lib/social/retouch.ts): running, the photo as it came (for Undo), and the "same piece?" check. */
   retouching?: boolean; original?: { file: File; preview: string; name: string };
   check?: { samePiece: boolean; confidence: number; differences: string[] } | null;
 }
