@@ -72,8 +72,15 @@ export async function loadImage(src: Blob | string): Promise<HTMLImageElement> {
   try {
     const img = new Image();
     img.decoding = 'async';
+    const loaded = new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('That image could not be read.'));
+    });
     img.src = url;
-    await img.decode();
+    // decode() gets the bitmap ready before the canvas needs it, but Chrome can hold it
+    // unresolved while the page is in the background (a phone switched to another app,
+    // a hidden tab): the load event is enough to draw, so whichever comes first.
+    await Promise.race([img.decode().catch(() => loaded), loaded]);
     return img;
   } finally {
     // The decoded bitmap stays with the element; the URL is no longer needed.
