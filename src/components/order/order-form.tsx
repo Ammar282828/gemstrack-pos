@@ -1490,7 +1490,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                     </div>
                     
                     <div className="p-3 border rounded-md bg-muted/30">
-                        <p className="text-xs font-medium mb-2">Exchange gold / trade-in</p>
+                        <p className="text-xs font-medium mb-2">Exchange / trade-in</p>
                         <ExchangeRows rows={formValues.exchangeRows?.length ? formValues.exchangeRows : [blankExchangeRow()]} onChange={setExchangeRows} />
                     </div>
                     </PanelSection>

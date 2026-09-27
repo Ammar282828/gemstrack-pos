@@ -45,6 +45,9 @@ describe('writing', () => {
   it('totals and descriptions', () => {
     expect(exchangeTotal(rows)).toBe(149200);
     expect(describeExchangeEntry({ description: '', weightG: 3, value: 1 })).toBe('Gold · 3 g');
+    // Just an amount, the simple exchange: no metal is named for it.
+    expect(describeExchangeEntry({ description: '', value: 5000 })).toBe('Exchange');
+    expect(describeExchangeEntry({ description: 'Old watch', value: 5000 })).toBe('Old watch');
   });
 });
 

@@ -25,7 +25,9 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 
 ## Running locally
 
-- **Node 20**, not the Mac's default: launch config "POS (node 20)" (`PATH=/opt/homebrew/opt/node@20/bin:$PATH npm run dev`, port 3000). On Node 26 the Google auth library fails ("Premature close").
+- **Node 20**, not the Mac's default: launch config "POS (node 20)" (`PATH=/opt/homebrew/opt/node@20/bin:$PATH npm run dev`, port 3000), or per house
+  "Taheri (node 20)" (port 3000) / "Mina (node 20)" (port 3001). On Node 26 the Google auth library fails ("Premature close"). The per-house
+  configs drop a `GOOGLE_APPLICATION_CREDENTIALS` that points at a missing file (the second laptop's `~/.zshrc` does), which otherwise breaks every Google call.
 - The app is behind Google sign-in locally; production runs `NEXT_PUBLIC_OPEN_ACCESS=1` (the owner's
   choice since 2026-09-07, paired with open `firestore.rules`; `firestore.rules.locked` holds the real rules).
   Don't reintroduce the open-access flag for local checks — ask the user to sign in on the preview.
@@ -124,7 +126,8 @@ back to Green API otherwise; Green API stays configured until the owner cancels 
 git push taheri main:taheri-next     # Taheri rolls out (~5 min)
 git push hom main:main               # House of Mina rolls out
 ```
-Push Taheri first, check it, then Mina. `main` here is the shared working branch (the old dead
+**Push both together, always** (owner, 2026-09-26: "push both together always") — no waiting on Taheri's rollout before
+Mina's. `main` here is the shared working branch (the old dead
 `main` is kept as tag `old-main-2026-06`). `website-checkout` is retired.
 
 **Running a house locally:** `npm run env:taheri` or `npm run env:mina` writes `.env.<house>.local`
@@ -133,7 +136,9 @@ from the YAML files (secrets left blank to fill from Secret Manager), then `npm 
 Next reads `.env.local` / `.env.development.local` even under `dev:mina` and fills any variable the process lacks, so the
 generator writes every variable that isn't the house's as **empty** (Next then leaves it alone). Re-run `npm run env:mina`
 after changing either YAML — a stale `.env.mina.local` is how a local Mina showed Taheri's Post a Piece, Investments and
-Photo Weights on 2026-09-25.
+Photo Weights on 2026-09-25. `.env.local` is not Taheri's on every machine (on the second laptop it is Mina's, with Mina's
+service-account key): when it names another Firebase project, `env:taheri` blanks its variables too, so a local Taheri never
+signs in to Mina's project (2026-09-26).
 
 ## House of Mina's catalogue (catalogue.houseofmina.store)
 
@@ -156,6 +161,16 @@ sorted by its file name). Add Photos names and links to **this house's** website
 Since 2026-09-25 the catalogue has **customer accounts** like taheri.shop's (Google sign-in on hom-pos's own Firebase
 project; `catalogue.houseofmina.store` added to its authorised domains), talking to Mina's POS `/api/public/me` — no POS
 change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the table above for the key shape).
+
+## In progress
+
+- **Editing existing website pieces from the POS** (owner, 2026-09-26: "fix/crop/add logo weight overlay to existing,
+  change desc etc in taheri.shop or catalogue.houseofmina.store"). Mapped across the POS, taheri-site and mina-catalogue,
+  designed, **not built**, four questions open for the owner: **`docs/edit-website-pieces.md`**.
+- **Meta app settings for Ads** (2026-09-26): Connect stopped at Facebook's "Can't load URL — the domain of this URL isn't
+  included in the app's domains". Fix is in the Meta app (1075984878628188), not the POS: App domains `taheri.shop` +
+  `houseofmina.store`, Client and Web OAuth login on, both `https://pos.<house>/api/ads/callback` as redirect URIs.
+  Ads → Setup step 1 now lists exactly these with copy buttons. Whether the owner has saved them in Meta is unconfirmed.
 
 ## Open items after the reconvergence (2026-09-22)
 
@@ -372,6 +387,16 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   invoice's never-printed `internalNote`), hide-rates, source and item plating. Until then exchange and advances were one
   lumped "Advance from Order" payment. Re-saving an invoice from the cart keeps `sourceOrderId`, Shopify links and source
   (`INVOICE_PROVENANCE`). Payments can also be taken in the cart as the invoice is written (`generateInvoice(…, payments)`).
+- **Exchange is one line** (2026-09-26, owner: "a general exchange without details like just description and cash amount …
+  make it super simple"): each exchange row in the order form and the cart is what it is + the amount; "+ Weight & rate" folds
+  open grams and rate (and karat only where `defaultMetal` is gold). Labels say "Exchange", not "Exchange gold".
+- **From the website → Instagram story** (2026-09-26): the square site photo whole on the house's ground with its mark, name and
+  metal · weight (`src/lib/social/site-story.ts`), posted through `/api/instagram/story` when connected, else the share sheet.
+- **Retouch** (2026-09-26, owner: "photo retouching … in both pos using magnific api", then "magnific only"; Post a Piece and
+  Add Photos): op `retouch` on `/api/website/post/ai` → `src/lib/social/retouch.ts`: Magnific's Precision upscaler (no prompt,
+  nothing redrawn; crisp metal, prongs and stones; ≤3000 px), then the usual "same piece?" check. Key `magnific-api-key` in each
+  project's Secret Manager, read at runtime (App Hosting account has secretAccessor). ≈ 70 s, with the check ≈ 2 min.
+  Add Photos: Retouch / Original (undo) per photo before upload. Locally the key comes from `.env.development.local`.
 - Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**
   (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
   value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).

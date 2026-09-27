@@ -317,7 +317,8 @@ function drawInvoice(doc: jsPDF, inv: PieceInvoice, customer: Customer | null | 
   // of a split, has a description and its amounts.
   const exchangeRows = (inv.exchanges || []).filter(e => e.value > 0);
   if (exchangeRows.length === 1) {
-    totalRows.push({ label: `Exchange (${describeExchangeEntry(exchangeRows[0])})`, value: `- ${pkr(exchangeRows[0].value)}` });
+    const what = describeExchangeEntry(exchangeRows[0]);
+    totalRows.push({ label: what === 'Exchange' ? 'Exchange' : `Exchange (${what})`, value: `- ${pkr(exchangeRows[0].value)}` });
   } else if (exchangeRows.length > 1) {
     totalRows.push({ label: 'Exchange', value: '', tone: 'ink' });
     for (const e of exchangeRows) totalRows.push({ label: describeExchangeEntry(e), value: `- ${pkr(e.value)}` });

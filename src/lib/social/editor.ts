@@ -827,6 +827,8 @@ const text = (p: Partial<TextLayer> & Pick<TextLayer, 'x' | 'y' | 'size' | 'font
   id: newLayerId(p.bind ?? 'text'), kind: 'text', text: '', align: 'left', width: 888, fit: false, spacing: 0, lineHeight: 1.15,
   upper: false, shadow: false, box: null, rotate: 0, opacity: 1, ...p,
 });
+/** A text layer with the defaults every maker here uses — for layouts built outside this file. */
+export const textLayer = text;
 
 export const newText = (color: string): TextLayer => text({ text: 'Your text', x: 540, y: 900, size: 72, font: 'regular', color, align: 'center', width: 900 });
 export const newShape = (kind: ShapeLayer['kind'], color: string): ShapeLayer => ({

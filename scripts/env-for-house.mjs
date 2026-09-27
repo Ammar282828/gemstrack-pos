@@ -35,9 +35,20 @@ for (const [k, e] of merged) {
 }
 const keysOf = (f) => fs.existsSync(f) ? fs.readFileSync(f, 'utf8').split('\n').filter(l => /^[A-Z_0-9]+=/.test(l)).map(l => l.split('=')[0]) : [];
 const others = ['taheri', 'mina'].filter(h => h !== house).flatMap(h => load(`apphosting.${h}.yaml`).map(e => e.variable));
-const lent = house === 'taheri' ? [] : ['.env.local', '.env.development.local'].flatMap(keysOf);
-// A local credential file is this Mac's, not a house's: every house's AI signs with it (IMAGE_AI_CREDENTIALS, Murtaza's ADC).
-const machine = new Set(['IMAGE_AI_CREDENTIALS']);
+// Those files are Taheri's on the owner's Mac, but on another machine .env.local can be Mina's — and then a
+// local Taheri would borrow Mina's service-account key and write into Mina's project. A file that names
+// another Firebase project lends to this house too, so its variables are blanked like any other house's.
+const projectOf = (f) => {
+  const l = fs.existsSync(f) && fs.readFileSync(f, 'utf8').split('\n').find(l => l.startsWith('NEXT_PUBLIC_FIREBASE_PROJECT_ID='));
+  return l ? l.slice(l.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '') : null;
+};
+const houseProject = String(merged.get('NEXT_PUBLIC_FIREBASE_PROJECT_ID')?.value ?? '');
+const lent = ['.env.local', '.env.development.local']
+  .filter(f => house !== 'taheri' || (projectOf(f) && projectOf(f) !== houseProject))
+  .flatMap(keysOf);
+// This Mac's own credentials, not a house's, so every house keeps them: Google (GOOGLE_APPLICATION_CREDENTIALS), the AI's
+// signer (IMAGE_AI_CREDENTIALS, Murtaza's ADC) and the retouching key (one Magnific account, used by both houses).
+const machine = new Set(['IMAGE_AI_CREDENTIALS', 'GOOGLE_APPLICATION_CREDENTIALS', 'MAGNIFIC_API_KEY']);
 const blank = [...new Set([...others, ...lent])].filter(k => !merged.has(k) && !machine.has(k));
 if (blank.length) lines.push('', `# Not ${house}'s: empty, so Next can't fill them from Taheri's .env.local / .env.development.local.`, ...blank.map(k => `${k}=`));
 fs.writeFileSync(out, lines.join('\n') + '\n');
