@@ -70,14 +70,17 @@ const isRecord = (x: unknown): x is Record<string, unknown> => !!x && typeof x =
 export async function getSiteOverrides(site: string, fresh = false): Promise<Record<string, SiteOverride>> {
   if (!site) return {};
   if (!fresh && cache && cache.site === site && Date.now() - cache.at < TTL_MS) return cache.all;
+  // A failed read keeps what was last read and waits the same thirty seconds before
+  // asking again: prices call this on every quote, and must not wait on a slow site each time.
+  const keep = () => { cache = { at: Date.now(), site, all: cache?.site === site ? cache.all : {} }; return cache.all; };
   try {
-    const res = await fetch(`${site}/api/override.php`, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    const res = await fetch(`${site}/api/override.php`, { cache: 'no-store', signal: AbortSignal.timeout(fresh ? 8000 : 4000) });
     const d = res.ok ? await res.json().catch(() => null) : null;
-    if (!d?.ok || !isRecord(d.overrides)) return cache?.site === site ? cache.all : {};
+    if (!d?.ok || !isRecord(d.overrides)) return keep();
     cache = { at: Date.now(), site, all: d.overrides as Record<string, SiteOverride> };
     return cache.all;
   } catch {
-    return cache?.site === site ? cache.all : {};
+    return keep();
   }
 }
 
