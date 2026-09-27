@@ -109,7 +109,7 @@ export async function tree(act: string, r: RangeKey, opts: { archived?: boolean;
   const [campaigns, adsets, ads, ci, ai, adi] = await Promise.all([
     graphAll<Record<string, unknown>>(`${act}/campaigns`, { ...filter, fields: 'id,name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time,issues_info,created_time' }, 500),
     graphAll<Record<string, unknown>>(`${act}/adsets`, { ...filter, fields: 'id,name,campaign_id,status,effective_status,optimization_goal,destination_type,daily_budget,lifetime_budget,start_time,end_time,learning_stage_info,issues_info' }, 1000),
-    graphAll<Record<string, unknown>>(`${act}/ads`, { ...filter, fields: 'id,name,adset_id,campaign_id,status,effective_status,issues_info,creative{id,thumbnail_url,image_url,instagram_permalink_url}' }, 2000),
+    graphAll<Record<string, unknown>>(`${act}/ads`, { ...filter, fields: 'id,name,adset_id,campaign_id,status,effective_status,issues_info,creative{id,thumbnail_url,image_url,instagram_permalink_url,title,body,call_to_action_type}' }, 2000),
     insights(act, ['campaign_id', ...BASE_FIELDS], { ...range(r), level: 'campaign' }, 500).catch(() => []),
     insights(act, ['adset_id', ...BASE_FIELDS], { ...range(r), level: 'adset' }, 1000).catch(() => []),
     insights(act, ['ad_id', ...BASE_FIELDS], { ...range(r), level: 'ad' }, 2000).catch(() => []),
@@ -119,14 +119,26 @@ export async function tree(act: string, r: RangeKey, opts: { archived?: boolean;
 
   const adsBySet = new Map<string, TreeAd[]>();
   for (const a of ads) {
-    const creative = (a.creative ?? {}) as { id?: string; thumbnail_url?: string; image_url?: string; instagram_permalink_url?: string };
+    const creative = (a.creative ?? {}) as { id?: string; thumbnail_url?: string; image_url?: string; instagram_permalink_url?: string; title?: string; body?: string; call_to_action_type?: string };
     const ad: TreeAd = {
       id: String(a.id), name: String(a.name ?? ''), status: String(a.status), effectiveStatus: String(a.effective_status),
       thumbnail: creative.thumbnail_url || creative.image_url || null, issues: issues(a as { issues_info?: Issue[] }),
       metrics: dm.get(String(a.id)) ?? emptyMetrics(), creativeId: creative.id ?? null, instagramPermalink: creative.instagram_permalink_url ?? null,
+      image: creative.image_url || null,
+      title: creative.title || null, body: creative.body || null,
+      button: creative.call_to_action_type ? creative.call_to_action_type.replace(/_/g, ' ').toLowerCase() : null,
     };
     const k = String(a.adset_id);
     adsBySet.set(k, [...(adsBySet.get(k) ?? []), ad]);
+  }
+  // A boosted post or a video has no image_url, and its thumbnail is 64 px: ask for the pictures at 480.
+  const small = [...adsBySet.values()].flat().filter(a => !a.image && a.creativeId);
+  for (let i = 0; i < small.length; i += 50) {
+    const chunk = small.slice(i, i + 50);
+    const big = await graph<Record<string, { thumbnail_url?: string }>>('', {
+      params: { ids: [...new Set(chunk.map(a => a.creativeId))].join(','), fields: 'thumbnail_url', thumbnail_width: 480, thumbnail_height: 480 },
+    }).catch(() => ({} as Record<string, { thumbnail_url?: string }>));
+    for (const a of chunk) a.image = big[a.creativeId!]?.thumbnail_url || a.thumbnail;
   }
   const setsByCampaign = new Map<string, TreeAdSet[]>();
   for (const s of adsets) {
@@ -139,7 +151,7 @@ export async function tree(act: string, r: RangeKey, opts: { archived?: boolean;
       learning: learning === 'LEARNING' ? 'Learning' : learning === 'FAIL' ? 'Learning limited' : null,
       issues: issues(s as { issues_info?: Issue[] }),
       metrics: am.get(String(s.id)) ?? emptyMetrics(),
-      ads: (adsBySet.get(String(s.id)) ?? []).sort((a, b) => b.metrics.spend - a.metrics.spend),
+      ads: (adsBySet.get(String(s.id)) ?? []).map(a => ({ ...a, adsetName: String(s.name ?? ''), goal: String(s.optimization_goal ?? '') })).sort((a, b) => b.metrics.spend - a.metrics.spend),
     };
     const k = String(s.campaign_id);
     setsByCampaign.set(k, [...(setsByCampaign.get(k) ?? []), set]);
@@ -152,7 +164,7 @@ export async function tree(act: string, r: RangeKey, opts: { archived?: boolean;
     startTime: (c.start_time as string) ?? null, stopTime: (c.stop_time as string) ?? null,
     issues: issues(c as { issues_info?: Issue[] }),
     metrics: cm.get(String(c.id)) ?? emptyMetrics(),
-    adsets: (setsByCampaign.get(String(c.id)) ?? []).sort((a, b) => order(a.effectiveStatus) - order(b.effectiveStatus) || b.metrics.spend - a.metrics.spend),
+    adsets: (setsByCampaign.get(String(c.id)) ?? []).map(s => ({ ...s, ads: s.ads.map(a => ({ ...a, campaignName: String(c.name ?? '') })) })).sort((a, b) => order(a.effectiveStatus) - order(b.effectiveStatus) || b.metrics.spend - a.metrics.spend),
   })).sort((a, b) => order(a.effectiveStatus) - order(b.effectiveStatus) || b.metrics.spend - a.metrics.spend);
 }
 

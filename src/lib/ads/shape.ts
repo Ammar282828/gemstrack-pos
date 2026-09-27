@@ -241,6 +241,25 @@ export interface TreeAd {
   id: string; name: string; status: string; effectiveStatus: string;
   thumbnail: string | null; issues: string[]; metrics: Metrics;
   creativeId: string | null; instagramPermalink: string | null;
+  /** The picture at a size worth looking at (the creative's own image, or a 480-px thumbnail of it). */
+  image: string | null;
+  /** What the ad says: its headline, text and button. */
+  title: string | null; body: string | null; button: string | null;
+  /** Filled in by tree(): where it sits. */
+  campaignName?: string; adsetName?: string; goal?: string;
+}
+
+/**
+ * The same thing in Meta Ads Manager — every campaign, ad set and ad the ERP makes is an ordinary one in the
+ * ad account, so it is there too; this opens it selected.
+ */
+export function adsManagerUrl(accountId: string, level: Level | 'account', id?: string): string {
+  const act = String(accountId).replace(/^act_/, '');
+  const base = 'https://adsmanager.facebook.com/adsmanager/manage';
+  if (level === 'account' || !id) return `${base}/campaigns?act=${act}`;
+  const tab = level === 'campaign' ? 'campaigns' : level === 'adset' ? 'adsets' : 'ads';
+  const key = level === 'campaign' ? 'selected_campaign_ids' : level === 'adset' ? 'selected_adset_ids' : 'selected_ad_ids';
+  return `${base}/${tab}?act=${act}&${key}=${id}`;
 }
 export interface TreeAdSet {
   id: string; name: string; status: string; effectiveStatus: string;

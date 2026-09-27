@@ -113,3 +113,13 @@ describe('authorizeUrl', () => {
     expect(u.searchParams.has('config_id')).toBe(false);
   });
 });
+
+describe('adsManagerUrl', () => {
+  it('opens the same campaign, ad set or ad selected in Ads Manager', async () => {
+    const { adsManagerUrl } = await import('./shape');
+    expect(adsManagerUrl('act_2078697546326565', 'account')).toBe('https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=2078697546326565');
+    expect(adsManagerUrl('2078697546326565', 'campaign', '1')).toBe('https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=2078697546326565&selected_campaign_ids=1');
+    expect(adsManagerUrl('2078697546326565', 'adset', '2')).toBe('https://adsmanager.facebook.com/adsmanager/manage/adsets?act=2078697546326565&selected_adset_ids=2');
+    expect(adsManagerUrl('2078697546326565', 'ad', '3')).toBe('https://adsmanager.facebook.com/adsmanager/manage/ads?act=2078697546326565&selected_ad_ids=3');
+  });
+});

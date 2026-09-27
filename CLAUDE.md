@@ -449,6 +449,12 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   (`IMAGE_AI_PROJECT`, Murtaza's; locally his ADC). Model: `ADS_AI_MODEL`, else **gemini-3.5-pro**, else 3.1 Pro — 3.5 Pro's
   card exists but the project gets 404 (2026-09-27), so it answers with `gemini-3.1-pro-preview` (~20–30 s) and moves up by
   itself when access opens. Capped `ADS_AI_DAILY_CAP` (200) a day + 40/h per caller.
+  **Everything visible, and in Ads Manager** (2026-09-27, owner: "all ad sets / pic / ads / creatives should be easily visible and
+  appear on ad manager"): the ERP makes ordinary objects in the ad account, so they are in Ads Manager (uploads in its media
+  library) by nature; every row and card has **Open in Ads Manager** (`adsManagerUrl`, tested). Campaigns opens with every
+  campaign and ad set unfolded (Fold all / Open all) and 64-px pictures, and has an **Ads & pictures** view: every ad as a card
+  with its picture (the creative's `image_url`, or a 480-px `thumbnail_url` for boosted posts and videos), words, button, place,
+  numbers, run/pause. New ad → New photos can reuse any picture already in the account (`/api/ads/library` → `act/adimages`).
   **Connecting needs, in the Meta app** (all hit on 2026-09-26): App domains `taheri.shop` + `houseofmina.store` and both
   `…/api/ads/callback` under Facebook Login for Business → Valid OAuth redirect URIs (else "Can't load URL"), and a **login
   configuration** (FLfB → Configurations: User access token + the ads/pages permissions) whose ID is pasted on Ads → Setup

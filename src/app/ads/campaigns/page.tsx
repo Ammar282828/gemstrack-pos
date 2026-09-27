@@ -21,11 +21,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { FolderKanban, Plus, RefreshCw, Loader2, ChevronRight, MoreVertical, Pencil, Wallet, CalendarClock, Copy, Archive, Trash2, Users, Eye, ExternalLink, Search, AlertTriangle } from 'lucide-react';
+import { FolderKanban, Plus, RefreshCw, Loader2, ChevronRight, MoreVertical, Pencil, Wallet, CalendarClock, Copy, Archive, Trash2, Users, Eye, ExternalLink, Search, AlertTriangle, LayoutGrid, ListTree, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS } from '@/lib/store-config';
 import {
-  money, count, compact, resultOf, objectiveLabel, RESULT_FOR_GOAL, sumMetrics,
+  money, count, compact, resultOf, objectiveLabel, RESULT_FOR_GOAL, sumMetrics, adsManagerUrl,
   type Metrics, type RangeKey, type AdsAccount, type TreeCampaign, type TreeAdSet, type TreeAd, type Level,
 } from '@/lib/ads/shape';
 import { parseTargeting, describeAudience, type AudienceDraft } from '@/lib/ads/targeting';
@@ -80,7 +80,14 @@ function Campaigns() {
   const [archived, setArchived] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
+  // Everything open unless folded (the owner, 2026-09-27: "all ad sets / pic / ads / creatives should be easily visible").
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [allOpen, setAllOpen] = useState(true);
+  const isOpen = (id: string) => open[id] ?? allOpen;
+  const flip = (id: string) => setOpen(o => ({ ...o, [id]: !(o[id] ?? allOpen) }));
+  const [view, setView] = useState<'tree' | 'gallery'>('tree');
+  useEffect(() => { try { const v = localStorage.getItem('taheri_ads_view'); if (v === 'gallery' || v === 'tree') setView(v); } catch { /* private mode */ } }, []);
+  const pickView = (v: 'tree' | 'gallery') => { setView(v); try { localStorage.setItem('taheri_ads_view', v); } catch { /* private mode */ } };
   const [busy, setBusy] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialogs>(null);
 
@@ -145,6 +152,7 @@ function Campaigns() {
         {audience && <DropdownMenuItem onSelect={() => setDialog({ kind: 'audience', t })}><Users className="h-4 w-4 mr-2" /> Audience and placements</DropdownMenuItem>}
         <DropdownMenuItem onSelect={() => setDialog({ kind: 'rename', t })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => setDialog({ kind: 'confirm', t, action: 'duplicate' })}><Copy className="h-4 w-4 mr-2" /> Duplicate (paused)</DropdownMenuItem>
+        {data && <DropdownMenuItem asChild><a href={adsManagerUrl(data.account.id, t.level, t.id)} target="_blank" rel="noopener"><ExternalLink className="h-4 w-4 mr-2" /> Open in Ads Manager</a></DropdownMenuItem>}
         <DropdownMenuSeparator />
         {t.status !== 'ARCHIVED' && <DropdownMenuItem onSelect={() => setDialog({ kind: 'confirm', t, action: 'archive' })}><Archive className="h-4 w-4 mr-2" /> Archive</DropdownMenuItem>}
         <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDialog({ kind: 'confirm', t, action: 'delete' })}><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
@@ -159,7 +167,7 @@ function Campaigns() {
     return (
       <li key={a.id} className="flex items-center gap-2.5 py-2 pl-2">
         <button type="button" onClick={() => setDialog({ kind: 'ad', id: a.id })} className="shrink-0 min-h-0">
-          {a.thumbnail ? <img src={a.thumbnail} alt="" className="h-11 w-11 rounded-md object-cover bg-muted" /> : <span className="block h-11 w-11 rounded-md bg-muted" />}
+          {a.image || a.thumbnail ? <img src={a.image || a.thumbnail!} alt="" loading="lazy" className="h-16 w-16 rounded-lg object-cover bg-muted" /> : <span className="block h-16 w-16 rounded-lg bg-muted" />}
         </button>
         <div className="min-w-0 flex-1">
           <button type="button" onClick={() => setDialog({ kind: 'ad', id: a.id })} className="block text-left text-sm font-medium truncate max-w-full min-h-0">{a.name}</button>
@@ -179,11 +187,11 @@ function Campaigns() {
     return (
       <li key={s.id} className="py-2">
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setOpen(o => ({ ...o, [s.id]: !o[s.id] }))} className="min-h-0 p-1 -ml-1 shrink-0" aria-label={open[s.id] ? 'Fold' : 'Open'}>
-            <ChevronRight className={cn('h-4 w-4 transition-transform', open[s.id] && 'rotate-90')} />
+          <button type="button" onClick={() => flip(s.id)} className="min-h-0 p-1 -ml-1 shrink-0" aria-label={isOpen(s.id) ? 'Fold' : 'Open'}>
+            <ChevronRight className={cn('h-4 w-4 transition-transform', isOpen(s.id) && 'rotate-90')} />
           </button>
           <div className="min-w-0 flex-1">
-            <button type="button" onClick={() => setOpen(o => ({ ...o, [s.id]: !o[s.id] }))} className="block text-left text-sm font-medium truncate max-w-full min-h-0">{s.name}</button>
+            <button type="button" onClick={() => flip(s.id)} className="block text-left text-sm font-medium truncate max-w-full min-h-0">{s.name}</button>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <StatusPill status={s.effectiveStatus} />
               {s.learning && <span className={cn('rounded-full border px-2 py-0.5 text-[11px]', s.learning === 'Learning limited' ? 'border-warning/50 text-warning' : 'text-muted-foreground')}>{s.learning}</span>}
@@ -195,7 +203,7 @@ function Campaigns() {
           <Switch checked={s.status === 'ACTIVE'} disabled={busy === s.id || s.status === 'ARCHIVED'} onCheckedChange={on => toggle(t, on)} aria-label="Running" />
           <Menu t={t} budget={!!(s.dailyBudget || s.lifetimeBudget)} schedule audience />
         </div>
-        {open[s.id] && (s.ads.length ? <ul className="ml-6 border-l pl-1 divide-y">{s.ads.map(a => adRow(a, s))}</ul> : <p className="ml-8 text-xs text-muted-foreground py-1">No ads in this ad set.</p>)}
+        {isOpen(s.id) && (s.ads.length ? <ul className="ml-6 border-l pl-1 divide-y">{s.ads.map(a => adRow(a, s))}</ul> : <p className="ml-8 text-xs text-muted-foreground py-1">No ads in this ad set.</p>)}
       </li>
     );
   };
@@ -223,12 +231,26 @@ function Campaigns() {
             </div>
             <label className="flex items-center gap-2 text-xs text-muted-foreground"><Switch checked={archived} onCheckedChange={setArchived} /> Archived too</label>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-full border p-0.5 text-xs">
+              <button type="button" onClick={() => pickView('tree')} className={cn('rounded-full px-3 py-1.5 min-h-0 inline-flex items-center gap-1.5', view === 'tree' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}><ListTree className="h-3.5 w-3.5" /> Campaigns</button>
+              <button type="button" onClick={() => pickView('gallery')} className={cn('rounded-full px-3 py-1.5 min-h-0 inline-flex items-center gap-1.5', view === 'gallery' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}><LayoutGrid className="h-3.5 w-3.5" /> Ads &amp; pictures</button>
+            </div>
+            {view === 'tree' && <button type="button" onClick={() => { setAllOpen(v => !v); setOpen({}); }} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground min-h-0">
+              {allOpen ? <><ChevronsDownUp className="h-3.5 w-3.5" /> Fold all</> : <><ChevronsUpDown className="h-3.5 w-3.5" /> Open all</>}
+            </button>}
+            {data && <a href={adsManagerUrl(data.account.id, 'account')} target="_blank" rel="noopener" className="ml-auto inline-flex items-center gap-1 text-xs text-primary">Ads Manager <ExternalLink className="h-3 w-3" /></a>}
+          </div>
           {error && <ErrorLine error={error} onRetry={load} />}
           {!data && loading && <div className="flex items-center gap-2 text-sm text-muted-foreground py-6"><Loader2 className="h-4 w-4 animate-spin" /> Asking Meta…</div>}
           {data && (
             <>
               <p className="text-xs text-muted-foreground">{campaigns.length === data.campaigns.length ? 'All campaigns' : `${campaigns.length} of ${data.campaigns.length} campaigns`}: <b className="text-foreground">{money(shownTotal.spend, cur)}</b> spent · {compact(shownTotal.impressions)} views</p>
               {!campaigns.length && <div className="rounded-xl border-2 border-dashed p-8 text-center text-sm text-muted-foreground">{data.campaigns.length ? 'Nothing matches.' : <>No campaigns yet. <Link href="/ads/new" className="text-primary">Make the first ad →</Link></>}</div>}
+              {view === 'gallery' ? (
+                <Gallery campaigns={campaigns} cur={cur} accountId={data.account.id} busy={busy}
+                  onOpen={id => setDialog({ kind: 'ad', id })} onToggle={(a, on) => toggle({ level: 'ad', id: a.id, name: a.name, status: a.status }, on)} />
+              ) : (
               <ul className="space-y-2.5">
                 {campaigns.map(c => {
                   const t: Target = { level: 'campaign', id: c.id, name: c.name, status: c.status, dailyBudget: c.dailyBudget, lifetimeBudget: c.lifetimeBudget, end: c.stopTime };
@@ -237,11 +259,11 @@ function Campaigns() {
                   return (
                     <li key={c.id} className="rounded-xl border p-3">
                       <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => setOpen(o => ({ ...o, [c.id]: !o[c.id] }))} className="min-h-0 p-1 -ml-1 shrink-0" aria-label={open[c.id] ? 'Fold' : 'Open'}>
-                          <ChevronRight className={cn('h-4 w-4 transition-transform', open[c.id] && 'rotate-90')} />
+                        <button type="button" onClick={() => flip(c.id)} className="min-h-0 p-1 -ml-1 shrink-0" aria-label={isOpen(c.id) ? 'Fold' : 'Open'}>
+                          <ChevronRight className={cn('h-4 w-4 transition-transform', isOpen(c.id) && 'rotate-90')} />
                         </button>
                         <div className="min-w-0 flex-1">
-                          <button type="button" onClick={() => setOpen(o => ({ ...o, [c.id]: !o[c.id] }))} className="block text-left font-semibold truncate max-w-full min-h-0">{c.name}</button>
+                          <button type="button" onClick={() => flip(c.id)} className="block text-left font-semibold truncate max-w-full min-h-0">{c.name}</button>
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                             <StatusPill status={c.effectiveStatus} />
                             <span className="text-[11px] text-muted-foreground">{objectiveLabel(c.objective)} · {c.adsets.length} ad set{c.adsets.length === 1 ? '' : 's'}{b ? ` · ${b}` : ''}{c.stopTime ? ` · ends ${new Date(c.stopTime).toLocaleDateString()}` : ''}</span>
@@ -252,11 +274,12 @@ function Campaigns() {
                         <Switch checked={c.status === 'ACTIVE'} disabled={busy === c.id || c.status === 'ARCHIVED'} onCheckedChange={on => toggle(t, on)} aria-label="Running" />
                         <Menu t={t} budget={!!(c.dailyBudget || c.lifetimeBudget)} schedule />
                       </div>
-                      {open[c.id] && (c.adsets.length ? <ul className="mt-1 ml-3 border-l pl-2 divide-y">{c.adsets.map(setRow)}</ul> : <p className="ml-8 text-xs text-muted-foreground">No ad sets.</p>)}
+                      {isOpen(c.id) && (c.adsets.length ? <ul className="mt-1 ml-3 border-l pl-2 divide-y">{c.adsets.map(setRow)}</ul> : <p className="ml-8 text-xs text-muted-foreground">No ad sets.</p>)}
                     </li>
                   );
                 })}
               </ul>
+              )}
             </>
           )}
         </>
@@ -409,6 +432,46 @@ function previewSrc(html: string): string | null {
   if (!m) return null;
   const src = m[1].replace(/&amp;/g, '&');
   try { const u = new URL(src); return /(^|\.)facebook\.com$/.test(u.hostname) ? src : null; } catch { return null; }
+}
+
+/** Every ad as its picture, big enough to see: what it says, where it sits, how it is doing, run/pause, and Ads Manager. */
+function Gallery({ campaigns, cur, accountId, busy, onOpen, onToggle }: {
+  campaigns: TreeCampaign[]; cur: string; accountId: string; busy: string | null;
+  onOpen: (id: string) => void; onToggle: (a: TreeAd, on: boolean) => void;
+}) {
+  const ads = campaigns.flatMap(c => c.adsets.flatMap(s => s.ads));
+  if (!ads.length) return <p className="text-sm text-muted-foreground">No ads here.</p>;
+  return (
+    <ul className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+      {ads.map(a => {
+        const r = resultOf(a.metrics, a.goal);
+        return (
+          <li key={a.id} className="rounded-xl border overflow-hidden flex flex-col bg-card">
+            <button type="button" onClick={() => onOpen(a.id)} className="relative block aspect-square bg-muted min-h-0" aria-label={`Preview ${a.name}`}>
+              {a.image || a.thumbnail ? <img src={a.image || a.thumbnail!} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="absolute inset-0 grid place-items-center text-xs text-muted-foreground">No picture</span>}
+              <span className="absolute left-1.5 top-1.5"><StatusPill status={a.effectiveStatus} className="bg-background/90" /></span>
+            </button>
+            <div className="p-2.5 space-y-1 flex-1 flex flex-col">
+              <p className="text-sm font-medium leading-tight line-clamp-2">{a.name}</p>
+              <p className="text-[11px] text-muted-foreground line-clamp-1">{[a.campaignName, a.adsetName].filter(Boolean).join(' › ')}</p>
+              {(a.title || a.body) && <p className="text-[11px] line-clamp-2">{a.title ? <b>{a.title} </b> : null}{a.body}</p>}
+              <p className="text-[11px] text-muted-foreground tabular-nums">
+                <b className="text-foreground">{money(a.metrics.spend, cur)}</b>
+                {r ? ` · ${count(r.value)} ${r.label.toLowerCase()}` : ` · ${compact(a.metrics.reach)} reached`}
+                {a.button ? ` · “${a.button}”` : ''}
+              </p>
+              {a.issues.length > 0 && <p className="text-[11px] text-destructive line-clamp-2">{a.issues.join(' · ')}</p>}
+              <div className="mt-auto pt-1 flex items-center gap-2">
+                <Switch checked={a.status === 'ACTIVE'} disabled={busy === a.id || a.status === 'ARCHIVED'} onCheckedChange={on => onToggle(a, on)} aria-label="Running" />
+                <a href={adsManagerUrl(accountId, 'ad', a.id)} target="_blank" rel="noopener" className="ml-auto text-[11px] text-primary inline-flex items-center gap-1">Ads Manager <ExternalLink className="h-3 w-3" /></a>
+                {a.instagramPermalink && <a href={a.instagramPermalink} target="_blank" rel="noopener" className="text-[11px] text-primary">Instagram</a>}
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 function AdDialog({ id, onClose }: { id: string; onClose: () => void }) {

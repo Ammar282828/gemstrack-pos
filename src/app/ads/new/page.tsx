@@ -27,7 +27,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AmountInput } from '@/components/ui/amount-input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Rocket, Instagram, ImagePlus, Globe, Loader2, Check, X, ArrowUp, ArrowDown, Eye, MessageCircle, MousePointerClick, UserRound, Heart, Radio, Search, CheckCircle2, AlertTriangle, Film } from 'lucide-react';
+import { Rocket, Instagram, ImagePlus, Images, Globe, Loader2, Check, X, ArrowUp, ArrowDown, Eye, MessageCircle, MousePointerClick, UserRound, Heart, Radio, Search, CheckCircle2, AlertTriangle, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS, STORE_LINKS, STORE_SITE_POSTS } from '@/lib/store-config';
 import { money } from '@/lib/ads/shape';
@@ -149,6 +149,19 @@ function NewAd() {
       }
     }));
   };
+  // The ad account's own picture library (Ads Manager's media), to reuse without uploading.
+  const [libOpen, setLibOpen] = useState(false);
+  const [library, setLibrary] = useState<{ hash: string; url: string; thumb: string; name: string }[] | null>(null);
+  const [libAfter, setLibAfter] = useState<string | null>(null);
+  const [libError, setLibError] = useState<string | null>(null);
+  const loadLibrary = useCallback(async (after?: string) => {
+    setLibError(null);
+    try {
+      const d = await api<{ images: { hash: string; url: string; thumb: string; name: string }[]; after: string | null }>(`/api/ads/library${after ? `?after=${encodeURIComponent(after)}` : ''}`);
+      setLibrary(l => (after ? [...(l ?? []), ...d.images] : d.images)); setLibAfter(d.after);
+    } catch (e) { setLibError(e instanceof Error ? e.message : String(e)); }
+  }, []);
+  useEffect(() => { if (libOpen && !library && !libError) loadLibrary(); }, [libOpen, library, libError, loadLibrary]);
   const move = (i: number, by: number) => setPhotos(p => { const a = [...p]; const [x] = a.splice(i, 1); a.splice(Math.max(0, Math.min(a.length, i + by)), 0, x); return a; });
 
   // ── Source: a website piece ──
@@ -343,7 +356,31 @@ function NewAd() {
                 {kind === 'photos' && photos.length < 10 && (
                   <>
                     <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={e => { upload(e.target.files); e.target.value = ''; }} />
-                    <Button variant="outline" className="w-full h-11" onClick={() => fileRef.current?.click()}><ImagePlus className="h-4 w-4 mr-1.5" /> {photos.length ? 'Add more photos' : 'Choose photos'}</Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" className="h-11" onClick={() => fileRef.current?.click()}><ImagePlus className="h-4 w-4 mr-1.5" /> {photos.length ? 'Add more' : 'From this phone'}</Button>
+                      <Button variant={libOpen ? 'secondary' : 'outline'} className="h-11" onClick={() => setLibOpen(o => !o)}><Images className="h-4 w-4 mr-1.5" /> Ad account photos</Button>
+                    </div>
+                    {libOpen && (
+                      <div className="rounded-lg border p-2 space-y-2">
+                        <p className="text-[11px] text-muted-foreground">Every picture in this ad account’s Ads Manager library — tap to use it again.</p>
+                        {libError && <ErrorLine error={libError} onRetry={() => loadLibrary()} />}
+                        {!library && !libError && <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading the library…</p>}
+                        {library && !library.length && <p className="text-sm text-muted-foreground">The library is empty so far.</p>}
+                        <ul className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-72 overflow-y-auto">
+                          {(library ?? []).map(img => {
+                            const used = photos.some(p => p.hash === img.hash);
+                            return (
+                              <li key={img.hash}><button type="button" disabled={used || photos.length >= 10} onClick={() => setPhotos(ph => [...ph, { key: `lib${img.hash}`, hash: img.hash, url: img.url, local: img.thumb }])}
+                                className={cn('relative block w-full aspect-square overflow-hidden rounded-md bg-muted min-h-0', used && 'ring-2 ring-primary')} title={img.name}>
+                                <img src={img.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                                {used && <span className="absolute right-1 top-1 rounded-full bg-primary p-0.5 text-primary-foreground"><Check className="h-3 w-3" /></span>}
+                              </button></li>
+                            );
+                          })}
+                        </ul>
+                        {libAfter && <Button variant="ghost" size="sm" className="w-full" onClick={() => loadLibrary(libAfter)}>More</Button>}
+                      </div>
+                    )}
                   </>
                 )}
                 <p className="text-[11px] text-muted-foreground">{photos.length > 1 ? `${photos.length} photos make a carousel, in this order.` : 'One photo, or up to ten for a carousel.'} Meta is told not to retouch, crop, animate or re-word anything.</p>
