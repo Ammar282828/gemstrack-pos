@@ -11,7 +11,7 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator, useSidebar,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Send, Globe, Wallet, Search, Sun, Moon, Megaphone } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Send, Globe, Wallet, Search, Sun, Moon, Megaphone, Boxes } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -52,16 +52,27 @@ interface NavGroup {
 }
 
 /**
- * Twelve entries, not twenty-four (the owner, 2026-09-25: "way too crowded").
+ * The sidebar, by what the shop does (re-audited 2026-09-27, the owner: "reaudit the separation entirely and see
+ * how to effectively distribute everything"; before that, 2026-09-25: "way too crowded").
  *
- * Pages that are siblings share one entry and appear as tabs in the top bar —
- * Workshop / Karigars / Given items, the four money books, the website's photo
- * pages, Post a Piece / Investments under Posts, the settings pages — and Settings sits in the footer as a gear. Every
- * page keeps its own address, so links and bookmarks land on the right tab, and
- * Ctrl+K still finds any page by name.
+ *   New Sale     the one thing done most — a button of its own at the top, not a row among rows
+ *   (daily)      Home (Dashboard, Calendar)
+ *   Sales        Orders, Invoices, Repairs, Customers — selling and the people it is for
+ *   Workshop &   Workshop (Jobs, Karigars, Given items) and Stock (Pieces, Add in bulk) — making and keeping pieces.
+ *   stock        Stock was out of the sidebar altogether; House of Mina keeps ~100 pieces in it
+ *   Marketing    Posts, Website, Ads — everything that goes out to customers. It used to share a group with the
+ *                workshop ("Workshop & website"), which hid three unrelated jobs under one heading
+ *   Finance      Money (Expenses, Extra revenue, Overheads, Hisaab, Shareholders) and Analytics (Overview, Products,
+ *                Customers, Categories — the last three were reachable only from a card title)
+ *   Settings     the gear in the footer; Labels and Recently removed join its tabs
  *
- * Ordered within each group by how often you reach for it.
+ * Twelve rows and a button, as before. Pages that are siblings share one row and appear as tabs in the top bar; every
+ * page keeps its own address, and Ctrl+K still finds any page by name. Ordered within each group by how often you
+ * reach for it. A group whose rows this house doesn't have (no website, no ads) disappears.
  */
+/** The primary action, drawn as a button under Search. */
+const newSaleItem: NavItem = { staff: true, href: '/new', label: 'New Sale', icon: <PlusCircle /> };
+
 const navGroups: NavGroup[] = [
   {
     label: '',
@@ -70,9 +81,11 @@ const navGroups: NavGroup[] = [
         { staff: true, href: '/', label: 'Dashboard' },
         { staff: true, href: '/calendar', label: 'Calendar' },
       ] },
-      // One way in: pick invoice or order first, then add the pieces.
-      // /scan and /cart are still reachable, just not decisions of their own.
-      { staff: true, href: '/new', label: 'New Sale', icon: <PlusCircle /> },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
       { staff: true, href: '/orders', label: 'Orders', icon: <ClipboardList /> },
       { staff: true, href: '/invoices', label: 'Invoices', icon: <Receipt /> },
       { staff: true, href: '/repairs', label: 'Repairs', icon: <Wrench /> },
@@ -80,13 +93,23 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'Workshop & website',
+    label: 'Workshop & stock',
     items: [
       { staff: true, href: '/workshop', label: 'Workshop', icon: <Hammer />, tabs: [
         { staff: true, href: '/workshop', label: 'Jobs' },
         { staff: true, href: '/karigars', label: 'Karigars' },
         { staff: true, href: '/given', label: 'Given items' },
       ] },
+      // Owners: the stock pages read the database directly, which staff accounts may not.
+      { href: '/products', label: 'Stock', icon: <Boxes />, tabs: [
+        { href: '/products', label: 'Pieces' },
+        { href: '/products/bulk-add', label: 'Add in bulk' },
+      ] },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
       // The website pages exist only for a shop that has one (NEXT_PUBLIC_STORE_WEBSITE_URL).
       ...(STORE_LINKS.website ? ([
         // Everything that goes out to WhatsApp and Instagram, under one entry (the
@@ -116,7 +139,7 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'Money',
+    label: 'Finance',
     items: [
       { href: '/expenses', label: 'Money', icon: <Wallet />, tabs: [
         { href: '/expenses', label: 'Expenses' },
@@ -126,7 +149,12 @@ const navGroups: NavGroup[] = [
         // The partnership book, for the shop that has partners (NEXT_PUBLIC_STORE_PARTNERSHIP).
         ...(STORE_PARTNERSHIP ? [{ href: '/shareholders', label: 'Shareholders' }] : []),
       ] as NavTab[] },
-      { href: '/analytics', label: 'Analytics', icon: <TrendingUp /> },
+      { href: '/analytics', label: 'Analytics', icon: <TrendingUp />, tabs: [
+        { href: '/analytics', label: 'Overview' },
+        { href: '/analytics/products', label: 'Products' },
+        { href: '/analytics/customers', label: 'Customers' },
+        { href: '/analytics/categories', label: 'Categories' },
+      ] },
     ],
   },
 ];
@@ -136,7 +164,9 @@ const settingsItem: NavItem = {
   href: '/settings', label: 'Settings', icon: <SettingsIcon />, tabs: [
     { href: '/settings', label: 'Settings' },
     { href: '/settings/payment-methods', label: 'Payment methods' },
+    { href: '/settings/printer', label: 'Labels' },
     { href: '/settings/backups', label: 'Backups' },
+    { href: '/settings/recently-removed', label: 'Recently removed' },
     { href: '/settings/voice', label: 'Voice' },
     { href: '/activity-log', label: 'Activity log' },
   ],
@@ -256,6 +286,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     .map(g => ({ ...g, items: g.items.map(i => forRole(i, isStaff)).filter((i): i is NavItem => !!i) }))
     .filter(g => g.items.length > 0);
   const settingsEntry = forRole(settingsItem, isStaff);
+  const newSaleEntry = forRole(newSaleItem, isStaff);
 
   // The tabs for this page, when it is one of an entry's siblings. Only on the
   // tab pages themselves — a detail page (/hisaab/…, /karigars/…) keeps its own
@@ -306,6 +337,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarHeader>
 
           <SidebarSearch />
+          {newSaleEntry && (
+            <SidebarMenu className="px-2 pt-2">
+              <SidebarMenuItem>
+                <Link href={newSaleEntry.href} legacyBehavior passHref>
+                  <SidebarMenuButton asChild tooltip={{ children: 'New Sale' }}
+                    className="justify-center gap-2 rounded-lg bg-primary font-medium text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground data-[active=true]:bg-primary data-[active=true]:text-primary-foreground">
+                    <a>{newSaleEntry.icon}<span className="group-data-[collapsible=icon]:hidden">New Sale</span></a>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          )}
 
           <SidebarContent asChild>
             <ScrollArea className="h-full">
