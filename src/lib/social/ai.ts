@@ -139,6 +139,27 @@ export async function generateText(opts: { model?: string; parts: Part[] }): Pro
   return partsOf(data).filter(p => p.text && !p.thought).map(p => p.text).join('').trim();
 }
 
+/**
+ * One turn of a conversation that may call tools (the Ads helper). The model's
+ * content comes back exactly as given — Gemini 3 signs its tool calls
+ * (`thoughtSignature`) and refuses the next turn unless they are sent back
+ * unchanged.
+ */
+export interface ChatContent { role: 'user' | 'model'; parts: Record<string, unknown>[] }
+export async function chatTurn(opts: {
+  model: string; system: string; contents: ChatContent[];
+  tools?: Record<string, unknown>[]; temperature?: number; maxOutputTokens?: number;
+}): Promise<{ content: ChatContent; finishReason?: string; modelVersion?: string }> {
+  const data = await call(opts.model, {
+    systemInstruction: { parts: [{ text: opts.system }] },
+    contents: opts.contents,
+    ...(opts.tools?.length ? { tools: opts.tools } : {}),
+    generationConfig: { temperature: opts.temperature ?? 0.4, maxOutputTokens: opts.maxOutputTokens ?? 8192 },
+  });
+  const c = (data.candidates as Array<{ content?: ChatContent; finishReason?: string }> | undefined)?.[0];
+  return { content: { role: 'model', parts: c?.content?.parts ?? [] }, finishReason: c?.finishReason, modelVersion: data.modelVersion as string | undefined };
+}
+
 // ── For the checks panel ───────────────────────────────────────────────────
 
 /** A one-word call to the cheap model: proves the project, the permission and the quota in a second. */

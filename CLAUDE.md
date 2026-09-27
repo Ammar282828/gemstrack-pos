@@ -75,7 +75,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 | `/api/website/edits` | POS page Edit a piece | GET: every site piece with the counter's changes (hidden ones too) + recent changes; `?id=` one piece, its last design, its original photo's address. POST: a piece's words / re-made photo / put back → the site's `api/override.php` — see "Edit a piece" below |
 | `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
 | `/api/website/orders/[id]` | POS order page | mark paid / shipped — **always verifies a token, even under open access** |
-| `/api/ads/*` (`status`, `connect`, `callback`, `setup`, `overview`, `campaigns`, `object/[id]`, `create`, `images`, `media`, `preview`, `estimate`, `search`, `audiences`, `rules`) | POS pages under **Ads** | this house's Meta ad account through the Marketing API (Graph v26.0) — see "Ads" below |
+| `/api/ads/*` (`status`, `connect`, `callback`, `setup`, `overview`, `campaigns`, `object/[id]`, `create`, `images`, `media`, `preview`, `estimate`, `search`, `audiences`, `rules`, `assistant`) | POS pages under **Ads** | this house's Meta ad account through the Marketing API (Graph v26.0) — see "Ads" below |
 
 CORS for `/api/public/*` is in `src/lib/website/cors.ts` (taheri.shop, www, and localhost:5180 in dev).
 Design and go-live checklist: `docs/website-checkout.md`. Go-live of online selling is still blocked by empty
@@ -439,6 +439,16 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   (all / bought / last year / lapsed), SHA-256 on the server (`audience-rows.ts`, tested), Instagram engagers, lookalikes.
   Rules are Meta's own automated rules (`adrules_library`). Every change is logged in Firestore `ads_log` (shown on Rules).
   Not yet run against the live API when shipped — field names come from Meta's v25/v26 docs; errors show Meta's own words.
+  **The Ads helper** (2026-09-27, owner: "an ai helper in the ads account tab … context from the ad account … float around in
+  the ads tab only and use gemini latest pro model"): a floating button on every Ads page only (`src/app/ads/layout.tsx` →
+  `assistant.tsx`; above the voice button; bottom sheet on a phone), chat kept per device (`taheri_ads_chat`), following the
+  page's range. `/api/ads/assistant` → `src/lib/ads/assistant.ts`: a snapshot of the account for the range (totals vs before,
+  daily, every campaign → ad set → ad with results, top ads, age/gender · placement · region, flagged ads, audiences, rules,
+  `ads_log`) in the system prompt, plus two **read-only** tools (`get_insights` any range/level/breakdown, `get_details`);
+  `chatTurn` in `social/ai.ts` sends Gemini 3's signed tool calls back unchanged. Billed like Post a Piece's AI
+  (`IMAGE_AI_PROJECT`, Murtaza's; locally his ADC). Model: `ADS_AI_MODEL`, else **gemini-3.5-pro**, else 3.1 Pro — 3.5 Pro's
+  card exists but the project gets 404 (2026-09-27), so it answers with `gemini-3.1-pro-preview` (~20–30 s) and moves up by
+  itself when access opens. Capped `ADS_AI_DAILY_CAP` (200) a day + 40/h per caller.
   **Connecting needs, in the Meta app** (all hit on 2026-09-26): App domains `taheri.shop` + `houseofmina.store` and both
   `…/api/ads/callback` under Facebook Login for Business → Valid OAuth redirect URIs (else "Can't load URL"), and a **login
   configuration** (FLfB → Configurations: User access token + the ads/pages permissions) whose ID is pasted on Ads → Setup

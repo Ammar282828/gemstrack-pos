@@ -76,8 +76,16 @@ export function useRange(fallback: RangeKey = 'last_7d'): [RangeKey, (r: RangeKe
   const [r, setR] = useState<RangeKey>(fallback);
   useEffect(() => {
     try { const v = localStorage.getItem(RANGE_KEY); if (v && RANGES.some(x => x.key === v)) setR(v as RangeKey); } catch { /* private mode */ }
+    // Every picker on the screen (the page's and the Ads helper's) moves together.
+    const follow = (e: Event) => { const v = (e as CustomEvent<RangeKey>).detail; if (RANGES.some(x => x.key === v)) setR(v); };
+    window.addEventListener('ads-range', follow);
+    return () => window.removeEventListener('ads-range', follow);
   }, []);
-  const set = (v: RangeKey) => { setR(v); try { localStorage.setItem(RANGE_KEY, v); } catch { /* private mode */ } };
+  const set = (v: RangeKey) => {
+    setR(v);
+    try { localStorage.setItem(RANGE_KEY, v); } catch { /* private mode */ }
+    window.dispatchEvent(new CustomEvent('ads-range', { detail: v }));
+  };
   return [r, set];
 }
 
