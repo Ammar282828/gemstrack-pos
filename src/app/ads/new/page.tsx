@@ -190,6 +190,28 @@ function NewAd() {
   // ?piece= — start from that piece.
   const pieceParam = params.get('piece');
   const startedFrom = useRef(false);
+  // ?from=<ad> — "Make one like this": the same photos or post, words, audience and budget, all still changeable.
+  const fromParam = params.get('from');
+  useEffect(() => {
+    if (!fromParam || startedFrom.current || !ready) return;
+    startedFrom.current = true;
+    api<{ template: { goal: GoalKey; source: AdPlan['source']; text: string; headline: string; link: string; button: AdPlan['button']; audience: AudienceDraft; budget: { kind: 'daily' | 'total'; amount: number }; name: string } }>(`/api/ads/template?ad=${encodeURIComponent(fromParam)}`)
+      .then(({ template: t }) => {
+        setGoal(t.goal); setText(t.text); setHeadline(t.headline); if (t.link) setLink(t.link); setButton(t.button);
+        setAudience({ ...defaultDraft(), ...t.audience });
+        if (t.budget.amount > 0) { setBudgetKind(t.budget.kind); setAmount(t.budget.amount); }
+        if (t.source.kind === 'post') {
+          setKind('post');
+          setPost({ id: t.source.mediaId, caption: t.source.caption ?? '', type: 'IMAGE', thumb: t.source.thumb ?? null, permalink: t.source.permalink ?? null, at: null, boostable: true, why: null });
+        } else {
+          setKind('photos');
+          setPhotos(t.source.photos.map((ph, i) => ({ key: `from${i}${ph.hash}`, hash: ph.hash, url: ph.url ?? null, local: ph.url ?? undefined, headline: ph.headline, link: ph.link })));
+        }
+        toast({ title: `Started from “${t.name}”`, description: 'Change anything, then make it.' });
+      })
+      .catch(e => toast({ title: 'Couldn’t copy that ad', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromParam, ready]);
   useEffect(() => {
     if (!pieceParam || startedFrom.current || !ready || !hasSite) return;
     startedFrom.current = true;

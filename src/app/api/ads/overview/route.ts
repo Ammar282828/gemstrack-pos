@@ -11,8 +11,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
 import { accountSummary, requireAccount } from '@/lib/ads/settings';
-import { breakdowns, daily, previousPeriod, problemAds, topAds, totals } from '@/lib/ads/insights';
-import { isRange, type RangeKey } from '@/lib/ads/shape';
+import { breakdowns, daily, previousPeriod, problemAds, topAds, totals, tree } from '@/lib/ads/insights';
+import { attentionItems, pacing } from '@/lib/ads/attention';
+import { currencyOffset, isRange, type RangeKey } from '@/lib/ads/shape';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -30,16 +31,23 @@ export async function GET(req: NextRequest) {
     const hit = cache.get(key);
     if (hit && q.get('fresh') !== '1' && Date.now() - hit.at < 90_000) return NextResponse.json(hit.body, { headers: noStore });
 
-    const [account, now, days, top, split, problems] = await Promise.all([
-      accountSummary(act),
+    const account = await accountSummary(act);
+    const [now, days, top, split, problems, campaigns, thisMonth, lastMonth] = await Promise.all([
       totals(act, r),
       daily(act, r).catch(() => []),
       topAds(act, r),
       breakdowns(act, r),
       problemAds(act),
+      tree(act, r, { offset: currencyOffset(account.currency) }).catch(() => []),
+      totals(act, 'this_month').catch(() => null),
+      totals(act, 'last_month').catch(() => null),
     ]);
     const prevRange = r !== 'maximum' && now.since && now.until ? previousPeriod(now.since, now.until) : null;
     const before = prevRange ? await totals(act, prevRange).catch(() => null) : null;
+    const rangeDays = now.since && now.until ? Math.max(1, Math.round((Date.parse(now.until) - Date.parse(now.since)) / 86_400_000) + 1) : 7;
+    // Today in the ad account's own time zone, for "day 27 of 30".
+    const tz = account.timezone || 'Asia/Karachi';
+    const today = new Date(new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2') + 'T12:00:00');
 
     const body = {
       range: r,
@@ -52,6 +60,8 @@ export async function GET(req: NextRequest) {
       topAds: top,
       breakdowns: split,
       problems,
+      attention: attentionItems({ account, campaigns, days: rangeDays }),
+      month: pacing(thisMonth?.metrics.spend ?? 0, lastMonth?.metrics.spend ?? 0, today),
       at: new Date().toISOString(),
     };
     cache.set(key, { at: Date.now(), body });

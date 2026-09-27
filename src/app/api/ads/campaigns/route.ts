@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
 import { accountSummary, requireAccount } from '@/lib/ads/settings';
-import { tree } from '@/lib/ads/insights';
+import { campaignTotals, previousPeriod, totals, tree } from '@/lib/ads/insights';
 import { currencyOffset, isRange, type RangeKey } from '@/lib/ads/shape';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,14 @@ export async function GET(req: NextRequest) {
   try {
     const { act } = await requireAccount();
     const account = await accountSummary(act);
-    const campaigns = await tree(act, r, { archived: q.get('archived') === '1', offset: currencyOffset(account.currency) });
+    const [campaigns, span] = await Promise.all([
+      tree(act, r, { archived: q.get('archived') === '1', offset: currencyOffset(account.currency) }),
+      r === 'maximum' ? Promise.resolve(null) : totals(act, r).catch(() => null),
+    ]);
+    // Against the same length of time before — "▲ 18%" on each campaign row.
+    const prev = span?.since && span.until ? previousPeriod(span.since, span.until) : null;
+    const before = prev ? await campaignTotals(act, prev).catch(() => new Map()) : new Map();
+    for (const c of campaigns) { const b = before.get(c.id); if (b) c.previous = b; }
     return NextResponse.json({ range: r, account, campaigns }, { headers: noStore });
   } catch (e) {
     return adsFail(e, 'campaigns');

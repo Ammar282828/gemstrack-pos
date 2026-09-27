@@ -103,7 +103,7 @@ Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27: "
 | `/api/website/edits` | POS page Edit a piece | GET: every site piece with the counter's changes (hidden ones too) + recent changes; `?id=` one piece, its last design, its original photo's address. POST: a piece's words / re-made photo / put back → the site's `api/override.php` — see "Edit a piece" below |
 | `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
 | `/api/website/orders/[id]` | POS order page | mark paid / shipped — **always verifies a token, even under open access** |
-| `/api/ads/*` (`status`, `connect`, `callback`, `setup`, `overview`, `campaigns`, `object/[id]`, `create`, `images`, `media`, `preview`, `estimate`, `search`, `audiences`, `rules`, `assistant`) | POS pages under **Ads** | this house's Meta ad account through the Marketing API (Graph v26.0) — see "Ads" below |
+| `/api/ads/*` (`status`, `connect`, `callback`, `setup`, `overview`, `campaigns`, `object/[id]`, `create`, `images`, `library`, `media`, `preview`, `estimate`, `search`, `audiences`, `rules`, `assistant`, `template`) | POS pages under **Ads** | this house's Meta ad account through the Marketing API (Graph v26.0) — see "Ads" below |
 
 CORS for `/api/public/*` is in `src/lib/website/cors.ts` (taheri.shop, www, and localhost:5180 in dev).
 Design and go-live checklist: `docs/website-checkout.md`. Go-live of online selling is still blocked by empty
@@ -491,6 +491,17 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   campaign and ad set unfolded (Fold all / Open all) and 64-px pictures, and has an **Ads & pictures** view: every ad as a card
   with its picture (the creative's `image_url`, or a 480-px `thumbnail_url` for boosted posts and videos), words, button, place,
   numbers, run/pause. New ad → New photos can reuse any picture already in the account (`/api/ads/library` → `act/adimages`).
+  **Improvements of 2026-09-27** (owner: "add any improvements to the ads manager"): **Needs a look** on the Overview
+  (`src/lib/ads/attention.ts`, pure, tested — the account on hold or near its spending limit, nothing running, rejected /
+  flagged, spent 2 days' budget with no result → *Pause*, cost per result 2.5× the account's median, frequency ≥ 3, learning
+  limited, ending within 3 days, a paused ad set that was cheaper than what runs → *Run again*; bad → warn → tip), the
+  **month's pace** line (spent so far → projected, vs last month), **▲▼ against the period before** on every campaign row
+  (`campaignTotals`), the gallery's **sort** (spent / results / cheapest result / click-through / name) under the same status
+  filter, **Make one like this** on any ad (`/api/ads/template?ad=` → New ad `?from=`: same photos by hash or the same post,
+  words, button, link, audience, budget), and the **daily WhatsApp ads summary** (`src/lib/ads/digest.ts`, tested; task
+  `ads-daily` in `/api/notifications/run`; Cloud Scheduler `ads-daily-summary` 09:30 Asia/Karachi in **both** projects, at the
+  hosted.app addresses, Bearer `CRON_SECRET`; sent only when Settings → Notifications → **Ads Summary** (`notifAdsDaily`) is
+  on — ships off). The Ads helper's snapshot carries the same attention list.
   **Connecting needs, in the Meta app** (all hit on 2026-09-26): App domains `taheri.shop` + `houseofmina.store` and both
   `…/api/ads/callback` under Facebook Login for Business → Valid OAuth redirect URIs (else "Can't load URL"), and a **login
   configuration** (FLfB → Configurations: User access token + the ads/pages permissions) whose ID is pasted on Ads → Setup

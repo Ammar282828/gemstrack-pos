@@ -181,6 +181,7 @@ const NOTIF_TOGGLES: { key: keyof Settings; label: string; description: string }
   { key: 'notifDailyChecklist', label: 'Daily Checklist',     description: 'Morning summary: active orders, overdue, unreturned items' },
   { key: 'notifEndOfDay',       label: 'End of Day Summary',  description: 'Evening recap of today\'s orders' },
   { key: 'notifWeeklyReport',   label: 'Weekly Report',       description: 'Monday morning business summary' },
+  { key: 'notifAdsDaily',       label: 'Ads Summary (9:30 AM)', description: 'Yesterday\'s Meta ads: spend, chats, cost per chat, and anything needing attention' },
   { key: 'notifOrderOverdue',   label: 'Overdue Order Alert', description: 'Orders in Pending/In Progress for 7+ days (daily check)' },
   { key: 'notifGivenItems',     label: 'Given Items Overdue', description: 'Items given out and not returned for 7+ days' },
   { key: 'notifKarigarPayment', label: 'Karigar Payments Due','description': 'Unpaid karigar batches (weekly check)' },

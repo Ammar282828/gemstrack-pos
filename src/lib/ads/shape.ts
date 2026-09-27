@@ -271,6 +271,8 @@ export interface TreeAdSet {
 }
 export interface TreeCampaign {
   id: string; name: string; status: string; effectiveStatus: string; objective: string;
+  /** The same length of time before the range, for "▲ 18%" on the row. */
+  previous?: Metrics;
   dailyBudget: number | null; lifetimeBudget: number | null;
   startTime: string | null; stopTime: string | null;
   issues: string[]; metrics: Metrics; adsets: TreeAdSet[];

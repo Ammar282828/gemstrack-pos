@@ -10,6 +10,8 @@ import { lateOrders, orderTiming, timingLabel } from '@/lib/order-timing';
 // They were hardcoded to MINA from the repo this was based on.
 import { STORE_CONFIG } from '@/lib/store-config';
 import { fromThisPos } from '@/lib/notify-label';  // the owner gets both houses' reports
+import { adsDigest } from '@/lib/ads/digest';
+import { STORE_META_ADS } from '@/lib/store-config';
 const SHOP = STORE_CONFIG.name.toUpperCase();
 
 function daysSince(isoDate: string) {
@@ -533,6 +535,14 @@ export async function POST(req: NextRequest) {
     }
 
     const phones: string[] = s.notifPhones;
+
+    // Yesterday's ads, one message built once and sent to each number (a house without Ads skips it).
+    if (task === 'ads-daily') {
+      if (!STORE_META_ADS || (!force && !s.notifAdsDaily)) return NextResponse.json({ ok: true, task, skipped: 'off' });
+      const msg = fromThisPos(await adsDigest());
+      for (const phone of phones) await sendWhatsAppMessage(phone, msg);
+      return NextResponse.json({ ok: true, task, recipients: phones.length, preview: msg.slice(0, 200) });
+    }
 
     for (const phone of phones) {
       switch (task) {
