@@ -225,6 +225,12 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
 
 ## Decisions already made (don't reopen unless asked)
 
+- **The dashboard is the morning glance** (redrawn 2026-09-27, owner: "simple and effective, don't add shortcut buttons"):
+  four figures — taken today, this month (against last), owed to you, on the bench — then **Needs you** (late promises as one
+  row, overdue pieces by karigar, unassigned, the three largest unpaid + the rest summed, repairs ready and uncollected 3+
+  days, birthdays/anniversaries), **Due to customers** (open orders *and* repairs in the shop by their promised date — late,
+  today, soonest, undated by age; `orderTiming` for both) and **Recent sales**; the 30-day line at the bottom. No buttons:
+  New Sale is the sidebar's.
 - **The sidebar is by what the shop does** (re-audited 2026-09-27, owner: "reaudit the separation entirely"): **New Sale** is a
   button of its own under Search; Home (Dashboard, Calendar); **Sales** — Orders, Invoices, Repairs, Customers; **Workshop &
   stock** — Workshop (Jobs, Karigars, Given items) and **Stock** (Pieces, Add in bulk; back in the sidebar — Mina keeps ~100
