@@ -45,7 +45,9 @@ import { addDays, differenceInCalendarDays, format as formatDate, parseISO, star
 import { DEFAULT_PROMISE_DAYS, URGENT_WINDOW_DAYS } from '@/lib/order-timing';
 import { PageBack } from '@/components/shared/page-back';
 import { PhoneField } from '@/components/ui/phone-field';
-import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
+import { useWorkDraft } from '@/components/drafts/use-work-drafts';
+import { DraftsShortcut } from '@/components/drafts/draft-list';
+import { ORDER_DEFAULT_FIELDS, summarizeOrder } from '@/lib/work-drafts';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { OrderScanner } from '@/components/order/order-scanner';
 import {
@@ -344,7 +346,7 @@ const PanelSection: React.FC<{
   </section>
 );
 
-export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = ({ order, seedFromCart }) => {
+export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draftId?: string | null }> = ({ order, seedFromCart, draftId }) => {
   const { toast } = useToast();
   const router = useRouter();
   const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, clearCart } = useAppStore();
@@ -371,6 +373,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
   // /orders/add. Reached from inside the app, with settings already in the
   // store, the loading branch was skipped and the page happened to work.
   const [scannerOpen, setScannerOpen] = React.useState(false);
+  // A draft continued from Drafts: its own rates stand, not today's.
+  const draftLoaded = useRef(false);
   // Delivery is held outside the zod form: it is a self-contained block with
   // its own validity, and threading it through the item schema buys nothing.
   const [delivery, setDelivery] = React.useState<DeliveryInfo>(order?.delivery ?? EMPTY_DELIVERY);
@@ -445,7 +449,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
         takenBy: order.takenBy,
         promisedDate: order.promisedDate || '',
       });
-    } else if (!isEditMode && settings.goldRatePerGram21k > 0) {
+    } else if (!isEditMode && settings.goldRatePerGram21k > 0 && !draftLoaded.current) {
+      // A draft being continued keeps the rates it was quoted at.
       form.reset({
         ...form.getValues(),
         goldRate18k: settings.goldRatePerGram18k,
@@ -469,22 +474,46 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
     form.setValue('advanceInExchangeDescription', describeExchanges(list), { shouldDirty: true });
   }, [form]);
 
-  // An unfinished order is kept on this device and offered back. Editing is
-  // skipped: that record already exists, so there is nothing to lose.
-  const { draft, discard, done } = useFormDraft({
+  // A new order is kept in Drafts as it is typed (components/drafts/use-work-drafts.ts); one that
+  // exists already — being edited — never is. The draft's id rides in the address, so a reload,
+  // or the link from Drafts on another device, continues the same one.
+  const liveTotal = useRef(0);
+  const workDraft = useWorkDraft({
     kind: 'order',
-    id: isEditMode ? (order?.id || 'edit') : 'new',
-    value: formValues,
     enabled: settings?.autoDraftForms !== false,
-    skip: isEditMode,
+    active: !isEditMode,
+    value: { ...formValues, delivery },
+    summary: v => summarizeOrder(v as unknown as Record<string, unknown>, liveTotal.current),
+    ignore: ORDER_DEFAULT_FIELDS,
+    onId: id => {
+      if (isEditMode || typeof window === 'undefined') return;
+      const q = new URLSearchParams(window.location.search);
+      if (id) q.set('draft', id); else q.delete('draft');
+      const qs = q.toString();
+      router.replace(`/orders/add${qs ? `?${qs}` : ''}`, { scroll: false });
+    },
   });
-
-  const restoreDraft = React.useCallback(() => {
-    if (!draft?.data) return;
-    form.reset(draft.data as never);
-    discard();
-    toast({ title: 'Draft restored', description: 'Picking up where you left off.' });
-  }, [draft, form, discard, toast]);
+  // Continuing a draft: its pieces, customer, money and delivery come back as they were left.
+  useEffect(() => {
+    // The address gains this form's own draft id once it is first saved: that one is already on screen.
+    if (!draftId || isEditMode || draftLoaded.current || draftId === workDraft.id) return;
+    let live = true;
+    void workDraft.load(draftId).then(d => {
+      if (!live) return;
+      if (!d) {
+        toast({ title: 'That draft is no longer there', description: 'It was saved as an order or discarded. This is a new order.' });
+        return;
+      }
+      draftLoaded.current = true;
+      const { delivery: savedDelivery, ...fields } = (d.data || {}) as Record<string, unknown>;
+      form.reset(fields as never);
+      setDelivery((savedDelivery as DeliveryInfo | undefined) ?? EMPTY_DELIVERY);
+      setOpenItem(0);
+      toast({ title: 'Draft continued', description: d.leftOut?.includes('photos') ? 'The sample photos were too large to keep in the draft — add them again.' : 'Everything is as it was left.' });
+    });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId, isEditMode]);
   const selectedCustomerId = form.watch('customerId');
 
   useEffect(() => {
@@ -559,6 +588,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
 
     return { subtotal, discount, grandTotal };
   }, [formValues, settings]);
+  liveTotal.current = liveEstimate.grandTotal;
 
 
   const onSubmit = async (data: OrderFormData) => {
@@ -682,7 +712,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
                 // The cart's contents have become the order; leaving them
                 // behind would bill the same pieces a second time.
                 if (seedFromCart) clearCart();
-                done();
+                // Out of Drafts, and nothing written there again while the page moves on.
+                workDraft.finish();
                 toast({ title: `Order ${newOrder.id} Created`, description: "Custom order has been saved." });
                 router.push(`/orders/${newOrder.id}`);
             } else {
@@ -908,13 +939,22 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean }> = 
   return (
     <Form {...form}>
       <PageBack fallback="/orders" label="Back to orders" className="mb-2" />
-      {draft && (
-        <DraftRestoreBanner
-          savedAt={draft.savedAt}
-          noun="order"
-          onRestore={restoreDraft}
-          onDiscard={discard}
-        />
+      {!isEditMode && (
+        workDraft.id ? (
+          <p className="mb-3 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+            <span>
+              {workDraft.status === 'saving' ? 'Saving to Drafts…'
+                : workDraft.status === 'error' ? 'Not saved to Drafts yet — no connection; it will try again.'
+                : `Saved in Drafts${workDraft.savedAt ? ` · ${formatDate(new Date(workDraft.savedAt), 'h:mm a')}` : ''}`}
+            </span>
+            <button type="button" className="font-medium text-foreground/70 underline-offset-2 hover:underline"
+              onClick={() => { workDraft.discard(); draftLoaded.current = false; toast({ title: 'Draft discarded', description: 'This order is no longer in Drafts. What is on screen stays until you leave.' }); }}>
+              Discard draft
+            </button>
+          </p>
+        ) : (
+          <div className="mb-4"><DraftsShortcut kind="order" /></div>
+        )
       )}
       {/*
         Three cards, placed twice.

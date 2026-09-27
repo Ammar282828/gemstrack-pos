@@ -248,6 +248,18 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   each with the `fah-claim` TXT and the `_acme-challenge_…` CNAME App Hosting lists (`…/backends/studio/domains/<host>`).
   `NEXT_PUBLIC_APP_URL` moves to erp.* only once erp.* serves with a certificate, together with the Meta redirects
   (`https://erp.<house>/api/ads/callback`, Taheri's `…/api/instagram/callback`) — OAuth returns to that address.
+- **Drafts** (`/drafts`, Sales in the sidebar with a live count; 2026-09-27, owner: "drafts should have a separate section
+  (order/invoice drafts) and be saved there, dont draft ongoing orders … deal with them smartly"). Firestore `drafts`, one
+  document per unfinished form, seen on every device (`src/lib/work-drafts.ts`, tested; `components/drafts/use-work-drafts.ts`).
+  **Only a new order form and a new sale are drafted** — never an order being edited or invoiced, an invoice on screen, an
+  estimate being changed. Written a second after typing stops, only when something changed and something is there (a
+  blank form's rates, promised date and row ids don't count); removed the moment the order or invoice is saved and never
+  written after (`finish()` — the old device-only drafts kept writing while the page navigated away, and kept a sale's
+  customer while its invoice was on screen, which is how saved orders and sales showed up as "unfinished"); removed when
+  the form is emptied; forgotten after 30 days. Each form is its own draft: an order's id rides in `?draft=`, the cart
+  remembers its sale in `gemstrack:sale-draft` and carries its pieces, so `/cart?draft=…` continues a sale on another
+  device. Opening an invoice over a sale in progress keeps that sale in Drafts. The old `gemstrack:draft:` browser drafts
+  are moved over once per device, minus those saved afterwards. Settings' switch (`autoDraftForms`) turns it all off.
 - **Add Photos needs no sign-in** under open access — the owner overruled an auth gate on 2026-09-20.
 - The order-actions route keeps its always-verify gate: it moves money.
 - **Invoices show wastage in grams only** (no rupee value, no percentage); the workshop slip keeps the percentage.

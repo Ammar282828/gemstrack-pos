@@ -11,7 +11,8 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator, useSidebar,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Send, Globe, Wallet, Search, Sun, Moon, Megaphone, Boxes } from 'lucide-react';
+import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Send, Globe, Wallet, Search, Sun, Moon, Megaphone, Boxes, FileClock } from 'lucide-react';
+import { useWorkDrafts } from '@/components/drafts/use-work-drafts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
@@ -43,6 +44,8 @@ interface NavItem {
   /** Sibling pages under this one entry. The entry opens the first one the
    *  person can see; the top bar shows them all as tabs. */
   tabs?: NavTab[];
+  /** A live count beside the label. */
+  count?: 'drafts';
 }
 
 interface NavGroup {
@@ -90,6 +93,9 @@ const navGroups: NavGroup[] = [
       { staff: true, href: '/invoices', label: 'Invoices', icon: <Receipt /> },
       { staff: true, href: '/repairs', label: 'Repairs', icon: <Wrench /> },
       { staff: true, href: '/customers', label: 'Customers', icon: <Users /> },
+      // Orders and sales started and not yet saved, on every device (owner, 2026-09-27: "drafts should
+      // have a separate section"). The count says when there is something waiting.
+      { staff: true, href: '/drafts', label: 'Drafts', icon: <FileClock />, count: 'drafts' },
     ],
   },
   {
@@ -249,6 +255,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isStoreHydrated = useIsStoreHydrated();
   const settings = useAppStore(state => state.settings);
   const { user, signOut } = useAuth();
+  // Drafts waiting, for the count beside Drafts in the sidebar.
+  const { drafts } = useWorkDrafts();
+  const draftCount = drafts.length;
   const [isOnline, setIsOnline] = useState(true);
   // Restore the last sidebar state. The provider writes sidebar_state on
   // every toggle but only reads defaultOpen once, so a hardcoded `true` threw
@@ -375,6 +384,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 <a className={cn(isActive && 'font-medium')}>
                                   {item.icon}
                                   <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                                  {item.count === 'drafts' && draftCount > 0 && (
+                                    <span className="ml-auto rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold leading-5 text-primary group-data-[collapsible=icon]:hidden">{draftCount}</span>
+                                  )}
                                 </a>
                               </SidebarMenuButton>
                             </Link>
