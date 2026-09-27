@@ -3310,9 +3310,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790508574.943741,
-    "seen": 1790508591.304684,
-    "ast_hash": "231d4775981ef293eae4c474f0221037",
+    "mtime": 1790509574.3392146,
+    "seen": 1790509585.574589,
+    "ast_hash": "9494bba95d6c0de10d0ea0b83a6a9d3c",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3568,9 +3568,9 @@
     "semantic_hash": ""
   },
   "src/lib/social/ai.ts": {
-    "mtime": 1790344876.7348282,
-    "seen": 1790357649.7753222,
-    "ast_hash": "3a63190b4e5aee10b324ef784dfc8f62",
+    "mtime": 1790509214.6950388,
+    "seen": 1790509585.5745401,
+    "ast_hash": "37a2861e86646fc9e1041a51ba39ee58",
     "semantic_hash": ""
   },
   "src/lib/social/gate.ts": {
@@ -4468,9 +4468,9 @@
     "semantic_hash": ""
   },
   "src/app/ads/ads-kit.tsx": {
-    "mtime": 1790508509.1142616,
-    "seen": 1790508591.3044438,
-    "ast_hash": "54109d7a0ca2e90ef1dd39caf3109402",
+    "mtime": 1790509329.3261602,
+    "seen": 1790509585.574344,
+    "ast_hash": "141b3e7c688f585ef8773ad72c427b92",
     "semantic_hash": ""
   },
   "src/app/ads/campaigns/page.tsx": {
@@ -4711,6 +4711,36 @@
     "mtime": 1790501022.0695236,
     "seen": 1790501153.054465,
     "ast_hash": "028e4a0226fd7a162bc5aa353624a151",
+    "semantic_hash": ""
+  },
+  "src/app/ads/assistant.tsx": {
+    "mtime": 1790509509.0943484,
+    "seen": 1790509585.5743449,
+    "ast_hash": "760b5755bf7a63457a99404f07ecc796",
+    "semantic_hash": ""
+  },
+  "src/app/ads/layout.tsx": {
+    "mtime": 1790509387.7036507,
+    "seen": 1790509585.574348,
+    "ast_hash": "fb83c143e2d8caf0bf76f8d1b0d5b732",
+    "semantic_hash": ""
+  },
+  "src/app/api/ads/assistant/route.ts": {
+    "mtime": 1790509308.4788413,
+    "seen": 1790509585.574354,
+    "ast_hash": "62fe6e6cb7f93160dd56d6241475d04f",
+    "semantic_hash": ""
+  },
+  "src/lib/ads/assistant.test.ts": {
+    "mtime": 1790509560.0657527,
+    "seen": 1790509585.574495,
+    "ast_hash": "8c9f801de4b059fbbc3faa6c0c1a78d8",
+    "semantic_hash": ""
+  },
+  "src/lib/ads/assistant.ts": {
+    "mtime": 1790509296.949851,
+    "seen": 1790509585.574496,
+    "ast_hash": "89d77cf41feb780597b70d2f4dc7bca7",
     "semantic_hash": ""
   }
 }
