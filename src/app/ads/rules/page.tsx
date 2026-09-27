@@ -24,7 +24,7 @@ interface LogRow { id: string; at: string; by: string; action: string; target?: 
 interface Data { rules: Rule[]; kinds: { key: RuleKind; label: string; hint: string; needs: 'spend' | 'cost' }[]; currency: string; log: LogRow[] }
 
 export default function RulesRoute() {
-  if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the POS.</p>;
+  if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the ERP.</p>;
   return <Rules />;
 }
 
@@ -73,7 +73,7 @@ function Rules() {
 
           <section className="rounded-xl border p-4 space-y-3">
             <h2 className="font-semibold flex items-center gap-2"><Plus className="h-5 w-5" /> A new rule</h2>
-            <p className="text-sm text-muted-foreground">Meta checks these itself around the clock and acts on every ad set in the account — the POS doesn’t need to be open.</p>
+            <p className="text-sm text-muted-foreground">Meta checks these itself around the clock and acts on every ad set in the account — the ERP doesn’t need to be open.</p>
             <div className="grid gap-1.5 sm:grid-cols-2">
               {(data?.kinds ?? []).map(k => (
                 <button key={k.key} type="button" onClick={() => setKind(k.key)} className={cn('rounded-lg border p-2.5 text-left', kind === k.key ? 'border-primary ring-1 ring-primary' : '')}>
@@ -107,7 +107,7 @@ function Rules() {
           </section>
 
           <section className="rounded-xl border p-4 space-y-2">
-            <h2 className="font-semibold flex items-center gap-2"><History className="h-5 w-5" /> Changes made from the POS</h2>
+            <h2 className="font-semibold flex items-center gap-2"><History className="h-5 w-5" /> Changes made from the ERP</h2>
             {data && !data.log.length && <p className="text-sm text-muted-foreground">Nothing yet.</p>}
             <ul className="divide-y">
               {(data?.log ?? []).map(r => (

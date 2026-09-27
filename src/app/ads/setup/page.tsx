@@ -24,12 +24,14 @@ import type { AccountChoice, PageChoice, InstagramChoice, AdsSettings } from '@/
 import { api, useAdsStatus, AccountAlerts, ErrorLine } from '../ads-kit';
 
 export default function AdsSetupRoute() {
-  if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the POS.</p>;
+  if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the ERP.</p>;
   return <Suspense fallback={null}><AdsSetup /></Suspense>;
 }
 
 /** Both houses' POS — the Meta app they share must allow each one's return address. */
-const POS_ORIGINS = ['https://pos.taheri.shop', 'https://pos.houseofmina.store'];
+/** Both houses' addresses: erp.* since 2026-09-27, pos.* still answering. Meta needs each one a login can come back to. */
+const ORIGINS = ['https://erp.taheri.shop', 'https://erp.houseofmina.store', 'https://pos.taheri.shop', 'https://pos.houseofmina.store'];
+const DOMAINS = [...new Set(ORIGINS.map(o => new URL(o).hostname.replace(/^(erp|pos)\./, '')))];
 
 interface Assets { accounts: AccountChoice[]; pages: PageChoice[]; instagram: InstagramChoice[]; settings: AdsSettings; houseInstagram: string | null }
 
@@ -120,12 +122,12 @@ function AdsSetup() {
   const chosenPage = assets?.pages.find(p => p.id === settings?.pageId) ?? null;
   const wrongHouse = house && settings?.instagramUsername && settings.instagramUsername.toLowerCase() !== house;
   // One Meta app serves both houses, so its dashboard needs both POS addresses — this one first.
-  const redirectOrigin = app?.redirectUri ? new URL(app.redirectUri).origin : POS_ORIGINS[0];
-  const redirectUris = [...new Set([app?.redirectUri, ...POS_ORIGINS.map(o => `${o}/api/ads/callback`)].filter((u): u is string => !!u))];
+  const redirectOrigin = app?.redirectUri ? new URL(app.redirectUri).origin : ORIGINS[0];
+  const redirectUris = [...new Set([app?.redirectUri, ...ORIGINS.map(o => `${o}/api/ads/callback`)].filter((u): u is string => !!u))];
 
   return (
     <PageShell title="Ads setup" icon={<Settings2 className="h-7 w-7" />} width="narrow"
-      subtitle={`${STORE_CONFIG.name}’s Meta ad account, connected to this POS`}
+      subtitle={`${STORE_CONFIG.name}’s Meta ad account, connected to this ERP`}
       action={<Button variant="outline" onClick={() => { reload(); if (connected) loadAssets(); }} disabled={loading}><RefreshCw className={cn('h-4 w-4 mr-1.5', loading && 'animate-spin')} /> Check again</Button>}>
       {error && <ErrorLine error={error} onRetry={reload} />}
       {!status && loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Checking…</div>}
@@ -139,11 +141,11 @@ function AdsSetup() {
             <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
               <li><span className="text-foreground">Add products</span> (newer dashboard: <span className="text-foreground">Add use case</span>) → <b>Marketing API</b> (“Create &amp; manage ads”) and <b>Facebook Login for Business</b>.</li>
               <li><span className="text-foreground">App settings → Basic → App domains</span>, add both houses’ domains, then Save. If it asks for a platform: Add platform → Website, Site URL <code>{redirectOrigin}/</code>.
-                {POS_ORIGINS.map(o => <CopyLine key={o} value={new URL(o).hostname.replace(/^pos\./, '')} />)}</li>
+                {DOMAINS.map(d => <CopyLine key={d} value={d} />)}</li>
               <li><span className="text-foreground">Facebook Login for Business → Settings</span>: <b>Client OAuth login</b> and <b>Web OAuth login</b> on, and under <b>Valid OAuth redirect URIs</b> both houses’ addresses, then Save. Without them Facebook stops at “Can’t load URL — the domain of this URL isn’t included in the app’s domains”.
                 {redirectUris.map(u => <CopyLine key={u} value={u} />)}</li>
               {/* A Business-type app refuses a plain permission list ("Invalid Scopes: ads_management, …", 2026-09-26). */}
-              <li><span className="text-foreground">Facebook Login for Business → Configurations → Create configuration</span>: any name (“POS ads”), login variation <b>General</b>, access token <b>User access token</b>, and these permissions (the ads ones appear once Marketing API is added):
+              <li><span className="text-foreground">Facebook Login for Business → Configurations → Create configuration</span>: any name (“ERP ads”), login variation <b>General</b>, access token <b>User access token</b>, and these permissions (the ads ones appear once Marketing API is added):
                 <CopyLine value="ads_management, ads_read, business_management, pages_show_list, pages_read_engagement, pages_manage_ads, instagram_basic" />
                 Then paste its <b>Configuration ID</b> here — without one Facebook answers “Invalid Scopes”.
                 {app.loginConfigFromEnv ? <p className="text-xs mt-1">Set for this shop by META_LOGIN_CONFIG_ID: <code>{app.loginConfigId}</code></p> : (
@@ -158,7 +160,7 @@ function AdsSetup() {
             </ol>
           </Step>
 
-          <Step n={2} done={app.secret && app.tokenStore.write} tone={!app.secret || !app.tokenStore.write ? 'bad' : undefined} title="The app secret, kept by this POS">
+          <Step n={2} done={app.secret && app.tokenStore.write} tone={!app.secret || !app.tokenStore.write ? 'bad' : undefined} title="The app secret, kept by this ERP">
             <p className={app.secret ? 'text-muted-foreground' : ''}>
               {app.secret ? <>Found in Secret Manager ({app.secretName}).</> : <>Copy the <b>App secret</b> from the Meta app’s <b>App settings → Basic</b> (the Meta app’s, not the Instagram one) and add it as a new version of <code>{app.secretName}</code>:</>}
             </p>
@@ -288,7 +290,7 @@ function AdsSetup() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect Meta ads?</AlertDialogTitle>
-            <AlertDialogDescription>The POS forgets the login. Ads already running keep running; the Ads pages show nothing until it’s connected again.</AlertDialogDescription>
+            <AlertDialogDescription>The ERP forgets the login. Ads already running keep running; the Ads pages show nothing until it’s connected again.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>

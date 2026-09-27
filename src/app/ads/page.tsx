@@ -34,7 +34,7 @@ interface Overview {
 }
 
 export default function AdsOverviewRoute() {
-  if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the POS.</p>;
+  if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the ERP.</p>;
   return <AdsOverview />;
 }
 

@@ -98,7 +98,7 @@ export const ShopifyPullPanel: React.FC = () => {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Import failed');
       const count = json.imported?.orders || 0;
-      toast({ title: 'Imported', description: `${count} order${count === 1 ? '' : 's'} added to the POS.` });
+      toast({ title: 'Imported', description: `${count} order${count === 1 ? '' : 's'} added to the ERP.` });
       if (json.errors?.length) {
         toast({ title: `${json.errors.length} failed`, description: json.errors[0], variant: 'destructive' });
       }
@@ -123,7 +123,7 @@ export const ShopifyPullPanel: React.FC = () => {
         <div className="min-w-0">
           <p className="text-sm font-medium">Import orders from Shopify</p>
           <p className="text-xs text-muted-foreground">
-            Shopify orders after {meta ? `#${meta.since}` : 'the cutoff'} that aren&apos;t in the POS yet.
+            Shopify orders after {meta ? `#${meta.since}` : 'the cutoff'} that aren&apos;t in the ERP yet.
             Nothing is written back to Shopify.
           </p>
         </div>
@@ -136,7 +136,7 @@ export const ShopifyPullPanel: React.FC = () => {
       {orders && orders.length === 0 && (
         <div className="flex items-center gap-2 text-sm text-success py-3">
           <CheckCircle2 className="h-4 w-4" />
-          Every Shopify order after #{meta?.since} is already in the POS.
+          Every Shopify order after #{meta?.since} is already in the ERP.
         </div>
       )}
 
@@ -145,7 +145,7 @@ export const ShopifyPullPanel: React.FC = () => {
       {meta && meta.olderSkipped > 0 && (
         <p className="text-xs text-muted-foreground">
           {meta.olderSkipped} older order{meta.olderSkipped === 1 ? '' : 's'} at or below #{meta.since} {meta.olderSkipped === 1 ? 'is' : 'are'} not
-          offered here — they predate the POS.
+          offered here — they predate the ERP.
         </p>
       )}
 

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     switch (b.kind) {
       case 'customers': {
         const segment = segmentOf(b.segment);
-        out = await createCustomerAudience(act, nameOf(b.name, `POS customers — ${SEGMENTS.find(s => s.key === segment)!.label} (${today})`), segment);
+        out = await createCustomerAudience(act, nameOf(b.name, `ERP customers — ${SEGMENTS.find(s => s.key === segment)!.label} (${today})`), segment);
         break;
       }
       case 'refresh': {

@@ -25,7 +25,7 @@ interface Audience { id: string; name: string; kind: string; description: string
 interface Data { audiences: Audience[]; segments: { key: Segment; label: string; hint: string }[]; events: { key: string; label: string }[]; instagram: string | null }
 
 export default function AudiencesRoute() {
-  if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the POS.</p>;
+  if (!STORE_META_ADS) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn’t run Meta ads from the ERP.</p>;
   return <Audiences />;
 }
 
@@ -91,7 +91,7 @@ function Audiences() {
 
           <section className="rounded-xl border p-4 space-y-3">
             <h2 className="font-semibold flex items-center gap-2"><Contact className="h-5 w-5" /> {STORE_CONFIG.name}’s customers</h2>
-            <p className="text-sm text-muted-foreground">Show ads to people who already buy from the shop — or leave them out of ads meant for new people. From the POS customer book: phones and emails are scrambled (SHA-256) on this server before anything goes to Meta, which only matches them to accounts.</p>
+            <p className="text-sm text-muted-foreground">Show ads to people who already buy from the shop — or leave them out of ads meant for new people. From the ERP customer book: phones and emails are scrambled (SHA-256) on this server before anything goes to Meta, which only matches them to accounts.</p>
             <div className="grid gap-1.5 sm:grid-cols-2">
               {(data?.segments ?? []).map(s => (
                 <button key={s.key} type="button" onClick={() => setSegment(s.key)} className={cn('rounded-lg border p-2.5 text-left', segment === s.key ? 'border-primary ring-1 ring-primary' : '')}>

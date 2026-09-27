@@ -456,8 +456,8 @@ function FromSitePage() {
                 {story && <img src={story.url} alt="The story" className="mx-auto max-h-[55vh] rounded-lg border object-contain" style={{ aspectRatio: '9 / 16' }} />}
                 <p className="text-xs">{ig?.connected
                   ? 'It goes up on Instagram at once and can’t be taken down from here. Instagram’s API can’t add a link sticker — add one by hand in the app if you want it.'
-                  : ig?.configured ? 'Instagram isn’t connected on this POS (Post a Piece → Instagram connects it), so save it and post it from the Instagram app.'
-                  : 'This POS doesn’t post to Instagram by itself — save it and post it from the Instagram app.'}</p>
+                  : ig?.configured ? 'Instagram isn’t connected on this ERP (Post a Piece → Instagram connects it), so save it and post it from the Instagram app.'
+                  : 'This ERP doesn’t post to Instagram by itself — save it and post it from the Instagram app.'}</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

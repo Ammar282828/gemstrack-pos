@@ -48,10 +48,10 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
   // A name that can't be found at all: the domain's DNS. On 2026-09-24 this was the whole
   // .shop registry going dark for every .shop domain at once — nothing to fix on our side.
   if (/enotfound|nxdomain|eai_again/.test(m) && where !== 'page') {
-    const host = msg.match(/(?:ENOTFOUND|EAI_AGAIN)\s+([\w.-]+)/i)?.[1] ?? (where.startsWith('instagram') ? 'the POS’s address' : site);
+    const host = msg.match(/(?:ENOTFOUND|EAI_AGAIN)\s+([\w.-]+)/i)?.[1] ?? (where.startsWith('instagram') ? 'the ERP’s address' : site);
     return {
       title: `${host} can’t be found by name`,
-      fix: `The address ${host} isn’t resolving (DNS). If other sites on the same ending (like .shop) are also down, it’s the registry and it will come back by itself — meanwhile use the POS at its backup address, studio--gemstrack-pos.us-central1.hosted.app. If only this domain is down, check it with the registrar (Hostinger).`,
+      fix: `The address ${host} isn’t resolving (DNS). If other sites on the same ending (like .shop) are also down, it’s the registry and it will come back by itself — meanwhile use the ERP at its backup address, studio--gemstrack-pos.us-central1.hosted.app. If only this domain is down, check it with the registrar (Hostinger).`,
       retry: true,
     };
   }
@@ -64,8 +64,8 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
     return {
       title: `${who.charAt(0).toUpperCase()}${who.slice(1)} can’t be reached`,
       fix: where === 'website' || where === 'featured'
-        ? `The POS couldn’t reach ${site}. Open it in a browser: if it doesn’t load, the host (Hostinger) is down or slow — wait and try again. If it loads, press Retry.`
-        : `The POS couldn’t reach ${who} just now. That’s usually brief — wait a minute and press Retry.`,
+        ? `The ERP couldn’t reach ${site}. Open it in a browser: if it doesn’t load, the host (Hostinger) is down or slow — wait and try again. If it loads, press Retry.`
+        : `The ERP couldn’t reach ${who} just now. That’s usually brief — wait a minute and press Retry.`,
       retry: true,
     };
   }
@@ -74,7 +74,7 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
     case 'website':
     case 'featured': {
       if (status === 401 || /unauthori[sz]ed/.test(m) || /upload refused \(401\)/.test(m)) {
-        return { title: `${site} refused the upload key`, fix: `The upload key on the POS and on ${site} don’t match. Ask for them to be set to the same value (WEBSITE_UPLOAD_SECRET here, .website-upload-secret on the server).`, retry: false };
+        return { title: `${site} refused the upload key`, fix: `The upload key on the ERP and on ${site} don’t match. Ask for them to be set to the same value (WEBSITE_UPLOAD_SECRET here, .website-upload-secret on the server).`, retry: false };
       }
       if (status === 503 || /not configured|no website_upload_secret/.test(m)) {
         return { title: 'Website uploads are switched off', fix: `Neither side has an upload key set up yet. Until it is, photos can’t go to ${site} from here.`, retry: false };
@@ -156,7 +156,7 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
         return { title: 'The account isn’t a tester of the app', fix: `On the Meta dashboard → App roles → Roles, add ${ig} as an Instagram Tester, then accept the invite in Instagram (Settings → Website permissions → Apps and websites → Tester invites).`, action: { label: 'Open App roles', href: meta(c, 'roles/roles/') }, retry: false };
       }
       if (/only photo or video can be accepted|media download|could not be fetched|failed to download|9004|image_url/.test(m)) {
-        return { title: 'Instagram couldn’t fetch the image', fix: 'Instagram couldn’t download the story from the POS. Press Retry; if it keeps happening, the POS’s public address is unreachable — open the checks below.', retry: true };
+        return { title: 'Instagram couldn’t fetch the image', fix: 'Instagram couldn’t download the story from the ERP. Press Retry; if it keeps happening, the ERP’s public address is unreachable — open the checks below.', retry: true };
       }
       if (/aspect ratio|36003|unsupported|2207026|2207004|format/.test(m)) {
         return { title: 'Instagram didn’t accept the image', fix: 'Instagram rejected the image’s size or format. Save the story and post it from your phone, and tell the developer the exact message.', retry: false };
@@ -165,7 +165,7 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
         return { title: 'Instagram’s daily limit reached', fix: 'Instagram allows 100 API posts a day and a burst limit per hour. Wait and try later, or share the story from your phone now.', retry: true };
       }
       if (/could not save the instagram connection|could not read the instagram connection/.test(m)) {
-        return { title: 'The POS can’t store the Instagram login', fix: 'The POS lacks access to its instagram-token secret. It needs Secret Accessor and Secret Version Adder on it for the App Hosting account.', action: { label: 'Open the secret', href: secretUrl(c, 'instagram-token') }, retry: false };
+        return { title: 'The ERP can’t store the Instagram login', fix: 'The ERP lacks access to its instagram-token secret. It needs Secret Accessor and Secret Version Adder on it for the App Hosting account.', action: { label: 'Open the secret', href: secretUrl(c, 'instagram-token') }, retry: false };
       }
       if (/not set up for this shop|instagram_app_id/.test(m)) {
         return { title: 'Instagram isn’t set up', fix: 'INSTAGRAM_APP_ID or INSTAGRAM_APP_SECRET is missing from this shop’s settings.', retry: false };
@@ -177,7 +177,7 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
     case 'caption': {
       if (status === 403 || /permission_denied|aiplatform\.endpoints\.predict|permission .* denied/.test(m)) {
         const cmd = c.aiProject ? `gcloud projects add-iam-policy-binding ${c.aiProject} --member=serviceAccount:firebase-app-hosting-compute@${c.posProject || 'gemstrack-pos'}.iam.gserviceaccount.com --role=roles/aiplatform.user` : undefined;
-        return { title: 'The POS isn’t allowed to use the AI', fix: `The AI project${c.aiProject ? ` (${c.aiProject})` : ''} doesn’t let the POS in. Its owner has to grant the POS “Vertex AI User”.`, action: cmd ? { label: 'Copy the fix command', command: cmd } : undefined, retry: false };
+        return { title: 'The ERP isn’t allowed to use the AI', fix: `The AI project${c.aiProject ? ` (${c.aiProject})` : ''} doesn’t let the ERP in. Its owner has to grant the ERP “Vertex AI User”.`, action: cmd ? { label: 'Copy the fix command', command: cmd } : undefined, retry: false };
       }
       if (status === 404 || /not found or your project does not have access|publisher model/.test(m)) {
         return { title: 'The AI model has been renamed or retired', fix: 'Google no longer serves the model by that name. Set IMAGE_AI_MODEL (or IMAGE_AI_TEXT_MODEL) to the current one — for Nano Banana Pro that was gemini-3-pro-image in Sept 2026.', retry: false };

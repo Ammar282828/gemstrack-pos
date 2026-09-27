@@ -17,7 +17,7 @@ import { STORE_CONFIG } from '@/lib/store-config';
 const titleCase = (s: string) => s.toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
 
 export const POS_LABEL: string =
-  process.env.NEXT_PUBLIC_STORE_NOTIFY_LABEL?.trim() || `${titleCase(STORE_CONFIG.name || 'POS')} POS`;
+  process.env.NEXT_PUBLIC_STORE_NOTIFY_LABEL?.trim() || `${titleCase(STORE_CONFIG.name || 'ERP')} ERP`;
 
 /** The alert with this POS's name in front, once. */
 export function fromThisPos(message: string, label = POS_LABEL): string {

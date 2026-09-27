@@ -124,7 +124,7 @@ export interface Change {
 
 export async function sendChange(site: string, c: Change): Promise<SiteOverride | null> {
   const secret = process.env.WEBSITE_UPLOAD_SECRET;
-  if (!secret) throw new SiteEditError('Changes to the website are not configured. Set WEBSITE_UPLOAD_SECRET on the POS (the same one Add Photos uses).', 503);
+  if (!secret) throw new SiteEditError('Changes to the website are not configured. Set WEBSITE_UPLOAD_SECRET on the ERP (the same one Add Photos uses).', 503);
   const form = new FormData();
   form.set('key', c.key);
   if (c.fields && Object.keys(c.fields).length) form.set('fields', JSON.stringify(c.fields));
@@ -153,7 +153,7 @@ export async function sendChange(site: string, c: Change): Promise<SiteOverride 
   }
   if (!res.ok || d.ok !== true) {
     // 401 is our secret not matching the site's: the counter can't fix that, the setup can.
-    throw new SiteEditError(res.status === 401 ? 'The website refused the POS’s key (WEBSITE_UPLOAD_SECRET differs from the site’s).' : d.error || `The website refused the change (${res.status}).`,
+    throw new SiteEditError(res.status === 401 ? 'The website refused the ERP’s key (WEBSITE_UPLOAD_SECRET differs from the site’s).' : d.error || `The website refused the change (${res.status}).`,
       res.status === 401 ? 502 : res.status >= 400 && res.status < 600 ? res.status : 502);
   }
   const entry = d.override ?? null;

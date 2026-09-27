@@ -141,7 +141,7 @@ function InvestmentsPage() {
           <Clock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
           <div>
             <p className="font-medium">Today’s post hasn’t arrived yet.</p>
-            <p className="text-muted-foreground text-xs">The routine runs at 11:00 and files it here when it finishes{schedule?.enabled ? '; the schedule sends it once it’s here' : ''}. If it ran and nothing came, check the routine’s last step (Send to the POS) on claude.ai — or add today’s by hand.</p>
+            <p className="text-muted-foreground text-xs">The routine runs at 11:00 and files it here when it finishes{schedule?.enabled ? '; the schedule sends it once it’s here' : ''}. If it ran and nothing came, check the routine’s last step (Send to the ERP) on claude.ai — or add today’s by hand.</p>
           </div>
         </div>
       )}
@@ -420,7 +420,7 @@ function DayCard({ post: p, isToday, targets, schedule, now, onChanged }: { post
               <Textarea value={teaser} onChange={e => setTeaser(e.target.value)} rows={8} className="font-mono text-xs leading-relaxed" />
             </div>
             {(post !== p.post || teaser !== p.teaser) && <p className="text-xs text-amber-600">You’ve changed the words — what you send now is your version, and it’s saved when it goes.{scheduled ? ' The schedule sends the saved words, so send by hand to use these.' : ''}</p>}
-            <p className="text-[11px] text-muted-foreground">Arrived {time(p.receivedAt)} from {p.source === 'routine' ? 'the Claude routine' : 'the POS'}{p.editedAt ? ` · edited ${time(p.editedAt)}` : ''}</p>
+            <p className="text-[11px] text-muted-foreground">Arrived {time(p.receivedAt)} from {p.source === 'routine' ? 'the Claude routine' : 'the ERP'}{p.editedAt ? ` · edited ${time(p.editedAt)}` : ''}</p>
           </div>
 
           <div className="space-y-3">

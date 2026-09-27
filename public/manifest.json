@@ -1,7 +1,7 @@
 {
-  "name": "Taheri POS",
-  "short_name": "TaheriPOS",
-  "description": "Jewellery Inventory & Point-of-Sale System for Taheri",
+  "name": "Taheri ERP",
+  "short_name": "Taheri ERP",
+  "description": "Jewellery ERP for Taheri",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#EAEAFB",

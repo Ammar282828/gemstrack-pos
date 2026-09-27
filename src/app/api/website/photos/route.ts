@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
 
   const secret = process.env.WEBSITE_UPLOAD_SECRET;
   if (!secret) {
-    return NextResponse.json({ error: 'Photo uploads are not configured. Set WEBSITE_UPLOAD_SECRET on both the POS and the website.' }, { status: 503 });
+    return NextResponse.json({ error: 'Photo uploads are not configured. Set WEBSITE_UPLOAD_SECRET on both the ERP and the website.' }, { status: 503 });
   }
 
   let form: FormData;

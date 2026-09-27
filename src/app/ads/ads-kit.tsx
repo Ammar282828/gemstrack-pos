@@ -31,7 +31,7 @@ export async function api<T = Record<string, unknown>>(path: string, init: { met
   else if (init.body !== undefined) { body = JSON.stringify(init.body); headers['Content-Type'] = 'application/json'; }
   const res = await fetch(path, { method: init.method ?? (body ? 'POST' : 'GET'), headers, body, cache: 'no-store' });
   const d = await res.json().catch(() => ({}));
-  if (res.status === 401) throw new ApiError('Sign in to the POS to use the Ads pages.', 401);
+  if (res.status === 401) throw new ApiError('Sign in to the ERP to use the Ads pages.', 401);
   if (!res.ok) throw new ApiError(d.error || `The server answered ${res.status}.`, res.status, d.code);
   return d as T;
 }

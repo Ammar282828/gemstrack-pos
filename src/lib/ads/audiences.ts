@@ -105,7 +105,7 @@ export async function createCustomerAudience(act: string, name: string, segment:
   try {
     id = (await graph<{ id: string }>(`${actId(act)}/customaudiences`, {
       method: 'POST',
-      params: { name, subtype: 'CUSTOM', customer_file_source: 'USER_PROVIDED_ONLY', description: `From the POS customer book (${segment}), ${new Date().toISOString().slice(0, 10)}` },
+      params: { name, subtype: 'CUSTOM', customer_file_source: 'USER_PROVIDED_ONLY', description: `From the ERP customer book (${segment}), ${new Date().toISOString().slice(0, 10)}` },
     })).id;
   } catch (e) { termsHint(e, act); }
   try {

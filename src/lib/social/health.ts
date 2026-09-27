@@ -59,11 +59,11 @@ function websiteChecks(): Promise<Check>[] {
     }),
     guard('website-key', 'Website', 'Upload key matches the website', 'website', async () => {
       const secret = process.env.WEBSITE_UPLOAD_SECRET;
-      if (!secret) return { status: 'fail', detail: 'WEBSITE_UPLOAD_SECRET is not set on the POS.', fix: diagnose('website', { status: 503, message: 'not configured' }, ctx()).fix };
+      if (!secret) return { status: 'fail', detail: 'WEBSITE_UPLOAD_SECRET is not set on the ERP.', fix: diagnose('website', { status: 503, message: 'not configured' }, ctx()).fix };
       // An empty upload with the key: the site answers 400 ("rel must be…") when the key is
       // right and 401 when it is wrong — a real test of the key that writes nothing.
       const res = await fetch(`${site()}/api/upload.php`, { method: 'POST', headers: { Authorization: `Bearer ${secret}` }, body: new FormData(), signal: AbortSignal.timeout(TIMEOUT_MS) });
-      if (res.status === 400) return { status: 'ok', detail: 'The website accepts the POS’s upload key.' };
+      if (res.status === 400) return { status: 'ok', detail: 'The website accepts the ERP’s upload key.' };
       const d = diagnose('website', { status: res.status, message: (await res.text()).slice(0, 200) }, ctx());
       return { status: 'fail', detail: `The upload endpoint answered ${res.status}.`, fix: d.fix, action: d.action };
     }),
@@ -134,7 +134,7 @@ function instagramChecks(): Promise<Check>[] {
     guard('ig-config', 'Instagram', 'Instagram app is set up', 'instagram', async () => instagramConfigured()
       ? { status: 'ok', detail: `Instagram app ${process.env.INSTAGRAM_APP_ID}.` }
       : { status: 'fail', detail: 'INSTAGRAM_APP_ID or INSTAGRAM_APP_SECRET is missing.', fix: diagnose('instagram', 'not set up for this shop', ctx()).fix }),
-    guard('ig-store', 'Instagram', 'POS can keep the Instagram login', 'instagram', async () => {
+    guard('ig-store', 'Instagram', 'ERP can keep the Instagram login', 'instagram', async () => {
       const a = await tokenStoreAccess();
       return a.read && a.write
         ? { status: 'ok', detail: 'Can read and renew the saved login.' }
@@ -148,13 +148,13 @@ function instagramChecks(): Promise<Check>[] {
       if (h.quota && h.quota.used >= h.quota.total) return { status: 'fail', detail: `@${h.username}${q}.`, fix: diagnose('instagram', 'content_publishing_limit', ctx()).fix };
       return { status: 'ok', detail: `@${h.username}; renews itself, ${h.daysLeft} days left${q}.` };
     }),
-    guard('ig-public', 'Instagram', 'Instagram can reach the POS', 'instagram', async () => {
+    guard('ig-public', 'Instagram', 'Instagram can reach the ERP', 'instagram', async () => {
       if (!origin) return { status: 'warn', detail: 'NEXT_PUBLIC_APP_URL is not set, so the image address Instagram fetches may be wrong.' };
       // A made-up id: the route answers 404 when it is up and public, which is all this needs to know.
       const res = await fetch(`${origin}/api/public/social/health-check-000000000000`, { cache: 'no-store', signal: AbortSignal.timeout(TIMEOUT_MS) });
       return res.status === 404
         ? { status: 'ok', detail: `${origin.replace(/^https?:\/\//, '')} answers from outside.` }
-        : { status: 'fail', detail: `The public image address answered ${res.status}.`, fix: 'Instagram fetches the story from the POS’s public address, which isn’t answering properly. Until it does, share stories from your phone.' };
+        : { status: 'fail', detail: `The public image address answered ${res.status}.`, fix: 'Instagram fetches the story from the ERP’s public address, which isn’t answering properly. Until it does, share stories from your phone.' };
     }),
   ];
 }

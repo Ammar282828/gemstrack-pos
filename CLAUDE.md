@@ -1,11 +1,11 @@
-# taheri-shop — the POS for both houses
+# taheri-shop — the ERP for both houses
 
-Next.js point-of-sale serving **two shops from one codebase**:
+Next.js **ERP** (it started as a point-of-sale; renamed 2026-09-27) serving **two shops from one codebase**:
 
 | House | Live at | Firebase project | Backend / environment | Deploys from |
 |---|---|---|---|---|
-| Taheri (gold and diamond) | pos.taheri.shop | `gemstrack-pos` | `studio` / `taheri` | branch **`taheri-next`** of this repo |
-| House of Mina (silver) | pos.houseofmina.store | `hom-pos-52710474-ceeea` | `studio` / `mina` | branch **`main`** of repo **gemstrack-pos** (remote `hom`) |
+| Taheri (gold and diamond) | erp.taheri.shop (and pos.taheri.shop) | `gemstrack-pos` | `studio` / `taheri` | branch **`taheri-next`** of this repo |
+| House of Mina (silver) | erp.houseofmina.store (and pos.houseofmina.store) | `hom-pos-52710474-ceeea` | `studio` / `mina` | branch **`main`** of repo **gemstrack-pos** (remote `hom`) |
 
 The two were forks that drifted; they were reconverged on 2026-09-22 and this history is now
 the one both deploy from. `.firebaserc` names hom-pos and is only for the Firebase CLI, which is not used.
@@ -182,6 +182,16 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
 
 ## Decisions already made (don't reopen unless asked)
 
+- **It's called the ERP** (owner, 2026-09-27: "my system isn't a traditional pos anymore … rename it erp everywhere"). Every
+  word people read says ERP — screens, errors, WhatsApp alert labels (`*Taheri ERP* · …`, Mina's `NEXT_PUBLIC_STORE_NOTIFY_LABEL`
+  "House of Mina ERP"), the manifest. **Kept as POS on purpose:** the Shopify order notes and codes (`POS Invoice INV-…`,
+  `POS-DISCOUNT`, `POS Item`) — the orders webhook matches old Shopify orders by that text; code names, repos, project ids.
+  **Addresses:** `erp.taheri.shop` (gemstrack-pos) and `erp.houseofmina.store` (hom-pos) are App Hosting custom domains beside
+  pos.* (which keep answering — taheri-site and the Mina catalogue call pos.* for `/api/public/*`); both are Firebase Auth
+  authorised domains. DNS: taheri.shop at **Hostinger** (A → 35.219.200.5), houseofmina.store at **GoDaddy** (A → 35.219.200.7),
+  each with the `fah-claim` TXT and the `_acme-challenge_…` CNAME App Hosting lists (`…/backends/studio/domains/<host>`).
+  `NEXT_PUBLIC_APP_URL` moves to erp.* only once erp.* serves with a certificate, together with the Meta redirects
+  (`https://erp.<house>/api/ads/callback`, Taheri's `…/api/instagram/callback`) — OAuth returns to that address.
 - **Add Photos needs no sign-in** under open access — the owner overruled an auth gate on 2026-09-20.
 - The order-actions route keeps its always-verify gate: it moves money.
 - **Invoices show wastage in grams only** (no rupee value, no percentage); the workshop slip keeps the percentage.

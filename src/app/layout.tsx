@@ -143,7 +143,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className="dark" data-brand={STORE_BRAND}>
       <head>
         <title>{STORE_CONFIG.name}</title>
-        <meta name="description" content="Jewellery Inventory & Point-of-Sale System" />
+        <meta name="description" content="Jewellery ERP" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/* The browser chrome around the app. #0A1111 is taheri.shop's ground —
             this was the other shop's maroon. */}

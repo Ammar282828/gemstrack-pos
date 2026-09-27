@@ -121,7 +121,7 @@ env:
   # The name at the front of every WhatsApp alert to the owner, who gets both houses'
   # (lib/notify-label.ts; Taheri's default is "Taheri POS").
   - variable: NEXT_PUBLIC_STORE_NOTIFY_LABEL
-    value: "House of Mina POS"
+    value: "House of Mina ERP"
     availability:
       - BUILD
       - RUNTIME

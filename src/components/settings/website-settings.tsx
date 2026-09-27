@@ -82,7 +82,7 @@ export function WebsiteSettings() {
 
   const missing = useMemo(() => {
     const m: string[] = [];
-    if (!cfg.posCategoryId) m.push('a POS category for website products');
+    if (!cfg.posCategoryId) m.push('an ERP category for website products');
     if (!(cfg.defaultPricing.makingChargesPerGram > 0)) m.push('a default making charge per gram');
     return m;
   }, [cfg]);
@@ -121,7 +121,7 @@ export function WebsiteSettings() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>POS category for website products</Label>
+            <Label>ERP category for website products</Label>
             <Select value={cfg.posCategoryId} onValueChange={v => set({ posCategoryId: v })}>
               <SelectTrigger><SelectValue placeholder="Choose a category" /></SelectTrigger>
               <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}</SelectContent>

@@ -219,7 +219,7 @@ function NotificationsCard() {
     const res = await fetch('/api/notifications/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
-      body: JSON.stringify({ to: phone, message: `Test from ${STORE_CONFIG.name} POS — notifications are working.` }),
+      body: JSON.stringify({ to: phone, message: `Test from ${STORE_CONFIG.name} ERP — notifications are working.` }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -538,7 +538,7 @@ const ShopifyCard: React.FC = () => {
 
 
         <p className="text-xs text-muted-foreground">
-          Sync runs one way only: Shopify &rarr; POS. Nothing you do in the POS creates or updates
+          Sync runs one way only: Shopify &rarr; ERP. Nothing you do in the ERP creates or updates
           orders, draft orders, or customers on the storefront. Refunds and cancellations of sales
           already pushed to Shopify still go through, so nothing is left live there by mistake.
         </p>

@@ -21,7 +21,7 @@ export interface SiteUpload { rel: string; bytes: unknown; thumb: string; collec
 /** `folder` is "Category/Collection"; `base` the file name as it should appear ("Bangle and Ring.jpg"). */
 export async function uploadToSite(body: Blob, folder: string, base: string): Promise<SiteUpload> {
   const secret = process.env.WEBSITE_UPLOAD_SECRET;
-  if (!secret) throw new SiteUploadError('Photo uploads are not configured. Set WEBSITE_UPLOAD_SECRET on both the POS and the website.', 503);
+  if (!secret) throw new SiteUploadError('Photo uploads are not configured. Set WEBSITE_UPLOAD_SECRET on both the ERP and the website.', 503);
   const out = new FormData();
   out.set('rel', `${folder}/${base}`);
   out.set('file', body, base);

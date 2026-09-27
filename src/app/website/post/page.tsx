@@ -163,7 +163,7 @@ const checkOk = (c: CheckResult | null | undefined) => !!c && c.samePiece && c.c
 export default function PostAPieceRoute() {
   // A wrapper, so the page's own hooks never sit behind an early return.
   if (!STORE_POST_PIECE) {
-    return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn't post from the POS.</p>;
+    return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">This shop doesn't post from the ERP.</p>;
   }
   return <PostAPiecePage />;
 }
@@ -1062,7 +1062,7 @@ function PostAPiecePage() {
                 <p className="text-xs text-muted-foreground">
                   {waState === 'loading' ? 'Loading the groups and the channel…'
                     : waState === 'error' ? 'Couldn’t load the WhatsApp groups just now — reload the page, or sign in again.'
-                    : 'This copy of the POS has no WhatsApp settings, so it can’t send here (the live POS can). Share the post from your phone under Send.'}
+                    : 'This copy of the ERP has no WhatsApp settings, so it can’t send here (the live ERP can). Share the post from your phone under Send.'}
                 </p>
               </div>
             )}
