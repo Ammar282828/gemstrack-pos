@@ -103,7 +103,7 @@ Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27: "
 | `/api/website/edits` | POS page Edit a piece | GET: every site piece with the counter's changes (hidden ones too) + recent changes; `?id=` one piece, its last design, its original photo's address. POST: a piece's words / re-made photo / put back → the site's `api/override.php` — see "Edit a piece" below |
 | `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
 | `/api/website/orders/[id]` | POS order page | mark paid / shipped — **always verifies a token, even under open access** |
-| `/api/ads/*` (`status`, `connect`, `callback`, `setup`, `overview`, `campaigns`, `object/[id]`, `create`, `images`, `media`, `preview`, `estimate`, `search`, `audiences`, `rules`, `assistant`) | POS pages under **Ads** | this house's Meta ad account through the Marketing API (Graph v26.0) — see "Ads" below |
+| `/api/ads/*` (`status`, `connect`, `callback`, `setup`, `overview`, `campaigns`, `object/[id]`, `create`, `images`, `library`, `media`, `preview`, `estimate`, `search`, `audiences`, `rules`, `assistant`, `template`) | POS pages under **Ads** | this house's Meta ad account through the Marketing API (Graph v26.0) — see "Ads" below |
 
 CORS for `/api/public/*` is in `src/lib/website/cors.ts` (taheri.shop, www, and localhost:5180 in dev).
 Design and go-live checklist: `docs/website-checkout.md`. Go-live of online selling is still blocked by empty
@@ -225,6 +225,12 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
 
 ## Decisions already made (don't reopen unless asked)
 
+- **The dashboard is the morning glance** (redrawn 2026-09-27, owner: "simple and effective, don't add shortcut buttons"):
+  four figures — taken today, this month (against last), owed to you, on the bench — then **Needs you** (late promises as one
+  row, overdue pieces by karigar, unassigned, the three largest unpaid + the rest summed, repairs ready and uncollected 3+
+  days, birthdays/anniversaries), **Due to customers** (open orders *and* repairs in the shop by their promised date — late,
+  today, soonest, undated by age; `orderTiming` for both) and **Recent sales**; the 30-day line at the bottom. No buttons:
+  New Sale is the sidebar's.
 - **The sidebar is by what the shop does** (re-audited 2026-09-27, owner: "reaudit the separation entirely"): **New Sale** is a
   button of its own under Search; Home (Dashboard, Calendar); **Sales** — Orders, Invoices, Repairs, Customers; **Workshop &
   stock** — Workshop (Jobs, Karigars, Given items) and **Stock** (Pieces, Add in bulk; back in the sidebar — Mina keeps ~100
@@ -242,6 +248,27 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   each with the `fah-claim` TXT and the `_acme-challenge_…` CNAME App Hosting lists (`…/backends/studio/domains/<host>`).
   `NEXT_PUBLIC_APP_URL` moves to erp.* only once erp.* serves with a certificate, together with the Meta redirects
   (`https://erp.<house>/api/ads/callback`, Taheri's `…/api/instagram/callback`) — OAuth returns to that address.
+- **Drafts** (`/drafts`, Sales in the sidebar with a live count; 2026-09-27, owner: "drafts should have a separate section
+  (order/invoice drafts) and be saved there, dont draft ongoing orders … deal with them smartly"). Firestore `drafts`, one
+  document per unfinished form, seen on every device (`src/lib/work-drafts.ts`, tested; `components/drafts/use-work-drafts.ts`).
+  **Only a new order form and a new sale are drafted** — never an order being edited or invoiced, an invoice on screen, an
+  estimate being changed. Written a second after typing stops, only when something changed and something is there (a
+  blank form's rates, promised date and row ids don't count); removed the moment the order or invoice is saved and never
+  written after (`finish()` — the old device-only drafts kept writing while the page navigated away, and kept a sale's
+  customer while its invoice was on screen, which is how saved orders and sales showed up as "unfinished"); removed when
+  the form is emptied; forgotten after 30 days. Each form is its own draft: an order's id rides in `?draft=`, the cart
+  remembers its sale in `gemstrack:sale-draft` and carries its pieces, so `/cart?draft=…` continues a sale on another
+  device. Opening an invoice over a sale in progress keeps that sale in Drafts. The old `gemstrack:draft:` browser drafts
+  are moved over once per device, minus those saved afterwards. Settings' switch (`autoDraftForms`) turns it all off.
+- **Post a Piece remembers** (2026-09-27, owner: "post a piece should have proper memory and have drafts and continue where
+  left off"). Every piece being made is a draft **on this device** (IndexedDB `taheri-post-drafts`, `src/lib/social/post-drafts.ts`:
+  `drafts` holds the words, both designs, the collection, where it goes, the caption and what has already gone out —
+  `uploaded`/`sent`, so a publish picked up again never sends twice; `photos` holds each photo's file once, by draft and photo
+  id — every `Photo` carries its `blob`). Saved 1.5 s after any change; the page opens on the piece being made last ("Picked up
+  where you left off" + New piece); **Drafts** in the header lists them with thumbnails — Continue (the piece on the page is
+  saved first), New piece (it stays in Drafts), Delete. A piece leaves once published or queued, and after 30 days. Not in
+  Firestore on purpose: camera photos are megabytes. A new piece starts where this device usually posts (`taheri_post_prefs`:
+  WhatsApp groups/channel, Instagram, website, weight line).
 - **Add Photos needs no sign-in** under open access — the owner overruled an auth gate on 2026-09-20.
 - The order-actions route keeps its always-verify gate: it moves money.
 - **Invoices show wastage in grams only** (no rupee value, no percentage); the workshop slip keeps the percentage.
@@ -509,6 +536,17 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   campaign and ad set unfolded (Fold all / Open all) and 64-px pictures, and has an **Ads & pictures** view: every ad as a card
   with its picture (the creative's `image_url`, or a 480-px `thumbnail_url` for boosted posts and videos), words, button, place,
   numbers, run/pause. New ad → New photos can reuse any picture already in the account (`/api/ads/library` → `act/adimages`).
+  **Improvements of 2026-09-27** (owner: "add any improvements to the ads manager"): **Needs a look** on the Overview
+  (`src/lib/ads/attention.ts`, pure, tested — the account on hold or near its spending limit, nothing running, rejected /
+  flagged, spent 2 days' budget with no result → *Pause*, cost per result 2.5× the account's median, frequency ≥ 3, learning
+  limited, ending within 3 days, a paused ad set that was cheaper than what runs → *Run again*; bad → warn → tip), the
+  **month's pace** line (spent so far → projected, vs last month), **▲▼ against the period before** on every campaign row
+  (`campaignTotals`), the gallery's **sort** (spent / results / cheapest result / click-through / name) under the same status
+  filter, **Make one like this** on any ad (`/api/ads/template?ad=` → New ad `?from=`: same photos by hash or the same post,
+  words, button, link, audience, budget), and the **daily WhatsApp ads summary** (`src/lib/ads/digest.ts`, tested; task
+  `ads-daily` in `/api/notifications/run`; Cloud Scheduler `ads-daily-summary` 09:30 Asia/Karachi in **both** projects, at the
+  hosted.app addresses, Bearer `CRON_SECRET`; sent only when Settings → Notifications → **Ads Summary** (`notifAdsDaily`) is
+  on — ships off). The Ads helper's snapshot carries the same attention list.
   **Connecting needs, in the Meta app** (all hit on 2026-09-26): App domains `taheri.shop` + `houseofmina.store` and both
   `…/api/ads/callback` under Facebook Login for Business → Valid OAuth redirect URIs (else "Can't load URL"), and a **login
   configuration** (FLfB → Configurations: User access token + the ads/pages permissions) whose ID is pasted on Ads → Setup

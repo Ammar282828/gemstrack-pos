@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { FolderKanban, Plus, RefreshCw, Loader2, ChevronRight, MoreVertical, Pencil, Wallet, CalendarClock, Copy, Archive, Trash2, Users, Eye, ExternalLink, Search, AlertTriangle, LayoutGrid, ListTree, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import { FolderKanban, Plus, RefreshCw, Loader2, ChevronRight, MoreVertical, Pencil, Wallet, CalendarClock, Copy, Archive, Trash2, Users, Eye, ExternalLink, Search, AlertTriangle, LayoutGrid, ListTree, ChevronsDownUp, ChevronsUpDown, ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS } from '@/lib/store-config';
 import {
@@ -52,12 +52,22 @@ const running = (s: string) => s === 'ACTIVE';
 const problem = (s: string, issues: string[]) => ['DISAPPROVED', 'WITH_ISSUES', 'PENDING_BILLING_INFO'].includes(s) || issues.length > 0;
 const LEVEL_WORD: Record<Level, string> = { campaign: 'campaign', adset: 'ad set', ad: 'ad' };
 
-function Numbers({ m, goal, cur, className }: { m: Metrics; goal?: string; cur: string; className?: string }) {
+/** "▲18%" against the period before — grey for spend (neither good nor bad), green/red for results. */
+function Trend({ now, before, neutral }: { now: number; before: number | undefined; neutral?: boolean }) {
+  if (before === undefined || before === 0 || !Number.isFinite(now)) return null;
+  const d = ((now - before) / before) * 100;
+  if (Math.abs(d) < 1) return null;
+  const up = d > 0;
+  return <span className={cn('inline-flex items-center', neutral ? 'text-muted-foreground' : up ? 'text-success' : 'text-destructive')}>{up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}{Math.abs(d).toFixed(0)}%</span>;
+}
+
+function Numbers({ m, goal, cur, className, before }: { m: Metrics; goal?: string; cur: string; className?: string; before?: Metrics }) {
   const r = resultOf(m, goal);
+  const rb = before ? resultOf(before, goal) : null;
   return (
     <span className={cn('text-[11px] text-muted-foreground tabular-nums', className)}>
-      <b className="text-foreground font-semibold">{money(m.spend, cur)}</b>
-      {r ? <> · {count(r.value)} {r.label.toLowerCase()}{r.value ? ` · ${money(m.spend / r.value, cur, { cents: true })} each` : ''}</> : null}
+      <b className="text-foreground font-semibold">{money(m.spend, cur)}</b> <Trend now={m.spend} before={before?.spend} neutral />
+      {r ? <> · {count(r.value)} {r.label.toLowerCase()} <Trend now={r.value} before={rb?.value} />{r.value ? ` · ${money(m.spend / r.value, cur, { cents: true })} each` : ''}</> : null}
       {' · '}{compact(m.reach)} reached
     </span>
   );
@@ -147,6 +157,7 @@ function Campaigns() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
         {t.level === 'ad' && <DropdownMenuItem onSelect={() => setDialog({ kind: 'ad', id: t.id })}><Eye className="h-4 w-4 mr-2" /> Preview and review notes</DropdownMenuItem>}
+        {t.level === 'ad' && <DropdownMenuItem asChild><Link href={`/ads/new?from=${t.id}`}><Sparkles className="h-4 w-4 mr-2" /> Make one like this</Link></DropdownMenuItem>}
         {budget && <DropdownMenuItem onSelect={() => setDialog({ kind: 'budget', t })}><Wallet className="h-4 w-4 mr-2" /> Change budget</DropdownMenuItem>}
         {schedule && <DropdownMenuItem onSelect={() => setDialog({ kind: 'schedule', t })}><CalendarClock className="h-4 w-4 mr-2" /> End date</DropdownMenuItem>}
         {audience && <DropdownMenuItem onSelect={() => setDialog({ kind: 'audience', t })}><Users className="h-4 w-4 mr-2" /> Audience and placements</DropdownMenuItem>}
@@ -248,7 +259,7 @@ function Campaigns() {
               <p className="text-xs text-muted-foreground">{campaigns.length === data.campaigns.length ? 'All campaigns' : `${campaigns.length} of ${data.campaigns.length} campaigns`}: <b className="text-foreground">{money(shownTotal.spend, cur)}</b> spent · {compact(shownTotal.impressions)} views</p>
               {!campaigns.length && <div className="rounded-xl border-2 border-dashed p-8 text-center text-sm text-muted-foreground">{data.campaigns.length ? 'Nothing matches.' : <>No campaigns yet. <Link href="/ads/new" className="text-primary">Make the first ad →</Link></>}</div>}
               {view === 'gallery' ? (
-                <Gallery campaigns={campaigns} cur={cur} accountId={data.account.id} busy={busy}
+                <Gallery campaigns={campaigns} cur={cur} accountId={data.account.id} busy={busy} filter={filter}
                   onOpen={id => setDialog({ kind: 'ad', id })} onToggle={(a, on) => toggle({ level: 'ad', id: a.id, name: a.name, status: a.status }, on)} />
               ) : (
               <ul className="space-y-2.5">
@@ -268,7 +279,7 @@ function Campaigns() {
                             <StatusPill status={c.effectiveStatus} />
                             <span className="text-[11px] text-muted-foreground">{objectiveLabel(c.objective)} · {c.adsets.length} ad set{c.adsets.length === 1 ? '' : 's'}{b ? ` · ${b}` : ''}{c.stopTime ? ` · ends ${new Date(c.stopTime).toLocaleDateString()}` : ''}</span>
                           </div>
-                          <Numbers m={c.metrics} goal={goal} cur={cur} className="block" />
+                          <Numbers m={c.metrics} goal={goal} cur={cur} className="block" before={c.previous} />
                           <Issues list={c.issues} />
                         </div>
                         <Switch checked={c.status === 'ACTIVE'} disabled={busy === c.id || c.status === 'ARCHIVED'} onCheckedChange={on => toggle(t, on)} aria-label="Running" />
@@ -435,13 +446,34 @@ function previewSrc(html: string): string | null {
 }
 
 /** Every ad as its picture, big enough to see: what it says, where it sits, how it is doing, run/pause, and Ads Manager. */
-function Gallery({ campaigns, cur, accountId, busy, onOpen, onToggle }: {
-  campaigns: TreeCampaign[]; cur: string; accountId: string; busy: string | null;
+type GallerySort = 'spend' | 'results' | 'cost' | 'ctr' | 'name';
+const SORTS: { key: GallerySort; label: string }[] = [
+  { key: 'spend', label: 'Most spent' }, { key: 'results', label: 'Most results' }, { key: 'cost', label: 'Cheapest result' }, { key: 'ctr', label: 'Best click-through' }, { key: 'name', label: 'Name' },
+];
+
+function Gallery({ campaigns, cur, accountId, busy, filter, onOpen, onToggle }: {
+  campaigns: TreeCampaign[]; cur: string; accountId: string; busy: string | null; filter: Filter;
   onOpen: (id: string) => void; onToggle: (a: TreeAd, on: boolean) => void;
 }) {
-  const ads = campaigns.flatMap(c => c.adsets.flatMap(s => s.ads));
-  if (!ads.length) return <p className="text-sm text-muted-foreground">No ads here.</p>;
+  const [sort, setSort] = useState<GallerySort>('spend');
+  const all = campaigns.flatMap(c => c.adsets.flatMap(s => s.ads));
+  const cost = (a: TreeAd) => { const r = resultOf(a.metrics, a.goal); return r && r.value > 0 ? a.metrics.spend / r.value : Infinity; };
+  const ads = all
+    .filter(a => filter === 'all' ? true : filter === 'running' ? running(a.effectiveStatus) : filter === 'paused' ? a.effectiveStatus === 'PAUSED' || a.effectiveStatus === 'ADSET_PAUSED' || a.effectiveStatus === 'CAMPAIGN_PAUSED' : problem(a.effectiveStatus, a.issues))
+    .sort((x, y) => sort === 'spend' ? y.metrics.spend - x.metrics.spend
+      : sort === 'results' ? (resultOf(y.metrics, y.goal)?.value ?? 0) - (resultOf(x.metrics, x.goal)?.value ?? 0)
+      : sort === 'cost' ? cost(x) - cost(y)
+      : sort === 'ctr' ? y.metrics.ctr - x.metrics.ctr
+      : x.name.localeCompare(y.name));
+  if (!all.length) return <p className="text-sm text-muted-foreground">No ads here.</p>;
   return (
+    <>
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-xs text-muted-foreground">{ads.length === all.length ? `${all.length} ads` : `${ads.length} of ${all.length} ads`}</span>
+      <select value={sort} onChange={e => setSort(e.target.value as GallerySort)} className="ml-auto h-8 rounded-md border bg-background px-2 text-xs" aria-label="Sort">
+        {SORTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+      </select>
+    </div>
     <ul className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
       {ads.map(a => {
         const r = resultOf(a.metrics, a.goal);
@@ -471,6 +503,7 @@ function Gallery({ campaigns, cur, accountId, busy, onOpen, onToggle }: {
         );
       })}
     </ul>
+    </>
   );
 }
 

@@ -95,6 +95,12 @@ export async function breakdowns(act: string, r: RangeKey): Promise<{ ageGender:
   };
 }
 
+/** Each campaign's numbers for a range, by id — the Campaigns tab's "against the period before". */
+export async function campaignTotals(act: string, r: RangeKey | { since: string; until: string }): Promise<Map<string, Metrics>> {
+  const rows = await insights(act, ['campaign_id', ...BASE_FIELDS], { ...range(r), level: 'campaign' }, 500);
+  return new Map(rows.map(x => [String(x.campaign_id), metricsOf(x)]));
+}
+
 // ── The tree: campaigns → ad sets → ads, each with its numbers ─────────────
 
 const LIVE = ['ACTIVE', 'PAUSED', 'PENDING_REVIEW', 'DISAPPROVED', 'PREAPPROVED', 'PENDING_BILLING_INFO', 'CAMPAIGN_PAUSED', 'ADSET_PAUSED', 'IN_PROCESS', 'WITH_ISSUES'];

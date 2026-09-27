@@ -18,7 +18,6 @@ import Link from 'next/link';
 import { AlertTriangle, RotateCcw, LayoutDashboard, FileWarning } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { listDrafts } from '@/lib/form-drafts';
 
 export default function PageError({
   error,
@@ -32,17 +31,6 @@ export default function PageError({
     // for whoever opens the console afterwards.
     console.error('[GemsTrack] page error', error);
   }, [error]);
-
-  // Drafts are the operator's actual worry: "did I just lose the invoice I was
-  // typing?" Read defensively — this component must not throw.
-  const [draftCount, setDraftCount] = React.useState(0);
-  React.useEffect(() => {
-    try {
-      setDraftCount(listDrafts().length);
-    } catch {
-      setDraftCount(0);
-    }
-  }, []);
 
   return (
     <div className="container mx-auto flex min-h-[70vh] max-w-2xl items-center justify-center px-4 py-8">
@@ -58,17 +46,16 @@ export default function PageError({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {draftCount > 0 && (
+          {(
             <div className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center">
               <div className="flex min-w-0 flex-1 items-start gap-2.5">
                 <FileWarning className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  {draftCount === 1 ? 'One unfinished form is' : `${draftCount} unfinished forms are`}{' '}
-                  still saved on this device.
+                  A new order or sale you were typing is kept in Drafts.
                 </p>
               </div>
               <Button asChild variant="outline" size="sm" className="flex-shrink-0">
-                <Link href="/new">Pick it up</Link>
+                <Link href="/drafts">Open Drafts</Link>
               </Button>
             </div>
           )}

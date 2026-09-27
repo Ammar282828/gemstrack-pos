@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { whatsAppLink } from '@/lib/whatsapp';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -56,7 +56,9 @@ import { invoiceExchanges, describeExchangeEntry } from '@/lib/exchange';
 import { OrderCarryOver } from '@/components/invoice/order-carry-over';
 import { FormSkeleton } from '@/components/shared/skeletons';
 import { PhoneField } from '@/components/ui/phone-field';
-import { useFormDraft, DraftRestoreBanner } from '@/components/shared/use-form-draft';
+import { useWorkDraft } from '@/components/drafts/use-work-drafts';
+import { DraftsShortcut } from '@/components/drafts/draft-list';
+import { SALE_DEFAULT_FIELDS, summarizeSale } from '@/lib/work-drafts';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { Switch } from '@/components/ui/switch';
 import { BillScanner, type ScannedBill } from '@/components/cart/bill-scanner';
@@ -78,6 +80,8 @@ type RateInputs = {
 
 
 const WALK_IN_CUSTOMER_VALUE = "__WALK_IN__";
+/** This device's unfinished sale: the id of its draft in Drafts. */
+const SALE_DRAFT_KEY = 'gemstrack:sale-draft';
 
 /** One "Payment received" row in the cart, as typed (the amount stays a string until the invoice is written). */
 interface SalePaymentRow { id: string; amount: string; method: PaymentType; reference: string }
@@ -160,17 +164,6 @@ export default function CartPage() {
   // the invoice"). One row to start; more for a bill paid part cash, part card. Blank rows
   // are ignored; generateInvoice files the rest in the invoice's payment history.
   const [salePayments, setSalePayments] = useState<SalePaymentRow[]>(() => [blankSalePayment()]);
-  // Everything typed around the cart — who it is for, the discount, anything
-  // taken in exchange. The items themselves already survive a reload via the
-  // store; this is the rest of the sale.
-  const invoiceDraftValue = useMemo(() => ({
-    walkInCustomerName, walkInCustomerPhone, discountAmountInput,
-    exchangeRows, internalNote, salePayments,
-  }), [walkInCustomerName, walkInCustomerPhone, discountAmountInput,
-       exchangeRows, internalNote, salePayments]);
-
-
-  
   const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [isEditingDiscount, setIsEditingDiscount] = useState(false);
@@ -178,31 +171,6 @@ export default function CartPage() {
   const [isSavingDiscount, setIsSavingDiscount] = useState(false);
   const [isEditingEstimate, setIsEditingEstimate] = useState(false);
   const isEditingEstimateRef = React.useRef(false);
-
-  const { draft: invoiceDraft, discard: discardInvoiceDraft, done: invoiceDraftDone } = useFormDraft({
-    kind: 'invoice',
-    id: 'new',
-    value: invoiceDraftValue,
-    enabled: settings?.autoDraftForms !== false,
-    // Editing an existing estimate already has its data saved.
-    skip: isEditingEstimate,
-  });
-
-  const restoreInvoiceDraft = () => {
-    const d = invoiceDraft?.data as typeof invoiceDraftValue | undefined;
-    if (!d) return;
-    setWalkInCustomerName(d.walkInCustomerName || '');
-    setWalkInCustomerPhone(d.walkInCustomerPhone || '');
-    setDiscountAmountInput(d.discountAmountInput || '0');
-    // A draft from before the exchange rows had a description and two amounts.
-    const legacy = d as unknown as { exchangeDescription?: string; exchangeAmount1Input?: string; exchangeAmount2Input?: string };
-    if (Array.isArray(d.exchangeRows) && d.exchangeRows.length) setExchangeRows(d.exchangeRows);
-    else setExchangeRows(rowsFromExchanges(invoiceExchanges({ exchangeDescription: legacy.exchangeDescription, exchangeAmount1: parseFloat(legacy.exchangeAmount1Input || '') || 0, exchangeAmount2: parseFloat(legacy.exchangeAmount2Input || '') || 0 })));
-    setInternalNote(d.internalNote || '');
-    if (Array.isArray(d.salePayments) && d.salePayments.length) setSalePayments(d.salePayments);
-    discardInvoiceDraft();
-    toast({ title: 'Draft restored', description: 'Picking up where you left off.' });
-  };
 
   const [isGeneratingEstimate, setIsGeneratingEstimate] = useState(false);
   const editingInvoiceOriginalRef = React.useRef<InvoiceType | null>(null);
@@ -448,6 +416,71 @@ export default function CartPage() {
     };
   }, [appReady, settings, cartItemsFromStore, rateInputs, discountAmountInput, exchangeRows, cartMetalInfo]);
 
+  // ── A new sale, kept in Drafts as it is typed (components/drafts/use-work-drafts.ts) ──
+  // Only a new sale: never an invoice on screen, an estimate being changed, or an invoice opened here
+  // from an order or the list — those exist already. The pieces go in too, so a sale started on one
+  // device is finished on another; this device remembers which draft its cart is.
+  const saleDraftValue = useMemo(() => ({
+    walkInCustomerName, walkInCustomerPhone, discountAmountInput, exchangeRows, internalNote, salePayments,
+    selectedCustomerId, takenBy, hideRates, delivery,
+    cart: cartItemsFromStore, subtotal: estimatedInvoice?.subtotal ?? 0,
+  }), [walkInCustomerName, walkInCustomerPhone, discountAmountInput, exchangeRows, internalNote, salePayments,
+       selectedCustomerId, takenBy, hideRates, delivery, cartItemsFromStore, estimatedInvoice?.subtotal]);
+  const saleCustomerName = selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE
+    ? customers.find(c => c.id === selectedCustomerId)?.name || '' : '';
+  const saleDraft = useWorkDraft({
+    kind: 'sale',
+    enabled: settings?.autoDraftForms !== false,
+    active: appReady && !generatedInvoice && !isEditingEstimate && !editingInvoiceId && !preloadedInvoiceId,
+    value: saleDraftValue,
+    summary: v => summarizeSale(v as unknown as Record<string, unknown>, saleCustomerName),
+    ignore: SALE_DEFAULT_FIELDS,
+    onId: id => { try { if (id) localStorage.setItem(SALE_DRAFT_KEY, id); else localStorage.removeItem(SALE_DRAFT_KEY); } catch { /* private mode */ } },
+  });
+  /** A draft's fields back on screen; its pieces into the cart when `withCart`. */
+  const applySaleDraft = useCallback((d: Record<string, unknown>, withCart: boolean) => {
+    const text = (k: string) => (typeof d[k] === 'string' ? (d[k] as string) : '');
+    setWalkInCustomerName(text('walkInCustomerName'));
+    setWalkInCustomerPhone(text('walkInCustomerPhone'));
+    setDiscountAmountInput(text('discountAmountInput') || '0');
+    // A draft from before the exchange rows had a description and two amounts.
+    const legacy = d as { exchangeDescription?: string; exchangeAmount1Input?: string; exchangeAmount2Input?: string };
+    if (Array.isArray(d.exchangeRows) && d.exchangeRows.length) setExchangeRows(d.exchangeRows as ExchangeRow[]);
+    else if (legacy.exchangeDescription || legacy.exchangeAmount1Input) setExchangeRows(rowsFromExchanges(invoiceExchanges({ exchangeDescription: legacy.exchangeDescription, exchangeAmount1: parseFloat(legacy.exchangeAmount1Input || '') || 0, exchangeAmount2: parseFloat(legacy.exchangeAmount2Input || '') || 0 })));
+    setInternalNote(text('internalNote'));
+    if (Array.isArray(d.salePayments) && d.salePayments.length) setSalePayments(d.salePayments as SalePaymentRow[]);
+    if (typeof d.selectedCustomerId === 'string') setSelectedCustomerId(d.selectedCustomerId);
+    if (typeof d.takenBy === 'string') setTakenBy(d.takenBy as TakenBy);
+    setHideRates(!!d.hideRates);
+    if (d.delivery && typeof d.delivery === 'object') setDelivery(d.delivery as DeliveryInfo);
+    if (withCart && Array.isArray(d.cart)) { clearCart(); (d.cart as Product[]).forEach(p => addProductToCart(p)); }
+  }, [clearCart, addProductToCart]);
+  // On arrival: ?draft=… continues that sale here (the cart becomes its pieces); otherwise this
+  // device's own unfinished sale comes back as it was left.
+  const draftParam = searchParams.get('draft');
+  const arrived = useRef(false);
+  useEffect(() => {
+    if (!appReady || arrived.current || preloadedInvoiceId || settings?.autoDraftForms === false) return;
+    arrived.current = true;
+    let stored: string | null = null;
+    try { stored = localStorage.getItem(SALE_DRAFT_KEY); } catch { /* private mode */ }
+    const target = draftParam || stored;
+    if (!target) return;
+    void saleDraft.load(target).then(d => {
+      if (!d) {
+        try { if (stored === target) localStorage.removeItem(SALE_DRAFT_KEY); } catch { /* fine */ }
+        if (draftParam) toast({ title: 'That draft is no longer there', description: 'It was invoiced or discarded. This is a new sale.' });
+        return;
+      }
+      applySaleDraft((d.data || {}) as Record<string, unknown>, !!draftParam || cartItemsFromStore.length === 0);
+      if (draftParam) {
+        router.replace('/cart', { scroll: false });
+        toast({ title: 'Sale continued', description: d.title !== 'No customer yet' ? `${d.title} — everything is as it was left.` : 'Everything is as it was left.' });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appReady, draftParam, preloadedInvoiceId]);
+
   // What the payment rows come to. Editing an invoice, what it had already been paid
   // stays paid; these rows are added on top.
   const paidBefore = isEditingEstimate ? (editingInvoiceOriginalRef.current?.amountPaid || 0) : 0;
@@ -588,7 +621,8 @@ export default function CartPage() {
     let invoice;
     try {
       invoice = await generateInvoiceAction(customerForInvoice, ratesForInvoice, parsedDiscountAmount, exchanges, isEditingEstimate ? editingInvoiceId : undefined, delivery, takenBy, hideRates, internalNote, paymentsNow);
-      if (invoice) { invoiceDraftDone(); setSalePayments([blankSalePayment()]); setExchangeRows([blankExchangeRow()]); }
+      // The sale is an invoice now: out of Drafts, and nothing written there again.
+      if (invoice) { saleDraft.finish(); setSalePayments([blankSalePayment()]); setExchangeRows([blankExchangeRow()]); }
     } catch (error) {
       console.error("[Cart handleGenerateInvoice] Failed:", error);
       toast({
@@ -1171,13 +1205,9 @@ export default function CartPage() {
   
   return (
     <div className="container mx-auto py-8 px-4 pb-28 lg:pb-8">
-      {invoiceDraft && (
-        <DraftRestoreBanner
-          savedAt={invoiceDraft.savedAt}
-          noun="invoice"
-          onRestore={restoreInvoiceDraft}
-          onDiscard={discardInvoiceDraft}
-        />
+      {/* Other unfinished sales, until this one has something in it. */}
+      {!saleDraft.id && !isEditingEstimate && cartItemsFromStore.length === 0 && (
+        <div className="mb-4"><DraftsShortcut kind="sale" /></div>
       )}
       {/* Warn before clearing an active sale when a preloaded invoice link is opened */}
       <AlertDialog open={isCartClearWarningOpen} onOpenChange={setIsCartClearWarningOpen}>
@@ -1185,20 +1215,24 @@ export default function CartPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Clear current sale?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have items in your current sale. Opening this invoice will discard them. This cannot be undone.
+              {settings?.autoDraftForms !== false
+                ? 'You have items in your current sale. It stays in Drafts, to finish later, and this invoice opens here.'
+                : 'You have items in your current sale. Opening this invoice will discard them. This cannot be undone.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPendingPreloadedInvoice(null)}>Keep current sale</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => {
               if (pendingPreloadedInvoice) {
+                // The sale on screen stays in Drafts; the cart is free for the invoice.
+                saleDraft.detach();
                 clearCart();
                 setGeneratedInvoice(pendingPreloadedInvoice);
                 setPendingPreloadedInvoice(null);
               }
               setIsCartClearWarningOpen(false);
             }}>
-              Discard &amp; Open Invoice
+              {settings?.autoDraftForms !== false ? 'Keep it in Drafts & open invoice' : <>Discard &amp; Open Invoice</>}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

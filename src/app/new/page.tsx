@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { PageBack } from '@/components/shared/page-back';
 import { BoardSkeleton } from '@/components/shared/skeletons';
-import { UnfinishedWork } from '@/components/shared/unfinished-work';
+import { DraftsShortcut } from '@/components/drafts/draft-list';
 
 const Choice: React.FC<{
   href: string;
@@ -104,7 +104,8 @@ export default function NewSalePage() {
         </Card>
       )}
 
-      <UnfinishedWork />
+      {/* Orders and sales started and not saved — all of them are in Drafts. */}
+      <DraftsShortcut />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Choice

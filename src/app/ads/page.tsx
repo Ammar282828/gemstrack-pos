@@ -13,7 +13,9 @@ import Link from 'next/link';
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { PageShell } from '@/components/shared/page-shell';
 import { Button } from '@/components/ui/button';
-import { Megaphone, Plus, RefreshCw, Loader2, ArrowUpRight, ArrowDownRight, AlertTriangle, ExternalLink, Wallet } from 'lucide-react';
+import { Megaphone, Plus, RefreshCw, Loader2, ArrowUpRight, ArrowDownRight, AlertTriangle, ExternalLink, Wallet, Pause, Play, Lightbulb, CheckCircle2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import type { AttentionItem } from '@/lib/ads/attention';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS } from '@/lib/store-config';
 import {
@@ -30,6 +32,8 @@ interface Overview {
   topAds: { id: string; name: string; campaign: string; thumbnail: string | null; permalink: string | null; goal: string | null; metrics: Metrics }[];
   breakdowns: { ageGender: Breakdown[]; placement: Breakdown[]; region: Breakdown[] };
   problems: { id: string; name: string; status: string; reasons: string[] }[];
+  attention: AttentionItem[];
+  month: { spent: number; projected: number; lastMonth: number; dayOfMonth: number; daysInMonth: number };
   at: string;
 }
 
@@ -86,8 +90,36 @@ function Bars({ title, rows, currency, empty }: { title: string; rows: Breakdown
   );
 }
 
+/** What needs the owner's eye, each with the one tap that fixes it. */
+function Attention({ items, busy, onAct }: { items: AttentionItem[]; busy: string | null; onAct: (a: Extract<AttentionItem['action'], { do: 'pause' | 'resume' }>) => void }) {
+  if (!items.length) return <p className="rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-sm flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success" /> Nothing needs attention.</p>;
+  const tone = { bad: 'border-destructive/40 bg-destructive/5', warn: 'border-warning/50 bg-warning/10', tip: 'border-border bg-muted/40' };
+  const icon = { bad: <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />, warn: <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />, tip: <Lightbulb className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" /> };
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold">Needs a look <span className="font-normal text-muted-foreground text-xs">— {items.length === 1 ? 'one thing' : `${items.length} things`}</span></p>
+      <ul className="space-y-1.5">
+        {items.map((it, i) => (
+          <li key={i} className={cn('rounded-lg border p-2.5 text-sm flex gap-2', tone[it.severity])}>
+            {icon[it.severity]}
+            <div className="min-w-0 flex-1">
+              <p className="font-medium leading-tight">{it.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{it.why}</p>
+            </div>
+            {it.action?.do === 'pause' && <Button size="sm" variant="outline" className="h-8 shrink-0" disabled={busy === it.action.id} onClick={() => onAct(it.action as Extract<AttentionItem['action'], { do: 'pause' }>)}>{busy === it.action.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Pause className="h-3.5 w-3.5 mr-1" /> Pause</>}</Button>}
+            {it.action?.do === 'resume' && <Button size="sm" variant="outline" className="h-8 shrink-0" disabled={busy === it.action.id} onClick={() => onAct(it.action as Extract<AttentionItem['action'], { do: 'resume' }>)}>{busy === it.action.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Play className="h-3.5 w-3.5 mr-1" /> Run again</>}</Button>}
+            {it.action?.do === 'open' && <Button asChild size="sm" variant="ghost" className="h-8 shrink-0"><Link href={it.action.href}>Open</Link></Button>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function AdsOverview() {
+  const { toast } = useToast();
   const { status, error: statusError, loading: statusLoading, reload, ready } = useAdsStatus();
+  const [acting, setActing] = useState<string | null>(null);
   const [range, setRange] = useRange();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +132,15 @@ function AdsOverview() {
     finally { setLoading(false); }
   }, [range]);
   useEffect(() => { if (ready) load(); }, [ready, load]);
+  const act = async (a: Extract<AttentionItem['action'], { do: 'pause' | 'resume' }>) => {
+    setActing(a.id);
+    try {
+      await api(`/api/ads/object/${a.id}`, { body: { level: a.level, action: 'status', status: a.do === 'pause' ? 'PAUSED' : 'ACTIVE' } });
+      toast({ title: a.do === 'pause' ? `Paused ${a.name}` : `${a.name} is running again` });
+      await load(true);
+    } catch (e) { toast({ title: 'Meta didn’t take that', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }); }
+    finally { setActing(null); }
+  };
 
   const cur = data?.account.currency ?? status?.account?.currency ?? 'PKR';
   const t = data?.totals;
@@ -149,17 +190,19 @@ function AdsOverview() {
                 </div>
               )}
 
-              {data.problems.length > 0 && (
-                <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 space-y-2">
-                  <p className="text-sm font-semibold flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-destructive" /> Meta has stopped or flagged {data.problems.length === 1 ? 'an ad' : `${data.problems.length} ads`}</p>
-                  {data.problems.map(a => (
-                    <Link key={a.id} href={`/ads/campaigns?ad=${a.id}`} className="block rounded-lg bg-background/60 border p-2 text-sm hover:border-primary/50">
-                      <span className="flex items-center gap-2"><span className="font-medium truncate">{a.name}</span><StatusPill status={a.status} /></span>
-                      {a.reasons.length > 0 && <span className="block text-xs text-muted-foreground mt-0.5">{a.reasons.join(' · ')}</span>}
-                    </Link>
-                  ))}
+              <Attention items={data.attention} busy={acting} onAct={act} />
+
+              {data.month.spent > 0 || data.month.lastMonth > 0 ? (
+                <div className="rounded-xl border p-3 space-y-1.5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
+                    <span><b className="tabular-nums">{money(data.month.spent, cur)}</b> <span className="text-muted-foreground">so far this month</span></span>
+                    <span className="text-muted-foreground text-xs">heading for ~<b className="text-foreground tabular-nums">{money(data.month.projected, cur)}</b>{data.month.lastMonth ? <> · last month {money(data.month.lastMonth, cur)}</> : null}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden" title={`Day ${data.month.dayOfMonth} of ${data.month.daysInMonth}`}>
+                    <div className="h-full rounded-full bg-primary/70" style={{ width: `${Math.min(100, (data.month.dayOfMonth / data.month.daysInMonth) * 100)}%` }} />
+                  </div>
                 </div>
-              )}
+              ) : null}
 
               {chart.length > 1 && (
                 <div className="rounded-xl border p-3">

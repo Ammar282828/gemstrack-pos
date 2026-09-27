@@ -36,7 +36,7 @@ import Image from 'next/image';
 import 'react-phone-number-input/style.css';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PhoneField } from '@/components/ui/phone-field';
-import { listDrafts } from '@/lib/form-drafts';
+import { useWorkDrafts } from '@/components/drafts/use-work-drafts';
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
@@ -181,6 +181,7 @@ const NOTIF_TOGGLES: { key: keyof Settings; label: string; description: string }
   { key: 'notifDailyChecklist', label: 'Daily Checklist',     description: 'Morning summary: active orders, overdue, unreturned items' },
   { key: 'notifEndOfDay',       label: 'End of Day Summary',  description: 'Evening recap of today\'s orders' },
   { key: 'notifWeeklyReport',   label: 'Weekly Report',       description: 'Monday morning business summary' },
+  { key: 'notifAdsDaily',       label: 'Ads Summary (9:30 AM)', description: 'Yesterday\'s Meta ads: spend, chats, cost per chat, and anything needing attention' },
   { key: 'notifOrderOverdue',   label: 'Overdue Order Alert', description: 'Orders in Pending/In Progress for 7+ days (daily check)' },
   { key: 'notifGivenItems',     label: 'Given Items Overdue', description: 'Items given out and not returned for 7+ days' },
   { key: 'notifKarigarPayment', label: 'Karigar Payments Due','description': 'Unpaid karigar batches (weekly check)' },
@@ -441,30 +442,25 @@ const SettingsLink: React.FC<{ href: string; icon: React.ElementType; title: str
   </Button>
 );
 
-/** Was filed under "WhatsApp Notifications", which it has nothing to do with.
- *  The list itself lives on the New sale screen, which is where you would be
- *  standing when you want it back. This is only the switch and a count. */
+/** The switch for Drafts (new orders and sales kept as they are typed) and how many are waiting. */
 function DraftsRow() {
   const { settings, updateSettings } = useAppStore();
-  // Drafts live in this browser, so the count is read on mount rather than
-  // coming from the store.
-  const [draftCount, setDraftCount] = useState(0);
-  useEffect(() => { setDraftCount(listDrafts().length); }, []);
+  const { drafts } = useWorkDrafts();
 
   return (
     <SettingRow
-      title="Keep unfinished orders and invoices"
-      description={<>Saves what you have entered on this device and offers it back if you leave the page before saving.{draftCount > 0 && ` ${draftCount} kept right now.`}</>}
+      title="Keep unfinished orders and sales in Drafts"
+      description={<>A new order or sale is saved in Drafts as it is typed, on every device, and leaves once it is saved as an order or invoice. Orders and invoices that already exist are never drafted.{drafts.length > 0 && ` ${drafts.length} waiting now.`}</>}
     >
-      {draftCount > 0 && (
+      {drafts.length > 0 && (
         <Button asChild variant="outline" size="sm">
-          <Link href="/new">View</Link>
+          <Link href="/drafts">View</Link>
         </Button>
       )}
       <Switch
         checked={settings.autoDraftForms !== false}
         onCheckedChange={v => updateSettings({ autoDraftForms: v })}
-        aria-label="Keep unfinished orders and invoices"
+        aria-label="Keep unfinished orders and sales in Drafts"
       />
     </SettingRow>
   );

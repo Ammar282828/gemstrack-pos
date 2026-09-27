@@ -9,8 +9,10 @@ import { FormSkeleton } from '@/components/shared/skeletons';
 function AddOrderInner() {
   // ?fromCart=1 carries the current cart into this form, so "create an order"
   // from the cart reuses this one order-creation path instead of a second.
-  const seedFromCart = useSearchParams().get('fromCart') === '1';
-  return <OrderForm seedFromCart={seedFromCart} />;
+  const params = useSearchParams();
+  const seedFromCart = params.get('fromCart') === '1';
+  // ?draft=… continues an unfinished order from Drafts (and keeps the one being typed across a reload).
+  return <OrderForm seedFromCart={seedFromCart} draftId={params.get('draft')} />;
 }
 
 export default function AddOrderPage() {

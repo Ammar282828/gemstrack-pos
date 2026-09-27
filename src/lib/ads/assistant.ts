@@ -29,6 +29,7 @@ import { listRules } from './rules';
 import { recentAdsLog } from './log';
 import { currencyOffset, fromMinor, headlineActions, isRange, metricsOf, money, rangeLabel, resultOf, RANGES, type InsightRow, type Metrics, type RangeKey } from './shape';
 import { describeAudience, parseTargeting } from './targeting';
+import { attentionItems } from './attention';
 
 // ── Models ─────────────────────────────────────────────────────────────────
 
@@ -110,6 +111,8 @@ export async function adsSnapshot(range: RangeKey): Promise<Record<string, unkno
       region: split.region.slice(0, 10).map(b => ({ region: b.label, ...compact(b.metrics) })),
     } : null,
     stopped_or_flagged_ads: problems,
+    // The same rules the Overview's "Needs a look" strip applies — so the helper and the strip agree.
+    needs_attention: attentionItems({ account, campaigns, days: Math.max(1, days.length) }).map(a => ({ severity: a.severity, what: a.title, why: a.why })),
     audiences: audiences.slice(0, 40).map(a => ({ id: a.id, name: a.name, kind: a.kind, size: a.size ? `${a.size[0]}–${a.size[1]}` : null, note: a.status })),
     automated_rules: rules.map(r => ({ name: r.name, on: r.enabled, what: r.summary })),
     recent_changes_from_the_erp: log.map(l => ({ at: l.at, what: l.action, target: l.name ?? l.target, by: l.by })),
