@@ -23,6 +23,11 @@
  * It opens on the website's new arrivals (the owner, 2026-09-25: "by default
  * show new arrivals" — src/lib/website/new-arrivals.ts), newest first; Shuffle
  * picks from whatever is showing.
+ *
+ * Crop & design (the owner, 2026-09-27) opens the photo in the square editor the
+ * rest of Post a Piece uses (./piece-design.tsx); while a design is in use it is
+ * the photo that goes everywhere — the groups, the channel and the story — and it
+ * carries the weight itself, so the separate stamp steps aside.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -33,17 +38,23 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Shuffle, Send, Loader2, Search, ExternalLink, Sparkles, RotateCcw, Check, Globe, MessageCircle, Radio, Megaphone, Instagram, Download, PenLine } from 'lucide-react';
+import { Shuffle, Send, Loader2, Search, ExternalLink, Sparkles, RotateCcw, Check, Globe, MessageCircle, Radio, Megaphone, Instagram, Download, PenLine, Crop } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { diagnose } from '@/lib/social/diagnose';
 import { sitePieceCaption } from '@/lib/social/caption';
 import { loadImage, stampPhoto } from '@/lib/social/story';
 import { STORE_SITE_POSTS, STORE_POST_METAL, STORE_POST_FOOTER, STORE_POST_TAGLINE, STORE_WHATSAPP_NUMBERS, STORE_LINKS, STORE_META_ADS, STORE_BRAND, STORE_MARK_SVG, STORE_SITE_EDIT } from '@/lib/store-config';
 import { siteStoryJpeg, HOUSE_STORY_COLOURS } from '@/lib/social/site-story';
+import { siteDetailsLine } from '@/lib/social/site-design';
 import { FONTS } from '@/app/website/post/fonts';
 import Link from 'next/link';
+import { PieceDesignPanel, usePieceDesign } from './piece-design';
 
-interface Piece { id: string; name: string; url: string; image: string; thumb: string; collection: string; weightGrams: number | null; weightOnPhoto: boolean; facts: string[]; about: string; added: number | null; newArrival: boolean }
+interface Piece {
+  id: string; name: string; url: string; image: string; thumb: string; collection: string; weightGrams: number | null; weightOnPhoto: boolean; facts: string[]; about: string; added: number | null; newArrival: boolean;
+  /** The catalogue's photo before it was marked, which a design starts from (Mina). */
+  photoSource: string | null; sourceMarked: boolean;
+}
 /** The "collection" chip for the new arrivals — what the page opens on. */
 const NEW = '__new';
 interface Group { key: string; label: string; name: string; size: number | null; reachable: boolean }
@@ -162,34 +173,40 @@ function FromSitePage() {
   };
 
   /** The website's photograph, fetched once through this server (the site doesn't share it with other pages). */
-  const photo = async (p: Piece): Promise<Blob> => {
-    const have = photos.current.get(p.id);
+  const photo = async (id: string): Promise<Blob> => {
+    const have = photos.current.get(id);
     if (have) return have;
-    const res = await fetch(`/api/website/site-pieces/image?id=${encodeURIComponent(p.id)}`, { headers: await authHeaders() });
+    const res = await fetch(`/api/website/site-pieces/image?id=${encodeURIComponent(id)}`, { headers: await authHeaders() });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `The photograph didn’t come (${res.status}).`);
     const b = await res.blob();
-    photos.current.set(p.id, b);
+    photos.current.set(id, b);
     return b;
   };
-  /** The photo that goes out: stamped with the weight when the overlay is on. */
+  // The photo re-made in the square editor, when the counter asks for it: then it is what goes.
+  const design = usePieceDesign(pick, { weight, onWeight: setWeight, stamped: overlay && validWeight(weight), token: authHeaders, sitePhoto: photo });
+  /** The photo that goes out: the design while there is one, else stamped with the weight when the overlay is on. */
   const outgoing = async (p: Piece): Promise<Blob> => {
-    if (!overlay || !validWeight(weight)) return photo(p);
+    if (design.on) return design.jpeg();
+    if (!overlay || !validWeight(weight)) return photo(p.id);
     const key = `${p.id}|${weight}|${ink}`;
     if (stamped.current?.key === key) return stamped.current.blob;
-    const blob = await stampPhoto(await loadImage(await photo(p)), { text: `${weight.trim()}g`, colour: ink, maxEdge: 2048 });
+    const blob = await stampPhoto(await loadImage(await photo(p.id)), { text: `${weight.trim()}g`, colour: ink, maxEdge: 2048 });
     stamped.current = { key, blob };
     return blob;
   };
-  // The preview shows exactly what will go: the stamped photo while the overlay is on.
+  /** What goes, in words. */
+  const going = design.on ? 'Your design of the photo' : overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it` : 'The photo as it is on the website';
+  // The preview shows exactly what will go: the design, or the stamped photo while the overlay is on.
+  const goingPhoto = design.on ? design.preview : preview;
   useEffect(() => {
-    if (!pick || !overlay || !validWeight(weight)) { setPreview(null); return; }
+    if (!pick || design.on || !overlay || !validWeight(weight)) { setPreview(null); return; }
     let alive = true, url = '';
     const t = setTimeout(async () => {
       try { const b = await outgoing(pick); if (alive) { url = URL.createObjectURL(b); setPreview(url); } }
       catch (e) { if (alive) toast({ title: 'Could not put the weight on', description: e instanceof Error ? e.message : '', variant: 'destructive' }); }
     }, 250);
     return () => { alive = false; clearTimeout(t); if (url) URL.revokeObjectURL(url); };
-  }, [pick, overlay, weight, ink]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pick, overlay, weight, ink, design.on]); // eslint-disable-line react-hooks/exhaustive-deps
   const writeWithAi = async () => {
     if (!pick) return;
     setBusy('ai');
@@ -255,9 +272,9 @@ function FromSitePage() {
         document.fonts.load(`800 100px ${FONTS.headline}`), document.fonts.load(`400 40px ${FONTS.body}`),
       ]);
       // The Maisons are the great houses' pieces, not the house's own metal.
-      const metal = /maison/i.test(pick.collection) ? '' : STORE_POST_METAL;
-      const details = [metal, validWeight(weight) ? `${weight.trim()}g` : ''].filter(Boolean).join(' | ');
-      const blob = await siteStoryJpeg(img, { headline: pick.name, details }, { marks: wordmark ? { wordmark } : {}, fonts: FONTS }, HOUSE_STORY_COLOURS[STORE_BRAND]);
+      const details = siteDetailsLine(pick.collection, STORE_POST_METAL, validWeight(weight) ? `${weight.trim()}g` : '');
+      const headline = design.on ? design.name.trim() || pick.name : pick.name;
+      const blob = await siteStoryJpeg(img, { headline, details }, { marks: wordmark ? { wordmark } : {}, fonts: FONTS }, HOUSE_STORY_COLOURS[STORE_BRAND]);
       setStory(prev => { if (prev) URL.revokeObjectURL(prev.url); return { url: URL.createObjectURL(blob), blob }; });
     } catch (e) {
       toast({ title: 'Couldn’t make the story', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
@@ -311,22 +328,35 @@ function FromSitePage() {
       {!community && pieces && <p className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">No WhatsApp community is set up for this shop yet (WHATSAPP_COMMUNITY_CHAT_ID), so nothing can be sent from here.</p>}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-        {/* The piece to send — first on a phone, beside the grid on a computer. */}
-        <aside className="order-1 lg:order-2 min-w-0 lg:sticky lg:top-4 self-start space-y-3">
+        {/* The piece to send — first on a phone, beside the grid on a computer (sticky, except while designing: it runs taller than the screen). */}
+        <aside className={cn('order-1 lg:order-2 min-w-0 self-start space-y-3', !design.open && 'lg:sticky lg:top-4')}>
           {pick ? (
             <div className="rounded-xl border overflow-hidden">
-              <a href={pick.url} target="_blank" rel="noopener" className="block bg-muted"><img src={preview ?? pick.image} alt={pick.name} className="w-full aspect-square object-contain" /></a>
+              {/* The photo, or — while it is being designed — the editor in its place. */}
+              {design.open
+                ? <PieceDesignPanel d={design} piece={pick} siteName={siteName} />
+                : <a href={pick.url} target="_blank" rel="noopener" className="block bg-muted"><img src={goingPhoto ?? pick.image} alt={pick.name} className="w-full aspect-square object-contain" /></a>}
               <div className="p-3 space-y-3">
-                {/* The weight on the photo, as the catalogue's own overlay draws it. */}
+                {!design.open && (
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="h-9 shrink-0" disabled={!!busy} onClick={design.edit}><Crop className="h-4 w-4 mr-1.5" /> {design.on ? 'Change the design' : 'Crop & design'}</Button>
+                    {design.on
+                      ? <button type="button" className="ml-auto text-right text-xs leading-tight text-muted-foreground hover:text-foreground inline-flex items-center gap-1" onClick={design.plain}><RotateCcw className="h-3 w-3 shrink-0" /> Use the photo as it is</button>
+                      : <span className="text-[11px] leading-tight text-muted-foreground">Crop it, put the weight or the logo on, filters…</span>}
+                  </div>
+                )}
+                {/* The weight on the photo, as the catalogue's own overlay draws it — or, with a design, as the design's layout does. */}
                 <div className="rounded-lg border px-3 py-2 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <label className="flex items-center gap-2 text-sm font-medium"><Switch checked={overlay} onCheckedChange={setOverlay} /> Weight on the photo</label>
+                    {design.on
+                      ? <span className="text-sm font-medium">Weight</span>
+                      : <label className="flex items-center gap-2 text-sm font-medium"><Switch checked={overlay} onCheckedChange={setOverlay} /> Weight on the photo</label>}
                     <div className="ml-auto flex items-center gap-1">
                       <Input value={weight} onChange={e => setWeight(e.target.value.replace(/[^\d.]/g, ''))} onFocus={e => e.currentTarget.select()} inputMode="decimal" placeholder="0.00" className="h-9 w-20 text-right tabular-nums" aria-label="Weight in grams" />
                       <span className="text-sm text-muted-foreground">g</span>
                     </div>
                   </div>
-                  {overlay && (
+                  {overlay && !design.on && (
                     <div className="inline-flex rounded-full border p-0.5 text-xs">
                       {(['auto', 'white', 'dark'] as const).map(c => (
                         <button key={c} type="button" onClick={() => setInk(c)} className={cn('rounded-full px-3 py-1', ink === c ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>{c === 'auto' ? 'Auto colour' : c === 'white' ? 'White' : 'Dark'}</button>
@@ -334,7 +364,8 @@ function FromSitePage() {
                     </div>
                   )}
                   <p className="text-[11px] text-muted-foreground">
-                    {pick.weightOnPhoto
+                    {design.on ? design.weightOn ? 'Your design carries the weight. It also goes in the caption.' : 'Your design has no weight on it — pick a layout with the weight to add it. It goes in the caption.'
+                      : pick.weightOnPhoto
                       ? overlay ? 'This photo already shows its weight — with this on it shows twice.' : 'This photo already shows its weight.'
                       : overlay && !validWeight(weight) ? 'Type the weight to put it on.' : 'Top-left, in the catalogue’s own lettering. It also goes in the caption.'}
                   </p>
@@ -389,7 +420,7 @@ function FromSitePage() {
                   {busy === 'story' && !story ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Instagram className="h-4 w-4 mr-1.5" />} Instagram story{ig?.connected && ig.username ? <span className="ml-1 text-muted-foreground font-normal">· @{ig.username}</span> : null}
                 </Button>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] text-muted-foreground">{overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it.` : 'The photo as it is on the website.'}</p>
+                  <p className="text-[11px] text-muted-foreground">{going}.</p>
                   <div className="flex shrink-0">
                     {STORE_SITE_EDIT && <Button asChild variant="ghost" size="sm" className="h-8"><Link href={`/website/edit?id=${encodeURIComponent(pick.id)}`}><PenLine className="h-4 w-4 mr-1.5" /> Edit</Link></Button>}
                     {STORE_META_ADS && <Button asChild variant="ghost" size="sm" className="h-8"><Link href={`/ads/new?piece=${encodeURIComponent(pick.id)}`}><Megaphone className="h-4 w-4 mr-1.5" /> Promote</Link></Button>}
@@ -475,10 +506,10 @@ function FromSitePage() {
             <AlertDialogTitle>Send it to {confirm ? listOf(confirm.map(labelOf)) : ''}?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
-                {pick && <div className="flex gap-3"><img src={preview ?? pick.thumb} alt="" className="h-16 w-16 rounded-md object-cover" /><div><p className="font-medium text-foreground">{pick.name}</p>
+                {pick && <div className="flex gap-3"><img src={goingPhoto ?? pick.thumb} alt="" className="h-16 w-16 rounded-md object-cover" /><div><p className="font-medium text-foreground">{pick.name}</p>
                   <ul className="text-xs mt-0.5">{(confirm ?? []).map(k => <li key={k}>{k === 'channel' ? (audience.channel?.name ?? 'Channel') + ' (channel)' : labelOf(k)}{reachOf(k) ? ` — ${reachOf(k)!.toLocaleString()} ${k === 'channel' ? 'followers' : 'members'}` : ''}</li>)}</ul>
                 </div></div>}
-                <p className="text-xs">{overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it` : 'The photo as it is on the website'}, with the caption and its link. It can’t be unsent from here.</p>
+                <p className="text-xs">{going}, with the caption and its link. It can’t be unsent from here.</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

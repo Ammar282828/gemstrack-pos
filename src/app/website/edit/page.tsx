@@ -33,17 +33,19 @@ import {
   ArrowLeft, Check, ExternalLink, EyeOff, History, ImageIcon, Loader2, MessageSquareText, PenLine, RotateCcw, Save, Search, Sparkles, Undo2, Wand2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORE_BRAND, STORE_LINKS, STORE_MONOGRAM_SVG, STORE_SITE_EDIT, STORE_SITE_MARK_INK, STORE_SITE_MARK_SVG } from '@/lib/store-config';
+import { STORE_BRAND, STORE_LINKS, STORE_SITE_EDIT, STORE_SITE_MARK_INK } from '@/lib/store-config';
 import { weightLabel } from '@/lib/social/caption';
-import { PALETTES, canvasToJpeg, loadImage, loadStampFont, stampPhoto } from '@/lib/social/story';
+import { PALETTES, canvasToJpeg, loadImage, stampPhoto } from '@/lib/social/story';
 import {
   SQUARE_FRAME, applySquarePreset, emptySquare, placementOf, reflow, renderDocTo,
   type Assets, type Bind, type Fields, type SquarePresetId, type StoryDoc,
 } from '@/lib/social/editor';
 import { diagnose } from '@/lib/social/diagnose';
 import type { CheckResult } from '@/lib/social/prompts';
+import { siteLayouts, siteStartLayout } from '@/lib/social/site-design';
 import { SoloEditor, useStoryDoc } from '../post/story-editor';
 import { FONTS, bodyFace, headlineFace } from '../post/fonts';
+import { useSiteAssets } from '../post/site-assets';
 
 // ── What the routes send ───────────────────────────────────────────────────
 
@@ -271,11 +273,10 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
   const [saved, setSaved] = useState<{ design: Saved | null; original: string | null } | null>(null);
   const [shape, setShape] = useState<'own' | 'square'>('own');
   // The catalogue's photo comes to the editor before it was marked: the MINA mark goes back on by default.
-  const [layout, setLayout] = useState<SquarePresetId>(MINA && piece.photoSource && !piece.sourceMarked ? 'mark' : 'clean');
+  const [layout, setLayout] = useState<SquarePresetId>(siteStartLayout(STORE_BRAND, piece));
   const [ai, setAi] = useState<string[]>([]);
   const doc = useStoryDoc(blankDoc('own', undefined));
-  const [marks, setMarks] = useState<Assets['marks']>({});
-  const [fontsReady, setFontsReady] = useState(false);
+  const { marks, ready: fontsReady } = useSiteAssets();
   const [ready, setReady] = useState(false);
   const firstSig = useRef('');
 
@@ -292,19 +293,6 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
   const assets: Assets = useMemo(() => ({ photos: Object.fromEntries(photos.map(p => [p.id, p.img])), marks, fonts: FONTS, ...(STORE_SITE_MARK_INK ? { ink: STORE_SITE_MARK_INK } : {}) }), [photos, marks]);
   const current = photos.find(p => p.id === doc.doc.bg.photoId) ?? photos[0];
   const base = photos.find(p => p.id === SITE_PHOTO);
-
-  // Fonts and marks, as Post a Piece loads them: layouts measure the marks when they place them.
-  useEffect(() => {
-    Promise.all([
-      document.fonts.load(`800 100px ${FONTS.headline}`), document.fonts.load(`300 40px ${FONTS.body}`),
-      document.fonts.load(`400 40px ${FONTS.body}`), document.fonts.load(`500 40px ${FONTS.serif}`), document.fonts.load(`italic 400 40px ${FONTS.serif}`),
-      loadStampFont(),
-      Promise.all([
-        loadImage(STORE_SITE_MARK_SVG).then(img => ({ wordmark: img })).catch(() => ({})),
-        STORE_MONOGRAM_SVG ? loadImage(STORE_MONOGRAM_SVG).then(img => ({ t: img })).catch(() => ({})) : Promise.resolve({}),
-      ]).then(([w, t]) => setMarks({ ...w, ...t })),
-    ]).catch(() => undefined).then(() => setFontsReady(true));
-  }, []);
 
   // The piece's last design, and its photograph as the site built it (the original, when it was replaced).
   useEffect(() => {
@@ -367,20 +355,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
     setShape(s);
     doc.change(d => applySquarePreset({ ...d, frame: frameFor(s, base?.img) }, layout, fields, assets));
   };
-  const LAYOUTS: { id: SquarePresetId; label: string }[] = MINA ? [
-    { id: 'clean', label: 'Nothing added' },
-    { id: 'mark', label: 'MINA mark' },
-    { id: 'catalogue-top', label: 'Weight + MINA' },
-    { id: 'weight', label: 'Weight' },
-    { id: 'name', label: 'Name, weight + mark' },
-  ] : [
-    { id: 'clean', label: 'Nothing added' },
-    { id: 'weight', label: 'Weight' },
-    { id: 'catalogue-top', label: 'Weight + logo, top' },
-    { id: 'catalogue', label: 'Weight + logo, bottom' },
-    ...(marks.t ? [{ id: 'catalogue-t' as SquarePresetId, label: 'Weight + t' }] : []),
-    { id: 'name', label: 'Name, weight + logo' },
-  ];
+  const LAYOUTS = siteLayouts(STORE_BRAND, !!marks.t);
 
   // ── AI on the photo ──
   const runAi = async (op: 'enhance' | 'custom', params: Record<string, unknown>, label: string) => {

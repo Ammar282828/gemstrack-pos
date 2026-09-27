@@ -388,6 +388,11 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   Both sites were changed to publish links: taheri-site's prerender adds `path` to `catalog-attributes.json` (2,565 of 2,601 photos have a
   page); mina-catalogue's prerender writes `catalog-pieces.json` (599 pieces). `NEXT_PUBLIC_STORE_SITE_POSTS` (default on); Mina's
   community is `120363422611483809@g.us`. The community's own posts were read through WAHA to match their look.
+  **Crop & design** (2026-09-27, owner: "for post a piece from the website, add an ability to crop the photo or redesign etc like the
+  rest of the space"): the photo in Edit a piece's square editor (`from-site/piece-design.tsx`; layouts and starting layout in
+  `lib/social/site-design.ts`, tested) — taheri.shop's as the site shows it on "Nothing added" (Weight if the page was stamping it), Mina's
+  from its `photoSource` with the MINA mark back on; while in use it is the WhatsApp square (1600 px) and the story's photo, the weight
+  stamp steps aside, and "Use the photo as it is" drops it. No AI there yet (Edit a piece has it).
 - **Post a Piece: channel tick, queue, and House of Mina** (2026-09-25, owner: "make a post on houseofmina pos also, same style" /
   "incorporate channel option and bulk sending"). Where the squares go is a tick per destination — the community's groups
   (`WHATSAPP_POST_GROUPS`) and the channel, first group + channel on by default — and each is its own publish step, sent with `targets`,
