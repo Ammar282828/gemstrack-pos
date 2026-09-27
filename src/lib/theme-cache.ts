@@ -82,10 +82,18 @@ export function applyUiStyleToDocument(style: UiStyle | undefined | null): void 
 }
 
 /**
- * Put <html> in the mode being shown: `.dark` only on the dark palette (it used to be
- * there always, so every `dark:` style — pale text, the charts' dark colours — showed
- * in light mode too), `color-scheme` for scrollbars and date pickers, and the first-
- * paint class, whose background showed through at the edges after a switch.
+ * Put the document in the mode being shown: `.dark` on <html> only on the dark palette
+ * (it used to be there always, so every `dark:` style — pale text, the charts' dark
+ * colours — showed in light mode too), `color-scheme` for scrollbars and date pickers,
+ * the first-paint class, whose background showed through at the edges after a switch —
+ * and `.theme-default` on <body>, the light palette itself.
+ *
+ * The body's class is set here, imperatively, and never from React's className (the
+ * owner, 2026-09-27: "switches to white again and again"). The server renders the body
+ * light; a device with the dark theme cached hydrated it dark; React 18 does not repair
+ * an attribute that differs at hydration, and from then on every render computed the
+ * same class React believed was already there, so nothing was ever written: <html>
+ * dark, <body> white, on every cold load, until a toggle changed the string.
  */
 export function applyThemeToDocument(theme: string): void {
   if (typeof document === 'undefined') return;
@@ -94,4 +102,5 @@ export function applyThemeToDocument(theme: string): void {
   html.classList.toggle('dark', !light);
   html.classList.toggle('boot-light', light);
   html.classList.toggle('boot-dark', !light);
+  document.body?.classList.toggle('theme-default', light);
 }

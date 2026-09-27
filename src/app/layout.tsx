@@ -21,6 +21,9 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
+// useLayoutEffect in the browser (before paint), useEffect on the server, which has no layout.
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect;
+
 function AppBody({ children }: { children: React.ReactNode }) {
   const isHydrated = useIsStoreHydrated();
   const theme = useAppStore(state => state.settings.theme);
@@ -101,27 +104,26 @@ function AppBody({ children }: { children: React.ReactNode }) {
     if (hasSettingsLoaded) writeCachedUiStyle(uiStyle || 'standard');
   }, [hasSettingsLoaded, uiStyle, cachedStyle]);
 
-  // <html> and the phone's browser bar follow what is shown: the house's dark ground
-  // on the dark palette, the page's own white on the light one.
-  React.useEffect(() => {
+  // <html>, <body> and the phone's browser bar follow what is shown: the house's dark
+  // ground on the dark palette, the page's own white on the light one. Before paint,
+  // so the hydrated body never shows a frame in the other palette; the body's own
+  // className below carries no theme on purpose (see applyThemeToDocument).
+  useIsomorphicLayoutEffect(() => {
     applyThemeToDocument(shownTheme);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', shownTheme === LIGHT_THEME ? '#FCFCFD' : STORE_THEME_COLOR);
   }, [shownTheme]);
 
+  // The same class on the server and on every client render: the theme is put on the
+  // body by applyThemeToDocument, so hydration has nothing to disagree about.
+  const bodyClass = `${inter.variable} font-sans antialiased brand-${STORE_BRAND}`;
+
   if (!isHydrated) {
-    return (
-      <body suppressHydrationWarning className={`${inter.variable} font-sans antialiased theme-${deviceTheme || cachedTheme} brand-${STORE_BRAND}`}>
-      </body>
-    );
+    return <body className={bodyClass}></body>;
   }
 
-  // Hydrated, but settings may still be in flight — keep showing the cached
-  // theme rather than the store's default until the real one lands.
-  const activeTheme = shownTheme;
-
   return (
-    <body className={`${inter.variable} font-sans antialiased theme-${activeTheme} brand-${STORE_BRAND}`}>
+    <body className={bodyClass}>
       {isPublicInvoicePage ? (
         // For public pages, render children directly without the main app layout
         <>

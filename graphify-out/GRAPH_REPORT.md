@@ -1,7 +1,7 @@
 # Graph Report - taheri-pos  (2026-09-27)
 
 ## Corpus Check
-- 554 files · ~540,843 words
+- 554 files · ~541,108 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 12 file(s) not represented in the graph (top: (none) 3, .cache 2, .nix 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `18973448`
+- Built from commit: `b7755073`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -951,11 +951,11 @@ Nodes (3): getBaseUrl(), getTcsTokens(), POST()
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `firebase` connect `firebase` to `import-shopify-customers.mjs`, `restore-inv-000001.mjs`, `store.ts`, `diagnose-dbs.mjs`, `react`, `fix-dates.mjs`, `fix-invoice-dates.mjs`, `package.json`, `delete-bad-invoices.mjs`, `link-invoice-hisaab.mjs`, `link-uzair-expenses.mjs`, `restore-orders.mjs`, `restore-settings.mjs`, `invoices/page.tsx`, `write/route.ts`, `fix-bareeka.mjs`, `google-auth-gate.tsx`, `add-bareeka-invoice.mjs`, `add-uzair-skipped-entries.mjs`, `delete-sherbano-invoice.mjs`, `link-all-karigar-expenses.mjs`, `do-refund-fatima.mjs`, `link-uzair-stones.mjs`, `diagnose-orders.mjs`, `check-outstanding.mjs`, `backfill-source-orders.mjs`, `draft-list.tsx`, `list-invoices.mjs`, `renumber-orders.mjs`, `clear-shopify.mjs`, `preview-karigar-links.mjs`, `add-ali-customer.mjs`, `add-order-1141.mjs`, `sync-hisaab-balances.mjs`, `reset-and-reimport.mjs`, `fix-invoice-skus.mjs`, `refund-fatima.mjs`, `clean-hisaab.mjs`, `check-counters.mjs`, `import-expenses.mjs`, `backfill-payment-credits.mjs`, `firebase.ts`, `order-form.tsx`, `import-shopify-orders.mjs`, `run/route.ts`, `link-new-karigars.mjs`, `use-work-drafts.ts`, `fix-zahra-invoice.mjs`?**
-  _High betweenness centrality (0.188) - this node is a cross-community bridge._
+  _High betweenness centrality (0.186) - this node is a cross-community bridge._
 - **Why does `next` connect `next` to `command-palette.tsx`, `meta.ts`, `react`, `plan.ts`, `invoices/page.tsx`, `write/route.ts`, `package.json`, `roleForEmail`, `google-auth-gate.tsx`, `whatsapp.ts`, `fulfilment.ts`, `investments.ts`, `exchange.ts`, `assistant.ts`, `_lib.ts`, `draft-list.tsx`, `ai/route.ts`, `MetaAdsError`, `app-layout.tsx`, `useToast`, `cn`, `voice-bubble.tsx`, `vision/order/route.ts`, `health.ts`, `firebase-admin.ts`, `Button`, `website/edit/page.tsx`, `firebase-admin`, `public/me/route.ts`, `shopifyRequest`, `quote/route.ts`, `order-form.tsx`, `tcs/route.ts`, `postGate`, `workshop.ts`, `campaigns/page.tsx`, `listen/route.ts`, `queue.ts`, `gold-rates/route.ts`, `analytics/page.tsx`, `settings.ts`, `run/route.ts`, `app/layout.tsx`, `store-config.ts`, `website/featured/route.ts`, `printer/page.tsx`, `photos/route.ts`, `site-pieces.ts`, `caption/route.ts`, `app/page.tsx`, `verifyRequestEmail`, `edits/route.ts`?**
-  _High betweenness centrality (0.153) - this node is a cross-community bridge._
+  _High betweenness centrality (0.152) - this node is a cross-community bridge._
 - **Why does `cn()` connect `cn` to `react`, `invoices/page.tsx`, `story-editor.tsx`, `post/page.tsx`, `draft-list.tsx`, `sidebar.tsx`, `toast.tsx`, `chart.tsx`, `app-layout.tsx`, `useToast`, `voice-bubble.tsx`, `editor-panels.tsx`, `bill-scanner.tsx`, `Button`, `website/edit/page.tsx`, `order-form.tsx`, `audience-editor.tsx`, `radio-group.tsx`, `workshop.ts`, `campaigns/page.tsx`, `menubar.tsx`, `analytics/page.tsx`, `app/page.tsx`, `sheet.tsx`?**
-  _High betweenness centrality (0.057) - this node is a cross-community bridge._
+  _High betweenness centrality (0.055) - this node is a cross-community bridge._
 - **What connects `privateKey`, `db`, `dump` to the rest of the system?**
   _1369 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `fix-customer-cleanup.mjs` be split into smaller, more focused modules?**

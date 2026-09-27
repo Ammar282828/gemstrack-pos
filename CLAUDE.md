@@ -490,6 +490,13 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   **Shop mode** in Settings (Firestore, live on every screen) only decides devices that never chose. `<html>` carries `.dark`
   **only on the dark palette** now (`applyThemeToDocument`, and the boot script before paint) — it used to be there always, so
   every `dark:` style showed in light mode — plus `color-scheme` and the first-paint class, kept in step on every switch.
+  **The body's `theme-default` is set the same way, never from React's className** (2026-09-27, owner: "switches to white
+  again and again"): the server rendered the body light, a device with the shop's dark theme cached hydrated it dark, React 18
+  leaves an attribute that differs at hydration as it is, and every later render computed the class React believed was
+  already there — so `<html>` was dark and `<body>` white on every cold load until a toggle changed the string. The body's
+  className now carries no theme (identical on server and client), and `applyThemeToDocument` toggles `theme-default` on it in
+  a layout effect, before paint. Reproduced and re-checked in headless Chromium in five cache states (`gemstrack:theme` /
+  `gemstrack:theme-device`).
 - **Exchange gold is one set of rows everywhere** (2026-09-25, owner: "make the exchange gold field uniform and add the
   ability to add another"): `components/shared/exchange-rows.tsx` in the order form and the cart — what it is, karat, grams,
   rate/g, value (grams × rate until typed), **Add another exchange**. Stored as `exchanges` on orders and invoices
