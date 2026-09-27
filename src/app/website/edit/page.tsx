@@ -77,6 +77,8 @@ async function authHeaders(): Promise<Record<string, string>> {
 const validWeight = (w: string) => /^\d+(\.\d+)?$/.test(w.trim()) && Number(w) > 0 && Number(w) < 5000;
 const photoEdited = (p: Piece) => !!p.change?.photo?.edited;
 const wordsChanged = (p: Piece) => !!p.change && TEXT_KEYS.some(k => k in p.change!);
+/** Anything the counter changed that still shows (a photo put back leaves only its version behind). */
+const changed = (p: Piece) => photoEdited(p) || wordsChanged(p) || p.hidden || typeof p.change?.weightGrams === 'number';
 const when = (iso: string) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -123,13 +125,13 @@ function EditPiecePage() {
 
   const collections = useMemo(() => [...new Set((pieces ?? []).map(p => p.collection).filter(Boolean))].sort(), [pieces]);
   const counts = useMemo(() => ({
-    changed: (pieces ?? []).filter(p => p.change).length,
+    changed: (pieces ?? []).filter(changed).length,
     hidden: (pieces ?? []).filter(p => p.hidden).length,
   }), [pieces]);
   const filtered = useMemo(() => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
     return (pieces ?? []).filter(p => (!collection || p.collection === collection)
-      && (filter === 'all' ? true : filter === 'hidden' ? p.hidden : !!p.change)
+      && (filter === 'all' ? true : filter === 'hidden' ? p.hidden : changed(p))
       && words.every(w => `${p.words.name} ${p.collection} ${p.facts.join(' ')} ${p.id}`.toLowerCase().includes(w)));
   }, [pieces, q, collection, filter]);
   useEffect(() => { setShown(PAGE); }, [q, collection, filter]);
@@ -495,7 +497,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
         <Button variant="ghost" size="sm" className="-ml-2" onClick={onClose}><ArrowLeft className="h-4 w-4 mr-1.5" /> Every piece</Button>
         <div className="min-w-0 flex-1">
           <p className="font-semibold leading-tight truncate">{piece.words.name}</p>
-          <p className="text-xs text-muted-foreground truncate">{[piece.collection, piece.hidden ? 'hidden from the website' : '', piece.change?.at ? `changed ${when(piece.change.at)}` : ''].filter(Boolean).join(' · ')}</p>
+          <p className="text-xs text-muted-foreground truncate">{[piece.collection, piece.hidden ? 'hidden from the website' : '', changed(piece) && piece.change?.at ? `changed ${when(piece.change.at)}` : ''].filter(Boolean).join(' · ')}</p>
         </div>
         {piece.url && <Button asChild variant="outline" size="sm"><a href={piece.url} target="_blank" rel="noopener"><ExternalLink className="h-4 w-4 mr-1.5" /> On the website</a></Button>}
       </div>
@@ -630,7 +632,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
               {busy === 'save' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
               {dirty ? `Save to ${SITE_NAME}` : 'Nothing changed yet'}
             </Button>
-            {piece.change && (
+            {changed(piece) && (
               <button type="button" disabled={busyAny} onClick={() => setConfirm('all')} className="w-full text-center text-xs text-muted-foreground hover:text-destructive min-h-0">
                 {busy === 'all' ? 'Putting everything back…' : 'Undo every change to this piece'}
               </button>
