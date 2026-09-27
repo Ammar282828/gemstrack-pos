@@ -71,16 +71,21 @@ export async function loadImage(src: Blob | string): Promise<HTMLImageElement> {
   const url = typeof src === 'string' ? src : URL.createObjectURL(src);
   try {
     const img = new Image();
-    img.decoding = 'async';
     const loaded = new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
       img.onerror = () => reject(new Error('That image could not be read.'));
     });
     img.src = url;
-    // decode() gets the bitmap ready before the canvas needs it, but Chrome can hold it
-    // unresolved while the page is in the background (a phone switched to another app,
-    // a hidden tab): the load event is enough to draw, so whichever comes first.
-    await Promise.race([img.decode().catch(() => loaded), loaded]);
+    await loaded;
+    // The load event comes before the bitmap is decoded, and Safari draws a large photo that is
+    // still decoding as nothing — Post a Piece's first design came up blank until something
+    // redrew it. So wait for decode() too; but Chrome can hold it unresolved while the page is in
+    // the background (a phone switched to another app, a hidden tab), so a hidden page doesn't
+    // wait and a visible one waits a few seconds at most. Pages that must never show a blank
+    // redraw when the photo's decode() settles as well.
+    if (typeof document === 'undefined' || !document.hidden) {
+      await Promise.race([img.decode().catch(() => undefined), new Promise(r => setTimeout(r, 4000))]);
+    }
     return img;
   } finally {
     // The decoded bitmap stays with the element; the URL is no longer needed.

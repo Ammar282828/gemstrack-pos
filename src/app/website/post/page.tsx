@@ -409,6 +409,9 @@ function PostAPiecePage() {
       try {
         const p = await readPhoto(f);
         setPhotos(prev => [...prev, p]);
+        // Drawn again once the photo is surely decoded (a new object for it makes every design redraw):
+        // a design drawn while Safari was still decoding a large photo shows nothing until then.
+        p.img.decode().then(() => setPhotos(prev => prev.map(x => (x.id === p.id ? { ...x } : x))), () => undefined);
       } catch (e) {
         toast({ title: 'Could not read a photo', description: e instanceof Error ? e.message : f.name, variant: 'destructive' });
       } finally {
