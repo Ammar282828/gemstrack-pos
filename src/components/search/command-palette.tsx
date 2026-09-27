@@ -318,7 +318,7 @@ export function CommandPalette() {
       <DialogContent
         onKeyDown={onKeyDown}
         className={
-          'max-w-xl gap-0 overflow-hidden p-0 flex flex-col '
+          'glass-full max-w-xl gap-0 overflow-hidden p-0 flex flex-col '
           + 'max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:translate-x-0 max-sm:translate-y-0 max-sm:h-[100dvh] max-sm:max-w-none max-sm:rounded-none max-sm:border-0 '
           + 'max-sm:data-[state=open]:slide-in-from-left-0 max-sm:data-[state=open]:slide-in-from-top-2 max-sm:data-[state=closed]:slide-out-to-left-0 max-sm:data-[state=closed]:slide-out-to-top-2 max-sm:data-[state=open]:zoom-in-100 '
           + 'max-sm:[&>button:last-child]:hidden'

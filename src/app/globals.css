@@ -585,6 +585,16 @@ html.ui-glass .glass-bar {
 @media (min-width: 640px) {
   html.ui-glass .glass-window { border-radius: var(--r-window); }
 }
+/* On a phone a dialog or alert used to run edge to edge with square corners;
+   Apple's are a rounded window inset from the edges, the page around it.
+   Not the windows made to fill the width (`glass-full`: the command palette,
+   the Ads helper's panel), nor sheets and the drawer, which have their own insets. */
+@media (max-width: 639px) {
+  html.ui-glass .glass-window:not(.glass-sheet):not(.glass-drawer):not(.glass-full) {
+    width: calc(100% - 1.5rem);
+    border-radius: var(--r-window);
+  }
+}
 html.ui-glass .glass-sheet[data-side="right"],
 html.ui-glass .glass-sheet[data-side="left"] {
   top: 0.5rem;

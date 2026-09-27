@@ -153,7 +153,7 @@ export function AdsAssistant() {
         </button>
       )}
       {open && (
-        <div className="glass glass-window fixed z-50 inset-x-0 bottom-0 h-[88dvh] rounded-t-2xl md:inset-x-auto md:right-4 md:bottom-4 md:h-[min(680px,calc(100dvh-2rem))] md:w-[420px] md:rounded-2xl border bg-background shadow-2xl flex flex-col overflow-hidden">
+        <div className="glass glass-window glass-full fixed z-50 inset-x-0 bottom-0 h-[88dvh] rounded-t-2xl md:inset-x-auto md:right-4 md:bottom-4 md:h-[min(680px,calc(100dvh-2rem))] md:w-[420px] md:rounded-2xl border bg-background shadow-2xl flex flex-col overflow-hidden">
           <header className="flex items-center gap-2 border-b px-3 py-2.5">
             <Sparkles className="h-5 w-5 text-primary shrink-0" />
             <div className="min-w-0 flex-1">

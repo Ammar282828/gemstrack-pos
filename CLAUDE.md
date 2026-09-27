@@ -252,7 +252,9 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   rectangles, as the system's large buttons are; a split button keeps its shared edge), fields 0.625rem, cards and alerts 1rem,
   in-page tabs a pill like the top bar's — so a 0.5rem card no longer sits beside a 1.75rem pane; light glass carries an outer
   hairline so it reads over a white page; the dark ambient glow is stronger so the pane has something behind it; windows (sheets,
-  dialogs, the helper's panel) use the sidebar's more opaque material; the sidebar's search is a field cut into the glass, its rows
+  dialogs, alerts, the helper's panel) and popovers are more opaque than a control, and on a phone a dialog or alert is a rounded
+  window inset from the edges instead of an edge-to-edge box (`glass-full` marks the two that fill the width: the command palette
+  and the helper's panel); the sidebar's search is a field cut into the glass, its rows
   0.625rem, New Sale a capsule; the floating discs draw their symbol in the foreground colour (the Ads helper's was white on white
   glass). Every page with chrome of its own is on the hooks: Hisaab's sticky search and the contact import's bar are floating
   toolbars, the karigar's My work header a scroll edge, Edit a piece's save foot glass, the customer and SKU autocomplete lists
