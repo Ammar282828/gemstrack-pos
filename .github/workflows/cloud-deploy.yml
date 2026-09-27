@@ -64,6 +64,15 @@ jobs:
           done
           git log --oneline -1
 
+      # gemstrack-pos is public and carries this whole history, so a pasted key is a published key
+      # (hom-pos's admin key sat in three scripts from 2026-09-25 to 09-27).
+      - name: No private keys in the tree
+        run: |
+          if git grep -lE -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----'; then
+            echo "::error::A private key is committed in the files above. Read it from Secret Manager or GOOGLE_APPLICATION_CREDENTIALS instead, and delete that key in IAM: it is already public."
+            exit 1
+          fi
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
