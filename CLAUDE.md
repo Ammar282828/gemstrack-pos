@@ -355,6 +355,12 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   stone/metal/karat at once; `{ own: true }` for the site's own), both sites' apps and prerenders — so "Undo every change" is
   exact at once. taheri.shop's weights stay in `website_pieces` (prices, WeightLabel); Mina's go in its change. A stamped photo
   sets `weightOnPhoto` so taheri.shop stops drawing the weight itself. `NEXT_PUBLIC_STORE_SITE_EDIT` (default on).
+  **The house's mark:** taheri.shop's photos carry the wordmark top-right (rings) or bottom-right (chains) — both are layouts
+  (`catalogue-top`, `catalogue`). The Mina catalogue burns the MINA mark on at build (top right, maroon on light), so Mina's
+  editor starts from the photo's **source** before framing and marking (`catalog-pieces.json` `source`, Shopify CDN or
+  `catalog-src/`) and puts the mark back (`mark` layout, `/brand/mina-wordmark.svg`, `NEXT_PUBLIC_STORE_SITE_MARK_SVG` /
+  `_INK` — derived from `STORE_BRAND`; `Assets.ink` is the dark ink auto colour uses). Changes show within about a minute
+  (`catalog.php` is cached 30 s, taheri.shop keeps it 60 s per tab). Design notes: `docs/edit-website-pieces.md`.
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).
   The POS stayed usable at **https://studio--gemstrack-pos.us-central1.hosted.app** (App Hosting's own address; open access,
   data loads). Instagram fetches story images from `SOCIAL_MEDIA_ORIGIN` (that address) so posting never depends on .shop.

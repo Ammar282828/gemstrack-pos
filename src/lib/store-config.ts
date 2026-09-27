@@ -242,6 +242,16 @@ const monogram = process.env.NEXT_PUBLIC_STORE_MONOGRAM_SVG?.trim();
 export const STORE_MONOGRAM_SVG = monogram === undefined ? '/brand/taheri-t.svg' : /^(none|off|0)?$/i.test(monogram) ? '' : monogram;
 
 /**
+ * The mark this house's website photographs carry, as Edit a piece puts it back:
+ * taheri.shop's wordmark (the overlay tool's), or the Mina catalogue's MINA wordmark
+ * (mina-catalogue scripts/brand.mjs), with the dark ink it takes on a light corner
+ * (maroon #3A0000 on the catalogue; near-black when empty).
+ */
+export const STORE_SITE_MARK_SVG = process.env.NEXT_PUBLIC_STORE_SITE_MARK_SVG?.trim()
+  || (STORE_BRAND === 'mina' ? '/brand/mina-wordmark.svg' : STORE_MARK_SVG);
+export const STORE_SITE_MARK_INK = process.env.NEXT_PUBLIC_STORE_SITE_MARK_INK?.trim() || (STORE_BRAND === 'mina' ? '#3A0000' : '');
+
+/**
  * Investments by Taheri — the daily gold post the scheduled Claude routine
  * files in the POS (Website → Investments). Taheri's; a house without the
  * series sets "0".

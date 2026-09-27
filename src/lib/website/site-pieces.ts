@@ -61,6 +61,13 @@ export interface SitePiece {
   imagePath: string | null;
   /** Which list it came from: the catalogue's pieces (paragraphs, facts) or taheri.shop's photographs (tags, counter weights). */
   source: 'pieces' | 'attributes';
+  /**
+   * The photograph before the site framed and marked it (the catalogue's Shopify or
+   * catalog-src/ original), which the editor starts from; `sourceMarked` when that
+   * already carries a mark of its own. None on taheri.shop, whose photos are uploaded as they are.
+   */
+  photoSource: string | null;
+  sourceMarked: boolean;
   /** The site's own words, and the same with the counter's changes laid over. */
   own: PieceWords;
   words: PieceWords;
@@ -76,7 +83,7 @@ type Listed = Omit<SitePiece, 'words' | 'change' | 'hidden'>;
 
 export const siteOrigin = () => (process.env.WEBSITE_ORIGIN || process.env.NEXT_PUBLIC_STORE_WEBSITE_URL || '').trim().replace(/\/+$/, '');
 
-type Published = { site?: string; pieces?: { id: string; name: string; path: string; image: string; thumb?: string; collection?: string; stones?: string[]; plating?: string[]; about?: string; story?: string[]; facts?: string[]; added?: string | null; newArrival?: boolean }[] };
+type Published = { site?: string; pieces?: { id: string; name: string; path: string; image: string; thumb?: string; collection?: string; stones?: string[]; plating?: string[]; about?: string; story?: string[]; facts?: string[]; source?: string; marked?: boolean; added?: string | null; newArrival?: boolean }[] };
 
 /** "Rhodium", "Gold" → "rhodium or gold plated". */
 const plated = (p: string[] = []) => (p.length ? `${p.map(x => x.toLowerCase()).join(' or ')} plated` : '');
@@ -96,6 +103,8 @@ async function fromCatalogPieces(site: string): Promise<Listed[] | null> {
     newArrival: !!p.newArrival,
     imagePath: imagePathOf(abs(p.image), site),
     source: 'pieces' as const,
+    photoSource: p.source ? abs(p.source) : null,
+    sourceMarked: !!p.marked,
     // A catalogue built before 2026-09-27 lists one paragraph and no facts.
     own: { name: p.name, about: (p.story?.length ? p.story : [p.about || '']).join('\n\n').trim(), facts: p.facts ?? [] },
   }));
@@ -128,6 +137,8 @@ async function fromAttributes(site: string): Promise<Listed[]> {
       newArrival: false,
       imagePath: key,
       source: 'attributes' as const,
+      photoSource: null,
+      sourceMarked: false,
       own: { name, about: '', facts: [], stone: tag(x.stone), metal: tag(x.metal), karat: tag(x.karat), cut: tag(x.cut), style: tag(x.style) },
     };
   });

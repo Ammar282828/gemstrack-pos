@@ -166,6 +166,8 @@ export interface Assets {
   /** This house's marks, loaded from their SVGs; a house without a monogram has no `t`. */
   marks: Partial<Record<MarkKind, HTMLImageElement>>;
   fonts: FontFamilies;
+  /** The dark ink automatic colour uses on a light ground (default near-black; Mina's catalogue marks are maroon). */
+  ink?: string;
 }
 export type Fields = Record<Bind, string>;
 
@@ -752,7 +754,7 @@ function drawMark(ctx: Ctx, img: HTMLImageElement, b: Box, colour: string) {
  * under this box. Reads the pixels through the current transform, so it works
  * on the preview and on a 3000-px export alike.
  */
-function autoInk(ctx: Ctx, b: Box): string {
+function autoInk(ctx: Ctx, b: Box, dark = '#1a1a1a'): string {
   try {
     const m = ctx.getTransform();
     const x = Math.max(0, Math.round(m.a * b.x + m.e)), y = Math.max(0, Math.round(m.d * b.y + m.f));
@@ -760,7 +762,7 @@ function autoInk(ctx: Ctx, b: Box): string {
     const d = ctx.getImageData(x, y, Math.min(w, ctx.canvas.width - x), Math.min(h, ctx.canvas.height - y)).data;
     let sum = 0, n = 0;
     for (let i = 0; i < d.length; i += 64) { sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]; n++; }
-    return n && sum / n > 170 ? '#1a1a1a' : '#ffffff';
+    return n && sum / n > 170 ? dark : '#ffffff';
   } catch {
     return '#ffffff';
   }
@@ -788,7 +790,7 @@ export function renderDoc(ctx: Ctx, doc: StoryDoc, fields: Fields, a: Assets, op
     if (l.hidden || (opts.hideBound && l.kind === 'text' && l.bind)) continue;
     ctx.save();
     // Automatic ink is decided from what is under the layer, before it is drawn or turned.
-    const ink = (l.kind === 'text' || l.kind === 'wordmark') && l.autoColor ? autoInk(ctx, layerBox(l, fields, a)) : null;
+    const ink = (l.kind === 'text' || l.kind === 'wordmark') && l.autoColor ? autoInk(ctx, layerBox(l, fields, a), a.ink) : null;
     ctx.globalAlpha = l.opacity;
     if (l.rotate || l.flipX || l.flipY) {
       const b = layerBox(l, fields, a);
@@ -981,20 +983,23 @@ export const newWeightStamp = (): TextLayer => text({
   color: '#ffffff', autoColor: true, width: 900, spacing: 2 / 143,
 });
 /**
- * A mark in the bottom-right corner, the overlay tool's inset from both edges — of
- * the square, or of a website photo edited in its own shape (1080 wide, any height).
+ * A mark in the bottom-right corner (or the top-right: `top`), the overlay tool's
+ * inset from both edges — of the square, or of a website photo edited in its own
+ * shape (1080 wide, any height). Top-right is also where Mina's catalogue puts its
+ * MINA mark (brand.mjs: 19% of the width, 4.8% in, 3.7% down — within a few pixels).
  */
-export function newCornerMark(mark: MarkKind, a: Assets, f: Frame = SQUARE_FRAME): MarkLayer {
+export function newCornerMark(mark: MarkKind, a: Assets, f: Frame = SQUARE_FRAME, top = false): MarkLayer {
   // The wordmark is the tool's 580/3000 wide; the t mark is sized to about the wordmark's height × 2.
   const width = mark === 't' ? 58 : LOGO_W;
   const img = a.marks[mark] ?? a.marks.wordmark;
   const h = width * (img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : mark === 't' ? 2 : 0.25);
-  return { id: newLayerId(mark), kind: 'wordmark', mark, x: f.w - LOGO_PAD - width, y: f.h - LOGO_PAD - h, width, color: '#ffffff', autoColor: true, rotate: 0, opacity: 1 };
+  return { id: newLayerId(mark), kind: 'wordmark', mark, x: f.w - LOGO_PAD - width, y: top ? LOGO_PAD : f.h - LOGO_PAD - h, width, color: '#ffffff', autoColor: true, rotate: 0, opacity: 1 };
 }
 
-export type SquarePresetId = 'catalogue' | 'catalogue-t' | 'weight' | 'name' | 'clean';
+export type SquarePresetId = 'catalogue' | 'catalogue-top' | 'catalogue-t' | 'weight' | 'mark' | 'name' | 'clean';
 export const SQUARE_PRESETS: { id: SquarePresetId; label: string }[] = [
   { id: 'catalogue', label: 'Weight + taheri wordmark' },
+  { id: 'catalogue-top', label: 'Weight + wordmark, top right' },
   { id: 'catalogue-t', label: 'Weight + t mark' },
   { id: 'weight', label: 'Weight only' },
   { id: 'name', label: 'Name, weight and wordmark' },
@@ -1007,8 +1012,10 @@ export function applySquarePreset(doc: StoryDoc, preset: SquarePresetId, fields:
   const out: Layer[] = [];
   // Measured from the bottom, so a photo edited in its own shape (taller than square) is laid out the same way.
   const f = frameOf(doc), below = f.h - 1080;
-  if (preset === 'catalogue' || preset === 'catalogue-t' || preset === 'weight') out.push(newWeightStamp());
+  if (preset === 'catalogue' || preset === 'catalogue-top' || preset === 'catalogue-t' || preset === 'weight') out.push(newWeightStamp());
   if (preset === 'catalogue') out.push(newCornerMark('wordmark', a, f));
+  // Top right: taheri.shop's ring photos, and the MINA mark on every catalogue photo.
+  if (preset === 'catalogue-top' || preset === 'mark') out.push(newCornerMark('wordmark', a, f, true));
   if (preset === 'catalogue-t') out.push(newCornerMark(a.marks.t ? 't' : 'wordmark', a, f));
   if (preset === 'name') {
     // The grid posts' look: the name in a Didone italic, the facts small beneath, bottom-left.

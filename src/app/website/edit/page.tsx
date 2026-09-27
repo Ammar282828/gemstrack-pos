@@ -33,7 +33,7 @@ import {
   ArrowLeft, Check, ExternalLink, EyeOff, History, ImageIcon, Loader2, MessageSquareText, PenLine, RotateCcw, Save, Search, Sparkles, Undo2, Wand2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORE_LINKS, STORE_MARK_SVG, STORE_MONOGRAM_SVG, STORE_SITE_EDIT } from '@/lib/store-config';
+import { STORE_BRAND, STORE_LINKS, STORE_MONOGRAM_SVG, STORE_SITE_EDIT, STORE_SITE_MARK_INK, STORE_SITE_MARK_SVG } from '@/lib/store-config';
 import { weightLabel } from '@/lib/social/caption';
 import { PALETTES, canvasToJpeg, loadImage, loadStampFont, stampPhoto } from '@/lib/social/story';
 import {
@@ -57,11 +57,14 @@ interface Piece {
   id: string; name: string; url: string; image: string; thumb: string; collection: string;
   weightGrams: number | null; weightOnPhoto: boolean; facts: string[]; added: number | null;
   imagePath: string | null; source: 'pieces' | 'attributes'; own: Words; words: Words; change: Change | null; hidden: boolean;
+  photoSource: string | null; sourceMarked: boolean;
 }
 interface Recent { key: string; name: string; what: string[]; by: string; at: string }
 interface Saved { design: string; shape: 'own' | 'square'; ai: string[]; at: string; by: string }
 
 const SITE = (STORE_LINKS.website || '').replace(/\/+$/, '');
+/** The catalogue marks every photo itself (MINA, top right); taheri.shop's photos come marked or not. */
+const MINA = STORE_BRAND === 'mina';
 const SITE_NAME = SITE.replace(/^https?:\/\/(www\.)?/, '') || 'the website';
 /** taheri.shop's tags, in the order the piece page shows them. */
 const TAGS = [['stone', 'Stone'], ['metal', 'Metal'], ['karat', 'Karat'], ['cut', 'Cut'], ['style', 'Style']] as const;
@@ -148,7 +151,7 @@ function EditPiecePage() {
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><PenLine className="mr-3 h-7 w-7" /> Edit a piece on {SITE_NAME}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Re-make a photo — crop it, put the weight and the logo on, fix the light — or change a piece’s name, description and details. It shows on the website at once; the original photo is kept to put back.
+          Re-make a photo — crop it, put the weight and the logo on, fix the light — or change a piece’s name, description and details. It shows on the website within a minute; the original photo is kept to put back.
         </p>
       </div>
 
@@ -265,7 +268,8 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ design: Saved | null; original: string | null } | null>(null);
   const [shape, setShape] = useState<'own' | 'square'>('own');
-  const [layout, setLayout] = useState<SquarePresetId>('clean');
+  // The catalogue's photo comes to the editor before it was marked: the MINA mark goes back on by default.
+  const [layout, setLayout] = useState<SquarePresetId>(MINA && piece.photoSource && !piece.sourceMarked ? 'mark' : 'clean');
   const [ai, setAi] = useState<string[]>([]);
   const doc = useStoryDoc(blankDoc('own', undefined));
   const [marks, setMarks] = useState<Assets['marks']>({});
@@ -283,7 +287,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
     ? [[words.karat, words.metal].filter(Boolean).join(' '), words.stone].filter(x => x && !/^none$/i.test(x)).join(' | ')
     : piece.facts.join(' | ');
   const fields: Fields = useMemo(() => ({ kicker: piece.collection, headline: words.name, weight: wLabel, details }), [piece.collection, words.name, wLabel, details]);
-  const assets: Assets = useMemo(() => ({ photos: Object.fromEntries(photos.map(p => [p.id, p.img])), marks, fonts: FONTS }), [photos, marks]);
+  const assets: Assets = useMemo(() => ({ photos: Object.fromEntries(photos.map(p => [p.id, p.img])), marks, fonts: FONTS, ...(STORE_SITE_MARK_INK ? { ink: STORE_SITE_MARK_INK } : {}) }), [photos, marks]);
   const current = photos.find(p => p.id === doc.doc.bg.photoId) ?? photos[0];
   const base = photos.find(p => p.id === SITE_PHOTO);
 
@@ -294,7 +298,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
       document.fonts.load(`400 40px ${FONTS.body}`), document.fonts.load(`500 40px ${FONTS.serif}`), document.fonts.load(`italic 400 40px ${FONTS.serif}`),
       loadStampFont(),
       Promise.all([
-        loadImage(STORE_MARK_SVG).then(img => ({ wordmark: img })).catch(() => ({})),
+        loadImage(STORE_SITE_MARK_SVG).then(img => ({ wordmark: img })).catch(() => ({})),
         STORE_MONOGRAM_SVG ? loadImage(STORE_MONOGRAM_SVG).then(img => ({ t: img })).catch(() => ({})) : Promise.resolve({}),
       ]).then(([w, t]) => setMarks({ ...w, ...t })),
     ]).catch(() => undefined).then(() => setFontsReady(true));
@@ -345,7 +349,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
         d = { ...kept, frame: frameFor(sh, base.img), bg: { ...kept.bg, photoId: SITE_PHOTO } };
       } catch { d = null; }
     }
-    d ??= applySquarePreset(blankDoc('own', base.img), 'clean', fields, assets);
+    d ??= applySquarePreset(blankDoc('own', base.img), layout, fields, assets);
     setShape(sh);
     doc.reset(d);
     firstSig.current = JSON.stringify([d, d.layers.some(l => l.kind === 'text' && l.bind && !l.hidden) ? fields : null]);
@@ -361,10 +365,17 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
     setShape(s);
     doc.change(d => applySquarePreset({ ...d, frame: frameFor(s, base?.img) }, layout, fields, assets));
   };
-  const LAYOUTS: { id: SquarePresetId; label: string }[] = [
+  const LAYOUTS: { id: SquarePresetId; label: string }[] = MINA ? [
+    { id: 'clean', label: 'Nothing added' },
+    { id: 'mark', label: 'MINA mark' },
+    { id: 'catalogue-top', label: 'Weight + MINA' },
+    { id: 'weight', label: 'Weight' },
+    { id: 'name', label: 'Name, weight + mark' },
+  ] : [
     { id: 'clean', label: 'Nothing added' },
     { id: 'weight', label: 'Weight' },
-    { id: 'catalogue', label: 'Weight + logo' },
+    { id: 'catalogue-top', label: 'Weight + logo, top' },
+    { id: 'catalogue', label: 'Weight + logo, bottom' },
     ...(marks.t ? [{ id: 'catalogue-t' as SquarePresetId, label: 'Weight + t' }] : []),
     { id: 'name', label: 'Name, weight + logo' },
   ];
@@ -433,7 +444,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
       onSaved(d.piece);
       toast({
         title: d.note ?? `Saved on ${SITE_NAME}`,
-        description: d.note ? undefined : photoChanged ? 'The new photo is on the website now. The original is kept — put it back any time.' : hidden ? 'The piece is hidden from the website.' : 'It shows on the website now.',
+        description: d.note ? undefined : photoChanged ? 'The new photo shows on the website within a minute. The original is kept — put it back any time.' : hidden ? 'The piece leaves the website within a minute.' : 'It shows on the website within a minute.',
       });
     } catch (e) {
       toast({ title: 'Not saved', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
@@ -449,7 +460,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
       form.set(what === 'photo' ? 'photo' : 'action', 'revert');
       const d = await post(form);
       onSaved(d.piece, true);
-      toast({ title: what === 'photo' ? 'The original photo is back' : 'Everything put back', description: `${SITE_NAME} shows the piece as it was built.` });
+      toast({ title: what === 'photo' ? 'The original photo is back' : 'Everything put back', description: `${SITE_NAME} shows the piece as it was built, within a minute.` });
     } catch (e) {
       toast({ title: 'Not put back', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     } finally {
@@ -508,8 +519,12 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
                   className={cn('rounded-full border px-3 py-1.5 text-xs', layout === x.id ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground')}>{x.label}</button>
               ))}
             </div>
-            {piece.weightOnPhoto && !piece.change?.weightOnPhoto && <p className="text-[11px] text-muted-foreground mt-1.5">This photo already shows its weight — a stamp would show it twice, unless AI → “Enhance and clear old labels” first.</p>}
-            {layout !== 'clean' && layout !== 'catalogue-t' && !wLabel && <p className="text-[11px] text-amber-600 mt-1.5">Type the weight (on the right) to put it on.</p>}
+            {MINA && piece.photoSource
+              ? <p className="text-[11px] text-muted-foreground mt-1.5">{piece.sourceMarked
+                ? 'This photo carries the house’s mark already — add nothing more, or clear it first (AI → “Enhance and clear old labels”).'
+                : 'The photo as it was before the catalogue framed it and put the MINA mark on — the mark goes back top right, as on every catalogue photo.'}</p>
+              : piece.weightOnPhoto && !piece.change?.weightOnPhoto && <p className="text-[11px] text-muted-foreground mt-1.5">This photo already shows its weight and logo — a stamp would show them twice, unless AI → “Enhance and clear old labels” first.</p>}
+            {!['clean', 'mark', 'catalogue-t'].includes(layout) && !wLabel && <p className="text-[11px] text-amber-600 mt-1.5">Type the weight (on the right) to put it on.</p>}
           </div>
 
           {photoError ? (
@@ -645,7 +660,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
                 )}
                 {confirm === 'photo' && <p>The website shows the photo as it was built. Your design is forgotten; the words stay as they are.</p>}
                 {confirm === 'all' && <p>The photo, the name, the words and hiding all go back to what the website was built with. {tags ? 'A weight typed here stays (it’s the piece’s weight).' : ''}</p>}
-                <p className="text-xs">It shows on the website as soon as a page is opened.</p>
+                <p className="text-xs">Pages opened from about a minute later show it; the next deploy writes it into the pages search engines read.</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
