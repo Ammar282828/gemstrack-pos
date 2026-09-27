@@ -1452,9 +1452,9 @@
     "semantic_hash": ""
   },
   "src/components/search/command-palette.tsx": {
-    "mtime": 1790533461.6963832,
-    "seen": 1790537191.0586941,
-    "ast_hash": "d1ce638ce6caffc7293f69a6549a02f2",
+    "mtime": 1790546447.2335382,
+    "seen": 1790546715.8729043,
+    "ast_hash": "4b9eaed04f3474f8edd5fcf477c5aacb",
     "semantic_hash": ""
   },
   "src/components/settings/shopify-pull-panel.tsx": {
@@ -2298,9 +2298,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790546086.3632185,
-    "seen": 1790546099.4227903,
-    "ast_hash": "beff0ff41efeee1785600831546db40d",
+    "mtime": 1790546616.6106534,
+    "seen": 1790546715.8732898,
+    "ast_hash": "0ca7fd71bef671eee6554d21b811f404",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3270,9 +3270,9 @@
     "semantic_hash": ""
   },
   "src/app/ads/assistant.tsx": {
-    "mtime": 1790543741.0667827,
-    "seen": 1790544013.6195285,
-    "ast_hash": "be1688ba3c58f03d14ebc6a394eaecaa",
+    "mtime": 1790546447.2336733,
+    "seen": 1790546715.8725307,
+    "ast_hash": "22c3f00198bd4ef008b391c6bc64367a",
     "semantic_hash": ""
   },
   "src/app/ads/layout.tsx": {
