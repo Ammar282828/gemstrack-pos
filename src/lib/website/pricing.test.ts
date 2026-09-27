@@ -46,6 +46,17 @@ describe('quotePiece', () => {
     expect(ruby.price! - plain.price!).toBe(4000);
   });
 
+  it('never prices platinum, silver, or silver with a gold top as gold by the gram', () => {
+    for (const metal of ['Platinum', '925 Silver & 21K Gold', 'Silver & 21K Gold', 'Silver']) {
+      const q = quotePiece('Rings & Bands/Gents Ruby Rings/DSC09213.webp', { metal, stone: 'Ruby', cut: 'Oval', style: 'Traditional', weightGrams: 8 }, config, rates);
+      expect(q).toMatchObject({ priceable: false, reason: 'metal_enquire' });
+    }
+    // Gold of every colour, and palladium, still price.
+    for (const metal of ['Yellow Gold', 'White Gold', 'Rose Gold', 'Two-Tone', 'Palladium']) {
+      expect(quotePiece('Rings & Bands/Rings/Ring 1.webp', { metal, stone: 'None', cut: 'None', style: 'Minimal', weightGrams: 4 }, config, rates).priceable).toBe(true);
+    }
+  });
+
   it('refuses a piece with no readable weight', () => {
     const q = quotePiece('Rings & Bands/Rings/Ring 9.webp', { metal: 'Yellow Gold', stone: 'None', cut: 'None', style: 'Traditional' }, config, rates);
     expect(q).toMatchObject({ priceable: false, reason: 'no_weight' });

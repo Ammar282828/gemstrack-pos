@@ -415,6 +415,10 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   stone/metal/karat at once; `{ own: true }` for the site's own), both sites' apps and prerenders — so "Undo every change" is
   exact at once. taheri.shop's weights stay in `website_pieces` (prices, WeightLabel); Mina's go in its change. A stamped photo
   sets `weightOnPhoto` so taheri.shop stops drawing the weight itself. `NEXT_PUBLIC_STORE_SITE_EDIT` (default on).
+  **New drops too** (2026-09-27): taheri.shop's photos still in its drop folder (`api/catalog.php`, not yet in its attributes)
+  are listed for the editor as `drop` pieces (no page yet, so posting never offers them); the site writes a re-made one over
+  the drop's own file. **The website quote refuses platinum and silver** (`metal_enquire`): every metal but palladium used to
+  be priced as gold at the full weight, which would have priced the Gents Ruby Rings ("925 Silver & 21K Gold") as solid gold.
   **The house's mark:** taheri.shop's photos carry the wordmark top-right (rings) or bottom-right (chains) — both are layouts
   (`catalogue-top`, `catalogue`). The Mina catalogue burns the MINA mark on at build (top right, maroon on light), so Mina's
   editor starts from the photo's **source** before framing and marking (`catalog-pieces.json` `source`, Shopify CDN or

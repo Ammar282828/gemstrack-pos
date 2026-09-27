@@ -7,7 +7,9 @@
  *                             photograph, collection, stones, plating and paragraph
  *   /catalog-attributes.json  taheri.shop: every photograph's tagger output, which
  *                             since 2026-09-25 carries its piece page's `path`; the
- *                             counter's weights (website_pieces) are merged in
+ *                             counter's weights (website_pieces) are merged in; and
+ *                             /api/catalog.php's drops not yet adopted (`drop`: no
+ *                             page, so only the editor lists them)
  *
  * Only pieces with a page are offered: a post always carries a working link.
  * Newest first, each marked if it is one of the site's new arrivals (new-arrivals.ts),
@@ -57,8 +59,10 @@ export interface SitePiece {
   /** When it went on the site (epoch ms), if the site says. */
   added: number | null;
   newArrival: boolean;
-  /** The photograph's path under catalog-full/, which a re-made one replaces. */
+  /** The photograph's path under catalog-full/ (or the drop folder's, same key), which a re-made one replaces. */
   imagePath: string | null;
+  /** Still in taheri.shop's drop folder: on the site, not yet in its attributes, no page of its own yet. */
+  drop?: boolean;
   /** Which list it came from: the catalogue's pieces (paragraphs, facts) or taheri.shop's photographs (tags, counter weights). */
   source: 'pieces' | 'attributes';
   /**
@@ -113,13 +117,37 @@ async function fromCatalogPieces(site: string): Promise<Listed[] | null> {
 /** A tag worth showing: "None" is the tagger's word for nothing. */
 const tag = (v: unknown) => (typeof v === 'string' && v.trim() && !/^none$/i.test(v.trim()) ? v.trim() : '');
 
+type Drop = { p: string; t?: number; thumb: string; full: string };
+
+/** taheri.shop's drop folder (api/catalog.php): photographs on the site that its attributes don't list until they are adopted. */
+async function dropsOf(site: string): Promise<Drop[]> {
+  const res = await fetch(`${site}/api/catalog.php`, { cache: 'no-store', signal: AbortSignal.timeout(8000) }).catch(() => null);
+  if (!res?.ok) return [];
+  const d = (await res.json().catch(() => null)) as { images?: Drop[] } | null;
+  return (d?.images ?? []).filter(i => typeof i?.p === 'string' && typeof i.thumb === 'string' && typeof i.full === 'string');
+}
+
 async function fromAttributes(site: string): Promise<Listed[]> {
   // Never the counter's weights cached: a weight typed a moment ago shows at once.
-  const [catalog, pos] = await Promise.all([getCatalogAttributes({ own: true }), getPosWeights(true).catch(() => ({}))]);
+  const [catalog, pos, drops] = await Promise.all([getCatalogAttributes({ own: true }), getPosWeights(true).catch(() => ({})), dropsOf(site)]);
   const merged = mergeWeights(catalog, pos);
+  const abs = (u: string) => (/^https?:\/\//.test(u) ? u : `${site}${u.startsWith('/') ? '' : '/'}${u}`);
+  // A drop is keyed like the photograph it becomes ("…/DSC09213.jpg" → "…/DSC09213.webp"); an adopted one is listed below.
+  const dropped: Listed[] = drops.map(dr => ({ dr, key: dr.p.replace(/\.[^./]+$/, '.webp') }))
+    .filter(({ key }) => !merged[key])
+    .map(({ dr, key }) => {
+      const name = key.split('/').pop()!.replace(/\.webp$/i, '');
+      return {
+        id: key, name, url: '', image: abs(dr.full), thumb: abs(dr.thumb), collection: collectionOfKey(key),
+        weightGrams: null, weightOnPhoto: false, facts: [], about: '',
+        added: typeof dr.t === 'number' && dr.t > 0 ? dr.t * 1000 : null, newArrival: false,
+        imagePath: key, drop: true, source: 'attributes' as const, photoSource: null, sourceMarked: false,
+        own: { name, about: '', facts: [], stone: '', metal: '', karat: '', cut: '', style: '' },
+      };
+    });
   // Every photograph, those without a page too (url ""): one hidden at the counter
   // has no page once the site is rebuilt, and must still be found to show it again.
-  return Object.entries(merged).map(([key, a]) => {
+  return [...dropped, ...Object.entries(merged).map(([key, a]) => {
     const x = a as typeof a & { name?: string; path?: string; added?: number; karat?: string };
     const name = x.name || key.split('/').pop()!.replace(/\.webp$/i, '');
     return {
@@ -141,7 +169,7 @@ async function fromAttributes(site: string): Promise<Listed[]> {
       sourceMarked: false,
       own: { name, about: '', facts: [], stone: tag(x.stone), metal: tag(x.metal), karat: tag(x.karat), cut: tag(x.cut), style: tag(x.style) },
     };
-  });
+  })];
 }
 
 /** A piece with the counter's change laid over what the site says. */
@@ -196,7 +224,7 @@ export async function getSitePieces(opts: { all?: boolean; fresh?: boolean } = {
   if (!site) return { site: '', pieces: [] };
   const [list, changes] = await Promise.all([listed(site), getSiteOverrides(site, opts.fresh)]);
   const pieces = list.map(p => withChange(p, changes[p.id]))
-    .filter(p => opts.all ? p.url || p.hidden || p.change : p.url && !p.hidden);
+    .filter(p => opts.all ? p.url || p.hidden || p.change || p.drop : p.url && !p.hidden);
   return { site, pieces };
 }
 

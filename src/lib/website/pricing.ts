@@ -35,6 +35,12 @@ export function pricingFor(config: WebsiteConfig, collection: string): WebsiteCa
 }
 
 const isDiamond = (stone: string) => /^diamond/i.test(stone || '');
+/**
+ * A metal the gram rate doesn't cover: platinum, silver, or silver with gold (the
+ * Gents Ruby Rings' "925 Silver & 21K Gold", a counter's word). Every metal but
+ * palladium used to be priced as gold at the full weight.
+ */
+const notByTheGram = (metal: string) => /platinum|silver/i.test(metal || '');
 const hasColouredStones = (stone: string) => !!stone && stone !== 'None' && !isDiamond(stone);
 
 export function quotePiece(key: string, attrs: PieceAttrs | undefined, config: WebsiteConfig, rates: QuoteRates): Quote {
@@ -43,6 +49,8 @@ export function quotePiece(key: string, attrs: PieceAttrs | undefined, config: W
   if (!config.enabled) return { key, collection, priceable: false, reason: 'not_configured' };
   // A great house's own piece is not gold by the gram: its price is asked for, never quoted.
   if (attrs.house || isMaisonFolder(key.split('/').slice(0, 2).join('/'))) return { key, collection, priceable: false, reason: 'maison_enquire' };
+
+  if (notByTheGram(attrs.metal)) return { key, collection, priceable: false, reason: 'metal_enquire' };
 
   const weightGrams = typeof attrs.weightGrams === 'number' && attrs.weightGrams > 0 ? attrs.weightGrams : 0;
   if (!weightGrams) return { key, collection, priceable: false, reason: 'no_weight' };

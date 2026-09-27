@@ -91,7 +91,7 @@ export interface PieceAttrs {
   house?: string;
 }
 
-export type QuoteReason = 'unknown_piece' | 'not_configured' | 'no_weight' | 'diamond_enquire' | 'maison_enquire';
+export type QuoteReason = 'unknown_piece' | 'not_configured' | 'no_weight' | 'diamond_enquire' | 'maison_enquire' | 'metal_enquire';
 
 export interface QuoteBreakdown {
   metalType: MetalType;
