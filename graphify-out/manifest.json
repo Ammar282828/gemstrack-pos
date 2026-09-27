@@ -1006,9 +1006,9 @@
     "semantic_hash": ""
   },
   ".claude/settings.json": {
-    "mtime": 1788733980.1890852,
-    "seen": 1790357649.7750862,
-    "ast_hash": "da22d29396a908844a2260b5eaeb904a",
+    "mtime": 1790531690.2674599,
+    "seen": 1790531890.967938,
+    "ast_hash": "ccae89f5326ae9e9072dcad0f9cc7631",
     "semantic_hash": ""
   },
   ".idx/integrations.json": {
@@ -3310,9 +3310,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790511086.447462,
-    "seen": 1790511092.8129358,
-    "ast_hash": "ef75e1f82cff39ed30cd51a06967513a",
+    "mtime": 1790531872.8279197,
+    "seen": 1790531890.9683049,
+    "ast_hash": "9414b6479e45859fcaae24b696d58f08",
     "semantic_hash": ""
   },
   "README.md": {
@@ -4747,6 +4747,30 @@
     "mtime": 1790509916.3669822,
     "seen": 1790511092.812695,
     "ast_hash": "1e3f5780ef6e6dad3b72a92af9b51abd",
+    "semantic_hash": ""
+  },
+  "scripts/cloud/environment-setup.sh": {
+    "mtime": 1790531685.459344,
+    "seen": 1790531890.967993,
+    "ast_hash": "74b55705933bf5417bd9db9c34766271",
+    "semantic_hash": ""
+  },
+  "scripts/cloud/fill-secrets.mjs": {
+    "mtime": 1790531739.463626,
+    "seen": 1790531890.9679942,
+    "ast_hash": "b97978b32bf2a4147c2d31ac40a6552f",
+    "semantic_hash": ""
+  },
+  "scripts/cloud/session-start.sh": {
+    "mtime": 1790531666.1575491,
+    "seen": 1790531890.9679942,
+    "ast_hash": "b94c8e55d6d025ef2d6546b00225b783",
+    "semantic_hash": ""
+  },
+  ".github/workflows/cloud-deploy.yml": {
+    "mtime": 1790531612.314068,
+    "seen": 1790531890.9683032,
+    "ast_hash": "5142856f095f324ec8b55951a12c9877",
     "semantic_hash": ""
   }
 }
