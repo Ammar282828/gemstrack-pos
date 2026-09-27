@@ -96,3 +96,20 @@ describe('rules', () => {
     expect(describeRule(r as Parameters<typeof describeRule>[0], 'PKR')).toBe('ad sets · today · spent > Rs 500 · results < 1 → notify, every 30 min');
   });
 });
+
+describe('authorizeUrl', () => {
+  it('names the login configuration and sends no scope list when there is one (Business apps refuse scopes)', async () => {
+    const { authorizeUrl } = await import('./meta');
+    const u = new URL(authorizeUrl('https://pos.taheri.shop', 'S', '1234567890'));
+    expect(u.searchParams.get('config_id')).toBe('1234567890');
+    expect(u.searchParams.get('override_default_response_type')).toBe('true');
+    expect(u.searchParams.has('scope')).toBe(false);
+    expect(u.searchParams.get('redirect_uri')).toBe('https://pos.taheri.shop/api/ads/callback');
+  });
+  it('falls back to the scope list without one', async () => {
+    const { authorizeUrl } = await import('./meta');
+    const u = new URL(authorizeUrl('https://pos.taheri.shop', 'S', null));
+    expect(u.searchParams.get('scope')).toContain('ads_management');
+    expect(u.searchParams.has('config_id')).toBe(false);
+  });
+});

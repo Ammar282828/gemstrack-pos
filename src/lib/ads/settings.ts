@@ -30,10 +30,12 @@ export interface AdsSettings {
   instagramUsername: string | null;
   /** A welcome message pre-filled in WhatsApp when someone taps a chat ad. */
   whatsappGreeting: string | null;
+  /** Facebook Login for Business configuration (Meta app → Facebook Login for Business → Configurations). */
+  loginConfigId: string | null;
   updatedAt: string | null;
 }
 
-const EMPTY: AdsSettings = { adAccountId: null, adAccountName: null, pageId: null, pageName: null, instagramUserId: null, instagramUsername: null, whatsappGreeting: null, updatedAt: null };
+const EMPTY: AdsSettings = { adAccountId: null, adAccountName: null, pageId: null, pageName: null, instagramUserId: null, instagramUsername: null, whatsappGreeting: null, loginConfigId: null, updatedAt: null };
 
 export async function loadAdsSettings(): Promise<AdsSettings> {
   const snap = await DOC().get();

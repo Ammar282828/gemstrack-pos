@@ -10,6 +10,7 @@ import { randomBytes } from 'crypto';
 import { publicOrigin } from '@/lib/social/gate';
 import { adsGate } from '@/lib/ads/gate';
 import { appSecret, authorizeUrl, META_APP_ID } from '@/lib/ads/meta';
+import { loadAdsSettings } from '@/lib/ads/settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,8 @@ export async function POST(req: NextRequest) {
   if (!META_APP_ID()) return NextResponse.json({ error: 'No Meta app is set for this shop (META_APP_ID).' }, { status: 503 });
   if (!(await appSecret())) return NextResponse.json({ error: 'The Meta app secret is not in this project yet — step 2 on this page.' }, { status: 503 });
   const state = randomBytes(18).toString('base64url');
-  const res = NextResponse.json({ url: authorizeUrl(publicOrigin(req), state) });
+  const settings = await loadAdsSettings().catch(() => null);
+  const res = NextResponse.json({ url: authorizeUrl(publicOrigin(req), state, settings?.loginConfigId) });
   res.cookies.set('ads_state', state, { httpOnly: true, secure: true, sameSite: 'lax', path: '/api/ads', maxAge: 600 });
   return res;
 }

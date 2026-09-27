@@ -13,6 +13,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { PageShell } from '@/components/shared/page-shell';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Settings2, CheckCircle2, XCircle, Circle, Loader2, ExternalLink, Copy, Facebook, Instagram, Megaphone, RefreshCw, Check, MessageCircle, AlertTriangle, Unplug } from 'lucide-react';
@@ -63,7 +64,10 @@ function AdsSetup() {
   const [assetsError, setAssetsError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [greeting, setGreeting] = useState('');
+  const [configId, setConfigId] = useState('');
   const [confirmOff, setConfirmOff] = useState(false);
+
+  useEffect(() => { if (status?.app.loginConfigId) setConfigId(status.app.loginConfigId); }, [status?.app.loginConfigId]);
 
   // Back from Facebook.
   useEffect(() => {
@@ -138,6 +142,18 @@ function AdsSetup() {
                 {POS_ORIGINS.map(o => <CopyLine key={o} value={new URL(o).hostname.replace(/^pos\./, '')} />)}</li>
               <li><span className="text-foreground">Facebook Login for Business → Settings</span>: <b>Client OAuth login</b> and <b>Web OAuth login</b> on, and under <b>Valid OAuth redirect URIs</b> both houses’ addresses, then Save. Without them Facebook stops at “Can’t load URL — the domain of this URL isn’t included in the app’s domains”.
                 {redirectUris.map(u => <CopyLine key={u} value={u} />)}</li>
+              {/* A Business-type app refuses a plain permission list ("Invalid Scopes: ads_management, …", 2026-09-26). */}
+              <li><span className="text-foreground">Facebook Login for Business → Configurations → Create configuration</span>: any name (“POS ads”), login variation <b>General</b>, access token <b>User access token</b>, and these permissions (the ads ones appear once Marketing API is added):
+                <CopyLine value="ads_management, ads_read, business_management, pages_show_list, pages_read_engagement, pages_manage_ads, instagram_basic" />
+                Then paste its <b>Configuration ID</b> here — without one Facebook answers “Invalid Scopes”.
+                {app.loginConfigFromEnv ? <p className="text-xs mt-1">Set for this shop by META_LOGIN_CONFIG_ID: <code>{app.loginConfigId}</code></p> : (
+                  <div className="flex gap-2 mt-1.5">
+                    <Input value={configId} onChange={e => setConfigId(e.target.value.replace(/\D/g, ''))} inputMode="numeric" placeholder="Configuration ID" className="h-9 max-w-[16rem] text-base sm:text-sm tabular-nums" aria-label="Configuration ID" />
+                    <Button size="sm" variant={app.loginConfigId ? 'outline' : 'default'} className="h-9" disabled={!!busy || !configId || configId === (app.loginConfigId ?? '')} onClick={() => save({ loginConfigId: configId }, 'config')}>{busy === 'config' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}</Button>
+                  </div>
+                )}
+                {app.loginConfigId && !app.loginConfigFromEnv && <p className="text-xs mt-1 text-success">Saved: Connect uses configuration {app.loginConfigId}.</p>}
+              </li>
               <li><span className="text-foreground">App roles</span>: whoever connects must be an admin or developer of the app (it stays in development mode — no review is needed for the shop’s own ad accounts).</li>
             </ol>
           </Step>

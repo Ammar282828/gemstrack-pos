@@ -429,6 +429,11 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   (all / bought / last year / lapsed), SHA-256 on the server (`audience-rows.ts`, tested), Instagram engagers, lookalikes.
   Rules are Meta's own automated rules (`adrules_library`). Every change is logged in Firestore `ads_log` (shown on Rules).
   Not yet run against the live API when shipped — field names come from Meta's v25/v26 docs; errors show Meta's own words.
+  **Connecting needs, in the Meta app** (all hit on 2026-09-26): App domains `taheri.shop` + `houseofmina.store` and both
+  `…/api/ads/callback` under Facebook Login for Business → Valid OAuth redirect URIs (else "Can't load URL"), and a **login
+  configuration** (FLfB → Configurations: User access token + the ads/pages permissions) whose ID is pasted on Ads → Setup
+  (`app_settings/meta_ads.loginConfigId`, or `META_LOGIN_CONFIG_ID`) — the app is Business-type and answers a plain `scope` list
+  with "Invalid Scopes: ads_management, …".
 
 ## graphify
 

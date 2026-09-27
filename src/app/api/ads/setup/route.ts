@@ -55,6 +55,11 @@ export async function POST(req: NextRequest) {
     }
     if (patch.adAccountId) patch.adAccountId = patch.adAccountId.replace(/^act_/, '');
     if (patch.adAccountId && !/^\d+$/.test(patch.adAccountId)) return NextResponse.json({ error: 'That is not an ad account id.' }, { status: 400 });
+    const config = str(body.loginConfigId, 40);
+    if (config !== undefined) {
+      if (config && !/^\d{5,25}$/.test(config)) return NextResponse.json({ error: 'A configuration ID is a long number, as Meta shows it under Configurations.' }, { status: 400 });
+      patch.loginConfigId = config;
+    }
     const greeting = str(body.whatsappGreeting, 300);
     if (greeting !== undefined) patch.whatsappGreeting = greeting;
     return NextResponse.json({ settings: await saveAdsSettings(patch) });

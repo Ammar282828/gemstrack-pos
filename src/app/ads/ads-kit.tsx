@@ -41,6 +41,7 @@ export interface AdsStatus {
     id: string | null; secret: boolean; secretName: string; secretUrl: string;
     tokenSecret: string; tokenStore: { exists: boolean; read: boolean; write: boolean }; tokenStoreUrl: string;
     project: string; redirectUri: string; version: string;
+    loginConfigId: string | null; loginConfigFromEnv: boolean;
   };
   connection: null | {
     connected: boolean; kind: 'user' | 'system'; userName: string | null; connectedAt: string | null;

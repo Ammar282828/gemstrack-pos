@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsGate, noStore } from '@/lib/ads/gate';
-import { appSecret, checkConnection, META_APP_ID, redirectUri, SCOPES, TOKEN_SECRET, APP_SECRET_NAME, GRAPH_VERSION } from '@/lib/ads/meta';
+import { appSecret, checkConnection, META_APP_ID, redirectUri, REQUIRED_SCOPES, TOKEN_SECRET, APP_SECRET_NAME, GRAPH_VERSION, LOGIN_CONFIG_ID } from '@/lib/ads/meta';
 import { accountSummary, HOUSE_INSTAGRAM, loadAdsSettings, PINNED_ACCOUNT } from '@/lib/ads/settings';
 import { secretAccess, secretConsoleUrl, posProject } from '@/lib/secret-manager';
 import { publicOrigin } from '@/lib/social/gate';
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       daysLeft,
       scopes,
       // A system user's token lists no scopes through us when there's no app secret to ask with; don't cry wolf then.
-      missingScopes: scopes.length ? SCOPES.filter(s => !scopes.includes(s)) : [],
+      missingScopes: scopes.length ? REQUIRED_SCOPES.filter(s => !scopes.includes(s)) : [],
       error: error ?? null,
     };
   }
@@ -66,6 +66,8 @@ export async function GET(req: NextRequest) {
       project: posProject(),
       redirectUri: redirectUri(publicOrigin(req)),
       version: GRAPH_VERSION(),
+      loginConfigId: LOGIN_CONFIG_ID() || settings?.loginConfigId || null,
+      loginConfigFromEnv: !!LOGIN_CONFIG_ID(),
     },
     connection,
     connectionError,

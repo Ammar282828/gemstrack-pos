@@ -33,7 +33,12 @@ export const META_APP_ID = () => (process.env.META_APP_ID || process.env.INSTAGR
 export const TOKEN_SECRET = () => process.env.META_ADS_TOKEN_SECRET?.trim() || 'meta-ads-token';
 export const APP_SECRET_NAME = () => process.env.META_APP_SECRET_NAME?.trim() || 'meta-app-secret';
 /** Facebook Login for Business configuration, when the app uses one instead of plain scopes. */
-const LOGIN_CONFIG_ID = () => process.env.META_LOGIN_CONFIG_ID?.trim() || '';
+/**
+ * Facebook Login for Business configuration. A Business-type Meta app (the shop's is) refuses a plain
+ * `scope` list — "Invalid Scopes: ads_management, …" (2026-09-26) — and wants a configuration made in the
+ * app instead. From META_LOGIN_CONFIG_ID, else the id saved on Ads → Setup.
+ */
+export const LOGIN_CONFIG_ID = () => process.env.META_LOGIN_CONFIG_ID?.trim() || '';
 const GRAPH = 'https://graph.facebook.com';
 
 /** What the POS asks Facebook for: read and run ads, see the Pages and Instagram accounts to run them as. */
@@ -42,8 +47,8 @@ export const SCOPES = [
   'pages_show_list', 'pages_read_engagement', 'pages_manage_ads',
   'instagram_basic',
 ];
-/** Without these nothing on the Ads pages works; the rest only limit what can be created. */
-export const ESSENTIAL_SCOPES = ['ads_read'];
+/** What Setup warns about when a login lacks it. instagram_basic only lists posts to boost (Taheri can list them another way). */
+export const REQUIRED_SCOPES = SCOPES.filter(s => s !== 'instagram_basic');
 
 export class MetaAdsError extends Error {
   constructor(
@@ -205,15 +210,16 @@ export const actId = (id: string) => (id.startsWith('act_') ? id : `act_${id}`);
 
 export const redirectUri = (origin: string) => `${origin.replace(/\/+$/, '')}/api/ads/callback`;
 
-export function authorizeUrl(origin: string, state: string): string {
+export function authorizeUrl(origin: string, state: string, configId?: string | null): string {
   const q = new URLSearchParams({
     client_id: META_APP_ID(),
     redirect_uri: redirectUri(origin),
     response_type: 'code',
     state,
   });
-  // Facebook Login for Business prefers a configuration (config_id) to scopes; scopes still work for a person's token.
-  if (LOGIN_CONFIG_ID()) { q.set('config_id', LOGIN_CONFIG_ID()); q.set('override_default_response_type', 'true'); }
+  // A configuration (config_id) when there is one — the permissions are chosen in it, and scope must not be sent too.
+  const config = LOGIN_CONFIG_ID() || configId?.trim() || '';
+  if (config) { q.set('config_id', config); q.set('override_default_response_type', 'true'); }
   else { q.set('scope', SCOPES.join(',')); q.set('auth_type', 'rerequest'); }
   return `https://www.facebook.com/${GRAPH_VERSION()}/dialog/oauth?${q}`;
 }
