@@ -1,0 +1,87 @@
+# A Claude Code cloud session (claude.ai/code) goes live by itself.
+#
+# A cloud session may push only its own branch (claude/…) — never taheri-next, and never
+# the other house's repo. So this does for such a branch what the Mac does by hand
+# (CLAUDE.md, "Shipping a change to both houses"): it brings main, taheri-next and House of
+# Mina's main into the branch, checks it, and pushes the result to main + taheri-next here and
+# to main of gemstrack-pos — both houses together (owner, 2026-09-27: cloud work goes live
+# without a review).
+#
+# What stops a bad change: the typecheck and the tests. A merge conflict or a failure stops
+# the run before anything is pushed. Nothing is ever force-pushed: if a deploy branch moved on
+# in a way the merge can't absorb, the push is refused and the run fails.
+#
+# Secrets: HOM_DEPLOY_KEY — the private half of a write deploy key on gemstrack-pos.
+# "Run workflow" with dry_run ticked does everything but the pushes.
+name: Deploy a cloud session to both houses
+
+on:
+  push:
+    branches: ['claude/**']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Check and merge, but push nothing
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy-both-houses
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bring in main, taheri-next and House of Mina's main
+        env:
+          HOM_DEPLOY_KEY: ${{ secrets.HOM_DEPLOY_KEY }}
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$HOM_DEPLOY_KEY" > ~/.ssh/hom && chmod 600 ~/.ssh/hom
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git remote add hom git@github.com:Ammar282828/gemstrack-pos.git
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/hom -o IdentitiesOnly=yes"
+          git fetch --quiet origin main taheri-next
+          git fetch --quiet hom main
+          for ref in origin/main origin/taheri-next hom/main; do
+            if git merge-base --is-ancestor "$ref" HEAD; then echo "$ref: already in"; continue; fi
+            git merge --no-edit -m "Merge $ref into ${GITHUB_REF_NAME}" "$ref" || { echo "::error::$ref does not merge cleanly into ${GITHUB_REF_NAME}; rebase the branch on main and push again"; exit 1; }
+            echo "$ref: merged"
+          done
+          git log --oneline -1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p .
+
+      - name: Tests
+        run: npm test
+
+      - name: Ship to both houses
+        if: github.event_name == 'push' || !inputs.dry_run
+        run: |
+          set -e
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/hom -o IdentitiesOnly=yes"
+          git push --atomic origin HEAD:refs/heads/main HEAD:refs/heads/taheri-next
+          git push hom HEAD:refs/heads/main
+          echo "::notice::$(git rev-parse --short HEAD) is rolling out to Taheri (taheri-next) and House of Mina (gemstrack-pos main), about 5 minutes"

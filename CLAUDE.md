@@ -54,6 +54,34 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 - The owner is a Firebase/GCP Owner but lacks `iam.serviceAccounts.signBlob`, so `createCustomToken` fails from a laptop;
   test storage layers directly (`npx tsx`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID=gemstrack-pos`).
 
+## Cloud sessions (claude.ai/code, since 2026-09-27)
+
+Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27: "i want to run this on the cloud").
+- **One Google credential:** the service account `claude-cloud@gemstrack-pos`. Its JSON key, base64, is the environment
+  variable `GCP_SA_KEY_B64` of the claude.ai/code environment (the Mac keeps it in `~/.config/claude-cloud/`, owner-only;
+  `environment.env` there is the line to paste). It may read exactly the secrets the backends use (Taheri 13, Mina 14 —
+  never `apphosting-github-conn-*`, `waha-dashboard-password`, `DASHBOARD_SECRET`), read/write Firestore in both projects
+  (`datastore.user`), call Vertex in gemstrack-pos and Murtaza's `jewelgen-mm-e3d43ecb`, and view App Hosting, Cloud Build,
+  Cloud Run, logs and Scheduler in both. **To cut the cloud off, delete its key**
+  (`gcloud iam service-accounts keys list --iam-account claude-cloud@gemstrack-pos.iam.gserviceaccount.com`, then `… keys delete`).
+  A secret added later needs `roles/secretmanager.secretAccessor` for it on that secret too.
+- **Every session starts** with `scripts/cloud/session-start.sh` (the SessionStart hook in `.claude/settings.json`, only when
+  `CLAUDE_CODE_REMOTE=true`; hooks run in single-repo sessions only, so run it by hand in a multi-repo one): the key becomes the
+  machine's default Google credentials (and gcloud's), Node 20 goes first on PATH, and `.env.taheri.local` / `.env.mina.local`
+  are written from the YAML with every secret filled (`scripts/cloud/fill-secrets.mjs`; prints counts, never values). The
+  environment's setup script is `scripts/cloud/environment-setup.sh` (gcloud CLI), pasted into the environment. Network: Full —
+  Meta, WAHA, Green API, Shopify, Magnific and both sites are not on the Trusted list.
+- **Going live:** a cloud session can push only its own `claude/…` branch. `.github/workflows/cloud-deploy.yml` takes any push to
+  `claude/**`, merges `main`, `taheri-next` and gemstrack-pos `main` into it, runs the typecheck and tests, and pushes the result
+  to `main` + `taheri-next` here and to gemstrack-pos `main` (a write deploy key there; its private half is this repo's Actions
+  secret `HOM_DEPLOY_KEY`): both houses at once, **with no review** (owner's choice, 2026-09-27). A conflict or a failed check stops
+  it before any push, and nothing is ever force-pushed. taheri-site and mina-catalogue do the same with their own `cloud-deploy.yml`
+  (branch → main → their deploy). In a cloud session: commit, push the branch, watch `gh run list`; on a conflict, rebase on
+  `origin/main` and push again. "Run workflow" on cloud-deploy.yml defaults to a dry run (checks, no pushes).
+- **Mac only:** SSH to Hostinger (port 65002; the sites deploy through Actions anyway), Google sign-in to a local ERP (no browser —
+  typecheck, tests and the gate's `?dev=1` still work), the Mac's memory files (this file is the handoff), GoDaddy / Hostinger API
+  tokens (not in Secret Manager).
+
 ## How the site and the POS talk
 
 | Route | Who calls it | What it does |
@@ -123,11 +151,12 @@ back to Green API otherwise; Green API stays configured until the owner cancels 
 
 **Shipping a change to both houses:**
 ```
-git push taheri main:taheri-next     # Taheri rolls out (~5 min)
-git push hom main:main               # House of Mina rolls out
+git pull --no-rebase taheri main              # what cloud sessions shipped (see "Cloud sessions")
+git push taheri main main:taheri-next         # GitHub's main + Taheri rolls out (~5 min)
+git push hom main:main                        # House of Mina rolls out
 ```
 **Push both together, always** (owner, 2026-09-26: "push both together always") — no waiting on Taheri's rollout before
-Mina's. `main` here is the shared working branch (the old dead
+Mina's. Keep `taheri`'s `main` level too: it is where every cloud session starts (it was 7 commits behind on 2026-09-27). `main` here is the shared working branch (the old dead
 `main` is kept as tag `old-main-2026-06`). `website-checkout` is retired.
 
 **Running a house locally:** `npm run env:taheri` or `npm run env:mina` writes `.env.<house>.local`
