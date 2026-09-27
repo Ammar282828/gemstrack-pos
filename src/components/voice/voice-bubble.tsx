@@ -435,7 +435,7 @@ export function VoiceBubble() {
           'fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all md:bottom-6',
           phase === 'listening'
             ? 'bg-primary text-primary-foreground'
-            : 'bg-background text-foreground border hover:bg-accent',
+            : 'glass-fab bg-background text-foreground border hover:bg-accent',
           busy && 'opacity-60',
         )}
         style={phase === 'listening'

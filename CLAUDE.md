@@ -231,6 +231,20 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   days, birthdays/anniversaries), **Due to customers** (open orders *and* repairs in the shop by their promised date — late,
   today, soonest, undated by age; `orderTiming` for both) and **Recent sales**; the 30-day line at the bottom. No buttons:
   New Sale is the sidebar's.
+- **Liquid Glass is a choice** (2026-09-27, owner: "add liquid glass from apple to the pos, use apples exact design guides …
+  this will be a dropdown option from the normal ui"): Settings → Appearance → **Interface style**, Standard (default) or Liquid
+  Glass, the shop's (`settings.uiStyle`, cached per device as `gemstrack:ui-style` for the first paint, like the theme). It is one
+  class, `ui-glass` on `<html>` (`applyUiStyleToDocument`, and the boot script in the head), and every rule lives under it at the end
+  of `globals.css` — Standard is untouched. Built from Apple's HIG (Materials; Adopting Liquid Glass; Color; Layout), each rule
+  quoted in the CSS: glass only on the navigation and control layer (sidebar, the top bar's controls and page tabs, mobile bottom
+  bars, sheets, dialogs, menus, popovers, tooltips, toasts, the two floating buttons), never on content (cards, tables, forms stay
+  opaque); the regular variant only (the clear one is for controls over photos — not used); sidebars more opaque; one tinted
+  control, New Sale; the top bar is transparent with a **scroll edge effect** instead of a strip; windows inset from the edge with a
+  1.75rem radius and footer buttons concentric with the corner (`data-glass-footer`); section headers in title style; Reduce
+  Transparency / Increase Contrast / no backdrop-filter get a solid version. Components carry inert hook classes (`glass`,
+  `glass-window`, `glass-popover`, `glass-bar`, `glass-fab`, `glass-ctl`, `app-header`, `app-tabs`); the material itself is the
+  house's popover colour at low opacity over a fixed ambient glow of the house's primary, so both houses get their own glass.
+  Checked in headless Chromium at 1440 px and 390 px in both modes, not on a real phone.
 - **The sidebar is by what the shop does** (re-audited 2026-09-27, owner: "reaudit the separation entirely"): **New Sale** is a
   button of its own under Search; Home (Dashboard, Calendar); **Sales** — Orders, Invoices, Repairs, Customers; **Workshop &
   stock** — Workshop (Jobs, Karigars, Given items) and **Stock** (Pieces, Add in bulk; back in the sidebar — Mina keeps ~100

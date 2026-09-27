@@ -260,6 +260,8 @@ export interface Settings extends GoldRates {
   weprintApiSkus: string[];
   paymentMethods: PaymentMethod[];
   theme: ThemeKey;
+  /** Settings → Appearance → Interface style: the standard interface, or Apple's Liquid Glass (globals.css). */
+  uiStyle?: 'standard' | 'glass';
   databaseLocked?: boolean; // New kill switch flag
   firebaseConfig?: FirebaseConfigStub;
   shopifyStoreDomain?: string;
@@ -950,6 +952,7 @@ const initialSettingsData: Settings = {
   weprintApiSkus: [],
   paymentMethods: [],
   theme: 'slate',
+  uiStyle: 'standard',
   databaseLocked: false,
   // On by default: losing a half-entered custom order costs more than an
   // occasional prompt offering it back.

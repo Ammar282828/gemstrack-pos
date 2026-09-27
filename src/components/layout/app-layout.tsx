@@ -219,7 +219,7 @@ function ThemeToggle() {
       onClick={() => writeDeviceTheme(dark ? 'default' : 'taheri')}
       aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={dark ? 'Light mode (this device)' : 'Dark mode (this device)'}
-      className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+      className="glass-ctl rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
     >
       {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
     </button>
@@ -351,7 +351,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <SidebarMenuItem>
                 <Link href={newSaleEntry.href} legacyBehavior passHref>
                   <SidebarMenuButton asChild tooltip={{ children: 'New Sale' }}
-                    className="justify-center gap-2 rounded-lg bg-primary font-medium text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground data-[active=true]:bg-primary data-[active=true]:text-primary-foreground">
+                    className="glass-prominent justify-center gap-2 rounded-lg bg-primary font-medium text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground data-[active=true]:bg-primary data-[active=true]:text-primary-foreground">
                     <a>{newSaleEntry.icon}<span className="group-data-[collapsible=icon]:hidden">New Sale</span></a>
                   </SidebarMenuButton>
                 </Link>
@@ -364,7 +364,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {visibleGroups.map((group, gi) => (
                 <SidebarGroup key={group.label || 'daily'} className={gi === 0 ? 'pt-2' : 'pt-0'}>
                   {group.label && (
-                    <SidebarGroupLabel className="text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 px-3 pb-1 group-data-[collapsible=icon]:hidden">
+                    <SidebarGroupLabel className="sidebar-group-label text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 px-3 pb-1 group-data-[collapsible=icon]:hidden">
                       {group.label}
                     </SidebarGroupLabel>
                   )}
@@ -450,17 +450,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset>
-          <header className="sticky top-0 z-40 flex items-center gap-2 h-14 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
+        <SidebarInset className="app-inset">
+          <header className="app-header sticky top-0 z-40 flex items-center gap-2 h-14 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
             {/* Was md:hidden, which meant the sidebar could collapse to icons
                 on paper but there was no way to trigger it on a desktop. On a
                 1280px screen the rail is a fifth of the width; collapsing it
                 is what makes the wide tables fit. Cmd/Ctrl+B also toggles. */}
-            <SidebarTrigger />
+            <SidebarTrigger className="glass-ctl" />
             <span className="hidden lg:inline text-2xs text-muted-foreground">⌘B</span>
             {/* The page's siblings (see navGroups): one sidebar entry, several pages. */}
             {pageTabs && (
-              <nav aria-label={`${current?.label} pages`} className="ml-2 flex min-w-0 items-center gap-1 overflow-x-auto self-stretch">
+              <nav aria-label={`${current?.label} pages`} className="app-tabs ml-2 flex min-w-0 items-center gap-1 overflow-x-auto self-stretch">
                 {pageTabs.map(t => {
                   const on = t.href === pathname;
                   return (
@@ -469,12 +469,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       href={t.href}
                       aria-current={on ? 'page' : undefined}
                       className={cn(
-                        'relative flex h-full shrink-0 items-center whitespace-nowrap px-3 text-sm transition-colors',
+                        'app-tab relative flex h-full shrink-0 items-center whitespace-nowrap px-3 text-sm transition-colors',
                         on ? 'font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
                       )}
                     >
                       {t.label}
-                      {on && <span aria-hidden className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary" />}
+                      {on && <span aria-hidden className="tab-underline absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary" />}
                     </Link>
                   );
                 })}
@@ -487,7 +487,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               type="button"
               onClick={openCommandPalette}
               aria-label="Search"
-              className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
+              className="glass-ctl rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
             >
               <Search className="h-5 w-5" />
             </button>

@@ -58,6 +58,7 @@ const settingsSchema = z.object({
   lastInvoiceNumber: z.coerce.number().int().min(0, "Last invoice number must be a non-negative integer"),
   lastOrderNumber: z.coerce.number().int().min(0, "Last order number must be a non-negative integer"),
   theme: z.enum(themeKeys).default('default'),
+  uiStyle: z.enum(['standard', 'glass']).default('standard'),
   databaseLocked: z.boolean().optional(),
 });
 
@@ -76,7 +77,7 @@ const SECTIONS = [
  *  so a validation failure on a tab you cannot see would otherwise just make
  *  the save button do nothing — this is used to jump to the offending tab. */
 const FIELD_TAB: Partial<Record<keyof SettingsFormData, string>> = {
-  shopName: 'shop', shopAddress: 'shop', shopContact: 'shop', theme: 'shop',
+  shopName: 'shop', shopAddress: 'shop', shopContact: 'shop', theme: 'shop', uiStyle: 'shop',
   lastInvoiceNumber: 'shop', lastOrderNumber: 'shop',
   goldRatePerGram24k: 'rates', goldRatePerGram22k: 'rates',
   goldRatePerGram21k: 'rates', goldRatePerGram18k: 'rates',
@@ -612,6 +613,7 @@ export default function SettingsPage() {
       lastInvoiceNumber: 0,
       lastOrderNumber: 0,
       theme: 'default',
+      uiStyle: 'standard',
       databaseLocked: false,
     },
   });
@@ -637,6 +639,7 @@ export default function SettingsPage() {
         lastInvoiceNumber: currentSettings.lastInvoiceNumber,
         lastOrderNumber: currentSettings.lastOrderNumber || 0,
         theme: normalizeTheme(currentSettings.theme),
+        uiStyle: currentSettings.uiStyle === 'glass' ? 'glass' : 'standard',
         databaseLocked: currentSettings.databaseLocked || false,
       });
     }
@@ -866,6 +869,30 @@ export default function SettingsPage() {
                     </FormItem>
                   )}
                 />
+                {/* Apple's Liquid Glass as a choice (the owner, 2026-09-27: "a dropdown option
+                    from the normal ui"). The shop's, like the mode; globals.css has the rules. */}
+                <FormField
+                  control={form.control}
+                  name="uiStyle"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4 text-muted-foreground" />Interface style</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="sm:max-w-xs"><SelectValue placeholder="Select a style" /></SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="standard">Standard</SelectItem>
+                          <SelectItem value="glass">Liquid Glass</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Liquid Glass is Apple’s: the sidebar, bars, menus and sheets become glass floating over the page, the way iOS 26 and macOS Tahoe draw them. Cards and forms stay as they are. For every device; a device set to Reduce Transparency gets a solid version.
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <ImageIcon className="h-4 w-4 text-muted-foreground" />Brand logo
@@ -1078,7 +1105,7 @@ export default function SettingsPage() {
       {isDirty && (
         <>
           <div className="h-20" aria-hidden />
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="glass-bar fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <div className="container mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground truncate">Unsaved changes</p>
               <div className="flex gap-2 flex-shrink-0">

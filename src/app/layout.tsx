@@ -13,7 +13,7 @@ import React, { useEffect } from 'react';
 import Script from 'next/script';
 import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
 import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, isLinksHost } from '@/lib/store-config';
-import { readCachedTheme, writeCachedTheme, LIGHT_THEME, readDeviceTheme, DEVICE_THEME_EVENT, applyThemeToDocument } from '@/lib/theme-cache';
+import { readCachedTheme, writeCachedTheme, LIGHT_THEME, readDeviceTheme, DEVICE_THEME_EVENT, applyThemeToDocument, readCachedUiStyle, writeCachedUiStyle, applyUiStyleToDocument } from '@/lib/theme-cache';
 import { warmPdfLogo } from '@/lib/pdf-logo';
 
 const inter = Inter({
@@ -24,6 +24,7 @@ const inter = Inter({
 function AppBody({ children }: { children: React.ReactNode }) {
   const isHydrated = useIsStoreHydrated();
   const theme = useAppStore(state => state.settings.theme);
+  const uiStyle = useAppStore(state => state.settings.uiStyle);
   const hasSettingsLoaded = useAppStore(state => state.hasSettingsLoaded);
   const pathname = usePathname();
 
@@ -90,6 +91,15 @@ function AppBody({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener(DEVICE_THEME_EVENT, on);
   }, []);
   const shownTheme = deviceTheme || (hasSettingsLoaded && theme ? theme : cachedTheme);
+
+  // The interface style (standard or Liquid Glass) is the shop's; the cached hint
+  // covers the first paint (the script in <head> reads it), the store then rules.
+  const cachedStyle = React.useMemo(() => readCachedUiStyle(), []);
+  React.useEffect(() => {
+    const style = hasSettingsLoaded ? (uiStyle || 'standard') : cachedStyle;
+    applyUiStyleToDocument(style);
+    if (hasSettingsLoaded) writeCachedUiStyle(uiStyle || 'standard');
+  }, [hasSettingsLoaded, uiStyle, cachedStyle]);
 
   // <html> and the phone's browser bar follow what is shown: the house's dark ground
   // on the dark palette, the page's own white on the light one.
@@ -165,6 +175,7 @@ export default function RootLayout({
               var h=document.documentElement;
               h.classList.add(t==='default'?'boot-light':'boot-dark');
               if(t==='default')h.classList.remove('dark');
+              if(localStorage.getItem('gemstrack:ui-style')==='glass')h.classList.add('ui-glass');
             }catch(e){document.documentElement.classList.add('boot-light');document.documentElement.classList.remove('dark');}})();`,
           }}
         />

@@ -1,17 +1,17 @@
 # Graph Report - taheri-pos  (2026-09-27)
 
 ## Corpus Check
-- 554 files · ~540,147 words
+- 554 files · ~540,843 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 12 file(s) not represented in the graph (top: (none) 3, .cache 2, .nix 1)
 
 ## Summary
-- 4662 nodes · 16725 edges · 210 communities (187 shown, 23 thin omitted)
+- 4667 nodes · 16736 edges · 195 communities (173 shown, 22 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 153 edges (avg confidence: 0.88)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `df62e72a`
+- Built from commit: `18973448`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -49,11 +49,11 @@
 - audit-customers.mjs
 - exchange.ts
 - assistant.ts
-- firebase-admin.ts
-- rules.ts
+- _lib.ts
+- next
 - partner-statement.mjs
 - revenue-reconciliation.mjs
-- investments/page.tsx
+- draft-list.tsx
 - sidebar.tsx
 - Orders workflow
 - ai/route.ts
@@ -70,32 +70,32 @@
 - fix-phone-numbers.mjs
 - collapse-tasneem-huzaifa-payments.mjs
 - scripts
-- useAppStore
+- useToast
 - firebase
 - cn
-- Order
+- z
 - clean-hisaab.mjs
 - editor-panels.tsx
 - check-counters.mjs
 - import-expenses.mjs
 - vision/order/route.ts
-- queue-panel.tsx
+- getInvoiceAdjustmentsAmount
 - backfill-payment-credits.mjs
 - health.ts
 - checkout.ts
-- register-webhooks/route.ts
+- firebase-admin.ts
 - bill-scanner.tsx
 - import-one-shopify-order.mjs
 - Button
 - story.ts
-- shape.ts
+- vitest
 - website/edit/page.tsx
 - compilerOptions
 - components.json
 - public/me/route.ts
 - audience-editor.tsx
-- pieces/route.ts
-- run/route.ts
+- quote/route.ts
+- radio-group.tsx
 - triage.ts
 - devDependencies
 - cancel-tasneem-duplicate-payment.mjs
@@ -103,7 +103,7 @@
 - cleanup-shopify-pos-orders.mjs
 - dedupe-invoice-payments.mjs
 - overheads.ts
-- instagram.ts
+- postGate
 - workshop.ts
 - campaigns/page.tsx
 - listen/route.ts
@@ -112,19 +112,19 @@
 - Dynamic gold-rate price recalculation
 - menubar.tsx
 - backfill-shopify-invoice-adjustments.mjs
-- next
+- gold-rates/route.ts
 - bulk-sync-pos-to-shopify.mjs
 - mark-invoices-paid.mjs
 - regenerate-payment-link.mjs
 - who-owes-money.mjs
-- Invoice
-- KaratValue
+- analytics/page.tsx
+- lib/pricing.ts
 - settings.ts
-- partnership.ts
+- run/route.ts
 - app/layout.tsx
 - store-config.ts
 - website/featured/route.ts
-- useToast
+- printer/page.tsx
 - photos/route.ts
 - revenue.ts
 - a
@@ -147,10 +147,8 @@
 - import-shopify-customers.mjs
 - command-palette.tsx
 - notifications-scheduler.js
-- photos/page.tsx
-- expense-categories.ts
-- calendar/page.tsx
-- check-settings.mjs
+- restore-inv-000001.mjs
+- pdf-text.ts
 - diagnose-dbs.mjs
 - env-for-house.mjs
 - fix-dates.mjs
@@ -158,12 +156,10 @@
 - delete-bad-invoices.mjs
 - link-invoice-hisaab.mjs
 - link-uzair-expenses.mjs
-- ai.ts
 - restore-orders.mjs
 - restore-settings.mjs
 - numerals.ts
 - AGENTS.md
-- gold-update.ts
 - fix-bareeka.mjs
 - google-auth-gate.tsx
 - add-bareeka-invoice.mjs
@@ -174,14 +170,12 @@
 - do-refund-fatima.mjs
 - link-uzair-stones.mjs
 - v
-- notify-label.ts
 - diagnose-orders.mjs
 - whatsapp-local-service.js
 - check-outstanding.mjs
 - post/page.tsx
 - backfill-source-orders.mjs
 - cancel-tasneem-activity-log.mjs
-- size-picker.tsx
 - list-invoices.mjs
 - renumber-orders.mjs
 - environment-setup.sh
@@ -201,27 +195,18 @@
 - refund-fatima.mjs
 - recents.ts
 - session-start.sh
-- add-bank-account.mjs
-- apply.ts
+- voice-bubble.tsx
 - fallback-ce627215c0e4a9af.js
-- add-mina-payment.mjs
-- ads/new/page.tsx
 - vcard-parser.d.ts
 - sharp
 - r
-- inspect-zahra.mjs
-- partnership-settings.ts
+- firebase.ts
 - cleanup-test-shopify-mirror-docs.mjs
-- speak.ts
-- AiError
 - src_app_website_post_story_editor_storyeditor
-- pitr-restore-invoices.mjs
+- firebase-admin
 - order-form.tsx
-- _lib.ts
-- check-orders.mjs
-- fix-overwritten-invoices.mjs
+- shopifyRequest
 - tcs/route.ts
-- units.ts
 
 ## God Nodes (most connected - your core abstractions)
 1. `cn()` - 375 edges
@@ -240,9 +225,9 @@
   docs/edit-website-pieces.md → public/workbox-f1770938.js
 - `The POS page` --references--> `PairEditor()`  [INFERRED]
   docs/edit-website-pieces.md → src/app/website/post/story-editor.tsx
+- `Source of truth: the POS` --references--> `base()`  [INFERRED]
+  docs/edit-website-pieces.md → src/lib/leopards.ts
 - `The POS page` --references--> `Placement`  [INFERRED]
-  docs/edit-website-pieces.md → src/lib/social/story.ts
-- `The POS page` --references--> `stampPhoto()`  [INFERRED]
   docs/edit-website-pieces.md → src/lib/social/story.ts
 - `How a piece is named in each place` --references--> `getSitePieces()`  [INFERRED]
   docs/edit-website-pieces.md → src/lib/website/site-pieces.ts
@@ -263,7 +248,7 @@
 - **Settings configuration sub-area** — settings_backups_page, settings_contact_import_page, settings_hisaab_import_page, settings_payment_methods_page, settings_printer_page, settings_weprint_api_page [1.0]
 - **shadcn/ui primitives (part 2)** — src_components_ui_table, src_components_ui_separator, src_components_ui_button, src_components_ui_toast, src_components_ui_checkbox, src_components_ui_dropdown_menu, src_components_ui_select, src_components_ui_textarea, src_components_ui_input, src_components_ui_skeleton, src_components_ui_form [1.0]
 
-## Communities (210 total, 23 thin omitted)
+## Communities (195 total, 22 thin omitted)
 
 ### Community 0 - "dispatch"
 Cohesion: 0.50
@@ -274,48 +259,48 @@ Cohesion: 0.10
 Nodes (18): APPLY, ATTACH_CUSTOMER_INVOICES, attachPlan, auth, custById, extract(), fbConfig, fbGet() (+10 more)
 
 ### Community 2 - "editor.ts"
-Cohesion: 0.06
-Nodes (57): InlineText(), Adjust, MaskKey, ShapeKey, adjustedCache, applyPreset(), autoInk(), BADGES (+49 more)
+Cohesion: 0.05
+Nodes (76): InlineText(), StoryEditorProps, Template, Adjust, MaskKey, ShapeKey, adjustedCache, adjustedSource() (+68 more)
 
 ### Community 3 - "import-latest-shopify-order.mjs"
-Cohesion: 0.14
-Nodes (18): APPLY, args, discount, extractFields(), fbConfig, fbHeaders, fetch(), getDocById() (+10 more)
+Cohesion: 0.09
+Nodes (25): ref_dns, APPLY, buildOrder(), created, H, INFLUENCERS, phone(), APPLY (+17 more)
 
 ### Community 4 - "store.ts"
-Cohesion: 0.03
-Nodes (76): devRole, firebaseConfig, ActivityLog, addActivityLog(), attachStaffPoll(), AVAILABLE_TAG_FORMATS, AVAILABLE_THEMES, BRACELET_BANGLE_SIZES (+68 more)
+Cohesion: 0.02
+Nodes (88): ExpenseFormProps, Category, ExchangeEntry, ALWAYS, configured, EXPENSE_CATEGORIES, ExpenseCategory, TAHERI (+80 more)
 
 ### Community 5 - "dependencies"
 Cohesion: 0.04
 Nodes (57): dependencies, buffer, class-variance-authority, clsx, date-fns, dotenv, firebase, @google/generative-ai (+49 more)
 
 ### Community 6 - "meta.ts"
-Cohesion: 0.06
-Nodes (77): ref_crypto, POST(), DELETE(), GET(), dynamic, GET(), dynamic, POST() (+69 more)
+Cohesion: 0.10
+Nodes (41): ref_crypto, dynamic, GET(), dynamic, POST(), dynamic, GET(), AdsConnection (+33 more)
 
 ### Community 7 - "react"
-Cohesion: 0.07
-Nodes (56): class-variance-authority, html5-qrcode, lucide-react, @radix-ui/react-slider, react, CategoryPerformanceData, COLORS, DraftsPage() (+48 more)
+Cohesion: 0.09
+Nodes (71): class-variance-authority, lucide-react, react, CustomerActions(), CustomerCard(), PageError(), Loading(), Choice() (+63 more)
 
 ### Community 8 - "plan.ts"
-Cohesion: 0.09
-Nodes (42): Photo, dynamic, isPlan(), maxDuration, POST(), dynamic, FORMATS, maxDuration (+34 more)
+Cohesion: 0.12
+Nodes (32): Photo, dynamic, isPlan(), maxDuration, POST(), AdTemplate, planContext(), createAd() (+24 more)
 
 ### Community 9 - "invoices/page.tsx"
-Cohesion: 0.06
-Nodes (62): date-fns, react-day-picker, CustomerPerformanceData, DailySummaryItem, ExpenseByCategoryData, SalesByCategoryData, SalesOverTimeData, SOURCE_COLORS (+54 more)
+Cohesion: 0.08
+Nodes (100): date-fns, react-day-picker, AdditionalRevenuePage(), CategoriesAnalyticsPage(), CategoryPerformanceData, COLORS, CustomerPerformanceData, CustomersAnalyticsPage() (+92 more)
 
 ### Community 10 - "write/route.ts"
 Cohesion: 0.07
 Nodes (19): Body, dynamic, ORDER_STATUSES, POST(), stripUndefined(), adminPort, clientPort, BatchCtx (+11 more)
 
 ### Community 11 - "package.json"
-Cohesion: 0.05
-Nodes (42): name, private, version, buffer, clsx, dotenv-cli, immer, papaparse (+34 more)
+Cohesion: 0.04
+Nodes (44): name, private, version, buffer, clsx, dotenv-cli, html5-qrcode, immer (+36 more)
 
 ### Community 12 - "rename-live-expense-descriptions.mjs"
-Cohesion: 0.14
-Nodes (14): ref, EXACT_RENAMES, fallbackRename(), isAlreadyStructured(), normalizeExpenseDescription(), normalizeSpaces(), STRUCTURED_PREFIXES, docToExpense() (+6 more)
+Cohesion: 0.10
+Nodes (17): ref, ref_path, EXACT_RENAMES, fallbackRename(), isAlreadyStructured(), normalizeExpenseDescription(), normalizeSpaces(), STRUCTURED_PREFIXES (+9 more)
 
 ### Community 13 - "test-shopify-sync.mjs"
 Cohesion: 0.10
@@ -330,16 +315,16 @@ Cohesion: 0.12
 Nodes (19): assert(), assertEq(), createdDraftIds, createdOrderIds, createOrder(), extractFields(), fail(), fbConfig (+11 more)
 
 ### Community 16 - "roleForEmail"
-Cohesion: 0.12
-Nodes (25): heic-convert, dynamic, maxDuration, POST(), dynamic, GET(), previewAsStaff(), isOwner() (+17 more)
+Cohesion: 0.10
+Nodes (29): heic-convert, dynamic, maxDuration, POST(), dynamic, GET(), previewAsStaff(), dynamic (+21 more)
 
 ### Community 17 - "story-editor.tsx"
-Cohesion: 0.06
-Nodes (64): PhotosPanel(), clipboard, CONTEXT_PANELS, ContextMenu(), CORNERS, Drag, Editor, fileToDataUrl() (+56 more)
+Cohesion: 0.07
+Nodes (55): useFilterThumbs(), clipboard, CONTEXT_PANELS, ContextMenu(), CORNERS, Drag, Editor, fileToDataUrl() (+47 more)
 
 ### Community 18 - "order-scanner.tsx"
-Cohesion: 0.17
-Nodes (25): money(), NamePick(), OrderScanner(), Photo, Row(), describeExchange(), DraftExchange, DraftItem (+17 more)
+Cohesion: 0.15
+Nodes (28): downscale(), money(), NamePick(), OrderScanner(), Photo, Row(), GRAMS_PER_TOLA, describeExchange() (+20 more)
 
 ### Community 19 - "import-karigar-khata.mjs"
 Cohesion: 0.10
@@ -362,44 +347,44 @@ Cohesion: 0.16
 Nodes (15): APPLY, args, ext(), fb, fetch(), found, getDocById(), H (+7 more)
 
 ### Community 25 - "fulfilment.ts"
-Cohesion: 0.15
-Nodes (25): dynamic, fail(), gate(), GET(), POST(), bookPacket(), LeopardsBooking, leopardsCities() (+17 more)
+Cohesion: 0.13
+Nodes (28): Things to get right, dynamic, fail(), gate(), GET(), POST(), base(), bookPacket() (+20 more)
 
 ### Community 26 - "investments.ts"
-Cohesion: 0.09
-Nodes (53): dynamic, POST(), dynamic, maxDuration, POST(), dynamic, GET(), hasIngestToken() (+45 more)
+Cohesion: 0.06
+Nodes (70): dynamic, POST(), dynamic, maxDuration, POST(), dynamic, GET(), hasIngestToken() (+62 more)
 
 ### Community 27 - "complete-items-on-completed-orders.mjs"
 Cohesion: 0.18
 Nodes (14): APPLY, args, ext(), fb, fetch(), H, listAll(), log (+6 more)
 
 ### Community 28 - "resolve.ts"
-Cohesion: 0.08
-Nodes (37): NameGuess, NameGuess, DocEntry, DocKind, DocResolution, documentHref(), documentsFor(), isRecent() (+29 more)
+Cohesion: 0.10
+Nodes (32): DocEntry, DocKind, DocResolution, documentHref(), documentsFor(), isRecent(), matchMethod(), matchStatus() (+24 more)
 
 ### Community 29 - "answers.ts"
-Cohesion: 0.13
-Nodes (22): DAYS_AHEAD, DAYS_BEHIND, daysUntilAnniversaryOf(), Occasion, upcomingOccasions(), HisaabEntry, Answer, AnswerContext (+14 more)
+Cohesion: 0.10
+Nodes (29): DuplicatePair, SpamCandidate, Props, CustomerFormProps, InvoicePdfOptions, DAYS_AHEAD, DAYS_BEHIND, daysUntilAnniversaryOf() (+21 more)
 
 ### Community 30 - "audit-customers.mjs"
-Cohesion: 0.14
-Nodes (10): auth, byNorm, extract(), fbConfig, issues, listAll(), settings, shopifyCustById (+2 more)
+Cohesion: 0.12
+Nodes (12): db, c(), auth, byNorm, extract(), fbConfig, issues, listAll() (+4 more)
 
 ### Community 31 - "exchange.ts"
-Cohesion: 0.23
-Nodes (21): day(), OrderCarryOver(), pkr(), applyExchangeRowChange(), blankExchangeRow(), clean(), describeExchangeEntry(), describeExchanges() (+13 more)
+Cohesion: 0.10
+Nodes (41): day(), OrderCarryOver(), pkr(), hasDetails(), KARATS, CashIn, cashInForPeriod(), CashInvoice (+33 more)
 
 ### Community 32 - "assistant.ts"
-Cohesion: 0.10
-Nodes (49): dynamic, maxDuration, dynamic, GET(), maxDuration, cache, dynamic, GET() (+41 more)
+Cohesion: 0.08
+Nodes (63): dynamic, GET(), maxDuration, cache, dynamic, GET(), maxDuration, adsSnapshot() (+55 more)
 
-### Community 33 - "firebase-admin.ts"
-Cohesion: 0.10
-Nodes (26): firebase-admin, db, toDelete, db, silverEntries, dynamic, fetchAllPages(), getShopifyCredentials() (+18 more)
+### Community 33 - "_lib.ts"
+Cohesion: 0.15
+Nodes (23): fetchAllPages(), findShopifyCustomerId(), FIRESTORE_API_KEY, FIRESTORE_PROJECT_ID, firestoreBase(), firestoreGet(), firestoreSet(), mapCustomer() (+15 more)
 
-### Community 34 - "rules.ts"
-Cohesion: 0.13
-Nodes (24): currencyOf(), dynamic, GET(), POST(), logAds(), recentAdsLog(), createRule(), deleteRule() (+16 more)
+### Community 34 - "next"
+Cohesion: 0.08
+Nodes (50): nextConfig, next, dynamic, maxDuration, POST(), GET(), dynamic, POST() (+42 more)
 
 ### Community 35 - "partner-statement.mjs"
 Cohesion: 0.08
@@ -409,29 +394,29 @@ Nodes (24): activeInvoices, auth, cashCollected, closedBatches, extract(), fbCon
 Cohesion: 0.08
 Nodes (23): auth, breakdown, extract(), fbConfig, isMoneyless(), listAll(), liveShopify, orphans (+15 more)
 
-### Community 37 - "investments/page.tsx"
-Cohesion: 0.12
-Nodes (31): AddByHand(), ago(), authHeaders(), autoLine(), DayCard(), Destinations, hhmm(), InvestmentsPage() (+23 more)
+### Community 37 - "draft-list.tsx"
+Cohesion: 0.32
+Nodes (11): DraftsPage(), Section(), ago(), DraftCard(), DraftsShortcut(), pkr(), deleteWorkDraft(), useWorkDrafts() (+3 more)
 
 ### Community 38 - "sidebar.tsx"
 Cohesion: 0.11
-Nodes (22): src_components_ui_sheet_sheet, Sidebar, SidebarContext, SidebarGroupAction, SidebarHeader, SidebarInput, SidebarMenuAction, SidebarMenuBadge (+14 more)
+Nodes (22): src_components_ui_sheet_sheet, SidebarContext, SidebarGroupAction, SidebarInput, SidebarMenuAction, SidebarMenuBadge, SidebarMenuButton, sidebarMenuButtonVariants (+14 more)
 
 ### Community 39 - "Orders workflow"
 Cohesion: 0.50
 Nodes (5): Given Items tracking, Hisaab/Ledger concept, Invoices/Documents, Orders workflow, Scan/POS QR-code lookup
 
 ### Community 40 - "ai/route.ts"
-Cohesion: 0.14
-Nodes (30): checkSame(), dynamic, maxDuration, POST(), shopName(), prepareImage(), Aspect, ASPECTS (+22 more)
+Cohesion: 0.08
+Nodes (51): checkSame(), dynamic, gate(), maxDuration, POST(), shopName(), AiError, auth (+43 more)
 
 ### Community 41 - "clean-admin-notes.mjs"
-Cohesion: 0.11
-Nodes (18): ref_dns, APPLY, backup, byOrder, ext(), fb, getOrder(), H (+10 more)
+Cohesion: 0.21
+Nodes (11): APPLY, backup, byOrder, ext(), fb, getOrder(), H, MOVE (+3 more)
 
 ### Community 42 - "MetaAdsError"
-Cohesion: 0.12
-Nodes (35): Data, dynamic, maxDuration, nameOf(), POST(), segmentOf(), COUNTRY_BY_CODE, countryOfPhone() (+27 more)
+Cohesion: 0.09
+Nodes (43): Data, DELETE(), dynamic, maxDuration, nameOf(), POST(), segmentOf(), BUTTONS (+35 more)
 
 ### Community 43 - "audit-shopify-duplicates.mjs"
 Cohesion: 0.09
@@ -446,8 +431,8 @@ Cohesion: 0.67
 Nodes (4): Project graphify usage rules, App blueprint (style + features), GemsTrack user tutorial, GemsTrack POS overview
 
 ### Community 46 - "invoice-pdf.ts"
-Cohesion: 0.05
-Nodes (84): jspdf, jspdf-autotable, cartItemToOrderItem(), categorySingular(), staticCategories, getInvoiceAdjustmentsAmount(), getInvoiceExchangeTotal(), getInvoiceExpectedGrandTotal() (+76 more)
+Cohesion: 0.07
+Nodes (70): jspdf, jspdf-autotable, categorySingular(), staticCategories, drawItemCell(), ItemBlock, itemCellHeight(), line() (+62 more)
 
 ### Community 47 - "sync-hisaab-balances.mjs"
 Cohesion: 0.22
@@ -477,29 +462,25 @@ Nodes (20): APPLY, counts, debits, expected, extractFields(), fbConfig, getDoc()
 Cohesion: 0.15
 Nodes (13): scripts, build, dev, dev:mina, dev:taheri, env:mina, env:taheri, lint (+5 more)
 
-### Community 54 - "useAppStore"
-Cohesion: 0.08
-Nodes (133): AdditionalRevenuePage(), RevenueFormData, revenueSchema, Audience, Audiences(), AudiencesRoute(), COUNTRIES, CategoriesAnalyticsPage() (+125 more)
+### Community 54 - "useToast"
+Cohesion: 0.05
+Nodes (132): Audience, Audiences(), AudiencesRoute(), COUNTRIES, BUTTONS, Card(), GOAL_ICON, localInput() (+124 more)
 
 ### Community 55 - "firebase"
-Cohesion: 0.08
-Nodes (16): firebase, app, db, app, db, refunded, db, db (+8 more)
+Cohesion: 0.05
+Nodes (27): firebase, app, BANK_ACCOUNT, db, firebaseConfig, app, db, payment (+19 more)
 
 ### Community 56 - "cn"
-Cohesion: 0.12
-Nodes (41): @radix-ui/react-accordion, @radix-ui/react-radio-group, ShopifyCourierOption(), FocusedKarigarView(), JobCardMobile(), JobRow(), KarigarCard(), OrderGroupedJobs() (+33 more)
-
-### Community 57 - "Order"
-Cohesion: 0.16
-Nodes (18): OrderFormProps, CashIn, cashInForPeriod(), CashInvoice, CashOrder, inPeriod(), invoicedOrderIds(), paymentExchangePart() (+10 more)
+Cohesion: 0.08
+Nodes (57): @radix-ui/react-accordion, CalendarEventType, CalendarPage(), dayMoney(), EventDetails(), EventsByDate, getMetalLabel(), ProductCard() (+49 more)
 
 ### Community 58 - "clean-hisaab.mjs"
 Cohesion: 0.40
 Nodes (3): app, db, firebaseConfig
 
 ### Community 59 - "editor-panels.tsx"
-Cohesion: 0.11
-Nodes (58): AdjustControls(), AlignButtons(), BackgroundInspector(), BrandPanel(), ColourButton(), ColourPanel(), ColourRow(), ContextToolbar() (+50 more)
+Cohesion: 0.10
+Nodes (64): AdjustControls(), AlignButtons(), BackgroundInspector(), BrandPanel(), ColourButton(), ColourPanel(), ColourRow(), ContextToolbar() (+56 more)
 
 ### Community 60 - "check-counters.mjs"
 Cohesion: 0.15
@@ -513,49 +494,49 @@ Nodes (4): app, db, expenses, firebaseConfig
 Cohesion: 0.11
 Nodes (25): BILL_SCHEMA, denyUnlessOwner(), dynamic, POST(), runtime, denyUnlessOwner(), DRAFT_SCHEMA, dynamic (+17 more)
 
-### Community 63 - "queue-panel.tsx"
-Cohesion: 0.16
-Nodes (25): atTime(), authHeaders(), base64(), call(), clock(), hhmm(), listOf(), NewPiece (+17 more)
+### Community 63 - "getInvoiceAdjustmentsAmount"
+Cohesion: 0.38
+Nodes (5): getInvoiceAdjustmentsAmount(), getInvoiceExchangeTotal(), getInvoiceExpectedGrandTotal(), InvoiceLike, OrderLike
 
 ### Community 64 - "backfill-payment-credits.mjs"
 Cohesion: 0.40
 Nodes (3): app, db, firebaseConfig
 
 ### Community 65 - "health.ts"
-Cohesion: 0.12
-Nodes (35): dynamic, GET(), maxDuration, POST(), WHERES, aiConfigured(), aiPing(), aiProject() (+27 more)
+Cohesion: 0.10
+Nodes (39): dynamic, GET(), dynamic, GET(), maxDuration, POST(), WHERES, aiConfigured() (+31 more)
 
 ### Community 66 - "checkout.ts"
 Cohesion: 0.07
-Nodes (56): The parts, ref_node_crypto, Body, dynamic, OPTIONS(), POST(), BuildContext, buildWebsiteOrder() (+48 more)
+Nodes (51): The parts, ref_node_crypto, BuildContext, buildWebsiteOrder(), BuiltOrder, CheckoutBody, CheckoutInput, CheckoutRejected (+43 more)
 
-### Community 67 - "register-webhooks/route.ts"
-Cohesion: 0.38
-Nodes (6): APP_URL, SHOPIFY_API_VERSION, getExistingWebhooks(), POST(), registerWebhook(), WEBHOOK_TOPICS
+### Community 67 - "firebase-admin.ts"
+Cohesion: 0.14
+Nodes (11): dynamic, GET(), validateHmac(), APP_URL, SHOPIFY_API_VERSION, getExistingWebhooks(), POST(), registerWebhook() (+3 more)
 
 ### Community 68 - "bill-scanner.tsx"
 Cohesion: 0.16
-Nodes (22): BillScanner(), CustomerPick(), downscale(), money(), ScannedBill, blankCartItem(), downscale(), PhotoPick() (+14 more)
+Nodes (22): BillScanner(), CustomerPick(), downscale(), money(), ScannedBill, blankCartItem(), PhotoPick(), canDecode() (+14 more)
 
 ### Community 69 - "import-one-shopify-order.mjs"
 Cohesion: 0.12
 Nodes (17): APPLY, args, discount, extractFields(), fbConfig, fbHeaders, getDocById(), grandTotal (+9 more)
 
 ### Community 70 - "Button"
-Cohesion: 0.08
-Nodes (69): qrcode.react, ActivityLogPage(), eventIcons, getEventTypeColor(), REVERTABLE_EVENTS, revertConsequences, AdDialog(), AudienceDialog() (+61 more)
+Cohesion: 0.09
+Nodes (95): ActivityLogPage(), eventIcons, getEventTypeColor(), REVERTABLE_EVENTS, revertConsequences, RevenueForm(), AdDialog(), AudienceDialog() (+87 more)
 
 ### Community 71 - "story.ts"
-Cohesion: 0.08
-Nodes (39): draw(), forAi(), StoryEditorProps, Template, Assets, Bind, emptyDoc(), Fields (+31 more)
+Cohesion: 0.16
+Nodes (16): Palette, PALETTES, drawBackdrop(), drawStory(), drawStoryPhoto(), fitSize(), regionLuminance(), renderStoryJpeg() (+8 more)
 
-### Community 72 - "shape.ts"
-Cohesion: 0.08
-Nodes (43): ref_node_path, vitest, Breakdown, Overview, AttentionInput, AttentionItem, attentionItems(), AttentionKind (+35 more)
+### Community 72 - "vitest"
+Cohesion: 0.11
+Nodes (32): ref_node_path, vitest, Breakdown, Overview, AttentionInput, AttentionItem, attentionItems(), AttentionKind (+24 more)
 
 ### Community 73 - "website/edit/page.tsx"
 Cohesion: 0.06
-Nodes (63): The POS page, authHeaders(), blankDoc(), Change, changed(), checkOk(), EditPiecePage(), EditPieceRoute() (+55 more)
+Nodes (70): The POS page, authHeaders(), blankDoc(), Change, changed(), checkOk(), EditPiecePage(), EditPieceRoute() (+62 more)
 
 ### Community 74 - "compilerOptions"
 Cohesion: 0.11
@@ -566,20 +547,20 @@ Cohesion: 0.11
 Nodes (17): aliases, components, hooks, lib, ui, utils, iconLibrary, rsc (+9 more)
 
 ### Community 76 - "public/me/route.ts"
-Cohesion: 0.13
-Nodes (31): dynamic, OPTIONS(), POST(), dynamic, GET(), OPTIONS(), dynamic, GET() (+23 more)
+Cohesion: 0.12
+Nodes (33): dynamic, OPTIONS(), POST(), dynamic, GET(), OPTIONS(), dynamic, GET() (+25 more)
 
 ### Community 77 - "audience-editor.tsx"
 Cohesion: 0.12
-Nodes (27): AudienceEditor(), AudienceRow, Chip(), CITY_SHORTCUTS, INTEREST_SHORTCUTS, InterestHit, Section(), useDebounced() (+19 more)
+Nodes (28): AudienceEditor(), AudienceRow, Chip(), CITY_SHORTCUTS, INTEREST_SHORTCUTS, InterestHit, Section(), useDebounced() (+20 more)
 
-### Community 78 - "pieces/route.ts"
+### Community 78 - "quote/route.ts"
 Cohesion: 0.08
-Nodes (34): Applying edits on each site, Delivery: the POS pushes, the site serves it itself, Editing existing website pieces from the POS, How a piece is named in each place, Live channels that already exist, Photos: render in the POS, upload under a new name every time, Proposed design, Questions for the owner before building (+26 more)
+Nodes (35): Applying edits on each site, Delivery: the POS pushes, the site serves it itself, Editing existing website pieces from the POS, How a piece is named in each place, Live channels that already exist, Photos: render in the POS, upload under a new name every time, Proposed design, Questions for the owner before building (+27 more)
 
-### Community 79 - "run/route.ts"
-Cohesion: 0.31
-Nodes (19): checkGivenItems(), checkKarigarPayments(), checkOverdueOrders(), daysSince(), fmt(), getSettings(), POST(), sendDailyChecklist() (+11 more)
+### Community 79 - "radio-group.tsx"
+Cohesion: 0.50
+Nodes (3): @radix-ui/react-radio-group, RadioGroup, RadioGroupItem
 
 ### Community 80 - "triage.ts"
 Cohesion: 0.09
@@ -609,37 +590,37 @@ Nodes (13): APPLY, dayOf(), dedupePayments(), extractFields(), fbConfig, fbHeade
 Cohesion: 0.16
 Nodes (17): BENCHMARK_START, benchmarkSummary(), DEFAULT_OVERHEADS, InvoiceLike, monthKey(), monthLabel(), monthlyRows(), MonthRow (+9 more)
 
-### Community 87 - "instagram.ts"
-Cohesion: 0.13
-Nodes (30): dynamic, POST(), dynamic, GET(), dynamic, maxDuration, POST(), APP_ID() (+22 more)
+### Community 87 - "postGate"
+Cohesion: 0.15
+Nodes (29): dynamic, POST(), dynamic, GET(), dynamic, maxDuration, POST(), postGate() (+21 more)
 
 ### Community 88 - "workshop.ts"
-Cohesion: 0.17
-Nodes (19): daysSince(), GET(), urgency(), GlanceRow, categoryTitle(), displayKarat(), KarigarJobStatus, buildWorkshopJobs() (+11 more)
+Cohesion: 0.13
+Nodes (29): daysSince(), GET(), urgency(), Age(), buildGlanceRows(), GlanceRow, KarigarGlance(), KarigarPanel() (+21 more)
 
 ### Community 89 - "campaigns/page.tsx"
-Cohesion: 0.07
-Nodes (68): AccountAlerts(), AccountPill(), AdsStatus, api(), ApiError, authHeaders(), ErrorLine(), NotReady() (+60 more)
+Cohesion: 0.06
+Nodes (76): AccountAlerts(), AccountPill(), api(), ApiError, authHeaders(), ErrorLine(), NotReady(), RangePicker() (+68 more)
 
 ### Community 90 - "listen/route.ts"
 Cohesion: 0.22
 Nodes (12): denyUnlessOwner(), dynamic, POST(), READING_SCHEMA, runtime, QUERY_KINDS, documentLines(), numeralVocabulary() (+4 more)
 
 ### Community 91 - "queue.ts"
-Cohesion: 0.08
-Nodes (50): DELETE(), dynamic, fail(), idOk(), maxDuration, PATCH(), POST(), statusOf() (+42 more)
+Cohesion: 0.07
+Nodes (53): DELETE(), dynamic, fail(), idOk(), maxDuration, PATCH(), POST(), statusOf() (+45 more)
 
 ### Community 94 - "menubar.tsx"
 Cohesion: 0.11
 Nodes (12): @radix-ui/react-menubar, Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarLabel, MenubarRadioItem, MenubarSeparator (+4 more)
 
 ### Community 95 - "backfill-shopify-invoice-adjustments.mjs"
-Cohesion: 0.15
-Nodes (16): ref_path, FIREBASE_TOOLS_CONFIG_PATH, firestoreFetchJson(), fromFirestoreDocument(), fromFirestoreValue(), getAccessToken(), getExchangeTotal(), getExpectedAdjustments() (+8 more)
+Cohesion: 0.27
+Nodes (13): FIREBASE_TOOLS_CONFIG_PATH, firestoreFetchJson(), fromFirestoreDocument(), fromFirestoreValue(), getAccessToken(), getExchangeTotal(), getExpectedAdjustments(), getItemSubtotal() (+5 more)
 
-### Community 96 - "next"
-Cohesion: 0.12
-Nodes (15): nextConfig, next, GET(), parseRate(), scrapeGoldPk(), dynamic, GET(), GET() (+7 more)
+### Community 96 - "gold-rates/route.ts"
+Cohesion: 0.83
+Nodes (3): GET(), parseRate(), scrapeGoldPk()
 
 ### Community 97 - "bulk-sync-pos-to-shopify.mjs"
 Cohesion: 0.17
@@ -657,69 +638,69 @@ Nodes (12): APPLY, args, extractFields(), fbConfig, H, listAll(), matched, patch
 Cohesion: 0.17
 Nodes (9): byCust, custById, ext(), fb, grandTotal, groups, H, listAll() (+1 more)
 
-### Community 101 - "Invoice"
-Cohesion: 0.27
-Nodes (11): CoinSplit, CoinSummary, GOLD_COIN_CATEGORY, isCoinItem(), itemsOf(), side(), splitAllCoinSales(), splitCoinSales() (+3 more)
+### Community 101 - "analytics/page.tsx"
+Cohesion: 0.07
+Nodes (37): DailySummaryItem, ExpenseByCategoryData, SalesByCategoryData, SalesOverTimeData, SOURCE_COLORS, SOURCE_KEYS, SOURCE_LABELS, SourceBreakdownData (+29 more)
 
-### Community 102 - "KaratValue"
-Cohesion: 0.15
-Nodes (17): Before the switch goes on, Selling from taheri.shop — how it works, and what must be true before it is switched on, Testing locally, Draft, KaratValue, MetalType, _calculateProductCostsInternal(), calculateProductPrice() (+9 more)
+### Community 102 - "lib/pricing.ts"
+Cohesion: 0.24
+Nodes (9): Before the switch goes on, Selling from taheri.shop — how it works, and what must be true before it is switched on, Testing locally, _calculateProductCostsInternal(), calculateProductPrice(), _calculateSingleMetalCost(), DEFAULT_KARAT_VALUE_FOR_CALCULATION_INTERNAL, _getRateForKarat() (+1 more)
 
 ### Community 103 - "settings.ts"
-Cohesion: 0.22
-Nodes (19): Assets, dynamic, GET(), maxDuration, POST(), disconnect(), AccountChoice, autoChoose() (+11 more)
+Cohesion: 0.20
+Nodes (21): AdsStatus, Assets, dynamic, GET(), maxDuration, POST(), disconnect(), AccountChoice (+13 more)
 
-### Community 104 - "partnership.ts"
-Cohesion: 0.11
-Nodes (23): calculateDistribution(), categorise(), CategorisedLedger, DistributionResult, emptyCategorisedLedger(), LedgerCategory, LedgerEntry, LedgerType (+15 more)
+### Community 104 - "run/route.ts"
+Cohesion: 0.07
+Nodes (55): @google/generative-ai, checkGivenItems(), checkKarigarPayments(), checkOverdueOrders(), daysSince(), fmt(), getSettings(), POST() (+47 more)
 
 ### Community 105 - "app/layout.tsx"
-Cohesion: 0.19
-Nodes (16): src_app_globals, AppBody(), inter, RootLayout(), warmPdfLogo(), isLinksHost(), STORE_THEME_COLOR, applyThemeToDocument() (+8 more)
+Cohesion: 0.23
+Nodes (16): src_app_globals, AppBody(), inter, RootLayout(), warmPdfLogo(), applyThemeToDocument(), applyUiStyleToDocument(), DEFAULT_UI_STYLE (+8 more)
 
 ### Community 106 - "store-config.ts"
 Cohesion: 0.09
-Nodes (35): Block(), Channel, ChannelRow(), didone, host(), Icon(), IconName, LinksPage() (+27 more)
+Nodes (27): Block(), Channel, ChannelRow(), didone, host(), Icon(), IconName, LinksPage() (+19 more)
 
 ### Community 107 - "website/featured/route.ts"
-Cohesion: 0.30
-Nodes (10): DELETE(), dynamic, gate(), GET(), PUT, shape(), site(), DOC (+2 more)
+Cohesion: 0.29
+Nodes (11): DELETE(), dynamic, gate(), GET(), PUT, shape(), site(), DOC (+3 more)
 
-### Community 108 - "useToast"
-Cohesion: 0.07
-Nodes (49): AdsSetup(), AdsSetupRoute(), CopyLine(), DOMAINS, ORIGINS, Step(), defaultLayout, DumbbellTagOutline() (+41 more)
+### Community 108 - "printer/page.tsx"
+Cohesion: 0.23
+Nodes (13): defaultLayout, DumbbellTagOutline(), FieldPreview(), LabelField, LabelLayout, PrinterPage(), PrinterPageComponent(), ProductSearch() (+5 more)
 
 ### Community 109 - "photos/route.ts"
 Cohesion: 0.21
-Nodes (14): dynamic, EXTS, gate(), GET(), HEIC_EXTS, isHeic(), KNOWN_TREE, maxDuration (+6 more)
+Nodes (13): dynamic, EXTS, gate(), GET(), HEIC_EXTS, isHeic(), KNOWN_TREE, maxDuration (+5 more)
 
 ### Community 110 - "revenue.ts"
-Cohesion: 0.15
-Nodes (13): buildRevenueEvents(), comparePeriods(), DAY_NAMES, Grain, GRAIN_LABEL, monthPace(), PeriodComparison, RevenueBucket (+5 more)
+Cohesion: 0.16
+Nodes (12): buildRevenueEvents(), comparePeriods(), DAY_NAMES, Grain, GRAIN_LABEL, monthPace(), PeriodComparison, RevenueBucket (+4 more)
 
 ### Community 112 - "link-new-karigars.mjs"
 Cohesion: 0.18
 Nodes (8): abdullah, app, db, expenses, karigarDefs, karigars, manif, PRE_LAUNCH_EXCLUSIONS
 
 ### Community 113 - "site-pieces.ts"
-Cohesion: 0.13
-Nodes (21): dynamic, GET(), byNewest(), Dated, NEW_AT_LEAST, NEW_DAYS, newArrivalIds(), now (+13 more)
+Cohesion: 0.12
+Nodes (22): dynamic, GET(), STORE_SITE_POSTS, byNewest(), Dated, NEW_AT_LEAST, NEW_DAYS, newArrivalIds() (+14 more)
 
 ### Community 114 - "caption/route.ts"
 Cohesion: 0.27
 Nodes (10): dynamic, maxDuration, POST(), House, RULES, SITE_CAPTION_SCHEMA, siteCaptionSystem(), siteCaptionUser() (+2 more)
 
 ### Community 115 - "constructor"
-Cohesion: 0.21
+Cohesion: 0.23
 Nodes (5): b(), constructor(), deleteCacheAndMetadata(), F, p()
 
 ### Community 116 - "app/page.tsx"
-Cohesion: 0.13
-Nodes (27): compactPKR(), Due, dueOrder(), DueRow(), Headline(), HomePage(), Panel(), RecentInvoiceRow() (+19 more)
+Cohesion: 0.12
+Nodes (30): compactPKR(), Due, dueOrder(), DueRow(), Headline(), HomePage(), Panel(), RecentInvoiceRow() (+22 more)
 
 ### Community 117 - "ref_fs"
-Cohesion: 0.05
-Nodes (36): db, dump, privateKey, ts, dotenv, ref_fs, ref_os, existingInvoiceIds (+28 more)
+Cohesion: 0.04
+Nodes (41): db, dump, privateKey, ts, dotenv, ref_fs, ref_os, app (+33 more)
 
 ### Community 118 - "receivables-breakdown.mjs"
 Cohesion: 0.22
@@ -734,28 +715,28 @@ Cohesion: 0.22
 Nodes (8): background_color, description, display, icons, name, short_name, start_url, theme_color
 
 ### Community 121 - "use-work-drafts.ts"
-Cohesion: 0.13
-Nodes (30): deleteWorkDraft(), DraftStatus, moveLegacyDrafts(), thisDevice(), useWorkDraft(), useWorkDrafts(), clearAllDrafts(), Draft (+22 more)
+Cohesion: 0.15
+Nodes (26): DraftStatus, moveLegacyDrafts(), thisDevice(), useWorkDraft(), clearAllDrafts(), Draft, DraftKind, listDrafts() (+18 more)
 
 ### Community 122 - "workbox-f1770938.js"
-Cohesion: 0.16
-Nodes (11): G, get(), h(), i, j(), k(), O(), s (+3 more)
+Cohesion: 0.27
+Nodes (10): n(), get(), h(), i, j(), k(), O(), s (+2 more)
 
 ### Community 123 - "zebra-printer.ts"
 Cohesion: 0.28
 Nodes (8): checkZebraBrowserPrint(), generateDumbbellTagZpl(), generateZplFromLayout(), LabelField, LabelLayout, sendZplToPrinter(), ZebraBrowserPrint, ZebraDevice
 
 ### Community 124 - "sheet.tsx"
-Cohesion: 0.24
-Nodes (9): @radix-ui/react-dialog, SheetContent, SheetContentProps, SheetDescription, SheetFooter(), SheetHeader(), SheetOverlay, SheetTitle (+1 more)
+Cohesion: 0.22
+Nodes (10): @radix-ui/react-dialog, SheetContent, SheetContentProps, SheetDescription, SheetFooter(), SheetHeader(), SheetOverlay, SheetTitle (+2 more)
 
 ### Community 125 - "verifyRequestEmail"
 Cohesion: 0.18
-Nodes (18): POST(), allowedWhileOpen(), tail(), FulfillmentOrder, GET(), openFulfillmentOrders(), POST(), requireOwner() (+10 more)
+Nodes (19): POST(), FulfillmentOrder, GET(), openFulfillmentOrders(), POST(), requireOwner(), existingSets(), GET() (+11 more)
 
 ### Community 126 - "edits/route.ts"
-Cohesion: 0.11
-Nodes (34): cleanText(), dynamic, fieldsFor(), GET(), maxDuration, POST(), same(), dynamic (+26 more)
+Cohesion: 0.10
+Nodes (36): cleanText(), dynamic, fieldsFor(), GET(), maxDuration, POST(), same(), dynamic (+28 more)
 
 ### Community 127 - "fix-zahra-invoice.mjs"
 Cohesion: 0.25
@@ -766,28 +747,16 @@ Cohesion: 0.29
 Nodes (6): app, batch, db, existingNames, toAdd, uniqueMap
 
 ### Community 129 - "command-palette.tsx"
-Cohesion: 0.21
-Nodes (11): CommandPalette(), DESTINATIONS, GROUP_ORDER, Item, NEW, phoneForms(), pkr(), shortDate() (+3 more)
+Cohesion: 0.19
+Nodes (12): CommandPalette(), DESTINATIONS, GROUP_ORDER, Item, NEW, phoneForms(), pkr(), shortDate() (+4 more)
 
 ### Community 130 - "notifications-scheduler.js"
 Cohesion: 0.40
 Nodes (5): buildSchedule(), cron, run(), runArg, node-cron
 
-### Community 131 - "photos/page.tsx"
-Cohesion: 0.18
-Nodes (17): AddPhotosPage(), authHeaders(), Collection, Item, prettyBytes(), SITE, SITE_NAME, Status (+9 more)
-
-### Community 132 - "expense-categories.ts"
-Cohesion: 0.22
-Nodes (8): ExpenseFormProps, ALWAYS, configured, EXPENSE_CATEGORIES, ExpenseCategory, TAHERI, load(), Expense
-
-### Community 133 - "calendar/page.tsx"
-Cohesion: 0.23
-Nodes (14): vaul, CalendarEventType, CalendarPage(), dayMoney(), EventDetails(), EventsByDate, Drawer(), DrawerContent (+6 more)
-
-### Community 134 - "check-settings.mjs"
-Cohesion: 0.33
-Nodes (5): app, db, env, envVars, s
+### Community 131 - "restore-inv-000001.mjs"
+Cohesion: 0.50
+Nodes (3): createdAt, db, homApp
 
 ### Community 135 - "diagnose-dbs.mjs"
 Cohesion: 0.33
@@ -817,10 +786,6 @@ Nodes (5): app, customersById, customersByName, db, linkedByInvoice
 Cohesion: 0.33
 Nodes (5): app, batch, db, toLink, uzairKarigar
 
-### Community 142 - "ai.ts"
-Cohesion: 0.20
-Nodes (14): auth, call(), Candidate, ChatContent, CHECK_MODEL, generateImage(), generateJson(), generateText() (+6 more)
-
 ### Community 143 - "restore-orders.mjs"
 Cohesion: 0.40
 Nodes (5): app, db, findCustomerId(), firebaseConfig, main()
@@ -833,25 +798,21 @@ Nodes (5): app, db, firebaseConfig, SETTINGS, settingsRef
 Cohesion: 0.29
 Nodes (10): ALL_WORDS(), clean(), editRatio(), findNumbers(), FoundNumber, FRACTIONS, isWordy(), SCALES (+2 more)
 
-### Community 147 - "gold-update.ts"
-Cohesion: 0.35
-Nodes (9): @google/generative-ai, checkGoldBreakingNews(), cleanGeminiOutput(), fetchJson(), generateGoldDailyUpdate(), getGemini(), getGoldSpot(), getUsdPkr() (+1 more)
-
 ### Community 148 - "fix-bareeka.mjs"
 Cohesion: 0.33
 Nodes (5): app, batch, db, hisaabRef, inv
 
 ### Community 149 - "google-auth-gate.tsx"
-Cohesion: 0.14
-Nodes (17): AuthContext, AuthContextValue, GoogleAuthGate(), GoogleIcon(), googleProvider, isAllowed(), KarigarPortal, logSignIn() (+9 more)
+Cohesion: 0.13
+Nodes (19): AuthContext, AuthContextValue, GoogleAuthGate(), GoogleIcon(), googleProvider, isAllowed(), KarigarPortal, logSignIn() (+11 more)
 
 ### Community 150 - "add-bareeka-invoice.mjs"
 Cohesion: 0.40
 Nodes (4): app, batch, db, hisaabRef
 
 ### Community 151 - "whatsapp.ts"
-Cohesion: 0.15
-Nodes (26): Things you may need to do, WAHA — the POS's WhatsApp gateway, Worth knowing, GET(), channelId(), dynamic, gate(), GET() (+18 more)
+Cohesion: 0.13
+Nodes (33): Things you may need to do, WAHA — the POS's WhatsApp gateway, Worth knowing, GET(), channelId(), dynamic, gate(), GET() (+25 more)
 
 ### Community 152 - "add-uzair-skipped-entries.mjs"
 Cohesion: 0.40
@@ -890,8 +851,8 @@ Cohesion: 0.40
 Nodes (3): app, db, firebaseConfig
 
 ### Community 162 - "post/page.tsx"
-Cohesion: 0.05
-Nodes (80): ActionButton(), authHeaders(), Check, CheckStatus, HealthPanel(), HealthReport, ICON, reportError() (+72 more)
+Cohesion: 0.04
+Nodes (94): @radix-ui/react-dropdown-menu, ActionButton(), authHeaders(), Check, CheckStatus, HealthPanel(), HealthReport, ICON (+86 more)
 
 ### Community 163 - "backfill-source-orders.mjs"
 Cohesion: 0.40
@@ -900,10 +861,6 @@ Nodes (3): app, db, firebaseConfig
 ### Community 164 - "cancel-tasneem-activity-log.mjs"
 Cohesion: 0.25
 Nodes (7): APPLY, extractFields(), fbConfig, fbHeaders, listAll(), matches, toDelete
-
-### Community 165 - "size-picker.tsx"
-Cohesion: 0.44
-Nodes (8): ScaleField(), SizePicker(), categoryNeedsSize(), composeMultiSize(), isMultiPartScale(), legacyPartKeyFor(), parseMultiSize(), sizeScaleFor()
 
 ### Community 166 - "list-invoices.mjs"
 Cohesion: 0.40
@@ -945,25 +902,13 @@ Nodes (3): md(), secret(), startup.sh script
 Cohesion: 0.22
 Nodes (12): cache, EMPTY, isRememberable(), listeners, load(), MAX_RECENTS, MIN_OPTIONS_FOR_RECENTS, readRecents() (+4 more)
 
-### Community 185 - "add-bank-account.mjs"
-Cohesion: 0.33
-Nodes (4): app, BANK_ACCOUNT, db, firebaseConfig
-
-### Community 186 - "apply.ts"
-Cohesion: 0.18
-Nodes (12): SalePaymentRow, Category, ExchangeEntry, AppState, HisaabEntityType, OrderStatus, PaymentType, AppliedEntry (+4 more)
+### Community 186 - "voice-bubble.tsx"
+Cohesion: 0.11
+Nodes (26): SalePaymentRow, aliasMap(), Phase, untilLoaded(), VoiceBubble(), DEFAULT_KARAT_VALUE_FOR_CALCULATION, HisaabEntityType, OrderStatus (+18 more)
 
 ### Community 187 - "fallback-ce627215c0e4a9af.js"
-Cohesion: 0.24
-Nodes (7): db, c(), f(), h(), n(), r(), u()
-
-### Community 188 - "add-mina-payment.mjs"
-Cohesion: 0.50
-Nodes (3): app, db, payment
-
-### Community 189 - "ads/new/page.tsx"
-Cohesion: 0.29
-Nodes (9): BUTTONS, Card(), GOAL_ICON, localInput(), Media, NewAd(), NewAdRoute(), pieceText() (+1 more)
+Cohesion: 0.43
+Nodes (4): f(), h(), r(), u()
 
 ### Community 193 - "sharp"
 Cohesion: 0.22
@@ -973,65 +918,49 @@ Nodes (7): sharp, APPLY, auth, fb, plan, shrinks, stamp
 Cohesion: 0.19
 Nodes (3): et, q(), r
 
-### Community 196 - "partnership-settings.ts"
-Cohesion: 0.25
-Nodes (8): DEFAULT_WORKING_CAPITAL_FLOOR, DOC_PATH, FloorHistoryEntry, isFloorStale(), isMonthStart(), loadPartnershipSettings(), PartnershipSettings, saveWorkingCapitalFloor()
+### Community 196 - "firebase.ts"
+Cohesion: 0.18
+Nodes (10): src_lib_firebase_db, firebaseConfig, DEFAULT_WORKING_CAPITAL_FLOOR, DOC_PATH, FloorHistoryEntry, isFloorStale(), isMonthStart(), loadPartnershipSettings() (+2 more)
 
 ### Community 197 - "cleanup-test-shopify-mirror-docs.mjs"
 Cohesion: 0.29
 Nodes (7): APPLY, extractFields(), fbConfig, listInvoices(), settings, shopifyMirrors, targets
 
-### Community 198 - "speak.ts"
-Cohesion: 0.31
-Nodes (6): grouped, listVoices(), pickVoice(), PREFERRED, setVoice(), voicesReady()
-
-### Community 199 - "AiError"
-Cohesion: 0.43
-Nodes (6): AiError, InlineImage, magnificDetail(), magnificKey(), Retouched, retouchPhoto()
-
-### Community 203 - "pitr-restore-invoices.mjs"
-Cohesion: 0.33
-Nodes (4): backupApp, backupDb, liveApp, liveDb
+### Community 203 - "firebase-admin"
+Cohesion: 0.12
+Nodes (15): firebase-admin, db, toDelete, db, silverEntries, backupApp, backupDb, liveApp (+7 more)
 
 ### Community 204 - "order-form.tsx"
 Cohesion: 0.04
-Nodes (167): @hookform/resolvers, react-hook-form, react-phone-number-input, zod, Settings: Backups, Settings: Contact Import, Settings: Hisaab Import, Settings: Printer (Zebra) (+159 more)
+Nodes (124): @hookform/resolvers, qrcode.react, react-hook-form, react-phone-number-input, zod, Settings: Backups, Settings: Contact Import, Settings: Hisaab Import (+116 more)
 
-### Community 205 - "_lib.ts"
-Cohesion: 0.12
-Nodes (35): buildShopifyDraftOrderPayload(), buildShopifyOrderPayload(), findShopifyCustomerId(), findShopifyDraftOrderIdByTag(), findShopifyOrderIdByTag(), findShopifyProductIdsBySku(), FIRESTORE_API_KEY, FIRESTORE_PROJECT_ID (+27 more)
-
-### Community 206 - "check-orders.mjs"
-Cohesion: 0.50
-Nodes (3): app, db, firebaseConfig
+### Community 205 - "shopifyRequest"
+Cohesion: 0.20
+Nodes (21): buildShopifyOrderPayload(), findShopifyOrderIdByTag(), findShopifyProductIdsBySku(), getShopifyCredentials(), mapInvoiceToDraftOrder(), mapProductToShopify(), shopifyRequest(), POST() (+13 more)
 
 ### Community 208 - "tcs/route.ts"
 Cohesion: 1.00
 Nodes (3): getBaseUrl(), getTcsTokens(), POST()
 
-### Community 209 - "units.ts"
-Cohesion: 0.67
-Nodes (3): formatWeight(), GRAMS_PER_TOLA, toTola()
-
 ## Knowledge Gaps
-- **1367 isolated node(s):** `privateKey`, `db`, `dump`, `ts`, `$schema` (+1362 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1600 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **23 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **1369 isolated node(s):** `privateKey`, `db`, `dump`, `ts`, `$schema` (+1364 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1602 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **22 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `firebase` connect `firebase` to `import-shopify-customers.mjs`, `store.ts`, `diagnose-dbs.mjs`, `react`, `fix-dates.mjs`, `fix-invoice-dates.mjs`, `package.json`, `delete-bad-invoices.mjs`, `link-invoice-hisaab.mjs`, `link-uzair-expenses.mjs`, `restore-orders.mjs`, `restore-settings.mjs`, `invoices/page.tsx`, `write/route.ts`, `fix-bareeka.mjs`, `google-auth-gate.tsx`, `add-bareeka-invoice.mjs`, `add-uzair-skipped-entries.mjs`, `delete-sherbano-invoice.mjs`, `link-all-karigar-expenses.mjs`, `do-refund-fatima.mjs`, `link-uzair-stones.mjs`, `diagnose-orders.mjs`, `check-outstanding.mjs`, `backfill-source-orders.mjs`, `list-invoices.mjs`, `renumber-orders.mjs`, `clear-shopify.mjs`, `preview-karigar-links.mjs`, `add-ali-customer.mjs`, `add-order-1141.mjs`, `sync-hisaab-balances.mjs`, `reset-and-reimport.mjs`, `fix-invoice-skus.mjs`, `refund-fatima.mjs`, `useAppStore`, `add-bank-account.mjs`, `clean-hisaab.mjs`, `check-counters.mjs`, `add-mina-payment.mjs`, `import-expenses.mjs`, `backfill-payment-credits.mjs`, `inspect-zahra.mjs`, `partnership-settings.ts`, `order-form.tsx`, `check-orders.mjs`, `fix-overwritten-invoices.mjs`, `import-shopify-orders.mjs`, `partnership.ts`, `store-config.ts`, `useToast`, `link-new-karigars.mjs`, `use-work-drafts.ts`, `fix-zahra-invoice.mjs`?**
+- **Why does `firebase` connect `firebase` to `import-shopify-customers.mjs`, `restore-inv-000001.mjs`, `store.ts`, `diagnose-dbs.mjs`, `react`, `fix-dates.mjs`, `fix-invoice-dates.mjs`, `package.json`, `delete-bad-invoices.mjs`, `link-invoice-hisaab.mjs`, `link-uzair-expenses.mjs`, `restore-orders.mjs`, `restore-settings.mjs`, `invoices/page.tsx`, `write/route.ts`, `fix-bareeka.mjs`, `google-auth-gate.tsx`, `add-bareeka-invoice.mjs`, `add-uzair-skipped-entries.mjs`, `delete-sherbano-invoice.mjs`, `link-all-karigar-expenses.mjs`, `do-refund-fatima.mjs`, `link-uzair-stones.mjs`, `diagnose-orders.mjs`, `check-outstanding.mjs`, `backfill-source-orders.mjs`, `draft-list.tsx`, `list-invoices.mjs`, `renumber-orders.mjs`, `clear-shopify.mjs`, `preview-karigar-links.mjs`, `add-ali-customer.mjs`, `add-order-1141.mjs`, `sync-hisaab-balances.mjs`, `reset-and-reimport.mjs`, `fix-invoice-skus.mjs`, `refund-fatima.mjs`, `clean-hisaab.mjs`, `check-counters.mjs`, `import-expenses.mjs`, `backfill-payment-credits.mjs`, `firebase.ts`, `order-form.tsx`, `import-shopify-orders.mjs`, `run/route.ts`, `link-new-karigars.mjs`, `use-work-drafts.ts`, `fix-zahra-invoice.mjs`?**
   _High betweenness centrality (0.188) - this node is a cross-community bridge._
-- **Why does `next` connect `next` to `command-palette.tsx`, `photos/page.tsx`, `calendar/page.tsx`, `meta.ts`, `react`, `plan.ts`, `invoices/page.tsx`, `write/route.ts`, `package.json`, `roleForEmail`, `google-auth-gate.tsx`, `whatsapp.ts`, `fulfilment.ts`, `investments.ts`, `exchange.ts`, `assistant.ts`, `firebase-admin.ts`, `rules.ts`, `ai/route.ts`, `MetaAdsError`, `app-layout.tsx`, `useAppStore`, `cn`, `ads/new/page.tsx`, `vision/order/route.ts`, `health.ts`, `checkout.ts`, `register-webhooks/route.ts`, `Button`, `website/edit/page.tsx`, `public/me/route.ts`, `_lib.ts`, `pieces/route.ts`, `run/route.ts`, `tcs/route.ts`, `order-form.tsx`, `instagram.ts`, `workshop.ts`, `campaigns/page.tsx`, `listen/route.ts`, `queue.ts`, `settings.ts`, `app/layout.tsx`, `store-config.ts`, `website/featured/route.ts`, `useToast`, `photos/route.ts`, `site-pieces.ts`, `caption/route.ts`, `app/page.tsx`, `verifyRequestEmail`, `edits/route.ts`?**
-  _High betweenness centrality (0.152) - this node is a cross-community bridge._
-- **Why does `cn()` connect `cn` to `photos/page.tsx`, `calendar/page.tsx`, `react`, `invoices/page.tsx`, `story-editor.tsx`, `post/page.tsx`, `investments/page.tsx`, `size-picker.tsx`, `sidebar.tsx`, `toast.tsx`, `chart.tsx`, `app-layout.tsx`, `useAppStore`, `editor-panels.tsx`, `ads/new/page.tsx`, `queue-panel.tsx`, `bill-scanner.tsx`, `Button`, `website/edit/page.tsx`, `order-form.tsx`, `audience-editor.tsx`, `campaigns/page.tsx`, `menubar.tsx`, `store-config.ts`, `useToast`, `app/page.tsx`, `sheet.tsx`?**
-  _High betweenness centrality (0.055) - this node is a cross-community bridge._
+- **Why does `next` connect `next` to `command-palette.tsx`, `meta.ts`, `react`, `plan.ts`, `invoices/page.tsx`, `write/route.ts`, `package.json`, `roleForEmail`, `google-auth-gate.tsx`, `whatsapp.ts`, `fulfilment.ts`, `investments.ts`, `exchange.ts`, `assistant.ts`, `_lib.ts`, `draft-list.tsx`, `ai/route.ts`, `MetaAdsError`, `app-layout.tsx`, `useToast`, `cn`, `voice-bubble.tsx`, `vision/order/route.ts`, `health.ts`, `firebase-admin.ts`, `Button`, `website/edit/page.tsx`, `firebase-admin`, `public/me/route.ts`, `shopifyRequest`, `quote/route.ts`, `order-form.tsx`, `tcs/route.ts`, `postGate`, `workshop.ts`, `campaigns/page.tsx`, `listen/route.ts`, `queue.ts`, `gold-rates/route.ts`, `analytics/page.tsx`, `settings.ts`, `run/route.ts`, `app/layout.tsx`, `store-config.ts`, `website/featured/route.ts`, `printer/page.tsx`, `photos/route.ts`, `site-pieces.ts`, `caption/route.ts`, `app/page.tsx`, `verifyRequestEmail`, `edits/route.ts`?**
+  _High betweenness centrality (0.153) - this node is a cross-community bridge._
+- **Why does `cn()` connect `cn` to `react`, `invoices/page.tsx`, `story-editor.tsx`, `post/page.tsx`, `draft-list.tsx`, `sidebar.tsx`, `toast.tsx`, `chart.tsx`, `app-layout.tsx`, `useToast`, `voice-bubble.tsx`, `editor-panels.tsx`, `bill-scanner.tsx`, `Button`, `website/edit/page.tsx`, `order-form.tsx`, `audience-editor.tsx`, `radio-group.tsx`, `workshop.ts`, `campaigns/page.tsx`, `menubar.tsx`, `analytics/page.tsx`, `app/page.tsx`, `sheet.tsx`?**
+  _High betweenness centrality (0.057) - this node is a cross-community bridge._
 - **What connects `privateKey`, `db`, `dump` to the rest of the system?**
-  _1367 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1369 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `fix-customer-cleanup.mjs` be split into smaller, more focused modules?**
   _Cohesion score 0.1038961038961039 - nodes in this community are weakly interconnected._
 - **Should `editor.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.062146892655367235 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.050949367088607596 - nodes in this community are weakly interconnected._
 - **Should `import-latest-shopify-order.mjs` be split into smaller, more focused modules?**
-  _Cohesion score 0.1368421052631579 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08866995073891626 - nodes in this community are weakly interconnected._

@@ -1684,7 +1684,7 @@ export default function CartPage() {
                 </Card>
             </div>
         </div>
-        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-2.5 pr-20 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
+        <div className="glass-bar lg:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-2.5 pr-20 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
             <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
                     <p className="text-2xs uppercase tracking-wide text-muted-foreground leading-none">Total</p>

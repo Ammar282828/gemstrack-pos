@@ -57,6 +57,30 @@ export function writeDeviceTheme(theme: string | null): void {
   window.dispatchEvent(new CustomEvent(DEVICE_THEME_EVENT, { detail: theme }));
 }
 
+// ── Interface style: standard, or Apple's Liquid Glass ─────────────────────
+// Settings → Appearance → Interface style, the shop's (Firestore), cached here for
+// the first paint exactly as the theme is. `html.ui-glass` switches every glass
+// rule in globals.css on; without it the interface is the standard one.
+
+const STYLE_KEY = 'gemstrack:ui-style';
+export type UiStyle = 'standard' | 'glass';
+export const DEFAULT_UI_STYLE: UiStyle = 'standard';
+
+export function readCachedUiStyle(): UiStyle {
+  if (typeof window === 'undefined') return DEFAULT_UI_STYLE;
+  try { return localStorage.getItem(STYLE_KEY) === 'glass' ? 'glass' : DEFAULT_UI_STYLE; } catch { return DEFAULT_UI_STYLE; }
+}
+
+export function writeCachedUiStyle(style: UiStyle | undefined | null): void {
+  if (typeof window === 'undefined' || !style) return;
+  try { localStorage.setItem(STYLE_KEY, style); } catch { /* private mode — the hint is optional */ }
+}
+
+export function applyUiStyleToDocument(style: UiStyle | undefined | null): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.classList.toggle('ui-glass', style === 'glass');
+}
+
 /**
  * Put <html> in the mode being shown: `.dark` only on the dark palette (it used to be
  * there always, so every `dark:` style — pale text, the charts' dark colours — showed
