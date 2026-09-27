@@ -7,44 +7,16 @@
 import admin from 'firebase-admin';
 
 const PROJECT_ID = 'hom-pos-52710474-ceeea';
-const CLIENT_EMAIL = 'firebase-adminsdk-fbsvc@hom-pos-52710474-ceeea.iam.gserviceaccount.com';
-const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
-MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQD8+pgaHJCIj6/H
-bQTCec53SFVoNn8mScDXKyKV1wv9GOACDKZ5AnehMfbOVsapLCe5clfG6zgID42+
-NDgp/erwAVKA7U1IuZe8nmwy6ukf23zBMzQocW1VfJqROdRXEQCM0ehjoV7u+w08
-mN5YbT0eioqKhP8eDb5oNDkqKASV1L8g67StdCbYkvWPm5jujuJDqdpHXprst9bj
-5Umr5XRCPMxFiYqfvoWmGjsVItExuLqx5NDmVLjHKChZ9rW0uGnYb5x+fPB0g+q4
-Oc2JznWUCH35jllP41EnKj0ryT8RVQ35kpzv82cpSrQTk2x/6THoiOUQMblL0PrP
-qLz3RHRPAgMBAAECggEAD4bN3mRnFoqYbklUTnStZbLMfc3tIIt2833T7JW7SE3G
-NI9UNFR2GoWiMT3a3uKKjvOOoZ3UMuJ0KlAIK8OdhMd//yZmujzx1tjI/pheYInX
-GVXW21iYLklXL0H5CghNcVcncoiioVD1RK/ZOFzUBdODofF8ZaV69z2lTd9mO0/T
-13FIBhiFkHGxNakJBUtuuSDmThXqhj7Yb6yBDUgErW4UBNNs1L3ta5TroUBXeQld
-cNKWMM2cxiFZOcmTJRgkv3IqF9Vw+ZMYj8FC9S+Vm0oaggdeMg+nfyA2mvtrBbBX
-WVW/S4jh64O1aJ+93WWxM/8BgUk1pEDQfAR1CxdceQKBgQD/ggNAQhhHRC9TDVUt
-mBd+1gEwnWqY5huQ4Ymm87SZmQXBijKYj0CXkJ/VWbvskSvjf6HQXLo1toTaRfmg
-/HV4jDjgKmKvbTpHb1QsjbyligmaPUCHhp3EMbOaK8ZiW+AKfDcMIbAYoH5uW5oQ
-rX4CGtF17KA4Rpn5aexEbofnywKBgQD9d1WeOyqXc4LSTgdIaxRgnQ5BI5s/mjM3
-ZssCj49TnvZp/iNk3mXR0IIQT1s4op5Kkngv3UQxvlZrulNzdx0Kp4c7qQ4seGEy
-60QIOu/sqnvF9nDPTEh8NoxFlBbuX789+n+G9xyKGgmWlv8ehfecvZnkcEywAMtb
-S6q1yf0tDQKBgCW6P9qkJ8uWINrFlDc4Rvfeh6xzAgNzrsxU0SuKvrcTZksuqcvn
-EyWOIFuzdVE4Gl/sP6txlblKqxFD1dlUjc/v/JH1ED9RBJL5uFcf0qQq3sIcm0On
-t/H5WMjB//gUEt/ZeZNcAhGQ2TpYZkZmJ74N0bH0769/lUrDvjRYkc7DAoGBALDy
-dlsYgwtoIJQg1QTBfGBWRHVFHkSwqcCril4nSq/d8bjdKmhoujxXi/VG8TAAlvEI
-f88qcUkoz7w1P70EEso1WjtUMgjpoTGi/MOiIYzfF7mD6g1N++x7SEHquHeBcEkc
-b5sROGNQ+hCfKUttywcpdh38KA1XAKCjmnF+qbihAoGAO0B0ZUBHV+mHlDUIlnUl
-GqVmxYYqKlYDwpw2aHuWkIbKEQmHd6w/GdK3Dgt8h2g4Ttu4cmALcIAWpTj6+Sgr
-y/gprkblXA7Mm0HVpQeC5mHPXR0oivrpX1IjHbs21+ZPCPSBlqbzMoC8hP5qN9L3
-HKazvm8YEOL2vTRgyrLxikY=
------END PRIVATE KEY-----
-`;
 
-// Initialize two separate firebase-admin apps
+// Two firebase-admin apps, signed in as this machine's Google credentials (never a key pasted here)
 const backupApp = admin.initializeApp({
-  credential: admin.credential.cert({ projectId: PROJECT_ID, clientEmail: CLIENT_EMAIL, privateKey: PRIVATE_KEY }),
+  credential: admin.credential.applicationDefault(),
+  projectId: PROJECT_ID,
 }, 'backup');
 
 const liveApp = admin.initializeApp({
-  credential: admin.credential.cert({ projectId: PROJECT_ID, clientEmail: CLIENT_EMAIL, privateKey: PRIVATE_KEY }),
+  credential: admin.credential.applicationDefault(),
+  projectId: PROJECT_ID,
 }, 'live');
 
 const backupDb = backupApp.firestore();
