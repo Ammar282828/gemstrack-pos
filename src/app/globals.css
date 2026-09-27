@@ -389,23 +389,30 @@ html.ui-glass {
   --glass-sat: 1.7;
   --glass-a: 0.6;            /* regular */
   --glass-a-large: 0.74;     /* sidebars: "more opaque in larger elements" */
+  --glass-a-window: 0.84;    /* alerts, dialogs, sheets: text over content, so more opaque still */
   --glass-highlight: 0 0% 100% / 0.75;
   --glass-rim: 0 0% 100% / 0.35;
   --glass-shade: 220 30% 10% / 0.08;
-  --glass-shadow: 0 10px 30px -14px hsl(220 30% 10% / 0.28), 0 1px 2px hsl(220 30% 10% / 0.06);
+  /* The outer hairline is what lets white glass read over a white page. */
+  --glass-shadow: 0 0 0 1px hsl(220 30% 10% / 0.07), 0 10px 30px -14px hsl(220 30% 10% / 0.28), 0 1px 2px hsl(220 30% 10% / 0.06);
   /* Concentric geometry: windows (sheets, dialogs, panels) and their inset. */
   --r-window: 1.75rem;
   --r-bar: 1.25rem;
   --r-popover: 1rem;
   --window-pad: 1.25rem;
+  /* The content layer is not glass, but its shapes follow: cards and fields
+     rounder, so a 0.5rem card doesn't sit beside a 1.75rem pane. */
+  --r-card: 1rem;
+  --r-control: 0.625rem;
 }
 html.ui-glass.dark {
   --glass-a: 0.56;
   --glass-a-large: 0.72;
+  --glass-a-window: 0.82;
   --glass-highlight: 0 0% 100% / 0.16;
   --glass-rim: 0 0% 100% / 0.1;
   --glass-shade: 0 0% 0% / 0.3;
-  --glass-shadow: 0 14px 40px -16px hsl(0 0% 0% / 0.7), 0 1px 2px hsl(0 0% 0% / 0.3);
+  --glass-shadow: 0 0 0 1px hsl(0 0% 0% / 0.35), 0 14px 40px -16px hsl(0 0% 0% / 0.7), 0 1px 2px hsl(0 0% 0% / 0.3);
 }
 
 /* Something for the glass to be made of. Content is meant to extend beneath the
@@ -422,9 +429,9 @@ html.ui-glass body {
 }
 html.ui-glass.dark body {
   background-image:
-    radial-gradient(60rem 40rem at 8% -10%, hsl(var(--primary) / 0.2), transparent 60%),
-    radial-gradient(50rem 36rem at 100% 110%, hsl(var(--chart-2) / 0.14), transparent 60%),
-    radial-gradient(40rem 30rem at 60% 50%, hsl(var(--foreground) / 0.03), transparent 60%);
+    radial-gradient(60rem 40rem at 8% -10%, hsl(var(--primary) / 0.28), transparent 60%),
+    radial-gradient(50rem 36rem at 100% 110%, hsl(var(--chart-2) / 0.18), transparent 60%),
+    radial-gradient(40rem 30rem at 60% 50%, hsl(var(--foreground) / 0.04), transparent 60%);
 }
 /* The shell used to paint the page colour over the body; the light must show. */
 html.ui-glass .app-inset { background: transparent; }
@@ -446,10 +453,12 @@ html.ui-glass .app-tabs {
     inset 0 -1px 0 0 hsl(var(--glass-shade)),
     var(--glass-shadow);
 }
-/* Sidebars: larger, so more opaque (HIG). */
-html.ui-glass [data-sidebar="sidebar"] {
-  background-color: hsl(var(--popover) / var(--glass-a-large));
-}
+/* Sidebars are large, so more opaque; windows (sheets, dialogs, alerts, the
+   helper's panel) carry text over whatever the page has, so more opaque still —
+   the HIG's regular variant "when components have a significant amount of
+   text, such as alerts, sidebars, or popovers". */
+html.ui-glass [data-sidebar="sidebar"] { background-color: hsl(var(--popover) / var(--glass-a-large)); }
+html.ui-glass .glass-window { background-color: hsl(var(--popover) / var(--glass-a-window)); }
 
 /* ── The sidebar: a pane floating inset over the page, corners concentric with
       the window, no ruled edge. The layout's spacer keeps its width, so the
@@ -473,6 +482,14 @@ html.ui-glass [data-mobile="true"][data-sidebar="sidebar"] {
   border-width: 0;
   border-radius: var(--r-window);
 }
+/* Rows in the pane: a softer corner; the search a quiet field cut into the
+   glass rather than a bordered box laid on it. */
+html.ui-glass [data-sidebar="menu-button"] { border-radius: 0.625rem; }
+html.ui-glass .sidebar-search {
+  background-color: hsl(var(--foreground) / 0.06);
+  border-color: transparent;
+}
+html.ui-glass .sidebar-search:hover { background-color: hsl(var(--foreground) / 0.1); }
 /* Section headers in title style, not capitals (HIG: Organization and layout). */
 html.ui-glass .sidebar-group-label {
   text-transform: none;
@@ -481,6 +498,7 @@ html.ui-glass .sidebar-group-label {
 }
 /* The one tinted control — the primary action, colour on the background (HIG: Color). */
 html.ui-glass .glass-prominent {
+  border-radius: 9999px;
   background-color: hsl(var(--primary) / 0.82);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
@@ -546,7 +564,7 @@ html.ui-glass .app-tab[aria-current="page"] {
 html.ui-glass .tab-underline { display: none; }
 
 /* ── Floating controls (the microphone, the Ads helper): glass discs. ───────── */
-html.ui-glass .glass-fab { border-color: transparent; }
+html.ui-glass .glass-fab { border-color: transparent; color: hsl(var(--foreground)); }
 html.ui-glass .glass-fab:hover { background-color: hsl(var(--popover) / calc(var(--glass-a) + 0.2)); }
 
 /* ── Mobile bottom bars (a sale's total, an order's total, unsaved settings):
@@ -598,17 +616,16 @@ html.ui-glass .glass-drawer {
   border-width: 0;
   border-radius: var(--r-window);
 }
-/* Concentric: a button sitting in a window's corner takes the window's radius
-   less the padding it sits inside (never under 0.5rem, so it still reads as a button). */
-html.ui-glass .glass-window [data-glass-footer] button,
-html.ui-glass .glass-window [data-glass-footer] a {
-  border-radius: max(0.5rem, calc(var(--r-window) - var(--window-pad)));
-}
 /* Behind a window the page dims lightly; it stays in view (HIG: content peeks through). */
 html.ui-glass .glass-overlay { background-color: hsl(0 0% 0% / 0.32); }
 
-/* ── Menus, popovers, selects, tooltips, toasts. Items concentric with the menu. ── */
-html.ui-glass .glass-popover { border-radius: var(--r-popover); }
+/* ── Menus, popovers, selects, tooltips, toasts. Items concentric with the menu.
+      A popover carries text (a menu, a calendar) over whatever it opened on, so
+      it takes the sidebar's opacity, not a control's. ─────────────────────── */
+html.ui-glass .glass-popover {
+  border-radius: var(--r-popover);
+  background-color: hsl(var(--popover) / var(--glass-a-large));
+}
 html.ui-glass .glass-popover [role="menuitem"],
 html.ui-glass .glass-popover [role="menuitemcheckbox"],
 html.ui-glass .glass-popover [role="menuitemradio"],
@@ -616,6 +633,27 @@ html.ui-glass .glass-popover [role="option"] {
   border-radius: calc(var(--r-popover) - 0.25rem);
 }
 html.ui-glass .glass-toast { border-radius: var(--r-bar); }
+/* A toolbar that sticks mid-page (Hisaab's search, the contact import's bar):
+   a floating bar, not a strip with a shadow. */
+html.ui-glass .glass-toolbar { border-radius: var(--r-bar); }
+
+/* ── The content layer's shapes (not glass — HIG keeps content as content —
+      but Apple's geometry, so the two layers agree). Buttons are capsules;
+      large ones (44 px and up) rounded rectangles, as the system's are; a
+      button drawn as a field (left-aligned, a picker's trigger) takes the
+      field's corner; the halves of a split button keep their shared edge.
+      Fields and cards rounder; in-page tabs a pill, like the top bar's. ─────── */
+html.ui-glass .btn:not([class*="rounded-r-none"]):not([class*="rounded-l-none"]) { border-radius: 9999px; }
+html.ui-glass .btn[class~="h-11"]:not([class*="rounded-r-none"]):not([class*="rounded-l-none"]),
+html.ui-glass .btn[class~="h-12"]:not([class*="rounded-r-none"]):not([class*="rounded-l-none"]),
+html.ui-glass .btn[class*="justify-start"]:not([class*="rounded-r-none"]):not([class*="rounded-l-none"]) { border-radius: 0.875rem; }
+html.ui-glass .btn[class*="rounded-r-none"] { border-radius: 9999px 0 0 9999px; }
+html.ui-glass .btn[class*="rounded-l-none"] { border-radius: 0 9999px 9999px 0; }
+html.ui-glass .ui-field { border-radius: var(--r-control); }
+html.ui-glass .card,
+html.ui-glass .alert { border-radius: var(--r-card); }
+html.ui-glass .tabs-list { border-radius: 9999px; }
+html.ui-glass .tabs-trigger { border-radius: 9999px; }
 /* A destructive toast keeps its colour: a status, which colour may mark (HIG: Color). */
 html.ui-glass .glass-toast.destructive {
   background-color: hsl(var(--destructive) / 0.88);
@@ -642,13 +680,13 @@ html.ui-glass .glass-fab:active { transform: scale(0.94); }
       solid; Increase Contrast makes it near-solid with a visible edge; a
       browser without backdrop-filter gets the solid material too. ─────────── */
 @media (prefers-reduced-transparency: reduce) {
-  html.ui-glass { --glass-a: 1; --glass-a-large: 1; --glass-blur: 0px; --glass-sat: 1; }
+  html.ui-glass { --glass-a: 1; --glass-a-large: 1; --glass-a-window: 1; --glass-blur: 0px; --glass-sat: 1; }
   html.ui-glass body { background-image: none; }
   html.ui-glass .app-header::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: hsl(var(--background)); -webkit-mask-image: none; mask-image: none; inset: 0; }
   html.ui-glass .glass-prominent { background-color: hsl(var(--primary)); }
 }
 @media (prefers-contrast: more) {
-  html.ui-glass { --glass-a: 0.94; --glass-a-large: 0.97; --glass-rim: 0 0% 50% / 0.6; }
+  html.ui-glass { --glass-a: 0.94; --glass-a-large: 0.97; --glass-a-window: 0.98; --glass-rim: 0 0% 50% / 0.6; }
   html.ui-glass .glass,
   html.ui-glass [data-sidebar="sidebar"],
   html.ui-glass .glass-bar,
@@ -658,5 +696,5 @@ html.ui-glass .glass-fab:active { transform: scale(0.94); }
   html.ui-glass .glass-overlay { background-color: hsl(0 0% 0% / 0.55); }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  html.ui-glass { --glass-a: 0.97; --glass-a-large: 1; }
+  html.ui-glass { --glass-a: 0.97; --glass-a-large: 1; --glass-a-window: 1; }
 }

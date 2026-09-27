@@ -888,8 +888,8 @@ function ContextMenu({ ed, at, width, onClose }: { ed: Editor; at: { x: number; 
   </>);
   if (sheet) {
     return createPortal(
-      <div data-editor-menu className="fixed inset-0 z-[80] flex items-end bg-black/30" onPointerDown={e => { e.stopPropagation(); if (e.target === e.currentTarget) onClose(); }}>
-        <div className="max-h-[70dvh] w-full overflow-y-auto rounded-t-2xl bg-popover p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl">
+      <div data-editor-menu className="glass-overlay fixed inset-0 z-[80] flex items-end bg-black/30" onPointerDown={e => { e.stopPropagation(); if (e.target === e.currentTarget) onClose(); }}>
+        <div className="glass max-h-[70dvh] w-full overflow-y-auto rounded-t-2xl bg-popover p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl">
           <div className="mx-auto mb-1 h-1 w-10 rounded-full bg-muted-foreground/30" />
           <div className="grid grid-cols-2 gap-x-1">{items}</div>
         </div>

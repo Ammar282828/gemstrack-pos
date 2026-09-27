@@ -298,7 +298,7 @@ export default function ContactImportPage() {
             </Card>
           )}
 
-          <div className="sticky bottom-20 flex items-center justify-between gap-3 rounded-lg border bg-background p-3 shadow-lg md:bottom-4">
+          <div className="glass glass-toolbar sticky bottom-20 flex items-center justify-between gap-3 rounded-lg border bg-background p-3 shadow-lg md:bottom-4">
             <p className="text-sm text-muted-foreground">
               {willAdd} to add, {willResolve} to resolve.
             </p>

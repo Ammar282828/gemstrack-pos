@@ -1327,7 +1327,7 @@ export default function CartPage() {
                   onFocus={() => skuSuggestions.length > 0 && setSkuDropdownOpen(true)}
                   aria-label="Search stock by SKU or product name"/>
                 {skuDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+                  <div className="glass glass-popover absolute z-50 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md">
                     {skuSuggestions.map(p => (
                       <button
                         key={p.sku}
@@ -1412,7 +1412,7 @@ export default function CartPage() {
                                 onFocus={() => skuSuggestions.length > 0 && setSkuDropdownOpen(true)}
                                aria-label="Search by SKU or product name"/>
                               {skuDropdownOpen && (
-                                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+                                <div className="glass glass-popover absolute z-50 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md">
                                   {skuSuggestions.map(p => (
                                     <button
                                       key={p.sku}

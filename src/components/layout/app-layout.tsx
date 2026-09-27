@@ -239,7 +239,7 @@ function SidebarSearch() {
         <SidebarMenuButton
           onClick={() => { if (isMobile) setOpenMobile(false); openCommandPalette(); }}
           tooltip={{ children: 'Search (⌘K)' }}
-          className="justify-start gap-3 rounded-lg border border-input bg-background text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:border-0"
+          className="sidebar-search justify-start gap-3 rounded-lg border border-input bg-background text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:border-0"
         >
           <Search />
           <span className="flex-1 group-data-[collapsible=icon]:hidden">Search</span>

@@ -66,7 +66,7 @@ export const CustomerAutocomplete: React.FC<Props> = ({
         autoComplete="off"
       />
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+        <div className="glass glass-popover absolute z-50 mt-1 w-full overflow-hidden rounded-md border bg-popover shadow-md">
           <ScrollArea className="max-h-48">
             <button
               type="button"

@@ -602,7 +602,7 @@ function PieceEditor({ piece, onSaved, onClose }: { piece: Piece; onSaved: (p: P
             <Switch checked={hidden} onCheckedChange={setHidden} />
           </label>
 
-          <div className="sticky bottom-0 -mx-3 sm:-mx-4 -mb-3 sm:-mb-4 rounded-b-xl border-t bg-background/95 backdrop-blur px-3 sm:px-4 py-3 space-y-2">
+          <div className="glass sticky bottom-0 -mx-3 sm:-mx-4 -mb-3 sm:-mb-4 rounded-b-xl border-t bg-background/95 backdrop-blur px-3 sm:px-4 py-3 space-y-2">
             <Button className="h-11 w-full" disabled={!dirty || busyAny || !words.name.trim()} onClick={() => setConfirm('save')}>
               {busy === 'save' ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
               {dirty ? `Save to ${SITE_NAME}` : 'Nothing changed yet'}

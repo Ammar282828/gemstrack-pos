@@ -266,8 +266,8 @@ export default function MyWorkPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur px-4 py-3 flex items-center justify-between">
+    <div className="app-inset min-h-screen bg-background">
+      <header className="app-header sticky top-0 z-10 border-b bg-background/90 backdrop-blur px-4 py-3 flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">{STORE_CONFIG.name}</p>
           <h1 className="text-lg font-bold truncate flex items-center gap-2">

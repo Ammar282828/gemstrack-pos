@@ -240,11 +240,24 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   bars, sheets, dialogs, menus, popovers, tooltips, toasts, the two floating buttons), never on content (cards, tables, forms stay
   opaque); the regular variant only (the clear one is for controls over photos — not used); sidebars more opaque; one tinted
   control, New Sale; the top bar is transparent with a **scroll edge effect** instead of a strip; windows inset from the edge with a
-  1.75rem radius and footer buttons concentric with the corner (`data-glass-footer`); section headers in title style; Reduce
-  Transparency / Increase Contrast / no backdrop-filter get a solid version. Components carry inert hook classes (`glass`,
-  `glass-window`, `glass-popover`, `glass-bar`, `glass-fab`, `glass-ctl`, `app-header`, `app-tabs`); the material itself is the
-  house's popover colour at low opacity over a fixed ambient glow of the house's primary, so both houses get their own glass.
-  Checked in headless Chromium at 1440 px and 390 px in both modes, not on a real phone.
+  1.75rem radius; section headers in title style; Reduce Transparency / Increase Contrast / no backdrop-filter get a solid
+  version. Components carry inert hook classes (`glass`, `glass-window`, `glass-popover`, `glass-bar`, `glass-fab`, `glass-ctl`,
+  `glass-toolbar`, `app-header`, `app-tabs`, `app-inset`; and on the content layer `btn`, `ui-field`, `card`, `alert`, `tabs-list`,
+  `tabs-trigger`, `sidebar-search`); the material itself is the house's popover colour at low opacity over a fixed ambient glow of
+  the house's primary, so both houses get their own glass.
+  **The sweep of 2026-09-27** (owner: "assess and refine liquid glass in every page, every feature"): every route shot in headless
+  Chromium at 1280 px dark and 390 px light with glass on, plus the sidebar sheet, command palette, select, dialog, alert, popovers,
+  drawer, tooltip, the Ads helper and the designer. What it changed: **the content layer takes Apple's shapes without becoming
+  glass** — buttons are capsules (44 px and taller, and buttons drawn as fields such as a picker's trigger, are 0.875rem rounded
+  rectangles, as the system's large buttons are; a split button keeps its shared edge), fields 0.625rem, cards and alerts 1rem,
+  in-page tabs a pill like the top bar's — so a 0.5rem card no longer sits beside a 1.75rem pane; light glass carries an outer
+  hairline so it reads over a white page; the dark ambient glow is stronger so the pane has something behind it; windows (sheets,
+  dialogs, the helper's panel) use the sidebar's more opaque material; the sidebar's search is a field cut into the glass, its rows
+  0.625rem, New Sale a capsule; the floating discs draw their symbol in the foreground colour (the Ads helper's was white on white
+  glass). Every page with chrome of its own is on the hooks: Hisaab's sticky search and the contact import's bar are floating
+  toolbars, the karigar's My work header a scroll edge, Edit a piece's save foot glass, the customer and SKU autocomplete lists
+  popovers, the designer's long-press menu a sheet over a dimmed page. The designer's own bars stay standard: they sit beside the
+  canvas, not over it, so there is nothing for glass to show. Not on a real phone.
 - **The sidebar is by what the shop does** (re-audited 2026-09-27, owner: "reaudit the separation entirely"): **New Sale** is a
   button of its own under Search; Home (Dashboard, Calendar); **Sales** — Orders, Invoices, Repairs, Customers; **Workshop &
   stock** — Workshop (Jobs, Karigars, Given items) and **Stock** (Pieces, Add in bulk; back in the sidebar — Mina keeps ~100
