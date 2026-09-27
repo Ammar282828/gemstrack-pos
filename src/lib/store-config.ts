@@ -207,6 +207,15 @@ export const STORE_WEBSITE_WEIGHTS = process.env.NEXT_PUBLIC_STORE_WEBSITE_WEIGH
 export const STORE_WEBSITE_FEATURED = process.env.NEXT_PUBLIC_STORE_WEBSITE_FEATURED !== '0';
 
 /**
+ * Website → Edit a piece: a piece already on this house's website, changed from
+ * the counter — its photograph re-made (cropped, the weight and the mark stamped
+ * on, enhanced) and its name, words and facts, or the piece hidden. The site
+ * keeps the change (api/override.php, taheri.shop and the Mina catalogue alike).
+ * Both houses; "0" turns it off.
+ */
+export const STORE_SITE_EDIT = process.env.NEXT_PUBLIC_STORE_SITE_EDIT !== '0';
+
+/**
  * Post a Piece — what a new piece's post says by default.
  *
  * The WhatsApp numbers a caption asks customers to write to, comma-separated

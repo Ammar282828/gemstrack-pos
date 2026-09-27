@@ -148,6 +148,9 @@ export interface StoryEditorProps {
   fileName?: string;
   /** The other design on the page (the story's square, the square's story): the selection can be copied onto it. */
   sendTo?: { name: string; send: (layers: Layer[], from: Frame) => void };
+  /** The photo settings' words, where the square is something else (Edit a piece: a website photo in its own shape). */
+  cropLabel?: string;
+  photoNote?: string;
 }
 
 // ── The editor's state and actions ─────────────────────────────────────────
@@ -975,6 +978,31 @@ export function PairEditor({ story, square, show, active, onActive }: {
   );
 }
 
+/**
+ * One design on its own — Website → Edit a piece re-makes a photograph already on
+ * the website: the small editor, and the same full-screen designer.
+ */
+export function SoloEditor({ side }: { side: PairSide }) {
+  const ed = useEditor(side.props);
+  const [designer, setDesigner] = useState(false);
+  const empty = !!side.placeholder;
+  useEffect(() => { if (empty) setDesigner(false); }, [empty]);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => { if (!designer && !empty && rootRef.current?.contains(document.activeElement)) ed.onPasteEvent(e); };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  });
+  return (
+    <div ref={rootRef} className="space-y-3" onKeyDown={e => { if (!designer && !empty) ed.onKey(e); }}>
+      {side.top}
+      {side.placeholder ?? <InlineEditor ed={ed} tools={side.tools} designer={designer} onDesign={panel => { if (panel) ed.setPanel(panel); setDesigner(true); }} />}
+      {!empty && side.bottom}
+      {designer && !empty && <Designer ed={ed} onClose={() => setDesigner(false)} F={ed.F} frameLabel={`${side.label} · ${side.sub}`} />}
+    </div>
+  );
+}
+
 /** A design's tab: a live thumbnail, its name and where it goes. */
 function PageTab({ ed, label, sub, active, empty, onClick }: { ed: Editor; label: string; sub: string; active: boolean; empty: boolean; onClick: () => void }) {
   return (
@@ -1053,8 +1081,8 @@ function InlineEditor({ ed, tools, designer, onDesign }: { ed: Editor; tools?: R
           <DropdownMenuItem onClick={() => ed.add(newShape('circle', '#FFFFFF'))}><Circle className="h-4 w-4 mr-2" /> Circle</DropdownMenuItem>
           <DropdownMenuItem onClick={() => ed.add(newShape('rect', '#FFFFFF'))}><Square className="h-4 w-4 mr-2" /> Box</DropdownMenuItem>
           <DropdownMenuItem onClick={() => ed.add(newLinkPill(websiteLabel))}><Link2 className="h-4 w-4 mr-2" /> Link pill ({websiteLabel})</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => ed.add(square ? newCornerMark('wordmark', assets) : newWordmark(palette.dark ? '#FFFFFF' : '#111111'))}><Type className="h-4 w-4 mr-2" /> Wordmark</DropdownMenuItem>
-          {assets.marks.t && <DropdownMenuItem onClick={() => ed.add(square ? newCornerMark('t', assets) : newMonogram(palette.dark ? '#FFFFFF' : '#111111'))}><Type className="h-4 w-4 mr-2" /> t mark</DropdownMenuItem>}
+          <DropdownMenuItem onClick={() => ed.add(square ? newCornerMark('wordmark', assets, ed.F) : newWordmark(palette.dark ? '#FFFFFF' : '#111111'))}><Type className="h-4 w-4 mr-2" /> Wordmark</DropdownMenuItem>
+          {assets.marks.t && <DropdownMenuItem onClick={() => ed.add(square ? newCornerMark('t', assets, ed.F) : newMonogram(palette.dark ? '#FFFFFF' : '#111111'))}><Type className="h-4 w-4 mr-2" /> t mark</DropdownMenuItem>}
           {photos.length > 1 && <DropdownMenuSeparator />}
           {photos.filter(x => x.id !== api.doc.bg.photoId).map(x => (
             <DropdownMenuItem key={x.id} onClick={() => ed.add(newImageLayer(x.id))}><ImageIcon className="h-4 w-4 mr-2" /> Photo inset {x.label ? `· ${x.label}` : ''}</DropdownMenuItem>

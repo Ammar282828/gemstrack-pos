@@ -70,6 +70,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 | `/api/investments` (+ `/[id]/publish`, `/[id]/plan`, `/schedule`, `/api/public/investments/[id]/[kind]`) | the Cowork routine; POS page Investments | file a day's gold post (Bearer ingest token or the POS); send each part; hold/approve a day; the owner's schedule; serve the cards |
 | `/api/investments/tick` | Cloud Scheduler `investments-tick` (every 5 min, Bearer `CRON_SECRET`) | send whatever part of today's post the schedule says is due; `?dry=1` sends nothing |
 | `/api/website/site-pieces` (+ `/image?id=`) | POS page Posts → From the website | the house website's pieces (taheri.shop: `catalog-attributes.json`, which carries each photo's page `path`; the Mina catalogue: `catalog-pieces.json`) and when each last went out; a piece's photo as a JPEG from this server (only listed pieces) |
+| `/api/website/edits` | POS page Edit a piece | GET: every site piece with the counter's changes (hidden ones too) + recent changes; `?id=` one piece, its last design, its original photo's address. POST: a piece's words / re-made photo / put back → the site's `api/override.php` — see "Edit a piece" below |
 | `/api/public/social/[id]` | Instagram's fetcher | serves a story image for the minutes a post takes (Firestore `social_media`, deleted after) — there is no public bucket |
 | `/api/website/orders/[id]` | POS order page | mark paid / shipped — **always verifies a token, even under open access** |
 | `/api/ads/*` (`status`, `connect`, `callback`, `setup`, `overview`, `campaigns`, `object/[id]`, `create`, `images`, `media`, `preview`, `estimate`, `search`, `audiences`, `rules`) | POS pages under **Ads** | this house's Meta ad account through the Marketing API (Graph v26.0) — see "Ads" below |
@@ -324,6 +325,21 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   which sends only today's post, each part once (a Firestore-transaction claim guards overlaps), tries a failure three times, and writes
   `lastTick` (the page warns when it's over 15 min old). Ships **off**. Per day: Hold / Let it send, Approve, Try again; **Send all**
   sends every unsent part in order after one confirm. Both paths share `src/lib/investments-send.ts`.
+- **Edit a piece** (`/website/edit`, Website menu, both houses; 2026-09-27, owner: "in both pos let me also fix/crop/add logo
+  weight overlay to existing, change desc etc in taheri.shop or catalogue.houseofmina.store"). Any piece already on the house's
+  site: the photo re-made in Post a Piece's square editor (`SoloEditor` in `story-editor.tsx`; its own shape or square; layouts
+  Nothing / Weight / Weight + logo / Weight + t / Name, weight + logo — `applySquarePreset` now lays out on any frame height;
+  crop by drag/pinch, filters, the designer; AI Enhance, Enhance and clear old labels, Ask AI), and the words: name,
+  description, taheri.shop's tags (stone/metal/karat/cut/style) or the catalogue's facts, weight, hide. **Always edited from the
+  original** (the site keeps it: `catalog-edit/originals/`; the image route's `original=1`, up to 3000 px), and the last design is
+  kept in Firestore `website_edits` (per key, no AI photo), so re-opening shows it as left and nothing is stamped twice; a log in
+  `website_edits_log`. The site keeps the change (`api/override.php` in taheri-site and mina-catalogue, secret
+  `WEBSITE_UPLOAD_SECRET`): words in `catalog-overrides.json`, the photo **written over its own files** (a photo's path is the
+  piece's identity) with a new `?v`. **The sites publish their own words; every reader lays the changes over them live** —
+  `site-pieces.ts` (`withChange`; posting never offers a hidden piece), `getCatalogAttributes()` (prices follow a corrected
+  stone/metal/karat at once; `{ own: true }` for the site's own), both sites' apps and prerenders — so "Undo every change" is
+  exact at once. taheri.shop's weights stay in `website_pieces` (prices, WeightLabel); Mina's go in its change. A stamped photo
+  sets `weightOnPhoto` so taheri.shop stops drawing the weight itself. `NEXT_PUBLIC_STORE_SITE_EDIT` (default on).
 - **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).
   The POS stayed usable at **https://studio--gemstrack-pos.us-central1.hosted.app** (App Hosting's own address; open access,
   data loads). Instagram fetches story images from `SOCIAL_MEDIA_ORIGIN` (that address) so posting never depends on .shop.

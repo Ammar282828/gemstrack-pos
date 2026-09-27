@@ -28,12 +28,12 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Shuffle, Send, Loader2, Search, ExternalLink, Sparkles, RotateCcw, Check, Globe, MessageCircle, Radio, Megaphone } from 'lucide-react';
+import { Shuffle, Send, Loader2, Search, ExternalLink, Sparkles, RotateCcw, Check, Globe, MessageCircle, Radio, Megaphone, PenLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { diagnose } from '@/lib/social/diagnose';
 import { sitePieceCaption } from '@/lib/social/caption';
 import { loadImage, stampPhoto } from '@/lib/social/story';
-import { STORE_SITE_POSTS, STORE_POST_METAL, STORE_POST_FOOTER, STORE_POST_TAGLINE, STORE_WHATSAPP_NUMBERS, STORE_LINKS, STORE_META_ADS } from '@/lib/store-config';
+import { STORE_SITE_POSTS, STORE_POST_METAL, STORE_POST_FOOTER, STORE_POST_TAGLINE, STORE_WHATSAPP_NUMBERS, STORE_LINKS, STORE_META_ADS, STORE_SITE_EDIT } from '@/lib/store-config';
 import Link from 'next/link';
 
 interface Piece { id: string; name: string; url: string; image: string; thumb: string; collection: string; weightGrams: number | null; weightOnPhoto: boolean; facts: string[]; about: string; added: number | null; newArrival: boolean }
@@ -324,6 +324,7 @@ function FromSitePage() {
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[11px] text-muted-foreground">{overlay && validWeight(weight) ? `The photo with ${weight.trim()}g on it.` : 'The photo as it is on the website.'}</p>
                   <div className="flex shrink-0">
+                    {STORE_SITE_EDIT && <Button asChild variant="ghost" size="sm" className="h-8"><Link href={`/website/edit?id=${encodeURIComponent(pick.id)}`}><PenLine className="h-4 w-4 mr-1.5" /> Edit</Link></Button>}
                     {STORE_META_ADS && <Button asChild variant="ghost" size="sm" className="h-8"><Link href={`/ads/new?piece=${encodeURIComponent(pick.id)}`}><Megaphone className="h-4 w-4 mr-1.5" /> Promote</Link></Button>}
                     <Button variant="ghost" size="sm" className="h-8" disabled={!!busy} onClick={shuffle}><Shuffle className="h-4 w-4 mr-1.5" /> Another</Button>
                   </div>

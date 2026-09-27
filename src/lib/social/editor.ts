@@ -978,13 +978,16 @@ export const newWeightStamp = (): TextLayer => text({
   bind: 'weight', x: STAMP_X, y: STAMP_BASELINE - STAMP_SIZE * 0.82, size: Math.round(STAMP_SIZE * 10) / 10, font: 'futura',
   color: '#ffffff', autoColor: true, width: 900, spacing: 2 / 143,
 });
-/** A mark in the square's bottom-right corner, the overlay tool's inset from both edges. */
-export function newCornerMark(mark: MarkKind, a: Assets): MarkLayer {
+/**
+ * A mark in the bottom-right corner, the overlay tool's inset from both edges — of
+ * the square, or of a website photo edited in its own shape (1080 wide, any height).
+ */
+export function newCornerMark(mark: MarkKind, a: Assets, f: Frame = SQUARE_FRAME): MarkLayer {
   // The wordmark is the tool's 580/3000 wide; the t mark is sized to about the wordmark's height × 2.
   const width = mark === 't' ? 58 : LOGO_W;
   const img = a.marks[mark] ?? a.marks.wordmark;
   const h = width * (img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : mark === 't' ? 2 : 0.25);
-  return { id: newLayerId(mark), kind: 'wordmark', mark, x: 1080 - LOGO_PAD - width, y: 1080 - LOGO_PAD - h, width, color: '#ffffff', autoColor: true, rotate: 0, opacity: 1 };
+  return { id: newLayerId(mark), kind: 'wordmark', mark, x: f.w - LOGO_PAD - width, y: f.h - LOGO_PAD - h, width, color: '#ffffff', autoColor: true, rotate: 0, opacity: 1 };
 }
 
 export type SquarePresetId = 'catalogue' | 'catalogue-t' | 'weight' | 'name' | 'clean';
@@ -1000,15 +1003,17 @@ export const SQUARE_PRESETS: { id: SquarePresetId; label: string }[] = [
 export function applySquarePreset(doc: StoryDoc, preset: SquarePresetId, fields: Fields, a: Assets): StoryDoc {
   const keep = doc.layers.filter(l => !(l.kind === 'text' && l.bind) && l.kind !== 'wordmark');
   const out: Layer[] = [];
+  // Measured from the bottom, so a photo edited in its own shape (taller than square) is laid out the same way.
+  const f = frameOf(doc), below = f.h - 1080;
   if (preset === 'catalogue' || preset === 'catalogue-t' || preset === 'weight') out.push(newWeightStamp());
-  if (preset === 'catalogue') out.push(newCornerMark('wordmark', a));
-  if (preset === 'catalogue-t') out.push(newCornerMark(a.marks.t ? 't' : 'wordmark', a));
+  if (preset === 'catalogue') out.push(newCornerMark('wordmark', a, f));
+  if (preset === 'catalogue-t') out.push(newCornerMark(a.marks.t ? 't' : 'wordmark', a, f));
   if (preset === 'name') {
     // The grid posts' look: the name in a Didone italic, the facts small beneath, bottom-left.
-    const name = text({ bind: 'headline', x: 64, y: 820, size: 76, font: 'serif-italic', color: '#ffffff', autoColor: true, width: 640, fit: true, lineHeight: 1 });
+    const name = text({ bind: 'headline', x: 64, y: 820 + below, size: 76, font: 'serif-italic', color: '#ffffff', autoColor: true, width: 640, fit: true, lineHeight: 1 });
     out.push({ ...name, flow: { gap: 0 } });
-    out.push(text({ bind: 'details', x: 64, y: 910, size: 30, font: 'regular', color: '#ffffff', autoColor: true, width: 640, flow: { gap: 14 }, lineHeight: 1.25 }));
-    out.push(newCornerMark('wordmark', a));
+    out.push(text({ bind: 'details', x: 64, y: 910 + below, size: 30, font: 'regular', color: '#ffffff', autoColor: true, width: 640, flow: { gap: 14 }, lineHeight: 1.25 }));
+    out.push(newCornerMark('wordmark', a, f));
   }
   return reflow({ ...doc, layers: [...out, ...keep] }, fields, a);
 }

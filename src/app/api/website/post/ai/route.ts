@@ -35,7 +35,7 @@ import {
 } from '@/lib/social/prompts';
 import { whatsappCaption } from '@/lib/social/caption';
 import { PALETTES } from '@/lib/social/palettes';
-import { STORE_BRAND, STORE_CONFIG, STORE_POST_FOOTER, STORE_POST_PIECE, STORE_POST_TAGLINE } from '@/lib/store-config';
+import { STORE_BRAND, STORE_CONFIG, STORE_POST_FOOTER, STORE_POST_PIECE, STORE_POST_TAGLINE, STORE_SITE_EDIT } from '@/lib/store-config';
 import { notInThisShop } from '@/lib/social/gate';
 import sharp from 'sharp';
 import { recordError } from '@/lib/social/errors';
@@ -48,7 +48,8 @@ const DAILY_CAP = Number(process.env.IMAGE_AI_DAILY_CAP) || 300;
 const MAX_BYTES = 25 * 1024 * 1024;
 
 async function gate(req: NextRequest): Promise<string | NextResponse> {
-  if (!STORE_POST_PIECE) return notInThisShop();
+  // Post a Piece, and Website → Edit a piece (its photo's Enhance and Ask AI).
+  if (!STORE_POST_PIECE && !STORE_SITE_EDIT) return notInThisShop();
   if (OPEN_ACCESS) return 'counter';
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

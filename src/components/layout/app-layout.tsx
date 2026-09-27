@@ -17,7 +17,7 @@ import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
-import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_SITE_POSTS, STORE_META_ADS } from '@/lib/store-config';
+import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_SITE_POSTS, STORE_META_ADS } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -100,6 +100,8 @@ const navGroups: NavGroup[] = [
         { staff: true, href: '/website/photos', label: 'Website', icon: <Globe />, tabs: [
           { staff: true, href: '/website/photos', label: 'Add Photos' },
           ...(STORE_WEBSITE_WEIGHTS ? [{ staff: true, href: '/website/weights', label: 'Photo Weights' }] : []),
+          // A piece already on the website: its photo re-made, its words changed, or hidden (both houses).
+          ...(STORE_SITE_EDIT ? [{ staff: true, href: '/website/edit', label: 'Edit a piece' }] : []),
         ] as NavTab[] },
       ] as NavItem[]) : []),
       // This house's Meta ad account (NEXT_PUBLIC_STORE_META_ADS). Owners: it is money.

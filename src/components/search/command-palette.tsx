@@ -20,8 +20,8 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { nameScore } from '@/lib/voice/phonetics';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Search, Users, Briefcase, Gem, Home, PlusCircle, Receipt, Hammer, ClipboardList, BookUser, TrendingUp, Settings as SettingsIcon, CreditCard, Calendar, ArrowRight, RotateCcw, Mic, Wrench, Package, Send, ImagePlus, Scale, Coins, Target, PieChart, Landmark, ArchiveRestore, History, Megaphone, Rocket } from 'lucide-react';
-import { STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_META_ADS } from '@/lib/store-config';
+import { Search, Users, Briefcase, Gem, Home, PlusCircle, Receipt, Hammer, ClipboardList, BookUser, TrendingUp, Settings as SettingsIcon, CreditCard, Calendar, ArrowRight, RotateCcw, Mic, Wrench, Package, Send, ImagePlus, Scale, Coins, Target, PieChart, Landmark, ArchiveRestore, History, Megaphone, Rocket, PenLine } from 'lucide-react';
+import { STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_META_ADS } from '@/lib/store-config';
 
 interface Item {
   id: string;
@@ -66,6 +66,7 @@ const DESTINATIONS: Array<Omit<Item, 'id'> & { keywords?: string[] }> = [
     ...(STORE_POST_PIECE ? [{ label: 'Post a Piece', group: 'Go to', icon: <Send className="h-4 w-4" />, href: '/website/post', keywords: ['post', 'story', 'instagram', 'whatsapp', 'community', 'channel'] }] : []),
     { label: 'Add Photos', group: 'Go to', icon: <ImagePlus className="h-4 w-4" />, href: '/website/photos', keywords: ['website', 'upload', 'photos'] },
     ...(STORE_WEBSITE_WEIGHTS ? [{ label: 'Photo Weights', group: 'Go to', icon: <Scale className="h-4 w-4" />, href: '/website/weights', keywords: ['weights', 'website'] }] : []),
+    ...(STORE_SITE_EDIT ? [{ label: 'Edit a piece', group: 'Go to', icon: <PenLine className="h-4 w-4" />, href: '/website/edit', keywords: ['website', 'edit', 'crop', 'photo', 'description', 'hide', 'overlay'] }] : []),
     ...(STORE_INVESTMENTS ? [{ label: 'Investments', group: 'Go to', icon: <TrendingUp className="h-4 w-4" />, href: '/website/investments', keywords: ['investment', 'gold post'] }] : []),
   ] : []),
   ...(STORE_META_ADS ? [

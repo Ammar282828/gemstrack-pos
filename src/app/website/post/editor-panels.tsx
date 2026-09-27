@@ -440,8 +440,8 @@ export function BackgroundInspector({ ed, bare }: { ed: Editor; bare?: boolean }
           <button key={p.id} type="button" onClick={() => setBg(square ? { photoId: p.id } : { photoId: p.id, placement: { ...pl, focusX: 0.5, focusY: 0.5, zoom: 1 } })} className={cn('h-10 w-10 shrink-0 rounded overflow-hidden border-2', bg.photoId === p.id ? 'border-primary' : 'border-transparent')}><img src={p.url} alt="" className="h-full w-full object-cover" /></button>
         ))}</div>
       </Row>
-      {square && <p className="text-[11px] text-muted-foreground">Every photo going to WhatsApp or the website is shown here. The words and marks are shared; each photo keeps its own crop — drag or pinch it to choose what shows.</p>}
-      <Row label="Show"><Pills value={pl.mode} options={[['fill', square ? 'Crop to square' : 'Fill the frame'], ['fit', 'Whole photo']]} onChange={v => setPl({ mode: v as 'fill' | 'fit', focusX: 0.5, focusY: 0.5 })} /></Row>
+      {square && <p className="text-[11px] text-muted-foreground">{ed.p.photoNote ?? 'Every photo going to WhatsApp or the website is shown here. The words and marks are shared; each photo keeps its own crop — drag or pinch it to choose what shows.'}</p>}
+      <Row label="Show"><Pills value={pl.mode} options={[['fill', ed.p.cropLabel ?? (square ? 'Crop to square' : 'Fill the frame')], ['fit', 'Whole photo']]} onChange={v => setPl({ mode: v as 'fill' | 'fit', focusX: 0.5, focusY: 0.5 })} /></Row>
       <Row label="Zoom"><Num value={pl.zoom} min={1} max={3} step={0.05} onChange={v => setPl({ zoom: v }, 'zoom')} /></Row>
       {photoTools}
       <Row label="Darken"><Num value={bg.dim} min={0} max={0.7} step={0.05} onChange={v => setBg({ dim: v }, 'dim')} /></Row>
@@ -710,8 +710,8 @@ function MarksSection({ ed }: { ed: Editor }) {
   return (
     <Section title="The shop’s marks">
       <div className="grid grid-cols-2 gap-2">
-        {wordmark && <button type="button" className="flex h-16 items-center justify-center rounded-md border bg-neutral-800 p-3 hover:ring-2 hover:ring-primary" onClick={() => ed.add(ed.square ? newCornerMark('wordmark', ed.assets) : newWordmark(ink))}><img src={wordmark.src} alt="Wordmark" className="max-h-full max-w-full invert" /></button>}
-        {t && <button type="button" className="flex h-16 items-center justify-center rounded-md border bg-neutral-800 p-3 hover:ring-2 hover:ring-primary" onClick={() => ed.add(ed.square ? newCornerMark('t', ed.assets) : newMonogram(ink))}><img src={t.src} alt="t mark" className="max-h-full max-w-full invert" /></button>}
+        {wordmark && <button type="button" className="flex h-16 items-center justify-center rounded-md border bg-neutral-800 p-3 hover:ring-2 hover:ring-primary" onClick={() => ed.add(ed.square ? newCornerMark('wordmark', ed.assets, ed.F) : newWordmark(ink))}><img src={wordmark.src} alt="Wordmark" className="max-h-full max-w-full invert" /></button>}
+        {t && <button type="button" className="flex h-16 items-center justify-center rounded-md border bg-neutral-800 p-3 hover:ring-2 hover:ring-primary" onClick={() => ed.add(ed.square ? newCornerMark('t', ed.assets, ed.F) : newMonogram(ink))}><img src={t.src} alt="t mark" className="max-h-full max-w-full invert" /></button>}
       </div>
     </Section>
   );
