@@ -56,9 +56,10 @@ import { ToastAction } from '@/components/ui/toast';
 import {
   Send, ImagePlus, Camera, X, Star, Loader2, Check, RotateCw, Share2, Download, Copy, ExternalLink, Instagram,
   MessageCircle, Globe, Sparkles, Wand2, Expand, Palette as PaletteIcon, Type, ShieldCheck, ShieldAlert, Link2, MessageSquareText,
-  Radio, ListPlus, ChevronDown, MoreHorizontal,
+  Radio, ListPlus, ChevronDown, MoreHorizontal, FileClock, History,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
 import { STORE_LINKS, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL, STORE_MARK_SVG, STORE_MONOGRAM_SVG, STORE_POST_PIECE, STORE_POST_TAGLINE, STORE_POST_FOOTER } from '@/lib/store-config';
 import { detailsLine, waNumberFromUrl, weightLabel, websiteFileName, whatsappCaption } from '@/lib/social/caption';
 import { PALETTES, STORY_H, STORY_W, canvasToJpeg, loadImage, loadStampFont, stampPhoto, suggestPalette } from '@/lib/social/story';
@@ -71,6 +72,11 @@ import { diagnose, type Where } from '@/lib/social/diagnose';
 import { HealthPanel, useHealth, reportError, ActionButton, type Check as HealthCheck } from './health-panel';
 import { QueuePanel, useQueue, listOf } from './queue-panel';
 import { MAISON_HOUSES, isMaisonFolder, maisonFileName } from '@/lib/website/maisons';
+import {
+  currentPostDraft, deletePostDraft, listPostDrafts, readPostDraft, readPostPrefs, savePostDraft, setCurrentPostDraft, thumbOf, writePostPrefs,
+  type PostPrefs,
+} from '@/lib/social/post-drafts';
+import { PostDraftsDialog } from './post-drafts-panel';
 
 const FILL = { mode: 'fill' as const, zoom: 1, focusX: 0.5, focusY: 0.5 };
 
@@ -92,6 +98,8 @@ interface Photo {
   ai?: { label: string; parentId: string; check: CheckResult | null };
   toSite: boolean;
   toWhatsApp: boolean;
+  /** The file itself, so a draft can keep the photo (lib/social/post-drafts.ts). */
+  blob: Blob;
 }
 type StepStatus = 'waiting' | 'running' | 'done' | 'failed';
 /** `manual`: a step the counter does from the phone (sharing the story); Publish lists it but doesn't run it. */
@@ -107,7 +115,7 @@ interface WaGroup { key: string; label: string; name: string; size: number | nul
 /** An Error that remembers the HTTP status it came with, for diagnose(). */
 const httpError = (message: string, status: number) => Object.assign(new Error(message), { status });
 const errStatus = (e: unknown) => (typeof (e as { status?: unknown })?.status === 'number' ? (e as { status: number }).status : undefined);
-interface Lettered { url: string; img: HTMLImageElement; verified: boolean; missing: string[]; forId: string }
+interface Lettered { url: string; img: HTMLImageElement; blob: Blob; verified: boolean; missing: string[]; forId: string }
 
 async function authHeaders(): Promise<Record<string, string>> {
   try { const t = await firebaseAuth?.currentUser?.getIdToken(); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; }
@@ -120,23 +128,25 @@ async function readPhoto(file: File): Promise<Photo> {
   const url = URL.createObjectURL(file);
   const base = { id: newId(file.name), toSite: true, toWhatsApp: true };
   try {
-    return { ...base, name: file.name, img: await loadImage(url), url };
+    return { ...base, name: file.name, img: await loadImage(url), url, blob: file };
   } catch {
     URL.revokeObjectURL(url);
     const form = new FormData();
     form.set('file', file, file.name);
     const res = await fetch('/api/website/post/convert', { method: 'POST', headers: await authHeaders(), body: form });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Could not read ${file.name}`);
-    const jpegUrl = URL.createObjectURL(await res.blob());
-    return { ...base, name: file.name.replace(/\.[^.]+$/, '') + '.jpg', img: await loadImage(jpegUrl), url: jpegUrl };
+    const jpeg = await res.blob();
+    const jpegUrl = URL.createObjectURL(jpeg);
+    return { ...base, name: file.name.replace(/\.[^.]+$/, '') + '.jpg', img: await loadImage(jpegUrl), url: jpegUrl, blob: jpeg };
   }
 }
 
 /** An image the AI returned, ready for the page. */
-async function fromBase64(data: string, mime: string): Promise<{ url: string; img: HTMLImageElement }> {
+async function fromBase64(data: string, mime: string): Promise<{ url: string; img: HTMLImageElement; blob: Blob }> {
   const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
-  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
-  return { url, img: await loadImage(url) };
+  const blob = new Blob([bytes], { type: mime });
+  const url = URL.createObjectURL(blob);
+  return { url, img: await loadImage(url), blob };
 }
 
 /** What the AI is sent: the photo at most 2048 on its long side, as a JPEG. */
@@ -256,6 +266,9 @@ function PostAPiecePage() {
   const [storyOut, setStoryOut] = useState(false);
   const uploadedRef = useRef<Record<string, string>>({});   // photo id → website rel, so a retry never uploads twice
   const sentRef = useRef<Record<string, boolean>>({});        // WhatsApp message key → sent
+  // Where this piece goes: from the draft being continued, or where this device usually posts.
+  const destRef = useRef<PostPrefs | null>(null);
+  const [destLoaded, setDestLoaded] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -311,7 +324,8 @@ function PostAPiecePage() {
       if (!res.ok) return;
       const d = await res.json();
       setIg(d);
-      if (d.connected) setToInstagram(true);
+      // On by default once connected — unless the piece being continued, or this device's habit, says otherwise.
+      if (d.connected) setToInstagram(destRef.current?.toInstagram ?? true);
     })();
     // Back from Instagram's approval page.
     const q = new URLSearchParams(window.location.search);
@@ -335,11 +349,14 @@ function PostAPiecePage() {
       if (!res?.ok) { setWaState('error'); return; }
       const d = await res.json();
       setWaState(d.community ? 'ready' : 'off');
-      if (d.community) { setCommunity(d.community); setToWhatsApp(true); }
+      if (d.community) { setCommunity(d.community); setToWhatsApp(destRef.current?.toWhatsApp ?? true); }
       if (d.channel) setWaChannel(d.channel);
       const groups: WaGroup[] = d.groups ?? [];
       setWaGroups(groups);
-      setWaTargets([...groups.slice(0, 1).map(g => g.key), ...(d.channel ? ['channel'] : [])]);
+      const keys = [...groups.map(g => g.key), ...(d.channel ? ['channel'] : [])];
+      const wanted = destRef.current?.waTargets?.filter(k => keys.includes(k));
+      setWaTargets(wanted?.length ? wanted : [...groups.slice(0, 1).map(g => g.key), ...(d.channel ? ['channel'] : [])]);
+      setDestLoaded(true);
     })();
   }, [toast]);
   useEffect(() => { if (folder) try { localStorage.setItem('taheri_post_folder', folder); } catch { /* fine */ } }, [folder]);
@@ -441,10 +458,10 @@ function PostAPiecePage() {
     setBusy(key, label);
     try {
       const d = await callAi<AiImageResponse & { aspect?: Aspect }>(op, [await forAi(source.img)], params);
-      const { url, img } = await fromBase64(d.image.data, d.image.mimeType);
+      const { url, img, blob } = await fromBase64(d.image.data, d.image.mimeType);
       const storyShaped = d.aspect === '9:16';
       const made: Photo = {
-        id: newId('ai'), name: `${label}.jpg`, img, url,
+        id: newId('ai'), name: `${label}.jpg`, img, url, blob,
         ai: { label, parentId: source.id, check: d.check ?? null },
         toSite: !storyShaped && source.toSite, toWhatsApp: !storyShaped && source.toWhatsApp,
       };
@@ -551,9 +568,9 @@ function PostAPiecePage() {
         headlineColour: headLayer?.color ?? palette.headline, bodyColour: palette.body, align: headLayer?.align === 'center' ? 'center' : 'left',
         style: letterStyle.trim(),
       });
-      const { url, img } = await fromBase64(d.image.data, d.image.mimeType);
+      const { url, img, blob } = await fromBase64(d.image.data, d.image.mimeType);
       if (lettered) URL.revokeObjectURL(lettered.url);
-      setLettered({ url, img, verified: d.lettering.verified, missing: d.lettering.missing, forId: hero.id });
+      setLettered({ url, img, blob, verified: d.lettering.verified, missing: d.lettering.missing, forId: hero.id });
       setLettering('ai');
       if (!d.lettering.verified) toast({ title: 'The AI got some words wrong', description: `Could not find: ${d.lettering.missing.join(', ') || 'the text'}. Try again, or use our fonts.`, variant: 'destructive' });
     } catch (e) {
@@ -803,6 +820,7 @@ function PostAPiecePage() {
         thumb: await squareJpeg(hero, 240).catch(() => null),
       });
       if (ok) {
+        finishDraft();
         startOver();
         toast({ title: `“${headline.trim()}” is in the queue`, description: 'Make the next piece — then send them all, or spread them over the day.' });
       }
@@ -834,10 +852,176 @@ function PostAPiecePage() {
     story.reset(emptyDoc(null)); setPalette(PALETTES[0]);
     setLettering('ours'); setLettered(null); setAiCaption(null);
     setSteps([]); uploadedRef.current = {}; sentRef.current = {}; setStoryOut(false);
+    // The next piece is a draft of its own; the one just left stays in Drafts unless it went out.
+    detachDraft();
   };
 
   // Everything that sends by itself has gone; a by-hand story may still be waiting for the phone.
   const published = steps.length > 0 && steps.every(s => s.status === 'done' || s.manual);
+
+  // ── Drafts (lib/social/post-drafts.ts) ──
+  // Every piece being made is kept on this device as it is made — photos, words, both designs, where
+  // it goes, and what has already gone (so a publish picked up again never sends twice) — and the page
+  // opens on the piece that was being made last. It leaves Drafts once published or queued.
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const draftIdRef = useRef<string | null>(null);
+  const draftCreated = useRef<string | null>(null);
+  const storedPhotos = useRef<Set<string>>(new Set());
+  const lastSaved = useRef('');
+  const thumb = useRef<{ forId: string | null; blob: Blob | null }>({ forId: null, blob: null });
+  const restoring = useRef(true);            // until the page has looked for a piece to continue
+  const [resumed, setResumed] = useState<{ at: string; title: string } | null>(null);
+  const [draftsOpen, setDraftsOpen] = useState(false);
+  const [draftCount, setDraftCount] = useState(0);
+  const refreshDraftCount = () => { listPostDrafts().then(l => setDraftCount(l.length)).catch(() => undefined); };
+
+  const draftState = () => ({
+    kicker, headline, weight, weightEach, metal, stones, hook, story: story.doc, square: square.doc, palette, weightOwnLine,
+    lettering, letterStyle, toWebsite, folder, siteName, siteNameEdited, maisonHouse, feature, waTargets, toWhatsApp,
+    caption, captionEdited, toInstagram, formats, view, storyOut, aiCaption, uploaded: uploadedRef.current, sent: sentRef.current,
+  });
+  type DraftState = ReturnType<typeof draftState>;
+
+  const saveDraft = async () => {
+    if (restoring.current || published) return;
+    if (!photos.length && !headline.trim()) return;
+    const state = draftState();
+    const meta = photos.map(({ id, name, toSite, toWhatsApp, ai }) => ({ id, name, toSite, toWhatsApp, ai }));
+    const letteredMeta = lettered ? { verified: lettered.verified, missing: lettered.missing, forId: lettered.forId } : null;
+    const json = JSON.stringify({ state, meta, letteredMeta, hero: hero?.id });
+    if (json === lastSaved.current) return;
+    let id = draftIdRef.current;
+    const now = new Date().toISOString();
+    if (!id) {
+      id = `post-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+      draftIdRef.current = id; setDraftId(id); setCurrentPostDraft(id);
+      storedPhotos.current = new Set(); draftCreated.current = now; thumb.current = { forId: null, blob: null };
+    }
+    if (hero && thumb.current.forId !== hero.id) thumb.current = { forId: hero.id, blob: await thumbOf(hero.img) };
+    const blobs = new Map<string, Blob>(photos.map(p => [p.id, p.blob]));
+    if (lettered) blobs.set('lettered', lettered.blob);
+    await savePostDraft({
+      id, createdAt: draftCreated.current ?? now, updatedAt: now, title: headline.trim(), photos: meta,
+      lettered: letteredMeta, thumb: thumb.current.blob, state,
+    }, blobs, storedPhotos.current);
+    lastSaved.current = json;
+    if (storedPhotos.current.size && draftCount === 0) refreshDraftCount();
+  };
+  const saveRef = useRef(saveDraft);
+  saveRef.current = saveDraft;
+  // A second and a half after the last change.
+  useEffect(() => {
+    if (restoring.current || published) return;
+    const t = setTimeout(() => { void saveRef.current().catch(() => undefined); }, 1500);
+    return () => clearTimeout(t);
+  }, [photos, kicker, headline, weight, weightEach, metal, stones, hook, story.doc, square.doc, palette, weightOwnLine, lettering, letterStyle,
+      lettered, toWebsite, folder, siteName, maisonHouse, feature, waTargets, toWhatsApp, caption, toInstagram, formats, storyOut, aiCaption, published]);
+  // A new AI lettering replaces the stored one.
+  useEffect(() => { storedPhotos.current.delete('lettered'); }, [lettered]);
+
+  /** Gone out (published, or in the queue): out of Drafts. */
+  const finishDraft = () => {
+    const id = draftIdRef.current;
+    detachDraft();
+    if (id) void deletePostDraft(id).then(refreshDraftCount);
+  };
+  /** The page moves on to another piece; this one keeps whatever draft it has. */
+  function detachDraft() {
+    draftIdRef.current = null; setDraftId(null); setCurrentPostDraft(null);
+    storedPhotos.current = new Set(); lastSaved.current = ''; draftCreated.current = null; thumb.current = { forId: null, blob: null };
+    setResumed(null);
+  }
+  useEffect(() => { if (published) finishDraft(); }, [published]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Put a draft back on the page, exactly as it was left. */
+  const restoreDraft = async (id: string): Promise<boolean> => {
+    restoring.current = true;
+    try {
+      const got = await readPostDraft<DraftState>(id);
+      if (!got) return false;
+      const { draft, blobs } = got;
+      const list: Photo[] = [];
+      for (const p of draft.photos) {
+        const blob = blobs.get(p.id);
+        if (!blob) continue;
+        const url = URL.createObjectURL(blob);
+        try { list.push({ ...p, ai: p.ai as Photo['ai'], blob, url, img: await loadImage(url) }); } catch { URL.revokeObjectURL(url); }
+      }
+      photos.forEach(p => URL.revokeObjectURL(p.url));
+      if (lettered) URL.revokeObjectURL(lettered.url);
+      const st = draft.state;
+      setPhotos(list);
+      setKicker(st.kicker ?? ''); setHeadline(st.headline ?? ''); setWeight(st.weight ?? ''); setWeightEach(!!st.weightEach);
+      setMetal(st.metal ?? STORE_POST_METAL); setStones(st.stones ?? ''); setHook(st.hook ?? '');
+      if (st.story) story.reset(st.story); if (st.square) square.reset(st.square);
+      if (st.palette) setPalette(st.palette); setWeightOwnLine(st.weightOwnLine ?? true);
+      setLettering(st.lettering ?? 'ours'); setLetterStyle(st.letterStyle ?? '');
+      setToWebsite(st.toWebsite ?? !!SITE); setFolder(st.folder ?? ''); setSiteName(st.siteName ?? ''); setSiteNameEdited(!!st.siteNameEdited);
+      setMaisonHouse(st.maisonHouse ?? ''); setFeature(!!st.feature);
+      setWaTargets(st.waTargets ?? []); setToWhatsApp(!!st.toWhatsApp); setToInstagram(!!st.toInstagram);
+      setCaption(st.caption ?? ''); setCaptionEdited(!!st.captionEdited); setAiCaption(st.aiCaption ?? null);
+      if (st.formats) setFormats(st.formats); if (st.view) setView(st.view);
+      setStoryOut(!!st.storyOut); setSteps([]);
+      uploadedRef.current = st.uploaded ?? {}; sentRef.current = st.sent ?? {};
+      destRef.current = { waTargets: st.waTargets, toWhatsApp: st.toWhatsApp, toInstagram: st.toInstagram, toWebsite: st.toWebsite };
+      const lb = blobs.get('lettered');
+      if (draft.lettered && lb) {
+        const url = URL.createObjectURL(lb);
+        setLettered({ url, img: await loadImage(url), blob: lb, ...draft.lettered });
+      } else setLettered(null);
+      draftIdRef.current = id; setDraftId(id); setCurrentPostDraft(id);
+      storedPhotos.current = new Set(blobs.keys()); draftCreated.current = draft.createdAt;
+      thumb.current = { forId: st.story?.bg?.photoId ?? list[0]?.id ?? null, blob: draft.thumb ?? null };
+      lastSaved.current = '';
+      setResumed({ at: draft.updatedAt, title: draft.title });
+      return true;
+    } catch {
+      return false;
+    } finally {
+      restoring.current = false;
+    }
+  };
+
+  // Opening the page: the piece being made last, as it was left; otherwise a new one that starts
+  // where this device usually posts.
+  useEffect(() => {
+    (async () => {
+      const id = currentPostDraft();
+      const ok = id ? await restoreDraft(id) : false;
+      if (!ok) {
+        if (id) setCurrentPostDraft(null);
+        const prefs = readPostPrefs();
+        destRef.current = prefs;
+        if (typeof prefs.toWebsite === 'boolean' && SITE) setToWebsite(prefs.toWebsite);
+        if (typeof prefs.weightOwnLine === 'boolean') setWeightOwnLine(prefs.weightOwnLine);
+        if (typeof prefs.toInstagram === 'boolean' && ig?.connected) setToInstagram(prefs.toInstagram);
+      }
+      restoring.current = false;
+      refreshDraftCount();
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // This device's habit, for the next new piece: where it went and how the weight sat.
+  useEffect(() => {
+    if (restoring.current || !destLoaded) return;
+    writePostPrefs({ waTargets, toWhatsApp, toInstagram, toWebsite, weightOwnLine });
+  }, [waTargets, toWhatsApp, toInstagram, toWebsite, weightOwnLine, destLoaded]);
+
+  /** Continue another draft: this piece is saved first, then that one comes back. */
+  const switchTo = async (id: string) => {
+    setDraftsOpen(false);
+    if (id === draftIdRef.current) return;
+    await saveRef.current().catch(() => undefined);
+    if (!(await restoreDraft(id))) toast({ title: 'That draft could not be opened', description: 'It may have been cleared from this device.', variant: 'destructive' });
+    refreshDraftCount();
+  };
+  /** A new piece: this one stays in Drafts. */
+  const newPiece = async () => {
+    setDraftsOpen(false);
+    await saveRef.current().catch(() => undefined);
+    startOver();
+    refreshDraftCount();
+  };
   const grouped = useMemo(() => {
     const g = new Map<string, Collection[]>();
     for (const c of collections || []) { const a = g.get(c.category) || []; a.push(c); g.set(c.category, a); }
@@ -856,12 +1040,35 @@ function PostAPiecePage() {
           <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Send className="mr-3 h-7 w-7" /> Post a Piece</h1>
           <p className="text-sm text-muted-foreground mt-1">One piece in — its story, its post and its caption out, sent from here.</p>
         </div>
-        {busyList.length > 0 && (
-          <div className="flex items-center gap-2 text-sm rounded-full bg-primary/10 text-primary px-3 py-1.5">
-            <Loader2 className="h-4 w-4 animate-spin" /> {busyList[busyList.length - 1]}…{busyList.length > 1 ? ` (+${busyList.length - 1})` : ''}
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {busyList.length > 0 && (
+            <div className="flex items-center gap-2 text-sm rounded-full bg-primary/10 text-primary px-3 py-1.5">
+              <Loader2 className="h-4 w-4 animate-spin" /> {busyList[busyList.length - 1]}…{busyList.length > 1 ? ` (+${busyList.length - 1})` : ''}
+            </div>
+          )}
+          <Button type="button" variant="outline" size="sm" onClick={() => setDraftsOpen(true)} disabled={publishing}>
+            <FileClock className="h-4 w-4 mr-1.5" />Drafts{draftCount > 0 && <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">{draftCount}</span>}
+          </Button>
+        </div>
       </div>
+
+      {/* Back on the piece being made last — say so, with the way to a new one. */}
+      {resumed && !published && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <History className="h-4 w-4 flex-shrink-0 text-primary" />
+          <p className="min-w-0 flex-1">
+            Picked up where you left off{resumed.title ? <> — <span className="font-medium">{resumed.title}</span></> : ''}
+            <span className="text-muted-foreground"> · last changed {(() => { try { return formatDistanceToNow(new Date(resumed.at), { addSuffix: true }); } catch { return 'recently'; } })()}</span>
+          </p>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => { void newPiece(); }}>New piece</Button>
+            <Button type="button" size="sm" variant="ghost" className="min-h-0" aria-label="Hide" onClick={() => setResumed(null)}><X className="h-4 w-4" /></Button>
+          </div>
+        </div>
+      )}
+      <PostDraftsDialog open={draftsOpen} onOpenChange={setDraftsOpen} currentId={draftId}
+        onContinue={id => { void switchTo(id); }} onNew={() => { void newPiece(); }} onChanged={refreshDraftCount}
+        onDeletedCurrent={() => { setDraftsOpen(false); startOver(); }} />
 
       <FormatPicker value={formats} onChange={chooseFormats} disabled={publishing || steps.length > 0} siteName={SITE_NAME || 'the website'} />
 

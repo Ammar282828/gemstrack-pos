@@ -260,6 +260,15 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   remembers its sale in `gemstrack:sale-draft` and carries its pieces, so `/cart?draft=…` continues a sale on another
   device. Opening an invoice over a sale in progress keeps that sale in Drafts. The old `gemstrack:draft:` browser drafts
   are moved over once per device, minus those saved afterwards. Settings' switch (`autoDraftForms`) turns it all off.
+- **Post a Piece remembers** (2026-09-27, owner: "post a piece should have proper memory and have drafts and continue where
+  left off"). Every piece being made is a draft **on this device** (IndexedDB `taheri-post-drafts`, `src/lib/social/post-drafts.ts`:
+  `drafts` holds the words, both designs, the collection, where it goes, the caption and what has already gone out —
+  `uploaded`/`sent`, so a publish picked up again never sends twice; `photos` holds each photo's file once, by draft and photo
+  id — every `Photo` carries its `blob`). Saved 1.5 s after any change; the page opens on the piece being made last ("Picked up
+  where you left off" + New piece); **Drafts** in the header lists them with thumbnails — Continue (the piece on the page is
+  saved first), New piece (it stays in Drafts), Delete. A piece leaves once published or queued, and after 30 days. Not in
+  Firestore on purpose: camera photos are megabytes. A new piece starts where this device usually posts (`taheri_post_prefs`:
+  WhatsApp groups/channel, Instagram, website, weight line).
 - **Add Photos needs no sign-in** under open access — the owner overruled an auth gate on 2026-09-20.
 - The order-actions route keeps its always-verify gate: it moves money.
 - **Invoices show wastage in grams only** (no rupee value, no percentage); the workshop slip keeps the percentage.
