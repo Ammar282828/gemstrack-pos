@@ -72,6 +72,37 @@ export async function appSecret(): Promise<string | null> {
   return value;
 }
 
+// ── Going Live ─────────────────────────────────────────────────────────────
+// Meta keeps the app's mode to itself (no Graph field says Development or Live), but what the switch asks
+// for first can be read with the app's own token: a privacy policy address, a category and an icon.
+
+/** The pages the one Meta app points at, on taheri.shop (the app is "Taheri POS"; both houses use it). */
+export const APP_PAGES = () => ({
+  privacy: process.env.META_APP_PRIVACY_URL?.trim() || 'https://taheri.shop/privacy',
+  deletion: process.env.META_APP_DATA_DELETION_URL?.trim() || 'https://taheri.shop/data-deletion',
+});
+
+export interface LiveReadiness { privacyPolicyUrl: string | null; category: string | null; icon: boolean }
+
+/** The app's fields as Meta returns them → what the Live switch still wants. Meta's stock icon is not an icon. */
+export function liveReadiness(d: Record<string, unknown>): LiveReadiness {
+  const s = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  const icon = s(d.icon_url);
+  return { privacyPolicyUrl: s(d.privacy_policy_url), category: s(d.category), icon: !!icon && !/static\.xx\.fbcdn\.net\/rsrc\.php/.test(icon) };
+}
+
+/** Read with the app token (id|secret); null when there is no secret or Meta doesn't answer. */
+export async function appLiveReadiness(): Promise<LiveReadiness | null> {
+  const id = META_APP_ID(), secret = await appSecret();
+  if (!id || !secret) return null;
+  try {
+    const q = new URLSearchParams({ fields: 'privacy_policy_url,category,icon_url', access_token: `${id}|${secret}` });
+    const res = await fetch(`${GRAPH}/${GRAPH_VERSION()}/${id}?${q}`, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    const d = await res.json().catch(() => ({}));
+    return res.ok && !d.error ? liveReadiness(d) : null;
+  } catch { return null; }
+}
+
 // ── The connection ─────────────────────────────────────────────────────────
 
 export interface AdsConnection {
@@ -133,6 +164,15 @@ function encode(params: Params): URLSearchParams {
   return q;
 }
 
+/**
+ * A new ad's photos and words become a post that the Meta app makes, and Meta lets only a Live app's post
+ * run as an ad — "Ads creative post was created by an app that is in development mode. It must be in public
+ * to create this ad." (2026-09-28). Reading, running and pausing ads, and an ad from an existing post, are fine
+ * in Development mode, which is why nothing failed before the first new ad.
+ */
+export const APP_NOT_LIVE = 'The shop’s Meta app is still in Development mode, and Meta runs a new ad’s post only from a Live app. Switch it to Live — Ads → Setup, step 1 lists what Meta asks for first. Until then, an ad made from an existing Instagram post works.';
+const isAppNotLive = (s: string) => /created by an app that is in development mode/i.test(s);
+
 /** Meta's error, in the words it gives the person (error_user_msg) when it gives any. */
 export function metaError(body: unknown, httpStatus: number): MetaAdsError {
   const e = ((body as { error?: Record<string, unknown> })?.error ?? {}) as Record<string, unknown>;
@@ -141,7 +181,8 @@ export function metaError(body: unknown, httpStatus: number): MetaAdsError {
   const title = String(e.error_user_title || '').trim();
   const userMsg = String(e.error_user_msg || '').trim();
   const message = String(e.message || `Meta answered ${httpStatus}`).trim();
-  const text = userMsg ? (title && !userMsg.startsWith(title) ? `${title}: ${userMsg}` : userMsg) : message;
+  const said = userMsg ? (title && !userMsg.startsWith(title) ? `${title}: ${userMsg}` : userMsg) : message;
+  const text = isAppNotLive(`${title} ${userMsg} ${message}`) ? APP_NOT_LIVE : said;
   const status =
     code === 190 || code === 102 ? 401 :
     code === 10 || code === 200 || (code !== undefined && code >= 200 && code < 300) || code === 294 ? 403 :

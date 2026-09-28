@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsGate, noStore } from '@/lib/ads/gate';
-import { appSecret, checkConnection, META_APP_ID, redirectUri, REQUIRED_SCOPES, TOKEN_SECRET, APP_SECRET_NAME, GRAPH_VERSION, LOGIN_CONFIG_ID } from '@/lib/ads/meta';
+import { appSecret, appLiveReadiness, APP_PAGES, checkConnection, META_APP_ID, redirectUri, REQUIRED_SCOPES, TOKEN_SECRET, APP_SECRET_NAME, GRAPH_VERSION, LOGIN_CONFIG_ID } from '@/lib/ads/meta';
 import { accountSummary, HOUSE_INSTAGRAM, loadAdsSettings, PINNED_ACCOUNT } from '@/lib/ads/settings';
 import { secretAccess, secretConsoleUrl, posProject } from '@/lib/secret-manager';
 import { publicOrigin } from '@/lib/social/gate';
@@ -68,6 +68,8 @@ export async function GET(req: NextRequest) {
       version: GRAPH_VERSION(),
       loginConfigId: LOGIN_CONFIG_ID() || settings?.loginConfigId || null,
       loginConfigFromEnv: !!LOGIN_CONFIG_ID(),
+      live: await appLiveReadiness(),
+      pages: APP_PAGES(),
     },
     connection,
     connectionError,

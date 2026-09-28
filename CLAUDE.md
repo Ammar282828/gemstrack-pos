@@ -200,7 +200,11 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
 - **Meta app settings for Ads** (2026-09-26): Connect stopped at Facebook's "Can't load URL — the domain of this URL isn't
   included in the app's domains". Fix is in the Meta app (1075984878628188), not the POS: App domains `taheri.shop` +
   `houseofmina.store`, Client and Web OAuth login on, both `https://pos.<house>/api/ads/callback` as redirect URIs.
-  Ads → Setup step 1 now lists exactly these with copy buttons. Whether the owner has saved them in Meta is unconfirmed.
+  Ads → Setup step 1 now lists exactly these with copy buttons. Connecting works now (both houses have an ad account and Page).
+  **Next: the app must go Live** (2026-09-28): the first new ad came back "Ads creative post was created by an app that is in
+  development mode. It must be in public to create this ad." Read off the app that day: no privacy policy, no category,
+  Meta's stock icon, terms pointing at facebook.com. taheri.shop now has `/privacy` and `/data-deletion` (taheri-site), the icon
+  is `public/brand/meta-app-icon-1024.png`; the owner fills those in App settings → Basic and flips App Mode → Live.
 
 ## Security: Mina's repo is public (found 2026-09-27)
 
@@ -605,7 +609,12 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   `…/api/ads/callback` under Facebook Login for Business → Valid OAuth redirect URIs (else "Can't load URL"), and a **login
   configuration** (FLfB → Configurations: User access token + the ads/pages permissions) whose ID is pasted on Ads → Setup
   (`app_settings/meta_ads.loginConfigId`, or `META_LOGIN_CONFIG_ID`) — the app is Business-type and answers a plain `scope` list
-  with "Invalid Scopes: ads_management, …".
+  with "Invalid Scopes: ads_management, …". **New ads need the app Live** (2026-09-28): a new ad's photos and words become a post
+  the app makes, and Meta runs an app's post only once the app is Live ("…created by an app that is in development mode. It must
+  be in public", subcode 1885183) — reading, pausing and ads from an existing Instagram post work in Development mode. `metaError`
+  turns that refusal into `APP_NOT_LIVE`; Setup step 1 reads what the switch asks for with the app token (`appLiveReadiness`:
+  privacy policy URL, category, a real icon — Meta exposes no mode field) and gives the values (`APP_PAGES`: taheri.shop's
+  `/privacy` and `/data-deletion`, `META_APP_PRIVACY_URL` / `_DATA_DELETION_URL` to change them).
 
 ## graphify
 

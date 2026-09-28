@@ -57,6 +57,19 @@ function CopyLine({ value }: { value: string }) {
   );
 }
 
+/** One thing Meta's Live switch asks for: ticked when the app already has it (read from Meta), else what to give it. */
+function LiveField({ ok, known, label, now, children }: { ok: boolean | null; known: boolean; label: string; now?: string | null; children: React.ReactNode }) {
+  return (
+    <div className="mt-1.5">
+      <p className="flex items-center gap-1.5 text-foreground">
+        {known && ok ? <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" /> : known && ok === false ? <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+        {label}{known && ok && now ? <span className="text-muted-foreground font-normal truncate">: {now}</span> : null}
+      </p>
+      {!(known && ok) && <div className="pl-5">{children}</div>}
+    </div>
+  );
+}
+
 function AdsSetup() {
   const { toast } = useToast();
   const router = useRouter();
@@ -156,7 +169,14 @@ function AdsSetup() {
                 )}
                 {app.loginConfigId && !app.loginConfigFromEnv && <p className="text-xs mt-1 text-success">Saved: Connect uses configuration {app.loginConfigId}.</p>}
               </li>
-              <li><span className="text-foreground">App roles</span>: whoever connects must be an admin or developer of the app (it stays in development mode — no review is needed for the shop’s own ad accounts).</li>
+              <li><span className="text-foreground">App roles</span>: whoever connects must be an admin or developer of the app. No App Review is needed for the shop’s own ad accounts.</li>
+              {/* 2026-09-28: the first new ad came back "Ads creative post was created by an app that is in development mode". */}
+              <li><span className="text-foreground">Switch the app to Live</span> — a new ad’s photos and words become a post the app makes, and Meta runs such a post only from a Live app (reading, pausing and ads from an existing post work either way). In <span className="text-foreground">App settings → Basic</span>, then Save:
+                <LiveField ok={!!app.live?.privacyPolicyUrl} known={!!app.live} label="Privacy Policy URL" now={app.live?.privacyPolicyUrl}><CopyLine value={app.pages.privacy} /></LiveField>
+                <LiveField ok={null} known={false} label="User data deletion → Data deletion instructions URL"><CopyLine value={app.pages.deletion} /></LiveField>
+                <LiveField ok={!!app.live?.category} known={!!app.live} label="Category" now={app.live?.category}><span className="text-muted-foreground">Business and pages</span></LiveField>
+                <LiveField ok={!!app.live?.icon} known={!!app.live} label="App icon (1024 × 1024)"><a className="text-primary inline-flex items-center gap-1" href="/brand/meta-app-icon-1024.png" download>Download the icon</a></LiveField>
+                Then <b>App Mode → Live</b> at the top of the dashboard. Instagram stories keep posting (the house’s account is a tester of the app).</li>
             </ol>
           </Step>
 

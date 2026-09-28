@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compact, currencyOffset, fromMinor, headlineActions, metricsOf, money, resultOf, sumMetrics, toMinor } from './shape';
 import { fieldsRejected, previousPeriod } from './insights';
-import { metaError } from './meta';
+import { APP_NOT_LIVE, liveReadiness, metaError } from './meta';
 import { describeRule, ruleSpecs } from './rules';
 
 describe('money', () => {
@@ -69,6 +69,19 @@ describe('metaError', () => {
   it('prefers the words Meta wrote for people, and maps the code to a status', () => {
     const e = metaError({ error: { message: '(#100) Invalid parameter', code: 100, error_subcode: 1885183, error_user_title: 'Ads creative post was created by an app', error_user_msg: 'Pick another post.', fbtrace_id: 'T' } }, 400);
     expect([e.message, e.status, e.code, e.subcode, e.fbtrace]).toEqual(['Ads creative post was created by an app: Pick another post.', 400, 100, 1885183, 'T']);
+  });
+  it('an app still in Development mode says what to do, not only Meta’s words', () => {
+    // Meta's own answer to the first new ad, 2026-09-28.
+    const e = metaError({ error: { message: 'Invalid parameter', code: 100, error_subcode: 1885183, error_user_title: 'Ads creative post was created by an app that is in development mode', error_user_msg: 'Ads creative post was created by an app that is in development mode. It must be in public to create this ad.' } }, 400);
+    expect(e.message).toBe(APP_NOT_LIVE);
+    expect([e.status, e.subcode]).toEqual([400, 1885183]);
+  });
+  it('reads what the Live switch still wants off the app', () => {
+    expect(liveReadiness({ privacy_policy_url: 'https://taheri.shop/privacy', category: 'Business and pages', icon_url: 'https://scontent.xx.fbcdn.net/v/t39.2081-0/icon.png' }))
+      .toEqual({ privacyPolicyUrl: 'https://taheri.shop/privacy', category: 'Business and pages', icon: true });
+    // As the shop's app read on 2026-09-28: no policy, no category, Meta's stock icon.
+    expect(liveReadiness({ icon_url: 'https://static.xx.fbcdn.net/rsrc.php/yI/r/CClW7OrbvHV.webp', terms_of_service_url: 'https://www.facebook.com/' }))
+      .toEqual({ privacyPolicyUrl: null, category: null, icon: false });
   });
   it('expired login → 401, rate limit → 429, permissions → 403', () => {
     expect(metaError({ error: { message: 'Session has expired', code: 190 } }, 400).status).toBe(401);

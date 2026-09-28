@@ -42,6 +42,9 @@ export interface AdsStatus {
     tokenSecret: string; tokenStore: { exists: boolean; read: boolean; write: boolean }; tokenStoreUrl: string;
     project: string; redirectUri: string; version: string;
     loginConfigId: string | null; loginConfigFromEnv: boolean;
+    /** What Meta's Live switch asks for, read from the app (null: no secret yet, or Meta didn't answer). */
+    live: { privacyPolicyUrl: string | null; category: string | null; icon: boolean } | null;
+    pages: { privacy: string; deletion: string };
   };
   connection: null | {
     connected: boolean; kind: 'user' | 'system'; userName: string | null; connectedAt: string | null;
