@@ -152,8 +152,12 @@ const orderFormSchema = z.object({
     hideRates: z.boolean().default(false),
     discountAmount: z.coerce.number().min(0).default(0),
     advancePayment: z.coerce.number().min(0).default(0),
-    /** How the advance taken with the order was paid. */
-    advanceMethod: z.enum(PAYMENT_TYPES).optional(),
+    /** How the advance taken with the order was paid. Nullish, not optional: an order
+     *  saved without an advance stores `advanceMethod: null` (the edit path clears it that
+     *  way), and `.optional()` refused null when that order was edited again — with no
+     *  message under the field, so Update order simply did nothing (the owner, 2026-09-28:
+     *  "paid by how? causing issue when not specified"). */
+    advanceMethod: z.enum(PAYMENT_TYPES).nullish(),
     // The exchange rows as typed (components/shared/exchange-rows.tsx). Part of the form so an
     // unfinished order's draft keeps them; the two fields below are their totals, kept in step
     // by setExchangeRows, and are what every total on this form reads.
@@ -438,7 +442,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         hideRates: !!order.hideRates,
         discountAmount: Number(order.discountAmount) || 0,
         advancePayment: Number(order.advancePayment) || 0,
-        advanceMethod: order.advanceMethod,
+        advanceMethod: order.advanceMethod ?? undefined,
         exchangeRows: rowsFromExchanges(orderExchanges(order)),
         advanceInExchangeDescription: order.advanceInExchangeDescription || '',
         advanceInExchangeValue: Number(order.advanceInExchangeValue) || 0,
@@ -591,6 +595,21 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
   liveTotal.current = liveEstimate.grandTotal;
 
 
+  /** A form this long folds sections away, so a field that refuses is easy to miss; the
+   *  first refusal is named where it can be seen. */
+  const onInvalid = (errors: Record<string, unknown>) => {
+    const first = (node: unknown, path: string[] = []): string | null => {
+      if (!node || typeof node !== 'object') return null;
+      if (typeof (node as { message?: unknown }).message === 'string') {
+        const label = path.filter(k => !/^\d+$/.test(k)).map(k => k.replace(/([A-Z])/g, ' $1').toLowerCase()).join(' ');
+        return `${label}: ${(node as { message: string }).message}`;
+      }
+      for (const [k, v] of Object.entries(node as Record<string, unknown>)) { const m = first(v, [...path, k]); if (m) return m; }
+      return null;
+    };
+    toast({ title: "The order can't be saved yet", description: first(errors) || 'A field needs a look.', variant: 'destructive' });
+  };
+
   const onSubmit = async (data: OrderFormData) => {
     const { subtotal, discount, grandTotal } = liveEstimate;
     /**
@@ -645,11 +664,15 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
             }
         }
         
-        const { exchangeRows: editedRows, ...fields } = data;
+        const { exchangeRows: editedRows, advanceMethod: editedMethod, ...fields } = data;
         const updatedOrderData: Partial<Order> = {
             ...fields,
             ...orderExchangeFields(exchangesFromRows(editedRows || [])),
-            ...(Number(data.advancePayment) > 0 ? {} : { advanceMethod: null as unknown as undefined }),
+            // With an advance, the method as chosen (or left as stored when none was);
+            // without one, cleared — null, which cleanObject keeps, so the old method goes.
+            ...(Number(data.advancePayment) > 0
+              ? (editedMethod ? { advanceMethod: editedMethod } : {})
+              : { advanceMethod: null as unknown as undefined }),
             customerId: finalCustomerId,
             customerName: finalCustomerName || 'Walk-in Customer', // Ensure name is not undefined
             items: enrichedItems,
@@ -970,7 +993,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         customer's name at the bottom, Save after everything. Backwards for the
         person typing it in.
       */}
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[auto_1fr] gap-5 lg:gap-8 pb-24 lg:pb-0">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-[auto_1fr] gap-5 lg:gap-8 pb-24 lg:pb-0">
 
         {/* Who, and when. First on a phone. */}
         <Card className="lg:col-start-3 lg:row-start-1">
@@ -1522,9 +1545,10 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                        <FormItem>
                             <FormLabel className="text-xs">Paid by</FormLabel>
                             <Select value={field.value ?? ''} onValueChange={field.onChange}>
-                              <FormControl><SelectTrigger className="w-36" aria-label="Advance paid by"><SelectValue placeholder="How?" /></SelectTrigger></FormControl>
+                              <FormControl><SelectTrigger className="w-36" aria-label="Advance paid by"><SelectValue placeholder="Not recorded" /></SelectTrigger></FormControl>
                               <SelectContent>{PAYMENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                             </Select>
+                            <FormMessage />
                         </FormItem>
                     )}/>
                     </div>

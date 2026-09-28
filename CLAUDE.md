@@ -526,6 +526,12 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   invoice's never-printed `internalNote`), hide-rates, source and item plating. Until then exchange and advances were one
   lumped "Advance from Order" payment. Re-saving an invoice from the cart keeps `sourceOrderId`, Shopify links and source
   (`INVOICE_PROVENANCE`). Payments can also be taken in the cart as the invoice is written (`generateInvoice(…, payments)`).
+- **An order's advance method is optional, and a refused save is never silent** (2026-09-28, owner: "paid by how? causing
+  issue when not specified"): an order saved without an advance stores `advanceMethod: null` (the edit path clears it that way),
+  and the form's `.optional()` refused null on the next edit — with no message under the field, so Update order simply did
+  nothing. The schema is `.nullish()`, the edit form never seeds a null, the method is written only with an advance and only
+  when one was chosen (the invoice's payment then prints "—" for it), the placeholder says "Not recorded", and `onInvalid` on the
+  order form toasts the first refusing field by name, since its sections fold away.
 - **Exchange is one line** (2026-09-26, owner: "a general exchange without details like just description and cash amount …
   make it super simple"): each exchange row in the order form and the cart is what it is + the amount; "+ Weight & rate" folds
   open grams and rate (and karat only where `defaultMetal` is gold). Labels say "Exchange", not "Exchange gold".
