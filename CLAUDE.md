@@ -261,6 +261,12 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   toolbars, the karigar's My work header a scroll edge, Edit a piece's save foot glass, the customer and SKU autocomplete lists
   popovers, the designer's long-press menu a sheet over a dimmed page. The designer's own bars stay standard: they sit beside the
   canvas, not over it, so there is nothing for glass to show. Not on a real phone.
+  **The pane floats** (2026-09-28, owner: "there shouldn't be a cut at all … the sidebar should be floating", then "cut comes back
+  … when scrolling down"): on a computer the pane sits above the top bar (z 45, between the bar's 40 and the windows' 50), and
+  the bar's scroll edge runs under it across the whole window (`inset … -100vw`) and appears only once the page scrolls
+  (`data-scrolled` from `useScrolled`) — starting at the pane's edge, or drawn always, its tint made a vertical step at the
+  pane. The pane has no drawn outline: a soft shadow and a specular edge (`::after`, a masked gradient ring bright at the top
+  left, fading down the side). Bottom bars (`.glass-bar`) start after the pane on a computer, open or folded.
 - **The sidebar is by what the shop does** (re-audited 2026-09-27, owner: "reaudit the separation entirely"): **New Sale** is a
   button of its own under Search; Home (Dashboard, Calendar); **Sales** — Orders, Invoices, Repairs, Customers; **Workshop &
   stock** — Workshop (Jobs, Karigars, Given items) and **Stock** (Pieces, Add in bulk; back in the sidebar — Mina keeps ~100
