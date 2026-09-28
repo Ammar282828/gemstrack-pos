@@ -531,6 +531,14 @@ html.ui-glass .app-header::before {
   -webkit-mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 100%);
   mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 100%);
 }
+/* The pane is inset 0.5rem from the left and keeps its full width, so its right
+   edge runs 0.5rem into the content area — under the bar, whose scroll edge sits
+   above it and used to wash a blurred strip over the pane's corner (the owner,
+   2026-09-28: "weird cut here"). The edge starts where the pane ends. On a phone
+   the pane is a sheet and the bar spans the whole width. */
+@media (min-width: 768px) {
+  html.ui-glass .app-header::before { left: 0.5rem; }
+}
 /* Its controls are the glass: round, monochrome symbols (HIG: symbols on small
    glass elements follow a monochromatic scheme). */
 html.ui-glass .glass-ctl {
