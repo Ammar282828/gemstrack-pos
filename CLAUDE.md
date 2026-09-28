@@ -127,7 +127,8 @@ back to Green API otherwise; Green API stays configured until the owner cancels 
   so nothing goes in the base that only one house wants). Mina's file states every value its old fork had
   baked into code; leave one out and Mina comes up wearing Taheri's name.
 - What the variables drive: `src/lib/store-config.ts` (name, contacts, bank, links, allowed emails,
-  default metal, margin, **brand**, logo and its aspect, **counter staff** for "Taken by"); `globals.css`
+  default metal, margin, **brand**, logo, its aspect and its height in the sidebar (`NEXT_PUBLIC_STORE_LOGO_SIDEBAR_HEIGHT`, Mina 18 — its
+  spaced capitals fill their file, so Taheri's 26 px was a banner; 2026-09-28), **counter staff** for "Taken by"); `globals.css`
   (`.dark .brand-mina:not(.theme-default)` is Mina's dark palette — muted burgundy with the catalogue's dusty rose
   #E8A5AE as the accent, 2026-09-25 — and `.brand-mina.theme-default` gives its light theme Mina's maroon #380000; Taheri's
   dark is the plain `.dark`. A palette block on <body> must re-declare the `--sidebar-*` vars, which otherwise resolve on

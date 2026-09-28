@@ -46,6 +46,17 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # The wordmark's height in the sidebar: spaced capitals that fill their file,
+  # so 26 px (Taheri's, for a script) came out as a banner across the pane.
+  - variable: NEXT_PUBLIC_STORE_LOGO_SIDEBAR_HEIGHT
+    value: "18"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # ── Where it answers, and which Firebase project ─────────────────────────
+  # Every Shopify webhook is registered against this, so it has to match the
+  # domain in the browser bar; if it drifts, re-run /api/shopify/register-webhooks.
 
   # ── Where it answers, and which Firebase project ─────────────────────────
   # Every Shopify webhook is registered against this, so it has to match the

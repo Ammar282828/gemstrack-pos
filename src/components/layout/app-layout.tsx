@@ -18,7 +18,7 @@ import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
-import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_SITE_POSTS, STORE_META_ADS } from '@/lib/store-config';
+import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LOGO_SIDEBAR_HEIGHT, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_SITE_POSTS, STORE_META_ADS } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -319,7 +319,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarHeader className="p-4 pb-3">
             <Link href="/" className="flex items-center justify-start text-primary h-[26px]">
               {logoToUse ? (
-                 <div className="relative w-full h-full group-data-[collapsible=icon]:hidden">
+                 <div className="relative w-full group-data-[collapsible=icon]:hidden" style={{ height: STORE_LOGO_SIDEBAR_HEIGHT }}>
                     {/* The wordmark is flat charcoal, drawn for a light ground. On the
                         dark palette it sat two shades above the page — a grey smudge —
                         while the white cut made for exactly that went unused. Both are

@@ -183,6 +183,16 @@ export const STORE_TAKEN_BY: readonly string[] = (process.env.NEXT_PUBLIC_STORE_
 export const STORE_LOGO_ASPECT = Number(process.env.NEXT_PUBLIC_STORE_LOGO_ASPECT) || 1528 / 383;
 
 /**
+ * How tall the wordmark stands in the sidebar, in pixels. Taheri's script at 26 px
+ * reads light because its letters have ascenders and descenders; House of Mina's
+ * spaced capitals fill their file edge to edge, so the same 26 px came out as a
+ * banner across the pane (the owner, 2026-09-28: "mina logo is weirdly too big").
+ * Mina's yaml sets 18. The row stays 26 px tall whatever the mark, so the header
+ * is the same height in both houses.
+ */
+export const STORE_LOGO_SIDEBAR_HEIGHT = Number(process.env.NEXT_PUBLIC_STORE_LOGO_SIDEBAR_HEIGHT) || 26;
+
+/**
  * Does this shop keep partner ledgers?
  *
  * Shareholder Finances (/shareholders, the mina_ledger and ammar_ledger
