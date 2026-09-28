@@ -10,6 +10,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { auth } from '@/lib/firebase';
 import { signOut as firebaseSignOut } from 'firebase/auth';
 import { STORE_CONFIG } from '@/lib/store-config';
+import { useScrolled } from '@/lib/use-scrolled';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -55,6 +56,7 @@ export default function MyWorkPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const scrolled = useScrolled(); // the glass top bar's scroll edge, once the page scrolls
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -267,7 +269,7 @@ export default function MyWorkPage() {
 
   return (
     <div className="app-inset min-h-screen bg-background">
-      <header className="app-header sticky top-0 z-10 border-b bg-background/90 backdrop-blur px-4 py-3 flex items-center justify-between">
+      <header data-scrolled={scrolled || undefined} className="app-header sticky top-0 z-10 border-b bg-background/90 backdrop-blur px-4 py-3 flex items-center justify-between">
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">{STORE_CONFIG.name}</p>
           <h1 className="text-lg font-bold truncate flex items-center gap-2">

@@ -525,7 +525,13 @@ html.ui-glass .app-header::before {
   inset: 0 0 -1.25rem 0;
   z-index: -1;
   pointer-events: none;
-  background: linear-gradient(to bottom, hsl(var(--background) / 0.82) 0%, hsl(var(--background) / 0.55) 55%, hsl(var(--background) / 0) 100%);
+  /* Apple's scroll edge is not there until content scrolls beneath the bar.
+     Drawn always, it tinted the content column and not the sidebar's — a hard
+     seam at the top of every page, where the ambient glow is brightest. The
+     bar carries data-scrolled (useScrolled) once the page has moved. */
+  opacity: 0;
+  transition: opacity 240ms ease;
+  background: linear-gradient(to bottom, hsl(var(--background) / 0.7) 0%, hsl(var(--background) / 0.45) 55%, hsl(var(--background) / 0) 100%);
   -webkit-backdrop-filter: blur(14px) saturate(1.3);
   backdrop-filter: blur(14px) saturate(1.3);
   -webkit-mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 100%);
@@ -539,6 +545,7 @@ html.ui-glass .app-header::before {
 @media (min-width: 768px) {
   html.ui-glass .app-header::before { left: 0.5rem; }
 }
+html.ui-glass .app-header[data-scrolled]::before { opacity: 1; }
 /* Its controls are the glass: round, monochrome symbols (HIG: symbols on small
    glass elements follow a monochromatic scheme). */
 html.ui-glass .glass-ctl {
@@ -700,7 +707,7 @@ html.ui-glass .glass-fab:active { transform: scale(0.94); }
 @media (prefers-reduced-transparency: reduce) {
   html.ui-glass { --glass-a: 1; --glass-a-large: 1; --glass-a-window: 1; --glass-blur: 0px; --glass-sat: 1; }
   html.ui-glass body { background-image: none; }
-  html.ui-glass .app-header::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: hsl(var(--background)); -webkit-mask-image: none; mask-image: none; inset: 0; }
+  html.ui-glass .app-header::before { opacity: 1; -webkit-backdrop-filter: none; backdrop-filter: none; background: hsl(var(--background)); -webkit-mask-image: none; mask-image: none; inset: 0; }
   html.ui-glass .glass-prominent { background-color: hsl(var(--primary)); }
 }
 @media (prefers-contrast: more) {

@@ -23,6 +23,7 @@ import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { useScrolled } from '@/lib/use-scrolled';
 import { roleForEmail } from '@/lib/roles';
 import { devRole, captureDevRole } from '@/lib/dev-role';
 import { writeDeviceTheme } from '@/lib/theme-cache';
@@ -303,6 +304,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const current = [...visibleGroups.flatMap(g => g.items), ...(settingsEntry ? [settingsEntry] : [])]
     .find(i => i.tabs?.some(t => t.href === pathname));
   const pageTabs = current?.tabs && current.tabs.length > 1 ? current.tabs : null;
+  // The glass top bar's scroll edge shows only once content passes beneath it.
+  const scrolled = useScrolled('.app-inset > main');
 
   const logoToUse = STORE_LOGO_URL;
 
@@ -451,7 +454,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Sidebar>
 
         <SidebarInset className="app-inset">
-          <header className="app-header sticky top-0 z-40 flex items-center gap-2 h-14 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
+          <header data-scrolled={scrolled || undefined} className="app-header sticky top-0 z-40 flex items-center gap-2 h-14 px-4 bg-background/80 backdrop-blur-sm border-b md:px-6">
             {/* Was md:hidden, which meant the sidebar could collapse to icons
                 on paper but there was no way to trigger it on a desktop. On a
                 1280px screen the rail is a fifth of the width; collapsing it
