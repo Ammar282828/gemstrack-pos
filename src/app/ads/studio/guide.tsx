@@ -55,8 +55,8 @@ export function GuideSection({ connected }: { connected: boolean }) {
       <div className="space-y-4">
         {error && <p className="text-sm text-destructive">{error}</p>}
         {BRAND.calendar && <section className="rounded-xl border p-4 space-y-3">
-          <h2 className="text-base font-semibold flex items-center gap-2"><CalendarClock className="h-4 w-4" /> Ad days</h2>
-          {!c ? <p className="text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin inline mr-1" /> Working out the calendar…</p> : (
+          <h2 className="text-base font-semibold flex items-center gap-2" title="From the tabular Hijri calendar the Dawoodi Bohras keep, checked against the vault’s 2025 dates. Urs and Dawat dates aren’t in the vault — confirm those against the Dawat calendar; if unsure, treat a day as sacred."><CalendarClock className="h-4 w-4" /> Ad days</h2>
+          {!c ? <p className="text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin inline mr-1" /> …</p> : (
             <>
               <div className={cn('rounded-lg p-3 text-sm', c.today.level === 'clear' ? 'bg-emerald-500/10' : c.today.level === 'quiet' ? 'bg-amber-500/10' : 'bg-rose-500/10')}>
                 <p className="font-medium">Today, {day(c.today.date)} · {c.today.hijri}</p>
@@ -64,7 +64,7 @@ export function GuideSection({ connected }: { connected: boolean }) {
               </div>
               {c.next14.length > 0 ? (
                 <div className="text-xs space-y-0.5">
-                  <p className="font-medium">In the next two weeks, keep ads off:</p>
+                  <p className="font-medium">Ads off, next two weeks:</p>
                   {c.next14.map(d => <p key={d.date} className="text-muted-foreground">{day(d.date)} · {d.hijri} — {d.name}{d.level === 'near' ? ' (the days before)' : d.level === 'quiet' ? ' (a cultural post only)' : ''}</p>)}
                 </div>
               ) : <p className="text-xs text-muted-foreground">Nothing sacred in the next two weeks.</p>}
@@ -74,23 +74,21 @@ export function GuideSection({ connected }: { connected: boolean }) {
                   <div key={u.date + u.id} className="rounded-lg border p-2.5 text-xs">
                     <p className="font-medium">{u.name}</p>
                     <p className="text-muted-foreground">{day(u.date, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}{u.to > 1 ? ` for ${u.to} days` : ''} · {u.hijri}</p>
-                    <p className="mt-1"><b>End ads by {day(minusDays(u.date, u.before + 1))}</b> — {u.rule}</p>
+                    <p className="mt-1" title={u.rule}><b>End ads by {day(minusDays(u.date, u.before + 1))}</b></p>
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-muted-foreground">Worked out from the tabular Hijri calendar the Dawoodi Bohras keep, checked against the vault’s 2025 dates. Urs and Dawat dates aren’t in the vault — confirm those against the Dawat calendar; if unsure whether a day is sacred, treat it as sacred.</p>
             </>
           )}
         </section>}
 
         <section className="rounded-xl border p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold flex items-center gap-2"><Trophy className="h-4 w-4" /> What your own ads say</h2>
+            <h2 className="text-base font-semibold flex items-center gap-2" title="Your last six months: what the cheapest results share, and the dearest"><Trophy className="h-4 w-4" /> What your own ads say</h2>
             <Button size="sm" disabled={reading || !connected} onClick={readWinners}>{reading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />} {w ? 'Read again' : 'Read my ads'}</Button>
           </div>
-          {!connected && <p className="text-xs text-muted-foreground">Connect Meta on Ads → Setup first.</p>}
-          {reading && <p className="text-[11px] text-muted-foreground">Six months of ads, the cheapest results against the dearest, pictures and words to the model — a minute or two.</p>}
-          {!w && !reading && connected && <p className="text-xs text-muted-foreground">Reads the account’s ads over the last six months: what the ones with the cheapest chats share in the picture and the words, and what the dearest have in common.</p>}
+          {!connected && <p className="text-xs text-muted-foreground">Connect Meta (Setup) first.</p>}
+          {reading && <p className="text-[11px] text-muted-foreground">Reading… (1–2 min)</p>}
           {w && (
             <>
               {w.error && <p className="text-xs text-amber-700 dark:text-amber-400">{w.error}</p>}
@@ -119,7 +117,7 @@ export function GuideSection({ connected }: { connected: boolean }) {
       <div className="space-y-2">
         <MarketCard />
         <h2 className="text-base font-semibold flex items-center gap-2 px-1 pt-2"><Compass className="h-4 w-4" /> Meta ads for this house</h2>
-        {PLAYBOOK.map((s, i) => <PlaybookCard key={s.id} s={s} defaultOpen={i < 2} />)}
+        {PLAYBOOK.map(s => <PlaybookCard key={s.id} s={s} defaultOpen={false} />)}
       </div>
     </div>
   );
@@ -148,14 +146,12 @@ function PlaybookCard({ s, defaultOpen }: { s: typeof PLAYBOOK[number]; defaultO
   return (
     <section className="rounded-xl border">
       <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-start gap-2 p-3 text-left">
-        <div className="flex-1">
-          <p className="text-sm font-semibold">{s.title}</p>
-          <p className="text-xs text-muted-foreground">{s.lead}</p>
-        </div>
+        <p className="flex-1 text-sm font-semibold" title={s.lead}>{s.title}</p>
         {open ? <ChevronUp className="h-4 w-4 mt-0.5 shrink-0" /> : <ChevronDown className="h-4 w-4 mt-0.5 shrink-0" />}
       </button>
       {open && (
         <ul className="border-t p-3 space-y-2">
+          <li className="text-xs text-muted-foreground">{s.lead}</li>
           {s.points.map(p => <li key={p.head} className="text-xs"><p className="font-medium">{p.head}</p><p className="text-muted-foreground">{p.body}</p></li>)}
         </ul>
       )}
@@ -170,16 +166,14 @@ function BrandCard() {
     <section className="rounded-xl border p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-base font-semibold flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> The house’s rules for ads</h2>
-        <Button size="sm" variant="ghost" onClick={() => setOpen(o => !o)}>{open ? 'Less' : 'All of them'}</Button>
+        <Button size="sm" variant="ghost" onClick={() => setOpen(o => !o)}>{open ? 'Less' : 'Show'}</Button>
       </div>
-      <p className="text-xs text-muted-foreground">{BRAND.calendar ? 'From the Taheri Vault, as the owner changed it on 2026-09-29.' : 'From the house’s own words in the ERP.'} Every ad the studio writes or checks is held to these.</p>
-      <div className="text-xs"><p className="font-semibold mb-0.5">Never in an ad</p><List xs={HARD_RULES} /></div>
       <div className="flex items-center gap-2">
         {[VISUAL.ground, VISUAL.gold, VISUAL.lightGold, VISUAL.bone].map(c => <span key={c} className="h-7 w-7 rounded-full border" style={{ background: c }} title={c} />)}
-        <span className="text-[11px] text-muted-foreground">the ground, gold, light gold, bone</span>
       </div>
       {open && (
         <div className="space-y-3 text-xs">
+          <div><p className="font-semibold mb-0.5">Never in an ad</p><List xs={HARD_RULES} /></div>
           <div><p className="font-semibold flex items-center gap-1"><Quote className="h-3 w-3" /> Voice</p><p className="italic">{VOICE.oneLine}</p><List xs={VOICE.rules} />
             <p className="mt-1"><b>Calls to action:</b> {VOICE.ctas.join(' · ')}</p><p><b>Closers:</b> {VOICE.closers.join(' · ')}</p><p><b>Never:</b> {VOICE.avoid.join(' · ')}</p></div>
           <div><p className="font-semibold flex items-center gap-1"><Palette className="h-3 w-3" /> Look and marks</p><List xs={[...VISUAL.rules, ...MARK_RULES]} /></div>
@@ -198,15 +192,12 @@ function MarketCard() {
   const tabs = ([['gaps', 'What nobody does', GAPS.length], ['patterns', 'What they all run', PATTERNS.length], ['houses', 'The houses', HOUSES.length], ['meta', 'How Meta works here', META_NOTES.length]] as const).filter(t => t[2] > 0);
   const list = (xs: { head: string; body: string; who?: string; source?: string }[]) => (
     <ul className="space-y-2">{xs.map(x => (
-      <li key={x.head} className="text-xs"><p className="font-medium">{x.head}{x.who && <span className="text-muted-foreground font-normal"> — {x.who}</span>}</p><p className="text-muted-foreground">{x.body}{x.source && <> <a href={x.source} target="_blank" rel="noreferrer" className="text-primary">source</a></>}</p></li>
+      <li key={x.head} className="text-xs"><p className="font-medium">{x.head}{x.who && <span className="text-muted-foreground font-normal"> — {x.who}</span>}</p><p className="text-muted-foreground line-clamp-2" title={x.body}>{x.body}{x.source && <> <a href={x.source} target="_blank" rel="noreferrer" className="text-primary">source</a></>}</p></li>
     ))}</ul>
   );
   return (
     <section className="rounded-xl border p-4 space-y-3">
-      <div>
-        <h2 className="text-base font-semibold">What the market runs</h2>
-        <p className="text-[11px] text-muted-foreground">Research of {MARKET_AT}: the Pakistani houses’ own sites, their Google ads, TikTok, and Meta’s documentation. Their Meta ads aren’t readable without signing in — the Competitors tab looks them up through the shop’s account.</p>
-      </div>
+      <h2 className="text-base font-semibold" title={`Research of ${MARKET_AT}: the houses’ own sites, their Google ads, TikTok and Meta’s documentation`}>What the market runs <span className="text-[11px] font-normal text-muted-foreground">{MARKET_AT}</span></h2>
       <div className="flex flex-wrap gap-1">
         {tabs.map(([k, label]) => <button key={k} type="button" onClick={() => setOpen(k)} className={cn('rounded-full border px-2.5 py-1 text-[11px] min-h-0', open === k ? 'bg-foreground text-background' : 'text-muted-foreground')}>{label}</button>)}
       </div>

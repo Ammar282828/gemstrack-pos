@@ -11,10 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Sparkles, Loader2, Globe, HardDrive, Search, RefreshCw, Wand2, Download, Brush, ExternalLink, Copy, AlertTriangle,
-  CheckCircle2, Crop, ImageIcon, ShieldAlert, PauseCircle,
-} from 'lucide-react';
+import { Sparkles, Loader2, Globe, HardDrive, Search, RefreshCw, Wand2, Download, Brush, ExternalLink, Copy, AlertTriangle, CheckCircle2, Crop, ShieldAlert, PauseCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FIXES, PLACEMENT_LABEL, PLACEMENTS, type FixCode, type Placement } from '@/lib/ads/studio/assessment';
 import { SCENES } from '@/lib/social/prompts';
@@ -116,18 +113,14 @@ export function AssessBar({ counts, runner, big }: { counts: LibraryResponse['co
   return (
     <div className={cn('rounded-xl border p-3 flex flex-col sm:flex-row sm:items-center gap-3', big && 'p-4 bg-primary/5 border-primary/30')}>
       <div className="flex-1 min-w-0 space-y-1.5">
-        <p className="text-sm font-medium">
-          {counts.assessed.toLocaleString('en-US')} of {counts.total.toLocaleString('en-US')} photos assessed
-          <span className="text-muted-foreground font-normal"> · {counts.site.toLocaleString('en-US')} from {SITE_LABEL}, {counts.drive.toLocaleString('en-US')} from Drive</span>
+        <p className="text-sm font-medium" title={`${counts.site.toLocaleString('en-US')} from ${SITE_LABEL}, ${counts.drive.toLocaleString('en-US')} from Drive. Assessing runs by itself every five minutes, newest first.`}>
+          {counts.assessed.toLocaleString('en-US')} / {counts.total.toLocaleString('en-US')} assessed
+          <span className="text-muted-foreground font-normal text-xs">
+            {' · '}{runner.running ? `assessing${runner.done ? ` (${runner.done})` : '…'}` : left === 0 ? 'all done' : st?.background ? `~${Math.max(1, Math.round(left / 350))} h to go` : 'paused'}
+          </span>
         </p>
         <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${pctDone}%` }} /></div>
-        <p className="text-[11px] text-muted-foreground">
-          {left === 0 ? 'Every photo is assessed; new ones are picked up by themselves.'
-            : st?.background ? `Runs by itself every five minutes, newest first — no need to keep this page open. About ${Math.max(1, Math.round(left / 350))} hour${left > 525 ? 's' : ''} for the ${left.toLocaleString('en-US')} left.`
-              : 'Paused — nothing is assessed until you resume it.'}
-          {last && ` Last run ${ago === 0 ? 'just now' : `${ago} min ago`}: ${last.done} done${last.stopped ? ` — ${last.stopped}` : ''}.`}
-          {runner.running && ` Assessing now… ${runner.done ? `${runner.done} done` : ''}`}
-        </p>
+        {last?.stopped && !runner.running && <p className="text-[11px] text-warning truncate" title={last.stopped}>Last run {ago === 0 ? 'just now' : `${ago} min ago`}: {last.stopped}</p>}
       </div>
       <div className="flex gap-2 shrink-0">
         {left > 0 && <Button variant="outline" size="sm" disabled={runner.running} onClick={runner.now}>{runner.running ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />} Assess now</Button>}
@@ -149,17 +142,16 @@ export function DriveCard({ drive, onRefresh, refreshing }: { drive: LibraryResp
     const names = drive.roots.map(r => r.name);
     return (
       <p className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-1.5">
-        <HardDrive className="h-3.5 w-3.5" /> Drive: {drive.images.toLocaleString('en-US')} photos from {names.join(', ') || 'the shared folders'}{drive.brand ? ` and ${drive.brand} logo files` : ''}. Website photos use their unmarked original from here when the shot’s name matches.
-        {names.length < 3 && <span>Share more (TC, the Vault’s logos) with <button type="button" onClick={copy} className="font-mono underline min-h-0">{drive.account}</button>, then</span>}
+        <HardDrive className="h-3.5 w-3.5" /> <span title={`From ${names.join(', ') || 'the shared folders'}. Share more with ${drive.account}.`}>Drive: {drive.images.toLocaleString('en-US')} photos{drive.brand ? ` · ${drive.brand} logos` : ''}</span>
         <button type="button" onClick={onRefresh} disabled={refreshing} className="text-primary min-h-0">{refreshing ? 'looking…' : 'look again'}</button>
+        {names.length < 3 && <button type="button" onClick={copy} className="min-h-0 underline" title={`Share more folders with ${drive.account} (Viewer)`}>copy the share address</button>}
       </p>
     );
   }
   const needApi = drive.reason === 'api-disabled';
   return (
     <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-2.5">
-      <p className="text-sm font-semibold flex items-center gap-2"><HardDrive className="h-4 w-4" /> Your Google Drive isn’t connected yet</p>
-      <p className="text-xs text-muted-foreground">Only {SITE_LABEL}’s photos are here for now. The shoots in Drive come in once the ERP may read them — two steps, each a minute, and nothing in Drive is ever changed.</p>
+      <p className="text-sm font-semibold flex items-center gap-2"><HardDrive className="h-4 w-4" /> Connect Google Drive</p>
       <ol className="text-xs space-y-2 list-decimal pl-4">
         {needApi && (
           <li>
@@ -172,8 +164,7 @@ export function DriveCard({ drive, onRefresh, refreshing }: { drive: LibraryResp
         </li>
       </ol>
       {!needApi && drive.reason !== 'nothing-shared' && <p className="text-[11px] text-muted-foreground">Drive said: {drive.message}</p>}
-      <Button size="sm" variant="outline" onClick={onRefresh} disabled={refreshing}>{refreshing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />} Done both — check again</Button>
-      <p className="text-[11px] text-muted-foreground">Google can take a minute or two to turn the API on.</p>
+      <Button size="sm" variant="outline" onClick={onRefresh} disabled={refreshing}>{refreshing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />} Check again</Button>
     </div>
   );
 }
@@ -202,9 +193,7 @@ export function AssetTile({ item, onOpen, rank }: { item: LibraryItem; onOpen: (
         </div>
       </div>
       <div className="p-2 space-y-0.5">
-        <p className="text-xs font-medium truncate">{item.name}</p>
-        <p className="text-[11px] text-muted-foreground truncate">{a ? a.subject : item.collection}</p>
-        {a && a.fixes.length > 0 && <p className="text-[10px] text-primary truncate">{a.fixes.map(f => FIXES[f].label).join(' · ')}</p>}
+        <p className="text-xs font-medium truncate" title={[a?.subject ?? item.collection, a?.fixes.length ? `Fixes: ${a.fixes.map(f => FIXES[f].label).join(', ')}` : ''].filter(Boolean).join('\n')}>{item.name}</p>
       </div>
     </button>
   );
@@ -237,7 +226,6 @@ export function PicksSection({ placement, onPlacement, onOpen, reloadKey }: { pl
         <section className="space-y-2">
           <div>
             <h2 className="text-base font-semibold">The best for {PLACEMENT_LABEL[placement]}</h2>
-            <p className="text-xs text-muted-foreground">Ranked as ads: fit for this frame first, then the photograph; anything against the house’s rules held back, pieces already running in an ad last, no collection more than a few times.</p>
           </div>
           <Grid>{data.items.map((it, i) => <AssetTile key={it.id} item={it} onOpen={onOpen} rank={i + 1} />)}</Grid>
         </section>
@@ -245,7 +233,7 @@ export function PicksSection({ placement, onPlacement, onOpen, reloadKey }: { pl
         <section className="space-y-2">
           <div>
             <h2 className="text-base font-semibold">The newest photos</h2>
-            <p className="text-xs text-muted-foreground">{counts?.assessed ? 'None of the photos looked at so far scores 40 or more for this frame.' : 'Nothing has been looked at yet — the picks appear here as the model works through the library.'} Open any photo to assess it on its own.</p>
+            <p className="text-xs text-muted-foreground">{counts?.assessed ? 'Nothing scores 40 or more for this frame yet.' : 'Picks appear as photos are assessed.'}</p>
           </div>
           <Grid>{(newest.data?.items ?? []).map(it => <AssetTile key={it.id} item={it} onOpen={onOpen} />)}</Grid>
         </section>
@@ -487,12 +475,11 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
                 {a.headline && <p className="text-xs"><span className="text-muted-foreground">A line for it: </span><span className="font-serif italic text-sm">“{a.headline}”</span></p>}
               </>
             ) : (
-              <p className="text-xs text-muted-foreground rounded-xl border p-3">Not assessed yet. “Assess it” scores it as an ad in about half a minute; the fixes work either way.</p>
+              <p className="text-xs text-muted-foreground rounded-xl border p-3">Not assessed yet.</p>
             )}
 
             <section className="space-y-2">
               <p className="text-sm font-semibold flex items-center gap-1.5"><Wand2 className="h-4 w-4" /> Fix it{current ? ` (from ${current.label})` : ''}</p>
-              <p className="text-[11px] text-muted-foreground">Each fix is the same AI Post a Piece uses, checked afterwards against the photo it came from. Fixes build on the version shown.</p>
               <div className="flex flex-wrap gap-2">
                 {suggested.map(f => <FixButton key={f} code={f} busy={busy} disabled={!working} onRun={() => (f === 'restage' ? setScenes(s => !s) : fix(f))} primary />)}
                 {a?.fixes.includes('crop-tighter') && <Button size="sm" onClick={() => base && onMake({ asset: cur, blob: current?.blob ?? null, note: current?.label, clean: current?.tidy })}><Crop className="h-4 w-4 mr-1" /> Crop tighter in the maker</Button>}
@@ -512,7 +499,6 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
                 <ul className="text-[11px] text-muted-foreground space-y-0.5">{a.fixes.map(f => <li key={f}><b className="text-foreground/80">{FIXES[f].label}:</b> {FIXES[f].why}</li>)}</ul>
               ) : null}
             </section>
-            {cur.source === 'drive' && <p className="text-[11px] text-muted-foreground flex items-center gap-1"><ImageIcon className="h-3 w-3" /> From Drive. Nothing here changes the file in Drive.</p>}
           </div>
         )}
       </SheetContent>

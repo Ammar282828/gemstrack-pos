@@ -459,7 +459,6 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
             </button>
           ))}
         </div>
-        <p className="text-[11px] text-muted-foreground -mt-1">{F.where}. {format === 'story' ? 'The shaded bands are where Instagram draws its own buttons — keep words and the piece out of them.' : format === 'portrait' ? 'Meta shows 4:5 largest in feeds; pair it with a 9:16 for stories.' : ''}</p>
         <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
           {AD_TEMPLATES.map(t => (
             <button key={t.id} type="button" disabled={!ready} onClick={() => chooseTemplate(t.id)} title={t.note}
@@ -468,22 +467,22 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
         </div>
         {original && cur && (
           <p className="text-[11px] rounded-lg bg-emerald-500/10 p-2">
-            Using the <b>unmarked original from your Drive</b> ({original.name}) — no logo to take off.{' '}
-            <button type="button" className="text-primary min-h-0" onClick={() => setUseOriginal(false)}>Use the website’s photo instead</button>
+            <span title={original.name}>Drive original, no logo.</span>{' '}
+            <button type="button" className="text-primary min-h-0" onClick={() => setUseOriginal(false)}>Use the website’s</button>
           </p>
         )}
         {!original && !work.blob && work.asset?.original && (
-          <p className="text-[11px] text-muted-foreground">An unmarked original is in Drive ({work.asset.original.name}). <button type="button" className="text-primary min-h-0" onClick={() => setUseOriginal(true)}>Use it</button></p>
+          <p className="text-[11px] text-muted-foreground"><span title={work.asset.original.name}>A clean original is in Drive.</span> <button type="button" className="text-primary min-h-0" onClick={() => setUseOriginal(true)}>Use it</button></p>
         )}
         {marked && (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2 flex flex-wrap items-center gap-2">
-            <p className="text-[11px] flex-1 min-w-[12rem]">This photo has the house’s logo{work.asset?.assessment?.burnedText ? ' (and a label)' : ''} burned in, so the layout adds no second one.</p>
+            <p className="text-[11px] flex-1 min-w-[8rem]">Logo{work.asset?.assessment?.burnedText ? ' and label' : ''} on the photo</p>
             <Button size="sm" disabled={!cur || !!aiBusy} onClick={removeLogo}><Eraser className="h-4 w-4 mr-1" /> Remove the logo</Button>
           </div>
         )}
         {!marked && work.asset?.source === 'site' && !original && (
           <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <input type="checkbox" checked={marked} onChange={e => toggleMarked(e.target.checked)} /> The photo still shows a logo (don’t add another)
+            <input type="checkbox" checked={marked} onChange={e => toggleMarked(e.target.checked)} /> Logo already on the photo
           </label>
         )}
         {aiBusy && <p className="text-xs rounded-lg bg-primary/10 p-2 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin shrink-0" /> {aiBusy}</p>}
@@ -497,7 +496,7 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Fetching the photo…
               </div>
             ),
-            bottom: <p className="text-[11px] text-muted-foreground">Drag or pinch the photo to crop; tap words to change them; “Design” opens the full designer (elements, frames, filters, layers).</p>,
+            bottom: null,
             props: {
               api: doc, square: true, fields, assets,
               photos: cur ? [{ id: PHOTO, url: cur.url, label: work.note || work.asset?.name || 'The photo' }] : [],
@@ -527,8 +526,7 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
       <div className="space-y-4">
         <section className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2.5">
           <p className="text-sm font-semibold flex items-center gap-1.5"><Sparkles className="h-4 w-4" /> Make it with AI</p>
-          <p className="text-[11px] text-muted-foreground">From the photo and the piece’s details: the layout, every word, the logo off and the photo extended to the ad’s shape when it needs it — then checked. The words and figures are set by the ERP, so they come out exact.</p>
-          <Input value={brief} onChange={e => setBrief(e.target.value)} placeholder="Anything to aim for? (optional — e.g. Eid gifting, the new stone sets)" className="h-9 text-base sm:text-sm" />
+          <Input value={brief} onChange={e => setBrief(e.target.value)} placeholder="Aim (optional) — e.g. Eid gifting" className="h-9 text-base sm:text-sm" />
           <div className="flex flex-wrap gap-2">
             <Button className="flex-1" disabled={!cur || !!aiBusy} onClick={makeWithAi}>{aiBusy ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />} Make it with AI</Button>
             <Button variant="outline" disabled={!cur || !!aiBusy} onClick={paintWithAi} title="The image model draws the whole ad, lettering included — then it is read back and compared with the photo"><Brush className="h-4 w-4 mr-1.5" /> Paint the whole ad</Button>
@@ -557,20 +555,20 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
 
         <section className="rounded-xl border p-3 space-y-2.5">
           <p className="text-sm font-semibold">On the picture</p>
-          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Small line above (gold capitals)</span>
-            <Input value={fields.kicker} onChange={e => setField('kicker', e.target.value)} placeholder="e.g. The Emerald Edit" className="h-9 text-base sm:text-sm" /></label>
-          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Headline (six words at most)</span>
+          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Kicker</span>
+            <Input value={fields.kicker} onChange={e => setField('kicker', e.target.value)} placeholder="The Emerald Edit" className="h-9 text-base sm:text-sm" /></label>
+          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Headline</span>
             <Input value={fields.headline} onChange={e => setField('headline', e.target.value)} className="h-9 text-base sm:text-sm" /></label>
-          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">The piece — karat, stones, weight{work.asset?.specs ? ' (from the ERP)' : ''}</span>
-            <Input value={fields.weight} onChange={e => setField('weight', e.target.value)} placeholder="e.g. 21K Yellow Gold · Ruby · 45.35g — empty shows nothing" className="h-9 text-base sm:text-sm" /></label>
+          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Specs</span>
+            <Input value={fields.weight} onChange={e => setField('weight', e.target.value)} placeholder="21K Yellow Gold · Ruby · 45.35g" className="h-9 text-base sm:text-sm" /></label>
           {work.asset?.specs && fields.weight !== work.asset.specs && <button type="button" onClick={() => setField('weight', work.asset!.specs)} className="text-[10px] text-primary min-h-0">Back to the ERP’s: {work.asset.specs}</button>}
-          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Price (optional — only if you want one on the ad)</span>
-            <Input value={price} onChange={e => setPrice(e.target.value)} placeholder="e.g. Rs 612,000 — typed by you, never guessed" className="h-9 text-base sm:text-sm" /></label>
+          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Price</span>
+            <Input value={price} onChange={e => setPrice(e.target.value)} placeholder="Optional" className="h-9 text-base sm:text-sm" /></label>
           {price.trim() && <div className="flex flex-wrap gap-1">
             <button type="button" onClick={() => setField('details', price.trim())} className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground min-h-0">Put the price on the picture</button>
             <span className="text-[10px] text-amber-700 dark:text-amber-400">A rupee price goes stale as the gold rate moves while the ad runs.</span>
           </div>}
-          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Call to action</span>
+          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Button line</span>
             <Input value={fields.details} onChange={e => setField('details', e.target.value)} className="h-9 text-base sm:text-sm" /></label>
           <div className="flex flex-wrap gap-1">
             {VOICE.ctas.map(c => <button key={c} type="button" onClick={() => setField('details', c.replace(/\.$/, ''))} className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground min-h-0">{c.replace(/\.$/, '')}</button>)}
@@ -582,18 +580,17 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
             <p className="text-sm font-semibold">The ad’s words</p>
             <Button size="sm" variant="outline" disabled={copyBusy} onClick={writeWords}>{copyBusy ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />} Write with AI</Button>
           </div>
-          <Textarea value={text} onChange={e => setText(e.target.value)} rows={4} placeholder="Primary text — two sentences: the work, and how it is worn." className="text-base sm:text-sm" />
+          <Textarea value={text} onChange={e => setText(e.target.value)} rows={4} placeholder="Primary text" className="text-base sm:text-sm" />
           {copy && copy.primaryText.length > 1 && (
             <div className="space-y-1">
               {copy.primaryText.map((t, i) => <button key={i} type="button" onClick={() => setText(t)} className={cn('block w-full text-left rounded-lg border p-2 text-[11px] min-h-0', text === t ? 'border-primary bg-primary/5' : 'text-muted-foreground')}>{t}</button>)}
             </div>
           )}
-          <Input value={adHeadline} onChange={e => setAdHeadline(e.target.value)} placeholder="Headline under the ad (40 characters)" maxLength={60} className="h-9 text-base sm:text-sm" />
+          <Input value={adHeadline} onChange={e => setAdHeadline(e.target.value)} placeholder="Headline" maxLength={60} className="h-9 text-base sm:text-sm" />
           {copy && copy.headlines.length > 1 && (
             <div className="flex flex-wrap gap-1">{copy.headlines.map((h, i) => <button key={i} type="button" onClick={() => setAdHeadline(h)} className={cn('rounded-full border px-2 py-0.5 text-[11px] min-h-0', adHeadline === h ? 'border-primary' : 'text-muted-foreground')}>{h}</button>)}</div>
           )}
           {copy?.why && <p className="text-[11px] text-muted-foreground italic">{copy.why}</p>}
-          <p className="text-[10px] text-muted-foreground">Prices, specs and direct calls to action are fine. Checked after the model: any figure the ERP didn’t give it (a made-up weight or price) is dropped, and so are sale or discount words and hashtags.</p>
         </section>
 
         <section className="rounded-xl border p-3 space-y-2.5">
@@ -609,7 +606,7 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
             <Input type="number" min={1} max={90} value={days} onChange={e => setDays(Math.max(1, Math.min(90, Number(e.target.value) || 7)))} className="h-8 w-16 text-base sm:text-xs" />
             <span className="text-muted-foreground">days</span>
           </div>
-          {checkBusy && <p className="text-[11px] text-muted-foreground">A creative director is looking at it against the house’s rules — about half a minute.</p>}
+          {checkBusy && <p className="text-[11px] text-muted-foreground">Checking… (~30 s)</p>}
           {check && <CheckCard c={check} stale={stale} />}
         </section>
 
@@ -621,11 +618,11 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
                 className={cn('rounded-lg border px-2 py-1.5 text-left text-[11px] min-h-0', goal === g.key ? 'border-primary bg-primary/5 font-medium' : 'text-muted-foreground')}>{g.label}</button>
             ))}
           </div>
-          {(goesToSite(goal) || goal === 'channel') && <Input value={link} onChange={e => setLink(e.target.value)} placeholder={goal === 'channel' ? 'https://whatsapp.com/channel/…' : 'https://… — the page it opens'} className="h-9 text-base sm:text-xs" />}
+          {(goesToSite(goal) || goal === 'channel') && <Input value={link} onChange={e => setLink(e.target.value)} placeholder={goal === 'channel' ? 'https://whatsapp.com/channel/…' : 'https://…'} className="h-9 text-base sm:text-xs" />}
           {format !== 'story' && format !== 'landscape' && (
             <label className="flex items-start gap-2 text-[11px] text-muted-foreground">
               <input type="checkbox" className="mt-0.5" checked={pair} onChange={e => setPair(e.target.checked)} />
-              <span>Send the 9:16 version too — one ad, the {F.short} picture in feeds and the 9:16 one in stories, reels and WhatsApp Status.</span>
+              <span title={`One ad: the ${F.short} picture in feeds, the 9:16 one in stories, reels and WhatsApp Status.`}>With a 9:16 for stories</span>
             </label>
           )}
         </section>
@@ -637,7 +634,6 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
         <Button className="w-full h-11" disabled={!ready || sending} onClick={toNewAd}>
           {sending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Rocket className="h-4 w-4 mr-1.5" />} Use it in a new ad
         </Button>
-        <p className="text-[11px] text-muted-foreground -mt-2">The picture goes into the ad account’s library (and Ads Manager’s), and New ad opens with it and these words — audience, budget and dates are chosen there. Nothing runs until you make it.</p>
       </div>
     </div>
   );

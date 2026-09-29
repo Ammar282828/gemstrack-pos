@@ -185,7 +185,7 @@ function AdSetDesigner() {
               </section>
             );
           })}
-          <Button variant="outline" className="w-full" onClick={add} disabled={sets.length >= 6}><Plus className="h-4 w-4 mr-1" /> Another ad set <span className="text-muted-foreground ml-1 text-xs">(a copy of the last — change one thing)</span></Button>
+          <Button variant="outline" className="w-full" onClick={add} disabled={sets.length >= 6} title="Starts as a copy of the last, so a test changes one thing"><Plus className="h-4 w-4 mr-1" /> Another ad set</Button>
 
           <section className="rounded-xl border p-4 space-y-2">
             <h2 className="font-semibold">Ads in them</h2>

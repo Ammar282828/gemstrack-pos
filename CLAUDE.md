@@ -829,6 +829,11 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   over it ("As new" makes a copy). **In the ad account** lists every ad Meta holds (all time), and any can be kept in a folder
   (its picture and words; `fromAd`). What a save may carry is cleaned by `saved-shape.ts` (tested). Checked end to end in
   headless Chromium on 2026-09-29 (folder → make → save → reopen); the test's folder and ad were deleted after.
+  **Less text** (owner: "reaudit/simply and detext/hide text/lessen text noise from the ad studio in general"): measured by the words
+  each tab shows (Plan 738 → 246, Picks 889 → 239, Library 1,843 → 527, Make 436 → 194, Guide 1,239 → 511). The rule since:
+  a heading or a control names itself; the explanation is its `title` (hover) or behind a fold — no subtitle, no paragraph under
+  a heading, tiles show the name only (the model's description and fixes are on hover and in the sheet), a play card shows
+  title → destination and its chips (why/who/how much fold), field labels are one word, playbook and rules start folded.
 
 ## graphify
 

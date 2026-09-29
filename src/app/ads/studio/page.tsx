@@ -32,7 +32,7 @@ import { GuideSection } from './guide';
 import { PlanSection } from './plan';
 import { SavedSection, type SavedRestore } from './saved';
 import type { Play } from '@/lib/ads/studio/plays';
-import { SITE_LABEL, type LibraryItem, type WorkPhoto } from './studio-kit';
+import type { LibraryItem, WorkPhoto } from './studio-kit';
 
 const VIEWS = [
   { key: 'plan', label: 'Plan', icon: MapIcon },
@@ -72,8 +72,7 @@ function AdStudio() {
   const startPlay = (p: Play) => { setPlay(p); go(work ? 'make' : 'picks'); };
 
   return (
-    <PageShell title="Ad studio" icon={<Palette className="h-6 w-6" />} width="wide"
-      subtitle={`Every photo from ${SITE_LABEL} and your Drive, assessed as an ad — fixed, laid out in the house’s dress, checked, and sent to a new ad.`}>
+    <PageShell title="Ad studio" icon={<Palette className="h-6 w-6" />} width="wide">
       <nav className="tabs-list flex gap-1 overflow-x-auto rounded-full border p-1 w-fit max-w-full" aria-label="Studio">
         {VIEWS.map(x => (
           <button key={x.key} type="button" onClick={() => go(x.key)} aria-current={v === x.key ? 'page' : undefined}
@@ -85,14 +84,14 @@ function AdStudio() {
       {status && !ready && (v === 'make' || v === 'rivals') && (
         <p className="text-xs rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5 flex items-center gap-2">
           <PlugZap className="h-4 w-4 shrink-0" />
-          <span>Meta isn’t fully set up — designing works, but sending to a new ad{v === 'rivals' ? ' and looking competitors up on Instagram need' : ' needs'} <Link href="/ads/setup" className="text-primary underline">Ads → Setup</Link>.</span>
+          <span>Meta isn’t set up — <Link href="/ads/setup" className="text-primary underline">Setup</Link>.</span>
         </p>
       )}
 
       {play && v !== 'plan' && (
         <p className="text-xs rounded-lg border border-primary/40 bg-primary/5 p-2.5 flex items-center gap-2">
           <MapIcon className="h-4 w-4 shrink-0 text-primary" />
-          <span className="flex-1">{v === 'make' ? <>Making <b>{play.title}</b> — goes to {play.where.toLowerCase()}.</> : <>Choose a photo for <b>{play.title}</b>, then “Make an ad with it”.</>}</span>
+          <span className="flex-1">{v === 'make' ? <b>{play.title}</b> : <>Choose a photo for <b>{play.title}</b></>}</span>
           <button type="button" className="p-1 min-h-0 text-muted-foreground" onClick={() => setPlay(null)} aria-label="Not this play"><X className="h-4 w-4" /></button>
         </p>
       )}

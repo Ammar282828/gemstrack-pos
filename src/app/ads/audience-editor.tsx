@@ -38,9 +38,8 @@ const Chip = ({ children, onRemove }: { children: React.ReactNode; onRemove: () 
 
 const Section = ({ title, children, hint }: { title: string; children: React.ReactNode; hint?: React.ReactNode }) => (
   <div className="space-y-1.5">
-    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" title={typeof hint === 'string' ? hint : undefined}>{title}</p>
     {children}
-    {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
   </div>
 );
 
@@ -262,10 +261,10 @@ export function AudienceEditor({ draft, onChange, goal, currency: _currency }: {
       <label className="flex items-start gap-3 rounded-lg border p-3">
         <Switch checked={draft.advantage} onCheckedChange={v => set({ advantage: v })} className="mt-0.5" />
         <span className="text-sm">
-          <b>Advantage+ audience</b>
-          <span className="block text-xs text-muted-foreground">{draft.advantage
+          <b title={draft.advantage
             ? 'On: the ages, gender, interests and audiences above are Meta’s starting point, and it goes beyond them when it finds better people. Places and “leave out” stay firm; nobody under 25 is shown it unless you allow it above.'
-            : 'Off: the ages, gender and interests above are strict limits.'}</span>
+            : 'Off: the ages, gender and interests above are strict limits.'}>Advantage+ audience</b>
+          <span className="block text-xs text-muted-foreground">{draft.advantage ? 'Meta may go beyond the above' : 'The above are strict limits'}</span>
         </span>
       </label>
 

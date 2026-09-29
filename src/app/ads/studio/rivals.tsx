@@ -64,26 +64,25 @@ export function RivalsSection({ connected }: { connected: boolean }) {
     <div className="space-y-4">
       <div className="rounded-xl border p-3 sm:p-4 space-y-3">
         <div>
-          <p className="text-sm font-semibold">Who else sells to the same buyers</p>
-          <p className="text-xs text-muted-foreground">Search finds the houses that sell to the same buyers, and their Instagram; each one is then looked up on Instagram through the house’s own account — followers, recent posts, what each post earned — and read for what works. Their running ads open in Meta’s public Ad Library (Meta shares no one’s ads through its API in Pakistan).</p>
+          <p className="text-sm font-semibold">Competitors</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <Input value={brief} onChange={e => setBrief(e.target.value)} placeholder={BRAND.calendar ? 'Focus (optional) — e.g. diamond boutiques in Clifton, Bohri Bazaar jewellers' : 'Focus (optional) — e.g. men’s silver rings, Lahore silver brands'} className="h-9 text-base sm:text-sm" />
           <Button onClick={find} disabled={finding}>{finding ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Search className="h-4 w-4 mr-1.5" />} Find competitors</Button>
         </div>
-        {finding && <p className="text-[11px] text-muted-foreground">Searching Google — about a minute.</p>}
+        {finding && <p className="text-[11px] text-muted-foreground">Searching… (~1 min)</p>}
         <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (typed.trim()) { add({ username: typed, source: 'owner' }); setTyped(''); } }}>
           <Input value={typed} onChange={e => setTyped(e.target.value)} placeholder="Or add one: @username or their Instagram link" className="h-9 text-base sm:text-sm" />
           <Button type="submit" variant="outline" disabled={!typed.trim()}><Plus className="h-4 w-4 mr-1" /> Add</Button>
         </form>
         {found && (
           <div className="space-y-1.5">
-            <p className="text-xs font-medium">{found.length ? `Found ${found.length} — add the ones that matter:` : 'Nothing new found.'}</p>
+            <p className="text-xs font-medium">{found.length ? `Found ${found.length}` : 'Nothing new found.'}</p>
             {found.map(f => (
               <div key={f.name + f.instagram} className="flex items-start gap-2 rounded-lg border p-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">{f.name} <span className="text-xs text-muted-foreground font-normal">{f.instagram ? `@${f.instagram}` : 'no Instagram found'}{f.city ? ` · ${f.city}` : ''}</span></p>
-                  <p className="text-[11px] text-muted-foreground">{f.why}</p>
+                  <p className="text-[11px] text-muted-foreground line-clamp-1" title={f.why}>{f.why}</p>
                   <div className="flex gap-3 text-[11px] mt-0.5">
                     <a href={f.adLibrary} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-0.5"><Library className="h-3 w-3" /> Their ads</a>
                     {f.website && <a href={f.website} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-0.5"><Globe className="h-3 w-3" /> Website</a>}
@@ -96,10 +95,10 @@ export function RivalsSection({ connected }: { connected: boolean }) {
         )}
       </div>
 
-      {!connected && <p className="text-xs text-amber-700 dark:text-amber-400">Meta isn’t connected on Ads → Setup, so competitors can be listed but not looked up on Instagram yet.</p>}
+      {!connected && <p className="text-xs text-amber-700 dark:text-amber-400">Connect Meta (Setup) to look them up on Instagram.</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
       {list === null ? <div className="py-10 text-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading…</div>
-        : list.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">No competitors yet — find some, or add the ones you already watch.</p>
+        : list.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">No competitors yet.</p>
           : <div className="space-y-2">{list.map(c => <RivalCard key={c.username} c={c} open={open === c.username} onToggle={() => setOpen(open === c.username ? null : c.username)} onChange={update} onRemove={() => remove(c.username)} canLook={connected} />)}</div>}
     </div>
   );
@@ -154,10 +153,10 @@ function RivalCard({ c, open, onToggle, onChange, onRemove, canLook }: { c: Row;
             <>
               {p.bio && <p className="text-xs whitespace-pre-line text-muted-foreground">{p.bio}</p>}
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium">Their last {posts.length} posts, best first <span className="text-muted-foreground font-normal">(likes + comments per thousand followers)</span></p>
+                <p className="text-xs font-medium">Their last {posts.length} posts, best first <span className="text-muted-foreground font-normal" title="Likes + comments per thousand followers">· engagement</span></p>
                 <Button size="sm" disabled={reading} onClick={read}>{reading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />} {r ? 'Read again' : 'Read their feed'}</Button>
               </div>
-              {reading && <p className="text-[11px] text-muted-foreground">Looking at their best and weakest posts — about a minute.</p>}
+              {reading && <p className="text-[11px] text-muted-foreground">Reading… (~1 min)</p>}
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                 {posts.slice(0, 12).map(x => (
                   <a key={x.id} href={x.permalink ?? '#'} target="_blank" rel="noreferrer" className="relative block aspect-square overflow-hidden rounded-md bg-muted" title={x.caption.slice(0, 200)}>
@@ -170,7 +169,7 @@ function RivalCard({ c, open, onToggle, onChange, onRemove, canLook }: { c: Row;
                   </a>
                 ))}
               </div>
-              <p className="text-[10px] text-muted-foreground">Looked up {c.profileAt ? new Date(c.profileAt).toLocaleString() : ''}. Their images open on Instagram.</p>
+              
             </>
           )}
           {r && (
