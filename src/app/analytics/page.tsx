@@ -26,6 +26,7 @@ import { pkrLac, lacCrore, axisLac } from '@/lib/money';
 import { STORE_EST_MARGIN } from '@/lib/store-config';
 import { splitAllCoinSales, summariseCoins } from '@/lib/analytics/coins';
 import { cashInForPeriod, invoicedOrderIds } from '@/lib/analytics/cash-in';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { toTola, formatWeight } from '@/lib/units';
 
 // Helper types for chart data
@@ -83,6 +84,27 @@ export default function AnalyticsPage() {
   });
   
   const [activeQuickSelect, setActiveQuickSelect] = useState<string>('last-30');
+
+  // A rolling range ends today. Its end was fixed when it was chosen, so a page left open past
+  // midnight (a phone keeps the tab) kept yesterday's end and left out every sale since.
+  // Re-anchor it when the day has turned: on coming back to the tab, and once a minute.
+  useEffect(() => {
+    const rolling: Record<string, (now: Date) => DateRange> = {
+      'last-30': now => ({ from: subDays(now, 29), to: now }),
+      'last-90': now => ({ from: subDays(now, 89), to: now }),
+      'this-year': now => ({ from: startOfYear(now), to: now }),
+    };
+    const roll = rolling[activeQuickSelect];
+    if (!roll) return;
+    const check = () => {
+      const now = new Date();
+      setDateRange(r => (r?.to && startOfDay(r.to) < startOfDay(now) ? roll(now) : r));
+    };
+    const id = setInterval(check, 60_000);
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check); };
+  }, [activeQuickSelect]);
   const [tab, setTab] = useState<string>('overview');
   
   const [selectedDayData, setSelectedDayData] = useState<SalesOverTimeData | null>(null);
@@ -108,7 +130,7 @@ export default function AnalyticsPage() {
       if (!inv?.createdAt || inv.status === 'Refunded') return;
       const yr = getYear(parseISO(getInvoiceRevenueDate(inv, ordersById)));
       if (!yearMap[yr]) yearMap[yr] = { revenue: 0, expenses: 0, unpaid: 0 };
-      yearMap[yr].revenue += inv.grandTotal || 0;
+      yearMap[yr].revenue += invoiceSaleValue(inv);
       yearMap[yr].unpaid += Math.max(0, inv.balanceDue || 0);
     });
     orders.forEach(order => {
@@ -147,7 +169,7 @@ export default function AnalyticsPage() {
    * Revenue per calendar month across the whole history — deliberately not
    * bound to the date-range filter, since the point of this chart is the shape
    * of the trend rather than a slice of it. Same revenue basis as everywhere
-   * else: invoice grandTotal on its order date, uninvoiced order subtotals,
+   * else: invoice sale value (exchange counted) on its order date, uninvoiced order subtotals,
    * and additional revenue. Empty months are kept so gaps read as gaps.
    */
   const monthlyRevenue = useMemo(() => {
@@ -163,7 +185,7 @@ export default function AnalyticsPage() {
 
     jewelleryInvoices.forEach(inv => {
       if (!inv?.createdAt || inv.status === 'Refunded') return;
-      add(getInvoiceRevenueDate(inv, ordersById), inv.grandTotal || 0);
+      add(getInvoiceRevenueDate(inv, ordersById), invoiceSaleValue(inv));
     });
     orders.forEach(o => {
       if (!o?.createdAt || o.status === 'Cancelled' || o.status === 'Refunded' || o.invoiceId) return;
@@ -342,7 +364,7 @@ export default function AnalyticsPage() {
     // Process Invoices
     filteredInvoices.forEach(invoice => {
       if (!invoice) return;
-      const invAmount = invoice.grandTotal || 0;
+      const invAmount = invoiceSaleValue(invoice);
       totalSales += invAmount;
       invoiceSalesAcc += invAmount;
       totalDiscounts += invoice.discountAmount || 0;
@@ -352,7 +374,7 @@ export default function AnalyticsPage() {
       if (!salesByDate[dateKey]) {
         salesByDate[dateKey] = { sales: 0, orders: 0, itemsSold: 0 };
       }
-      salesByDate[dateKey].sales += invoice.grandTotal || 0;
+      salesByDate[dateKey].sales += invAmount;
       salesByDate[dateKey].orders += 1;
 
       accrueSource(resolveSource(invoice.acquisitionSource, invoice.customerId), dateKey, invAmount);
@@ -363,7 +385,7 @@ export default function AnalyticsPage() {
       if (!customerPerformance[customerKey]) {
         customerPerformance[customerKey] = { totalSpent: 0, orderCount: 0, resolvedName: invoice.customerName || undefined };
       }
-      customerPerformance[customerKey].totalSpent += invoice.grandTotal || 0;
+      customerPerformance[customerKey].totalSpent += invAmount;
       customerPerformance[customerKey].orderCount += 1;
 
       if (Array.isArray(invoice.items)) {
@@ -701,7 +723,7 @@ export default function AnalyticsPage() {
                       </TableHeader>
                       <TableBody>
                         {dailyBreakdown.invoices.map(invoice => (
-                          <TableRow key={invoice.id}><TableCell className="font-medium">{invoice.id}</TableCell><TableCell>{invoice.customerName}</TableCell><TableCell className="text-right">{lacCrore(invoice.grandTotal)}</TableCell></TableRow>
+                          <TableRow key={invoice.id}><TableCell className="font-medium">{invoice.id}</TableCell><TableCell>{invoice.customerName}</TableCell><TableCell className="text-right">{lacCrore(invoiceSaleValue(invoice))}</TableCell></TableRow>
                         ))}
                       </TableBody>
                     </Table>

@@ -21,6 +21,7 @@
  */
 
 import type { Invoice, InvoiceItem, Payment } from '@/lib/store';
+import { invoiceSaleValue } from './sale-value';
 
 /** The category id of "Gold Coins" in src/lib/categories.ts. */
 export const GOLD_COIN_CATEGORY = 'cat017';
@@ -109,7 +110,7 @@ export function summariseCoins(coinInvoices: Invoice[]): CoinSummary {
   let coins = 0, grams = 0, revenue = 0, outstanding = 0;
   for (const inv of coinInvoices) {
     if (!inv || inv.status === 'Refunded') continue;
-    revenue += Number(inv.grandTotal) || 0;
+    revenue += invoiceSaleValue(inv);
     outstanding += Math.max(0, Number(inv.balanceDue) || 0);
     for (const it of itemsOf(inv)) {
       const q = Number(it?.quantity) || 1;

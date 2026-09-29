@@ -26,6 +26,7 @@ import { format, parseISO, subDays, startOfDay, startOfMonth, subMonths, differe
 import { cn } from '@/lib/utils';
 import { isBusinessCost } from '@/lib/partnership';
 import { upcomingOccasions, occasionWhen } from '@/lib/occasions';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 
 /** PKR at a glance. Exact value stays available on hover. */
 function compactPKR(n: number): string {
@@ -108,7 +109,7 @@ const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => (
     <div className="flex items-baseline justify-between gap-3 min-w-0">
       <span className="font-semibold text-sm truncate">{invoice.customerName || 'Walk-in'}</span>
       <span className={cn('text-sm font-semibold tabular-nums flex-shrink-0', (invoice.balanceDue || 0) > 0 && 'text-warning')}>
-        {compactPKR(invoice.grandTotal || 0)}
+        {compactPKR(invoiceSaleValue(invoice))}
       </span>
     </div>
     <div className="flex items-baseline justify-between gap-3 mt-1">
@@ -199,7 +200,7 @@ export default function HomePage() {
     const rev = (from: Date, to: Date = new Date(8.64e15)) => {
       const inWindow = (d: Date) => d >= from && d < to;
       return generatedInvoices.filter(i => i.status !== 'Refunded' && inWindow(parseISO(getInvoiceRevenueDate(i, ordersById))))
-        .reduce((s, i) => s + (i.grandTotal || 0), 0)
+        .reduce((s, i) => s + invoiceSaleValue(i), 0)
       + orders.filter(o => inWindow(parseISO(o.createdAt)) && o.status !== 'Cancelled' && o.status !== 'Refunded' && !o.invoiceId)
         .reduce((s, o) => s + (o.subtotal || 0), 0)
       + additionalRevenues.filter(r => inWindow(parseISO(r.date))).reduce((s, r) => s + (r.amount || 0), 0);

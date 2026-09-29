@@ -756,15 +756,15 @@
     "semantic_hash": ""
   },
   "src/app/analytics/customers/page.tsx": {
-    "mtime": 1790533461.675437,
-    "seen": 1790537191.0584621,
-    "ast_hash": "422f8c051f6005f11fdfc727f48ee600",
+    "mtime": 1790673817.1508477,
+    "seen": 1790673912.7422442,
+    "ast_hash": "8a2b501543522b4a0c7b8ffe211004bc",
     "semantic_hash": ""
   },
   "src/app/analytics/page.tsx": {
-    "mtime": 1790533461.675437,
-    "seen": 1790537191.0584638,
-    "ast_hash": "c176074d0d5fd476b35b67ab509afb1d",
+    "mtime": 1790673838.4158971,
+    "seen": 1790673912.7422473,
+    "ast_hash": "b390176e2d423bf2eb34c110207877f2",
     "semantic_hash": ""
   },
   "src/app/analytics/products/page.tsx": {
@@ -1188,9 +1188,9 @@
     "semantic_hash": ""
   },
   "src/app/page.tsx": {
-    "mtime": 1790537159.8699045,
-    "seen": 1790537191.0586183,
-    "ast_hash": "7206ac82740d06dcd9ccf5e6bc4eead2",
+    "mtime": 1790673817.1513956,
+    "seen": 1790673912.7425158,
+    "ast_hash": "810eb2d55d662fb859409c6a1aa6be0d",
     "semantic_hash": ""
   },
   "src/app/products/[sku]/edit/page.tsx": {
@@ -1806,9 +1806,9 @@
     "semantic_hash": ""
   },
   "src/lib/analytics/coins.ts": {
-    "mtime": 1790533461.7017424,
-    "seen": 1790537191.0588338,
-    "ast_hash": "ded32db04494a101835ebdea5f34acac",
+    "mtime": 1790673817.1510608,
+    "seen": 1790673912.7428064,
+    "ast_hash": "12a458017f072a3ff273411513d3c7e6",
     "semantic_hash": ""
   },
   "src/lib/api-auth.ts": {
@@ -2298,9 +2298,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790628614.1702092,
-    "seen": 1790628639.4589515,
-    "ast_hash": "c5c89a89cf9bb2bdcc3195c6966d237d",
+    "mtime": 1790673893.9399328,
+    "seen": 1790673912.743089,
+    "ast_hash": "5fa517a4ba91a5f4f2e3161dc93c4a09",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3435,6 +3435,18 @@
     "mtime": 1790628481.2079906,
     "seen": 1790628639.4589648,
     "ast_hash": "17ebf425741fafd502318f2d639442a7",
+    "semantic_hash": ""
+  },
+  "src/lib/analytics/sale-value.test.ts": {
+    "mtime": 1790673797.0038948,
+    "seen": 1790673912.7428093,
+    "ast_hash": "1a9d9550325e15c9bd7ac8dd49b5ab2a",
+    "semantic_hash": ""
+  },
+  "src/lib/analytics/sale-value.ts": {
+    "mtime": 1790673792.2758944,
+    "seen": 1790673912.7428107,
+    "ast_hash": "e62e6055b749587fa74a3afa13cc4ba7",
     "semantic_hash": ""
   }
 }

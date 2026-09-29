@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
 import { pkrLac, lacCrore } from '@/lib/money';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 
 type CustomerPerformanceData = {
   customerId?: string;
@@ -72,7 +73,7 @@ export default function CustomersAnalyticsPage() {
         performanceMap[customerKey] = { totalSpent: 0, orderCount: 0, itemsPurchased: 0, resolvedName: invoice.customerName || undefined };
       }
       
-      performanceMap[customerKey].totalSpent += invoice.grandTotal || 0;
+      performanceMap[customerKey].totalSpent += invoiceSaleValue(invoice);
       performanceMap[customerKey].orderCount += 1;
       performanceMap[customerKey].itemsPurchased += invoice.items.reduce((acc, item) => acc + (item.quantity || 0), 0);
     });
