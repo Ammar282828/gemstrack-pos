@@ -431,7 +431,7 @@ export default function HisaabPage() {
                                             {summary.unpaidInvoices.map(inv => (
                                               <div key={inv.id} className="flex items-center justify-between text-xs">
                                                 {walkIn
-                                                  ? <Link href={`/view-invoice/${inv.id}`} className="text-primary font-mono hover:underline">{inv.id}</Link>
+                                                  ? <Link href={`/cart?invoice_id=${inv.id}`} title={`Open ${inv.id} to record payment`} className="text-primary font-mono hover:underline">{inv.id}</Link>
                                                   : <span className="text-muted-foreground font-mono">{inv.id}</span>}
                                                 <span className="text-muted-foreground">
                                                   <span className="text-success font-medium">PKR {inv.amountPaid.toLocaleString()}</span>

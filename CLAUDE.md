@@ -350,6 +350,10 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   Kept on purpose: an invoiced order still counts on the order's date, and an open order at its full `subtotal`. A rolling
   range (last 30/90 days, this year) re-anchors when the day turns on a page left open.
 - In a component, no hook after an early `return` (the `/orders/add` crash of 2026-09-22 was exactly that).
+- **Staff open an invoice at `/cart?invoice_id=<id>`** (payment, edit, print); `/view-invoice/<id>` is the customer's page, with
+  no shell and only downloads, and is only ever sent to customers. There is no `/view-invoice` without an id: the dashboard's
+  Recent sales and unpaid rows linked `/view-invoice?invoiceId=` and opened "not found" until 2026-09-29; the workshop's invoice
+  links sent staff to the customer's page.
 - **One invoice PDF builder**: `src/lib/invoice-pdf.ts` (`saveInvoicePdf`) draws the customer's copy for the invoices list,
   the cart's post-sale screen and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
   own page ("Piece 2 of 3"); discount, exchange, adjustments and paid are shared pro rata by piece price, the last piece
