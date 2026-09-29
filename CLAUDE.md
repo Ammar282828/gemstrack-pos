@@ -694,6 +694,37 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   turns that refusal into `APP_NOT_LIVE`; Setup step 1 reads what the switch asks for with the app token (`appLiveReadiness`:
   privacy policy URL, category, a real icon — Meta exposes no mode field) and gives the values (`APP_PAGES`: taheri.shop's
   `/privacy` and `/data-deletion`, `META_APP_PRIVACY_URL` / `_DATA_DELETION_URL` to change them).
+- **Ad studio** (`/ads/studio`, an Ads tab; **Taheri only** — `NEXT_PUBLIC_STORE_AD_STUDIO`, Mina "0"; 2026-09-29, owner: "a curated
+  ad analysis guide + maker + competitor searcher + builder for just taheri … assessing all images from taheri.shop and from my
+  google drive … recommend, fix, assess and build + help create like in canva ad creatives"). Sections are `?v=`:
+  **Picks · Library** — every taheri.shop photo (`getSitePieces`) and every image in the Drive folders shared with the server's own
+  service account (`lib/ads/studio/drive.ts`: `sharedWithMe`, walked recursively, logos kept aside, HEIC → JPEG, cached 10 min;
+  `/api/ads/studio/image` serves any of them). Each is assessed once by the vision model (`assess.ts`, **ten photos a call** at 640 px
+  — the Vertex key's per-minute quota made one a call a day's work; `/api/ads/studio/assess` runs ~200 s slices while the page is
+  open, capped `AD_STUDIO_DAILY_CAP` 400 calls) into `ad_assets` (`assessment.ts`, tested: score, fit per 1:1/4:5/9:16, quality,
+  burned-in text, brand risks, fixes, a headline); `rankForAds` makes the picks. A photo's sheet runs its fixes through Post a
+  Piece's `/api/website/post/ai` (extend 4:5/9:16, clear labels, enhance, retouch, new setting — each checked "same piece?"),
+  chaining on the version shown. **Make** — Post a Piece's `SoloEditor` + designer on a Meta frame (`templates.ts`: 4:5, 1:1,
+  9:16, 1.91:1 drawn 1080×565 and exported 1200×628; six layouts in the vault's dress; stories keep words, piece and mark between
+  the top 14% and bottom 35%, which are shaded). **taheri.shop's photos carry a burned-in wordmark**, so the layouts add none to
+  them (`photoMarked`) until an edit that clears labels (the check flagged the double mark on the first run). AI words
+  (`/api/ads/studio/copy`, `breaksHouseRule` drops any karat, weight, price, "shop now", hashtag or number after the model), a
+  pre-flight check (`/check`: the rules one by one, craft, fixes, and the sacred days the run would cross — decided by
+  `calendar.ts`, not the model), then **Use it in a new ad**: `/api/ads/images` + `ad_studio_creatives`, and `/ads/new?studio=<key>`
+  reads the picture and words from sessionStorage (`lib/ads/studio/handoff.ts`). **Competitors** (`research.ts`, `ad_competitors`):
+  found by Gemini with Google Search (flash model, low thinking — the pro model spent 3 min thinking and ran out of tokens),
+  looked up by **Instagram Business Discovery** through the house's own connection (public business/creator accounts only, kept a
+  day), read by the model from their best and weakest posts; their ads are a link to the public Ad Library (Meta's API has no
+  commercial ads for Pakistan). **Guide** — the ad days (`calendar.ts`, tested: `islamic-tbla` in Karachi matches the vault's
+  2025 anchors; Ashara 1–10 Moharram + 5 days before, both Eids, the Mazoon's birthday, Ghadeer + 1 day before; the lunar 1st
+  quiet; Urs/Dawat dates are not in the vault and not guessed), **what the account's own ads say** (last 180 days, cheapest vs
+  dearest results by `splitWinners`, pictures to the model; `app_settings/ad_studio_winners`), the playbook (`playbook.ts`) and the
+  vault's rules (`brand.ts` — every studio prompt carries `brandBrief()`; kept in code on purpose so an Obsidian edit can't change
+  what the model approves). Studio AI calls other than assessing are capped `AD_STUDIO_AI_DAILY_CAP` (200) + 60/h per caller.
+  **Drive needs two owner steps** (the Setup card on Picks says so): enable `drive.googleapis.com` in gemstrack-pos, and share
+  "taheri content", "TC" and the Vault's logos with `firebase-app-hosting-compute@gemstrack-pos.iam.gserviceaccount.com` (Viewer;
+  `claude-cloud@` too for cloud sessions). Nothing ever writes to Drive. Business Discovery and the winners reading were not run
+  live when shipped (they use the Meta token); the search, assessing, fixes, words and check were.
 
 ## graphify
 

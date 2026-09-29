@@ -18,8 +18,8 @@ import { MetaAdsError } from './meta';
 
 const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
 
-export async function adsGate(req: NextRequest): Promise<string | NextResponse> {
-  if (!STORE_META_ADS) return NextResponse.json({ error: 'Not part of this shop.' }, { status: 404 });
+export async function adsGate(req: NextRequest, enabled = STORE_META_ADS): Promise<string | NextResponse> {
+  if (!enabled) return NextResponse.json({ error: 'Not part of this shop.' }, { status: 404 });
   if (OPEN_ACCESS) return 'counter';
   const email = await verifyRequestEmail(req);
   if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

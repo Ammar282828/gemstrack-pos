@@ -14,12 +14,14 @@
  *   7  Make it           paused to look over, or live once Meta approves
  *
  * `?piece=<id>` starts from a website piece (Posts → From the website links
- * here). The last audience and budget are remembered on this device.
+ * here); `?studio=<key>` from an ad made in Ads → Studio. The last audience and
+ * budget are remembered on this device.
  */
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { HANDOFF_PREFIX, type StudioHandoff } from '@/lib/ads/studio/handoff';
 import { PageShell } from '@/components/shared/page-shell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -212,6 +214,23 @@ function NewAd() {
       .catch(e => toast({ title: 'Couldn’t copy that ad', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromParam, ready]);
+  // ?studio=<key> — an ad made in Ads → Studio: its picture (already in the account's library) and its words.
+  const studioParam = params.get('studio');
+  useEffect(() => {
+    if (!studioParam || startedFrom.current) return;
+    startedFrom.current = true;
+    try {
+      const h = JSON.parse(sessionStorage.getItem(HANDOFF_PREFIX + studioParam) || 'null') as StudioHandoff | null;
+      if (!h?.photos?.length) return;
+      setKind('photos'); setGoal(h.goal);
+      setPhotos(h.photos.map((ph, i) => ({ key: `studio${i}${ph.hash}`, hash: ph.hash, url: ph.url ?? null, local: ph.url ?? undefined, headline: ph.headline, link: ph.link })));
+      if (h.text) setText(h.text);
+      if (h.headline) setHeadline(h.headline);
+      if (h.name) { setName(h.name); setNameTouched(true); }
+      toast({ title: 'From the studio', description: 'The picture and the words are in — choose who sees it and the budget.' });
+    } catch { /* an old or foreign link: start blank */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studioParam]);
   useEffect(() => {
     if (!pieceParam || startedFrom.current || !ready || !hasSite) return;
     startedFrom.current = true;

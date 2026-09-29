@@ -20,8 +20,8 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { nameScore } from '@/lib/voice/phonetics';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Search, Users, Briefcase, Gem, Home, PlusCircle, Receipt, Hammer, ClipboardList, BookUser, TrendingUp, Settings as SettingsIcon, CreditCard, Calendar, ArrowRight, RotateCcw, Mic, Wrench, Package, Send, ImagePlus, Scale, Coins, Target, PieChart, Landmark, ArchiveRestore, History, Megaphone, Rocket, PenLine } from 'lucide-react';
-import { STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_META_ADS } from '@/lib/store-config';
+import { Search, Users, Briefcase, Gem, Home, PlusCircle, Receipt, Hammer, ClipboardList, BookUser, TrendingUp, Settings as SettingsIcon, CreditCard, Calendar, ArrowRight, RotateCcw, Mic, Wrench, Package, Send, ImagePlus, Scale, Coins, Target, PieChart, Landmark, ArchiveRestore, History, Megaphone, Rocket, PenLine, Palette } from 'lucide-react';
+import { STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_META_ADS, STORE_AD_STUDIO } from '@/lib/store-config';
 
 interface Item {
   id: string;
@@ -72,6 +72,7 @@ const DESTINATIONS: Array<Omit<Item, 'id'> & { keywords?: string[] }> = [
   ...(STORE_META_ADS ? [
     { label: 'Ads', group: 'Go to', icon: <Megaphone className="h-4 w-4" />, href: '/ads', keywords: ['meta', 'facebook', 'instagram ads', 'boost', 'campaigns', 'ad spend'] },
     { label: 'New ad', group: 'Go to', icon: <Rocket className="h-4 w-4" />, href: '/ads/new', keywords: ['boost', 'promote', 'advertise', 'meta ad'] },
+    ...(STORE_AD_STUDIO ? [{ label: 'Ad studio', group: 'Go to', icon: <Palette className="h-4 w-4" />, href: '/ads/studio', keywords: ['creative', 'design', 'canva', 'competitors', 'ad photos', 'drive', 'guide'] }] : []),
   ] : []),
   { label: 'Expenses', group: 'Go to', icon: <CreditCard className="h-4 w-4" />, href: '/expenses', keywords: ['money', 'spend'] },
   { label: 'Extra Revenue', group: 'Go to', icon: <Coins className="h-4 w-4" />, href: '/additional-revenue', keywords: ['income', 'revenue', 'money'] },

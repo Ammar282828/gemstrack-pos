@@ -285,6 +285,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Ads → Studio is built on Taheri's brand book and photographs (the owner,
+  # 2026-09-29: "for just taheri for now").
+  - variable: NEXT_PUBLIC_STORE_AD_STUDIO
+    value: "0"
+    availability:
+      - BUILD
+      - RUNTIME
   # Posts → From the website: a piece from the catalogue, with its link, to the
   # House of Mina community's announcements ("House of Mina by Taheri Collections",
   # 441 members on 2026-09-25; Mina's own WAHA line +92 316 1930960 is an admin). The

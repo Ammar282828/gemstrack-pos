@@ -168,12 +168,17 @@ export interface ChatContent { role: 'user' | 'model'; parts: Record<string, unk
 export async function chatTurn(opts: {
   model: string; system: string; contents: ChatContent[];
   tools?: Record<string, unknown>[]; temperature?: number; maxOutputTokens?: number;
+  /** Gemini 3's thinking, turned down for a quick search. */
+  thinkingLevel?: 'low' | 'high';
 }): Promise<{ content: ChatContent; finishReason?: string; modelVersion?: string }> {
   const data = await call(opts.model, {
     systemInstruction: { parts: [{ text: opts.system }] },
     contents: opts.contents,
     ...(opts.tools?.length ? { tools: opts.tools } : {}),
-    generationConfig: { temperature: opts.temperature ?? 0.4, maxOutputTokens: opts.maxOutputTokens ?? 8192 },
+    generationConfig: {
+      temperature: opts.temperature ?? 0.4, maxOutputTokens: opts.maxOutputTokens ?? 8192,
+      ...(opts.thinkingLevel && /^gemini-3/.test(opts.model) ? { thinkingConfig: { thinkingLevel: opts.thinkingLevel } } : {}),
+    },
   });
   const c = (data.candidates as Array<{ content?: ChatContent; finishReason?: string }> | undefined)?.[0];
   return { content: { role: 'model', parts: c?.content?.parts ?? [] }, finishReason: c?.finishReason, modelVersion: data.modelVersion as string | undefined };

@@ -23,7 +23,7 @@ interface Msg { role: 'user' | 'assistant'; text: string; error?: boolean }
 const STORE_KEY = 'taheri_ads_chat';
 const PAGE_NAME: Record<string, string> = {
   '/ads': 'Ads → Overview', '/ads/campaigns': 'Ads → Campaigns', '/ads/new': 'Ads → New ad',
-  '/ads/audiences': 'Ads → Audiences', '/ads/rules': 'Ads → Rules', '/ads/setup': 'Ads → Setup',
+  '/ads/audiences': 'Ads → Audiences', '/ads/rules': 'Ads → Rules', '/ads/setup': 'Ads → Setup', '/ads/studio': 'Ads → Studio',
 };
 const SUGGESTIONS = [
   'How did the ads do this week?',

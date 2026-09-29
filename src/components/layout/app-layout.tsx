@@ -18,7 +18,7 @@ import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
-import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LOGO_SIDEBAR_HEIGHT, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_SITE_POSTS, STORE_META_ADS } from '@/lib/store-config';
+import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LOGO_SIDEBAR_HEIGHT, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_SITE_POSTS, STORE_META_ADS, STORE_AD_STUDIO } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -139,6 +139,8 @@ const navGroups: NavGroup[] = [
         { href: '/ads', label: 'Overview' },
         { href: '/ads/campaigns', label: 'Campaigns' },
         { href: '/ads/new', label: 'New ad' },
+        // Photos assessed as ads, the maker, competitors and the guide (Taheri; NEXT_PUBLIC_STORE_AD_STUDIO).
+        ...(STORE_AD_STUDIO ? [{ href: '/ads/studio', label: 'Studio' }] : []),
         { href: '/ads/audiences', label: 'Audiences' },
         { href: '/ads/rules', label: 'Rules' },
         { href: '/ads/setup', label: 'Setup' },

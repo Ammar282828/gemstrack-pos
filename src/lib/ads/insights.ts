@@ -21,7 +21,7 @@ export function fieldsRejected(message: string, asked: string[]): string[] {
   return asked.filter(f => new RegExp(`\\b${f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(message));
 }
 
-async function insights(path: string, fields: string[], params: Record<string, unknown>, max = 1000): Promise<InsightRow[]> {
+export async function insights(path: string, fields: string[], params: Record<string, unknown>, max = 1000): Promise<InsightRow[]> {
   try {
     return await graphAll<InsightRow>(`${path}/insights`, { ...params, fields: fields.join(',') }, max);
   } catch (e) {
