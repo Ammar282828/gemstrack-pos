@@ -45,13 +45,15 @@ const GRAPH = 'https://graph.facebook.com';
 export const SCOPES = [
   'ads_management', 'ads_read', 'business_management',
   'pages_show_list', 'pages_read_engagement', 'pages_manage_ads',
-  'instagram_basic',
+  'instagram_basic', 'instagram_manage_insights',
 ];
 /**
  * What Setup warns about when a login lacks it — all of them. instagram_basic once looked optional
  * (it only lists posts to boost, and Taheri can list them through its story login), but House of
  * Mina has no other way, Taheri's other way can't say which posts Meta will boost, and the Studio's
  * competitor look-ups need it (2026-09-29: both houses' logins lacked it and "A post" answered #10).
+ * instagram_manage_insights: Business Discovery (the Studio's competitor look-ups) needs it beside
+ * instagram_basic and pages_read_engagement — without it Meta answers #10 even for @instagram.
  */
 export const REQUIRED_SCOPES = SCOPES;
 /** Meta's #10 on the house's Instagram posts: the login never asked for instagram_basic. */
