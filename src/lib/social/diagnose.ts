@@ -21,7 +21,8 @@ export interface Diagnosis { title: string; fix: string; action?: Action; retry:
 /** Links and ids the fixes point at; the server fills them from configuration. */
 export interface DiagnoseContext {
   site?: string;               // "taheri.shop"
-  aiProject?: string;          // "jewelgen-mm-e3d43ecb"
+  aiProject?: string;          // "jewelgen-mm-e3d43ecb" — signed AI calls, when there is no key
+  aiKeySecret?: string;        // "vertex-ai-key", or "projects/gemstrack-pos/secrets/vertex-ai-key" on Mina
   posProject?: string;         // "gemstrack-pos"
   metaAppId?: string;          // the Meta app (dashboard id), not the Instagram app id
   waLine?: string;             // "+92 326 2275554"
@@ -32,6 +33,12 @@ export interface DiagnoseContext {
 const GREEN_CONSOLE = 'https://console.green-api.com';
 const meta = (c: DiagnoseContext, path = '') => c.metaAppId ? `https://developers.facebook.com/apps/${c.metaAppId}/${path}` : 'https://developers.facebook.com/apps/';
 const secretUrl = (c: DiagnoseContext, name: string) => `https://console.cloud.google.com/security/secret-manager/secret/${name}/versions?project=${c.posProject || 'gemstrack-pos'}`;
+/** The Vertex AI key's secret, wherever it is kept (Mina's names Taheri's). */
+const keySecretUrl = (c: DiagnoseContext) => {
+  const s = c.aiKeySecret || 'vertex-ai-key';
+  const full = s.match(/^projects\/([^/]+)\/secrets\/([^/]+)$/);
+  return full ? `https://console.cloud.google.com/security/secret-manager/secret/${full[2]}/versions?project=${full[1]}` : secretUrl(c, s);
+};
 
 export function diagnose(where: Where, err: { status?: number; message?: string } | string, c: DiagnoseContext = {}): Diagnosis {
   const status = typeof err === 'string' ? undefined : err.status;
@@ -178,15 +185,32 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
       // Google answers a project with no billing account with 403 PERMISSION_DENIED too — "This API method
       // requires billing to be enabled. Please enable billing on project #jewelgen-mm-e3d43ecb" (2026-09-29) —
       // which the rule below took for a missing role. Nothing the ERP holds can fix it: the project needs billing.
+      // Google names the project it means; with the Vertex AI key that is the key's own, not IMAGE_AI_PROJECT.
       if (/requires billing to be enabled|enable billing on project|billing account .*(disabled|closed)|billing_disabled/.test(m)) {
+        const billed = m.match(/billing on project #?([a-z0-9-]+)/)?.[1] || c.aiProject;
         return {
           title: 'The AI project has no billing',
-          fix: `Google stopped the AI because the project it bills to${c.aiProject ? ` (${c.aiProject})` : ''} has no active billing account. Its owner turns billing back on — or the ERP is switched to bill the AI to another project (IMAGE_AI_PROJECT).`,
-          action: c.aiProject ? { label: 'Open billing for that project', href: `https://console.cloud.google.com/billing/linkedaccount?project=${c.aiProject}` } : undefined,
+          fix: `Google stopped the AI because the project it bills to${billed ? ` (${billed})` : ''} has no active billing account. Its owner turns billing back on — or the ERP is given a Vertex AI key from a project that pays (the secret ${c.aiKeySecret || 'vertex-ai-key'}).`,
+          action: billed ? { label: 'Open billing for that project', href: `https://console.cloud.google.com/billing/linkedaccount?project=${billed}` } : undefined,
+          retry: false,
+        };
+      }
+      // The key itself refused — deleted, restricted, expired or mistyped (API_KEY_INVALID, API_KEY_SERVICE_BLOCKED …).
+      if (/api key|api_key_/.test(m) && !/magnific/.test(m)) {
+        return {
+          title: 'Google refused the AI key',
+          fix: `The Vertex AI key the ERP uses (the secret ${c.aiKeySecret || 'vertex-ai-key'}) was turned down — it has been deleted, restricted to other APIs, or mistyped. Make a Vertex AI key in the project that pays for the AI and add it as a new version of that secret; the ERP takes it up within five minutes.`,
+          action: { label: 'Open the secret', href: keySecretUrl(c) },
           retry: false,
         };
       }
       if (status === 403 || /permission_denied|aiplatform\.endpoints\.predict|permission .* denied/.test(m)) {
+        // "…denied on resource '//aiplatform.googleapis.com/projects/847960974510/…'": a project other than
+        // IMAGE_AI_PROJECT is the key's, whose own service account lacks the role — not the ERP's account.
+        const named = m.match(/projects\/([a-z0-9-]+)\//)?.[1];
+        if (named && c.aiProject && named !== c.aiProject) {
+          return { title: 'The AI key isn’t allowed to use the AI', fix: `The Vertex AI key belongs to a service account in project ${named} that lacks “Vertex AI User” there. Its owner grants that role to the key’s service account (APIs & Services → Credentials shows which one).`, action: { label: 'Open that project’s access', href: `https://console.cloud.google.com/iam-admin/iam?project=${named}` }, retry: false };
+        }
         const cmd = c.aiProject ? `gcloud projects add-iam-policy-binding ${c.aiProject} --member=serviceAccount:firebase-app-hosting-compute@${c.posProject || 'gemstrack-pos'}.iam.gserviceaccount.com --role=roles/aiplatform.user` : undefined;
         return { title: 'The ERP isn’t allowed to use the AI', fix: `The AI project${c.aiProject ? ` (${c.aiProject})` : ''} doesn’t let the ERP in. Its owner has to grant the ERP “Vertex AI User”.`, action: cmd ? { label: 'Copy the fix command', command: cmd } : undefined, retry: false };
       }
@@ -194,7 +218,7 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
         return { title: 'The AI model has been renamed or retired', fix: 'Google no longer serves the model by that name. Set IMAGE_AI_MODEL (or IMAGE_AI_TEXT_MODEL) to the current one — for Nano Banana Pro that was gemini-3-pro-image in Sept 2026.', retry: false };
       }
       if (status === 429 || /resource_exhausted|quota|out of quota|credit/.test(m)) {
-        return { title: 'AI is busy or out of credit', fix: 'Google is limiting requests or the Jewel Gen project is out of credit. Wait a minute and try again; if it keeps happening, check billing on that project.', action: c.aiProject ? { label: 'Open billing', href: `https://console.cloud.google.com/billing/linkedaccount?project=${c.aiProject}` } : undefined, retry: true };
+        return { title: 'AI is busy or out of credit', fix: 'Google is limiting requests or the project that pays for the AI is out of credit. Wait a minute and try again; if it keeps happening, check that project’s billing and quota.', retry: true };
       }
       if (/ai limit for now is reached/.test(m)) {
         return { title: 'Today’s AI allowance is used up', fix: 'The shop-wide cap protects against runaway spending. Wait for it to reset, or raise IMAGE_AI_DAILY_CAP.', retry: true };

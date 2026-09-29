@@ -14,7 +14,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { STORE_CONFIG, STORE_WEBSITE_FEATURED } from '@/lib/store-config';
 import { whatsAppChannelInfo, whatsAppDiagnostics, whatsAppProvider, whatsAppStatus } from '@/lib/whatsapp';
 import { loadFeatured } from '@/lib/website/featured';
-import { aiConfigured, aiPing, aiProject, imageModelServed, IMAGE_MODEL } from './ai';
+import { aiBilledTo, aiConfigured, aiPing, imageModelServed, IMAGE_MODEL } from './ai';
 import { instagramConfigured, instagramHealth, tokenStoreAccess } from './instagram';
 import { diagnose, type Action } from './diagnose';
 import { diagnoseContext, recentErrors, type RecordedError } from './errors';
@@ -168,7 +168,7 @@ async function aiChecks(fresh: boolean): Promise<Check[]> {
     guard('ai-access', 'AI', 'AI answers', 'ai', async () => {
       const t = Date.now();
       await aiPing();
-      return { status: 'ok', detail: `Vertex AI answered in ${((Date.now() - t) / 1000).toFixed(1)} s (${aiProject()}).` };
+      return { status: 'ok', detail: `Vertex AI answered in ${((Date.now() - t) / 1000).toFixed(1)} s (billed through ${await aiBilledTo()}).` };
     }),
     guard('ai-model', 'AI', 'Image model is available', 'ai', async () => {
       const served = await imageModelServed();

@@ -64,7 +64,10 @@ Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27: "
   (`datastore.user`), call Vertex in gemstrack-pos and Murtaza's `jewelgen-mm-e3d43ecb`, and view App Hosting, Cloud Build,
   Cloud Run, logs and Scheduler in both. **To cut the cloud off, delete its key**
   (`gcloud iam service-accounts keys list --iam-account claude-cloud@gemstrack-pos.iam.gserviceaccount.com`, then `… keys delete`).
-  A secret added later needs `roles/secretmanager.secretAccessor` for it on that secret too.
+  A secret added later needs `roles/secretmanager.secretAccessor` for it on that secret too. It cannot create or list secrets.
+  **gcloud in a cloud session:** the environment sets `CLOUDSDK_AUTH_ACCESS_TOKEN` to a placeholder ("proxy-injected") that
+  beats the activated account, so every call answers UNAUTHENTICATED — run gcloud as `env -u CLOUDSDK_AUTH_ACCESS_TOKEN gcloud …`
+  (2026-09-29). Node's Google libraries read the ADC file and are unaffected.
 - **Every session starts** with `scripts/cloud/session-start.sh` (the SessionStart hook in `.claude/settings.json`, only when
   `CLAUDE_CODE_REMOTE=true`; hooks run in single-repo sessions only, so run it by hand in a multi-repo one): the key becomes the
   machine's default Google credentials (and gcloud's), Node 20 goes first on PATH, and `.env.taheri.local` / `.env.mina.local`
@@ -288,6 +291,18 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   each with the `fah-claim` TXT and the `_acme-challenge_…` CNAME App Hosting lists (`…/backends/studio/domains/<host>`).
   `NEXT_PUBLIC_APP_URL` moves to erp.* only once erp.* serves with a certificate, together with the Meta redirects
   (`https://erp.<house>/api/ads/callback`, Taheri's `…/api/instagram/callback`) — OAuth returns to that address.
+- **One Vertex AI key for all AI, both houses** (2026-09-29, owner: "use this key for everything now", after Murtaza's
+  project lost billing). Post a Piece, the website captions, retouch's check, the Ads helper, voice, the bill/order scanners
+  and the gold update all send `x-goog-api-key` to Vertex's keyed endpoint (`aiplatform.googleapis.com/v1/publishers/google/
+  models/<model>:generateContent`, no project in the path; `src/lib/ai-key.ts`), billed to the key's own project — number
+  847960974510, not Taheri's, Mina's or Jewel Gen. The key lives **only** in Secret Manager `vertex-ai-key` in gemstrack-pos,
+  read at run time (never declared in the YAML — a missing secret is "not set up", not a failed rollout; never in any committed
+  file — gemstrack-pos is public); Mina reads the same one (`VERTEX_AI_KEY_SECRET` = `projects/gemstrack-pos/secrets/vertex-ai-key`).
+  Readers: `firebase-app-hosting-compute@` both projects and `claude-cloud@gemstrack-pos`. Kept 5 min, a missing one re-asked
+  after 1 min — so creating or rotating it needs no deploy. No key → the old signed path (IMAGE_AI_PROJECT / VERTEX_PROJECT).
+  `VERTEX_AI_KEY` (or `GEMINI_API_KEY`) as a variable wins, for local runs. Every model in use answers through it
+  (gemini-3-pro-image, 3.1-pro-preview, 3.8-flash, 3.6-flash, 2.5-flash; 3.5-pro still 404). The checks panel says which
+  way the AI is billed; `diagnose` names the project Google complains about and knows a refused key.
 - **Drafts** (`/drafts`, Sales in the sidebar with a live count; 2026-09-27, owner: "drafts should have a separate section
   (order/invoice drafts) and be saved there, dont draft ongoing orders … deal with them smartly"). Firestore `drafts`, one
   document per unfinished form, seen on every device (`src/lib/work-drafts.ts`, tested; `components/drafts/use-work-drafts.ts`).
@@ -353,7 +368,8 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   AI (WhatsApp + Instagram captions; the route rebuilds the caption frame if the model drops the weight or a number).
   Prompts in `src/lib/social/prompts.ts` follow the nanobanana rules (piece first, never name the metal, avoid-list last).
   Models: `gemini-3-pro-image` (Nano Banana Pro; the `-preview` name 404s on Vertex now), `gemini-3.1-pro-preview`,
-  `gemini-3.8-flash`. **Billing:** Murtaza's project `jewelgen-mm-e3d43ecb` (owner offered it); this Mac's ADC
+  `gemini-3.8-flash`. **Billing (since 2026-09-29): the Vertex AI key** — see "One Vertex AI key" below; what follows is
+  the fallback. Murtaza's project `jewelgen-mm-e3d43ecb` (owner offered it; its billing was off on 2026-09-29); this Mac's ADC
   (potatomasta501) has no access there, so local dev signs AI calls with `IMAGE_AI_CREDENTIALS` =
   `~/.config/gcloud/legacy_credentials/mmurtaza1970@gmail.com/adc.json` in `.env.development.local`. Production needs
   `roles/aiplatform.user` for `firebase-app-hosting-compute@gemstrack-pos` on that project. Timings: an image op ≈ 40–65 s

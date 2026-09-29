@@ -1,13 +1,14 @@
 /**
  * Post a Piece's AI: Gemini's image and text models on Vertex AI.
  *
- * Billed to IMAGE_AI_PROJECT — Murtaza's "Jewel Gen" project (funded, Vertex
- * on), not the POS's own. In production the request is signed by the App
- * Hosting service account, which that project grants roles/aiplatform.user.
- * Locally, IMAGE_AI_CREDENTIALS can point at an authorized-user JSON (gcloud
- * keeps one per signed-in account under ~/.config/gcloud/legacy_credentials/)
- * so a laptop whose own login has no access to that project can still test;
- * nothing else in the app uses it.
+ * Sent with the Vertex AI key (src/lib/ai-key.ts) since 2026-09-29, billed to
+ * that key's own project. With no key, the request is signed by the App
+ * Hosting service account and billed to IMAGE_AI_PROJECT — Murtaza's "Jewel
+ * Gen" project, which grants that account roles/aiplatform.user (its billing
+ * was switched off on 2026-09-29, which is why the key came in). Locally,
+ * IMAGE_AI_CREDENTIALS can point at an authorized-user JSON (gcloud keeps one
+ * per signed-in account under ~/.config/gcloud/legacy_credentials/) for the
+ * signed path; nothing else in the app uses it.
  *
  * Models are the location "global" publisher models, pinned by name and
  * overridable without a deploy of code:
@@ -20,6 +21,7 @@
 
 import { GoogleAuth } from 'google-auth-library';
 import sharp from 'sharp';
+import { envVertexKey, keyedModelUrl, vertexKey, vertexKeySecret } from '@/lib/ai-key';
 
 const PROJECT = process.env.IMAGE_AI_PROJECT?.trim()
   || process.env.VERTEX_PROJECT?.trim()
@@ -40,9 +42,13 @@ export class AiError extends Error {
   constructor(message: string, public status = 502) { super(message); this.name = 'AiError'; }
 }
 
-export const aiConfigured = () => Boolean(PROJECT);
-/** The Google Cloud project AI calls bill to (Taheri: Murtaza's; House of Mina: VERTEX_PROJECT, Taheri's). */
+export const aiConfigured = () => Boolean(PROJECT || envVertexKey());
+/** The Google Cloud project signed AI calls bill to (both houses: Murtaza's) — used only when there is no key. */
 export const aiProject = () => PROJECT;
+/** What the AI is billed through right now, for the checks panel. */
+export async function aiBilledTo(): Promise<string> {
+  return (await vertexKey()) ? `the Vertex AI key, ${vertexKeySecret()}` : PROJECT;
+}
 
 export interface InlineImage { mimeType: string; data: string }
 type Part = { text: string } | { inlineData: InlineImage };
@@ -53,17 +59,26 @@ const host = () => LOCATION === 'global' ? 'aiplatform.googleapis.com' : `${LOCA
  * One generateContent call, retried twice on the errors that are worth it
  * (rate limits and the model being briefly overloaded), never on a refusal.
  */
-async function call(model: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+async function endpoint(model: string): Promise<{ url: string; headers: Record<string, string> }> {
+  const key = await vertexKey();
+  if (key) return { url: keyedModelUrl(model), headers: { 'x-goog-api-key': key } };
   if (!PROJECT) throw new AiError('No Google Cloud project is set for AI (IMAGE_AI_PROJECT).', 503);
   const client = await auth.getClient();
   const token = (await client.getAccessToken()).token;
   if (!token) throw new AiError('Could not sign in to Vertex AI.', 503);
-  const url = `https://${host()}/v1/projects/${PROJECT}/locations/${LOCATION}/publishers/google/models/${model}:generateContent`;
+  return {
+    url: `https://${host()}/v1/projects/${PROJECT}/locations/${LOCATION}/publishers/google/models/${model}:generateContent`,
+    headers: { Authorization: `Bearer ${token}` },
+  };
+}
+
+async function call(model: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const { url, headers } = await endpoint(model);
 
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(240_000),
     });
@@ -167,8 +182,22 @@ export async function aiPing(): Promise<void> {
   await generateText({ model: CHECK_MODEL, parts: [{ text: 'Reply with the single word OK.' }] });
 }
 
-/** Does Vertex still serve the image model by this name? Reads the model card; costs nothing. true, or the HTTP status it got. */
+/**
+ * Does Vertex still serve the image model by this name? Costs nothing: with the key, a token
+ * count against the model (proves the key reaches it); signed, its model card. true, or the
+ * HTTP status it got.
+ */
 export async function imageModelServed(): Promise<true | number> {
+  const key = await vertexKey();
+  if (key) {
+    const res = await fetch(keyedModelUrl(IMAGE_MODEL, 'countTokens'), {
+      method: 'POST',
+      headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'ok' }] }] }),
+      signal: AbortSignal.timeout(8000),
+    });
+    return res.ok ? true : res.status;
+  }
   if (!PROJECT) return 0;
   const token = (await (await auth.getClient()).getAccessToken()).token;
   const res = await fetch(`https://aiplatform.googleapis.com/v1beta1/publishers/google/models/${IMAGE_MODEL}`, {

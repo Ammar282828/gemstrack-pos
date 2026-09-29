@@ -20,9 +20,14 @@ export class SecretError extends Error {
   constructor(message: string, public status = 503) { super(message); this.name = 'SecretError'; }
 }
 
+/**
+ * `name` is a secret in this project, or `projects/<project>/secrets/<name>` for one kept in
+ * another (House of Mina reads Taheri's Vertex AI key that way — one key for both houses).
+ */
 async function sm(name: string, path: string, init?: RequestInit): Promise<Response> {
   const token = (await (await gauth.getClient()).getAccessToken()).token;
-  return fetch(`https://secretmanager.googleapis.com/v1/projects/${PROJECT()}/secrets/${name}${path}`, {
+  const resource = name.startsWith('projects/') ? name : `projects/${PROJECT()}/secrets/${name}`;
+  return fetch(`https://secretmanager.googleapis.com/v1/${resource}${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init?.headers || {}) },
     signal: init?.signal ?? AbortSignal.timeout(10_000),

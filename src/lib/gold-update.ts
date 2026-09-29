@@ -10,6 +10,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GEMINI_MODEL } from '@/lib/voice/model';
+import { keyedModelUrl, vertexKey } from '@/lib/ai-key';
 
 // ── Live data helpers ────────────────────────────────────────────────────────
 
@@ -52,10 +53,37 @@ async function getUsdPkr(): Promise<number | null> {
 
 // ── Gemini helpers ───────────────────────────────────────────────────────────
 
-function getGemini() {
-  const key = process.env.GOOGLE_GENAI_API_KEY;
-  if (!key) throw new Error('GOOGLE_GENAI_API_KEY not set');
-  return new GoogleGenerativeAI(key);
+/**
+ * One answer grounded in Google Search. Through the Vertex AI key (src/lib/ai-key.ts) like
+ * every other AI call since 2026-09-29; the AI Studio key (GOOGLE_GENAI_API_KEY), whose
+ * prepay pool is empty, only when there is none.
+ */
+async function groundedText(prompt: string, temperature: number): Promise<string> {
+  const key = await vertexKey();
+  if (key) {
+    const res = await fetch(keyedModelUrl(GEMINI_MODEL), {
+      method: 'POST',
+      headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        tools: [{ googleSearch: {} }],
+        generationConfig: { temperature },
+      }),
+      signal: AbortSignal.timeout(120_000),
+    });
+    const data = await res.json().catch(() => null) as { error?: { message?: string }; candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }> } | null;
+    if (!res.ok) throw new Error(`Gemini: ${data?.error?.message || res.status}`);
+    return (data?.candidates?.[0]?.content?.parts ?? []).filter(p => p.text && !p.thought).map(p => p.text).join('');
+  }
+  const aiStudio = process.env.GOOGLE_GENAI_API_KEY;
+  if (!aiStudio) throw new Error('No AI key: neither the Vertex AI key nor GOOGLE_GENAI_API_KEY is set');
+  const model = new GoogleGenerativeAI(aiStudio).getGenerativeModel({
+    model: GEMINI_MODEL,
+    // google_search (not googleSearchRetrieval) is the tool name on this model family
+    tools: [{ googleSearch: {} } as any],
+    generationConfig: { temperature },
+  });
+  return (await model.generateContent(prompt)).response.text();
 }
 
 function cleanGeminiOutput(raw: string, todayStr: string): string {
@@ -219,16 +247,7 @@ STRICT RULES:
 - Output ONLY the final message. Nothing before it. Nothing after it.
 `;
 
-  const genAI = getGemini();
-  const model = genAI.getGenerativeModel({
-    model: GEMINI_MODEL,
-    // google_search (not googleSearchRetrieval) is the tool name on this model family
-    tools: [{ googleSearch: {} } as any],
-    generationConfig: { temperature: 0.4 },
-  });
-
-  const result = await model.generateContent(prompt);
-  const raw = result.response.text();
+  const raw = await groundedText(prompt, 0.4);
   return cleanGeminiOutput(raw, todayStr);
 }
 
@@ -273,15 +292,7 @@ STRICT RULES:
 - Output ONLY the alert message or NO_ALERT. Nothing else.
 `;
 
-  const genAI = getGemini();
-  const model = genAI.getGenerativeModel({
-    model: GEMINI_MODEL,
-    tools: [{ googleSearch: {} } as any],
-    generationConfig: { temperature: 0.2 },
-  });
-
-  const result = await model.generateContent(prompt);
-  const raw = result.response.text().trim();
+  const raw = (await groundedText(prompt, 0.2)).trim();
 
   if (raw.includes('NO_ALERT') || !raw.includes('🚨')) {
     return null; // No breaking news
