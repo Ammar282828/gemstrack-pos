@@ -119,8 +119,11 @@ export const STORE_LINKS_PAGE = {
   feature: { lead: featureLead, tail: featureTail, line: featureLine },
   /** What the website row is called; the site's own host name without it. */
   websiteLabel: process.env.NEXT_PUBLIC_STORE_LINKS_WEBSITE_LABEL ?? '',
+  // Taheri's hours as the copy rule has them, and no street: "Najmi Market" and
+  // "Saddar" never go in front of a customer (CLAUDE.md, Decisions). Numbers in a row
+  // are tappable on the page.
   visit: (nl(process.env.NEXT_PUBLIC_STORE_LINKS_VISIT)
-    || 'Najmi Market, Shop #40 & #16, Saddar, Karachi\n0335 2275553 · 0326 2275554').split('\n').map((s) => s.trim()).filter(Boolean),
+    || 'Saturday to Thursday, 11 am – 9 pm\nFriday, 3:30 – 8 pm\nKarachi · 0335 2275553 · 0326 2275554').split('\n').map((s) => s.trim()).filter(Boolean),
 };
 
 /**
@@ -151,7 +154,18 @@ export const storeLinksUrl = (): string =>
 export const STORE_BRAND = (process.env.NEXT_PUBLIC_STORE_BRAND ?? 'taheri') as 'taheri' | 'mina';
 export const STORE_THEME_COLOR = process.env.NEXT_PUBLIC_STORE_THEME_COLOR ?? '#0A1111';
 
-export const STORE_LOGO_URL = process.env.NEXT_PUBLIC_STORE_LOGO_URL ?? '/taheri-logo.png';
+/**
+ * The link page's dress, which its browser bar and share picture match: taheri.shop's
+ * ground and gold, or the Mina catalogue's maroon-black and rose. Always dark, whatever
+ * the ERP's own mode on that phone.
+ */
+export const LINKS_DRESS = STORE_BRAND === 'mina'
+  ? { ground: '#140B0B', accent: '#E8A5AE', accentRgb: '232,165,174' }
+  : { ground: '#0A1111', accent: '#BE9F76', accentRgb: '190,159,118' };
+
+// `||`, not `??`: the local env generator writes the other house's variables empty,
+// and an empty logo address drew a broken image on a local Taheri.
+export const STORE_LOGO_URL = process.env.NEXT_PUBLIC_STORE_LOGO_URL || '/taheri-logo.png';
 /**
  * The same wordmark cut in white, for dark grounds: the sidebar and settings on the
  * dark palette, and the always-dark links page. It fell back to STORE_LOGO_URL, so
@@ -160,7 +174,7 @@ export const STORE_LOGO_URL = process.env.NEXT_PUBLIC_STORE_LOGO_URL ?? '/taheri
  * white cut is public/taheri-logo-light.png; a house with its own logo sets its own.
  */
 export const STORE_LOGO_LIGHT_URL = process.env.NEXT_PUBLIC_STORE_LOGO_LIGHT_URL
-  ?? (process.env.NEXT_PUBLIC_STORE_LOGO_URL ? STORE_LOGO_URL : '/taheri-logo-light.png');
+  || (process.env.NEXT_PUBLIC_STORE_LOGO_URL ? STORE_LOGO_URL : '/taheri-logo-light.png');
 
 /**
  * Who stands at this shop's counter — the "Taken by" list on orders and

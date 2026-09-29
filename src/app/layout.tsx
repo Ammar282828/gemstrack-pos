@@ -12,7 +12,7 @@ import { useIsStoreHydrated } from '@/hooks/use-store';
 import React, { useEffect } from 'react';
 import Script from 'next/script';
 import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
-import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, isLinksHost } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, STORE_LINKS_PAGE, LINKS_DRESS, isLinksHost, storeLinksUrl } from '@/lib/store-config';
 import { readCachedTheme, writeCachedTheme, LIGHT_THEME, readDeviceTheme, DEVICE_THEME_EVENT, applyThemeToDocument, readCachedUiStyle, writeCachedUiStyle, applyUiStyleToDocument } from '@/lib/theme-cache';
 import { warmPdfLogo } from '@/lib/pdf-logo';
 
@@ -99,26 +99,35 @@ function AppBody({ children }: { children: React.ReactNode }) {
   // covers the first paint (the script in <head> reads it), the store then rules.
   const cachedStyle = React.useMemo(() => readCachedUiStyle(), []);
   React.useEffect(() => {
+    // A customer's page never wears the ERP's glass, whatever this phone chose for the ERP.
+    if (isPublicPath) { applyUiStyleToDocument('standard'); return; }
     const style = hasSettingsLoaded ? (uiStyle || 'standard') : cachedStyle;
     applyUiStyleToDocument(style);
     if (hasSettingsLoaded) writeCachedUiStyle(uiStyle || 'standard');
-  }, [hasSettingsLoaded, uiStyle, cachedStyle]);
+  }, [hasSettingsLoaded, uiStyle, cachedStyle, isPublicPath]);
 
   // <html>, <body> and the phone's browser bar follow what is shown: the house's dark
   // ground on the dark palette, the page's own white on the light one. Before paint,
   // so the hydrated body never shows a frame in the other palette; the body's own
   // className below carries no theme on purpose (see applyThemeToDocument).
+  // The link page is always dark, so its bar is its own ground whatever this phone's mode.
+  const onLinksPage = pathname.startsWith('/links') || onLinksHost;
   useIsomorphicLayoutEffect(() => {
     applyThemeToDocument(shownTheme);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', shownTheme === LIGHT_THEME ? '#FCFCFD' : STORE_THEME_COLOR);
-  }, [shownTheme]);
+    if (meta) meta.setAttribute('content', onLinksPage ? LINKS_DRESS.ground : shownTheme === LIGHT_THEME ? '#FCFCFD' : STORE_THEME_COLOR);
+  }, [shownTheme, onLinksPage]);
 
   // The same class on the server and on every client render: the theme is put on the
   // body by applyThemeToDocument, so hydration has nothing to disagree about.
   const bodyClass = `${inter.variable} font-sans antialiased brand-${STORE_BRAND}`;
 
-  if (!isHydrated) {
+  // The ERP waits for its store before drawing anything. A customer's page does not use
+  // the store and must not wait: until 2026-09-29 the link page and a shared invoice
+  // were sent as an empty <body>, and a customer who scanned a receipt saw nothing until
+  // the whole ERP bundle had loaded. The path is known on the server too, so the server
+  // and the first client render agree.
+  if (!isHydrated && !isPublicPath) {
     return <body className={bodyClass}></body>;
   }
 
@@ -146,20 +155,63 @@ function AppBody({ children }: { children: React.ReactNode }) {
 }
 
 
+/**
+ * What a page is called, and how it previews when its address is shared on WhatsApp.
+ * The ERP's pages are the ERP. The two a customer is sent are the shop's: the link page,
+ * with the house's picture (public/brand/links-share-<brand>.png), and an invoice. Both
+ * used to preview as "Jewellery ERP".
+ */
+function headFor(pathname: string) {
+  const name = STORE_CONFIG.name;
+  if (pathname.startsWith('/links')) {
+    const url = storeLinksUrl();
+    let origin = '';
+    try { origin = url ? new URL(url).origin : ''; } catch { origin = ''; }
+    const line = STORE_LINKS_PAGE.tagline.replace(/[.\s]+$/, '');
+    return {
+      title: line ? `${name} · ${line}` : name,
+      description: STORE_LINKS_PAGE.welcome,
+      themeColor: LINKS_DRESS.ground,
+      share: { url, image: origin ? `${origin}/brand/links-share-${STORE_BRAND}.png` : '' },
+    };
+  }
+  const invoice = pathname.match(/^\/view-invoice\/([^/?#]+)/);
+  if (invoice) {
+    let id = invoice[1];
+    try { id = decodeURIComponent(id); } catch { /* shown as it came */ }
+    return { title: `${id} · ${name}`, description: `Your invoice from ${name}.`, themeColor: STORE_THEME_COLOR, share: { url: '', image: '' } };
+  }
+  return { title: name, description: 'Jewellery ERP', themeColor: STORE_THEME_COLOR, share: null };
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const head = headFor(usePathname() || '');
   return (
     <html lang="en" suppressHydrationWarning className="dark" data-brand={STORE_BRAND}>
       <head>
-        <title>{STORE_CONFIG.name}</title>
-        <meta name="description" content="Jewellery ERP" />
+        <title>{head.title}</title>
+        <meta name="description" content={head.description} />
+        {head.share && (
+          <>
+            <meta property="og:type" content="website" />
+            <meta property="og:site_name" content={STORE_CONFIG.name} />
+            <meta property="og:title" content={head.title} />
+            <meta property="og:description" content={head.description} />
+            {head.share.url && <meta property="og:url" content={head.share.url} />}
+            {head.share.image && <meta property="og:image" content={head.share.image} />}
+            {head.share.image && <meta property="og:image:width" content="1200" />}
+            {head.share.image && <meta property="og:image:height" content="630" />}
+            <meta name="twitter:card" content={head.share.image ? 'summary_large_image' : 'summary'} />
+          </>
+        )}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/* The browser chrome around the app. #0A1111 is taheri.shop's ground —
             this was the other shop's maroon. */}
-        <meta name="theme-color" content={STORE_THEME_COLOR} />
+        <meta name="theme-color" content={head.themeColor} />
         {/*
           Paint the right background before anything else runs.
 
@@ -177,11 +229,12 @@ export default function RootLayout({
               var h=document.documentElement;
               h.classList.add(t==='default'?'boot-light':'boot-dark');
               if(t==='default')h.classList.remove('dark');
-              if(localStorage.getItem('gemstrack:ui-style')==='glass')h.classList.add('ui-glass');
+              if(localStorage.getItem('gemstrack:ui-style')==='glass'&&!/^\\/(links|view-invoice)/.test(location.pathname))h.classList.add('ui-glass');
             }catch(e){document.documentElement.classList.add('boot-light');document.documentElement.classList.remove('dark');}})();`,
           }}
         />
-        <Script src="https://unpkg.com/zebra-browser-print-wrapper@3.0.0/js/zebra_browser_print_wrapper.js" type="text/javascript"></Script>
+        {/* The label printer is the ERP's; a customer's page never fetches it. */}
+        {!head.share && <Script src="https://unpkg.com/zebra-browser-print-wrapper@3.0.0/js/zebra_browser_print_wrapper.js" type="text/javascript"></Script>}
       </head>
       <AppBody>
         {children}

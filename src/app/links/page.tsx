@@ -1,87 +1,74 @@
-"use client";
-
 /**
  * The link page — what the QR on every invoice, order slip and repair receipt opens.
  * One page for both houses (links.taheri.shop, links.houseofmina.store): its words and
- * links are STORE_LINKS / STORE_LINKS_PAGE, its dress is the house's brand.
+ * links are STORE_LINKS / STORE_LINKS_PAGE, its dress is LINKS_DRESS. Taheri's is
+ * taheri.shop's ground #0A1111 and gold #BE9F76 with the Didone; House of Mina's is its
+ * catalogue's maroon-black #140B0B and rose #E8A5AE with Newsreader.
  *
- * Taheri's is dressed as taheri.shop, matched by measurement rather than memory: ground
- * #0A1111, gold #BE9F76, rules at white 10%, micro-type set uppercase at 0.2em. House of
- * Mina's is its catalogue's dark theme: maroon-black #140B0B, rose #E8A5AE, Newsreader
- * where Taheri has the Didone.
+ * A SERVER PAGE, drawn in the first response. Until 2026-09-29 it was a client page
+ * under a layout that rendered an empty <body> until the ERP's store had hydrated, so a
+ * customer who scanned a receipt got blank HTML and waited for the whole ERP bundle
+ * before a single link showed. Now the layout lets public pages through at once
+ * (layout.tsx) and this page ships no JavaScript of its own.
  *
- * ON THE HIERARCHY. Everything here used to sit between 9px and 14px — the channel
- * names, the thing a customer actually came to choose between, were 14px against 12.5px
- * body copy, so colour was carrying the load that size should carry and the page had no
- * focal point below the wordmark. There are four rungs now and they are far apart:
+ * WHAT IT SHOWS, top to bottom:
+ *   the wordmark, the house's line in its accent, a hairline ornament, one line of welcome;
+ *   the top row — the WhatsApp channel (or, for a house without one, the community) —
+ *     as the one card with a filled button, the page's single primary action (as New
+ *     Sale is the ERP's one tinted control);
+ *   "Just in": the newest pieces on the house's own website, a spread across its
+ *     collections (showcase.ts), each opening its page — streamed in after the rest,
+ *     so a slow site never holds up a link;
+ *   the house's other links as one grouped list, not a stack of look-alike boxes;
+ *   how to visit, its numbers tappable.
  *
- *   21px  serif      the top row — the WhatsApp channel (or community) to follow
- *   15px  sans       the shop's utility links, which are verbs, not departments
- *   13px  sans       the welcome and the invitation to visit
- *   11.5px sans      what each row actually carries
- *   9px   micro-caps section labels, actions, the address — furniture, and quiet
+ * Colour and size carry the hierarchy, never faintness: nothing a customer reads is below
+ * white at 50% on the ground (5.3:1), since the page is read in daylight on any phone.
+ * Class names are the page's own (lk-…): the ERP's Liquid Glass sheet styles `.btn`,
+ * `.card` and friends on a phone that has it switched on, and must not reach this page.
  *
- * The quiet tiers are quiet by SIZE and letterspacing, not by opacity. They were set at
- * white/25 and white/40, which measure 2.2:1 and 3.8:1 on this ground and fail AA — a
- * page read by customers in daylight, some of them older, on whatever phone they have.
- * Nothing here is below white/50 (5.3:1) any more, and it still reads as furniture,
- * because 8.5px letterspaced caps whisper on their own without being faint too.
- *
- * ON THE SERIF. Taheri's page used to list six WhatsApp communities ("Diamonds by
- * Taheri", …); since 2026-09-25 it leads with the WhatsApp channel alone (owner: "remove
- * all community links"). The top row keeps their setting: the lead ("Collections") large
- * in the house's serif, the tail ("by Taheri") whispering beside it. An accent hairline
- * at rest marks it as the thing to tap. A house with no channel (House of Mina) puts its
- * community there instead.
- *
- * The serif is the one liberty taken, spent on one word. The utility rows below stay in
- * the sans deliberately: "Talk to us" is an action, not a department, and setting it in
- * the same face would say they are the same kind of thing.
- *
- * Public: no sign-in, no data, nothing out of the book.
+ * Public: no sign-in, nothing out of the book. The pieces are the site's own public list,
+ * less anything hidden at the counter.
  */
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import Image from 'next/image';
 import { Bodoni_Moda, Newsreader } from 'next/font/google';
-import { STORE_BRAND, STORE_CONFIG, STORE_LINKS, STORE_LINKS_PAGE, STORE_LOGO_ASPECT, STORE_LOGO_LIGHT_URL } from '@/lib/store-config';
+import {
+  LINKS_DRESS, STORE_BRAND, STORE_CONFIG, STORE_LINKS, STORE_LINKS_PAGE, STORE_LOGO_ASPECT, STORE_LOGO_LIGHT_URL,
+} from '@/lib/store-config';
+import { pickShowcase } from '@/lib/website/showcase';
 
-// Self-hosted by next/font, so it is one same-origin file rather than a round-trip to
-// Google — this page is often the first thing a customer loads on a slow phone. Both
-// are declared (next/font wants literals); only the house's own is ever drawn.
-const didone = Bodoni_Moda({ subsets: ['latin'], weight: ['400'], display: 'swap', preload: false });
-const newsreader = Newsreader({ subsets: ['latin'], weight: ['400'], display: 'swap', preload: false });
+// Rendered per request: the pieces change daily, and nothing here may run at build.
+export const dynamic = 'force-dynamic';
 
-const HOUSE = STORE_BRAND === 'mina'
-  ? { ground: '#140B0B', accent: '#E8A5AE', accentRgb: '232,165,174', serif: newsreader.className }
-  : { ground: '#0A1111', accent: '#BE9F76', accentRgb: '190,159,118', serif: didone.className };
+// Self-hosted by next/font. Both are declared (next/font wants literals); only the
+// house's own is ever drawn, so only its files are fetched.
+const didone = Bodoni_Moda({ subsets: ['latin'], weight: ['400'], style: ['normal', 'italic'], display: 'swap', preload: false });
+const newsreader = Newsreader({ subsets: ['latin'], weight: ['400'], style: ['normal', 'italic'], display: 'swap', preload: false });
+const SERIF = STORE_BRAND === 'mina' ? newsreader.className : didone.className;
 
-type IconName = 'whatsapp' | 'instagram' | 'tiktok' | 'globe' | 'bag' | 'star';
+const { ground: GROUND, accent: ACCENT, accentRgb: ACC } = LINKS_DRESS;
 
-interface Channel { href: string; label: string; lead: string; tail: string; sub: string; action: string; featured?: boolean }
-interface Utility { href: string; label: string; sub: string; action: string; icon: IconName }
+type IconName = 'whatsapp' | 'instagram' | 'tiktok' | 'globe' | 'bag' | 'star' | 'arrow';
+
+interface Utility { href: string; label: string; sub: string; icon: IconName }
+interface Shown { id: string; name: string; url: string; thumb: string; collection: string }
 
 const host = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
+const delay = (ms: number) => ({ '--d': `${ms}ms` }) as React.CSSProperties;
 
 export default function LinksPage() {
   const utilities: Utility[] = ([
-    { href: STORE_LINKS.instagram || STORE_CONFIG.instagramUrl,
-      label: 'Instagram', sub: 'The work, up close', action: 'Follow', icon: 'instagram' },
-    { href: STORE_LINKS.tiktok,
-      label: 'TikTok', sub: 'Every piece, in motion', action: 'Follow', icon: 'tiktok' },
-    { href: STORE_LINKS.whatsapp || STORE_CONFIG.whatsappUrl,
-      label: 'Talk to us', sub: 'Ask anything — a price, a repair, an idea', action: 'Chat', icon: 'whatsapp' },
-    { href: STORE_LINKS.website,
-      label: STORE_LINKS_PAGE.websiteLabel || host(STORE_LINKS.website),
-      sub: 'Browse the whole house at your own pace', action: 'Visit', icon: 'globe' },
-    { href: STORE_LINKS.shop,
-      label: host(STORE_LINKS.shop), sub: 'Order online, delivered to your door', action: 'Shop', icon: 'bag' },
-    { href: STORE_LINKS.googleReview,
-      label: 'Leave a review', sub: 'Tell Karachi what you thought', action: 'Review', icon: 'star' },
+    { href: STORE_LINKS.instagram || STORE_CONFIG.instagramUrl, label: 'Instagram', sub: 'The work, up close', icon: 'instagram' },
+    { href: STORE_LINKS.tiktok, label: 'TikTok', sub: 'Every piece, in motion', icon: 'tiktok' },
+    { href: STORE_LINKS.whatsapp || STORE_CONFIG.whatsappUrl, label: 'Talk to us', sub: 'Ask anything — a price, a repair, an idea', icon: 'whatsapp' },
+    { href: STORE_LINKS.website, label: STORE_LINKS_PAGE.websiteLabel || host(STORE_LINKS.website), sub: 'Browse the whole house at your own pace', icon: 'globe' },
+    { href: STORE_LINKS.shop, label: host(STORE_LINKS.shop), sub: 'Order online, delivered to your door', icon: 'bag' },
+    { href: STORE_LINKS.googleReview, label: 'Leave a review', sub: 'Tell Karachi what you thought', icon: 'star' },
   ] as Utility[]).filter((e) => Boolean(e.href));
 
-  // The top row: the channel (follow, nothing to join, lands in Updates), or — for a
-  // house without one — its community.
+  // The channel (follow, nothing to join, lands in Updates), or a house's community.
   const top = STORE_LINKS.waChannel
     ? { href: STORE_LINKS.waChannel, kind: 'channel', action: 'Follow' }
     : STORE_LINKS.waCommunity
@@ -89,76 +76,73 @@ export default function LinksPage() {
       : null;
   const { lead, tail, line } = STORE_LINKS_PAGE.feature;
 
-  // The wordmark is drawn 40px tall whatever its shape (Taheri's is 160 wide, Mina's
-  // wider), and never past 200px.
+  // The wordmark is drawn 40px tall whatever its shape, and never past 200px wide.
   const logoWidth = Math.min(200, Math.round(40 * STORE_LOGO_ASPECT));
 
   return (
-    <main className="min-h-screen px-6 pb-16 pt-14 text-white antialiased" style={{ backgroundColor: HOUSE.ground }}>
-      <style>{`
-        /* !important because globals.css paints <html> through .boot-light /
-           .boot-dark, whose class selector outranks a bare html rule. Those exist to
-           get the POS's first paint right and know nothing about this page. */
-        html, body { background-color: ${HOUSE.ground} !important; }
+    <main className="lk" style={{ fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif' }}>
+      <style>{CSS}</style>
+      <div className="lk-col">
 
-        /* The storefront's own restraint: the accent is a line and a word, never a fill.
-           A card's hairline warms to it under the finger; nothing else moves. */
-        .btn { transition: border-color .3s ease, background-color .3s ease; }
-        .btn.feat { border-color: rgba(${HOUSE.accentRgb},.45); }
-        .btn:hover, .btn:focus-visible {
-          border-color: rgba(${HOUSE.accentRgb},.9);
-          background-color: rgba(255,255,255,.03);
-        }
-        .btn:focus-visible { outline: 1px solid ${HOUSE.accent}; outline-offset: 3px; }
-        .accent { color: ${HOUSE.accent}; }
-        /* The icon warms with the hairline rather than on its own, so one gesture
-           happens per card instead of two. */
-        .btn .ico { color: rgba(255,255,255,.42); transition: color .3s ease; }
-        .btn:hover .ico, .btn:focus-visible .ico { color: ${HOUSE.accent}; }
-        @media (prefers-reduced-motion: reduce) { .btn, .btn .ico { transition: none; } }
-      `}</style>
-
-      <div className="mx-auto w-full max-w-[27rem]">
-
-        <header className="mb-14 text-center">
+        <header className="lk-head lk-rise" style={delay(0)}>
           <Image src={STORE_LOGO_LIGHT_URL} alt={STORE_CONFIG.name} width={logoWidth * 2} height={80}
                  priority className="mx-auto h-auto" style={{ width: logoWidth }} />
-          {/* The storefront's own line, set the way the storefront sets it. */}
-          {STORE_LINKS_PAGE.tagline && (
-            <p className="mt-5 text-[9px] font-light uppercase tracking-[0.24em] text-white/55">
-              {STORE_LINKS_PAGE.tagline}
-            </p>
-          )}
-          {/* One line of welcome. A customer arrives here from a paper receipt with no
-              idea what they have opened, and a page of unexplained buttons is a page
-              they close. */}
-          <p className="mx-auto mt-6 max-w-[19rem] text-[13px] font-light leading-relaxed text-white/55">
-            {STORE_LINKS_PAGE.welcome}
-          </p>
+          {STORE_LINKS_PAGE.tagline && <p className="lk-tag">{STORE_LINKS_PAGE.tagline}</p>}
+          <Ornament />
+          {/* A customer arrives from a paper receipt with no idea what they have opened. */}
+          <p className="lk-welcome">{STORE_LINKS_PAGE.welcome}</p>
         </header>
 
         {top && (
-          <Block heading={`WhatsApp ${top.kind}`}>
-            <ChannelRow href={top.href} label={`${lead} ${tail} — WhatsApp ${top.kind}`}
-                        lead={lead} tail={tail} sub={line} action={top.action} featured />
-          </Block>
+          <a
+            href={top.href} target="_blank" rel="noopener noreferrer"
+            // The channel's real name, as WhatsApp shows it on arrival: the split below is typesetting.
+            aria-label={`${lead} ${tail} — WhatsApp ${top.kind}. ${line}`}
+            className="lk-feat lk-rise" style={delay(90)}
+          >
+            <span className="lk-pill"><Icon name="whatsapp" size={13} /> WhatsApp {top.kind}</span>
+            <span className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className={`${SERIF} lk-lead`}>{lead}</span>
+              {tail && <span className="lk-tail">{tail}</span>}
+            </span>
+            {line && <span className="lk-line">{line}</span>}
+            <span className="lk-cta">{top.action} on WhatsApp <Icon name="arrow" size={14} /></span>
+          </a>
+        )}
+
+        {STORE_LINKS.website && (
+          <Suspense fallback={<ShowcaseFrame><Skeleton /></ShowcaseFrame>}>
+            <Showcase />
+          </Suspense>
         )}
 
         {utilities.length > 0 && (
-          <Block heading="Find us">
-            {utilities.map((e) => <UtilityRow key={e.href} {...e} />)}
-          </Block>
+          <section className="lk-sec lk-rise" style={delay(240)}>
+            <h2 className="lk-label mb-3.5">Find us</h2>
+            <ul className="lk-list">
+              {utilities.map((e) => (
+                <li key={e.href}>
+                  <a href={e.href} target="_blank" rel="noopener noreferrer" className="lk-row">
+                    <span className="lk-ico"><Icon name={e.icon} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="lk-lbl">{e.label}</span>
+                      <span className="lk-sub">{e.sub}</span>
+                    </span>
+                    <span className="lk-go"><Icon name="arrow" size={15} /></span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
-        {/* The strip along the bottom of the house's website, kept. */}
         {STORE_LINKS_PAGE.visit.length > 0 && (
-          <footer className="mt-14 border-t border-white/10 pt-7 text-center">
-            <p className="text-[13px] font-light text-white/70">Or come and see us</p>
-            {STORE_LINKS_PAGE.visit.map((row, i) => (
-              <p key={row} className={`${i ? 'mt-1.5' : 'mt-2.5'} text-[9px] uppercase tracking-[0.2em] text-white/50`}>
-                {row}
-              </p>
-            ))}
+          <footer className="lk-foot lk-rise" style={delay(320)}>
+            <Ornament />
+            <p className={`${SERIF} lk-visit-title`}>Come and see us</p>
+            <div className="lk-visit">
+              {STORE_LINKS_PAGE.visit.map((row) => <p key={row}><Tappable text={row} /></p>)}
+            </div>
           </footer>
         )}
       </div>
@@ -166,141 +150,252 @@ export default function LinksPage() {
   );
 }
 
-function Block({ heading, note, children }: { heading: string; note?: string; children: React.ReactNode }) {
+/**
+ * The newest pieces on the house's website. Its own boundary, so the links above and
+ * below are in the first bytes and this arrives when the site answers — or not at all:
+ * an unreachable site, or one slower than four seconds, leaves the section out rather
+ * than hold the page.
+ */
+async function Showcase() {
+  let pieces: Shown[] = [];
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const { getSitePieces } = await import('@/lib/website/site-pieces');
+    const slow = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('slow')), 4000); });
+    const { pieces: all } = await Promise.race([getSitePieces(), slow]);
+    pieces = pickShowcase(all, 8).map(({ id, name, url, thumb, collection }) => ({ id, name, url, thumb, collection }));
+  } catch {
+    pieces = [];
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+  if (pieces.length < 3) return null;
+
   return (
-    <section className="mb-12">
-      <div className="mb-5 flex items-baseline justify-between gap-4">
-        <h2 className="text-[9px] uppercase tracking-[0.2em] text-white/50">{heading}</h2>
-        {note && <span className="text-[9px] uppercase tracking-[0.16em] text-white/50">{note}</span>}
+    <ShowcaseFrame>
+      {pieces.map((p) => (
+        <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer" className="lk-piece">
+          <span className="lk-shot">
+            {/* eslint-disable-next-line @next/next/no-img-element -- the site's own thumbnail, already sized */}
+            <img src={p.thumb} alt={p.name} width={272} height={272} loading="lazy" decoding="async" />
+          </span>
+          <span className="lk-name">{p.name}</span>
+          {p.collection && <span className="lk-coll">{p.collection}</span>}
+        </a>
+      ))}
+    </ShowcaseFrame>
+  );
+}
+
+function ShowcaseFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <section className="lk-sec lk-rise" style={delay(170)} aria-label="New pieces">
+      <div className="lk-sechead">
+        <h2 className="lk-label">Just in</h2>
+        <a href={STORE_LINKS.website} target="_blank" rel="noopener noreferrer" className="lk-more">
+          See all <Icon name="arrow" size={12} />
+        </a>
       </div>
-      {children}
+      <div className="lk-strip">{children}</div>
     </section>
   );
 }
 
-/**
- * A department. The lead carries the weight; the shared half stands down.
- *
- * aria-label gives the channel's real name, so what a screen reader announces matches
- * what WhatsApp shows on arrival — the split is a way of setting the words, not a
- * renaming.
- */
-function ChannelRow({ href, label, lead, tail, sub, action, featured }: Channel) {
+/** The strip's own shape while the site answers, so nothing below it moves when it does. */
+function Skeleton() {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`${label} — ${sub}`}
-      className={`btn mb-2.5 flex items-start gap-4 rounded-lg border px-5 py-[18px] ${featured ? 'feat' : 'border-white/10'}`}
-    >
-      {/* Pinned to the name rather than floated to the middle of the card. The name is
-          what the mark belongs to — centring it against a two-line block left it
-          hovering between the two, attached to neither. */}
-      <span className="mt-[3px] flex"><Icon name="whatsapp" /></span>
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-          <span className={`${HOUSE.serif} text-[21px] leading-none tracking-[0.005em] text-white`}>
-            {lead}
-          </span>
-          <span className="text-[8.5px] uppercase tracking-[0.18em] text-white/50">{tail}</span>
+    <>
+      {[0, 1, 2, 3].map((i) => (
+        <span key={i} className="lk-piece" aria-hidden>
+          <span className="lk-shot lk-wait" />
+          <span className="lk-name lk-wait-line" />
+          <span className="lk-coll lk-wait-line lk-wait-short" />
         </span>
-        <span className="mt-2 block text-[11.5px] font-light leading-snug text-white/55">{sub}</span>
-      </span>
-      <span className="accent shrink-0 self-center text-[9px] uppercase tracking-[0.2em]">
-        {action}
-      </span>
-    </a>
+      ))}
+    </>
   );
 }
 
-/** A thing to do, rather than a thing to browse — hence Inter, and hence smaller. */
-function UtilityRow({ href, label, sub, action, icon }: Utility) {
+/** A hairline either side of a small diamond — the house's jewel, drawn in its accent. */
+function Ornament() {
+  return <span className="lk-orn" aria-hidden><i /></span>;
+}
+
+/** A visit line with its phone numbers made tappable. */
+function Tappable({ text }: { text: string }) {
+  const parts = text.split(/(\+?\d[\d\s-]{7,}\d)/g);
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="btn mb-2.5 flex items-center gap-4 rounded-lg border border-white/10 px-5 py-4"
-    >
-      <Icon name={icon} />
-      <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-light leading-tight text-white">{label}</span>
-        <span className="mt-1.5 block text-[11.5px] font-light leading-snug text-white/55">{sub}</span>
-      </span>
-      <span className="accent shrink-0 text-[9px] uppercase tracking-[0.2em]">
-        {action}
-      </span>
-    </a>
+    <>
+      {parts.map((part, i) => (i % 2
+        ? <a key={i} href={`tel:${part.replace(/[^\d+]/g, '')}`}>{part}</a>
+        : <React.Fragment key={i}>{part}</React.Fragment>))}
+    </>
   );
 }
 
 /**
- * The marks, drawn rather than fetched.
- *
- * Inline SVG because this page is the first thing a customer sees after scanning a
- * receipt, often on a slow phone: an icon font or a sprite is a round-trip that can
- * arrive late and shift the layout under their thumb. A few small paths cost nothing and
- * are there in the first paint.
- *
- * WhatsApp is filled because its glyph is only recognisable filled — a stroked outline
- * of it reads as a generic speech bubble. The others are hairlines at the same
- * weight as the card borders, which is what keeps them quiet.
+ * The marks, drawn rather than fetched: inline SVG is in the first paint, where an icon
+ * font or sprite is a round-trip that can arrive late and shift the page under a thumb.
+ * WhatsApp is filled because its glyph is only recognisable filled; the rest are
+ * hairlines.
  */
-function Icon({ name }: { name: IconName }) {
-  const common = { width: 17, height: 17, viewBox: '0 0 24 24', 'aria-hidden': true, className: 'ico shrink-0' } as const;
+function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
+  const common = { width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': true, className: 'shrink-0' } as const;
+  const line = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
 
-  if (name === 'whatsapp') {
-    return (
-      <svg {...common} fill="currentColor">
-        <path d="M12.04 2A9.9 9.9 0 0 0 2.1 11.9a9.8 9.8 0 0 0 1.35 4.96L2 22l5.28-1.38a9.9 9.9 0 0 0 4.76 1.21h.01A9.9 9.9 0 0 0 22 11.94 9.9 9.9 0 0 0 12.04 2Zm0 18.02h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.05-.2-.31a8.2 8.2 0 0 1-1.26-4.38 8.24 8.24 0 1 1 8.25 8.25Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.8-.23-.09-.39-.13-.56.12-.16.25-.64.8-.78.97-.15.16-.29.18-.53.06-.25-.12-1.05-.39-2-1.23a7.5 7.5 0 0 1-1.38-1.72c-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.43.12-.15.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.41-.56-.42h-.47a.9.9 0 0 0-.66.31c-.22.25-.87.85-.87 2.07s.89 2.4 1.01 2.56c.13.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.6.19 1.14.16 1.57.1.48-.07 1.47-.6 1.68-1.18.2-.58.2-1.08.14-1.18-.06-.1-.22-.17-.47-.29Z" />
-      </svg>
-    );
+  switch (name) {
+    case 'whatsapp':
+      return (
+        <svg {...common} fill="currentColor">
+          <path d="M12.04 2A9.9 9.9 0 0 0 2.1 11.9a9.8 9.8 0 0 0 1.35 4.96L2 22l5.28-1.38a9.9 9.9 0 0 0 4.76 1.21h.01A9.9 9.9 0 0 0 22 11.94 9.9 9.9 0 0 0 12.04 2Zm0 18.02h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.05-.2-.31a8.2 8.2 0 0 1-1.26-4.38 8.24 8.24 0 1 1 8.25 8.25Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.8-.23-.09-.39-.13-.56.12-.16.25-.64.8-.78.97-.15.16-.29.18-.53.06-.25-.12-1.05-.39-2-1.23a7.5 7.5 0 0 1-1.38-1.72c-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.43.12-.15.16-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.41-.56-.42h-.47a.9.9 0 0 0-.66.31c-.22.25-.87.85-.87 2.07s.89 2.4 1.01 2.56c.13.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.6.19 1.14.16 1.57.1.48-.07 1.47-.6 1.68-1.18.2-.58.2-1.08.14-1.18-.06-.1-.22-.17-.47-.29Z" />
+        </svg>
+      );
+    case 'instagram':
+      return (
+        <svg {...common} {...line}>
+          <rect x="3" y="3" width="18" height="18" rx="5" />
+          <circle cx="12" cy="12" r="3.8" />
+          <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'tiktok':
+      return (
+        <svg {...common} {...line}>
+          <path d="M13.5 3.5v11.25a3.75 3.75 0 1 1-3.75-3.75" />
+          <path d="M13.5 3.5c.4 2.4 2.3 4.2 4.75 4.4" />
+        </svg>
+      );
+    case 'bag':
+      return (
+        <svg {...common} {...line}>
+          <path d="M5 8h14l-1 12.5H6L5 8Z" />
+          <path d="M9 8V6.5a3 3 0 0 1 6 0V8" />
+        </svg>
+      );
+    case 'globe':
+      return (
+        <svg {...common} {...line}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18" />
+          <path d="M12 3a14 14 0 0 1 3.6 9A14 14 0 0 1 12 21a14 14 0 0 1-3.6-9A14 14 0 0 1 12 3Z" />
+        </svg>
+      );
+    case 'arrow':
+      return (
+        <svg {...common} {...line}>
+          <path d="M7 17 17 7" />
+          <path d="M8.5 7H17v8.5" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common} {...line}>
+          <path d="m12 3.5 2.7 5.48 6.05.88-4.38 4.27 1.04 6.02L12 17.3l-5.41 2.85 1.04-6.02L3.25 9.86l6.05-.88L12 3.5Z" />
+        </svg>
+      );
   }
-
-  const line = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
-
-  if (name === 'instagram') {
-    return (
-      <svg {...common} {...line}>
-        <rect x="3" y="3" width="18" height="18" rx="5" />
-        <circle cx="12" cy="12" r="3.8" />
-        <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
-      </svg>
-    );
-  }
-
-  if (name === 'tiktok') {
-    return (
-      <svg {...common} {...line}>
-        <path d="M13.5 3.5v11.25a3.75 3.75 0 1 1-3.75-3.75" />
-        <path d="M13.5 3.5c.4 2.4 2.3 4.2 4.75 4.4" />
-      </svg>
-    );
-  }
-
-  if (name === 'bag') {
-    return (
-      <svg {...common} {...line}>
-        <path d="M5 8h14l-1 12.5H6L5 8Z" />
-        <path d="M9 8V6.5a3 3 0 0 1 6 0V8" />
-      </svg>
-    );
-  }
-
-  if (name === 'globe') {
-    return (
-      <svg {...common} {...line}>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M3 12h18" />
-        <path d="M12 3a14 14 0 0 1 3.6 9A14 14 0 0 1 12 21a14 14 0 0 1-3.6-9A14 14 0 0 1 12 3Z" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg {...common} {...line}>
-      <path d="m12 3.5 2.7 5.48 6.05.88-4.38 4.27 1.04 6.02L12 17.3l-5.41 2.85 1.04-6.02L3.25 9.86l6.05-.88L12 3.5Z" />
-    </svg>
-  );
 }
+
+const CSS = `
+  /* !important: globals.css paints <html> through .boot-light / .boot-dark, which
+     outrank a bare html rule and know nothing about this page. */
+  html, body { background-color: ${GROUND} !important; }
+
+  .lk {
+    min-height: 100vh; min-height: 100svh; padding: 0 20px 64px; color: #fff;
+    background-color: ${GROUND};
+    /* A warm light from above, as a piece in a case would have, and a trace of it at the foot. */
+    background-image:
+      radial-gradient(52rem 24rem at 50% -7rem, rgba(${ACC},.17), transparent 64%),
+      radial-gradient(44rem 22rem at 50% 108%, rgba(${ACC},.07), transparent 62%);
+    background-repeat: no-repeat;
+    -webkit-font-smoothing: antialiased;
+  }
+  .lk-col { margin: 0 auto; max-width: 27rem; }
+  @media (min-width: 640px) { .lk-col { max-width: 32rem; } }
+
+  .lk-head { padding-top: 60px; text-align: center; }
+  .lk-tag { margin-top: 18px; font-size: 10px; letter-spacing: .32em; text-transform: uppercase; color: ${ACCENT}; }
+  .lk-orn { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 20px auto 0; }
+  .lk-orn::before, .lk-orn::after { content: ''; width: 44px; height: 1px; background: linear-gradient(to right, transparent, rgba(${ACC},.6)); }
+  .lk-orn::after { transform: scaleX(-1); }
+  .lk-orn i { width: 5px; height: 5px; transform: rotate(45deg); border: 1px solid rgba(${ACC},.85); }
+  .lk-welcome { margin: 18px auto 0; max-width: 21rem; font-size: 14px; line-height: 1.65; font-weight: 300; color: rgba(255,255,255,.68); }
+
+  /* The one card that asks for something, and the one filled control on the page. */
+  .lk-feat {
+    display: block; margin-top: 36px; padding: 20px 20px 18px; border-radius: 22px;
+    border: 1px solid rgba(${ACC},.4);
+    background: linear-gradient(155deg, rgba(${ACC},.15), rgba(${ACC},.04) 55%, rgba(255,255,255,.015));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 24px 60px -34px rgba(${ACC},.55);
+    transition: border-color .3s ease, box-shadow .3s ease;
+  }
+  .lk-feat:hover { border-color: rgba(${ACC},.75); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 28px 70px -30px rgba(${ACC},.7); }
+  .lk-pill { display: inline-flex; align-items: center; gap: 7px; font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase; color: ${ACCENT}; }
+  .lk-lead { font-size: 32px; line-height: 1.05; color: #fff; }
+  .lk-tail { font-size: 9px; letter-spacing: .22em; text-transform: uppercase; color: rgba(255,255,255,.58); }
+  .lk-line { display: block; margin-top: 8px; font-size: 13px; line-height: 1.55; font-weight: 300; color: rgba(255,255,255,.7); }
+  .lk-cta {
+    margin-top: 18px; height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 999px; background: ${ACCENT}; color: ${GROUND};
+    font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase;
+    transition: filter .3s ease;
+  }
+  .lk-feat:hover .lk-cta { filter: brightness(1.07); }
+
+  .lk-sec { margin-top: 44px; }
+  .lk-sechead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+  .lk-label { font-size: 10px; letter-spacing: .26em; text-transform: uppercase; color: rgba(255,255,255,.58); font-weight: 400; }
+  .lk-more { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: ${ACCENT}; }
+
+  /* A phone swipes through the pieces, edge to edge; a wider screen sees them all. */
+  .lk-strip {
+    display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+    margin: 0 -20px; padding: 0 20px 2px; -webkit-overflow-scrolling: touch;
+  }
+  .lk-strip::-webkit-scrollbar { display: none; }
+  .lk-piece { flex: 0 0 138px; scroll-snap-align: start; scroll-margin-left: 20px; display: block; }
+  @media (min-width: 640px) {
+    .lk-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 0; gap: 14px; }
+  }
+  .lk-shot {
+    display: block; aspect-ratio: 1; overflow: hidden; border-radius: 14px;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+  }
+  .lk-shot img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .7s cubic-bezier(.2,.7,.2,1); }
+  .lk-piece:hover .lk-shot img { transform: scale(1.045); }
+  .lk-name {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    margin-top: 9px; font-size: 12.5px; line-height: 1.35; color: rgba(255,255,255,.9);
+  }
+  .lk-coll { display: block; margin-top: 3px; font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: rgba(255,255,255,.52); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lk-wait { animation: lk-wait 1.6s ease-in-out infinite; }
+  .lk-wait-line { height: 10px; width: 80%; border-radius: 4px; background: rgba(255,255,255,.06); animation: lk-wait 1.6s ease-in-out infinite; }
+  .lk-wait-short { width: 45%; height: 7px; margin-top: 7px; }
+  @keyframes lk-wait { 50% { opacity: .55; } }
+
+  /* One list, hairlines between: the rows are one kind of thing, so they read as one group. */
+  .lk-list { border-radius: 20px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.025); overflow: hidden; }
+  .lk-list > li + li { border-top: 1px solid rgba(255,255,255,.07); }
+  .lk-row { display: flex; align-items: center; gap: 14px; min-height: 68px; padding: 13px 16px; transition: background-color .25s ease; }
+  .lk-row:hover { background-color: rgba(255,255,255,.035); }
+  .lk-ico { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 999px; background: rgba(${ACC},.11); color: ${ACCENT}; }
+  .lk-lbl { display: block; font-size: 15.5px; line-height: 1.25; color: #fff; }
+  .lk-sub { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.4; font-weight: 300; color: rgba(255,255,255,.6); }
+  .lk-go { flex: none; color: rgba(255,255,255,.5); transition: color .25s ease, transform .25s ease; }
+  .lk-row:hover .lk-go { color: ${ACCENT}; transform: translate(2px, -2px); }
+
+  .lk-foot { margin-top: 52px; text-align: center; }
+  .lk-visit-title { margin-top: 22px; font-size: 22px; font-style: italic; color: rgba(255,255,255,.94); }
+  .lk-visit { margin-top: 10px; font-size: 13px; line-height: 1.85; font-weight: 300; color: rgba(255,255,255,.66); }
+  .lk-visit a { color: #fff; text-decoration: underline; text-decoration-color: rgba(${ACC},.55); text-underline-offset: 3px; }
+
+  .lk a:focus-visible { outline: 2px solid ${ACCENT}; outline-offset: 3px; }
+
+  @keyframes lk-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .lk-rise { animation: lk-rise .7s cubic-bezier(.2,.7,.2,1) both; animation-delay: var(--d, 0ms); }
+  @media (prefers-reduced-motion: reduce) {
+    .lk-rise, .lk-wait, .lk-wait-line { animation: none; }
+    .lk *, .lk *::before, .lk *::after { transition: none !important; }
+  }
+`;
