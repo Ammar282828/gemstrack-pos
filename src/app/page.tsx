@@ -105,7 +105,7 @@ const DueRow: React.FC<{ d: Due }> = ({ d }) => {
 };
 
 const RecentInvoiceRow: React.FC<{ invoice: Invoice }> = ({ invoice }) => (
-  <Link href={`/view-invoice?invoiceId=${invoice.id}`} className="block py-2.5 px-1.5 hover:bg-muted/50 rounded-md transition-colors">
+  <Link href={`/cart?invoice_id=${invoice.id}`} className="block py-2.5 px-1.5 hover:bg-muted/50 rounded-md transition-colors">
     <div className="flex items-baseline justify-between gap-3 min-w-0">
       <span className="font-semibold text-sm truncate">{invoice.customerName || 'Walk-in'}</span>
       <span className={cn('text-sm font-semibold tabular-nums flex-shrink-0', (invoice.balanceDue || 0) > 0 && 'text-warning')}>
@@ -302,7 +302,7 @@ export default function HomePage() {
 
     for (const inv of stats.unpaid.slice(0, 3)) {
       out.push({
-        href: `/view-invoice?invoiceId=${inv.id}`, tone: 'warn',
+        href: `/cart?invoice_id=${inv.id}`, tone: 'warn',
         title: inv.customerName || 'Walk-in',
         detail: `Unpaid since ${format(parseISO(inv.createdAt), 'd MMM')}`,
         amount: compactPKR(inv.balanceDue || 0),

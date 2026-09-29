@@ -59,6 +59,7 @@ import { PhoneField } from '@/components/ui/phone-field';
 import { useWorkDraft } from '@/components/drafts/use-work-drafts';
 import { DraftsShortcut } from '@/components/drafts/draft-list';
 import { SALE_DEFAULT_FIELDS, summarizeSale } from '@/lib/work-drafts';
+import { resolveSaleCustomer } from '@/lib/walk-in';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { Switch } from '@/components/ui/switch';
 import { BillScanner, type ScannedBill } from '@/components/cart/bill-scanner';
@@ -551,17 +552,6 @@ export default function CartPage() {
         return;
     }
     
-    const isWalkIn = selectedCustomerId === undefined || selectedCustomerId === WALK_IN_CUSTOMER_VALUE;
-    
-    let finalWalkInName = walkInCustomerName.trim();
-    if (isWalkIn) {
-      if (finalWalkInName === '' && walkInCustomerPhone.trim()) {
-        finalWalkInName = `Walk-in Customer - ${walkInCustomerPhone.trim()}`;
-      } else if (finalWalkInName === '') {
-        finalWalkInName = 'Walk-in Customer';
-      }
-    }
-
     const parsedDiscountAmount = parseFloat(discountAmountInput) || 0;
 
     let hasInvalidRate = false;
@@ -606,9 +596,15 @@ export default function CartPage() {
         ...(cartMetalInfo.metals.has('silver') && { silverRatePerGram: parseFloat(rateInputs.silver) || settings.silverRatePerGram }),
     };
 
-    const customerForInvoice = isWalkIn
-        ? { name: finalWalkInName, phone: walkInCustomerPhone }
-        : { id: selectedCustomerId, name: customers.find(c => c.id === selectedCustomerId)?.name || '', phone: customers.find(c => c.id === selectedCustomerId)?.phone || '' };
+    // Nobody named is a walk-in and makes no customer; a typed name or number is a person,
+    // and a number already on file is that customer rather than a copy (lib/walk-in.ts).
+    const saleCustomer = resolveSaleCustomer({
+        selectedId: selectedCustomerId && selectedCustomerId !== WALK_IN_CUSTOMER_VALUE ? selectedCustomerId : undefined,
+        typedName: walkInCustomerName,
+        typedPhone: walkInCustomerPhone,
+        customers,
+    });
+    const customerForInvoice = { id: saleCustomer.id, name: saleCustomer.name, phone: saleCustomer.phone };
     
     // NOTE: we do NOT delete the invoice before re-generating it. generateInvoice
     // uses transaction.set (overwrite) with the same ID, so the invoice is always

@@ -355,6 +355,10 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   Kept on purpose: an invoiced order still counts on the order's date, and an open order at its full `subtotal`. A rolling
   range (last 30/90 days, this year) re-anchors when the day turns on a page left open.
 - In a component, no hook after an early `return` (the `/orders/add` crash of 2026-09-22 was exactly that).
+- **Staff open an invoice at `/cart?invoice_id=<id>`** (payment, edit, print); `/view-invoice/<id>` is the customer's page, with
+  no shell and only downloads, and is only ever sent to customers. There is no `/view-invoice` without an id: the dashboard's
+  Recent sales and unpaid rows linked `/view-invoice?invoiceId=` and opened "not found" until 2026-09-29; the workshop's invoice
+  links sent staff to the customer's page.
 - **One invoice PDF builder**: `src/lib/invoice-pdf.ts` (`saveInvoicePdf`) draws the customer's copy for the invoices list,
   the cart's post-sale screen and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
   own page ("Piece 2 of 3"); discount, exchange, adjustments and paid are shared pro rata by piece price, the last piece
@@ -585,13 +589,28 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
 - **Exchange is one line** (2026-09-26, owner: "a general exchange without details like just description and cash amount …
   make it super simple"): each exchange row in the order form and the cart is what it is + the amount; "+ Weight & rate" folds
   open grams and rate (and karat only where `defaultMetal` is gold). Labels say "Exchange", not "Exchange gold".
+- **A walk-in sale makes no customer** (2026-09-29; Taheri's book had 17 "Walk-in Customer" records, most left behind when the
+  counter billed first and edited the real name in afterwards). `src/lib/walk-in.ts`, tested: the invoice goes out with **no
+  `customerId`** (like a walk-in order) and "Walk-in Customer" as its name; generateInvoice makes a customer only for a real name
+  (`shouldCreateCustomer`). A typed name or number is still a person and a new customer, **except a number already on file**: then it
+  is that customer (same name or none typed; a number shared by people of different names is left alone), so typing instead of tapping
+  no longer copies anyone. A picked old "Walk-in Customer" is read as a walk-in, so re-saving its invoice lets go of it. Readers:
+  Analytics keys every walk-in (no id, the placeholder name, or an old walk-in record) as one row (`saleCustomerKey`); **Hisaab shows
+  `entityId: 'walk-in'` balances as one "Walk-in Customer" row** (it used to drop them — they only showed because each had a record
+  of its own), its invoices linked; its sync never name-matches the placeholder; the customer picker, voice and both scanners skip
+  placeholder records. Cleanup that day: the 5 records nothing pointed at went to Recently removed; 11 are the customer of the invoice
+  that made them (INV-000021 and INV-000042 still owe 39,000 under them) and one is a voice alias's target, so 12 stay. Mina has 11 too
+  (not touched).
 - **From the website → Instagram story** (2026-09-26): the square site photo whole on the house's ground with its mark, name and
   metal · weight (`src/lib/social/site-story.ts`), posted through `/api/instagram/story` when connected, else the share sheet.
-- **Retouch** (2026-09-26, owner: "photo retouching … in both pos using magnific api", then "magnific only"; Post a Piece and
-  Add Photos): op `retouch` on `/api/website/post/ai` → `src/lib/social/retouch.ts`: Magnific's Precision upscaler (no prompt,
-  nothing redrawn; crisp metal, prongs and stones; ≤3000 px), then the usual "same piece?" check. Key `magnific-api-key` in each
-  project's Secret Manager, read at runtime (App Hosting account has secretAccessor). ≈ 70 s, with the check ≈ 2 min.
-  Add Photos: Retouch / Original (undo) per photo before upload. Locally the key comes from `.env.development.local`.
+- **Retouch** (2026-09-26, owner: "photo retouching … jewelry and background and photo … magnific api open ai model image", then
+  "magnific only", then "magnific api should use open ai image gen"; Post a Piece and Add Photos): op `retouch` on
+  `/api/website/post/ai` → `src/lib/social/retouch.ts`, all on the **Magnific API** (one key): GPT Image 2.5 Edit (OpenAI's model,
+  `sunburst` variant, quality high; square photos at 2k, others 1k with `auto` to keep their shape) cleans piece, background and
+  light with the piece pinned (and removes tags when "remove tags and strings" is ticked), then Magnific Precision only when the
+  edit came back under 2000 px — a bonus: its queue can stall, and then the GPT result is kept. Then the usual "same piece?" check.
+  Key `magnific-api-key` in each project's Secret Manager (created 2026-09-26; App Hosting compute account: accessor + viewer),
+  read at runtime. GPT Image ≈ 55 s. Add Photos: Retouch / Original (undo) per photo. Locally the key is in `.env.development.local`.
 - Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**
   (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
   value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).

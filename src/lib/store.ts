@@ -186,6 +186,7 @@ import { clientPort } from '@/lib/db-client-port';
 import { recordInvoicePayment } from '@/lib/writes/invoice-payment';
 import { type ExchangeEntry, exchangeTotal, invoiceExchangeFields, orderExchanges } from '@/lib/exchange';
 import { orderAdvancePayments } from '@/lib/order-payment';
+import { isWalkInName, shouldCreateCustomer } from '@/lib/walk-in';
 import { createOrder } from '@/lib/writes/create-order';
 import { STORE_CONFIG } from '@/lib/store-config';
 export type { OverheadItem, OverheadPlan };
@@ -2640,7 +2641,9 @@ export const useAppStore = create<AppState>()(
                 let finalCustomerId = customerInfo.id;
                 let finalCustomerName = customerInfo.name;
 
-                if (!finalCustomerId && customerInfo.name) {
+                // A walk-in ("Walk-in Customer", nobody named) is not a customer: the invoice
+                // goes out with no customerId. Every walk-in used to add one (lib/walk-in.ts).
+                if (shouldCreateCustomer(customerInfo)) {
                     // Use a stable ID (not Date.now()) so Firestore transaction retries
                     // don't create duplicate customer documents.
                     const newCustId = `cust-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -3039,11 +3042,13 @@ export const useAppStore = create<AppState>()(
             getDocs(collection(db, FIRESTORE_COLLECTIONS.CUSTOMERS)),
           ]);
 
-          // Build a name→{id, name} map for fuzzy customer matching on Shopify invoices with missing customerId
+          // Build a name→{id, name} map for fuzzy customer matching on Shopify invoices with missing customerId.
+          // Never the placeholder: a walk-in invoice has no customerId on purpose, and matching
+          // its name would hang its balance on one of the old "Walk-in Customer" records.
           const customerByName: Record<string, { id: string; name: string }> = {};
           for (const d of customersSnap.docs) {
             const cust = d.data() as any;
-            if (cust.name) customerByName[cust.name.toLowerCase().trim()] = { id: d.id, name: cust.name };
+            if (cust.name && !isWalkInName(cust.name)) customerByName[cust.name.toLowerCase().trim()] = { id: d.id, name: cust.name };
           }
 
           // Build a map of invoiceId → invoice data for fast lookup

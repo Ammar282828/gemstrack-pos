@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, openPDFWindowForIOS, savePDF } from '@/lib/utils';
+import { WALK_IN_ENTITY, WALK_IN_NAME } from '@/lib/walk-in';
 
 
 type InvoiceBalance = {
@@ -212,7 +213,7 @@ export default function HisaabPage() {
     const map: Record<string, InvoiceBalance[]> = {};
     if (!Array.isArray(generatedInvoices)) return map;
     for (const inv of generatedInvoices) {
-      if (inv.balanceDue > 0 && inv.customerId && inv.customerId !== 'walk-in' && inv.status !== 'Refunded') {
+      if (inv.balanceDue > 0 && inv.customerId && inv.customerId !== WALK_IN_ENTITY && inv.status !== 'Refunded') {
         if (!map[inv.customerId]) map[inv.customerId] = [];
         map[inv.customerId].push({ id: inv.id, grandTotal: inv.grandTotal, amountPaid: inv.amountPaid, balanceDue: inv.balanceDue });
       }
@@ -227,12 +228,17 @@ export default function HisaabPage() {
 
     const summaryMap: { [entityId: string]: AccountSummary } = {};
 
+    // Walk-in sales left owing have no customer to hold them (lib/walk-in.ts), so their
+    // entries sit under the entity 'walk-in' — one row, or "You will Get" would miss them.
+    const walkInInvoiceIds = new Set<string>();
     hisaabEntries.forEach(entry => {
-      if (!entry.entityId || entry.entityId === 'walk-in') return;
+      if (!entry.entityId) return;
+      const walkIn = entry.entityId === WALK_IN_ENTITY;
+      if (walkIn && entry.linkedInvoiceId) walkInInvoiceIds.add(entry.linkedInvoiceId);
       if (!summaryMap[entry.entityId]) {
         summaryMap[entry.entityId] = {
           entityId: entry.entityId,
-          entityName: entry.entityName,
+          entityName: walkIn ? WALK_IN_NAME : entry.entityName,
           entityType: entry.entityType,
           cashBalance: 0,
           goldBalance: 0,
@@ -249,6 +255,11 @@ export default function HisaabPage() {
         summaryMap[entityId].unpaidInvoices = invoices;
       }
     }
+    if (summaryMap[WALK_IN_ENTITY] && Array.isArray(generatedInvoices)) {
+      summaryMap[WALK_IN_ENTITY].unpaidInvoices = generatedInvoices
+        .filter(inv => walkInInvoiceIds.has(inv.id) && inv.balanceDue > 0 && inv.status !== 'Refunded')
+        .map(inv => ({ id: inv.id, grandTotal: inv.grandTotal, amountPaid: inv.amountPaid, balanceDue: inv.balanceDue }));
+    }
 
     const summaries = Object.values(summaryMap)
         .filter(summary => Math.abs(summary.cashBalance) > 0.001 || Math.abs(summary.goldBalance) > 0.001)
@@ -262,7 +273,7 @@ export default function HisaabPage() {
 
     return { accountSummaries: summaries, totalReceivable, totalPayable, totalReceivableGold, totalPayableGold };
 
-  }, [hisaabEntries, unpaidInvoicesByCustomer]);
+  }, [hisaabEntries, unpaidInvoicesByCustomer, generatedInvoices]);
   
   const filteredSummaries = useMemo(() => {
     if (!searchTerm) {
@@ -389,9 +400,11 @@ export default function HisaabPage() {
 
           {filteredSummaries.length > 0 ? (
               <div className="space-y-3">
-                  {filteredSummaries.map(summary => (
-                      <Link href={`/hisaab/${summary.entityId}?type=${summary.entityType}`} key={summary.entityId}>
-                        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                  {filteredSummaries.map(summary => {
+                    // Walk-ins have no account page; each of their invoices is the way in.
+                    const walkIn = summary.entityId === WALK_IN_ENTITY;
+                    const card = (
+                        <Card className={cn(!walkIn && "hover:shadow-md transition-shadow cursor-pointer")}>
                             <CardContent className="p-4">
                                 <div className="flex items-center gap-4">
                                     <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -408,7 +421,7 @@ export default function HisaabPage() {
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between mt-0.5">
-                                            <p className="text-xs text-muted-foreground capitalize">{summary.entityType}</p>
+                                            <p className="text-xs text-muted-foreground">{walkIn ? 'Sales with no customer named' : <span className="capitalize">{summary.entityType}</span>}</p>
                                             {summary.cashBalance > 0 && <p className="text-xs text-muted-foreground">to receive</p>}
                                             {summary.cashBalance < 0 && <p className="text-xs text-muted-foreground">to pay</p>}
                                         </div>
@@ -417,7 +430,9 @@ export default function HisaabPage() {
                                           <div className="mt-2 pt-2 border-t space-y-1">
                                             {summary.unpaidInvoices.map(inv => (
                                               <div key={inv.id} className="flex items-center justify-between text-xs">
-                                                <span className="text-muted-foreground font-mono">{inv.id}</span>
+                                                {walkIn
+                                                  ? <Link href={`/cart?invoice_id=${inv.id}`} title={`Open ${inv.id} to record payment`} className="text-primary font-mono hover:underline">{inv.id}</Link>
+                                                  : <span className="text-muted-foreground font-mono">{inv.id}</span>}
                                                 <span className="text-muted-foreground">
                                                   <span className="text-success font-medium">PKR {inv.amountPaid.toLocaleString()}</span>
                                                   {' / '}
@@ -433,8 +448,11 @@ export default function HisaabPage() {
                                 </div>
                             </CardContent>
                         </Card>
-                      </Link>
-                  ))}
+                    );
+                    return walkIn
+                      ? <div key={summary.entityId}>{card}</div>
+                      : <Link href={`/hisaab/${summary.entityId}?type=${summary.entityType}`} key={summary.entityId}>{card}</Link>;
+                  })}
               </div>
           ) : (
               <div className="text-center py-12 bg-card rounded-lg shadow">
