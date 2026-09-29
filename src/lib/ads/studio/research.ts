@@ -134,9 +134,10 @@ async function discover(username: string): Promise<RivalProfile> {
     if (e instanceof MetaAdsError && (e.code === 110 || e.subcode === 2207013 || /cannot find user|not a business/i.test(e.message))) {
       throw new MetaAdsError(`Meta shows only public business and creator accounts — @${username} isn’t one, or the name is wrong.`, 404);
     }
-    // Seen 2026-09-29 for every account: the app may not look others up yet.
+    // #10 for every account, @instagram too (2026-09-29): Business Discovery needs instagram_basic,
+    // instagram_manage_insights and pages_read_engagement; the login had the first and third only.
     if (e instanceof MetaAdsError && (e.code === 10 || e.code === 200)) {
-      throw new MetaAdsError('Meta refused the look-up: the shop’s Facebook login doesn’t include instagram_basic. Add it to the login configuration and connect again (Ads → Setup says where). Until then, open their Instagram and Ad Library from here.', 403);
+      throw new MetaAdsError('Meta refused the look-up: looking up other accounts needs the instagram_manage_insights permission (with instagram_basic) on the shop’s Facebook login. Add it to the login configuration and connect again (Ads → Setup says where). Until then, open their Instagram and Ad Library from here.', 403);
     }
     throw e;
   }

@@ -1,7 +1,7 @@
 # Graph Report - taheri-pos  (2026-09-29)
 
 ## Corpus Check
-- 614 files · ~605,813 words
+- 614 files · ~605,915 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 12 file(s) not represented in the graph (top: (none) 3, .cache 2, .nix 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `78f6ccf9`
+- Built from commit: `3174f7c9`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1065,9 +1065,9 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `next` connect `next` to `quote/route.ts`, `meta.ts`, `Button`, `write/route.ts`, `useToast`, `verifyRequestEmail`, `package.json`, `maker.tsx`, `run/route.ts`, `whatsapp.ts`, `photos/page.tsx`, `fulfilment.ts`, `investments.ts`, `workshop.ts`, `shape.ts`, `order-form.tsx`, `MetaAdsError`, `register-webhooks/route.ts`, `adsGate`, `studio/page.tsx`, `ai/route.ts`, `app-layout.tsx`, `app/page.tsx`, `draft-list.tsx`, `cn`, `voice-bubble.tsx`, `roles.ts`, `queue.ts`, `site-pieces.ts`, `health.ts`, `check/route.ts`, `assets.ts`, `website/edit/page.tsx`, `shopify/callback/route.ts`, `rateLimit`, `ads/new/page.tsx`, `assessment.ts`, `react`, `assistant.tsx`, `store-config.ts`, `workshop/page.tsx`, `overheads/page.tsx`, `instagram.ts`, `firebase-admin.ts`, `ads/page.tsx`, `exchange.ts`, `app/layout.tsx`, `google-auth-gate.tsx`, `shopifyRequest`, `photos/route.ts`, `campaigns/page.tsx`, `sync/order/route.ts`, `command-palette.tsx`, `links/page.tsx`, `edits/route.ts`?**
   _High betweenness centrality (0.204) - this node is a cross-community bridge._
 - **Why does `firebase` connect `firebase` to `backfill-source-orders.mjs`, `import-shopify-orders.mjs`, `store.ts`, `diagnose-dbs.mjs`, `Button`, `fix-dates.mjs`, `fix-invoice-dates.mjs`, `package.json`, `delete-bad-invoices.mjs`, `link-invoice-hisaab.mjs`, `link-uzair-expenses.mjs`, `restore-orders.mjs`, `restore-settings.mjs`, `backfill-payment-credits.mjs`, `fix-bareeka.mjs`, `add-bareeka-invoice.mjs`, `link-all-karigar-expenses.mjs`, `do-refund-fatima.mjs`, `check-outstanding.mjs`, `write/route.ts`, `add-order-1141.mjs`, `sync-hisaab-balances.mjs`, `reset-and-reimport.mjs`, `fix-invoice-skus.mjs`, `draft-list.tsx`, `clean-hisaab.mjs`, `check-counters.mjs`, `import-expenses.mjs`, `preview-karigar-links.mjs`, `firebase.ts`, `add-ali-customer.mjs`, `add-uzair-skipped-entries.mjs`, `diagnose-orders.mjs`, `link-uzair-stones.mjs`, `react`, `add-bank-account.mjs`, `inspect-zahra.mjs`, `workshop/page.tsx`, `renumber-zahra.mjs`, `check-orders.mjs`, `clear-shopify.mjs`, `restore-inv-000001.mjs`, `partnership.ts`, `google-auth-gate.tsx`, `link-new-karigars.mjs`, `use-work-drafts.ts`, `import-shopify-customers.mjs`, `fix-zahra-invoice.mjs`?**
-  _High betweenness centrality (0.174) - this node is a cross-community bridge._
+  _High betweenness centrality (0.175) - this node is a cross-community bridge._
 - **Why does `cn()` connect `cn` to `guide.tsx`, `sidebar.tsx`, `Button`, `useToast`, `maker.tsx`, `design.ts`, `studio-kit.tsx`, `photos/page.tsx`, `size-picker.tsx`, `order-form.tsx`, `post/page.tsx`, `order-timing.ts`, `studio/page.tsx`, `library.tsx`, `AssetSheet`, `toast.tsx`, `chart.tsx`, `app-layout.tsx`, `app/page.tsx`, `draft-list.tsx`, `voice-bubble.tsx`, `editor-panels.tsx`, `Input`, `investments/page.tsx`, `website/edit/page.tsx`, `react`, `ads/new/page.tsx`, `assistant.tsx`, `workshop/page.tsx`, `overheads/page.tsx`, `ads/page.tsx`, `story-editor.tsx`, `queue-panel.tsx`, `menubar.tsx`, `audience-editor.tsx`, `campaigns/page.tsx`?**
-  _High betweenness centrality (0.055) - this node is a cross-community bridge._
+  _High betweenness centrality (0.056) - this node is a cross-community bridge._
 - **What connects `privateKey`, `db`, `dump` to the rest of the system?**
   _1447 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `order-slip-pdf.ts` be split into smaller, more focused modules?**

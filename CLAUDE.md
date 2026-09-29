@@ -215,6 +215,9 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   Permissions; instagram_basic appears once the Instagram use case with Facebook Login is added), then Connect again in each
   ERP. Until then Taheri lists its posts through the story login (no boost answer), Mina can't list them, and the Studio's
   competitor look-ups fail. Setup now counts instagram_basic as required and says to edit the configuration.
+  Reconnected 20:52 with both: posts now list through Meta with their boost answer. **The Studio's competitor look-ups
+  (Business Discovery) also need `instagram_manage_insights`** (Meta's reference: instagram_basic + instagram_manage_insights
+  + pages_read_engagement) — #10 even for @instagram without it; now in SCOPES and Setup's list.
 
 ## Security: Mina's repo is public (found 2026-09-27)
 
