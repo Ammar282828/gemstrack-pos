@@ -23,6 +23,7 @@ import {
   type Metrics, type RangeKey, type AdsAccount,
 } from '@/lib/ads/shape';
 import { api, useAdsStatus, useRange, RangePicker, NotReady, AccountAlerts, AccountPill, ErrorLine, StatusPill } from './ads-kit';
+import { Readiness } from './readiness';
 
 interface Breakdown { key: string; label: string; metrics: Metrics }
 interface Overview {
@@ -163,6 +164,7 @@ function AdsOverview() {
       {!ready ? <NotReady status={status} error={statusError} loading={statusLoading} onRetry={reload} /> : (
         <>
           {status && <AccountAlerts status={status} />}
+          {status && <Readiness status={status} />}
           <RangePicker value={range} onChange={setRange} />
           {error && <ErrorLine error={error} onRetry={() => load(true)} />}
           {!data && loading && <div className="flex items-center gap-2 text-sm text-muted-foreground py-6"><Loader2 className="h-4 w-4 animate-spin" /> Asking Meta…</div>}

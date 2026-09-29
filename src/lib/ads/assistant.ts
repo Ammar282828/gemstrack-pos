@@ -19,7 +19,10 @@
  * Server-only.
  */
 
-import { STORE_BRAND, STORE_CONFIG } from '@/lib/store-config';
+import { STORE_AD_STUDIO, STORE_BRAND, STORE_CONFIG } from '@/lib/store-config';
+import { PLAYS } from '@/lib/ads/studio/plays';
+import { brandBrief } from '@/lib/ads/studio/brand';
+import { GAPS, MARKET_AT } from '@/lib/ads/studio/market';
 import { AiError, chatTurn, TEXT_MODEL, type ChatContent } from '@/lib/social/ai';
 import { actId, graph, graphAll, MetaAdsError } from './meta';
 import { accountSummary, requireAccount } from './settings';
@@ -244,6 +247,17 @@ export function systemPrompt(snapshot: Record<string, unknown>, page: string, to
     '- “Chats started” are WhatsApp / Instagram / Messenger conversations the ads began — for a jeweller usually the result that matters most.',
     '- You cannot change anything. Say where in the ERP to do it: Ads → Campaigns (pause, budget, end date, audience, duplicate), New ad, Audiences, Rules.',
     '- Ad spend is deliberately kept out of the ERP’s books, and you cannot see sales, so do not claim what the ads earned; say what they brought (chats, clicks, reach).',
+    ...(STORE_AD_STUDIO ? [
+      '- New creatives are made in Ads → Studio: Plan (plays per destination), Picks and Library (photos assessed as ads), Make (the maker; “Make it with AI”), Competitors, Guide. Point the owner to the right play.',
+      '',
+      'The plays the studio offers (suggest by id and title):',
+      ...PLAYS.map(p => `- ${p.id}: ${p.title} → ${p.where}. ${p.judge}`),
+      '',
+      'The house’s rules for ads (hold every suggestion to them):',
+      brandBrief(),
+      '',
+      `What the market runs (research of ${MARKET_AT}): ${GAPS.map(g => `${g.head}: ${g.body}`).join(' ')}`,
+    ] : []),
     '',
     'The ad account right now (JSON):',
     JSON.stringify(snapshot),

@@ -773,6 +773,14 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   Library links and look up once it is added and Meta reconnected.
   Research facts worth knowing: taheri.shop has **no Meta pixel** (nine rival sites do); @collectionstaheri ~2,061 followers
   against 16k–308k; nobody claims the Bohra community; only Fazal and Al Syed show rate × weight.
+  **The Ads re-audit** (owner: "reaudit/reorganize/optimize/add new features the ad studio and entire ad bar"): Studio now sits
+  before New ad in the tabs (the creative comes first); the Overview has a **readiness strip** (`readiness.tsx`: the app not Live,
+  permissions the login lacks, the website pixel) — only what is missing; Setup step 8 is **the website pixel** (`lib/ads/pixel.ts`:
+  list/make the ad account's pixels, choose one → `app_settings/meta_ads.pixelId`, "live" = `last_fired_time` within a week, and
+  whether the site's HTML loads it); the website reads the id from **`/api/public/pixel`** (CORS, 5 min) so changing it needs no
+  site deploy — **taheri.shop does not load it yet** (taheri-site needs the loader); `planContext` passes `pixelLive`, which moves
+  website ads to landing-page views. "Make one like this" reads asset-feed ads (both sizes, two apps) and channel links. The Ads
+  helper's prompt carries the plays, the house rules and the market gaps (Taheri only, with the studio).
 
 ## graphify
 

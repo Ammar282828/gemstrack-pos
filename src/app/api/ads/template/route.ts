@@ -10,7 +10,7 @@ import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
 import { actId, graph, MetaAdsError } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
 import { fromMinor, type AdsAccount } from '@/lib/ads/shape';
-import { GOALS, type AdPlan, type GoalKey } from '@/lib/ads/plan';
+import { GOALS, isChannelLink, type AdPlan, type GoalKey } from '@/lib/ads/plan';
 import { parseTargeting, type AudienceDraft } from '@/lib/ads/targeting';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +30,7 @@ function goalFor(optimization: string, destination: string | undefined, boosted:
   const hit = GOALS.find(g => g.optimization === optimization && (!g.destination || g.destination === destination));
   if (hit) return hit.key;
   if (optimization === 'CONVERSATIONS') return destination === 'INSTAGRAM_DIRECT' ? 'instagram_dm' : 'whatsapp';
+  if (optimization === 'LANDING_PAGE_VIEWS') return 'website';
   if (optimization === 'POST_ENGAGEMENT' && boosted) return 'engagement';
   return 'whatsapp';
 }
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
   if (!/^\d+$/.test(id)) return NextResponse.json({ error: 'Which ad?' }, { status: 400 });
   try {
     const { act } = await requireAccount();
-    const ad = await graph<Record<string, unknown>>(id, { params: { fields: 'name,account_id,creative{object_story_spec,source_instagram_media_id,effective_instagram_media_id,image_hash,title,body,call_to_action_type,thumbnail_url,instagram_permalink_url},adset{optimization_goal,destination_type,daily_budget,lifetime_budget,targeting}' } });
+    const ad = await graph<Record<string, unknown>>(id, { params: { fields: 'name,account_id,creative{object_story_spec,asset_feed_spec,source_instagram_media_id,effective_instagram_media_id,image_hash,title,body,call_to_action_type,thumbnail_url,instagram_permalink_url},adset{optimization_goal,destination_type,daily_budget,lifetime_budget,targeting}' } });
     if (`act_${ad.account_id}` !== actId(act)) throw new MetaAdsError('That ad belongs to another ad account.', 403);
     const acct = await graph<Pick<AdsAccount, 'currency'>>(act, { params: { fields: 'currency' } });
     const cur = String(acct.currency || 'PKR');
@@ -52,25 +53,34 @@ export async function GET(req: NextRequest) {
     const postId = (creative.source_instagram_media_id as string) || (creative.effective_instagram_media_id as string) || '';
     const boosted = !!creative.source_instagram_media_id;
     const cards = link.child_attachments ?? [];
-    const hashes = cards.length ? cards.map(c => ({ hash: c.image_hash ?? '', headline: c.name ?? '', link: c.link ?? '' })).filter(c => c.hash) : link.image_hash || creative.image_hash ? [{ hash: String(link.image_hash || creative.image_hash), headline: '', link: '' }] : [];
+    // An asset-feed ad (the studio's both-sizes or WhatsApp-or-Instagram ads): its pictures, words and link live there.
+    const feed = (creative.asset_feed_spec ?? null) as { images?: Array<{ hash?: string; adlabels?: Array<{ name?: string }> }>; bodies?: Array<{ text?: string }>; titles?: Array<{ text?: string }>; link_urls?: Array<{ website_url?: string }>; optimization_type?: string } | null;
+    const labelled = (name: string) => feed?.images?.find(i => i.adlabels?.some(l => l.name === name))?.hash;
+    const feedMain = feed ? labelled('feed') ?? feed.images?.[0]?.hash : undefined;
+    const feedVertical = feed ? labelled('vertical') : undefined;
+    const hashes = feedMain ? [{ hash: feedMain, headline: '', link: '' }]
+      : cards.length ? cards.map(c => ({ hash: c.image_hash ?? '', headline: c.name ?? '', link: c.link ?? '' })).filter(c => c.hash) : link.image_hash || creative.image_hash ? [{ hash: String(link.image_hash || creative.image_hash), headline: '', link: '' }] : [];
     // The pictures behind the hashes, so New ad can show them.
     let urls = new Map<string, string>();
     if (hashes.length) {
-      const imgs = await graph<{ data?: Array<{ hash: string; url?: string }> }>(`${act}/adimages`, { params: { hashes: hashes.map(h => h.hash), fields: 'hash,url' } }).catch(() => ({ data: [] }));
+      const imgs = await graph<{ data?: Array<{ hash: string; url?: string }> }>(`${act}/adimages`, { params: { hashes: [...hashes.map(h => h.hash), ...(feedVertical ? [feedVertical] : [])], fields: 'hash,url' } }).catch(() => ({ data: [] }));
       urls = new Map((imgs.data ?? []).map(i => [i.hash, i.url ?? '']));
     }
     const source: AdPlan['source'] = boosted
       ? { kind: 'post', mediaId: postId, permalink: (creative.instagram_permalink_url as string) || undefined, thumb: (creative.thumbnail_url as string) || null }
-      : { kind: 'photos', photos: hashes.map(h => ({ ...h, url: urls.get(h.hash) || null })) };
+      : { kind: 'photos', photos: hashes.map(h => ({ ...h, url: urls.get(h.hash) || null })), ...(feedVertical ? { vertical: { hash: feedVertical, url: urls.get(feedVertical) || null } } : {}) };
+    const feedLink = feed?.link_urls?.[0]?.website_url || '';
     const ctaType = String(link.call_to_action?.type || creative.call_to_action_type || '');
     const daily = adset.daily_budget ? fromMinor(adset.daily_budget as string, cur) : 0;
     const lifetime = adset.lifetime_budget ? fromMinor(adset.lifetime_budget as string, cur) : 0;
+    const anyLink = String(feedLink || link.call_to_action?.value?.link || link.link || '');
+    const channel = isChannelLink(anyLink);
     const template: AdTemplate = {
-      goal: goalFor(String(adset.optimization_goal || ''), adset.destination_type as string | undefined, boosted),
+      goal: channel ? 'channel' : feed?.optimization_type === 'DOF_MESSAGING_DESTINATION' ? 'messages' : goalFor(String(adset.optimization_goal || ''), adset.destination_type as string | undefined, boosted),
       source,
-      text: String(link.message || creative.body || ''),
-      headline: String(link.name || creative.title || ''),
-      link: String(link.call_to_action?.value?.link || (link.link && !/whatsapp\.com|instagram\.com/.test(String(link.link)) ? link.link : '') || ''),
+      text: String(feed?.bodies?.[0]?.text || link.message || creative.body || ''),
+      headline: String(feed?.titles?.[0]?.text || link.name || creative.title || ''),
+      link: channel ? anyLink : String((feedLink && !/api\.whatsapp\.com/.test(feedLink) ? feedLink : '') || link.call_to_action?.value?.link || (link.link && !/whatsapp\.com|instagram\.com/.test(String(link.link)) ? link.link : '') || ''),
       button: (BUTTONS as string[]).includes(ctaType) ? (ctaType as AdPlan['button']) : 'SHOP_NOW',
       audience: parseTargeting(adset.targeting as Record<string, unknown> | undefined),
       budget: daily ? { kind: 'daily', amount: daily } : { kind: 'total', amount: lifetime || 0 },

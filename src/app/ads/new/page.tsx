@@ -211,6 +211,7 @@ function NewAd() {
         } else {
           setKind('photos');
           setPhotos(t.source.photos.map((ph, i) => ({ key: `from${i}${ph.hash}`, hash: ph.hash, url: ph.url ?? null, local: ph.url ?? undefined, headline: ph.headline, link: ph.link })));
+          if (t.source.vertical?.hash) setVertical(t.source.vertical);
         }
         toast({ title: `Started from “${t.name}”`, description: 'Change anything, then make it.' });
       })

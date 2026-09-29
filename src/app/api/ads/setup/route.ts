@@ -62,6 +62,11 @@ export async function POST(req: NextRequest) {
     }
     const greeting = str(body.whatsappGreeting, 300);
     if (greeting !== undefined) patch.whatsappGreeting = greeting;
+    const pixel = str(body.pixelId, 30);
+    if (pixel !== undefined) {
+      if (pixel && !/^\d{5,25}$/.test(pixel)) return NextResponse.json({ error: 'That is not a pixel id.' }, { status: 400 });
+      patch.pixelId = pixel;
+    }
     return NextResponse.json({ settings: await saveAdsSettings(patch) });
   } catch (e) {
     return adsFail(e, 'setup save');

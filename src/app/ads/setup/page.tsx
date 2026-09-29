@@ -16,11 +16,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Settings2, CheckCircle2, XCircle, Circle, Loader2, ExternalLink, Copy, Facebook, Instagram, Megaphone, RefreshCw, Check, MessageCircle, AlertTriangle, Unplug } from 'lucide-react';
+import { Settings2, CheckCircle2, XCircle, Circle, Loader2, ExternalLink, Copy, Facebook, Instagram, Megaphone, RefreshCw, Check, MessageCircle, AlertTriangle, Unplug, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_CONFIG, STORE_META_ADS } from '@/lib/store-config';
 import { ACCOUNT_STATUS } from '@/lib/ads/shape';
 import type { AccountChoice, PageChoice, InstagramChoice, AdsSettings } from '@/lib/ads/settings';
+import { PixelStep } from './pixel-step';
 import { api, useAdsStatus, AccountAlerts, ErrorLine } from '../ads-kit';
 
 export default function AdsSetupRoute() {
@@ -304,6 +305,10 @@ function AdsSetup() {
               : <p className="text-muted-foreground">Chat ads to WhatsApp need a WhatsApp number linked to the Page (Page settings → Linked accounts → WhatsApp). Instagram-message ads need nothing more. The message a chat starts with:</p>}
             <Textarea value={greeting} onChange={e => setGreeting(e.target.value)} rows={2} placeholder="Hi! I saw your ad — can you tell me more about this piece?" className="text-sm" />
             <Button size="sm" variant="outline" disabled={!!busy || greeting === (settings?.whatsappGreeting ?? '')} onClick={() => save({ whatsappGreeting: greeting }, 'greeting')}>Save the message</Button>
+          </Step>
+
+          <Step n={8} done={null} title={<><Globe className="h-4 w-4" /> The website pixel</>}>
+            <PixelStep ready={connected && !!settings?.adAccountId} />
           </Step>
         </div>
       )}

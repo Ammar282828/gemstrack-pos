@@ -32,10 +32,12 @@ export interface AdsSettings {
   whatsappGreeting: string | null;
   /** Facebook Login for Business configuration (Meta app → Facebook Login for Business → Configurations). */
   loginConfigId: string | null;
+  /** The ad account's pixel the website carries (Setup → the website pixel; pixel.ts). */
+  pixelId: string | null;
   updatedAt: string | null;
 }
 
-const EMPTY: AdsSettings = { adAccountId: null, adAccountName: null, pageId: null, pageName: null, instagramUserId: null, instagramUsername: null, whatsappGreeting: null, loginConfigId: null, updatedAt: null };
+const EMPTY: AdsSettings = { adAccountId: null, adAccountName: null, pageId: null, pageName: null, instagramUserId: null, instagramUsername: null, whatsappGreeting: null, loginConfigId: null, pixelId: null, updatedAt: null };
 
 export async function loadAdsSettings(): Promise<AdsSettings> {
   const snap = await DOC().get();
