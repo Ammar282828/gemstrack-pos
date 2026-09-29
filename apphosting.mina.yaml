@@ -320,6 +320,14 @@ env:
   - variable: IMAGE_AI_PROJECT
     value: "jewelgen-mm-e3d43ecb"
     availability: [RUNTIME]
+  # Since 2026-09-29 every AI call — Post a Piece, captions, the Ads helper, voice, the
+  # scanners — goes with the Vertex AI key instead (src/lib/ai-key.ts), billed to the key's
+  # own project; IMAGE_AI_PROJECT and VERTEX_PROJECT above are only the fallback. One key for
+  # both houses: Taheri's secret, which this backend's service account may read. Its value
+  # never goes in this file — the repository is public.
+  - variable: VERTEX_AI_KEY_SECRET
+    value: "projects/gemstrack-pos/secrets/vertex-ai-key"
+    availability: [RUNTIME]
   # Post a Piece's marks: Mina's own logo (filled to any colour by its shape) and
   # no monogram — never Taheri's "taheri" or "t".
   - variable: NEXT_PUBLIC_STORE_MARK_SVG

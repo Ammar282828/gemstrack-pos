@@ -23,6 +23,7 @@ export function diagnoseContext(): DiagnoseContext {
   return {
     site: site || undefined,
     aiProject: process.env.IMAGE_AI_PROJECT || undefined,
+    aiKeySecret: process.env.VERTEX_AI_KEY_SECRET?.trim() || undefined,
     posProject: process.env.GOOGLE_CLOUD_PROJECT || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || undefined,
     metaAppId: process.env.INSTAGRAM_META_APP_ID || undefined,
     waLine: phone ? `+${phone}` : undefined,

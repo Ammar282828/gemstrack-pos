@@ -11,15 +11,17 @@
  * secret to store, rotate, leak, or grant access to. Locally it uses whatever `gcloud auth
  * application-default login` left behind.
  *
- * The one exception: GEMINI_API_KEY. Set, it is used in place of the signed request,
- * against Vertex AI's express endpoint (the same aiplatform host, keyed rather than
- * signed, no project or region in the path). That is for a machine with no gcloud
- * login, or a deployment whose backend account cannot be granted Vertex. It is a
- * server-side variable only — never NEXT_PUBLIC_ — and the request shape is the same
- * either way, so nothing above this file can tell which was used.
+ * The exception, and since 2026-09-29 the rule: the Vertex AI key (src/lib/ai-key.ts —
+ * Secret Manager `vertex-ai-key`, or VERTEX_AI_KEY / GEMINI_API_KEY as a variable). When
+ * there is one it is used in place of the signed request, against Vertex AI's keyed
+ * endpoint (the same aiplatform host, no project or region in the path), and billed to
+ * the key's own project — the same key as Post a Piece and the Ads helper. It never
+ * reaches the browser, and the request shape is the same either way, so nothing above
+ * this file can tell which was used.
  */
 
 import { GoogleAuth } from 'google-auth-library';
+import { envVertexKey, keyedModelUrl, vertexKey } from '@/lib/ai-key';
 
 const auth = new GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/cloud-platform'],
@@ -31,7 +33,6 @@ const auth = new GoogleAuth({
 // Hosting service account roles/aiplatform.user). Unset, the app's own project.
 const PROJECT = process.env.VERTEX_PROJECT || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || '';
 const LOCATION = process.env.VERTEX_LOCATION?.trim() || 'us-central1';
-const API_KEY = process.env.GEMINI_API_KEY?.trim() || '';
 
 /**
  * Pinned, and to what Vertex actually serves this project rather than to whatever is
@@ -41,7 +42,7 @@ const API_KEY = process.env.GEMINI_API_KEY?.trim() || '';
  */
 export const VERTEX_MODEL = process.env.VERTEX_MODEL?.trim() || 'gemini-2.5-flash';
 
-export const geminiConfigured = () => Boolean(API_KEY || PROJECT);
+export const geminiConfigured = () => Boolean(envVertexKey() || PROJECT);
 
 export interface InlinePart { inlineData: { mimeType: string; data: string } }
 export interface TextPart { text: string }
@@ -74,12 +75,8 @@ export class GeminiError extends Error {
 
 /** Where to send it and how to prove who is asking — see the note at the top. */
 async function endpoint(): Promise<{ url: string; headers: Record<string, string> }> {
-  if (API_KEY) {
-    return {
-      url: `https://aiplatform.googleapis.com/v1/publishers/google/models/${VERTEX_MODEL}:generateContent`,
-      headers: { 'x-goog-api-key': API_KEY },
-    };
-  }
+  const key = await vertexKey();
+  if (key) return { url: keyedModelUrl(VERTEX_MODEL), headers: { 'x-goog-api-key': key } };
   if (!PROJECT) throw new GeminiError('No Google Cloud project configured.', 503);
 
   const client = await auth.getClient();

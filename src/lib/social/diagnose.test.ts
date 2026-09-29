@@ -27,6 +27,24 @@ describe('diagnose — the errors actually seen on 2026-09-24', () => {
     expect(d.action?.href).toBe('https://console.cloud.google.com/billing/linkedaccount?project=jewelgen-mm-e3d43ecb');
     expect(d.action?.command).toBeUndefined();
   });
+  it('with the Vertex AI key, billing names the key’s project, not IMAGE_AI_PROJECT', () => {
+    const d = diagnose('ai', { status: 403, message: 'This API method requires billing to be enabled. Please enable billing on project #847960974510 by visiting …' }, ctx);
+    expect(d.fix).toContain('847960974510');
+    expect(d.action?.href).toBe('https://console.cloud.google.com/billing/linkedaccount?project=847960974510');
+  });
+  it('a refused key points at its secret — Mina’s, kept in Taheri’s project', () => {
+    const d = diagnose('ai', { status: 400, message: 'API key not valid. Please pass a valid API key.' }, { ...ctx, posProject: 'hom-pos-52710474-ceeea', aiKeySecret: 'projects/gemstrack-pos/secrets/vertex-ai-key' });
+    expect(d.title).toBe('Google refused the AI key');
+    expect(d.action?.href).toBe('https://console.cloud.google.com/security/secret-manager/secret/vertex-ai-key/versions?project=gemstrack-pos');
+  });
+  it('Magnific’s own key trouble is not the Vertex key', () => {
+    expect(diagnose('ai', { status: 503, message: 'Magnific couldn\'t take it: Invalid API key' }, ctx).title).not.toBe('Google refused the AI key');
+  });
+  it('a permission refusal on the key’s project is the key’s account, not the ERP’s', () => {
+    const d = diagnose('ai', { status: 403, message: "Permission 'aiplatform.endpoints.predict' denied on resource '//aiplatform.googleapis.com/projects/847960974510/locations/global/publishers/google/models/gemini-3.8-flash'" }, ctx);
+    expect(d.title).toBe('The AI key isn’t allowed to use the AI');
+    expect(d.action?.command).toBeUndefined();
+  });
   it('recognises a retired model name', () => {
     expect(diagnose('ai', { status: 404, message: 'Publisher model `…gemini-3-pro-image-preview` was not found or your project does not have access to it' }, ctx).title).toMatch(/renamed or retired/);
   });
