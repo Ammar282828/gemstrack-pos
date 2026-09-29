@@ -208,6 +208,13 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   development mode. It must be in public to create this ad." Read off the app that day: no privacy policy, no category,
   Meta's stock icon, terms pointing at facebook.com. taheri.shop now has `/privacy` and `/data-deletion` (taheri-site), the icon
   is `public/brand/meta-app-icon-1024.png`; the owner fills those in App settings → Basic and flips App Mode → Live.
+  **And the login configuration lacks two permissions** (2026-09-29, New ad → A post answered "(#10) Application does not
+  have permission for this action"): both houses' tokens hold ads_management, ads_read, business_management, pages_show_list,
+  pages_read_engagement, instagram_manage_comments — **no instagram_basic, no pages_manage_ads**. Facebook grants only what the
+  configuration names, so reconnecting alone changes nothing: add both to the configuration (FLfB → Configurations →
+  Permissions; instagram_basic appears once the Instagram use case with Facebook Login is added), then Connect again in each
+  ERP. Until then Taheri lists its posts through the story login (no boost answer), Mina can't list them, and the Studio's
+  competitor look-ups fail. Setup now counts instagram_basic as required and says to edit the configuration.
 
 ## Security: Mina's repo is public (found 2026-09-27)
 

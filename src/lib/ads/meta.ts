@@ -47,8 +47,15 @@ export const SCOPES = [
   'pages_show_list', 'pages_read_engagement', 'pages_manage_ads',
   'instagram_basic',
 ];
-/** What Setup warns about when a login lacks it. instagram_basic only lists posts to boost (Taheri can list them another way). */
-export const REQUIRED_SCOPES = SCOPES.filter(s => s !== 'instagram_basic');
+/**
+ * What Setup warns about when a login lacks it — all of them. instagram_basic once looked optional
+ * (it only lists posts to boost, and Taheri can list them through its story login), but House of
+ * Mina has no other way, Taheri's other way can't say which posts Meta will boost, and the Studio's
+ * competitor look-ups need it (2026-09-29: both houses' logins lacked it and "A post" answered #10).
+ */
+export const REQUIRED_SCOPES = SCOPES;
+/** Meta's #10 on the house's Instagram posts: the login never asked for instagram_basic. */
+export const NO_INSTAGRAM_SCOPE = 'Meta won’t show the ERP this Instagram account’s posts: the Facebook connection lacks the instagram_basic permission. Add instagram_basic to the login configuration (Ads → Setup, step 1), then Connect again on Setup.';
 
 export class MetaAdsError extends Error {
   constructor(

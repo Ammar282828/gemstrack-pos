@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
-import { graph, MetaAdsError } from '@/lib/ads/meta';
+import { graph, MetaAdsError, NO_INSTAGRAM_SCOPE } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
 import { loadConnection as loadInstagram } from '@/lib/social/instagram';
 
@@ -47,7 +47,9 @@ export async function GET(req: NextRequest) {
         throw e;
       });
       return NextResponse.json({ media: (d.data ?? []).map(shape), after: d.paging?.next ? d.paging.cursors?.after ?? null : null, via: 'meta' }, { headers: noStore });
-    } catch (e) {
+    } catch (err) {
+      // #10: the login never asked for instagram_basic — say that, not Meta's "no permission for this action".
+      const e = err instanceof MetaAdsError && err.code === 10 ? new MetaAdsError(NO_INSTAGRAM_SCOPE, 403, 10, err.subcode) : err;
       const ig = await loadInstagram().catch(() => null);
       if (!ig || ig.username.toLowerCase() !== (settings.instagramUsername ?? '').toLowerCase()) throw e;
       const q = new URLSearchParams({ fields, limit: '24', access_token: ig.token, ...(after ? { after } : {}) });
