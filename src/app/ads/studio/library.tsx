@@ -135,6 +135,26 @@ export function AssessBar({ counts, runner, big }: { counts: LibraryResponse['co
 // ── Drive ──────────────────────────────────────────────────────────────────
 
 
+/** A folder the owner can't share on (TC is Murtaza's), added by its link when anyone with the link may view it. */
+function AddByLink({ onAdded }: { onAdded: () => void }) {
+  const { toast } = useToast();
+  const [link, setLink] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (link === null) return <button type="button" onClick={() => setLink('')} className="text-primary min-h-0">add a folder by link</button>;
+  const add = async () => {
+    setBusy(true);
+    try { const d = await api<{ folder: { name: string } }>('/api/ads/studio/drive', { body: { link } }); toast({ title: `Added “${d.folder.name}”` }); setLink(null); onAdded(); }
+    catch (e) { toast({ title: 'Couldn’t add it', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }); }
+    finally { setBusy(false); }
+  };
+  return (
+    <form onSubmit={e => { e.preventDefault(); add(); }} className="inline-flex items-center gap-1">
+      <Input autoFocus value={link} onChange={e => setLink(e.target.value)} placeholder="Drive folder link" className="h-7 w-56 text-base sm:text-[11px]" />
+      <Button size="sm" className="h-7" disabled={busy || !link.trim()}>{busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Add'}</Button>
+    </form>
+  );
+}
+
 export function DriveCard({ drive, onRefresh, refreshing }: { drive: LibraryResponse['drive']; onRefresh: () => void; refreshing: boolean }) {
   const { toast } = useToast();
   const copy = () => navigator.clipboard?.writeText(drive.account).then(() => toast({ title: 'Copied' })).catch(() => undefined);
@@ -145,6 +165,7 @@ export function DriveCard({ drive, onRefresh, refreshing }: { drive: LibraryResp
         <HardDrive className="h-3.5 w-3.5" /> <span title={`From ${names.join(', ') || 'the shared folders'}. Share more with ${drive.account}.`}>Drive: {drive.images.toLocaleString('en-US')} photos{drive.brand ? ` · ${drive.brand} logos` : ''}</span>
         <button type="button" onClick={onRefresh} disabled={refreshing} className="text-primary min-h-0">{refreshing ? 'looking…' : 'look again'}</button>
         {names.length < 3 && <button type="button" onClick={copy} className="min-h-0 underline" title={`Share more folders with ${drive.account} (Viewer)`}>copy the share address</button>}
+        <AddByLink onAdded={onRefresh} />
       </p>
     );
   }
@@ -164,6 +185,7 @@ export function DriveCard({ drive, onRefresh, refreshing }: { drive: LibraryResp
         </li>
       </ol>
       {!needApi && drive.reason !== 'nothing-shared' && <p className="text-[11px] text-muted-foreground">Drive said: {drive.message}</p>}
+      <p className="text-[11px]"><AddByLink onAdded={onRefresh} /></p>
       <Button size="sm" variant="outline" onClick={onRefresh} disabled={refreshing}>{refreshing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />} Check again</Button>
     </div>
   );

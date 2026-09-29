@@ -834,6 +834,13 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   a heading or a control names itself; the explanation is its `title` (hover) or behind a fold — no subtitle, no paragraph under
   a heading, tiles show the name only (the model's description and fixes are on hover and in the sheet), a play card shows
   title → destination and its chips (why/who/how much fold), field labels are one word, playbook and rules start folded.
+  **Drive, as it stands (read with the owner's Drive connector, 2026-09-29):** only "taheri content" is shared with the runtime
+  account — and it is shared with **anyone with the link as an editor** (anyone holding the link can change or delete the shoots;
+  the owner should make it Viewer). **TC** is Murtaza's (hmurtaza55@), open to anyone with the link as a viewer, and the owner
+  (potatomasta501) isn't an editor on it, so it can't be shared on — the studio now takes **folders by link**
+  (`drive-link.ts`, tested; `app_settings/ad_studio_drive.folders`, never in the code since gemstrack-pos is public; the Drive
+  card's "add a folder by link", `/api/ads/studio/drive`), and TC (63 photos) was added that way. The Vault's logos
+  (Taheri Vault / attachments / logos) are private to the owner and not shared.
 
 ## graphify
 

@@ -18,6 +18,8 @@
  */
 
 import { GoogleAuth } from 'google-auth-library';
+import { adminDb } from '@/lib/firebase-admin';
+import { folderIdOf } from './drive-link';
 import sharp from 'sharp';
 import convertHeic from 'heic-convert';
 
@@ -51,6 +53,34 @@ class DriveError extends Error {
 }
 
 let cache: DriveLibrary | null = null;
+/** The next listing reads Drive afresh (a folder was added or taken away). */
+export const forgetDrive = () => { cache = null; };
+
+// ── Folders named by link (drive-link.ts): kept in app_settings/ad_studio_drive ──
+const LINKED = () => adminDb.collection('app_settings').doc('ad_studio_drive');
+
+export async function linkedFolders(): Promise<{ id: string; name: string }[]> {
+  const d = (await LINKED().get()).data() as { folders?: { id: string; name: string }[] } | undefined;
+  return d?.folders ?? [];
+}
+
+/** Add a folder by its link: it must be a folder this server can read (shared, or open to anyone with the link). */
+export async function addLinkedFolder(link: string): Promise<{ id: string; name: string }> {
+  const id = folderIdOf(link);
+  if (!id) throw Object.assign(new Error('That isn’t a Drive folder link.'), { status: 400 });
+  const f = await driveGet<{ id: string; name: string; mimeType: string }>(`/files/${encodeURIComponent(id)}`, { fields: 'id,name,mimeType' })
+    .catch(e => { throw Object.assign(new Error(`Drive won’t let the ERP read that folder (${e instanceof Error ? e.message : e}). Share it with the ERP, or set it to “anyone with the link can view”.`), { status: 403 }); });
+  if (f.mimeType !== FOLDER) throw Object.assign(new Error('That link is a file, not a folder.'), { status: 400 });
+  const list = (await linkedFolders()).filter(x => x.id !== f.id);
+  await LINKED().set({ folders: [...list, { id: f.id, name: f.name }].slice(0, 20) }, { merge: true });
+  forgetDrive();
+  return { id: f.id, name: f.name };
+}
+
+export async function removeLinkedFolder(id: string): Promise<void> {
+  await LINKED().set({ folders: (await linkedFolders()).filter(x => x.id !== id) }, { merge: true });
+  forgetDrive();
+}
 
 async function token(): Promise<string> {
   const t = (await (await gauth.getClient()).getAccessToken()).token;
@@ -108,8 +138,9 @@ export async function driveLibrary(opts: { fresh?: boolean } = {}): Promise<Driv
   const account = await driveAccount();
   try {
     const tok = await token();
-    const shared = await listAll('sharedWithMe = true and trashed = false', tok);
-    const roots = shared.filter(f => f.mimeType === FOLDER);
+    const [shared, linked] = await Promise.all([listAll('sharedWithMe = true and trashed = false', tok), linkedFolders().catch(() => [])]);
+    const roots: { id: string; name: string }[] = shared.filter(f => f.mimeType === FOLDER);
+    for (const l of linked) if (!roots.some(r => r.id === l.id)) roots.push(l);
     const images: DriveImage[] = [];
     let videos = 0;
     const take = (f: RawFile, folder: string, inBrand: boolean) => {
