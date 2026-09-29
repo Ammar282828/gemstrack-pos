@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isWalkInName } from '@/lib/walk-in';
 
 interface Props {
   customers: Customer[];
@@ -29,9 +30,12 @@ export const CustomerAutocomplete: React.FC<Props> = ({
   // Sync when parent resets value
   useEffect(() => { setQuery(value); }, [value]);
 
+  // The old "Walk-in Customer" records are not people (lib/walk-in.ts): picking one
+  // would pin a new sale to it. The Walk-in row above the list is the walk-in.
+  const people = customers.filter(c => !isWalkInName(c.name));
   const filtered = query.trim().length === 0
-    ? customers.slice(0, 8)
-    : customers.filter(c => c.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8);
+    ? people.slice(0, 8)
+    : people.filter(c => c.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);

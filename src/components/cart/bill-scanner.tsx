@@ -35,6 +35,7 @@ import { Check, Loader2, TriangleAlert } from 'lucide-react';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { readablePhoto } from '@/lib/photo-file';
 import { PhotoPick } from '@/components/shared/photo-pick';
+import { isWalkInName } from '@/lib/walk-in';
 
 /** Handwriting needs the pixels — see the same note on the parchi scanner. */
 const MAX_EDGE = 1600;
@@ -99,7 +100,7 @@ export function BillScanner({
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Could not read that bill.');
 
-      const roster: RosterEntry[] = customers.map((c) => ({ id: c.id, name: c.name, kind: 'customer' }));
+      const roster: RosterEntry[] = customers.filter((c) => !isWalkInName(c.name)).map((c) => ({ id: c.id, name: c.name, kind: 'customer' }));
       setDraft(resolveBill(data as RawBillDraft, roster));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not read that bill.');

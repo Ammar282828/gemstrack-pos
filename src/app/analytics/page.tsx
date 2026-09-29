@@ -27,13 +27,14 @@ import { STORE_EST_MARGIN } from '@/lib/store-config';
 import { splitAllCoinSales, summariseCoins } from '@/lib/analytics/coins';
 import { cashInForPeriod, invoicedOrderIds } from '@/lib/analytics/cash-in';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { saleCustomerKey, WALK_IN_ENTITY, WALK_IN_NAME } from '@/lib/walk-in';
 import { toTola, formatWeight } from '@/lib/units';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
 type TopProductData = { sku: string; name: string; quantity: number; revenue: number };
 type SalesByCategoryData = { categoryId: string; categoryName: string; sales: number };
-type TopCustomerData = { customerId?: string; customerName: string; totalSpent: number; orderCount: number };
+type TopCustomerData = { key: string; customerId?: string; customerName: string; totalSpent: number; orderCount: number };
 type DailySummaryItem = InvoiceItem & { invoiceId: string; customerName: string; };
 type ExpenseByCategoryData = { category: string; amount: number };
 type SourceBreakdownData = { key: string; label: string; revenue: number; orderCount: number; avgOrderValue: number };
@@ -379,9 +380,9 @@ export default function AnalyticsPage() {
 
       accrueSource(resolveSource(invoice.acquisitionSource, invoice.customerId), dateKey, invAmount);
 
-      // Use customerId if present; otherwise fall back to the stored name so named
-      // customers without a linked account aren't all collapsed into "Walk-in".
-      const customerKey = invoice.customerId || (invoice.customerName ? `name:${invoice.customerName}` : 'walk-in');
+      // The customer, else the stored name (so named customers without a linked account
+      // aren't all collapsed into "Walk-in"), else the one walk-in row (lib/walk-in.ts).
+      const customerKey = saleCustomerKey(invoice, id => customersById.get(id)?.name);
       if (!customerPerformance[customerKey]) {
         customerPerformance[customerKey] = { totalSpent: 0, orderCount: 0, resolvedName: invoice.customerName || undefined };
       }
@@ -446,7 +447,7 @@ export default function AnalyticsPage() {
 
       accrueSource(resolveSource(order.source, order.customerId), dateKey, amount);
 
-      const customerKey = order.customerId || (order.customerName ? `name:${order.customerName}` : 'walk-in');
+      const customerKey = saleCustomerKey(order, id => customersById.get(id)?.name);
       if (!customerPerformance[customerKey]) {
         customerPerformance[customerKey] = { totalSpent: 0, orderCount: 0, resolvedName: order.customerName || undefined };
       }
@@ -520,18 +521,19 @@ export default function AnalyticsPage() {
 
     calcData.topCustomers = Object.entries(customerPerformance)
       .map(([key, data]) => {
-        if (key === 'walk-in') {
-          return { customerId: undefined, customerName: 'Walk-in Customer', totalSpent: data.totalSpent, orderCount: data.orderCount };
+        if (key === WALK_IN_ENTITY) {
+          return { key, customerId: undefined, customerName: WALK_IN_NAME, totalSpent: data.totalSpent, orderCount: data.orderCount };
         }
         if (key.startsWith('name:')) {
           // Named customer without a linked account — use the stored name directly
-          return { customerId: undefined, customerName: key.slice(5), totalSpent: data.totalSpent, orderCount: data.orderCount };
+          return { key, customerId: undefined, customerName: key.slice(5), totalSpent: data.totalSpent, orderCount: data.orderCount };
         }
         // Linked customer — look up current name from store
-        const customerDetails = customers.find(c => c.id === key);
+        const customerDetails = customersById.get(key);
         return {
+          key,
           customerId: key,
-          customerName: customerDetails?.name || data.resolvedName || 'Walk-in Customer',
+          customerName: customerDetails?.name || data.resolvedName || WALK_IN_NAME,
           totalSpent: data.totalSpent, orderCount: data.orderCount,
         };
       })
@@ -1355,7 +1357,7 @@ export default function AnalyticsPage() {
                     </TableHeader>
                     <TableBody>
                       {analyticsData.topCustomers.map((customer) => (
-                        <TableRow key={customer.customerId || 'walk-in'}>
+                        <TableRow key={customer.key}>
                           <TableCell>
                             <div className="font-medium">{customer.customerName}</div>
                             {customer.customerId && <div className="text-xs text-muted-foreground">ID: {customer.customerId}</div>}

@@ -28,6 +28,7 @@ import { Loader2, Mic, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_KARAT_VALUE_FOR_CALCULATION } from '@/lib/store';
 import { authedFetch } from '@/lib/voice/authed-fetch';
+import { isWalkInName } from '@/lib/walk-in';
 
 type Phase = 'idle' | 'listening' | 'thinking' | 'confirming' | 'writing';
 
@@ -166,7 +167,7 @@ export function VoiceBubble() {
   const aliases = useMemo(() => aliasMap(voiceAliases), [voiceAliases]);
 
   const roster = useMemo<RosterEntry[]>(() => [
-    ...customers.map((c) => ({ id: c.id, name: c.name, kind: 'customer' as const, phone: c.phone })),
+    ...customers.filter((c) => !isWalkInName(c.name)).map((c) => ({ id: c.id, name: c.name, kind: 'customer' as const, phone: c.phone })),
     ...karigars.map((k) => ({ id: k.id, name: k.name, kind: 'karigar' as const, phone: k.contact })),
   ], [customers, karigars]);
 
@@ -202,7 +203,7 @@ export function VoiceBubble() {
       await untilLoaded(2500);
       const st = useAppStore.getState();
       const rosterNow: RosterEntry[] = [
-        ...st.customers.map((c) => ({ id: c.id, name: c.name, kind: 'customer' as const, phone: c.phone })),
+        ...st.customers.filter((c) => !isWalkInName(c.name)).map((c) => ({ id: c.id, name: c.name, kind: 'customer' as const, phone: c.phone })),
         ...st.karigars.map((k) => ({ id: k.id, name: k.name, kind: 'karigar' as const, phone: k.contact })),
       ];
       const documentsNow = documentsFor(st.orders, st.generatedInvoices);

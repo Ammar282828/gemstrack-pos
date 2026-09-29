@@ -556,6 +556,18 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
 - **Exchange is one line** (2026-09-26, owner: "a general exchange without details like just description and cash amount …
   make it super simple"): each exchange row in the order form and the cart is what it is + the amount; "+ Weight & rate" folds
   open grams and rate (and karat only where `defaultMetal` is gold). Labels say "Exchange", not "Exchange gold".
+- **A walk-in sale makes no customer** (2026-09-29; Taheri's book had 17 "Walk-in Customer" records, most left behind when the
+  counter billed first and edited the real name in afterwards). `src/lib/walk-in.ts`, tested: the invoice goes out with **no
+  `customerId`** (like a walk-in order) and "Walk-in Customer" as its name; generateInvoice makes a customer only for a real name
+  (`shouldCreateCustomer`). A typed name or number is still a person and a new customer, **except a number already on file**: then it
+  is that customer (same name or none typed; a number shared by people of different names is left alone), so typing instead of tapping
+  no longer copies anyone. A picked old "Walk-in Customer" is read as a walk-in, so re-saving its invoice lets go of it. Readers:
+  Analytics keys every walk-in (no id, the placeholder name, or an old walk-in record) as one row (`saleCustomerKey`); **Hisaab shows
+  `entityId: 'walk-in'` balances as one "Walk-in Customer" row** (it used to drop them — they only showed because each had a record
+  of its own), its invoices linked; its sync never name-matches the placeholder; the customer picker, voice and both scanners skip
+  placeholder records. Cleanup that day: the 5 records nothing pointed at went to Recently removed; 11 are the customer of the invoice
+  that made them (INV-000021 and INV-000042 still owe 39,000 under them) and one is a voice alias's target, so 12 stay. Mina has 11 too
+  (not touched).
 - **From the website → Instagram story** (2026-09-26): the square site photo whole on the house's ground with its mark, name and
   metal · weight (`src/lib/social/site-story.ts`), posted through `/api/instagram/story` when connected, else the share sheet.
 - **Retouch** (2026-09-26, owner: "photo retouching … in both pos using magnific api", then "magnific only"; Post a Piece and

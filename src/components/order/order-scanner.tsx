@@ -34,6 +34,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Camera, Check, Images, Loader2, TriangleAlert, X } from 'lucide-react';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { readablePhoto } from '@/lib/photo-file';
+import { isWalkInName } from '@/lib/walk-in';
 
 /**
  * Bigger than the sample-image limits elsewhere in the app, and deliberately so. Those
@@ -99,7 +100,7 @@ export function OrderScanner({
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Could not read that photo.');
 
-      const customerRoster: RosterEntry[] = customers.map((c) => ({ id: c.id, name: c.name, kind: 'customer' }));
+      const customerRoster: RosterEntry[] = customers.filter((c) => !isWalkInName(c.name)).map((c) => ({ id: c.id, name: c.name, kind: 'customer' }));
       const karigarRoster: RosterEntry[] = karigars.map((k) => ({ id: k.id, name: k.name, kind: 'karigar' }));
       setDraft(resolveDraft(data as RawOrderDraft, customerRoster, karigarRoster));
     } catch (err) {

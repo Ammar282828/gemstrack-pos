@@ -19,8 +19,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from 'next/link';
 import { pkrLac, lacCrore } from '@/lib/money';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { saleCustomerKey, WALK_IN_ENTITY, WALK_IN_NAME } from '@/lib/walk-in';
 
 type CustomerPerformanceData = {
+  key: string;
   customerId?: string;
   customerName: string;
   totalSpent: number;
@@ -62,12 +64,13 @@ export default function CustomersAnalyticsPage() {
 
   const customerPerformance = useMemo(() => {
     const performanceMap: Record<string, { totalSpent: number; orderCount: number; itemsPurchased: number; resolvedName?: string }> = {};
+    const customersById = new Map(customers.map(c => [c.id, c]));
 
     filteredInvoices.forEach(invoice => {
       if (!invoice) return;
-      // Use customerId when present; fall back to stored name so named customers
-      // without a linked account aren't all collapsed into "Walk-in".
-      const customerKey = invoice.customerId || (invoice.customerName ? `name:${invoice.customerName}` : 'walk-in');
+      // The customer, else the stored name (so named customers without a linked account
+      // aren't all collapsed into "Walk-in"), else the one walk-in row (lib/walk-in.ts).
+      const customerKey = saleCustomerKey(invoice, id => customersById.get(id)?.name);
 
       if (!performanceMap[customerKey]) {
         performanceMap[customerKey] = { totalSpent: 0, orderCount: 0, itemsPurchased: 0, resolvedName: invoice.customerName || undefined };
@@ -79,16 +82,17 @@ export default function CustomersAnalyticsPage() {
     });
 
     return Object.entries(performanceMap).map(([key, data]) => {
-      if (key === 'walk-in') {
-        return { customerId: undefined, customerName: 'Walk-in Customer', totalSpent: data.totalSpent, orderCount: data.orderCount, itemsPurchased: data.itemsPurchased, averageSpent: data.orderCount > 0 ? data.totalSpent / data.orderCount : 0 };
+      if (key === WALK_IN_ENTITY) {
+        return { key, customerId: undefined, customerName: WALK_IN_NAME, totalSpent: data.totalSpent, orderCount: data.orderCount, itemsPurchased: data.itemsPurchased, averageSpent: data.orderCount > 0 ? data.totalSpent / data.orderCount : 0 };
       }
       if (key.startsWith('name:')) {
-        return { customerId: undefined, customerName: key.slice(5), totalSpent: data.totalSpent, orderCount: data.orderCount, itemsPurchased: data.itemsPurchased, averageSpent: data.orderCount > 0 ? data.totalSpent / data.orderCount : 0 };
+        return { key, customerId: undefined, customerName: key.slice(5), totalSpent: data.totalSpent, orderCount: data.orderCount, itemsPurchased: data.itemsPurchased, averageSpent: data.orderCount > 0 ? data.totalSpent / data.orderCount : 0 };
       }
-      const customerDetails = customers.find(c => c.id === key);
+      const customerDetails = customersById.get(key);
       return {
+        key,
         customerId: key,
-        customerName: customerDetails?.name || data.resolvedName || 'Walk-in Customer',
+        customerName: customerDetails?.name || data.resolvedName || WALK_IN_NAME,
         totalSpent: data.totalSpent,
         orderCount: data.orderCount,
         itemsPurchased: data.itemsPurchased,
@@ -142,7 +146,7 @@ export default function CustomersAnalyticsPage() {
             </TableHeader>
             <TableBody>
                 {data.map(c => (
-                    <TableRow key={c.customerId || 'walk-in'}>
+                    <TableRow key={c.key}>
                         <TableCell>
                             {c.customerId ? (
                                 <Link href={`/customers/${c.customerId}`} className="font-medium text-primary hover:underline">
