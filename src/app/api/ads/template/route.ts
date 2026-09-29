@@ -31,6 +31,7 @@ function goalFor(optimization: string, destination: string | undefined, boosted:
   if (hit) return hit.key;
   if (optimization === 'CONVERSATIONS') return destination === 'INSTAGRAM_DIRECT' ? 'instagram_dm' : 'whatsapp';
   if (optimization === 'LANDING_PAGE_VIEWS') return 'website';
+  if (optimization === 'OFFSITE_CONVERSIONS' || optimization === 'VALUE') return 'sales';
   if (optimization === 'POST_ENGAGEMENT' && boosted) return 'engagement';
   return 'whatsapp';
 }

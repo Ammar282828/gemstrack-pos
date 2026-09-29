@@ -212,3 +212,25 @@ describe('the goals added from the 2026-09-29 research', () => {
     expect(adsetParams(plan({ goal: 'website' }), 'C1', { ...ctx, pixelLive: true }).optimization_goal).toBe('LANDING_PAGE_VIEWS');
   });
 });
+
+describe('Online orders (the pixel’s purchases)', () => {
+  const shop = plan({ goal: 'sales', link: 'https://houseofmina.store/products/ruby-ring' });
+  it('is a sales campaign optimised for the pixel’s Purchase', () => {
+    expect(campaignParams(shop).objective).toBe('OUTCOME_SALES');
+    expect(adsetParams(shop, 'C1', { ...ctx, pixelId: '1429906491670575' })).toMatchObject({
+      optimization_goal: 'OFFSITE_CONVERSIONS', destination_type: 'WEBSITE',
+      promoted_object: { pixel_id: '1429906491670575', custom_event_type: 'PURCHASE' },
+    });
+  });
+  it('needs a pixel, and a link like a website ad', () => {
+    expect(planProblems(shop, ctx)).toContain('“Online orders” needs the website’s pixel — choose it on the Setup tab (the website pixel step).');
+    expect(planProblems(shop, { ...ctx, pixelId: '1' })).toEqual([]);
+    expect(planProblems(plan({ goal: 'sales', link: '' }), { ...ctx, pixelId: '1' })).toContain('Give the website address the ad opens.');
+  });
+  it('the button opens the piece’s own page', () => {
+    const c = creativeSpec(plan({ goal: 'sales', source: { kind: 'photos', photos: [{ hash: 'H1', link: 'https://houseofmina.store/products/a' }] } }), { ...ctx, pixelId: '1' });
+    const ld = (c.object_story_spec as { link_data: { link: string; call_to_action: unknown } }).link_data;
+    expect(ld.link).toBe('https://houseofmina.store/products/a');
+    expect(ld.call_to_action).toEqual({ type: 'SHOP_NOW', value: { link: 'https://houseofmina.store/products/a' } });
+  });
+});

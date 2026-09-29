@@ -28,6 +28,7 @@ export async function planContext(): Promise<{ act: string; ctx: PlanContext }> 
       instagramUsername: settings.instagramUsername,
       whatsappGreeting: settings.whatsappGreeting,
       pixelLive: firedRecently(px.last_fired_time ?? null),
+      pixelId: settings.pixelId,
       currency,
       minDaily: a.min_daily_budget ? fromMinor(a.min_daily_budget, currency) : null,
     },

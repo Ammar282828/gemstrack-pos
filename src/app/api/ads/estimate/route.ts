@@ -22,7 +22,9 @@ export async function POST(req: NextRequest) {
     const { act, settings } = await requireAccount();
     const targeting = buildTargeting(draft);
     const optimization = /^[A-Z_]+$/.test(goal ?? '') ? goal! : 'REACH';
-    const promoted = ['CONVERSATIONS'].includes(optimization) && settings.pageId ? { promoted_object: { page_id: settings.pageId } } : {};
+    const promoted = ['CONVERSATIONS'].includes(optimization) && settings.pageId ? { promoted_object: { page_id: settings.pageId } }
+      : optimization === 'OFFSITE_CONVERSIONS' && settings.pixelId ? { promoted_object: { pixel_id: settings.pixelId, custom_event_type: 'PURCHASE' } }
+      : {};
     try {
       const d = await graph<{ data?: { estimate_mau_lower_bound?: number; estimate_mau_upper_bound?: number; estimate_ready?: boolean }[] }>(`${act}/delivery_estimate`, {
         params: { targeting_spec: targeting, optimization_goal: optimization, ...promoted },

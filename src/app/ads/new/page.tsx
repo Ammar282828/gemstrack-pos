@@ -29,14 +29,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { AmountInput } from '@/components/ui/amount-input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Rocket, Instagram, ImagePlus, Images, Globe, Loader2, Check, X, ArrowUp, ArrowDown, Eye, MessageCircle, MousePointerClick, UserRound, Heart, Radio, Search, CheckCircle2, AlertTriangle, Film, MessagesSquare, Rss, CalendarX } from 'lucide-react';
+import { Rocket, Instagram, ImagePlus, Images, Globe, Loader2, Check, X, ArrowUp, ArrowDown, Eye, MessageCircle, MousePointerClick, UserRound, Heart, Radio, Search, CheckCircle2, AlertTriangle, Film, MessagesSquare, Rss, CalendarX, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS, STORE_LINKS, STORE_SITE_POSTS, STORE_AD_STUDIO } from '@/lib/store-config';
+import type { PixelState } from '@/lib/ads/pixel';
+import { LEARNS_FROM, salesReadiness } from '@/lib/ads/pixel-read';
 import { quietDaysBetween, hijriLabel, karachiDay } from '@/lib/ads/studio/calendar';
 import { BRAND } from '@/lib/ads/studio/brand';
 import { money } from '@/lib/ads/shape';
 import { defaultDraft, type AudienceDraft } from '@/lib/ads/targeting';
-import { GOALS, goalOf, isChannelLink, planProblems, planSummary, defaultName, type AdPlan, type GoalKey, type PlanPhoto } from '@/lib/ads/plan';
+import { GOALS, goalOf, goesToSite, isChannelLink, planProblems, planSummary, defaultName, type AdPlan, type GoalKey, type PlanPhoto } from '@/lib/ads/plan';
 import { api, useAdsStatus, NotReady, AccountAlerts, ErrorLine } from '../ads-kit';
 import { AudienceEditor } from '../audience-editor';
 
@@ -50,7 +52,7 @@ interface SitePiece { id: string; name: string; url: string; thumb: string; imag
 interface Photo extends PlanPhoto { local?: string; uploading?: boolean; error?: string; key: string }
 
 const GOAL_ICON: Record<GoalKey, React.ReactNode> = {
-  whatsapp: <MessageCircle className="h-5 w-5" />, messages: <MessagesSquare className="h-5 w-5" />, instagram_dm: <Instagram className="h-5 w-5" />, website: <MousePointerClick className="h-5 w-5" />,
+  whatsapp: <MessageCircle className="h-5 w-5" />, messages: <MessagesSquare className="h-5 w-5" />, instagram_dm: <Instagram className="h-5 w-5" />, website: <MousePointerClick className="h-5 w-5" />, sales: <ShoppingBag className="h-5 w-5" />,
   channel: <Rss className="h-5 w-5" />, profile: <UserRound className="h-5 w-5" />, engagement: <Heart className="h-5 w-5" />, reach: <Radio className="h-5 w-5" />,
 };
 const BUTTONS: { key: AdPlan['button']; label: string }[] = [
@@ -75,7 +77,19 @@ const localInput = (t: number) => {
 };
 const pieceText = (p: SitePiece, goal: GoalKey) =>
   [`${p.name}${p.weightGrams ? ` — ${p.weightGrams}g` : ''}`, p.facts.length ? p.facts.join(' · ') : '', '',
-    goal === 'whatsapp' || goal === 'instagram_dm' ? 'Message us for today’s price.' : goal === 'website' ? 'See it on the website.' : ''].filter((l, i) => l || i === 2).join('\n').trim();
+    goal === 'whatsapp' || goal === 'instagram_dm' ? 'Message us for today’s price.' : goesToSite(goal) ? 'See it on the website.' : ''].filter((l, i) => l || i === 2).join('\n').trim();
+
+/** Under "Online orders": whether the pixel has orders for Meta to learn from. */
+function SalesNote({ pixel, chosen }: { pixel: PixelState | null; chosen: boolean }) {
+  if (!chosen) return <p className="text-[11px] text-warning">Choose the website’s pixel on the Setup tab first — Meta counts orders through it.</p>;
+  if (!pixel) return <p className="text-[11px] text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin inline mr-1" /> Reading what the pixel recorded this week…</p>;
+  const r = salesReadiness(pixel.events);
+  const line = r.level === 'unknown' ? 'Meta didn’t say what the pixel recorded this week.'
+    : r.level === 'none' ? `The pixel recorded no order this week, so Meta has nothing to learn from yet — “Website visits” buys better until orders come through ${pixel.site ?? 'the site'}.`
+    : r.level === 'few' ? `The pixel recorded ${r.purchases} order${r.purchases === 1 ? '' : 's'} this week. Meta learns from about ${LEARNS_FROM} a week, so the ad set may stay in learning — run it two weeks without edits and judge it by cost per order.`
+    : `The pixel recorded ${r.purchases} orders this week — enough for Meta to learn from.`;
+  return <p className={cn('text-[11px]', r.level === 'none' ? 'text-warning' : 'text-muted-foreground')}>{line}</p>;
+}
 
 function NewAd() {
   const { toast } = useToast();
@@ -257,10 +271,19 @@ function NewAd() {
 
   // ── The plan ──
   const usingPost = kind === 'post';
-  const goals = GOALS.filter(g => (usingPost ? !g.photosOnly : !g.postOnly) && (g.key !== 'channel' || !!STORE_LINKS.waChannel));
+  const goals = GOALS.filter(g => (usingPost ? !g.photosOnly : !g.postOnly) && (g.key !== 'channel' || !!STORE_LINKS.waChannel) && (g.key !== 'sales' || !!(STORE_LINKS.shop || STORE_LINKS.website)));
   useEffect(() => { if ((!usingPost && goalOf(goal).postOnly) || (usingPost && goalOf(goal).photosOnly)) setGoal('whatsapp'); }, [usingPost, goal]);
   // The channel goal opens the shop's own channel.
   useEffect(() => { if (goal === 'channel' && !isChannelLink(link) && STORE_LINKS.waChannel) setLink(STORE_LINKS.waChannel); }, [goal]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Orders are taken where the checkout is: the online shop when the house has one (House of Mina's Shopify store).
+  useEffect(() => {
+    if (goal !== 'sales') return;
+    const shop = STORE_LINKS.shop || STORE_LINKS.website;
+    if (shop && (!link.trim() || link === STORE_LINKS.website || isChannelLink(link))) setLink(shop);
+  }, [goal]); // eslint-disable-line react-hooks/exhaustive-deps
+  // What the chosen pixel recorded this week, for "Online orders".
+  const [pixel, setPixel] = useState<PixelState | null>(null);
+  useEffect(() => { if (ready && goal === 'sales' && !pixel) api<{ state: PixelState }>('/api/ads/pixel').then(d => setPixel(d.state)).catch(() => undefined); }, [ready, goal, pixel]);
   // One photo only for a story-size partner.
   useEffect(() => { if (vertical && (usingPost || photos.length > 1)) setVertical(null); }, [vertical, usingPost, photos.length]);
   const startIso = startLater ? new Date(start).toISOString() : null;
@@ -287,6 +310,7 @@ function NewAd() {
   const ctx = {
     pageId: status?.settings?.pageId ?? null, instagramUserId: status?.settings?.instagramUserId ?? null,
     instagramUsername: status?.settings?.instagramUsername ?? null, whatsappGreeting: status?.settings?.whatsappGreeting ?? null,
+    pixelId: status?.settings?.pixelId ?? null,
     currency, minDaily: status?.account?.minDailyBudget ?? null,
   };
   const problems = planProblems(plan, ctx);
@@ -404,7 +428,7 @@ function NewAd() {
                             : p.error ? <span className="text-xs text-destructive">{p.error}</span>
                             : photos.length > 1 ? <Input value={p.headline ?? ''} onChange={e => setPhotos(ph => ph.map(x => (x.key === p.key ? { ...x, headline: e.target.value } : x)))} placeholder="Card headline" className="h-8 text-base sm:text-xs" />
                             : <span className="text-xs text-muted-foreground">Ready</span>}
-                          {photos.length > 1 && goal === 'website' && !p.uploading && !p.error && <Input value={p.link ?? ''} onChange={e => setPhotos(ph => ph.map(x => (x.key === p.key ? { ...x, link: e.target.value } : x)))} placeholder="Card link (optional)" className="h-8 text-base sm:text-xs" />}
+                          {photos.length > 1 && goesToSite(goal) && !p.uploading && !p.error && <Input value={p.link ?? ''} onChange={e => setPhotos(ph => ph.map(x => (x.key === p.key ? { ...x, link: e.target.value } : x)))} placeholder="Card link (optional)" className="h-8 text-base sm:text-xs" />}
                         </div>
                         {photos.length > 1 && <div className="flex flex-col"><button type="button" className="p-1 min-h-0 disabled:opacity-30" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Up"><ArrowUp className="h-3.5 w-3.5" /></button><button type="button" className="p-1 min-h-0 disabled:opacity-30" disabled={i === photos.length - 1} onClick={() => move(i, 1)} aria-label="Down"><ArrowDown className="h-3.5 w-3.5" /></button></div>}
                         <button type="button" className="p-1.5 min-h-0 text-muted-foreground" onClick={() => setPhotos(ph => ph.filter(x => x.key !== p.key))} aria-label="Remove"><X className="h-4 w-4" /></button>
@@ -464,6 +488,7 @@ function NewAd() {
               ))}
             </div>
             {(goal === 'whatsapp' || goal === 'messages') && <p className="text-[11px] text-muted-foreground">Needs a WhatsApp number linked to the Facebook Page. The chat opens with {status?.settings?.whatsappGreeting ? 'the message set on the Setup tab' : 'a hello'} and three tap-to-ask questions.{goal === 'messages' ? ' Someone who lives in Instagram gets Instagram Direct instead — answer both.' : ''}</p>}
+            {goal === 'sales' && <SalesNote pixel={pixel} chosen={!!status?.settings?.pixelId} />}
             {goal === 'channel' && <p className="text-[11px] text-muted-foreground">Meta has no “follow a channel” goal yet, so this is a link ad to the channel — it buys taps on the link; follows show in WhatsApp, not here.</p>}
           </Card>
 
@@ -474,7 +499,7 @@ function NewAd() {
               {goal === 'channel' && (
                 <Input value={link} onChange={e => setLink(e.target.value)} placeholder="https://whatsapp.com/channel/…" inputMode="url" className="h-10 text-base sm:text-sm" />
               )}
-              {goal === 'website' && (
+              {goesToSite(goal) && (
                 <>
                   <Input value={link} onChange={e => setLink(e.target.value)} placeholder="https://… — the page the button opens" inputMode="url" className="h-10 text-base sm:text-sm" />
                   <div className="flex flex-wrap gap-1.5">

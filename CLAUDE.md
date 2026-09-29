@@ -704,7 +704,7 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   turns that refusal into `APP_NOT_LIVE`; Setup step 1 reads what the switch asks for with the app token (`appLiveReadiness`:
   privacy policy URL, category, a real icon — Meta exposes no mode field) and gives the values (`APP_PAGES`: taheri.shop's
   `/privacy` and `/data-deletion`, `META_APP_PRIVACY_URL` / `_DATA_DELETION_URL` to change them).
-- **Ad studio** (`/ads/studio`, an Ads tab; **Taheri only** — `NEXT_PUBLIC_STORE_AD_STUDIO`, Mina "0"; 2026-09-29, owner: "a curated
+- **Ad studio** (`/ads/studio`, an Ads tab; both houses — `NEXT_PUBLIC_STORE_AD_STUDIO` (Mina "1" since the evening of 2026-09-29); 2026-09-29, owner: "a curated
   ad analysis guide + maker + competitor searcher + builder for just taheri … assessing all images from taheri.shop and from my
   google drive … recommend, fix, assess and build + help create like in canva ad creatives"). Sections are `?v=`:
   **Picks · Library** — every taheri.shop photo (`getSitePieces`) and every image in the Drive folders shared with the server's own
@@ -795,6 +795,21 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   Mina's photos are the catalogue's 619, **572 of them with the catalogue's unmarked source** (`source:<id>` assets, Shopify CDN or the
   site's own `catalog-src/` only), and their specs line is "925 Sterling Silver · stones · plating". Mina's Drive needs the same two
   steps in hom-pos (the Drive card names the project and the account).
+  **Mina's market** (research of 2026-09-29, `market.ts`): her median piece is Rs 14,000 (Zanvari 23,250, Zumorrud 17,500) with the
+  same made-to-order / buy-back / repolish; 164 of 209 Shopify pieces are 21k gold-plated; 4.81★ from 138 reviews; free delivery only
+  over Rs 20,000; no Google ads; **the catalogue carries no pixel**; both sites link TikTok to **@houseofmina, a US beauty/fashion
+  blog** (not confirmed as the house's — ask before changing `NEXT_PUBLIC_STORE_TIKTOK_URL`). Her plays: the gold look at the silver
+  price (always on), a real review, the Ring Builder (`path` on a play), bangle-and-ring sets, natural ruby for him, the shop, the
+  catalogue, the profile, and the promises for come-back.
+  **The pixel a site already carries, and Online orders** (2026-09-29): **houseofmina.store already has Meta pixel 1429906491670575**
+  through Shopify's Facebook & Instagram app — a web pixel, not `fbq`, so the old check missed it and would have had Mina make a
+  second. `pixelState` now reads every site the house sells from (`NEXT_PUBLIC_STORE_SHOP_URL` and the website), finds the pixels
+  each carries (`pixel-read.ts`, tested: `fbq('init')` and Shopify's escaped `"pixel_id"`), and what the chosen one received this
+  week (`/{pixel}/stats?aggregation=event`). Setup offers the carried pixel first (and says how to share it with the ad account when
+  a shop app made it under another business); making a second asks first. New goal **`sales` — "Online orders"**: `OUTCOME_SALES`,
+  `OFFSITE_CONVERSIONS` with `promoted_object { pixel_id, custom_event_type: PURCHASE }`, the link defaulting to the online shop;
+  New ad says how many orders the pixel saw this week against Meta's ~50 to learn. Results read as purchases
+  (`RESULT_FOR_GOAL.OFFSITE_CONVERSIONS`).
 
 ## graphify
 

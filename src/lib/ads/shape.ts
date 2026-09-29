@@ -148,6 +148,9 @@ export const RESULT_FOR_GOAL: Record<string, { label: string; action?: string[];
   CONVERSATIONS: { label: 'Chats started', action: ['onsite_conversion.messaging_conversation_started_7d'] },
   LINK_CLICKS: { label: 'Link clicks', action: ['link_click'] },
   LANDING_PAGE_VIEWS: { label: 'Landing page views', action: ['landing_page_view'] },
+  // The ERP's "Online orders" optimises for Purchase; an ad set made elsewhere for another website event still reads as purchases.
+  OFFSITE_CONVERSIONS: { label: 'Purchases', action: ['omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'purchase'] },
+  VALUE: { label: 'Purchases', action: ['omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'purchase'] },
   POST_ENGAGEMENT: { label: 'Post engagement', action: ['post_engagement'] },
   PROFILE_VISIT: { label: 'Profile visits', action: ['instagram_profile_visit', 'ig_profile_visit'], unsure: true },
   VISIT_INSTAGRAM_PROFILE: { label: 'Profile visits', action: ['instagram_profile_visit', 'ig_profile_visit'], unsure: true },

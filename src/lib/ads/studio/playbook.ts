@@ -141,7 +141,7 @@ const MINA_PLAYBOOK: PlaybookSection[] = [
     lead: 'Meta counts conversations and clicks; the orders are in WhatsApp, Direct and the online shop.',
     points: [
       { head: 'Ask where they found you', body: 'Note it on the customer — the only link between an ad and an order Meta can’t see.' },
-      { head: 'The pixel on the shop', body: 'With Meta’s pixel on houseofmina.store (Ads → Setup), website ads can buy page views and purchases, and retarget people who looked.' },
+      { head: 'The pixel on the shop', body: 'houseofmina.store already carries a Meta pixel (Shopify’s Facebook app). Choose it on Ads → Setup: “Online orders” then buys purchases, and visitors can be retargeted. The catalogue has none yet.' },
     ],
   },
 ];

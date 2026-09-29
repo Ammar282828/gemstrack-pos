@@ -63,11 +63,33 @@ export const META_NOTES: Finding[] = [
   { head: 'The website', body: 'Pixel and Conversions API together, de-duplicated by event id, then website ads can buy page views and retarget viewers. Catalog ads need a price per item and suit an hourly feed at today’s rate.' },
 ];
 
-// ── House of Mina (research of 2026-09-29) ─────────────────────────────────
+// ── House of Mina (research of 2026-09-29: the houses’ sites, /products.json, Google’s Ads Transparency, TikTok) ──
 
-const MINA_PATTERNS: Finding[] = [];
-const MINA_GAPS: Finding[] = [];
-const MINA_HOUSES: House[] = [];
+const MINA_PATTERNS: Finding[] = [
+  { head: 'Two pricing cultures', body: 'Fine-silver houses show full prices and rarely discount; fashion brands live on permanent sales (Silver Aura’s median “58% off”, Heritage’s “monthly 50%”).', who: 'Zanvari, Nuqrah, Zumorrud, Nadia Chhotani · Silver Aura, Heritage, Tehzib' },
+  { head: 'Trust instead of discounts', body: '“Since 1947”, “4th generation”, lifetime replating, buy-back, IGI certificates.', who: 'Zanvari, Nadia Chhotani, Mastaani' },
+  { head: 'Google search ads', body: '“Pakistan’s #1 / Original”, free delivery, cash on delivery. Four of twelve run them; Mina runs none.', who: 'Zanvari, Zumorrud, Heritage, Jadeno', source: 'https://adstransparency.google.com/advertiser/AR01811409337625608193' },
+  { head: 'Advance on cash on delivery', body: 'Zumorrud asks 50% up front on every COD order; Nadia Chhotani above Rs 100,000.', who: 'Zumorrud, Nadia Chhotani', source: 'https://ordernation.com/blogs/research/state-of-online-shopping-pakistan-2026' },
+  { head: 'Free delivery, lower lines', body: 'Free everywhere (Zanvari, Zumorrud, Heritage), over Rs 5,000 (Jadeno) or Rs 10,000 (Nuqrah).' },
+  { head: 'Gift menus and seasons', body: 'Eid, wedding “for her / for him”, Azadi up to 30%, Eid flat 20%, first-order codes of 5–20%.', who: 'Zanvari, Zumorrud, Inaara' },
+];
+const MINA_GAPS: Finding[] = [
+  { head: 'The same promises, lower', body: 'Median Rs 14,000 against Zanvari’s 23,250 and Zumorrud’s 17,500, with made-to-order, buy-back and repolish too. Show the price.' },
+  { head: 'The gold look', body: '164 of 209 pieces are 21k gold-plated; the reviews say “looks exactly like real gold”. Rivals lead with white metal and moissanite.' },
+  { head: 'Customers’ own words', body: '4.81★ from 138 reviews in a local voice. Rivals’ ads use generic claims.' },
+  { head: 'Sets and men’s ruby', body: '62 bangle-and-ring sets and 18 natural ruby rings — ranges nobody leads with.' },
+  { head: 'Fix first', body: 'Free delivery starts at Rs 20,000, above the median piece. The catalogue has no pixel. The TikTok link goes to @houseofmina, a US beauty blog — check it is the house’s. Nothing on Google search, not even the name.' },
+];
+const MINA_HOUSES: House[] = [
+  { name: 'Zanvari', city: 'Karachi, since 1947', line: 'Median Rs 23,250. Lifetime replating, buy-back, 30-day exchange; Google ads “Made to order in Karachi”. Meta, TikTok and Google tags.', url: 'https://zanvari.com' },
+  { name: 'Zumorrud', city: 'Online', line: 'Median Rs 17,500. Free delivery; 50% advance on COD; 20% off the first order; Google ads with sales.', url: 'https://zumorrud.com' },
+  { name: 'Nuqrah', city: 'Online', line: 'Median Rs 9,240. Free shipping over Rs 10,000; “Loved by creators”; Work Wear and Evening edits.', url: 'https://nuqrah.com' },
+  { name: 'Nadia Chhotani', city: 'Karachi', line: 'Median Rs 63,500. “4th generation jeweller”; bridal consultations; never on sale.', url: 'https://nadiachhotani.com' },
+  { name: 'Mastaani Diamonds', city: 'Online', line: 'Lab-grown diamonds in 925, from Rs 39,900. IGI, lifetime warranty, ships in 2–3 days; a pre-filled WhatsApp.', url: 'https://mastaanidiamonds.com' },
+  { name: 'Heritage Jewels', city: 'Malls', line: '55 Google ads since 2022: “Monthly sale up to 50% off · Pakistan’s #1 · Cash on delivery”.', url: 'https://heritagejewels.com.pk' },
+  { name: 'Silver Aura', city: 'Online', line: 'Median Rs 25,000; 40% of pieces “on sale” at a median 58% off.', url: 'https://silverauraofficial.com' },
+  { name: 'Jadeno', city: 'Online', line: 'Fashion jewellery, median Rs 3,550 — 200–300 live Google ads, 630 TikTok videos: the loudest advertiser in the category.', url: 'https://jadeno.pk' },
+];
 
 const MINA = STORE_BRAND === 'mina';
 export const PATTERNS = MINA ? MINA_PATTERNS : TAHERI_PATTERNS;

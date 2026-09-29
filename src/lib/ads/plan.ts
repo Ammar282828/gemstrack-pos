@@ -15,7 +15,7 @@
 import { buildTargeting, describeAudience, type AudienceDraft } from './targeting';
 import { money, toMinor } from './shape';
 
-export type GoalKey = 'whatsapp' | 'messages' | 'instagram_dm' | 'website' | 'channel' | 'profile' | 'engagement' | 'reach';
+export type GoalKey = 'whatsapp' | 'messages' | 'instagram_dm' | 'website' | 'sales' | 'channel' | 'profile' | 'engagement' | 'reach';
 
 export interface Goal {
   key: GoalKey;
@@ -39,6 +39,8 @@ export const GOALS: Goal[] = [
   { key: 'messages', label: 'WhatsApp or Instagram chats', hint: 'Each person gets the app they use — WhatsApp or Instagram Direct.', objective: 'OUTCOME_ENGAGEMENT', optimization: 'CONVERSATIONS', destination: 'MESSAGING_INSTAGRAM_DIRECT_WHATSAPP', promotesPage: true, photosOnly: true },
   { key: 'instagram_dm', label: 'Instagram messages', hint: 'People tap and message the shop on Instagram.', objective: 'OUTCOME_ENGAGEMENT', optimization: 'CONVERSATIONS', destination: 'INSTAGRAM_DIRECT', promotesPage: true },
   { key: 'website', label: 'Website visits', hint: 'People tap through to the piece on the website.', objective: 'OUTCOME_TRAFFIC', optimization: 'LINK_CLICKS', destination: 'WEBSITE' },
+  // Sales, optimised for the pixel's Purchase: Meta looks for people who buy, not people who tap.
+  { key: 'sales', label: 'Online orders', hint: 'Meta looks for people who buy on the website — needs its pixel recording orders.', objective: 'OUTCOME_SALES', optimization: 'OFFSITE_CONVERSIONS', destination: 'WEBSITE' },
   // Meta has no objective for channel follows (2026-09): a link ad to the channel's page is the route.
   { key: 'channel', label: 'WhatsApp channel follows', hint: 'People tap through to the shop’s WhatsApp channel and follow it.', objective: 'OUTCOME_TRAFFIC', optimization: 'LINK_CLICKS', destination: 'WEBSITE' },
   { key: 'profile', label: 'Instagram profile visits', hint: 'People tap through to the shop’s Instagram profile.', objective: 'OUTCOME_TRAFFIC', optimization: 'VISIT_INSTAGRAM_PROFILE', destination: 'INSTAGRAM_PROFILE' },
@@ -48,6 +50,9 @@ export const GOALS: Goal[] = [
 export const goalOf = (k: GoalKey) => GOALS.find(g => g.key === k)!;
 
 export interface PlanPhoto { hash: string; url?: string | null; headline?: string; link?: string }
+
+/** The goals whose button opens a page on the house's own site. */
+export const goesToSite = (g: GoalKey) => g === 'website' || g === 'sales';
 
 /** The shop's WhatsApp channel link (whatsapp.com/channel/…), the only place a channel ad can go. */
 export const isChannelLink = (l: string) => /^https:\/\/(www\.)?whatsapp\.com\/channel\/\S+/.test(l.trim());
@@ -80,6 +85,8 @@ export interface PlanContext {
   iceBreakers?: string[];
   /** The website carries this account's pixel and it has fired: website ads buy page views, not clicks. */
   pixelLive?: boolean;
+  /** The chosen pixel (Setup), which "Online orders" optimises for purchases on. */
+  pixelId?: string | null;
   currency: string;
   /** The account's smallest daily budget, in the currency (Meta's min_daily_budget). */
   minDaily: number | null;
@@ -132,7 +139,8 @@ export function planProblems(p: AdPlan, ctx: PlanContext): string[] {
   }
   if (p.source.kind === 'post' && goal.photosOnly) out.push(`“${goal.label}” works with new photos, not a boosted post.`);
   if (p.goal === 'channel' && !isChannelLink(p.link)) out.push('Give the WhatsApp channel’s link (whatsapp.com/channel/…).');
-  if (p.goal === 'website') {
+  if (p.goal === 'sales' && !ctx.pixelId) out.push('“Online orders” needs the website’s pixel — choose it on the Setup tab (the website pixel step).');
+  if (goesToSite(p.goal)) {
     const ok = (l?: string) => /^https?:\/\/\S+\.\S+/.test((l ?? '').trim());
     const fine = ok(p.link) || (p.source.kind === 'photos' && p.source.photos.length > 0 && p.source.photos.every(x => ok(x.link)));
     if (!fine) out.push('Give the website address the ad opens.');
@@ -185,6 +193,7 @@ export function adsetParams(p: AdPlan, campaignId: string, ctx: PlanContext): Re
   };
   if (goal.destination) params.destination_type = goal.destination;
   if (goal.promotesPage && ctx.pageId) params.promoted_object = { page_id: ctx.pageId };
+  if (p.goal === 'sales' && ctx.pixelId) params.promoted_object = { pixel_id: ctx.pixelId, custom_event_type: 'PURCHASE' };
   if (p.budget.kind === 'daily') params.daily_budget = toMinor(p.budget.amount, ctx.currency);
   else params.lifetime_budget = toMinor(p.budget.amount, ctx.currency);
   if (p.budget.start) params.start_time = new Date(p.budget.start).toISOString();
@@ -239,8 +248,8 @@ export function creativeSpec(p: AdPlan, ctx: PlanContext, opts: { enhancements?:
       image_hash: photos[0].hash,
       ...(p.headline.trim() ? { name: p.headline.trim() } : {}),
       // Instagram-message ads take no link (Meta's own example has none).
-      ...(p.goal === 'instagram_dm' ? {} : { link: p.goal === 'website' ? linkFor(p, ctx, photos[0].link) : link }),
-      ...(cta ? { call_to_action: p.goal === 'website' ? { type: p.button, value: { link: linkFor(p, ctx, photos[0].link) } } : cta } : {}),
+      ...(p.goal === 'instagram_dm' ? {} : { link: goesToSite(p.goal) ? linkFor(p, ctx, photos[0].link) : link }),
+      ...(cta ? { call_to_action: goesToSite(p.goal) ? { type: p.button, value: { link: linkFor(p, ctx, photos[0].link) } } : cta } : {}),
       ...greeting,
     };
   } else {
@@ -250,7 +259,7 @@ export function creativeSpec(p: AdPlan, ctx: PlanContext, opts: { enhancements?:
       // Keep the cards in the order they were chosen (Meta reorders them by default).
       multi_share_optimized: false,
       child_attachments: photos.map(ph => {
-        const own = p.goal === 'website' ? linkFor(p, ctx, ph.link) : link;
+        const own = goesToSite(p.goal) ? linkFor(p, ctx, ph.link) : link;
         const card = callToAction(p, own, ctx);
         return {
           image_hash: ph.hash,
@@ -282,7 +291,7 @@ function assetFeedCreative(p: AdPlan, ctx: PlanContext, o: { dof: Record<string,
   if (p.source.kind !== 'photos') throw new Error('Photos only.');
   const photo = p.source.photos[0];
   const vertical = p.source.vertical ?? null;
-  const url = p.goal === 'website' ? linkFor(p, ctx, photo.link) : o.link;
+  const url = goesToSite(p.goal) ? linkFor(p, ctx, photo.link) : o.link;
   const cta = callToAction(p, url, ctx);
   const feed: Record<string, unknown> = {
     images: vertical ? [{ hash: photo.hash, adlabels: [{ name: 'feed' }] }, { hash: vertical.hash, adlabels: [{ name: 'vertical' }] }] : [{ hash: photo.hash }],

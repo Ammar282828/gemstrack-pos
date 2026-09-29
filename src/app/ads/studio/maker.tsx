@@ -29,7 +29,7 @@ import { STORE_LINKS } from '@/lib/store-config';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
 import { reflow, renderDocTo, type Assets, type Bind, type Fields, type StoryDoc } from '@/lib/social/editor';
 import { AD_FORMATS, AD_FORMAT_ORDER, AD_TEMPLATES, PHOTO, applyAdTemplate, blankAd, paintedAd, rateBoard, safeZone, type AdFormat, type AdTemplateId, type RateBoard } from '@/lib/ads/studio/templates';
-import { GOALS, isChannelLink, type GoalKey } from '@/lib/ads/plan';
+import { GOALS, goesToSite, isChannelLink, type GoalKey } from '@/lib/ads/plan';
 import type { Play } from '@/lib/ads/studio/plays';
 import { VOICE } from '@/lib/ads/studio/brand';
 import type { CheckVerdict, CopyResult, Direction } from '@/lib/ads/studio/prompts';
@@ -183,7 +183,7 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
   const playLink = (pl: Play | null | undefined): string => {
     if (pl?.goal === 'channel') return STORE_LINKS.waChannel || '';
     if (pl?.link === 'investments') return STORE_LINKS.website ? `${STORE_LINKS.website.replace(/\/+$/, '')}/investments` : '';
-    if (pl?.link === 'shop') return STORE_LINKS.shop || STORE_LINKS.website || '';
+    if (pl?.link === 'shop') { const base = (STORE_LINKS.shop || STORE_LINKS.website || '').replace(/\/+$/, ''); return base ? base + (pl.path ?? '') : ''; }
     return work?.asset?.page ?? STORE_LINKS.website ?? '';
   };
   useEffect(() => {
@@ -347,7 +347,7 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
     if (!ready) return;
     setSending(true);
     try {
-      if ((goal === 'channel' && !isChannelLink(link)) || (goal === 'website' && !/^https?:\/\/\S+\.\S+/.test(link.trim()))) {
+      if ((goal === 'channel' && !isChannelLink(link)) || (goesToSite(goal) && !/^https?:\/\/\S+\.\S+/.test(link.trim()))) {
         throw new Error(goal === 'channel' ? 'Give the WhatsApp channel’s link.' : 'Give the website address the ad opens.');
       }
       const upload = async (b: Blob, name: string) => {
@@ -363,9 +363,9 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
       await api('/api/ads/studio/creatives', { body: { assets: work?.asset ? [work.asset.id] : [], hash: up.hash, url: up.url, format, name: fields.headline } }).catch(() => undefined);
       const key = Math.random().toString(36).slice(2, 10);
       const handoff: StudioHandoff = {
-        photos: [{ hash: up.hash, url: up.url, headline: adHeadline || fields.headline, link: goal === 'website' ? link.trim() : work?.asset?.page ?? STORE_LINKS.website ?? undefined }],
+        photos: [{ hash: up.hash, url: up.url, headline: adHeadline || fields.headline, link: goesToSite(goal) ? link.trim() : work?.asset?.page ?? STORE_LINKS.website ?? undefined }],
         vertical: vert ? { hash: vert.hash, url: vert.url } : null,
-        text, headline: adHeadline || fields.headline, goal, link: goal === 'website' || goal === 'channel' ? link.trim() : undefined,
+        text, headline: adHeadline || fields.headline, goal, link: goesToSite(goal) || goal === 'channel' ? link.trim() : undefined,
         name: `${fields.headline || 'Studio ad'} · ${F.short}${vert ? ' + 9:16' : ''}`,
       };
       sessionStorage.setItem(HANDOFF_PREFIX + key, JSON.stringify(handoff));
@@ -571,12 +571,12 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
         <section className="rounded-xl border p-3 space-y-2">
           <p className="text-sm font-semibold">Where a tap goes</p>
           <div className="grid grid-cols-2 gap-1.5">
-            {GOALS.filter(g => !g.postOnly && (g.key !== 'channel' || !!STORE_LINKS.waChannel)).map(g => (
-              <button key={g.key} type="button" onClick={() => { setGoal(g.key); if (g.key === 'channel') setLink(STORE_LINKS.waChannel || ''); else if (g.key === 'website' && !/^https?:/.test(link)) setLink(work?.asset?.page ?? STORE_LINKS.website ?? ''); }}
+            {GOALS.filter(g => !g.postOnly && (g.key !== 'channel' || !!STORE_LINKS.waChannel) && (g.key !== 'sales' || !!(STORE_LINKS.shop || STORE_LINKS.website))).map(g => (
+              <button key={g.key} type="button" onClick={() => { setGoal(g.key); if (g.key === 'channel') setLink(STORE_LINKS.waChannel || ''); else if (g.key === 'sales') setLink(STORE_LINKS.shop || work?.asset?.page || STORE_LINKS.website || ''); else if (g.key === 'website' && !/^https?:/.test(link)) setLink(work?.asset?.page ?? STORE_LINKS.website ?? ''); }}
                 className={cn('rounded-lg border px-2 py-1.5 text-left text-[11px] min-h-0', goal === g.key ? 'border-primary bg-primary/5 font-medium' : 'text-muted-foreground')}>{g.label}</button>
             ))}
           </div>
-          {(goal === 'website' || goal === 'channel') && <Input value={link} onChange={e => setLink(e.target.value)} placeholder={goal === 'channel' ? 'https://whatsapp.com/channel/…' : 'https://… — the page it opens'} className="h-9 text-base sm:text-xs" />}
+          {(goesToSite(goal) || goal === 'channel') && <Input value={link} onChange={e => setLink(e.target.value)} placeholder={goal === 'channel' ? 'https://whatsapp.com/channel/…' : 'https://… — the page it opens'} className="h-9 text-base sm:text-xs" />}
           {format !== 'story' && format !== 'landscape' && (
             <label className="flex items-start gap-2 text-[11px] text-muted-foreground">
               <input type="checkbox" className="mt-0.5" checked={pair} onChange={e => setPair(e.target.checked)} />

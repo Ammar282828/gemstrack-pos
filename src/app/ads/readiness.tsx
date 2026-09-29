@@ -13,10 +13,13 @@ import type { PixelState } from '@/lib/ads/pixel';
 import { STORE_LINKS } from '@/lib/store-config';
 import { api, type AdsStatus } from './ads-kit';
 
+/** A site the house sells from: its website or its online shop. */
+const SITE = !!(STORE_LINKS.website || STORE_LINKS.shop);
+
 export function Readiness({ status }: { status: AdsStatus }) {
   const [pixel, setPixel] = useState<PixelState | null>(null);
   const ready = !!status.connection?.connected && !!status.settings?.adAccountId;
-  useEffect(() => { if (ready && STORE_LINKS.website) api<{ state: PixelState }>('/api/ads/pixel').then(d => setPixel(d.state)).catch(() => undefined); }, [ready]);
+  useEffect(() => { if (ready && SITE) api<{ state: PixelState }>('/api/ads/pixel').then(d => setPixel(d.state)).catch(() => undefined); }, [ready]);
   if (!ready) return null;
   const items: { text: string; href: string }[] = [];
   const live = status.app.live;
@@ -25,8 +28,14 @@ export function Readiness({ status }: { status: AdsStatus }) {
   }
   const missing = status.connection?.missingScopes ?? [];
   if (missing.length) items.push({ text: `The Facebook login lacks ${missing.join(', ')} — add ${missing.length === 1 ? 'it' : 'them'} to the login configuration and connect again.`, href: '/ads/setup' });
-  if (STORE_LINKS.website && pixel && !pixel.live) {
-    items.push({ text: pixel.id ? 'The website pixel hasn’t fired this week — the site isn’t loading it yet.' : 'No website pixel: website ads buy clicks only, and visitors can’t be retargeted.', href: '/ads/setup' });
+  if (SITE && pixel && !pixel.live) {
+    const carried = [...new Set(pixel.sites.flatMap(x => x.ids ?? []))];
+    items.push({
+      text: pixel.id ? 'The website pixel hasn’t fired this week — the site isn’t loading it yet.'
+        : carried.length ? `The shop’s site already carries a Meta pixel (${carried.join(', ')}) but ads don’t use it yet — choose it on Setup: website ads then buy page views and orders, and visitors can be retargeted.`
+        : 'No website pixel: website ads buy clicks only, and visitors can’t be retargeted.',
+      href: '/ads/setup',
+    });
   }
   if (!items.length) return null;
   return (

@@ -8,7 +8,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, MessagesSquare, Rss, UserRound, MousePointerClick, ChevronDown, ChevronUp, Brush, Star, Megaphone, AlertTriangle } from 'lucide-react';
+import { MessageCircle, MessagesSquare, Rss, UserRound, MousePointerClick, ChevronDown, ChevronUp, Brush, Star, Megaphone, AlertTriangle, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PLAYS, STAGES, type Play } from '@/lib/ads/studio/plays';
 import { AD_FORMATS, AD_TEMPLATES } from '@/lib/ads/studio/templates';
@@ -16,10 +16,8 @@ import type { GoalKey } from '@/lib/ads/plan';
 
 const ICON: Partial<Record<GoalKey, React.ReactNode>> = {
   whatsapp: <MessageCircle className="h-4 w-4" />, messages: <MessagesSquare className="h-4 w-4" />, channel: <Rss className="h-4 w-4" />,
-  profile: <UserRound className="h-4 w-4" />, website: <MousePointerClick className="h-4 w-4" />,
+  profile: <UserRound className="h-4 w-4" />, website: <MousePointerClick className="h-4 w-4" />, sales: <ShoppingBag className="h-4 w-4" />,
 };
-
-
 
 export function PlanSection({ onMake, hasPhoto }: { onMake: (p: Play) => void; hasPhoto: boolean }) {
   return (
