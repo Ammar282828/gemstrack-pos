@@ -18,9 +18,10 @@ import { useAppStore } from '@/lib/store';
 import type { Product } from '@/lib/store';
 import { blankCartItem } from '@/components/cart/edit-cart-item-dialog';
 import {
-  resolveBill, hasBreakdown, writtenTotal, billLineToProduct,
+  resolveBill, hasBreakdown, writtenTotal, billLineToProduct, billRates,
   type BillDraft, type NameGuess, type RawBillDraft,
 } from '@/lib/vision/bill-draft';
+import { wastagePercentOf } from '@/lib/vision/wastage';
 import { TOLA_G } from '@/lib/vision/order-draft';
 import { STORE_CONFIG } from '@/lib/store-config';
 import type { RankedName, RosterEntry } from '@/lib/voice/phonetics';
@@ -64,6 +65,10 @@ export interface ScannedBill {
   /** The figure at the foot of the bill, kept so the cart can check its own sum. */
   writtenTotal: number | null;
   amountPaid: number | null;
+  /** The rates the bill was priced at, by the cart's rate boxes ("gold21k": 34000). */
+  rates: Record<string, number>;
+  /** The discount written at the foot. */
+  discount: number | null;
 }
 
 export function BillScanner({
@@ -136,6 +141,8 @@ export function BillScanner({
       writtenTotal: Number(draft.grandTotal) > 0 ? Number(draft.grandTotal)
         : Number(draft.subtotal) > 0 ? Number(draft.subtotal) : null,
       amountPaid: Number(draft.amountPaid) > 0 ? Number(draft.amountPaid) : null,
+      rates: billRates(kept, draft.ratePerGram, STORE_CONFIG.defaultMetal),
+      discount: Number(draft.discount) > 0 ? Number(draft.discount) : null,
     });
     reset();
     onOpenChange(false);
@@ -223,6 +230,10 @@ export function BillScanner({
                                   {l.weightG} g
                                   {l.weightWasTola && ` (${(Number(l.weightG) / TOLA_G).toFixed(2)} tola written)`}
                                 </span>
+                                {Number(l.stoneWeightG) > 0 && <span>less {l.stoneWeightG} g stone</span>}
+                                {wastagePercentOf(l) !== null && <span>wastage {wastagePercentOf(l)}%{Number(l.wastageG) > 0 ? ` (${l.wastageG} g)` : ''}</span>}
+                                {Number(l.ratePerGram || draft.ratePerGram) > 0 && <span>at {money(Number(l.ratePerGram || draft.ratePerGram))}/g</span>}
+                                {Number(l.stoneCharges) > 0 && <span>stones {money(Number(l.stoneCharges))}</span>}
                                 {Number(l.makingCharges) > 0 && <span>making {money(Number(l.makingCharges))}</span>}
                               </>
                             ) : (

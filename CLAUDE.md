@@ -308,6 +308,16 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   (5 s, 15 s, 30 s) instead of failing, and the checks panel's ping (thinking `low`, no retries — left alone it thought for
   up to 5 s and, with a retry, blew the panel's 8 s) shows a rate limit as a warning, not "timed out". The fix is the key
   project owner's: raise its Vertex AI per-minute quota (IAM & Admin → Quotas).
+- **The scanners read with Gemini 3.1 Pro and copy the paper's own hisaab** (2026-09-29, owner: "scan a parchi feature should
+  also use ai"). Scan a parchi (`/api/vision/order`) and Read a written bill (`/api/vision/bill`) ask for `scanModel()`
+  (`lib/vision/scan-model.ts`: `SCAN_AI_MODEL`, else **gemini-3.1-pro-preview**; one Google doesn't serve falls back to voice's
+  gemini-2.5-flash), wait out the key's rate limit (`patient`), and read every text part of the answer (the first alone could be
+  half a JSON — the 236 s "Could not read that back" of 2026-09-26). Both prompts now copy **wastage in grams** (`wastageG`, turned
+  into the percent the ERP prices with by `lib/vision/wastage.ts`, tested), the weight **before** a stone weight comes off (the
+  ERP subtracts `stoneWeightG` itself), and the bill scanner the **rate** (per line or once at the top) — `billRates` sets that
+  karat's box in the cart — and its **discount**, so a scanned estimate lands at the paper's own total instead of being
+  re-priced at today's rate. Measured on the two Taheri estimates of 2026-09-29: 2.5-flash and 3.1 Pro read every figure
+  (10/10, 17/17; Pro ≈ 5 s once the rate limit lets it through), **gemini-3.8-flash returned no lines at all** — never use it here.
 - **Drafts** (`/drafts`, Sales in the sidebar with a live count; 2026-09-27, owner: "drafts should have a separate section
   (order/invoice drafts) and be saved there, dont draft ongoing orders … deal with them smartly"). Firestore `drafts`, one
   document per unfinished form, seen on every device (`src/lib/work-drafts.ts`, tested; `components/drafts/use-work-drafts.ts`).

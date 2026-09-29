@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
 import { generateJson, geminiConfigured, GeminiError } from '@/lib/voice/gemini';
+import { scanModel } from '@/lib/vision/scan-model';
 import { ORDER_CATEGORIES } from '@/lib/vision/order-draft';
 
 export const runtime = 'nodejs';
@@ -47,9 +48,13 @@ const BILL_SCHEMA = {
           itemCategory: { type: 'STRING', enum: [...ORDER_CATEGORIES] },
           metalType: { type: 'STRING', enum: ['gold', 'palladium', 'platinum', 'silver'] },
           karat: { type: 'NUMBER', description: 'Only if written. 12, 18, 21, 22 or 24.' },
-          weightG: { type: 'NUMBER', description: 'GRAMS. Convert from tola at 11.6638 and set weightWasTola.' },
+          weightG: { type: 'NUMBER', description: 'GRAMS, the piece as weighed — BEFORE any stone weight is taken off ("5.700 − 0.500 stone wt" is 5.7). Convert from tola at 11.6638 and set weightWasTola.' },
           weightWasTola: { type: 'BOOLEAN' },
-          stoneWeightG: { type: 'NUMBER' },
+          stoneWeightG: { type: 'NUMBER', description: 'A stone weight the bill takes off the weight, in grams.' },
+          wastageG: { type: 'NUMBER', description: 'Wastage / kasar written in GRAMS ("+ 0.650 wastage"). Copy it; do not convert.' },
+          wastagePercent: { type: 'NUMBER', description: 'Wastage written as a PERCENT, only if a percent is written.' },
+          ratePerGram: { type: 'NUMBER', description: 'The metal rate this line is priced at, PER GRAM — its own, or the rate written once at the top of the bill. If written per tola, divide by 11.6638 and set rateWasPerTola.' },
+          rateWasPerTola: { type: 'BOOLEAN' },
           makingCharges: { type: 'NUMBER', description: 'Making / majoori for this line, if written.' },
           stoneCharges: { type: 'NUMBER' },
           diamondCharges: { type: 'NUMBER' },
@@ -59,6 +64,8 @@ const BILL_SCHEMA = {
         },
       },
     },
+    ratePerGram: { type: 'NUMBER', description: 'The rate written once for the whole bill ("Rate 34,000"), PER GRAM. Converted if written per tola.' },
+    rateWasPerTola: { type: 'BOOLEAN' },
     customerNameHeard: { type: 'STRING', description: 'The customer name EXACTLY as written, Roman letters. Do not correct it.' },
     customerPhone: { type: 'STRING' },
     subtotal: { type: 'NUMBER' },
@@ -101,7 +108,17 @@ RULES, hardest first:
 
 5. COPY THE FOOT OF THE BILL AS WRITTEN — subtotal, discount, total, anything paid.
    Do not recompute them to agree with the lines. If they disagree, that disagreement
-   is information and the shop needs to see it.`;
+   is information and the shop needs to see it.
+
+6. COPY THE WORKING OF A LINE, FIGURE BY FIGURE. A line usually shows its sum:
+   "6.500 net wt + 0.650 wastage = 7.150 × 34,000 = 243,100 gold price + 15,000 stones
+   + 15,000 making = 273,100". The weight goes in weightG, the wastage in wastageG (grams,
+   as written — never turned into a percent), the rate in ratePerGram, stones and making
+   in their fields, the line's result in lineTotal. A stone weight taken off ("5.700 −
+   0.500 stone wt = 5.200") means weightG 5.7 and stoneWeightG 0.5 — the weight before the
+   stone comes off. A rate written once at the top ("Rate 34,000") goes in the bill's
+   ratePerGram and on every line priced from it. Intermediate results (7.150, 243,100)
+   are not fields; do not put them anywhere else.`;
 
 export async function POST(req: NextRequest) {
   const denied = await denyUnlessOwner(req);
@@ -126,6 +143,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const parsed = await generateJson<unknown>({
+      model: scanModel(),
+      patient: true,
       system: PROMPT,
       parts: [{ inlineData: { mimeType: mimeType || 'image/jpeg', data: image } }],
       schema: BILL_SCHEMA as unknown as Record<string, unknown>,

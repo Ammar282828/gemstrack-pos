@@ -22,6 +22,7 @@
  */
 
 import { rankNames, type RankedName, type RosterEntry } from '@/lib/voice/phonetics';
+import { wastagePercentOf } from '@/lib/vision/wastage';
 
 export interface BillLine {
   description?: string | null;
@@ -32,6 +33,12 @@ export interface BillLine {
   /** Set when the slip was written in tola and weightG was converted. */
   weightWasTola?: boolean | null;
   stoneWeightG?: number | null;
+  /** Wastage as written: grams ("+ 0.650") or, less often, a percent. See vision/wastage.ts. */
+  wastageG?: number | null;
+  wastagePercent?: number | null;
+  /** The rate this line was priced at, per gram (its own or the bill's), as written. */
+  ratePerGram?: number | null;
+  rateWasPerTola?: boolean | null;
   makingCharges?: number | null;
   stoneCharges?: number | null;
   diamondCharges?: number | null;
@@ -47,6 +54,9 @@ export interface BillLine {
 
 export interface RawBillDraft {
   lines?: BillLine[] | null;
+  /** A rate written once for the whole bill ("Rate 34,000"), per gram. */
+  ratePerGram?: number | null;
+  rateWasPerTola?: boolean | null;
   customerNameHeard?: string | null;
   customerPhone?: string | null;
   /** As written at the foot of the bill, for checking against what we compute. */
@@ -186,6 +196,8 @@ export function billLineToProduct<T extends Record<string, unknown>>(
     metalWeightG: Number(line.weightG) || 0,
     hasStones: Number(line.stoneWeightG) > 0 || Number(line.stoneCharges) > 0,
     stoneWeightG: Number(line.stoneWeightG) || 0,
+    // The bill's own wastage when it wrote one, so the line prices as the paper did.
+    ...(wastagePercentOf(line) !== null ? { wastagePercentage: wastagePercentOf(line) } : {}),
     stoneCharges: Number(line.stoneCharges) || 0,
     hasDiamonds: Number(line.diamondCharges) > 0,
     diamondCharges: Number(line.diamondCharges) || 0,
@@ -193,4 +205,31 @@ export function billLineToProduct<T extends Record<string, unknown>>(
     isCustomPrice: false,
     customPrice: 0,
   } as T;
+}
+
+/**
+ * The rates the bill was priced at, by the cart's rate boxes ("gold21k": 34000).
+ *
+ * A broken-down line priced at the bill's rate comes to the bill's figure; priced at today's
+ * rate it doesn't, and the scanned total then disagrees with the paper for no reason anyone
+ * can see. So a rate written on the bill — on the line, or once at the top — sets that karat's
+ * box. Gold only (the other metals' boxes are not per karat the same way, and silver is all-in);
+ * a karat priced at two different rates on one bill sets nothing, since one box can't hold both.
+ */
+export function billRates(lines: BillLine[], billRate: number | null | undefined, fallbackMetal: string): Record<string, number> {
+  const seen = new Map<string, Set<number>>();
+  for (const l of lines) {
+    if (!hasBreakdown(l)) continue;
+    const metal = String(l.metalType || fallbackMetal);
+    if (metal !== 'gold') continue;
+    const rate = Number(l.ratePerGram) > 0 ? Number(l.ratePerGram) : Number(billRate) > 0 ? Number(billRate) : 0;
+    if (!rate) continue;
+    const k = Number(l.karat) > 0 && KARAT_BY_METAL.gold.includes(Number(l.karat)) ? Number(l.karat) : 21;
+    const key = `gold${k}k`;
+    if (!seen.has(key)) seen.set(key, new Set());
+    seen.get(key)!.add(Math.round(rate * 100) / 100);
+  }
+  const out: Record<string, number> = {};
+  for (const [key, rates] of seen) if (rates.size === 1) out[key] = [...rates][0];
+  return out;
 }

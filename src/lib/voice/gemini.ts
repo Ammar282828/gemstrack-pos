@@ -65,6 +65,17 @@ export interface GenerateOptions {
    */
   thinkingBudget?: number;
   signal?: AbortSignal;
+  /**
+   * The model, when not VERTEX_MODEL: the scanners ask for a stronger one (vision/scan-model.ts).
+   * One Google doesn't serve here (404) falls back to VERTEX_MODEL, so a scan never fails for it.
+   */
+  model?: string;
+  /**
+   * Wait out a rate limit rather than fail: 5 s, 15 s, 30 s. For the scanners, where a slip is
+   * worth waiting for; voice, where somebody is standing there, waits 3 s once. The Vertex AI
+   * key's project allows only a few calls a minute (2026-09-29).
+   */
+  patient?: boolean;
 }
 
 export class GeminiError extends Error {
@@ -74,9 +85,9 @@ export class GeminiError extends Error {
 }
 
 /** Where to send it and how to prove who is asking — see the note at the top. */
-async function endpoint(): Promise<{ url: string; headers: Record<string, string> }> {
+async function endpoint(model: string): Promise<{ url: string; headers: Record<string, string> }> {
   const key = await vertexKey();
-  if (key) return { url: keyedModelUrl(VERTEX_MODEL), headers: { 'x-goog-api-key': key } };
+  if (key) return { url: keyedModelUrl(model), headers: { 'x-goog-api-key': key } };
   if (!PROJECT) throw new GeminiError('No Google Cloud project configured.', 503);
 
   const client = await auth.getClient();
@@ -85,7 +96,7 @@ async function endpoint(): Promise<{ url: string; headers: Record<string, string
 
   return {
     url: `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT}`
-      + `/locations/${LOCATION}/publishers/google/models/${VERTEX_MODEL}:generateContent`,
+      + `/locations/${LOCATION}/publishers/google/models/${model}:generateContent`,
     headers: { Authorization: `Bearer ${token}` },
   };
 }
@@ -97,40 +108,48 @@ async function endpoint(): Promise<{ url: string; headers: Record<string, string
  * that cannot tell "no credit" from "could not read that" ends up telling the shop the
  * wrong thing to do about it.
  */
-export async function generateJson<T>({
-  system, parts, schema, temperature = 0, thinkingBudget, signal,
-}: GenerateOptions): Promise<T> {
-  const { url, headers } = await endpoint();
+const WAIT_PATIENT = [5000, 15000, 30000];
+const WAIT_BRIEF = [3000];
 
-  const res = await fetch(url, {
-    method: 'POST',
-    signal,
-    headers: { ...headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [{ role: 'user', parts }],
-      generationConfig: {
-        temperature,
-        responseMimeType: 'application/json',
-        responseSchema: schema,
-        ...(thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget } } : {}),
-      },
-    }),
+export async function generateJson<T>({
+  system, parts, schema, temperature = 0, thinkingBudget, signal, model, patient,
+}: GenerateOptions): Promise<T> {
+  const models = [...new Set([model?.trim() || VERTEX_MODEL, VERTEX_MODEL])];
+  const waits = patient ? WAIT_PATIENT : WAIT_BRIEF;
+  const request = JSON.stringify({
+    systemInstruction: { parts: [{ text: system }] },
+    contents: [{ role: 'user', parts }],
+    generationConfig: {
+      temperature,
+      responseMimeType: 'application/json',
+      responseSchema: schema,
+      ...(thinkingBudget !== undefined ? { thinkingConfig: { thinkingBudget } } : {}),
+    },
   });
 
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    const err = (Array.isArray(body) ? body[0] : body)?.error ?? {};
-    const message = String(err.message ?? `Vertex AI returned ${res.status}`);
-    // Worth separating: a depleted account is the shop's to fix, not a fault to retry.
-    if (err.status === 'RESOURCE_EXHAUSTED') {
-      throw new GeminiError('The Google Cloud account has no credit left for this.', 429);
+  let body: unknown = null;
+  for (let m = 0, attempt = 0; ;) {
+    const { url, headers } = await endpoint(models[m]);
+    const res = await fetch(url, { method: 'POST', signal, headers: { ...headers, 'Content-Type': 'application/json' }, body: request });
+    body = await res.json().catch(() => null);
+    if (res.ok) break;
+    const err = ((Array.isArray(body) ? body[0] : body) as { error?: { status?: string; message?: string } } | null)?.error ?? {};
+    // A model this project isn't served: the pinned one, which is.
+    if (res.status === 404 && m < models.length - 1) { m++; attempt = 0; continue; }
+    if (res.status === 429 && attempt < waits.length) { await new Promise(r => setTimeout(r, waits[attempt++])); continue; }
+    // A rate limit is a wait, not a fault; with the key it is almost never the money.
+    if (err.status === 'RESOURCE_EXHAUSTED' || res.status === 429) {
+      throw new GeminiError('Google is holding the AI to its per-minute quota right now. Try again in a minute.', 429);
     }
-    throw new GeminiError(message, res.status);
+    throw new GeminiError(String(err.message ?? `Vertex AI returned ${res.status}`), res.status);
   }
 
-  const text = (Array.isArray(body) ? body[0] : body)
-    ?.candidates?.[0]?.content?.parts?.[0]?.text;
+  // Every text part, not the first: a Gemini 3 answer can come in several, and reading one
+  // of them was a JSON cut in half ("Could not read that back"). Thoughts are left out.
+  type Parts = Array<{ text?: string; thought?: boolean }>;
+  const answer = ((Array.isArray(body) ? body[0] : body) as { candidates?: Array<{ content?: { parts?: Parts } }> } | null)
+    ?.candidates?.[0]?.content?.parts ?? [];
+  const text = answer.filter(p => p.text && !p.thought).map(p => p.text).join('');
   if (!text) throw new GeminiError('Gemini returned nothing to read.', 502);
 
   try {

@@ -25,6 +25,7 @@
  * with the photo beside them and the model cannot see at all.
  */
 
+import { wastagePercentOf } from '@/lib/vision/wastage';
 import { rankNames, type RankedName, type RosterEntry } from '@/lib/voice/phonetics';
 
 /** A tola is the unit an older slip is written in; the form wants grams. */
@@ -61,8 +62,10 @@ export interface DraftItem {
   /** The metal rate written against this piece, PER GRAM. Converted if written per tola. */
   ratePerGram?: number | null;
   rateWasPerTola?: boolean | null;
-  /** Wastage / kasar as a percentage, only if the slip's hisaab shows one. */
+  /** Wastage / kasar as a percentage, only if the slip writes one. */
   wastagePercent?: number | null;
+  /** Wastage / kasar in grams, as the slip writes it ("+ 0.650"). See vision/wastage.ts. */
+  wastageG?: number | null;
   /** The amount written against this piece — the result of its hisaab, or a bare figure. */
   lineTotal?: number | null;
   size?: string | null;
@@ -199,8 +202,9 @@ export function metalFor(it: Pick<DraftItem, 'metalType'>, fallbackMetal: string
  */
 export function slipLinePrice(it: DraftItem): number | null {
   if (!hasHisaab(it)) return null;
-  const metal = num(it.weightG) * num(it.ratePerGram);
-  const wastage = metal * (num(it.wastagePercent) / 100);
+  // The metal is the weight less any stone weight the slip takes off, as the form prices it.
+  const metal = Math.max(0, num(it.weightG) - num(it.stoneWeightG)) * num(it.ratePerGram);
+  const wastage = metal * ((wastagePercentOf(it) ?? 0) / 100);
   return Math.round(metal + wastage + num(it.makingCharges) + num(it.stoneCharges));
 }
 

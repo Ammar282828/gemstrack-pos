@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyRequestEmail } from '@/lib/karigar-auth';
 import { roleForEmail } from '@/lib/roles';
 import { generateJson, geminiConfigured, GeminiError } from '@/lib/voice/gemini';
+import { scanModel } from '@/lib/vision/scan-model';
 import { ORDER_CATEGORIES, SLIP_METALS } from '@/lib/vision/order-draft';
 import type { Part } from '@/lib/voice/gemini';
 
@@ -82,15 +83,16 @@ const DRAFT_SCHEMA = {
           itemCategory: { type: 'STRING', enum: [...ORDER_CATEGORIES] },
           metalType: { type: 'STRING', enum: [...SLIP_METALS], description: 'Only if the slip says. "Chandi" is silver.' },
           karat: { type: 'NUMBER', description: 'Only if a karat is actually written. 18, 21, 22 or 24.' },
-          weightG: { type: 'NUMBER', description: 'Weight in GRAMS. Convert from tola at 11.664 g and set weightWasTola.' },
+          weightG: { type: 'NUMBER', description: 'Weight in GRAMS, the piece as weighed — BEFORE any stone weight is taken off. Convert from tola at 11.664 g and set weightWasTola.' },
           weightWasTola: { type: 'BOOLEAN' },
-          stoneWeightG: { type: 'NUMBER' },
+          stoneWeightG: { type: 'NUMBER', description: 'A stone weight the slip takes off the weight, in grams.' },
+          wastageG: { type: 'NUMBER', description: 'Wastage / kasar written in GRAMS ("+ 0.650 wastage"). Copy it; do not convert it to a percent.' },
           makingCharges: { type: 'NUMBER', description: 'TOTAL labour / majoori for this piece in rupees, if written. If written per gram, multiply by the weight and set makingWasPerGram.' },
           makingWasPerGram: { type: 'BOOLEAN' },
           stoneCharges: { type: 'NUMBER', description: 'Stone / nag charge for this piece in rupees, if written.' },
           ratePerGram: { type: 'NUMBER', description: 'The metal rate written for this piece, PER GRAM. A rate written once at the top applies to every piece under it. If written per tola, divide by 11.664 and set rateWasPerTola.' },
           rateWasPerTola: { type: 'BOOLEAN' },
-          wastagePercent: { type: 'NUMBER', description: 'Wastage / kasar as a PERCENT, only if the sum on the slip shows one.' },
+          wastagePercent: { type: 'NUMBER', description: 'Wastage / kasar as a PERCENT, only if a percent is written. Grams go in wastageG.' },
           lineTotal: { type: 'NUMBER', description: 'The amount written against this piece — the result of its sum, or a bare figure with no working. Copy it; never compute it.' },
           size: { type: 'STRING', description: 'Ring or bangle size as written, e.g. "12.5".' },
           stoneDetails: { type: 'STRING' },
@@ -159,6 +161,9 @@ RULES, in order of importance:
    lineTotal, the old gold under exchange, the cash advance in advancePayment, the
    final figure in balanceDue — exactly as written. Never recompute a figure to make
    the slip add up. If it does not add up, that is information the shop needs.
+   Wastage written in grams ("6.500 + 0.650 wastage = 7.150") goes in wastageG as
+   written; a stone weight taken off ("5.700 − 0.500 stone wt") means weightG 5.7 and
+   stoneWeightG 0.5. The in-between results (7.150, 5.200) are not fields.
 
 5. OLD GOLD IS NOT AN ADVANCE. Gold, a ring or a chain the customer handed over is the
    exchange, with its weight, its own rate if one is written, and the deduction as
@@ -209,6 +214,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const parsed = await generateJson<unknown>({
+      model: scanModel(),
+      patient: true,
       system: PROMPT,
       parts,
       schema: DRAFT_SCHEMA as unknown as Record<string, unknown>,
