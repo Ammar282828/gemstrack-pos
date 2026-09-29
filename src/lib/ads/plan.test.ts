@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adsetParams, callToAction, campaignParams, creativeSpec, defaultName, enhancementsRejected, NO_ENHANCEMENTS, planProblems, planSummary, WHATSAPP_LINK, type AdPlan, type PlanContext } from './plan';
+import { adsetParams, callToAction, campaignParams, creativeSpec, defaultName, enhancementsRejected, DEFAULT_ICE_BREAKERS, NO_ENHANCEMENTS, planProblems, planSummary, welcomeMessage, WHATSAPP_LINK, type AdPlan, type PlanContext } from './plan';
 import { defaultDraft } from './targeting';
 
 const NOW = Date.parse('2026-09-25T10:00:00Z');
@@ -67,7 +67,7 @@ describe('creativeSpec', () => {
       link_data: {
         message: 'Emerald jhumkas — 12.4g', image_hash: 'H1', name: 'Emerald jhumkas', link: WHATSAPP_LINK,
         call_to_action: { type: 'WHATSAPP_MESSAGE', value: { app_destination: 'WHATSAPP' } },
-        page_welcome_message: 'Hi! Tell me more',
+        page_welcome_message: welcomeMessage('Hi! Tell me more'),
       },
     });
     expect(c.degrees_of_freedom_spec).toEqual({ creative_features_spec: NO_ENHANCEMENTS });
@@ -152,5 +152,63 @@ describe('names and summaries', () => {
   it('says what it will cost at most', () => {
     const s = planSummary(plan({ budget: { kind: 'daily', amount: 1000, start: '2026-09-25T10:00:00Z', end: '2026-10-02T10:00:00Z' } }), 'PKR');
     expect(s.find(l => l.startsWith('Budget'))).toBe('Budget: Rs 1,000 a day for 7 days — at most about Rs 7,000');
+  });
+});
+
+describe('the chat’s first screen', () => {
+  it('is Meta’s visual-editor welcome message with three ice breakers', () => {
+    const w = JSON.parse(welcomeMessage('Hi! Tell me more')!);
+    expect(w).toMatchObject({ type: 'VISUAL_EDITOR', version: 2, landing_screen_type: 'welcome_message', media_type: 'text' });
+    expect(w.text_format.customer_action_type).toBe('ice_breakers');
+    expect(w.text_format.message.text).toBe('Hi! Tell me more');
+    expect(w.text_format.message.ice_breakers).toEqual(DEFAULT_ICE_BREAKERS.map(title => ({ title })));
+  });
+  it('takes the owner’s own questions, at most three, each under 80 characters', () => {
+    const w = JSON.parse(welcomeMessage(null, ['a', 'b', 'c', 'd', 'x'.repeat(120)])!);
+    expect(w.text_format.message.ice_breakers).toEqual([{ title: 'a' }, { title: 'b' }, { title: 'c' }]);
+    expect(w.text_format.message.text).toBe('Hello! How can we help?');
+  });
+});
+
+describe('the goals added from the 2026-09-29 research', () => {
+  it('WhatsApp or Instagram: one ad, Meta picks the app each person uses', () => {
+    const p = plan({ goal: 'messages' });
+    expect(adsetParams(p, 'C1', ctx)).toMatchObject({ optimization_goal: 'CONVERSATIONS', destination_type: 'MESSAGING_INSTAGRAM_DIRECT_WHATSAPP', promoted_object: { page_id: 'P1' } });
+    const c = creativeSpec(p, ctx);
+    expect(c.asset_feed_spec).toMatchObject({
+      optimization_type: 'DOF_MESSAGING_DESTINATION',
+      images: [{ hash: 'H1' }],
+      call_to_actions: [
+        { type: 'WHATSAPP_MESSAGE', value: { app_destination: 'WHATSAPP' } },
+        { type: 'INSTAGRAM_MESSAGE', value: { app_destination: 'INSTAGRAM_DIRECT' } },
+      ],
+    });
+    expect((c.object_story_spec as { link_data: { page_welcome_message: string } }).link_data.page_welcome_message).toBe(welcomeMessage('Hi! Tell me more'));
+  });
+  it('a boosted post can’t go to both apps', () => {
+    expect(planProblems(plan({ goal: 'messages', source: { kind: 'post', mediaId: 'M1' } }), ctx)).toContain('“WhatsApp or Instagram chats” works with new photos, not a boosted post.');
+  });
+  it('the WhatsApp channel is a link ad to the channel, and needs the channel’s link', () => {
+    const p = plan({ goal: 'channel', link: 'https://whatsapp.com/channel/0029Vb' });
+    expect(planProblems(p, ctx)).toEqual([]);
+    expect(adsetParams(p, 'C1', ctx)).toMatchObject({ optimization_goal: 'LINK_CLICKS', destination_type: 'WEBSITE' });
+    expect(callToAction(p, p.link, ctx)).toEqual({ type: 'LEARN_MORE', value: { link: 'https://whatsapp.com/channel/0029Vb' } });
+    expect(planProblems(plan({ goal: 'channel', link: 'https://taheri.shop' }), ctx)).toContain('Give the WhatsApp channel’s link (whatsapp.com/channel/…).');
+  });
+  it('one photo with its 9:16 version is one ad, each place its own size', () => {
+    const p = plan({ goal: 'website', source: { kind: 'photos', photos: [{ hash: 'F45' }], vertical: { hash: 'V916' } } });
+    const f = creativeSpec(p, ctx).asset_feed_spec as { images: unknown[]; asset_customization_rules: { image_label: { name: string }; customization_spec: { instagram_positions: string[] } }[]; link_urls: unknown[]; call_to_action_types: string[] };
+    expect(f.images).toEqual([{ hash: 'F45', adlabels: [{ name: 'feed' }] }, { hash: 'V916', adlabels: [{ name: 'vertical' }] }]);
+    expect(f.asset_customization_rules.map(r => [r.image_label.name, r.customization_spec.instagram_positions])).toEqual([['feed', ['stream', 'profile_feed']], ['vertical', ['story', 'reels']]]);
+    expect(f.link_urls).toEqual([{ website_url: 'https://taheri.shop/earrings/emerald' }]);
+    expect(f.call_to_action_types).toEqual(['SHOP_NOW']);
+    expect(planSummary(p, 'PKR')[1]).toBe('One photo, with its story-size version for stories and reels');
+  });
+  it('a story size goes with one photo only', () => {
+    expect(planProblems(plan({ source: { kind: 'photos', photos: [{ hash: 'A' }, { hash: 'B' }], vertical: { hash: 'V' } } }), ctx)).toContain('A story-size version goes with a single photo, not a carousel.');
+  });
+  it('website ads buy page views once the pixel is live, clicks until then', () => {
+    expect(adsetParams(plan({ goal: 'website' }), 'C1', ctx).optimization_goal).toBe('LINK_CLICKS');
+    expect(adsetParams(plan({ goal: 'website' }), 'C1', { ...ctx, pixelLive: true }).optimization_goal).toBe('LANDING_PAGE_VIEWS');
   });
 });

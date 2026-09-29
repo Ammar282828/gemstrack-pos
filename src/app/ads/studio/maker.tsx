@@ -28,7 +28,9 @@ import { cn } from '@/lib/utils';
 import { STORE_LINKS } from '@/lib/store-config';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
 import { reflow, renderDocTo, type Assets, type Bind, type Fields, type StoryDoc } from '@/lib/social/editor';
-import { AD_FORMATS, AD_FORMAT_ORDER, AD_TEMPLATES, PHOTO, applyAdTemplate, blankAd, paintedAd, safeZone, type AdFormat, type AdTemplateId } from '@/lib/ads/studio/templates';
+import { AD_FORMATS, AD_FORMAT_ORDER, AD_TEMPLATES, PHOTO, applyAdTemplate, blankAd, paintedAd, rateBoard, safeZone, type AdFormat, type AdTemplateId, type RateBoard } from '@/lib/ads/studio/templates';
+import { GOALS, isChannelLink, type GoalKey } from '@/lib/ads/plan';
+import type { Play } from '@/lib/ads/studio/plays';
 import { VOICE } from '@/lib/ads/studio/brand';
 import type { CheckVerdict, CopyResult, Direction } from '@/lib/ads/studio/prompts';
 import { SCENES } from '@/lib/social/prompts';
@@ -56,7 +58,7 @@ function useFormat(): [AdFormat, (f: AdFormat) => void] {
   return [f, (v: AdFormat) => { setF(v); try { localStorage.setItem(FORMAT_KEY, v); } catch { /* private mode */ } }];
 }
 
-export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; onChoose: () => void; onUpload: (w: WorkPhoto) => void }) {
+export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | null; onChoose: () => void; onUpload: (w: WorkPhoto) => void; play?: Play | null }) {
   const { toast } = useToast();
   const router = useRouter();
   const [format, setFormat] = useFormat();
@@ -71,6 +73,12 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
   const [direction, setDirection] = useState<Direction | null>(null);
   const [painted, setPainted] = useState<{ url: string; blob: Blob; lettering: { ok: boolean; missing: string[]; read: string }; check: { samePiece: boolean; differences: string[] } | null } | null>(null);
   const [checkSoon, setCheckSoon] = useState(false);
+  /** Where a tap on the ad goes, and the link for the website and channel. */
+  const [goal, setGoal] = useState<GoalKey>('whatsapp');
+  const [link, setLink] = useState('');
+  /** Send the 9:16 version with a feed ad, as one ad (each place its own size). */
+  const [pair, setPair] = useState(true);
+  const [rates, setRates] = useState<RateBoard | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   /** The photo carries the house's mark already (taheri.shop burns it in): the layouts add none. */
@@ -150,17 +158,40 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
   // Laid out once the photo, the fonts and the marks are in.
   useEffect(() => {
     if (!cur || !assetsReady || ready) return;
-    doc.reset(applyAdTemplate(blankAd(format), template, fields, assets, { photoMarked: marked }));
+    doc.reset(applyAdTemplate(blankAd(format), template, fields, assets, { photoMarked: marked, rates }));
     setReady(true);
   }, [cur, assetsReady, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** The same photo crop and layout on another frame (anything added by hand stays with the old frame). */
-  const onFrame = (f: AdFormat, t: AdTemplateId, m = marked) => applyAdTemplate({ ...blankAd(f), bg: { ...blankAd(f).bg, placement: doc.doc.bg.placement } }, t, fields, assets, { photoMarked: m });
+  const onFrame = (f: AdFormat, t: AdTemplateId, m = marked) => applyAdTemplate({ ...blankAd(f), bg: { ...blankAd(f).bg, placement: doc.doc.bg.placement } }, t, fields, assets, { photoMarked: m, rates });
   const layOut = (f: AdFormat, t: AdTemplateId) => doc.change(() => onFrame(f, t));
   const chooseFormat = (f: AdFormat) => { setFormat(f); if (ready) layOut(f, template); setCheck(null); };
-  const chooseTemplate = (t: AdTemplateId) => { setTemplate(t); if (ready) doc.change(d => applyAdTemplate(d, t, fields, assets, { photoMarked: marked })); };
-  const toggleMarked = (m: boolean) => { setMarked(m); if (ready) doc.change(d => applyAdTemplate(d, template, fields, assets, { photoMarked: m })); };
+  const chooseTemplate = (t: AdTemplateId) => { setTemplate(t); if (ready) doc.change(d => applyAdTemplate(d, t, fields, assets, { photoMarked: marked, rates })); };
+  const toggleMarked = (m: boolean) => { setMarked(m); if (ready) doc.change(d => applyAdTemplate(d, template, fields, assets, { photoMarked: m, rates })); };
   const setField = useCallback((b: Bind, v: string) => setFieldsState(f => ({ ...f, [b]: v })), []);
+
+  // Today's rates from the ERP, when the rate board is the layout.
+  useEffect(() => {
+    if (template !== 'rate' || rates) return;
+    api<{ k24: number; k22: number; k21: number; k18: number }>('/api/ads/studio/rates')
+      .then(r => setRates(rateBoard(r, new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Karachi' }))))
+      .catch(() => setRates({ date: '', rows: [] }));
+  }, [template, rates]);
+  useEffect(() => { if (template === 'rate' && rates && ready) doc.change(d => applyAdTemplate(d, 'rate', fields, assets, { photoMarked: marked, rates })); }, [rates]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A play from the Plan tab: its shape, layout, destination, call to action and brief.
+  const playLink = (pl: Play | null | undefined): string => {
+    if (pl?.goal === 'channel') return STORE_LINKS.waChannel || '';
+    if (pl?.link === 'investments') return STORE_LINKS.website ? `${STORE_LINKS.website.replace(/\/+$/, '')}/investments` : '';
+    return work?.asset?.page ?? STORE_LINKS.website ?? '';
+  };
+  useEffect(() => {
+    if (!play) { setGoal('whatsapp'); setLink(work?.asset?.page ?? STORE_LINKS.website ?? ''); return; }
+    setGoal(play.goal); setLink(playLink(play)); setPair(play.pair); setBrief(play.brief);
+    setFormat(play.format); setTemplate(play.template);
+    setFieldsState(f => ({ ...f, details: play.cta }));
+    setReady(false);
+  }, [play?.id, work]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** An AI result in place of the photo; `clean` when it no longer carries the logo, so the layout adds the house's mark. */
   const replacePhoto = async (blob: Blob, clean: boolean) => {
@@ -168,7 +199,7 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
     const url = URL.createObjectURL(blob);
     const img = await loadImage(url);
     setPhoto(prev => { if (prev) URL.revokeObjectURL(prev.url); return { key: work, img, url, blob }; });
-    if (clean) { setMarked(false); doc.change(d => applyAdTemplate(d, template, fields, assets, { photoMarked: false })); }
+    if (clean) { setMarked(false); doc.change(d => applyAdTemplate(d, template, fields, assets, { photoMarked: false, rates })); }
   };
 
   const removeLogo = async () => {
@@ -186,7 +217,7 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
   const ASPECT: Record<AdFormat, string> = { portrait: '4:5', square: '1:1', story: '9:16', landscape: '16:9' };
   const aiParams = () => ({
     name: work?.asset?.name ?? '', collection: work?.asset?.collection ?? '', specs: fields.weight, price, brief, format,
-    destination: 'a WhatsApp chat with the shop', kicker: fields.kicker, headline: fields.headline, cta: fields.details,
+    destination: GOALS.find(g => g.key === goal)?.hint ?? 'a WhatsApp chat with the shop', kicker: fields.kicker, headline: fields.headline, cta: fields.details,
   });
 
   /** Make it with AI: the art director's layout and words, the logo off, the photo extended to the shape if it needs it — then checked. */
@@ -216,7 +247,7 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
       const nextMarked = fixed ? false : marked;
       if (fixed) await replacePhoto(fixed.blob, false);
       setMarked(nextMarked);
-      doc.reset(applyAdTemplate(blankAd(format), d.layout, next, assets, { photoMarked: nextMarked }));
+      doc.reset(applyAdTemplate(blankAd(format), d.layout, next, assets, { photoMarked: nextMarked, rates }));
       setCheckSoon(true);
     } catch (e) {
       toast({ title: 'Couldn’t make it', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
@@ -315,15 +346,26 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
     if (!ready) return;
     setSending(true);
     try {
-      const blob = await draw(doc.doc, fields, assets, F.px);
-      const form = new FormData();
-      form.append('file', blob, `${safeName(fields.headline)}.jpg`);
-      const up = await api<{ hash: string; url: string | null }>('/api/ads/images', { form });
+      if ((goal === 'channel' && !isChannelLink(link)) || (goal === 'website' && !/^https?:\/\/\S+\.\S+/.test(link.trim()))) {
+        throw new Error(goal === 'channel' ? 'Give the WhatsApp channel’s link.' : 'Give the website address the ad opens.');
+      }
+      const upload = async (b: Blob, name: string) => {
+        const form = new FormData();
+        form.append('file', b, name);
+        return api<{ hash: string; url: string | null }>('/api/ads/images', { form });
+      };
+      const withStory = pair && format !== 'story' && format !== 'landscape';
+      const [up, vert] = await Promise.all([
+        draw(doc.doc, fields, assets, F.px).then(b => upload(b, `${safeName(fields.headline)}.jpg`)),
+        withStory ? draw(onFrame('story', template), fields, assets, AD_FORMATS.story.px).then(b => upload(b, `${safeName(fields.headline)}-9x16.jpg`)) : Promise.resolve(null),
+      ]);
       await api('/api/ads/studio/creatives', { body: { assets: work?.asset ? [work.asset.id] : [], hash: up.hash, url: up.url, format, name: fields.headline } }).catch(() => undefined);
       const key = Math.random().toString(36).slice(2, 10);
       const handoff: StudioHandoff = {
-        photos: [{ hash: up.hash, url: up.url, headline: adHeadline || fields.headline, link: work?.asset?.page ?? STORE_LINKS.website ?? undefined }],
-        text, headline: adHeadline || fields.headline, goal: 'whatsapp', name: `${fields.headline || 'Studio ad'} · ${F.short}`,
+        photos: [{ hash: up.hash, url: up.url, headline: adHeadline || fields.headline, link: goal === 'website' ? link.trim() : work?.asset?.page ?? STORE_LINKS.website ?? undefined }],
+        vertical: vert ? { hash: vert.hash, url: vert.url } : null,
+        text, headline: adHeadline || fields.headline, goal, link: goal === 'website' || goal === 'channel' ? link.trim() : undefined,
+        name: `${fields.headline || 'Studio ad'} · ${F.short}${vert ? ' + 9:16' : ''}`,
       };
       sessionStorage.setItem(HANDOFF_PREFIX + key, JSON.stringify(handoff));
       router.push(`/ads/new?studio=${key}`);
@@ -417,7 +459,7 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
               palette: PALETTES[0], onPalette: () => undefined, lettered: null, weightOwnLine: true, websiteLabel: 'taheri.shop',
               onField: setField,
               presets: AD_TEMPLATES.map(t => ({ id: t.id, label: t.label })), onPreset: id => chooseTemplate(id as AdTemplateId),
-              previewPreset: id => applyAdTemplate(doc.doc, id as AdTemplateId, fields, assets, { photoMarked: marked }),
+              previewPreset: id => applyAdTemplate(doc.doc, id as AdTemplateId, fields, assets, { photoMarked: marked, rates }),
               fileName: safeName(fields.headline),
               cropLabel: 'The photo', photoNote: 'Drag or pinch it to choose what shows; the piece should fill the frame on a phone.',
               overlay: zone.top ? (
@@ -523,6 +565,23 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
           </div>
           {checkBusy && <p className="text-[11px] text-muted-foreground">A creative director is looking at it against the house’s rules — about half a minute.</p>}
           {check && <CheckCard c={check} stale={stale} />}
+        </section>
+
+        <section className="rounded-xl border p-3 space-y-2">
+          <p className="text-sm font-semibold">Where a tap goes</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {GOALS.filter(g => !g.postOnly && (g.key !== 'channel' || !!STORE_LINKS.waChannel)).map(g => (
+              <button key={g.key} type="button" onClick={() => { setGoal(g.key); if (g.key === 'channel') setLink(STORE_LINKS.waChannel || ''); else if (g.key === 'website' && !/^https?:/.test(link)) setLink(work?.asset?.page ?? STORE_LINKS.website ?? ''); }}
+                className={cn('rounded-lg border px-2 py-1.5 text-left text-[11px] min-h-0', goal === g.key ? 'border-primary bg-primary/5 font-medium' : 'text-muted-foreground')}>{g.label}</button>
+            ))}
+          </div>
+          {(goal === 'website' || goal === 'channel') && <Input value={link} onChange={e => setLink(e.target.value)} placeholder={goal === 'channel' ? 'https://whatsapp.com/channel/…' : 'https://… — the page it opens'} className="h-9 text-base sm:text-xs" />}
+          {format !== 'story' && format !== 'landscape' && (
+            <label className="flex items-start gap-2 text-[11px] text-muted-foreground">
+              <input type="checkbox" className="mt-0.5" checked={pair} onChange={e => setPair(e.target.checked)} />
+              <span>Send the 9:16 version too — one ad, the {F.short} picture in feeds and the 9:16 one in stories, reels and WhatsApp Status.</span>
+            </label>
+          )}
         </section>
 
         <Button className="w-full h-11" disabled={!ready || sending} onClick={toNewAd}>

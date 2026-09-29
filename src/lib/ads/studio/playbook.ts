@@ -12,7 +12,8 @@ export const PLAYBOOK: PlaybookSection[] = [
     id: 'job', title: 'What an ad is for',
     lead: 'The vault’s rule for every channel: WhatsApp closes; everything else routes into WhatsApp. An ad is judged by the conversations it opens.',
     points: [
-      { head: 'Buy conversations, not reach', body: 'Goal “WhatsApp chats” (Meta: Engagement → Messaging). The number that matters is cost per conversation started, then how many of those conversations the counter turns into a visit. Likes and reach are not the job.' },
+      { head: 'Buy conversations, not reach', body: 'Goal “WhatsApp chats” (Meta: Engagement → Messaging), or “WhatsApp or Instagram chats” to let Meta pick the app each person uses. The number that matters is cost per conversation started, then how many the counter turns into a visit. Likes and reach are not the job.' },
+      { head: 'Teach Meta what a sale is', body: 'In the WhatsApp Business app, turn on sharing events with Meta and label chats within a week of the tap — Lead, New order, Paid. Ten labelled in 30 days and Meta can optimise for purchases instead of chats (Meta reports about 10% cheaper per sale).' },
       { head: 'Say what to do', body: 'The ad’s button says “Send message”; the words should say why to press it — “Message us for today’s price”, the piece’s weight and karat, a price when you want one. Specific beats mysterious for buyers who track the gold rate.' },
       { head: 'Answer fast', body: 'A chat answered in minutes becomes a visit; one answered tomorrow is lost money. Run ads when someone can reply (Sat–Thu 11:00–21:00, Fri from 15:30), and keep the WhatsApp greeting set on Ads → Setup for the rest.' },
     ],
@@ -24,6 +25,7 @@ export const PLAYBOOK: PlaybookSection[] = [
       { head: 'Start from your own customers', body: 'Ads → Audiences makes a Meta audience from the ERP’s customers (hashed on this server, nothing readable leaves it). Use it as the suggestion for Advantage+ audience, and as the seed for a 1% lookalike.' },
       { head: 'People who already engaged', body: 'Instagram engagers of @collectionstaheri over the last 90–365 days are the warmest audience after customers — they know the name.' },
       { head: 'Karachi, near the shop', body: 'A radius around the shop plus the neighbourhoods the customer list comes from. Wider than that spends on people who will never visit.' },
+      { head: 'WhatsApp Status is a placement', body: 'With a WhatsApp Business account linked to the Page, Advantage+ placements can show the 9:16 version in WhatsApp Status beside Instagram stories — another reason to send both sizes.' },
       { head: 'Fit is in the picture', body: 'Cultural fit — restraint, the occasions the community keeps, the English-with-a-warm-Urdu-close voice — is carried by the creative. The targeting only finds people; the ad makes them feel it is theirs.' },
     ],
   },

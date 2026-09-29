@@ -38,7 +38,7 @@ export function safeZone(f: Frame): { top: number; bottom: number } {
   return f.h >= 1800 ? { top: Math.round(f.h * 0.14), bottom: Math.round(f.h * 0.35) } : { top: 0, bottom: 0 };
 }
 
-export type AdTemplateId = 'clean' | 'headline' | 'framed' | 'heritage' | 'band' | 'certified';
+export type AdTemplateId = 'clean' | 'headline' | 'framed' | 'heritage' | 'band' | 'certified' | 'rate' | 'investment';
 export const AD_TEMPLATES: { id: AdTemplateId; label: string; note: string }[] = [
   { id: 'clean', label: 'The photo, quietly marked', note: 'The piece alone; the monogram low in a corner.' },
   { id: 'headline', label: 'Headline on the photo', note: 'A line in the Didone over a soft shade, the call to action beneath.' },
@@ -46,7 +46,21 @@ export const AD_TEMPLATES: { id: AdTemplateId; label: string; note: string }[] =
   { id: 'heritage', label: 'Since 1989', note: 'The piece in an arch, the house’s year above, the wordmark below.' },
   { id: 'band', label: 'Conversation band', note: 'A dark band with the line and a soft invitation to message.' },
   { id: 'certified', label: 'Certified diamonds', note: 'An “HRD Antwerp certified” badge over the photo, the words beneath.' },
+  { id: 'rate', label: 'Today’s gold rate', note: 'The day’s rate per tola from the ERP, the piece in an arch — for the WhatsApp channel.' },
+  { id: 'investment', label: 'No making · No wastage', note: 'Investment gold: the standing offer over the framed photo, the specs beneath.' },
 ];
+
+/** Today's rates for the rate layout, per tola, from the ERP (`/api/ads/studio/rates`). */
+export interface RateBoard { date: string; rows: { label: string; perTola: number }[] }
+const TOLA_G = 11.6638;
+/** Per-gram rates to the board's rows, per tola and rounded to the hundred ("~Rs 530,300"), as the vault says a rate is shown. */
+export function rateBoard(perGram: { k24?: number; k22?: number; k21?: number; k18?: number }, date: string): RateBoard {
+  const rows = ([['24K', perGram.k24], ['22K', perGram.k22], ['21K', perGram.k21], ['18K', perGram.k18]] as const)
+    .filter(([, v]) => typeof v === 'number' && v > 0)
+    .map(([label, v]) => ({ label, perTola: Math.round((v! * TOLA_G) / 100) * 100 }));
+  return { date, rows };
+}
+const rupees = (n: number) => `~Rs ${n.toLocaleString('en-US')}`;
 
 export const PHOTO = 'photo';
 const TPL = 'template';
@@ -99,7 +113,7 @@ function stack(f: Frame, top: number, opts: { align?: 'center' | 'left'; x?: num
 }
 
 /** Lay a template down on the doc, keeping what the owner added. */
-export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields, a: Assets, opts: { photoMarked?: boolean } = {}): StoryDoc {
+export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields, a: Assets, opts: { photoMarked?: boolean; rates?: RateBoard | null } = {}): StoryDoc {
   const f = frameOf(doc);
   const zone = safeZone(f);
   /** The band a story's words and piece must sit in (the whole frame elsewhere). */
@@ -189,6 +203,60 @@ export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields,
       out.push(...stack(f, bandBottom - bandH + 48, { align: 'left', x: 90, width: f.w - 320, headline: 70 }));
       const w = 150;
       out.push(mark('wordmark', a, f, f.w - 90 - w, bandBottom - bandH + 56, w, BONE));
+    }
+  }
+
+  if (id === 'rate') {
+    // Today's rate board: the day, the piece in an arch, a row per karat — or, without figures, the promise of them.
+    bg = groundBg;
+    out.push(...corners(f, 36, 48, GOLD));
+    const top = (zone.top ? T + 24 : 80);
+    const bottom = zone.top ? B - 16 : f.h - 60;
+    const rows = opts.rates?.rows.slice(0, 3) ?? [];
+    const x0 = wide ? 520 : 150, x1 = f.w - (wide ? 70 : 150);
+    out.push(mine(textLayer({ text: 'Today’s gold rate', x: wide ? x0 : f.w / 2, y: top, size: 30, font: 'regular', color: GOLD, align: wide ? 'left' : 'center', upper: true, spacing: 0.32 })));
+    if (opts.rates?.date) out.push(mine(textLayer({ text: opts.rates.date, x: wide ? x0 : f.w / 2, y: top + 46, size: 38, font: 'serif-italic', color: BONE, align: wide ? 'left' : 'center' })));
+    const rowH = wide ? 62 : 78;
+    const listH = rows.length ? rows.length * rowH : 110;
+    const w = 150, mh = markHeight('wordmark', a, w);
+    if (wide) {
+      out.push(photoLayer(60, 50, 400, f.h - 100, { mask: 'arch' }));
+    } else {
+      const ph = Math.max(220, Math.min(560, bottom - (top + 120) - listH - 150 - mh));
+      const pw = Math.round(ph * 0.78);
+      out.push(photoLayer(Math.round(f.w / 2 - pw / 2), top + 110, pw, ph, { mask: 'arch' }));
+    }
+    let y = wide ? top + 110 : bottom - mh - 150 - listH;
+    if (rows.length) {
+      for (const r of rows) {
+        out.push(mine(textLayer({ text: r.label, x: x0, y, size: wide ? 36 : 44, font: 'cinzel', color: GOLD, align: 'left' })));
+        out.push(mine(textLayer({ text: `${rupees(r.perTola)} / tola`, x: x1, y, size: wide ? 36 : 44, font: 'serif', color: BONE, align: 'right' })));
+        out.push(line(x0, y + rowH - 16, x1 - x0, 0, GOLD, 1));
+        y += rowH;
+      }
+    } else {
+      out.push(mine(textLayer({ text: 'The rate, every morning', x: wide ? x0 : f.w / 2, y, size: wide ? 52 : 64, font: 'serif-italic', color: BONE, align: wide ? 'left' : 'center', width: wide ? 480 : f.w - 180, fit: true })));
+      y += listH;
+    }
+    out.push(textLayer({ bind: 'details', x: wide ? x0 : f.w / 2, y: y + 24, size: 30, font: 'light', color: LIGHT_GOLD, align: wide ? 'left' : 'center', width: wide ? 480 : f.w - 180, spacing: 0.04 }));
+    out.push(mark('wordmark', a, f, wide ? f.w - 60 - w : f.w / 2 - w / 2, bottom - mh, w, BONE));
+  }
+
+  if (id === 'investment') {
+    // The standing offer over a framed photo; the specs line beneath (karat and weight from the ERP).
+    bg = groundBg;
+    out.push(...corners(f, 36));
+    if (wide) {
+      out.push(photoLayer(60, 60, 470, f.h - 120, { border: GOLD }));
+      out.push(mine(textLayer({ text: 'No making · No wastage', x: 590, y: 90, size: 30, font: 'cinzel', color: GOLD, align: 'left', upper: true, spacing: 0.12 })));
+      out.push(...stack(f, 150, { align: 'left', x: 590, width: 430, headline: 60, kicker: false }));
+    } else {
+      const top = zone.top ? T + 30 : 110;
+      const ph = (zone.top ? B : f.h) - top - 100 - 300;
+      const pw = Math.min(900, Math.round(ph * (zone.top ? 0.95 : 1.1)));
+      out.push(mine(textLayer({ text: 'No making · No wastage', x: f.w / 2, y: top, size: 40, font: 'cinzel', color: GOLD, align: 'center', upper: true, spacing: 0.14 })));
+      out.push(photoLayer(Math.round(f.w / 2 - pw / 2), top + 80, pw, ph, { border: GOLD }));
+      out.push(...stack(f, top + 80 + ph + 40, { headline: 70, kicker: false }));
     }
   }
 

@@ -134,6 +134,10 @@ async function discover(username: string): Promise<RivalProfile> {
     if (e instanceof MetaAdsError && (e.code === 110 || e.subcode === 2207013 || /cannot find user|not a business/i.test(e.message))) {
       throw new MetaAdsError(`Meta shows only public business and creator accounts — @${username} isn’t one, or the name is wrong.`, 404);
     }
+    // Seen 2026-09-29 for every account: the app may not look others up yet.
+    if (e instanceof MetaAdsError && (e.code === 10 || e.code === 200)) {
+      throw new MetaAdsError('Meta won’t let the shop’s app look other accounts up yet: Instagram Business Discovery needs the app to hold instagram_basic (and instagram_manage_insights) with Advanced Access — granted in App Review, the same review that takes the app Live. Until then, open their Instagram and Ad Library from here.', 403);
+    }
     throw e;
   }
   const b = d.business_discovery;

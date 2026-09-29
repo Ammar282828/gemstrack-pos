@@ -29,12 +29,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { AmountInput } from '@/components/ui/amount-input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Rocket, Instagram, ImagePlus, Images, Globe, Loader2, Check, X, ArrowUp, ArrowDown, Eye, MessageCircle, MousePointerClick, UserRound, Heart, Radio, Search, CheckCircle2, AlertTriangle, Film } from 'lucide-react';
+import { Rocket, Instagram, ImagePlus, Images, Globe, Loader2, Check, X, ArrowUp, ArrowDown, Eye, MessageCircle, MousePointerClick, UserRound, Heart, Radio, Search, CheckCircle2, AlertTriangle, Film, MessagesSquare, Rss, CalendarX } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STORE_META_ADS, STORE_LINKS, STORE_SITE_POSTS } from '@/lib/store-config';
+import { STORE_META_ADS, STORE_LINKS, STORE_SITE_POSTS, STORE_AD_STUDIO } from '@/lib/store-config';
+import { quietDaysBetween, hijriLabel, karachiDay } from '@/lib/ads/studio/calendar';
 import { money } from '@/lib/ads/shape';
 import { defaultDraft, type AudienceDraft } from '@/lib/ads/targeting';
-import { GOALS, goalOf, planProblems, planSummary, defaultName, type AdPlan, type GoalKey, type PlanPhoto } from '@/lib/ads/plan';
+import { GOALS, goalOf, isChannelLink, planProblems, planSummary, defaultName, type AdPlan, type GoalKey, type PlanPhoto } from '@/lib/ads/plan';
 import { api, useAdsStatus, NotReady, AccountAlerts, ErrorLine } from '../ads-kit';
 import { AudienceEditor } from '../audience-editor';
 
@@ -48,8 +49,8 @@ interface SitePiece { id: string; name: string; url: string; thumb: string; imag
 interface Photo extends PlanPhoto { local?: string; uploading?: boolean; error?: string; key: string }
 
 const GOAL_ICON: Record<GoalKey, React.ReactNode> = {
-  whatsapp: <MessageCircle className="h-5 w-5" />, instagram_dm: <Instagram className="h-5 w-5" />, website: <MousePointerClick className="h-5 w-5" />,
-  profile: <UserRound className="h-5 w-5" />, engagement: <Heart className="h-5 w-5" />, reach: <Radio className="h-5 w-5" />,
+  whatsapp: <MessageCircle className="h-5 w-5" />, messages: <MessagesSquare className="h-5 w-5" />, instagram_dm: <Instagram className="h-5 w-5" />, website: <MousePointerClick className="h-5 w-5" />,
+  channel: <Rss className="h-5 w-5" />, profile: <UserRound className="h-5 w-5" />, engagement: <Heart className="h-5 w-5" />, reach: <Radio className="h-5 w-5" />,
 };
 const BUTTONS: { key: AdPlan['button']; label: string }[] = [
   { key: 'SHOP_NOW', label: 'Shop now' }, { key: 'LEARN_MORE', label: 'Learn more' }, { key: 'SEE_MORE', label: 'See more' }, { key: 'ORDER_NOW', label: 'Order now' }, { key: 'CONTACT_US', label: 'Contact us' },
@@ -85,6 +86,8 @@ function NewAd() {
   const [goal, setGoal] = useState<GoalKey>('whatsapp');
   const [post, setPost] = useState<Media | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  /** A 9:16 version of the one photo (from the studio): one ad, each place its own size. */
+  const [vertical, setVertical] = useState<PlanPhoto | null>(null);
   const [text, setText] = useState('');
   const [headline, setHeadline] = useState('');
   const [link, setLink] = useState(STORE_LINKS.website || '');
@@ -222,8 +225,10 @@ function NewAd() {
     try {
       const h = JSON.parse(sessionStorage.getItem(HANDOFF_PREFIX + studioParam) || 'null') as StudioHandoff | null;
       if (!h?.photos?.length) return;
-      setKind('photos'); setGoal(h.goal);
+      setKind('photos'); setGoal(GOALS.some(g => g.key === h.goal) ? h.goal : 'whatsapp');
       setPhotos(h.photos.map((ph, i) => ({ key: `studio${i}${ph.hash}`, hash: ph.hash, url: ph.url ?? null, local: ph.url ?? undefined, headline: ph.headline, link: ph.link })));
+      if (h.vertical?.hash) setVertical({ hash: h.vertical.hash, url: h.vertical.url });
+      if (h.link) setLink(h.link);
       if (h.text) setText(h.text);
       if (h.headline) setHeadline(h.headline);
       if (h.name) { setName(h.name); setNameTouched(true); }
@@ -250,22 +255,33 @@ function NewAd() {
 
   // ── The plan ──
   const usingPost = kind === 'post';
-  const goals = GOALS.filter(g => usingPost || !g.postOnly);
-  useEffect(() => { if (!usingPost && goalOf(goal).postOnly) setGoal('whatsapp'); }, [usingPost, goal]);
+  const goals = GOALS.filter(g => (usingPost ? !g.photosOnly : !g.postOnly) && (g.key !== 'channel' || !!STORE_LINKS.waChannel));
+  useEffect(() => { if ((!usingPost && goalOf(goal).postOnly) || (usingPost && goalOf(goal).photosOnly)) setGoal('whatsapp'); }, [usingPost, goal]);
+  // The channel goal opens the shop's own channel.
+  useEffect(() => { if (goal === 'channel' && !isChannelLink(link) && STORE_LINKS.waChannel) setLink(STORE_LINKS.waChannel); }, [goal]); // eslint-disable-line react-hooks/exhaustive-deps
+  // One photo only for a story-size partner.
+  useEffect(() => { if (vertical && (usingPost || photos.length > 1)) setVertical(null); }, [vertical, usingPost, photos.length]);
   const startIso = startLater ? new Date(start).toISOString() : null;
   const endIso = days ? new Date((startLater ? Date.parse(start) : Date.now()) + days * 86_400_000).toISOString() : null;
   const readyPhotos = photos.filter(p => p.hash && !p.error);
   const plan: AdPlan = useMemo(() => {
     const source: AdPlan['source'] = usingPost
       ? { kind: 'post', mediaId: post?.id ?? '', permalink: post?.permalink ?? undefined, thumb: post?.thumb, caption: post?.caption }
-      : { kind: 'photos', photos: readyPhotos.map(({ hash, url, headline: h, link: l }) => ({ hash, url, headline: h, link: l })) };
+      : { kind: 'photos', photos: readyPhotos.map(({ hash, url, headline: h, link: l }) => ({ hash, url, headline: h, link: l })), vertical };
     const p: AdPlan = {
       goal, source, text, headline, link, button, audience,
       budget: { kind: budgetKind, amount: amount ?? 0, start: startIso, end: endIso },
       launch, name: '',
     };
     return { ...p, name: nameTouched && name.trim() ? name.trim() : defaultName(p) };
-  }, [usingPost, post, readyPhotos, goal, text, headline, link, button, audience, budgetKind, amount, startIso, endIso, launch, name, nameTouched]);
+  }, [usingPost, post, readyPhotos, vertical, goal, text, headline, link, button, audience, budgetKind, amount, startIso, endIso, launch, name, nameTouched]);
+  // The days it would run through that the house keeps free of product ads (Taheri's Bohra calendar).
+  const quiet = useMemo(() => {
+    if (!STORE_AD_STUDIO) return [];
+    const from = karachiDay(startIso ? new Date(startIso) : new Date());
+    const to = karachiDay(new Date(endIso ? Date.parse(endIso) : Date.now() + 30 * 86_400_000));
+    return quietDaysBetween(from, to).filter(d => d.level === 'sacred' || d.level === 'near');
+  }, [startIso, endIso]);
   const ctx = {
     pageId: status?.settings?.pageId ?? null, instagramUserId: status?.settings?.instagramUserId ?? null,
     instagramUsername: status?.settings?.instagramUsername ?? null, whatsappGreeting: status?.settings?.whatsappGreeting ?? null,
@@ -424,6 +440,13 @@ function NewAd() {
                     )}
                   </>
                 )}
+                {vertical && photos.length === 1 && (
+                  <div className="flex items-center gap-2 rounded-lg border p-2 text-xs">
+                    {vertical.url && <img src={vertical.url} alt="" className="h-14 w-8 rounded object-cover" />}
+                    <span className="flex-1">With its 9:16 version for stories, reels and WhatsApp Status — one ad, each place its own size.</span>
+                    <button type="button" className="p-1.5 min-h-0 text-muted-foreground" onClick={() => setVertical(null)} aria-label="Drop the story size"><X className="h-4 w-4" /></button>
+                  </div>
+                )}
                 <p className="text-[11px] text-muted-foreground">{photos.length > 1 ? `${photos.length} photos make a carousel, in this order.` : 'One photo, or up to ten for a carousel.'} Meta is told not to retouch, crop, animate or re-word anything.</p>
               </div>
             )}
@@ -438,13 +461,17 @@ function NewAd() {
                 </button>
               ))}
             </div>
-            {goal === 'whatsapp' && <p className="text-[11px] text-muted-foreground">Needs a WhatsApp number linked to the Facebook Page{status?.settings?.whatsappGreeting ? '; the chat opens with the message set on the Setup tab' : ''}.</p>}
+            {(goal === 'whatsapp' || goal === 'messages') && <p className="text-[11px] text-muted-foreground">Needs a WhatsApp number linked to the Facebook Page. The chat opens with {status?.settings?.whatsappGreeting ? 'the message set on the Setup tab' : 'a hello'} and three tap-to-ask questions.{goal === 'messages' ? ' Someone who lives in Instagram gets Instagram Direct instead — answer both.' : ''}</p>}
+            {goal === 'channel' && <p className="text-[11px] text-muted-foreground">Meta has no “follow a channel” goal yet, so this is a link ad to the channel — it buys taps on the link; follows show in WhatsApp, not here.</p>}
           </Card>
 
           {!usingPost && (
             <Card n={3} title="The words">
               <Textarea value={text} onChange={e => setText(e.target.value)} rows={5} placeholder="What the ad says — the piece, its weight, why it’s special." className="text-base sm:text-sm" />
               <Input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="Headline (short)" className="h-10 text-base sm:text-sm" />
+              {goal === 'channel' && (
+                <Input value={link} onChange={e => setLink(e.target.value)} placeholder="https://whatsapp.com/channel/…" inputMode="url" className="h-10 text-base sm:text-sm" />
+              )}
               {goal === 'website' && (
                 <>
                   <Input value={link} onChange={e => setLink(e.target.value)} placeholder="https://… — the page the button opens" inputMode="url" className="h-10 text-base sm:text-sm" />
@@ -482,6 +509,14 @@ function NewAd() {
               </label>
               {startLater && <Input type="datetime-local" value={start} onChange={e => setStart(e.target.value)} min={localInput(Date.now())} className="h-10 max-w-xs" />}
             </div>
+            {quiet.length > 0 && (
+              <div className="rounded-lg border border-rose-500/40 bg-rose-500/5 p-2.5 text-xs space-y-0.5">
+                <p className="font-semibold flex items-center gap-1.5"><CalendarX className="h-4 w-4" /> {days ? 'It would run through days the house keeps free of product ads' : 'Left running, it would reach days the house keeps free of product ads'}:</p>
+                {quiet.slice(0, 6).map(d => <p key={d.date}>{d.date} · {hijriLabel(d.hijri)} — {d.observance?.name}{d.level === 'near' ? ' (the days before)' : ''}</p>)}
+                {quiet.length > 6 && <p>…and {quiet.length - 6} more.</p>}
+                <p className="text-muted-foreground">End it before, or start after. Ads → Studio → Guide has the calendar.</p>
+              </div>
+            )}
             {amount ? <p className="text-xs text-muted-foreground">{budgetKind === 'daily'
               ? days ? <>At most about <b className="text-foreground">{money(amount * days, currency)}</b> over {days} days (Meta may spend a little more on a good day and less on others).</> : <>About <b className="text-foreground">{money(amount * 30, currency)}</b> a month until it’s paused.</>
               : <>About <b className="text-foreground">{money(amount / (days || 1), currency)}</b> a day over {days} days.</>}</p> : null}

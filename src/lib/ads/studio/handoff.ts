@@ -4,11 +4,17 @@
  * sessionStorage under `HANDOFF_PREFIX + key` — nothing to clean up, nothing shared.
  */
 
+import type { GoalKey } from '@/lib/ads/plan';
+
 export interface StudioHandoff {
   photos: { hash: string; url: string | null; headline?: string; link?: string }[];
+  /** The 9:16 version of the one photo, for stories, reels and Status — one ad, both sizes. */
+  vertical?: { hash: string; url: string | null } | null;
   text: string;
   headline: string;
-  goal: 'whatsapp';
+  goal: GoalKey;
+  /** Where the button goes for the website and channel goals. */
+  link?: string;
   name: string;
 }
 

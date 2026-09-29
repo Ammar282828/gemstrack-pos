@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CalendarClock, Loader2, Sparkles, Trophy, TrendingDown, ChevronDown, ChevronUp, ShieldCheck, Quote, Palette, Users, Landmark, Compass } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PLAYBOOK } from '@/lib/ads/studio/playbook';
+import { GAPS, HOUSES, MARKET_AT, META_NOTES, PATTERNS } from '@/lib/ads/studio/market';
 import { AUDIENCE, DECISION_RULES, HARD_RULES, IDENTITY, MARKET, MARK_RULES, VISUAL, VOICE } from '@/lib/ads/studio/brand';
 import type { WinnersState } from '@/lib/ads/studio/research';
 import { api } from '../ads-kit';
@@ -116,7 +117,8 @@ export function GuideSection({ connected }: { connected: boolean }) {
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-base font-semibold flex items-center gap-2 px-1"><Compass className="h-4 w-4" /> Meta ads for this house</h2>
+        <MarketCard />
+        <h2 className="text-base font-semibold flex items-center gap-2 px-1 pt-2"><Compass className="h-4 w-4" /> Meta ads for this house</h2>
         {PLAYBOOK.map((s, i) => <PlaybookCard key={s.id} s={s} defaultOpen={i < 2} />)}
       </div>
     </div>
@@ -186,6 +188,42 @@ function BrandCard() {
           <div><p className="font-semibold">When in doubt</p><List xs={DECISION_RULES} /></div>
           <p className="text-muted-foreground">{IDENTITY.line}</p>
         </div>
+      )}
+    </section>
+  );
+}
+
+function MarketCard() {
+  const [open, setOpen] = useState<'gaps' | 'patterns' | 'houses' | 'meta'>('gaps');
+  const tabs = [['gaps', 'What nobody does'], ['patterns', 'What they all run'], ['houses', 'The houses'], ['meta', 'How Meta works here']] as const;
+  const list = (xs: { head: string; body: string; who?: string; source?: string }[]) => (
+    <ul className="space-y-2">{xs.map(x => (
+      <li key={x.head} className="text-xs"><p className="font-medium">{x.head}{x.who && <span className="text-muted-foreground font-normal"> — {x.who}</span>}</p><p className="text-muted-foreground">{x.body}{x.source && <> <a href={x.source} target="_blank" rel="noreferrer" className="text-primary">source</a></>}</p></li>
+    ))}</ul>
+  );
+  return (
+    <section className="rounded-xl border p-4 space-y-3">
+      <div>
+        <h2 className="text-base font-semibold">What the market runs</h2>
+        <p className="text-[11px] text-muted-foreground">Research of {MARKET_AT}: the Pakistani houses’ own sites, their Google ads, TikTok, and Meta’s documentation. Their Meta ads aren’t readable without signing in — the Competitors tab looks them up through the shop’s account.</p>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {tabs.map(([k, label]) => <button key={k} type="button" onClick={() => setOpen(k)} className={cn('rounded-full border px-2.5 py-1 text-[11px] min-h-0', open === k ? 'bg-foreground text-background' : 'text-muted-foreground')}>{label}</button>)}
+      </div>
+      {open === 'gaps' && list(GAPS)}
+      {open === 'patterns' && list(PATTERNS)}
+      {open === 'meta' && list(META_NOTES)}
+      {open === 'houses' && (
+        <ul className="space-y-2">{HOUSES.map(h => (
+          <li key={h.name} className="text-xs">
+            <p className="font-medium">{h.name} <span className="text-muted-foreground font-normal">· {h.city}</span></p>
+            <p className="text-muted-foreground">{h.line}{' '}
+              {h.ig && <a href={`https://www.instagram.com/${h.ig}/`} target="_blank" rel="noreferrer" className="text-primary">Instagram</a>}
+              {h.url && <> · <a href={h.url} target="_blank" rel="noreferrer" className="text-primary">site</a></>}
+              {' · '}<a href={`https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=PK&q=${encodeURIComponent(h.name)}&search_type=keyword_unordered`} target="_blank" rel="noreferrer" className="text-primary">their ads</a>
+            </p>
+          </li>
+        ))}</ul>
       )}
     </section>
   );

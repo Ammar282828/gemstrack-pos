@@ -748,6 +748,23 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   per-minute quota is shared with the counter. It rides the existing **`social-queue-tick`** (every 5 min, 300 s deadline) after
   the queue's own work — this session can only view Cloud Scheduler, not create a job; a dedicated `ad-assess-tick` job would be
   cleaner. Pause/resume and "Assess now" on the page. ~350 photos an hour.
+  **The whole scene** (owner, 2026-09-29: "target whatsapp channel/insta/dm/whatsapp/website the full scene", after research by
+  two agents that day — the houses' sites, their Google ads, TikTok, and Meta's docs; `market.ts` keeps the dated findings, shown
+  in the Guide): a **Plan** tab of plays (`plays.ts`) by funnel stage — piece at today's price → WhatsApp (always on), WhatsApp or
+  Instagram (Meta picks per person), today's gold rate → the WhatsApp channel, Since 1989 → the profile, the piece → taheri.shop,
+  investment gold (no making, no wastage), come back (engagers + customers); "Make this" opens the maker set up for it. New layouts
+  `rate` (the ERP's rates per tola, rounded to the hundred — `rateBoard`, tested; `/api/ads/studio/rates`) and `investment`. The
+  maker has **Where a tap goes** and sends **both sizes as one ad** (the 9:16 version uploaded too). New ad (plan.ts, tested) gained
+  goals **`messages`** (`MESSAGING_INSTAGRAM_DIRECT_WHATSAPP`, creative `asset_feed_spec` with `DOF_MESSAGING_DESTINATION`) and
+  **`channel`** (Meta has no channel-follow objective: a traffic link ad to `NEXT_PUBLIC_STORE_WA_CHANNEL_URL`), `source.vertical`
+  (placement asset customisation: labelled images + `asset_customization_rules`, feed vs story/reels), the WhatsApp welcome message
+  in Meta's documented VISUAL_EDITOR shape with three ice breakers (`welcomeMessage`; it was a bare string), website ads on
+  `LANDING_PAGE_VIEWS` once `pixelLive`, and a warning when the dates cross the Bohra calendar's quiet days. None of the new
+  creative shapes has run against Meta yet (new photo ads wait on the app going Live). **Instagram Business Discovery is refused**
+  for the shop's app ("(#10) Application does not have permission") — it needs instagram_basic/instagram_manage_insights with
+  Advanced Access (App Review); the ten researched houses are saved in `ad_competitors` with Instagram and Ad Library links.
+  Research facts worth knowing: taheri.shop has **no Meta pixel** (nine rival sites do); @collectionstaheri ~2,061 followers
+  against 16k–308k; nobody claims the Bohra community; only Fazal and Al Syed show rate × weight.
 
 ## graphify
 

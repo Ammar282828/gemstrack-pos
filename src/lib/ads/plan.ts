@@ -15,7 +15,7 @@
 import { buildTargeting, describeAudience, type AudienceDraft } from './targeting';
 import { money, toMinor } from './shape';
 
-export type GoalKey = 'whatsapp' | 'instagram_dm' | 'website' | 'profile' | 'engagement' | 'reach';
+export type GoalKey = 'whatsapp' | 'messages' | 'instagram_dm' | 'website' | 'channel' | 'profile' | 'engagement' | 'reach';
 
 export interface Goal {
   key: GoalKey;
@@ -29,12 +29,18 @@ export interface Goal {
   promotesPage?: true;
   /** Only for an existing Instagram post. */
   postOnly?: true;
+  /** Only for new photos (a boosted post can't carry these). */
+  photosOnly?: true;
 }
 
 export const GOALS: Goal[] = [
   { key: 'whatsapp', label: 'WhatsApp chats', hint: 'People tap and start a WhatsApp chat with the shop.', objective: 'OUTCOME_ENGAGEMENT', optimization: 'CONVERSATIONS', destination: 'WHATSAPP', promotesPage: true },
+  // Meta sends each person to whichever of the two they use (its "messaging apps" destination).
+  { key: 'messages', label: 'WhatsApp or Instagram chats', hint: 'Each person gets the app they use — WhatsApp or Instagram Direct.', objective: 'OUTCOME_ENGAGEMENT', optimization: 'CONVERSATIONS', destination: 'MESSAGING_INSTAGRAM_DIRECT_WHATSAPP', promotesPage: true, photosOnly: true },
   { key: 'instagram_dm', label: 'Instagram messages', hint: 'People tap and message the shop on Instagram.', objective: 'OUTCOME_ENGAGEMENT', optimization: 'CONVERSATIONS', destination: 'INSTAGRAM_DIRECT', promotesPage: true },
   { key: 'website', label: 'Website visits', hint: 'People tap through to the piece on the website.', objective: 'OUTCOME_TRAFFIC', optimization: 'LINK_CLICKS', destination: 'WEBSITE' },
+  // Meta has no objective for channel follows (2026-09): a link ad to the channel's page is the route.
+  { key: 'channel', label: 'WhatsApp channel follows', hint: 'People tap through to the shop’s WhatsApp channel and follow it.', objective: 'OUTCOME_TRAFFIC', optimization: 'LINK_CLICKS', destination: 'WEBSITE' },
   { key: 'profile', label: 'Instagram profile visits', hint: 'People tap through to the shop’s Instagram profile.', objective: 'OUTCOME_TRAFFIC', optimization: 'VISIT_INSTAGRAM_PROFILE', destination: 'INSTAGRAM_PROFILE' },
   { key: 'engagement', label: 'Likes, comments and saves', hint: 'More people engage with the post itself.', objective: 'OUTCOME_ENGAGEMENT', optimization: 'POST_ENGAGEMENT', destination: 'ON_POST', postOnly: true },
   { key: 'reach', label: 'Seen by the most people', hint: 'As many different people as the budget allows.', objective: 'OUTCOME_AWARENESS', optimization: 'REACH' },
@@ -43,10 +49,15 @@ export const goalOf = (k: GoalKey) => GOALS.find(g => g.key === k)!;
 
 export interface PlanPhoto { hash: string; url?: string | null; headline?: string; link?: string }
 
+/** The shop's WhatsApp channel link (whatsapp.com/channel/…), the only place a channel ad can go. */
+export const isChannelLink = (l: string) => /^https:\/\/(www\.)?whatsapp\.com\/channel\/\S+/.test(l.trim());
+
 export interface AdPlan {
   goal: GoalKey;
   /** An existing Instagram post (its media id), or new photos (1 = single image, 2–10 = carousel). */
-  source: { kind: 'post'; mediaId: string; permalink?: string; thumb?: string | null; caption?: string } | { kind: 'photos'; photos: PlanPhoto[] };
+  source: { kind: 'post'; mediaId: string; permalink?: string; thumb?: string | null; caption?: string }
+    /** `vertical`: a 9:16 version of a single photo for stories, reels and Status — one ad, each place its own size. */
+    | { kind: 'photos'; photos: PlanPhoto[]; vertical?: PlanPhoto | null };
   /** What the ad says (new photos only — a boosted post keeps its own caption). */
   text: string;
   headline: string;
@@ -65,6 +76,10 @@ export interface PlanContext {
   instagramUserId: string | null;
   instagramUsername: string | null;
   whatsappGreeting: string | null;
+  /** Up to three questions offered in the chat's first screen (Meta's ice breakers). */
+  iceBreakers?: string[];
+  /** The website carries this account's pixel and it has fired: website ads buy page views, not clicks. */
+  pixelLive?: boolean;
   currency: string;
   /** The account's smallest daily budget, in the currency (Meta's min_daily_budget). */
   minDaily: number | null;
@@ -80,6 +95,26 @@ export const NO_ENHANCEMENTS: Record<string, { enroll_status: 'OPT_OUT' }> = Obj
 
 export const WHATSAPP_LINK = 'https://api.whatsapp.com/send';
 
+/** The questions a chat opens with, unless the owner set their own. */
+export const DEFAULT_ICE_BREAKERS = ['What’s today’s price?', 'Can I see it in the shop?', 'Is it available now?'];
+
+/**
+ * The chat's first screen, in the shape Meta documents for click-to-WhatsApp (a visual-editor
+ * welcome message with ice breakers), sent as JSON text inside link_data.
+ */
+export function welcomeMessage(greeting: string | null, iceBreakers?: string[]): string | null {
+  const text = (greeting ?? '').trim();
+  const qs = (iceBreakers?.length ? iceBreakers : DEFAULT_ICE_BREAKERS).map(q => q.trim()).filter(Boolean).slice(0, 3).map(q => q.slice(0, 80));
+  if (!text && !qs.length) return null;
+  return JSON.stringify({
+    type: 'VISUAL_EDITOR', version: 2, landing_screen_type: 'welcome_message', media_type: 'text',
+    text_format: { customer_action_type: 'ice_breakers', message: { text: (text || 'Hello! How can we help?').slice(0, 300), ice_breakers: qs.map(title => ({ title })) } },
+  });
+}
+
+/** What the website goal buys: page views once the pixel is on the site, else clicks. */
+export const websiteOptimization = (ctx: Pick<PlanContext, 'pixelLive'>) => (ctx.pixelLive ? 'LANDING_PAGE_VIEWS' : 'LINK_CLICKS');
+
 /** What stops the plan being sent, in words. Empty = ready. */
 export function planProblems(p: AdPlan, ctx: PlanContext): string[] {
   const out: string[] = [];
@@ -92,8 +127,11 @@ export function planProblems(p: AdPlan, ctx: PlanContext): string[] {
     if (!p.source.photos.length) out.push('Add a photo.');
     if (p.source.photos.length > 10) out.push('A carousel takes at most 10 photos.');
     if (goal.postOnly) out.push(`“${goal.label}” works only on an existing Instagram post.`);
+    if (p.source.vertical && p.source.photos.length !== 1) out.push('A story-size version goes with a single photo, not a carousel.');
     if (!p.text.trim()) out.push('Write what the ad says.');
   }
+  if (p.source.kind === 'post' && goal.photosOnly) out.push(`“${goal.label}” works with new photos, not a boosted post.`);
+  if (p.goal === 'channel' && !isChannelLink(p.link)) out.push('Give the WhatsApp channel’s link (whatsapp.com/channel/…).');
   if (p.goal === 'website') {
     const ok = (l?: string) => /^https?:\/\/\S+\.\S+/.test((l ?? '').trim());
     const fine = ok(p.link) || (p.source.kind === 'photos' && p.source.photos.length > 0 && p.source.photos.every(x => ok(x.link)));
@@ -141,7 +179,7 @@ export function adsetParams(p: AdPlan, campaignId: string, ctx: PlanContext): Re
     campaign_id: campaignId,
     status: 'PAUSED',
     billing_event: 'IMPRESSIONS',
-    optimization_goal: goal.optimization,
+    optimization_goal: p.goal === 'website' ? websiteOptimization(ctx) : goal.optimization,
     bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
     targeting: buildTargeting(p.audience),
   };
@@ -158,6 +196,8 @@ export function adsetParams(p: AdPlan, campaignId: string, ctx: PlanContext): Re
 export function callToAction(p: AdPlan, link: string, ctx: PlanContext): Record<string, unknown> | null {
   if (p.goal === 'whatsapp') return { type: 'WHATSAPP_MESSAGE', value: { app_destination: 'WHATSAPP' } };
   if (p.goal === 'instagram_dm') return { type: 'INSTAGRAM_MESSAGE', value: { app_destination: 'INSTAGRAM_DIRECT' } };
+  if (p.goal === 'messages') return { type: 'WHATSAPP_MESSAGE', value: { app_destination: 'WHATSAPP' } };
+  if (p.goal === 'channel') return { type: 'LEARN_MORE', value: { link } };
   if (p.goal === 'profile') return { type: 'VIEW_INSTAGRAM_PROFILE', value: { link: profileUrl(ctx) } };
   if (p.goal === 'engagement') return null;
   return link ? { type: p.button, value: { link } } : null;
@@ -167,7 +207,7 @@ const profileUrl = (ctx: PlanContext) => (ctx.instagramUsername ? `https://www.i
 
 /** Where an ad's picture links, when the goal doesn't decide it. */
 function linkFor(p: AdPlan, ctx: PlanContext, own?: string): string {
-  if (p.goal === 'whatsapp') return WHATSAPP_LINK;
+  if (p.goal === 'whatsapp' || p.goal === 'messages') return WHATSAPP_LINK;
   if (p.goal === 'profile') return profileUrl(ctx);
   return (own || p.link || '').trim() || profileUrl(ctx);
 }
@@ -188,7 +228,9 @@ export function creativeSpec(p: AdPlan, ctx: PlanContext, opts: { enhancements?:
   }
   const photos = p.source.photos;
   const link = linkFor(p, ctx);
-  const greeting = p.goal === 'whatsapp' && ctx.whatsappGreeting ? { page_welcome_message: ctx.whatsappGreeting } : {};
+  const welcome = p.goal === 'whatsapp' || p.goal === 'messages' ? welcomeMessage(ctx.whatsappGreeting, ctx.iceBreakers) : null;
+  const greeting = welcome ? { page_welcome_message: welcome } : {};
+  if (photos.length === 1 && (p.source.vertical || p.goal === 'messages')) return assetFeedCreative(p, ctx, { dof, link, greeting });
   const cta = callToAction(p, link, ctx);
   let link_data: Record<string, unknown>;
   if (photos.length === 1) {
@@ -228,6 +270,50 @@ export function creativeSpec(p: AdPlan, ctx: PlanContext, opts: { enhancements?:
   };
 }
 
+/**
+ * A single photo sent as an asset feed, for what a plain link ad can't say:
+ *  - `vertical` set: placement asset customisation — the 4:5 (or square) picture in feeds, the
+ *    9:16 one in stories, reels and WhatsApp Status, as one ad (Meta: asset_customization_rules,
+ *    each rule naming an image by its label; it wants more than one rule).
+ *  - goal `messages`: DOF_MESSAGING_DESTINATION with a WhatsApp and an Instagram Direct button,
+ *    and Meta shows each person the one they use.
+ */
+function assetFeedCreative(p: AdPlan, ctx: PlanContext, o: { dof: Record<string, unknown>; link: string; greeting: Record<string, unknown> }): Record<string, unknown> {
+  if (p.source.kind !== 'photos') throw new Error('Photos only.');
+  const photo = p.source.photos[0];
+  const vertical = p.source.vertical ?? null;
+  const url = p.goal === 'website' ? linkFor(p, ctx, photo.link) : o.link;
+  const cta = callToAction(p, url, ctx);
+  const feed: Record<string, unknown> = {
+    images: vertical ? [{ hash: photo.hash, adlabels: [{ name: 'feed' }] }, { hash: vertical.hash, adlabels: [{ name: 'vertical' }] }] : [{ hash: photo.hash }],
+    bodies: [{ text: p.text }],
+    ...(p.headline.trim() ? { titles: [{ text: p.headline.trim() }] } : {}),
+    ...(p.goal === 'instagram_dm' ? {} : { link_urls: [{ website_url: url }] }),
+    ad_formats: ['SINGLE_IMAGE'],
+    ...(cta ? { call_to_action_types: [cta.type] } : {}),
+  };
+  if (vertical) {
+    feed.asset_customization_rules = [
+      { customization_spec: { publisher_platforms: ['facebook', 'instagram'], facebook_positions: ['feed', 'marketplace'], instagram_positions: ['stream', 'profile_feed'] }, image_label: { name: 'feed' } },
+      { customization_spec: { publisher_platforms: ['facebook', 'instagram'], facebook_positions: ['story'], instagram_positions: ['story', 'reels'] }, image_label: { name: 'vertical' } },
+    ];
+  }
+  if (p.goal === 'messages') {
+    feed.optimization_type = 'DOF_MESSAGING_DESTINATION';
+    feed.call_to_actions = [
+      { type: 'WHATSAPP_MESSAGE', value: { app_destination: 'WHATSAPP' } },
+      { type: 'INSTAGRAM_MESSAGE', value: { app_destination: 'INSTAGRAM_DIRECT' } },
+    ];
+    delete feed.call_to_action_types;
+  }
+  return {
+    name: p.name,
+    object_story_spec: { page_id: ctx.pageId, instagram_user_id: ctx.instagramUserId, ...(Object.keys(o.greeting).length ? { link_data: { ...o.greeting } } : {}) },
+    asset_feed_spec: feed,
+    degrees_of_freedom_spec: o.dof,
+  };
+}
+
 /** The keys of NO_ENHANCEMENTS that Meta's error names — to be left out of a retry. */
 export function enhancementsRejected(message: string): string[] {
   return Object.keys(NO_ENHANCEMENTS).filter(k => message.includes(k));
@@ -242,7 +328,7 @@ export function planSummary(p: AdPlan, currency: string): string[] {
     : `${money(p.budget.amount, currency)} in total${days ? ` over ${days} day${days === 1 ? '' : 's'}` : ''}`;
   return [
     `Goal: ${g.label}`,
-    p.source.kind === 'post' ? 'The Instagram post, as it is' : p.source.photos.length > 1 ? `${p.source.photos.length} photos, as a carousel` : 'One photo',
+    p.source.kind === 'post' ? 'The Instagram post, as it is' : p.source.photos.length > 1 ? `${p.source.photos.length} photos, as a carousel` : p.source.vertical ? 'One photo, with its story-size version for stories and reels' : 'One photo',
     `Who: ${describeAudience(p.audience)}`,
     `Budget: ${spend}`,
     p.launch === 'live' ? 'Starts as soon as Meta approves it (usually within the hour)' : 'Saved paused — nothing is spent until it is switched on',
