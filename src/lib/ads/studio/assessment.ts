@@ -28,7 +28,7 @@ export type FixCode = 'extend-portrait' | 'extend-story' | 'clear-labels' | 'ret
 export const FIXES: Record<FixCode, { label: string; why: string }> = {
   'extend-portrait': { label: 'Extend to 4:5', why: 'Feed ads show 4:5 largest; the photo needs room above and below.' },
   'extend-story': { label: 'Extend to 9:16', why: 'Stories and reels are 9:16; cropping this photo would cut the piece.' },
-  'clear-labels': { label: 'Clear old labels', why: 'Burned-in weights or marks read as a catalogue shot, not an ad.' },
+  'clear-labels': { label: 'Clear old labels', why: 'Burned-in labels and marks read as a catalogue shot; the maker can set the weight back cleanly.' },
   retouch: { label: 'Retouch', why: 'Soft detail on metal or stones; the upscaler sharpens without redrawing.' },
   enhance: { label: 'Enhance light', why: 'Flat or dim lighting; gold should glow and stones should spark.' },
   restage: { label: 'New setting', why: 'The background works against the piece; restage it on a clean set.' },
@@ -50,12 +50,12 @@ export interface AssetAssessment {
   quality: { sharpness: number; lighting: number; composition: number; colour: number };
   /** Text on the photograph itself: a weight label, a watermark, a price. */
   burnedText: boolean;
-  /** Things Taheri's own rules forbid in a public ad: a price, a karat stamp, black styling… */
+  /** Things Taheri's own rules forbid in a public ad: sale text, another brand's mark, a meme look… */
   brandRisks: string[];
   strengths: string[];
   issues: string[];
   fixes: FixCode[];
-  /** A headline it suggests, in the house's voice (no price, no karat). */
+  /** A headline it suggests, in the house's voice (no figures: the maker adds the ERP's own). */
   headline: string;
 }
 

@@ -179,7 +179,7 @@ function BrandCard() {
       {open && (
         <div className="space-y-3 text-xs">
           <div><p className="font-semibold flex items-center gap-1"><Quote className="h-3 w-3" /> Voice</p><p className="italic">{VOICE.oneLine}</p><List xs={VOICE.rules} />
-            <p className="mt-1"><b>Invitations:</b> {VOICE.softCtas.join(' · ')}</p><p><b>Closers:</b> {VOICE.closers.join(' · ')}</p><p><b>Never:</b> {VOICE.avoid.join(' · ')}</p></div>
+            <p className="mt-1"><b>Calls to action:</b> {VOICE.ctas.join(' · ')}</p><p><b>Closers:</b> {VOICE.closers.join(' · ')}</p><p><b>Never:</b> {VOICE.avoid.join(' · ')}</p></div>
           <div><p className="font-semibold flex items-center gap-1"><Palette className="h-3 w-3" /> Look and marks</p><List xs={[...VISUAL.rules, ...MARK_RULES]} /></div>
           <div><p className="font-semibold flex items-center gap-1"><Users className="h-3 w-3" /> Who it’s for</p><p>{AUDIENCE.primary} {AUDIENCE.secondary.join(', ')}.</p><List xs={AUDIENCE.notes} /></div>
           <div><p className="font-semibold flex items-center gap-1"><Landmark className="h-3 w-3" /> The market</p><List xs={MARKET} /></div>

@@ -11,9 +11,10 @@
  * that matter, one mark per surface, the monogram low and quiet on a product photograph.
  * In stories and reels nothing that must be read sits in the top 14% or the bottom 35%,
  * where Instagram draws its own buttons (`safeZone`). The words are the doc's bound fields:
- * headline (the piece's line), kicker (a small line above it) and details (the soft call
- * to action). Laying a template down replaces the last template's layers and keeps
- * anything the owner added.
+ * headline (the piece's line), kicker (a small line above it), weight (the piece's specs
+ * from the ERP — karat, stones, weight; prices and specs are allowed in ads since
+ * 2026-09-29) and details (the call to action). Laying a template down replaces the last
+ * template's layers and keeps anything the owner added.
  */
 
 import { reflow, textLayer, newCornerMark, newLayerId, frameOf, type Assets, type Fields, type ImageLayer, type Layer, type ShapeLayer, type StoryDoc } from '@/lib/social/editor';
@@ -44,7 +45,7 @@ export const AD_TEMPLATES: { id: AdTemplateId; label: string; note: string }[] =
   { id: 'framed', label: 'Framed on the house ground', note: 'The photo inset on the dark ground in a fine gold frame.' },
   { id: 'heritage', label: 'Since 1989', note: 'The piece in an arch, the house’s year above, the wordmark below.' },
   { id: 'band', label: 'Conversation band', note: 'A dark band with the line and a soft invitation to message.' },
-  { id: 'certified', label: 'Certified diamonds', note: 'HRD Antwerp certified, the one spec the house names.' },
+  { id: 'certified', label: 'Certified diamonds', note: 'An “HRD Antwerp certified” badge over the photo, the words beneath.' },
 ];
 
 export const PHOTO = 'photo';
@@ -90,7 +91,9 @@ function stack(f: Frame, top: number, opts: { align?: 'center' | 'left'; x?: num
   const width = opts.width ?? f.w - 180;
   const out: Layer[] = [];
   if (opts.kicker !== false) out.push(textLayer({ bind: 'kicker', x, y: top, size: opts.kickerFont === 'cinzel' ? 34 : 26, font: opts.kickerFont ?? 'regular', color: GOLD, align, width, upper: true, spacing: 0.32 }));
-  out.push({ ...textLayer({ bind: 'headline', x, y: top + 50, size: opts.headline ?? 84, font: opts.font ?? 'serif-italic', color: BONE, align, width, fit: true, lineHeight: 1.05 }), ...(opts.kicker !== false ? { flow: { gap: 16 } } : {}) });
+  out.push({ ...textLayer({ bind: 'headline', x, y: top + 50, size: opts.headline ?? 84, font: opts.font ?? 'serif-italic', color: BONE, align, width, fit: true, lineHeight: 1.05 }), flow: { gap: 16 } });
+  // The piece's specs from the ERP ("21K Yellow Gold · Ruby · 45.35g"); an empty line takes no room.
+  out.push({ ...textLayer({ bind: 'weight', x, y: top + 150, size: 30, font: 'regular', color: BONE, align, width, spacing: 0.06 }), flow: { gap: 14 } });
   if (opts.details !== false) out.push({ ...textLayer({ bind: 'details', x, y: top + 200, size: 30, font: 'light', color: LIGHT_GOLD, align, width, spacing: 0.04 }), flow: { gap: 22 } });
   return out;
 }
@@ -118,7 +121,7 @@ export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields,
   if (id === 'headline' || id === 'certified') {
     bg = { ...photoBg, gradient: 'bottom', dim: 0.1 };
     const bottom = f.h - (zone.bottom || 0) - (wide ? 36 : 80);
-    const top = bottom - (wide ? 190 : 300);
+    const top = bottom - (wide ? 230 : 330);
     out.push(...stack(f, top, { headline: wide ? 64 : 84, kicker: id === 'headline' }));
     if (id === 'certified') {
       out.push(mine(textLayer({ text: 'HRD Antwerp certified', x: 90, y: (zone.top || 0) + 70, size: 28, font: 'regular', color: BONE, align: 'left', upper: true, spacing: 0.26, box: { color: '#0A1111D9', radius: 40, pad: 22 } })));
@@ -139,13 +142,13 @@ export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields,
       const w = 170;
       out.push(mark('wordmark', a, f, f.w / 2 - w / 2, T + 24, w, BONE));
       const top = T + 110;
-      const ph = B - top - 250;
+      const ph = B - top - 295;
       const pw = Math.min(900, Math.round(ph * 1.05));
       out.push(photoLayer(Math.round(f.w / 2 - pw / 2), top, pw, ph, { border: GOLD }));
       out.push(...stack(f, top + ph + 36, { headline: 70 }));
     } else {
       const top = 150;
-      const ph = Math.max(360, f.h - top - 300);
+      const ph = Math.max(360, f.h - top - 335);
       const pw = Math.min(900, Math.round(ph * 1.1));
       out.push(photoLayer(Math.round(f.w / 2 - pw / 2), top, pw, ph, { border: GOLD }));
       const w = 180;
@@ -165,7 +168,7 @@ export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields,
       const top = zone.top ? T + 16 : 130;
       const bottom = zone.top ? B - 20 : f.h - 70;
       const w = 160, mh = markHeight('wordmark', a, w);
-      const ph = Math.min(900, bottom - (top + 70) - 40 - 190 - mh);
+      const ph = Math.min(900, bottom - (top + 70) - 40 - 240 - mh);
       const pw = Math.round(ph * 0.78);
       out.push(mine(textLayer({ text: 'Since 1989', x: f.w / 2, y: top, size: 40, font: 'cinzel', color: GOLD, align: 'center', upper: true, spacing: 0.3 })));
       out.push(photoLayer(Math.round(f.w / 2 - pw / 2), top + 70, pw, ph, { mask: 'arch' }));
@@ -202,4 +205,12 @@ export function blankAd(format: AdFormat): StoryDoc {
     frame: AD_FORMATS[format].frame,
     placements: {},
   };
+}
+
+/** An ad the image model painted whole: the picture as it came, and the house's wordmark top right, where the model was told to leave room. */
+export function paintedAd(format: AdFormat, a: Assets): StoryDoc {
+  const d = blankAd(format);
+  const f = AD_FORMATS[format].frame;
+  const w = 170, zone = safeZone(f);
+  return { ...d, layers: [mark('wordmark', a, f, f.w - 60 - w, (zone.top || 0) + 56, w, BONE)] };
 }

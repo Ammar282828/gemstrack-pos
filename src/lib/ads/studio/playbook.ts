@@ -13,7 +13,7 @@ export const PLAYBOOK: PlaybookSection[] = [
     lead: 'The vault’s rule for every channel: WhatsApp closes; everything else routes into WhatsApp. An ad is judged by the conversations it opens.',
     points: [
       { head: 'Buy conversations, not reach', body: 'Goal “WhatsApp chats” (Meta: Engagement → Messaging). The number that matters is cost per conversation started, then how many of those conversations the counter turns into a visit. Likes and reach are not the job.' },
-      { head: 'Let the button ask', body: 'The ad’s button already says “Send message”; the words only need to make someone curious enough to press it. A question about price is exactly the conversation the ad was bought for — which is why the ad never states one.' },
+      { head: 'Say what to do', body: 'The ad’s button says “Send message”; the words should say why to press it — “Message us for today’s price”, the piece’s weight and karat, a price when you want one. Specific beats mysterious for buyers who track the gold rate.' },
       { head: 'Answer fast', body: 'A chat answered in minutes becomes a visit; one answered tomorrow is lost money. Run ads when someone can reply (Sat–Thu 11:00–21:00, Fri from 15:30), and keep the WhatsApp greeting set on Ads → Setup for the rest.' },
     ],
   },
@@ -33,7 +33,7 @@ export const PLAYBOOK: PlaybookSection[] = [
     points: [
       { head: 'The piece fills the frame', body: 'One piece per ad, large, sharp and lit so gold glows and stones spark. The Picks rank the library for exactly this; anything under about 70 needs a fix first.' },
       { head: '4:5 for feeds, 9:16 for stories', body: 'A 4:5 picture takes the most room in a feed; stories and reels are 9:16 with Instagram’s buttons over the top 14% and bottom 35%. The maker makes both from one photo — New ad makes one ad per picture, so run the 9:16 as its own ad beside the 4:5.' },
-      { head: 'No weights, karats or prices on the picture', body: 'taheri.shop’s photos carry burned-in weights and marks for the website; for an ad, “Clear old labels” takes them off and the maker puts back one mark, quietly.' },
+      { head: 'Show the specs, from the ERP', body: 'The maker sets the piece’s karat, stones and weight from the ERP under the headline. Every figure on an ad is checked against the ERP’s — a made-up weight is flagged. A rupee price is fine but goes stale as the rate moves; the weight with “today’s price” never does.' },
       { head: 'Test one thing at a time', body: 'Two ads the same but for the picture (packshot against on-hand, plain against a setting) tell you something; two ads different in everything tell you nothing. Three to five ads in an ad set is plenty.' },
       { head: 'Refresh before it tires', body: 'When the same people have seen an ad three times (frequency 3+), or its cost per chat climbs well above the account’s usual, replace the picture — Overview’s “Needs a look” flags both.' },
     ],
@@ -43,7 +43,7 @@ export const PLAYBOOK: PlaybookSection[] = [
     lead: 'The vault’s Instagram formula holds for ads: copy complements the picture, it never describes it.',
     points: [
       { head: 'Two sentences', body: 'One concrete observation about the work, one about how it is worn; about half the time a closing thought of four to seven words. Feeds cut after about 125 characters, so the first sentence must stand alone.' },
-      { head: 'A soft invitation', body: '“DM us to enquire”, “Inquiries welcome”, “Available in-store and by appointment”, “To view this piece, reach out directly”. Never “Shop now”, never urgency, never a hashtag.' },
+      { head: 'A clear call to action', body: '“Message us for today’s price”, “Shop now”, “DM us to order”, “Visit us today”. Urgency is fine when it is true. Still no hashtags, and no sale or discount language.' },
       { head: 'Statement pieces, statement words', body: 'Match the volume of the writing to the piece. A diamond set gets light, brilliance, permanence — “set by hand, held for generations” — never “investment”.' },
     ],
   },

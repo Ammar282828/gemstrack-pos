@@ -725,6 +725,29 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   "taheri content", "TC" and the Vault's logos with `firebase-app-hosting-compute@gemstrack-pos.iam.gserviceaccount.com` (Viewer;
   `claude-cloud@` too for cloud sessions). Nothing ever writes to Drive. Business Discovery and the winners reading were not run
   live when shipped (they use the Meta token); the search, assessing, fixes, words and check were.
+  **Rules changed by the owner** (2026-09-29: "all are incorrect now, i have zero issues with these"): **prices, karats, weights,
+  carats, grading and direct calls to action ("Shop now", phone numbers, urgency) are allowed in ads.** What replaces them is
+  accuracy: `inventedFigures` (prompts.ts, tested) drops any AI line with a figure the ERP didn't give, and the check lists them;
+  still blocked: sale/discount language and hashtags (`breaksHouseRule`), the sacred-date rules, "investment" for diamonds, bridal
+  copy. Each website photo carries its **specs line** from the ERP (`specs.ts`, tested: tagged karat/metal, stone, weight) — every
+  layout prints it under the headline (an empty line takes no room) — and the owner may type a price. The vault in Drive still
+  states the old rules; `brand.ts` is what the studio follows.
+  **The logo:** taheri.shop's files have the wordmark burned in. Drive holds the same frames unmarked under the camera name
+  (site `DSC09342.webp` = Drive `DSC09342.JPG` / `DSC09342-retouched 2.png`), so `originals.ts` (tested) matches them and the sheet
+  and the maker start from the Drive original (retouched first) — no AI erasing. Without one, **Remove the logo** in the maker is
+  one tap (enhance with tidy). The Drive listing keeps a failure 30 s only (it once held "API disabled" for 10 minutes after the
+  owner had enabled it); the Drive card has "check again".
+  **Make it with AI** (owner: "it should just make an ad creative using ai and the photo/details"): `/api/ads/studio/auto`
+  op `direct` — the art director picks the layout and writes kicker/headline/CTA and the ad's texts from the photo + the ERP's
+  specs (never repeating the specs line), while the photo is cleaned or extended to the frame in parallel; the maker lays it out
+  and runs the check (≈30 s + the check). Op `paint` — Nano Banana paints the whole ad around the photographed piece, then the
+  lettering is read back and the piece compared ("same piece?"); on the first run it redrew the stones and the check caught it,
+  so the prompt now forbids re-rendering the piece and a flagged one says "Use it anyway".
+  **Assessing runs in the background** (owner: "should run in the background"): `assess-run.ts` — one slice runner with a lease in
+  `app_settings/ad_studio_assess` (so the tick and the page never double-pay), paced 12 s between batches because the Vertex key's
+  per-minute quota is shared with the counter. It rides the existing **`social-queue-tick`** (every 5 min, 300 s deadline) after
+  the queue's own work — this session can only view Cloud Scheduler, not create a job; a dedicated `ad-assess-tick` job would be
+  cleaner. Pause/resume and "Assess now" on the page. ~350 photos an hour.
 
 ## graphify
 

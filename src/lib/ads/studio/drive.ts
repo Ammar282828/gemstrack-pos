@@ -103,7 +103,8 @@ async function listAll(q: string, tok: string): Promise<RawFile[]> {
 
 /** Every image in every folder shared with this server, newest first. */
 export async function driveLibrary(opts: { fresh?: boolean } = {}): Promise<DriveLibrary> {
-  if (!opts.fresh && cache && Date.now() - cache.at < TTL_MS) return cache;
+  // A failure is kept half a minute only: the owner fixes it (turns the API on, shares a folder) and looks again.
+  if (!opts.fresh && cache && Date.now() - cache.at < (cache.ok ? TTL_MS : 30_000)) return cache;
   const account = await driveAccount();
   try {
     const tok = await token();

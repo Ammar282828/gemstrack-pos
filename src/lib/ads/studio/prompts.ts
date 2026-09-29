@@ -17,11 +17,13 @@ export const COPY_SYSTEM = `You write Meta ads (Instagram and Facebook) for a lu
 
 ${brandBrief()}
 
-THE INSTAGRAM CAPTION FORMULA, which the ad's primary text follows: two sentences — one concrete observation about the work, one about how it is worn — then, about half the time, a closing thought of four to seven words as its own paragraph. Two sentences is the target, three the ceiling. Copy complements the picture; never describe what the reader can already see. No hashtags, no emoji inside sentences, no phone numbers, no prices, no karats or weights.
+THE INSTAGRAM CAPTION FORMULA, which the ad's primary text follows: two sentences — one concrete observation about the work, one about how it is worn — then, about half the time, a closing thought of four to seven words as its own paragraph. Two sentences is the target, three the ceiling. Copy complements the picture; never describe what the reader can already see. No hashtags, no emoji inside sentences.
 
-META'S FIELDS: primary text shows about 125 characters before "more", so the first sentence must stand on its own; headline at most 40 characters; description at most 30. The ad's button opens a WhatsApp conversation, so the words invite a conversation — softly.
+FACTS: the piece's karat, metal, weight, stones and price may be stated — plainly, they read as transparency to these buyers — but only exactly as given in the request. Never invent, round or guess a figure; if none is given, write without one.
 
-ON THE PICTURE: a kicker (two to four words, set in small gold capitals), a headline (at most six words, set large in a Didone) and a details line (one soft call to action from the house's list). Statement pieces get statement words.`;
+META'S FIELDS: primary text shows about 125 characters before "more", so the first sentence must stand on its own; headline at most 40 characters; description at most 30. The ad's button opens a WhatsApp conversation: say plainly what to do ("Message us for today's price", "Shop now") when it fits.
+
+ON THE PICTURE: a kicker (two to four words, set in small gold capitals), a headline (at most six words, set large in a Didone) and a details line (a call to action). Statement pieces get statement words.`;
 
 export const COPY_SCHEMA = {
   type: 'OBJECT',
@@ -43,22 +45,43 @@ export interface CopyResult {
   why: string;
 }
 
-export function copyPrompt(p: { subject: string; category: string; collection: string; name: string; brief?: string; goal: string }): string {
+export function copyPrompt(p: { subject: string; category: string; collection: string; name: string; brief?: string; goal: string; specs?: string; price?: string }): string {
   return [
     `The piece: ${p.name}${p.subject ? ` — ${p.subject}` : ''}. Category: ${p.category || 'jewellery'}. Collection: ${p.collection || '—'}.`,
+    p.specs ? `Its facts, from the ERP (use exactly, or not at all): ${p.specs}.` : 'No karat, weight or stone figures are known — state none.',
+    p.price ? `Its price, from the owner (use exactly, or not at all): ${p.price}.` : 'No price is given — state none.',
     `The ad's goal: ${p.goal}.`,
     p.brief ? `The owner's brief: ${p.brief}` : '',
     'Write three different primary texts, three headlines and three descriptions, and the words for the picture. Say in one line why these words suit this piece.',
   ].filter(Boolean).join('\n');
 }
 
-/** Words the house never lets through in public, caught after the model as well as asked of it. */
-const BANNED = [
-  /\b(1[48]|2[124])\s?(k|kt|karat|carat)\b/i, /\b\d+(\.\d+)?\s?(g|gm|gms|grams?)\b/i, /\b\d+(\.\d+)?\s?ct\b/i,
-  /\b(rs\.?|pkr|₨)\s?[\d,]+/i, /\bshop now\b/i, /\bbuy now\b/i, /\blimited time\b/i, /\b(sale|discount|% off)\b/i,
-  /#[a-z]/i, /\+?92\s?\d{3}/, /\b0\d{3}\s?\d{7}\b/, /\b(vs1|vvs|gia|4cs)\b/i,
-];
+/**
+ * Words the house still never lets through, caught after the model as well as asked of it:
+ * sale and discount language, and hashtags. (Prices, specs and direct calls to action were
+ * allowed by the owner on 2026-09-29.)
+ */
+const BANNED = [/\b(on sale|sale|discount(ed)?|\d+\s?% off)\b/i, /(^|\s)#[a-z]/i];
 export const breaksHouseRule = (text: string) => BANNED.some(re => re.test(text));
+
+/** The figures in a text (a karat, a weight, a carat, a rupee amount), to hold them against the ERP's own. */
+export function figuresIn(text: string): string[] {
+  const out = text.match(/\b\d{1,2}\s?(?:k|kt|karat)\b|\b\d+(?:\.\d+)?\s?(?:g|gm|gms|grams?|ct|carats?)\b|(?:rs\.?|pkr|₨)\s?[\d,]+(?:\.\d+)?/gi) ?? [];
+  return out.map(f => f.toLowerCase().replace(/\s+/g, ''));
+}
+
+/** One way of writing each figure: 45.35 gm → 45.35g, 21 karat → 21k, PKR 1,000 → rs1,000. */
+const normFigure = (f: string) => f.replace(/(gm|gms|grams?)$/, 'g').replace(/carats?$/, 'ct').replace(/(kt|karat)$/, 'k').replace(/^(rs\.?|pkr|₨)/, 'rs');
+const unitOf = (f: string) => f.replace(/[\d.,]/g, '');
+const valueOf = (f: string) => parseFloat(f.replace(/[^\d.]/g, ''));
+
+/** Figures the text states that the given facts don't contain — what the model made up. */
+export function inventedFigures(text: string, facts: string): string[] {
+  const known = figuresIn(facts).map(normFigure);
+  return figuresIn(text).map(normFigure).filter(f =>
+    // "45.35g" in the text against "45.350g" in the facts is the same weight.
+    !known.some(k => unitOf(k) === unitOf(f) && Math.abs(valueOf(k) - valueOf(f)) < 0.001));
+}
 
 // ── Check ──────────────────────────────────────────────────────────────────
 
@@ -71,6 +94,7 @@ HOW TO JUDGE
 - score 0–100 for how well it will do its job — stopping a scroll and opening a WhatsApp conversation — while protecting prestige.
 - rules: go through each hard rule and say whether the ad keeps it (ok) with a short note when it does not.
 - craft: the first second (does the piece read at thumbnail size?), hierarchy (one idea, one focal point), type (legible on a phone, bone not white, not crowded), the mark (one only, clear space, not on the busy part), colour (gold and the dark ground; no stray palettes), and for a story or reel whether anything that must be read sits in the top 14% or bottom 35%.
+- figures: every karat, weight, carat or price on the ad must match the facts given; name any that doesn't. A rupee price shown on an ad that runs several days goes stale as the gold rate moves — say so if one is shown.
 - fixes: concrete, in the order to do them, each one sentence.
 - strengths: what to keep.`;
 
@@ -98,9 +122,10 @@ export interface CheckVerdict {
   strengths: string[];
 }
 
-export function checkPrompt(p: { format: string; text?: string; headline?: string }): string {
+export function checkPrompt(p: { format: string; text?: string; headline?: string; facts?: string }): string {
   return [
     `The ad is for ${p.format}.`,
+    p.facts ? `The piece's facts from the ERP: ${p.facts}.` : 'The ERP gave no facts for this piece: any karat, weight or price on the ad is unverified — say so.',
     p.headline ? `Its headline field: "${p.headline}".` : '',
     p.text ? `Its primary text: "${p.text}".` : 'No primary text yet — judge the image alone.',
     `The hard rules to go through, one by one: ${HARD_RULES.join(' | ')}`,
@@ -152,3 +177,79 @@ export const WINNERS_SCHEMA = {
 export interface WinnersReading { headline: string; winnersShare: string[]; losersShare: string[]; nextAds: string[]; stop: string[]; confidence: string }
 
 export { VOICE };
+
+// ── Make it with AI ────────────────────────────────────────────────────────
+
+/** The layouts the art director may choose (templates.ts), as it reads them. */
+export const LAYOUT_CHOICES = [
+  ['clean', 'the photo alone, the monogram low in a corner — for a photo strong enough to stand alone'],
+  ['headline', 'a Didone headline over a soft shade at the bottom of the photo, specs and call to action beneath'],
+  ['framed', 'the photo inset on the dark house ground in a fine gold frame, words beneath — for busy or catalogue photos'],
+  ['heritage', '"Since 1989" above the photo in an arch, words beneath — heritage and trust'],
+  ['band', 'a dark band across the lower part with the words — the most legible on a small screen'],
+  ['certified', 'an "HRD Antwerp certified" badge over the photo — only for certified diamonds'],
+] as const;
+
+export const DIRECT_SYSTEM = `You are the art director making one Meta ad for a luxury jeweller from one photograph. You choose the layout, write every word, and decide what the photograph needs — and the ERP lays it out exactly.
+
+${brandBrief()}
+
+LAYOUTS (choose one id): ${LAYOUT_CHOICES.map(([id, d]) => `${id} — ${d}`).join('; ')}.
+
+WORDS: the ERP prints the piece's facts (metal, stones, weight) on their own line under the headline — never repeat them in the kicker or the headline. kicker (two to four words, small gold capitals — an occasion, a collection or a mood, not the metal), headline (at most six words, a Didone — statement pieces get statement words; no full stop), cta (the call to action on the picture: direct is fine, e.g. "Message us for today's price"), three primary texts (two sentences each; the first stands alone in 125 characters), three headlines for under the ad (at most 40 characters). Use the piece's figures only exactly as given; never invent one.
+
+THE PHOTO: say whether it needs extending to the ad's shape (true when cropping to the shape would cut the piece or leave it tiny) and, only if its setting works against the piece, which new setting would suit it (a scene id from the list, else null).`;
+
+export const DIRECT_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    layout: { type: 'STRING', enum: LAYOUT_CHOICES.map(([id]) => id) },
+    kicker: { type: 'STRING' },
+    headline: { type: 'STRING' },
+    cta: { type: 'STRING' },
+    primaryText: { type: 'ARRAY', items: { type: 'STRING' } },
+    adHeadlines: { type: 'ARRAY', items: { type: 'STRING' } },
+    extend: { type: 'BOOLEAN' },
+    scene: { type: 'STRING', nullable: true },
+    why: { type: 'STRING' },
+  },
+  required: ['layout', 'kicker', 'headline', 'cta', 'primaryText', 'adHeadlines', 'extend', 'why'],
+};
+
+export interface Direction {
+  layout: typeof LAYOUT_CHOICES[number][0];
+  kicker: string; headline: string; cta: string;
+  primaryText: string[]; adHeadlines: string[];
+  extend: boolean; scene: string | null; why: string;
+}
+
+export function directPrompt(p: { name: string; collection: string; specs: string; price: string; format: string; brief: string; scenes: string; destination: string }): string {
+  return [
+    `The piece: ${p.name || 'unnamed'}. Collection: ${p.collection || '—'}.`,
+    p.specs ? `Its facts from the ERP (exact): ${p.specs}.` : 'No figures are known — state none.',
+    p.price ? `Its price, from the owner (exact): ${p.price}.` : 'No price — state none.',
+    `The ad is ${p.format}. People who press it go to ${p.destination}.`,
+    p.brief ? `The owner's brief: ${p.brief}` : '',
+    `Scenes for a new setting: ${p.scenes}.`,
+    'Make the ad.',
+  ].filter(Boolean).join('\n');
+}
+
+/** The whole ad painted by the image model: the piece kept exactly, the house's dress, the words spelled exactly. */
+export function paintPrompt(p: { aspect: string; kicker: string; headline: string; specs: string; cta: string; story: boolean; brief: string }): string {
+  const lines = [
+    p.kicker && `a small line "${p.kicker}" in widely spaced gold capitals (#C9A45A)`,
+    `the headline "${p.headline}" in an elegant high-contrast Didone serif, italic, in warm bone white (#F8F8F8), large`,
+    p.specs && `beneath it "${p.specs}" in a light, clean geometric sans-serif, bone white, about a third of the headline's size`,
+    p.cta && `then "${p.cta}" small, in light gold (#E4C983)`,
+  ].filter(Boolean);
+  return [
+    'The attached photograph is the real piece and must stay the real piece. Do not redraw, re-render, re-arrange or re-imagine the jewellery: keep it exactly as photographed — the same stones (each cluster, each cut, each colour), settings, links, arrangement, angle and proportions. Build the advertisement around the photograph instead: extend and darken its surroundings, relight gently, and add the frame and lettering.',
+    `Design a finished luxury jewellery advertisement at ${p.aspect}: the photographed piece is the hero, large and sharp — gold glowing, stones sparking — on a deep green-black ground (#0A1111) with a soft vignette, a fine gold hairline corner-accent frame, restrained and prestigious, like a heritage house's print advertisement.`,
+    p.story ? 'It is a 9:16 story: keep every word and the piece between 14% from the top and 35% from the bottom; the top and bottom bands stay calm.' : '',
+    `Set the lettering, stacked and centred in calm space away from the piece: ${lines.join('; ')}.`,
+    p.brief ? `The owner's direction: ${p.brief}.` : '',
+    'Spell every word and number exactly as given, character for character. Crisp, flat, perfectly legible lettering; no effects, no outlines, no shadows. Leave the top-right corner empty — the house adds its own mark.',
+    'Avoid: any other text, logos, watermarks, price tags, discount bursts, stickers, extra jewellery, changes to the piece.',
+  ].filter(Boolean).join(' ');
+}

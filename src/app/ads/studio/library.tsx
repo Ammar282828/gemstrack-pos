@@ -64,57 +64,76 @@ function useLibrary(query: string) {
 
 // ── Assessing ──────────────────────────────────────────────────────────────
 
-interface AssessAnswer { done: string[]; failed: { id: string; error: string }[]; stopped: string | null; more: boolean; assessed: number; remaining: number; seconds: number }
+interface AssessAnswer { done: string[]; failed: { id: string; error: string }[]; stopped: string | null; more: boolean; assessed: number; remaining: number; seconds: number; busy?: boolean }
+interface AssessState { background: boolean; running: boolean; lastRun: { at: string; by: string; done: number; failed: number; stopped: string | null; seconds: number } | null }
 
-/** The vision model working through the library while the page is open. */
+/**
+ * The library is assessed in the background (assess-run.ts, on the five-minute tick); the page
+ * shows how far it has got, can pause it, or run a slice now while you watch.
+ */
 export function useAssessRunner(onBatch: () => void) {
   const { toast } = useToast();
+  const [state, setState] = useState<AssessState | null>(null);
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(0);
-  const [left, setLeft] = useState<number | null>(null);
-  const stop = useRef(false);
-  const run = useCallback(async (body: Record<string, unknown>, loop: boolean) => {
+  const load = useCallback(async () => { try { setState(await api<AssessState>('/api/ads/studio/assess')); } catch { /* the bar still shows the counts */ } }, []);
+  useEffect(() => { load(); }, [load]);
+  // While it works by itself, the counts move: look again every minute the page is in view.
+  useEffect(() => {
+    if (!state?.background) return;
+    const t = setInterval(() => { if (document.visibilityState === 'visible') { load(); onBatch(); } }, 60_000);
+    return () => clearInterval(t);
+  }, [state?.background, load, onBatch]);
+  const run = useCallback(async (body: Record<string, unknown>) => {
     if (running) return;
-    stop.current = false; setRunning(true); setDone(0);
+    setRunning(true); setDone(0);
     try {
-      for (;;) {
-        const d = await api<AssessAnswer>('/api/ads/studio/assess', { body: { ...body, budgetMs: loop ? 200_000 : 120_000 } });
-        setDone(n => n + d.done.length); setLeft(d.remaining);
-        onBatch();
-        if (d.stopped) { toast({ title: 'Assessing stopped', description: d.stopped, variant: 'destructive' }); break; }
-        if (!loop && d.failed.length && !d.done.length) { toast({ title: 'Couldn’t assess', description: d.failed[0].error, variant: 'destructive' }); break; }
-        if (!loop || !d.more || stop.current) break;
-      }
+      const d = await api<AssessAnswer>('/api/ads/studio/assess', { body });
+      if (d.busy) toast({ title: 'Already assessing', description: 'A run is going in the background — the counts will move by themselves.' });
+      setDone(d.done.length);
+      if (d.stopped) toast({ title: 'Assessing stopped', description: d.stopped, variant: 'destructive' });
+      else if (body.ids && d.failed.length && !d.done.length) toast({ title: 'Couldn’t assess', description: d.failed[0].error, variant: 'destructive' });
+      onBatch(); load();
     } catch (e) {
       toast({ title: 'Couldn’t assess', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     } finally { setRunning(false); }
-  }, [running, onBatch, toast]);
+  }, [running, onBatch, toast, load]);
   return {
-    running, done, left,
-    all: () => run({ next: true }, true),
-    these: (ids: string[], force = false) => run({ ids, force }, false),
-    stop: () => { stop.current = true; },
+    running, done, state,
+    now: () => run({ next: true, budgetMs: 180_000 }),
+    these: (ids: string[], force = false) => run({ ids, force, budgetMs: 150_000 }),
+    setBackground: async (on: boolean) => { await api('/api/ads/studio/assess', { body: { background: on } }).catch(() => undefined); load(); },
   };
 }
 
 export function AssessBar({ counts, runner, big }: { counts: LibraryResponse['counts']; runner: ReturnType<typeof useAssessRunner>; big?: boolean }) {
   const left = counts.total - counts.assessed;
   const pctDone = counts.total ? Math.round((counts.assessed / counts.total) * 100) : 0;
+  const st = runner.state;
+  const last = st?.lastRun;
+  const ago = last ? Math.max(0, Math.round((Date.now() - Date.parse(last.at)) / 60_000)) : null;
   return (
     <div className={cn('rounded-xl border p-3 flex flex-col sm:flex-row sm:items-center gap-3', big && 'p-4 bg-primary/5 border-primary/30')}>
       <div className="flex-1 min-w-0 space-y-1.5">
         <p className="text-sm font-medium">
-          {counts.assessed.toLocaleString('en-US')} of {counts.total.toLocaleString('en-US')} photos looked at
+          {counts.assessed.toLocaleString('en-US')} of {counts.total.toLocaleString('en-US')} photos assessed
           <span className="text-muted-foreground font-normal"> · {counts.site.toLocaleString('en-US')} from taheri.shop, {counts.drive.toLocaleString('en-US')} from Drive</span>
         </p>
         <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${pctDone}%` }} /></div>
-        {runner.running
-          ? <p className="text-[11px] text-muted-foreground">Looking at the newest first, ten to a call — {runner.done} done this run{runner.left !== null ? `, ${runner.left.toLocaleString('en-US')} to go` : ''}. Keep the page open; anything done is kept.</p>
-          : left > 0 && <p className="text-[11px] text-muted-foreground">The vision model scores each photo as an ad — fit for 1:1, 4:5 and 9:16, light, sharpness, burned-in labels, anything against the house’s rules — and names the fixes. About {Math.max(1, Math.round(left / 600))} hour{left > 900 ? 's' : ''} for the rest, newest first.</p>}
+        <p className="text-[11px] text-muted-foreground">
+          {left === 0 ? 'Every photo is assessed; new ones are picked up by themselves.'
+            : st?.background ? `Runs by itself every five minutes, newest first — no need to keep this page open. About ${Math.max(1, Math.round(left / 350))} hour${left > 525 ? 's' : ''} for the ${left.toLocaleString('en-US')} left.`
+              : 'Paused — nothing is assessed until you resume it.'}
+          {last && ` Last run ${ago === 0 ? 'just now' : `${ago} min ago`}: ${last.done} done${last.stopped ? ` — ${last.stopped}` : ''}.`}
+          {runner.running && ` Assessing now… ${runner.done ? `${runner.done} done` : ''}`}
+        </p>
       </div>
-      {runner.running
-        ? <Button variant="outline" onClick={runner.stop}><PauseCircle className="h-4 w-4 mr-1.5" /> Stop after this batch</Button>
-        : left > 0 && <Button onClick={runner.all}><Sparkles className="h-4 w-4 mr-1.5" /> {counts.assessed ? 'Assess the rest' : 'Assess the library'}</Button>}
+      <div className="flex gap-2 shrink-0">
+        {left > 0 && <Button variant="outline" size="sm" disabled={runner.running} onClick={runner.now}>{runner.running ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />} Assess now</Button>}
+        {st && (st.background
+          ? <Button variant="ghost" size="sm" onClick={() => runner.setBackground(false)}><PauseCircle className="h-4 w-4 mr-1" /> Pause</Button>
+          : <Button size="sm" onClick={() => runner.setBackground(true)}><Sparkles className="h-4 w-4 mr-1" /> Resume</Button>)}
+      </div>
     </div>
   );
 }
@@ -123,16 +142,19 @@ export function AssessBar({ counts, runner, big }: { counts: LibraryResponse['co
 
 const FOLDERS = ['taheri content (the shoots)', 'TC (the archive)', 'the Vault’s logos'];
 
-export function DriveCard({ drive }: { drive: LibraryResponse['drive'] }) {
+export function DriveCard({ drive, onRefresh, refreshing }: { drive: LibraryResponse['drive']; onRefresh: () => void; refreshing: boolean }) {
   const { toast } = useToast();
+  const copy = () => navigator.clipboard?.writeText(drive.account).then(() => toast({ title: 'Copied' })).catch(() => undefined);
   if (drive.ok) {
+    const names = drive.roots.map(r => r.name);
     return (
-      <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-        <HardDrive className="h-3.5 w-3.5" /> Drive: {drive.images.toLocaleString('en-US')} photos from {drive.roots.map(r => r.name).join(', ') || 'the shared folders'}{drive.brand ? ` and ${drive.brand} logo files` : ''}.
+      <p className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-1.5">
+        <HardDrive className="h-3.5 w-3.5" /> Drive: {drive.images.toLocaleString('en-US')} photos from {names.join(', ') || 'the shared folders'}{drive.brand ? ` and ${drive.brand} logo files` : ''}. Website photos use their unmarked original from here when the shot’s name matches.
+        {names.length < 3 && <span>Share more (TC, the Vault’s logos) with <button type="button" onClick={copy} className="font-mono underline min-h-0">{drive.account}</button>, then</span>}
+        <button type="button" onClick={onRefresh} disabled={refreshing} className="text-primary min-h-0">{refreshing ? 'looking…' : 'look again'}</button>
       </p>
     );
   }
-  const copy = () => navigator.clipboard?.writeText(drive.account).then(() => toast({ title: 'Copied' })).catch(() => undefined);
   const needApi = drive.reason === 'api-disabled';
   return (
     <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-2.5">
@@ -150,6 +172,8 @@ export function DriveCard({ drive }: { drive: LibraryResponse['drive'] }) {
         </li>
       </ol>
       {!needApi && drive.reason !== 'nothing-shared' && <p className="text-[11px] text-muted-foreground">Drive said: {drive.message}</p>}
+      <Button size="sm" variant="outline" onClick={onRefresh} disabled={refreshing}>{refreshing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />} Done both — check again</Button>
+      <p className="text-[11px] text-muted-foreground">Google can take a minute or two to turn the API on.</p>
     </div>
   );
 }
@@ -158,7 +182,8 @@ export function DriveCard({ drive }: { drive: LibraryResponse['drive'] }) {
 
 export function AssetTile({ item, onOpen, rank }: { item: LibraryItem; onOpen: (i: LibraryItem) => void; rank?: number }) {
   const a = item.assessment;
-  const risky = !!a && (a.brandRisks.length > 0 || a.burnedText);
+  const risky = !!a && a.brandRisks.length > 0;
+  const labelled = !!a && a.burnedText;
   return (
     <button type="button" onClick={() => onOpen(item)} className="group text-left rounded-xl border bg-card overflow-hidden hover:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary">
       <div className="relative">
@@ -172,7 +197,8 @@ export function AssetTile({ item, onOpen, rank }: { item: LibraryItem; onOpen: (
         </span>
         <div className="absolute left-1.5 bottom-1.5 flex gap-1">
           {item.usedInAds && <span className="rounded-full bg-sky-600 text-white px-1.5 py-0.5 text-[10px]">In an ad</span>}
-          {risky && <span className="rounded-full bg-rose-600 text-white px-1.5 py-0.5 text-[10px] inline-flex items-center gap-0.5"><ShieldAlert className="h-2.5 w-2.5" />{a!.brandRisks.length ? 'Rule' : 'Label'}</span>}
+          {risky && <span className="rounded-full bg-rose-600 text-white px-1.5 py-0.5 text-[10px] inline-flex items-center gap-0.5"><ShieldAlert className="h-2.5 w-2.5" />Rule</span>}
+          {labelled && !risky && <span className="rounded-full bg-background/90 px-1.5 py-0.5 text-[10px]" title="Text or a mark burned into the photo">Label</span>}
         </div>
       </div>
       <div className="p-2 space-y-0.5">
@@ -204,7 +230,7 @@ export function PicksSection({ placement, onPlacement, onOpen, reloadKey }: { pl
       {error && <p className="text-sm text-destructive">{error}</p>}
       {data?.siteError && <p className="text-xs text-amber-700">taheri.shop didn’t answer: {data.siteError}</p>}
       {counts && <AssessBar counts={counts} runner={runner} big={counts.assessed === 0} />}
-      {data && <DriveCard drive={data.drive} />}
+      {data && <DriveCard drive={data.drive} onRefresh={() => { reload(true); newest.reload(true); }} refreshing={loading} />}
       {loading && !data ? (
         <div className="py-16 text-center text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin inline mr-2" /> Gathering the photos…</div>
       ) : data && data.items.length > 0 ? (
@@ -309,7 +335,7 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
 }) {
   const { toast } = useToast();
   const [shown, setShown] = useState<LibraryItem | null>(item);
-  const [photo, setPhoto] = useState<{ id: string; blob: Blob; url: string } | null>(null);
+  const [photo, setPhoto] = useState<{ id: string; blob: Blob; url: string; original: boolean } | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [edits, setEdits] = useState<Edit[]>([]);
   const [view, setView] = useState<number>(-1);
@@ -323,11 +349,15 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
     setView(-1); setScenes(false); setPhotoError(null);
     if (!item) return;
     let alive = true;
-    fetchAsset(item.id, 2048).then(blob => {
-      if (!alive) return;
-      const url = URL.createObjectURL(blob);
-      setPhoto(prev => { if (prev) URL.revokeObjectURL(prev.url); return { id: item.id, blob, url }; });
-    }).catch(e => alive && setPhotoError(e instanceof Error ? e.message : String(e)));
+    // A website photo's unmarked original from Drive when there is one; the photo itself otherwise.
+    const orig = item.original;
+    (orig ? fetchAsset(orig.id, 2048).then(blob => ({ blob, original: true })).catch(() => null) : Promise.resolve(null))
+      .then(async got => got ?? { blob: await fetchAsset(item.id, 2048), original: false })
+      .then(({ blob, original }) => {
+        if (!alive) return;
+        const url = URL.createObjectURL(blob);
+        setPhoto(prev => { if (prev) URL.revokeObjectURL(prev.url); return { id: item.id, blob, url, original }; });
+      }).catch(e => alive && setPhotoError(e instanceof Error ? e.message : String(e)));
     return () => { alive = false; };
   }, [item?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -345,7 +375,7 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
       const r = await runImageOp(working, f.op, { ...f.params, ...extra });
       const url = URL.createObjectURL(r.blob);
       const label = code === 'restage' && extra.sceneId ? `${FIXES.restage.label}: ${SCENES.find(s => s.id === extra.sceneId)?.label ?? ''}` : FIXES[code].label;
-      const tidy = TIDIES.includes(code) || !!current?.tidy;
+      const tidy = TIDIES.includes(code) || !!current?.tidy || !!base?.original;
       setEdits(prev => { const next = [...prev, { blob: r.blob, url, label, check: r.check, tidy }]; setView(next.length - 1); return next; });
       toast({ title: `${label} — done`, description: r.check && !r.check.samePiece ? 'The check thinks the piece changed — look closely before using it.' : 'Compare it with the original below.' });
     } catch (e) {
@@ -397,6 +427,7 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
                 {edits.map((e, i) => <button key={i} type="button" onClick={() => setView(i)} className={cn('shrink-0 rounded-full border px-3 py-1 text-xs min-h-0', view === i ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>{i + 1}. {e.label}</button>)}
               </div>
             )}
+            {base?.original && !current && <p className="text-[11px] rounded-lg bg-emerald-500/10 p-2">The unmarked original from your Drive ({cur.original?.name}) — the website’s copy has the logo burned in.</p>}
             {current?.check && (
               <p className={cn('text-xs rounded-lg p-2', current.check.samePiece ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300' : 'bg-rose-500/10 text-rose-800 dark:text-rose-300')}>
                 {current.check.samePiece ? <><CheckCircle2 className="h-3.5 w-3.5 inline mr-1" />The check says it is the same piece.</> : <><AlertTriangle className="h-3.5 w-3.5 inline mr-1" />The check thinks the piece changed: {current.check.differences.join('; ') || 'look closely'}.</>}
@@ -439,14 +470,14 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
                   </div>
                 </section>
 
-                {(a.brandRisks.length > 0 || a.burnedText) && (
+                {a.brandRisks.length > 0 && (
                   <section className="rounded-xl border border-rose-500/40 bg-rose-500/5 p-3 space-y-1">
                     <p className="text-sm font-semibold flex items-center gap-1.5"><ShieldAlert className="h-4 w-4 text-rose-600" /> Against the house’s rules as it is</p>
-                    <ul className="text-xs list-disc pl-4 space-y-0.5">
-                      {a.burnedText && <li>Text on the photo itself (a weight, a label or a mark) — an ad never shows a weight; “Clear old labels” takes it off.</li>}
-                      {a.brandRisks.map((r, i) => <li key={i}>{r}</li>)}
-                    </ul>
+                    <ul className="text-xs list-disc pl-4 space-y-0.5">{a.brandRisks.map((r, i) => <li key={i}>{r}</li>)}</ul>
                   </section>
+                )}
+                {a.burnedText && (
+                  <p className="text-xs rounded-xl border p-3">Text is burned into the photo (a weight label or the wordmark). Keep it if it suits the ad; “Clear old labels” takes it off so the maker can set the weight and one mark cleanly.</p>
                 )}
 
                 <section className="grid sm:grid-cols-2 gap-3">

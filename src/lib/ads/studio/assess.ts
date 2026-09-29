@@ -27,10 +27,10 @@ HOW TO SCORE ONE PHOTOGRAPH
 - placements 0–100 each: square (1:1 feed), portrait (4:5 feed), story (9:16 stories and reels). Judge whether the piece survives that crop with room to spare — in a story the piece must sit clear of the top 14% and bottom 35%, where the app draws its own buttons. A square photo with a centred piece usually scores lower for story; say so with the fix "extend-story".
 - quality 0–10 each: sharpness (metal detail, stone facets), lighting (gold should glow, stones should spark, no flat grey), composition (the piece large and deliberate in the frame), colour (true gold, clean whites).
 - burnedText: true when any text, number, label, weight or watermark is on the photograph itself.
-- brandRisks: only real breaches of the house's rules visible in the picture — a price, a karat stamp or "21k/22k" text, black styling, a meme or trend look, another brand's mark or watermark, cheap props. Empty when none.
+- brandRisks: only real breaches of the house's rules visible in the picture — sale or discount text, a meme or trend look, loud stickers or bursts, another brand's mark or watermark, cheap props. A price, a karat or a weight on the photo is allowed and is not a risk. Empty when none.
 - strengths and issues: short phrases a shopkeeper would use, at most four each.
 - fixes: only from this list, only when the fix would lift the score: ${Object.entries(FIXES).map(([k, v]) => `${k} (${v.label.toLowerCase()})`).join(', ')}.
-- headline: at most seven words for this piece in the house's voice — heritage, craft, trust; no price, no karat, no urgency, no emoji.
+- headline: at most seven words for this piece in the house's voice — heritage, craft, trust; no figures (the maker adds the ERP's own), no emoji.
 - subject: one plain line saying what is in the picture. category: ring, bangle, bracelet, necklace, necklace set, earrings, pendant, chain, set, watch, or other. shot: packshot, on-hand, on-model, lifestyle, flatlay, boxed, graphic or other. background: clean, textured, box or busy.
 
 Answer for every photograph, in order, each with its number.`;

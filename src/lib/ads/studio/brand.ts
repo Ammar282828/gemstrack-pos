@@ -7,9 +7,13 @@
  * Overview, the Instagram caption formula and audit, What To Stop Doing, the Pre-Send
  * Checklist, Muharram Protocol and the collection notes. Rules the vault states are quoted
  * as it states them; the vault has no paid-ads note, so ads are held to its rules for
- * public Instagram content. Where it leaves a question open (gold vs the green palette;
- * whether the no-karat rule still stands) its own ruling holds: gold is the brand, and
- * karats stay out of anything public.
+ * public Instagram content. Where it leaves a question open (gold vs the green palette) its
+ * own ruling holds: gold is the brand.
+ *
+ * The owner lifted three of the vault's hard rules for ads on 2026-09-29 ("all are incorrect
+ * now, i have zero issues with these"): prices, specs (karat, weight, carat, grading) and
+ * direct calls to action ("Shop now", phone numbers, urgency) are all allowed. What replaces
+ * them is accuracy — a figure in an ad is only ever one the ERP holds, never the model's.
  *
  * Kept as text in code rather than read from Drive at run time: these rules decide what
  * the model approves, and a note edited in Obsidian should not change that silently.
@@ -34,10 +38,8 @@ export const DECISION_RULES = [
 
 /** The rules no public ad may break (Content Restrictions: "Hard rules. No exceptions."). */
 export const HARD_RULES = [
-  'No prices.',
-  'No karats (21k, 22k, 18k…), no gram weights, no carat figures, no grading terms (VS1, GIA, 4Cs) — public surfaces never carry specs. The one exception: "HRD Antwerp certified" and "Certified", approved trust signals.',
-  'Soft calls to action only: "DM us to enquire", "Inquiries welcome", "Available in-store and by appointment", "To view this piece, reach out directly". Never "Shop now", "Buy now", phone numbers, or urgency.',
-  'No scarcity, urgency, discount or sale language.',
+  'Never invent a figure: a price, karat, weight, carat or grade appears only exactly as the ERP gives it — a wrong weight is worse than none.',
+  'No discount or sale language (“% off”, “sale”).',
   'On sacred Bohra dates, and in the days just before them: no product ads and no calls to action of any kind.',
   'Muharram, the first ten days: no product mentions, no jewellery or gold imagery, and no black styling.',
   'No trend-chasing visuals that reduce prestige: no memes, stickers, loud gradients, discount bursts.',
@@ -56,12 +58,14 @@ export const VOICE = {
     'Aspirational framing positions the buyer; it does not flatter her.',
     'Describe the work and the wearing — one concrete observation about the craft, one about how it is worn.',
     'English by default; a warm Urdu close is allowed, never Urdu mid-sentence.',
+    'Specs are welcome and read as transparency to this market: the karat, the weight, the stones, a grade or a price — stated plainly, exactly as given.',
     'Diamonds: an elevated register — light, brilliance, fire, clarity, permanence; "set by hand, held for generations"; "a stone that outlasts the occasion".',
     'Meenakari: the enamel is the story — hand-work, each piece fired individually; write the occasion and the woman, not the colours.',
   ],
   closers: ['Balance is the whole point.', 'An everyday kind of luxury.', 'For the woman who lets the jewellery speak.'],
-  softCtas: ['DM us to enquire.', 'Available in-store and by appointment.', 'To view this piece, reach out directly.', 'Inquiries welcome.'],
-  avoid: ['Shop now', 'Buy now', 'Limited time', 'Sale', 'Discount', 'Hurry', 'Questions? Feel free to reach out.', 'investment (for diamonds)', 'lightweight (as a selling point)', 'bridal'],
+  /** Calls to action — direct ones are fine (the owner, 2026-09-29). */
+  ctas: ['Message us for today’s price.', 'Shop now.', 'DM us to order.', 'Visit us today.', 'Available in-store and by appointment.', 'Inquiries welcome.'],
+  avoid: ['Sale', 'Discount', 'Questions? Feel free to reach out.', 'investment (for diamonds)', 'lightweight (as a selling point)', 'bridal'],
 } as const;
 
 export const AUDIENCE = {
@@ -101,6 +105,7 @@ export const MARKET = [
   'Frame a rate drop as a timing window, not a sale; the upgrade angle — buy better, not just cheaper.',
   'Buyers silently check Taheri against the Sarafa market rate: never cite it, never ignore it.',
   'A rate is always an estimate, rounded: "~PKR 515,000 per tola".',
+  'A rupee price moves with the gold rate while an ad runs for days: prefer the weight and karat with “today’s price”, or refresh a fixed price as the rate moves.',
 ] as const;
 
 /** The whole brief as the model reads it. */
@@ -111,7 +116,7 @@ export function brandBrief(): string {
     `WHAT AN AD IS FOR: ${IDENTITY.routing}`,
     `DECISION RULES:\n${list(DECISION_RULES)}`,
     `HARD RULES — a public ad that breaks one is rejected:\n${list(HARD_RULES)}`,
-    `VOICE: ${VOICE.oneLine} It should feel ${VOICE.feel.join(', ')}; never ${VOICE.never.join(', ')}.\n${list(VOICE.rules)}\nSoft calls to action (rotate): ${VOICE.softCtas.join(' / ')}\nSignature closers (about half the time): ${VOICE.closers.join(' / ')}`,
+    `VOICE: ${VOICE.oneLine} It should feel ${VOICE.feel.join(', ')}; never ${VOICE.never.join(', ')}.\n${list(VOICE.rules)}\nCalls to action (direct is fine): ${VOICE.ctas.join(' / ')}\nSignature closers (about half the time): ${VOICE.closers.join(' / ')}\nNever: ${VOICE.avoid.join(', ')}.`,
     `AUDIENCE: ${AUDIENCE.primary} Also ${AUDIENCE.secondary.join(', ')}. They value ${AUDIENCE.values.join(', ')}.\n${list(AUDIENCE.notes)}`,
     `MARKS:\n${list(MARK_RULES)}`,
     `VISUAL:\n${list(VISUAL.rules)}`,

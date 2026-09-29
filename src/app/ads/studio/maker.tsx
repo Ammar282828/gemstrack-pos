@@ -23,20 +23,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, ShieldCheck, Rocket, Download, Upload, ImagePlus, CalendarClock, CheckCircle2, AlertTriangle, XCircle, Layers, Wand2 } from 'lucide-react';
+import { Loader2, Sparkles, ShieldCheck, Rocket, Download, Upload, ImagePlus, CalendarClock, CheckCircle2, AlertTriangle, XCircle, Layers, Wand2, Eraser, Brush } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_LINKS } from '@/lib/store-config';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
 import { reflow, renderDocTo, type Assets, type Bind, type Fields, type StoryDoc } from '@/lib/social/editor';
-import { AD_FORMATS, AD_FORMAT_ORDER, AD_TEMPLATES, PHOTO, applyAdTemplate, blankAd, safeZone, type AdFormat, type AdTemplateId } from '@/lib/ads/studio/templates';
+import { AD_FORMATS, AD_FORMAT_ORDER, AD_TEMPLATES, PHOTO, applyAdTemplate, blankAd, paintedAd, safeZone, type AdFormat, type AdTemplateId } from '@/lib/ads/studio/templates';
 import { VOICE } from '@/lib/ads/studio/brand';
-import type { CheckVerdict, CopyResult } from '@/lib/ads/studio/prompts';
+import type { CheckVerdict, CopyResult, Direction } from '@/lib/ads/studio/prompts';
+import { SCENES } from '@/lib/social/prompts';
 import { HANDOFF_PREFIX, type StudioHandoff } from '@/lib/ads/studio/handoff';
 import { SoloEditor, useStoryDoc } from '../../website/post/story-editor';
 import { FONTS, bodyFace, headlineFace, serifFace } from '../../website/post/fonts';
 import { useSiteAssets } from '../../website/post/site-assets';
 import { api } from '../ads-kit';
-import { downloadBlob, fetchAsset, safeName, scoreTone, type WorkPhoto } from './studio-kit';
+import { b64ToBlob, downloadBlob, fetchAsset, runImageOp, safeName, scoreTone, type WorkPhoto } from './studio-kit';
 
 const FORMAT_KEY = 'taheri_studio_format';
 const draw = (d: StoryDoc, f: Fields, a: Assets, px: number, q = 0.92) => canvasToJpeg(renderDocTo(reflow(d, f, a), f, a, px), q);
@@ -44,6 +45,7 @@ const draw = (d: StoryDoc, f: Fields, a: Assets, px: number, q = 0.92) => canvas
 interface CheckAnswer {
   verdict: CheckVerdict;
   words: { text: boolean; headline: boolean };
+  invented: string[];
   calendar: { start: string; until: string; quiet: { date: string; level: string; hijri: string; name: string; rule: string }[]; blocked: boolean };
 }
 
@@ -59,8 +61,16 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
   const router = useRouter();
   const [format, setFormat] = useFormat();
   const [template, setTemplate] = useState<AdTemplateId>('headline');
-  const [fields, setFieldsState] = useState<Fields>({ kicker: '', headline: '', weight: '', details: 'Inquiries welcome' });
-  const [photo, setPhoto] = useState<{ key: WorkPhoto; img: HTMLImageElement; url: string } | null>(null);
+  const [fields, setFieldsState] = useState<Fields>({ kicker: '', headline: '', weight: '', details: VOICE.ctas[0].replace(/\.$/, '') });
+  /** A price the owner types for this ad (prices are allowed since 2026-09-29; the ERP doesn't guess one). */
+  const [price, setPrice] = useState('');
+  const [photo, setPhoto] = useState<{ key: WorkPhoto; img: HTMLImageElement; url: string; blob: Blob } | null>(null);
+  /** A website photo's unmarked original from Drive is used when there is one (originals.ts). */
+  const [useOriginal, setUseOriginal] = useState(true);
+  const [aiBusy, setAiBusy] = useState<string | null>(null);
+  const [direction, setDirection] = useState<Direction | null>(null);
+  const [painted, setPainted] = useState<{ url: string; blob: Blob; lettering: { ok: boolean; missing: string[]; read: string }; check: { samePiece: boolean; differences: string[] } | null } | null>(null);
+  const [checkSoon, setCheckSoon] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   /** The photo carries the house's mark already (taheri.shop burns it in): the layouts add none. */
@@ -93,23 +103,38 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
     if (!work) return;
     const a = work.asset?.assessment;
     const name = work.asset?.name ?? 'The piece';
-    setFieldsState(f => ({ ...f, kicker: work.asset?.source === 'site' && work.asset.collection !== 'Website' ? work.asset.collection : '', headline: a?.headline || name }));
+    setFieldsState(f => ({ ...f, kicker: work.asset?.source === 'site' && work.asset.collection !== 'Website' ? work.asset.collection : '', headline: a?.headline || name, weight: work.asset?.specs ?? '' }));
+    setPrice('');
     setAdHeadline(a?.headline || name);
     setText('');
-    setMarked(!!work.asset && (work.asset.source === 'site' || !!a?.burnedText) && !work.clean);
+    setUseOriginal(true); setDirection(null); setPainted(null);
+  }, [work]);
+
+  // The photo: an edited copy as it came, else the website photo's clean Drive original, else the photo itself.
+  const original = !work?.blob && useOriginal ? work?.asset?.original ?? null : null;
+  useEffect(() => {
+    if (!work) return;
     let alive = true;
+    setReady(false); setPhotoError(null);
     (async () => {
       try {
-        const blob = work.blob ?? (work.asset ? await fetchAsset(work.asset.id, 2048) : null);
+        let blob = work.blob;
+        let clean = !!work.clean;
+        if (!blob && original) {
+          blob = await fetchAsset(original.id, 2048).catch(() => null);
+          if (blob) clean = true; else if (alive) setUseOriginal(false);
+        }
+        if (!blob && work.asset) blob = await fetchAsset(work.asset.id, 2048);
         if (!blob) throw new Error('No photograph.');
         const url = URL.createObjectURL(blob);
         const img = await loadImage(url);
         if (!alive) { URL.revokeObjectURL(url); return; }
-        setPhoto(prev => { if (prev) URL.revokeObjectURL(prev.url); return { key: work, img, url }; });
+        setMarked(!clean && !!work.asset && (work.asset.source === 'site' || !!work.asset.assessment?.burnedText));
+        setPhoto(prev => { if (prev) URL.revokeObjectURL(prev.url); return { key: work, img, url, blob: blob! }; });
       } catch (e) { if (alive) setPhotoError(e instanceof Error ? e.message : String(e)); }
     })();
     return () => { alive = false; };
-  }, [work]);
+  }, [work, original?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The extra faces the layouts use, loaded before the first drawing.
   useEffect(() => {
@@ -137,6 +162,104 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
   const toggleMarked = (m: boolean) => { setMarked(m); if (ready) doc.change(d => applyAdTemplate(d, template, fields, assets, { photoMarked: m })); };
   const setField = useCallback((b: Bind, v: string) => setFieldsState(f => ({ ...f, [b]: v })), []);
 
+  /** An AI result in place of the photo; `clean` when it no longer carries the logo, so the layout adds the house's mark. */
+  const replacePhoto = async (blob: Blob, clean: boolean) => {
+    if (!work) return;
+    const url = URL.createObjectURL(blob);
+    const img = await loadImage(url);
+    setPhoto(prev => { if (prev) URL.revokeObjectURL(prev.url); return { key: work, img, url, blob }; });
+    if (clean) { setMarked(false); doc.change(d => applyAdTemplate(d, template, fields, assets, { photoMarked: false })); }
+  };
+
+  const removeLogo = async () => {
+    if (!cur || aiBusy) return;
+    setAiBusy('Taking the logo and labels off the photo — about a minute…');
+    try {
+      const r = await runImageOp(cur.blob, 'enhance', { tidy: true });
+      await replacePhoto(r.blob, true);
+      toast({ title: 'Logo and labels off', description: r.check && !r.check.samePiece ? `The check thinks the piece changed: ${r.check.differences.slice(0, 2).join('; ')}` : 'The house’s mark is back, once, where the layout puts it.' });
+    } catch (e) {
+      toast({ title: 'Couldn’t take the logo off', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally { setAiBusy(null); }
+  };
+
+  const ASPECT: Record<AdFormat, string> = { portrait: '4:5', square: '1:1', story: '9:16', landscape: '16:9' };
+  const aiParams = () => ({
+    name: work?.asset?.name ?? '', collection: work?.asset?.collection ?? '', specs: fields.weight, price, brief, format,
+    destination: 'a WhatsApp chat with the shop', kicker: fields.kicker, headline: fields.headline, cta: fields.details,
+  });
+
+  /** Make it with AI: the art director's layout and words, the logo off, the photo extended to the shape if it needs it — then checked. */
+  const makeWithAi = async () => {
+    if (!cur || !work || aiBusy) return;
+    setAiBusy('Designing the ad from the photo and its details — about a minute…');
+    setPainted(null);
+    try {
+      const ratio = (cur.img.naturalWidth / cur.img.naturalHeight) / (F.frame.w / F.frame.h);
+      const extend = ratio > 1.3 || ratio < 0.77;
+      const photoOp = extend ? runImageOp(cur.blob, 'reframe', { aspect: ASPECT[format], tidy: marked })
+        : marked ? runImageOp(cur.blob, 'enhance', { tidy: true }) : null;
+      const form = new FormData();
+      form.append('op', 'direct');
+      form.append('params', JSON.stringify(aiParams()));
+      form.append('image', cur.blob, 'photo.jpg');
+      const [dir, fixed] = await Promise.all([
+        api<{ direction: Direction }>('/api/ads/studio/auto', { form }),
+        photoOp ? photoOp.catch(e => { toast({ title: 'The photo couldn’t be prepared', description: e instanceof Error ? e.message : String(e), variant: 'destructive' }); return null; }) : Promise.resolve(null),
+      ]);
+      const d = dir.direction;
+      const next: Fields = { ...fields, kicker: d.kicker || fields.kicker, headline: d.headline || fields.headline, details: d.cta || fields.details };
+      setFieldsState(next); setTemplate(d.layout); setDirection(d);
+      if (d.primaryText[0]) setText(d.primaryText[0]);
+      if (d.adHeadlines[0]) setAdHeadline(d.adHeadlines[0]);
+      setCopy({ primaryText: d.primaryText, headlines: d.adHeadlines, descriptions: [], onImage: { kicker: d.kicker, headline: d.headline, details: d.cta }, why: d.why });
+      const nextMarked = fixed ? false : marked;
+      if (fixed) await replacePhoto(fixed.blob, false);
+      setMarked(nextMarked);
+      doc.reset(applyAdTemplate(blankAd(format), d.layout, next, assets, { photoMarked: nextMarked }));
+      setCheckSoon(true);
+    } catch (e) {
+      toast({ title: 'Couldn’t make it', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally { setAiBusy(null); }
+  };
+
+  /** The whole ad painted by the image model, read back and compared with the photo before it is offered. */
+  const paintWithAi = async () => {
+    if (!cur || aiBusy) return;
+    if (!fields.headline.trim()) { toast({ title: 'Give it a headline first' }); return; }
+    setAiBusy('Painting the whole ad — about a minute and a half…');
+    try {
+      const form = new FormData();
+      form.append('op', 'paint');
+      form.append('params', JSON.stringify(aiParams()));
+      form.append('image', cur.blob, 'photo.jpg');
+      const r = await api<{ image: { data: string; mimeType: string }; lettering: { ok: boolean; missing: string[]; read: string }; check: { samePiece: boolean; differences: string[] } | null }>('/api/ads/studio/auto', { form });
+      const blob = b64ToBlob(r.image.data, r.image.mimeType);
+      setPainted(prev => { if (prev) URL.revokeObjectURL(prev.url); return { url: URL.createObjectURL(blob), blob, lettering: r.lettering, check: r.check }; });
+    } catch (e) {
+      toast({ title: 'Couldn’t paint it', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally { setAiBusy(null); }
+  };
+  const usePainted = async () => {
+    if (!painted) return;
+    await replacePhoto(painted.blob, false);
+    setMarked(false);
+    doc.reset(paintedAd(format, assets));
+    setPainted(null);
+    setCheckSoon(true);
+  };
+  const restage = async (sceneId: string) => {
+    if (!cur || aiBusy) return;
+    setAiBusy('Setting the piece in a new scene — about a minute…');
+    try {
+      const r = await runImageOp(cur.blob, 'restage', { sceneId, aspect: ASPECT[format] });
+      await replacePhoto(r.blob, true);
+      if (r.check && !r.check.samePiece) toast({ title: 'Look closely', description: `The check thinks the piece changed: ${r.check.differences.slice(0, 2).join('; ')}` });
+    } catch (e) {
+      toast({ title: 'Couldn’t restage it', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally { setAiBusy(null); }
+  };
+
   const writeWords = async () => {
     if (!work) return;
     setCopyBusy(true);
@@ -144,6 +267,7 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
       const a = work.asset?.assessment;
       const r = await api<CopyResult>('/api/ads/studio/copy', { body: {
         name: work.asset?.name ?? '', subject: a?.subject ?? '', category: a?.category ?? '', collection: work.asset?.collection ?? '', brief, goal: 'WhatsApp conversations',
+        specs: fields.weight, price,
       } });
       setCopy(r);
       if (r.primaryText[0]) setText(r.primaryText[0]);
@@ -165,6 +289,7 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
       form.append('image', blob, 'ad.jpg');
       form.append('format', `${F.label} (${F.where})`);
       form.append('text', text); form.append('headline', adHeadline);
+      form.append('specs', fields.weight); form.append('price', price);
       form.append('start', start); form.append('days', String(days));
       setCheck(await api<CheckAnswer>('/api/ads/studio/check', { form }));
       setCheckSig(sig);
@@ -172,6 +297,9 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
       toast({ title: 'Couldn’t check it', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     } finally { setCheckBusy(false); }
   };
+
+  // "Make it with AI" checks what it made, once the new layout is on screen.
+  useEffect(() => { if (checkSoon && ready && !checkBusy) { setCheckSoon(false); runCheck(); } }, [checkSoon, ready, sig]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const download = async (all: boolean) => {
     if (!ready) return;
@@ -251,10 +379,27 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
               className={cn('shrink-0 rounded-full border px-3 py-1.5 text-xs whitespace-nowrap min-h-0', template === t.id ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground')}>{t.label}</button>
           ))}
         </div>
-        <label className="flex items-start gap-2 text-[11px] text-muted-foreground">
-          <input type="checkbox" className="mt-0.5" checked={marked} onChange={e => toggleMarked(e.target.checked)} />
-          <span>The photo already carries the taheri mark{work.asset?.assessment?.burnedText ? ' (and a label)' : ''} — the layout adds none, as one mark per picture is the rule.{marked && work.asset ? ' “Clear old labels” in the photo’s sheet takes them off for a clean ad.' : ''}</span>
-        </label>
+        {original && cur && (
+          <p className="text-[11px] rounded-lg bg-emerald-500/10 p-2">
+            Using the <b>unmarked original from your Drive</b> ({original.name}) — no logo to take off.{' '}
+            <button type="button" className="text-primary min-h-0" onClick={() => setUseOriginal(false)}>Use the website’s photo instead</button>
+          </p>
+        )}
+        {!original && !work.blob && work.asset?.original && (
+          <p className="text-[11px] text-muted-foreground">An unmarked original is in Drive ({work.asset.original.name}). <button type="button" className="text-primary min-h-0" onClick={() => setUseOriginal(true)}>Use it</button></p>
+        )}
+        {marked && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2 flex flex-wrap items-center gap-2">
+            <p className="text-[11px] flex-1 min-w-[12rem]">This photo has the taheri logo{work.asset?.assessment?.burnedText ? ' (and a label)' : ''} burned in, so the layout adds no second one.</p>
+            <Button size="sm" disabled={!cur || !!aiBusy} onClick={removeLogo}><Eraser className="h-4 w-4 mr-1" /> Remove the logo</Button>
+          </div>
+        )}
+        {!marked && work.asset?.source === 'site' && !original && (
+          <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <input type="checkbox" checked={marked} onChange={e => toggleMarked(e.target.checked)} /> The photo still shows a logo (don’t add another)
+          </label>
+        )}
+        {aiBusy && <p className="text-xs rounded-lg bg-primary/10 p-2 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin shrink-0" /> {aiBusy}</p>}
         {photoError ? (
           <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">{photoError}</p>
         ) : (
@@ -292,16 +437,55 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
       </div>
 
       <div className="space-y-4">
+        <section className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2.5">
+          <p className="text-sm font-semibold flex items-center gap-1.5"><Sparkles className="h-4 w-4" /> Make it with AI</p>
+          <p className="text-[11px] text-muted-foreground">From the photo and the piece’s details: the layout, every word, the logo off and the photo extended to the ad’s shape when it needs it — then checked. The words and figures are set by the ERP, so they come out exact.</p>
+          <Input value={brief} onChange={e => setBrief(e.target.value)} placeholder="Anything to aim for? (optional — e.g. Eid gifting, the new stone sets)" className="h-9 text-base sm:text-sm" />
+          <div className="flex flex-wrap gap-2">
+            <Button className="flex-1" disabled={!cur || !!aiBusy} onClick={makeWithAi}>{aiBusy ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />} Make it with AI</Button>
+            <Button variant="outline" disabled={!cur || !!aiBusy} onClick={paintWithAi} title="The image model draws the whole ad, lettering included — then it is read back and compared with the photo"><Brush className="h-4 w-4 mr-1.5" /> Paint the whole ad</Button>
+          </div>
+          {direction && (
+            <div className="text-[11px] space-y-1">
+              <p className="text-muted-foreground italic">{direction.why}</p>
+              {direction.scene && <p>A new setting would suit it: <button type="button" className="text-primary min-h-0" disabled={!!aiBusy} onClick={() => restage(direction.scene!)}>{SCENES.find(x => x.id === direction.scene)?.label ?? direction.scene} — try it</button></p>}
+            </div>
+          )}
+          {painted && (
+            <div className="rounded-lg border bg-background p-2 space-y-2">
+              <img src={painted.url} alt="The painted ad" className="w-full rounded-md" />
+              <p className={cn('text-[11px]', painted.lettering.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-300')}>
+                {painted.lettering.ok ? 'Every line reads back exactly.' : `Lettering to check: ${painted.lettering.missing.map(m => `“${m}”`).join(', ') || 'it could not be read back'}.`}
+              </p>
+              {painted.check && <p className={cn('text-[11px]', painted.check.samePiece ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-300')}>{painted.check.samePiece ? 'The same piece as the photo.' : `The piece may have changed: ${painted.check.differences.slice(0, 3).join('; ')}`}</p>}
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1" variant={painted.check && !painted.check.samePiece ? 'outline' : 'default'} onClick={usePainted}>{painted.check && !painted.check.samePiece ? 'Use it anyway' : 'Use this ad'}</Button>
+                <Button size="sm" variant="outline" disabled={!!aiBusy} onClick={paintWithAi}>Paint again</Button>
+                <Button size="sm" variant="ghost" onClick={() => setPainted(null)}>Discard</Button>
+              </div>
+            </div>
+          )}
+        </section>
+
         <section className="rounded-xl border p-3 space-y-2.5">
           <p className="text-sm font-semibold">On the picture</p>
           <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Small line above (gold capitals)</span>
             <Input value={fields.kicker} onChange={e => setField('kicker', e.target.value)} placeholder="e.g. The Emerald Edit" className="h-9 text-base sm:text-sm" /></label>
           <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Headline (six words at most)</span>
             <Input value={fields.headline} onChange={e => setField('headline', e.target.value)} className="h-9 text-base sm:text-sm" /></label>
-          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Invitation</span>
+          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">The piece — karat, stones, weight{work.asset?.specs ? ' (from the ERP)' : ''}</span>
+            <Input value={fields.weight} onChange={e => setField('weight', e.target.value)} placeholder="e.g. 21K Yellow Gold · Ruby · 45.35g — empty shows nothing" className="h-9 text-base sm:text-sm" /></label>
+          {work.asset?.specs && fields.weight !== work.asset.specs && <button type="button" onClick={() => setField('weight', work.asset!.specs)} className="text-[10px] text-primary min-h-0">Back to the ERP’s: {work.asset.specs}</button>}
+          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Price (optional — only if you want one on the ad)</span>
+            <Input value={price} onChange={e => setPrice(e.target.value)} placeholder="e.g. Rs 612,000 — typed by you, never guessed" className="h-9 text-base sm:text-sm" /></label>
+          {price.trim() && <div className="flex flex-wrap gap-1">
+            <button type="button" onClick={() => setField('details', price.trim())} className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground min-h-0">Put the price on the picture</button>
+            <span className="text-[10px] text-amber-700 dark:text-amber-400">A rupee price goes stale as the gold rate moves while the ad runs.</span>
+          </div>}
+          <label className="block space-y-1"><span className="text-[11px] text-muted-foreground">Call to action</span>
             <Input value={fields.details} onChange={e => setField('details', e.target.value)} className="h-9 text-base sm:text-sm" /></label>
           <div className="flex flex-wrap gap-1">
-            {VOICE.softCtas.map(c => <button key={c} type="button" onClick={() => setField('details', c.replace(/\.$/, ''))} className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground min-h-0">{c.replace(/\.$/, '')}</button>)}
+            {VOICE.ctas.map(c => <button key={c} type="button" onClick={() => setField('details', c.replace(/\.$/, ''))} className="rounded-full border px-2 py-0.5 text-[10px] text-muted-foreground min-h-0">{c.replace(/\.$/, '')}</button>)}
           </div>
         </section>
 
@@ -310,7 +494,6 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
             <p className="text-sm font-semibold">The ad’s words</p>
             <Button size="sm" variant="outline" disabled={copyBusy} onClick={writeWords}>{copyBusy ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />} Write with AI</Button>
           </div>
-          <Input value={brief} onChange={e => setBrief(e.target.value)} placeholder="Anything to say? (optional — e.g. for Eid gifting)" className="h-8 text-base sm:text-xs" />
           <Textarea value={text} onChange={e => setText(e.target.value)} rows={4} placeholder="Primary text — two sentences: the work, and how it is worn." className="text-base sm:text-sm" />
           {copy && copy.primaryText.length > 1 && (
             <div className="space-y-1">
@@ -322,7 +505,7 @@ export function Maker({ work, onChoose, onUpload }: { work: WorkPhoto | null; on
             <div className="flex flex-wrap gap-1">{copy.headlines.map((h, i) => <button key={i} type="button" onClick={() => setAdHeadline(h)} className={cn('rounded-full border px-2 py-0.5 text-[11px] min-h-0', adHeadline === h ? 'border-primary' : 'text-muted-foreground')}>{h}</button>)}</div>
           )}
           {copy?.why && <p className="text-[11px] text-muted-foreground italic">{copy.why}</p>}
-          <p className="text-[10px] text-muted-foreground">No price, karat, weight, “shop now”, hashtag or number ever gets through — the house’s rules are checked after the model.</p>
+          <p className="text-[10px] text-muted-foreground">Prices, specs and direct calls to action are fine. Checked after the model: any figure the ERP didn’t give it (a made-up weight or price) is dropped, and so are sale or discount words and hashtags.</p>
         </section>
 
         <section className="rounded-xl border p-3 space-y-2.5">
@@ -373,7 +556,8 @@ function CheckCard({ c, stale }: { c: CheckAnswer; stale: boolean }) {
           {c.calendar.quiet.filter(q => q.level !== 'quiet').map(q => <p key={q.date}>{q.date} · {q.hijri} — {q.name}{q.level === 'near' ? ' (the days before)' : ''}</p>)}
         </div>
       )}
-      {(c.words.text || c.words.headline) && <p className="text-xs text-rose-700 dark:text-rose-300">The {c.words.text ? 'primary text' : 'headline'} carries something the house never says in public (a price, a karat, a weight, “shop now”, a number, a hashtag).</p>}
+      {(c.words.text || c.words.headline) && <p className="text-xs text-rose-700 dark:text-rose-300">The {c.words.text ? 'primary text' : 'headline'} has sale or discount words, or a hashtag.</p>}
+      {c.invented.length > 0 && <p className="text-xs text-rose-700 dark:text-rose-300">Figures the ERP didn’t give: {c.invented.join(', ')} — check them, or take them out.</p>}
       {broken.length > 0 && <div className="text-xs"><p className="font-semibold">House rules</p><ul className="list-disc pl-4">{broken.map((r, i) => <li key={i}>{r.rule} — {r.note}</li>)}</ul></div>}
       {craft.length > 0 && <div className="text-xs"><p className="font-semibold">Craft</p><ul className="list-disc pl-4">{craft.map((r, i) => <li key={i}><b>{r.aspect}:</b> {r.note}</li>)}</ul></div>}
       {v.fixes.length > 0 && <div className="text-xs"><p className="font-semibold">Do, in this order</p><ol className="list-decimal pl-4">{v.fixes.map((f, i) => <li key={i}>{f}</li>)}</ol></div>}

@@ -21,6 +21,8 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getSitePieces, getSitePiece, siteOrigin } from '@/lib/website/site-pieces';
 import { driveJpeg, driveLibrary } from './drive';
 import { normalizeAssessment, type AssetAssessment } from './assessment';
+import { pieceSpecs } from './specs';
+import { originalsByShot, shotKey } from './originals';
 
 export type AssetSource = 'site' | 'drive';
 
@@ -37,6 +39,10 @@ export interface StudioAsset {
   /** The piece's page on the website, when it has one. */
   page: string | null;
   added: number | null;
+  /** What the ERP knows of the piece — "21K Yellow Gold · Ruby · 45.35g" (specs.ts); empty for a Drive photo. */
+  specs: string;
+  /** A website photo's unmarked original in Drive, by its camera name (originals.ts): its asset id and file name. */
+  original: { id: string; name: string } | null;
 }
 
 export interface StoredAssessment { assessment: AssetAssessment; model: string; at: string }
@@ -66,12 +72,15 @@ export async function listAssets(opts: { fresh?: boolean } = {}): Promise<Librar
     driveLibrary({ fresh: opts.fresh }),
   ]);
   const assets: StudioAsset[] = [];
+  const originals = drive.ok ? originalsByShot(drive.images.filter(i => !i.brand).map(i => ({ id: i.id, name: i.name, created: i.created ?? null }))) : new Map<string, { id: string; name: string }>();
   if (site.ok) {
     for (const p of site.pieces) {
       if (!p.thumb) continue;
       assets.push({
         id: `site:${p.id}`, source: 'site', key: p.id, name: p.name, collection: p.collection || 'Website',
         thumb: p.thumb, page: p.url || null, added: p.added,
+        specs: pieceSpecs({ karat: p.words.karat, metal: p.words.metal, stone: p.words.stone, weightGrams: p.weightGrams }),
+        original: (() => { const k = shotKey(p.id); const o = k ? originals.get(k) : undefined; return o ? { id: `drive:${o.id}`, name: o.name } : null; })(),
       });
     }
   }
@@ -80,7 +89,7 @@ export async function listAssets(opts: { fresh?: boolean } = {}): Promise<Librar
       if (f.brand) continue;
       assets.push({
         id: `drive:${f.id}`, source: 'drive', key: f.id, name: stem(f.name), collection: lastFolder(f.folder),
-        thumb: imageUrl(`drive:${f.id}`, 480), page: null, added: f.created ? Date.parse(f.created) || null : null,
+        thumb: imageUrl(`drive:${f.id}`, 480), page: null, added: f.created ? Date.parse(f.created) || null : null, specs: '', original: null,
       });
     }
   }

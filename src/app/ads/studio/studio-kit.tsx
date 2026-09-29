@@ -125,10 +125,14 @@ export async function runImageOp(photo: Blob, op: string, params: Record<string,
   if (!res.ok) throw new Error(d.error || `The AI answered ${res.status}.`);
   const img = d.image as { data: string; mimeType: string } | undefined;
   if (!img?.data) throw new Error('The AI sent no image back.');
-  const bin = atob(img.data);
+  return { blob: b64ToBlob(img.data, img.mimeType), check: d.check ?? null };
+}
+
+export function b64ToBlob(data: string, type = 'image/jpeg'): Blob {
+  const bin = atob(data);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return { blob: new Blob([bytes], { type: img.mimeType || 'image/jpeg' }), check: d.check ?? null };
+  return new Blob([bytes], { type: type || 'image/jpeg' });
 }
 
 export function downloadBlob(blob: Blob, name: string) {
