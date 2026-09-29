@@ -136,7 +136,7 @@ async function discover(username: string): Promise<RivalProfile> {
     }
     // Seen 2026-09-29 for every account: the app may not look others up yet.
     if (e instanceof MetaAdsError && (e.code === 10 || e.code === 200)) {
-      throw new MetaAdsError('Meta won’t let the shop’s app look other accounts up yet: Instagram Business Discovery needs the app to hold instagram_basic (and instagram_manage_insights) with Advanced Access — granted in App Review, the same review that takes the app Live. Until then, open their Instagram and Ad Library from here.', 403);
+      throw new MetaAdsError('Meta refused the look-up: the shop’s Facebook login doesn’t include instagram_basic. Add it to the login configuration and connect again (Ads → Setup says where). Until then, open their Instagram and Ad Library from here.', 403);
     }
     throw e;
   }

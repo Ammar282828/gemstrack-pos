@@ -768,8 +768,9 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   in Meta's documented VISUAL_EDITOR shape with three ice breakers (`welcomeMessage`; it was a bare string), website ads on
   `LANDING_PAGE_VIEWS` once `pixelLive`, and a warning when the dates cross the Bohra calendar's quiet days. None of the new
   creative shapes has run against Meta yet (new photo ads wait on the app going Live). **Instagram Business Discovery is refused**
-  for the shop's app ("(#10) Application does not have permission") — it needs instagram_basic/instagram_manage_insights with
-  Advanced Access (App Review); the ten researched houses are saved in `ad_competitors` with Instagram and Ad Library links.
+  for the shop ("(#10) Application does not have permission") because the Facebook login configuration lacks `instagram_basic` (found
+  by another session the same day — see Setup); the ten researched houses are saved in `ad_competitors` with Instagram and Ad
+  Library links and look up once it is added and Meta reconnected.
   Research facts worth knowing: taheri.shop has **no Meta pixel** (nine rival sites do); @collectionstaheri ~2,061 followers
   against 16k–308k; nobody claims the Bohra community; only Fazal and Al Syed show rate × weight.
 
