@@ -1404,9 +1404,9 @@
     "semantic_hash": ""
   },
   "src/components/layout/app-layout.tsx": {
-    "mtime": 1790715267.1400611,
-    "seen": 1790715540.1250525,
-    "ast_hash": "35f80424f151f3e4fd8a638f65b323aa",
+    "mtime": 1790717412.1327329,
+    "seen": 1790717644.906533,
+    "ast_hash": "4c94109bdba652d76fac3d2dc060380e",
     "semantic_hash": ""
   },
   "src/components/layout/main-app.tsx": {
@@ -2298,9 +2298,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790716953.7815318,
-    "seen": 1790716988.3037324,
-    "ast_hash": "94b6f61c8af48a4fe9653b910b2cc5f7",
+    "mtime": 1790717629.560627,
+    "seen": 1790717644.9070466,
+    "ast_hash": "19eee07533fdc614d0665772fb74996d",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3030,9 +3030,9 @@
     "semantic_hash": ""
   },
   "src/app/ads/campaigns/page.tsx": {
-    "mtime": 1790543005.6079535,
-    "seen": 1790715540.124806,
-    "ast_hash": "0a47ca96d3554aba23d526a6a305770f",
+    "mtime": 1790717412.132236,
+    "seen": 1790717644.9060655,
+    "ast_hash": "9a683b0f4f4e8bd72f4c210ef38cee90",
     "semantic_hash": ""
   },
   "src/app/ads/page.tsx": {
@@ -3108,9 +3108,9 @@
     "semantic_hash": ""
   },
   "src/lib/ads/plan.ts": {
-    "mtime": 1790716658.8166742,
-    "seen": 1790716988.3033392,
-    "ast_hash": "789b340d5b0988124a4c65b9dd83cc00",
+    "mtime": 1790717263.3200126,
+    "seen": 1790717644.906707,
+    "ast_hash": "d79f7d4679923eb67b8c2cf596ed87a1",
     "semantic_hash": ""
   },
   "src/app/ads/audience-editor.tsx": {
@@ -3126,9 +3126,9 @@
     "semantic_hash": ""
   },
   "src/app/ads/new/page.tsx": {
-    "mtime": 1790716702.8467088,
-    "seen": 1790716988.3026907,
-    "ast_hash": "db854de19511cf1cd5771b2a7ac8cb85",
+    "mtime": 1790717428.5718963,
+    "seen": 1790717644.9061012,
+    "ast_hash": "b06aa3b6d31b06daaf4751f7f2b9a633",
     "semantic_hash": ""
   },
   "src/app/ads/rules/page.tsx": {
@@ -3330,9 +3330,9 @@
     "semantic_hash": ""
   },
   "src/app/api/ads/template/route.ts": {
-    "mtime": 1790716658.817105,
-    "seen": 1790716988.3028088,
-    "ast_hash": "2e7f23b9e29051f85daa05f13879a9a9",
+    "mtime": 1790717284.9987826,
+    "seen": 1790717644.9062085,
+    "ast_hash": "346ee3a277b18795b811ac4690262b8a",
     "semantic_hash": ""
   },
   "src/app/drafts/page.tsx": {
@@ -3558,9 +3558,9 @@
     "semantic_hash": ""
   },
   "src/app/ads/studio/maker.tsx": {
-    "mtime": 1790716845.631765,
-    "seen": 1790716988.3027136,
-    "ast_hash": "d879111d1540ef284ebf2d7a323e6af8",
+    "mtime": 1790717112.3360453,
+    "seen": 1790717644.9061244,
+    "ast_hash": "2d8eb20e707f7766d6e5e8e363a0e249",
     "semantic_hash": ""
   },
   "src/app/ads/studio/page.tsx": {
@@ -3612,9 +3612,9 @@
     "semantic_hash": ""
   },
   "src/app/api/ads/studio/creatives/route.ts": {
-    "mtime": 1790710452.6895692,
-    "seen": 1790715540.1248682,
-    "ast_hash": "84bb6f4c82d64bcd3eaaa7bb2c721e04",
+    "mtime": 1790717483.0099912,
+    "seen": 1790717644.9061987,
+    "ast_hash": "1388ae8ea4e43c44c600e3395ec08ed7",
     "semantic_hash": ""
   },
   "src/app/api/ads/studio/guide/route.ts": {
@@ -3843,6 +3843,54 @@
     "mtime": 1790716632.517857,
     "seen": 1790716988.3033328,
     "ast_hash": "47ec0ba1cc902ab716331e26730009a0",
+    "semantic_hash": ""
+  },
+  "src/app/ads/adset/page.tsx": {
+    "mtime": 1790717412.1316016,
+    "seen": 1790717644.9060533,
+    "ast_hash": "b9bed2415384ed13976f7c394e12bdfe",
+    "semantic_hash": ""
+  },
+  "src/app/ads/studio/post-it.tsx": {
+    "mtime": 1790717112.335547,
+    "seen": 1790717644.9061308,
+    "ast_hash": "822260eb5836cb8595758c90aed0700b",
+    "semantic_hash": ""
+  },
+  "src/app/api/ads/adsets/route.ts": {
+    "mtime": 1790717318.6513262,
+    "seen": 1790717644.9061446,
+    "ast_hash": "f6b5f4c5d1e6101fa7c973a0405edda4",
+    "semantic_hash": ""
+  },
+  "src/lib/ads/adset-design.test.ts": {
+    "mtime": 1790717253.3830698,
+    "seen": 1790717644.906667,
+    "ast_hash": "86c6fef5e47099d322670fc20e81601f",
+    "semantic_hash": ""
+  },
+  "src/lib/ads/adset-design.ts": {
+    "mtime": 1790717227.6693344,
+    "seen": 1790717644.906669,
+    "ast_hash": "b333d027fd13a4dadb73bd3672123d28",
+    "semantic_hash": ""
+  },
+  "src/lib/ads/studio/saved-shape.test.ts": {
+    "mtime": 1790717560.4802823,
+    "seen": 1790717644.9067523,
+    "ast_hash": "79f9b2023cf303ffc91f2d70024e65c2",
+    "semantic_hash": ""
+  },
+  "src/lib/ads/studio/saved-shape.ts": {
+    "mtime": 1790717549.8893535,
+    "seen": 1790717644.9067538,
+    "ast_hash": "0592e8f3142214d272ab90871f1d02b4",
+    "semantic_hash": ""
+  },
+  "src/lib/ads/studio/saved.ts": {
+    "mtime": 1790717535.9853528,
+    "seen": 1790717644.906755,
+    "ast_hash": "d676baf3e5be277ff16d6cf70651bb94",
     "semantic_hash": ""
   }
 }

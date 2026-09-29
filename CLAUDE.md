@@ -810,6 +810,18 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   `OFFSITE_CONVERSIONS` with `promoted_object { pixel_id, custom_event_type: PURCHASE }`, the link defaulting to the online shop;
   New ad says how many orders the pixel saw this week against Meta's ~50 to learn. Results read as purchases
   (`RESULT_FOR_GOAL.OFFSITE_CONVERSIONS`).
+  **Post it** (owner: "let me also post any made ads to story/whatsapp channel / community / add it to the website"): the maker's
+  `post-it.tsx` sends the made ad the ordinary way — the 9:16 version to the Instagram story (`/api/instagram/story`, or the share
+  sheet as its own tap when the house has no connection), the **1:1** version to any of the community's groups and the channel
+  (`/api/website/post` with `targets`) and into a website collection (Add Photos' `/api/website/photos`). WhatsApp and the website
+  only ever get 1:1 (owner, 2026-09-25).
+  **Ad sets** (`/ads/adset`, an Ads tab; owner: "i need to be able to design adsets"): one to six ad sets — each its own name, goal,
+  audience and places (the AudienceEditor), budget and dates — into a campaign the account has (its objective limits the goals;
+  a campaign holding the budget gives its ad sets none) or a new one, filled with **copies of ads already made** (`/{ad}/copies`
+  with `adset_id`) or a boosted Instagram post (a creative per goal). "Another ad set" starts as a copy of the last, so a test
+  changes one thing. `lib/ads/adset-design.ts` (tested) builds each ad set with New ad's own `adsetParams`; `/api/ads/adsets`
+  checks every object is this house's, and on any failure deletes what it made. Reached from Campaigns (a campaign's "Add ad
+  sets", an ad set's "Copy and change", an ad's "Into new ad sets") and New ad's "Test it on another audience".
 
 ## graphify
 

@@ -10,7 +10,7 @@ import { adsFail, adsGate, noStore } from '@/lib/ads/gate';
 import { actId, graph, MetaAdsError } from '@/lib/ads/meta';
 import { requireAccount } from '@/lib/ads/settings';
 import { fromMinor, type AdsAccount } from '@/lib/ads/shape';
-import { GOALS, isChannelLink, type AdPlan, type GoalKey } from '@/lib/ads/plan';
+import { goalFromAdset, isChannelLink, type AdPlan, type GoalKey } from '@/lib/ads/plan';
 import { parseTargeting, type AudienceDraft } from '@/lib/ads/targeting';
 
 export const dynamic = 'force-dynamic';
@@ -25,16 +25,6 @@ export interface AdTemplate {
 }
 
 const BUTTONS: AdPlan['button'][] = ['SHOP_NOW', 'LEARN_MORE', 'SEE_MORE', 'ORDER_NOW', 'CONTACT_US'];
-
-function goalFor(optimization: string, destination: string | undefined, boosted: boolean): GoalKey {
-  const hit = GOALS.find(g => g.optimization === optimization && (!g.destination || g.destination === destination));
-  if (hit) return hit.key;
-  if (optimization === 'CONVERSATIONS') return destination === 'INSTAGRAM_DIRECT' ? 'instagram_dm' : 'whatsapp';
-  if (optimization === 'LANDING_PAGE_VIEWS') return 'website';
-  if (optimization === 'OFFSITE_CONVERSIONS' || optimization === 'VALUE') return 'sales';
-  if (optimization === 'POST_ENGAGEMENT' && boosted) return 'engagement';
-  return 'whatsapp';
-}
 
 export async function GET(req: NextRequest) {
   const who = await adsGate(req);
@@ -77,7 +67,7 @@ export async function GET(req: NextRequest) {
     const anyLink = String(feedLink || link.call_to_action?.value?.link || link.link || '');
     const channel = isChannelLink(anyLink);
     const template: AdTemplate = {
-      goal: channel ? 'channel' : feed?.optimization_type === 'DOF_MESSAGING_DESTINATION' ? 'messages' : goalFor(String(adset.optimization_goal || ''), adset.destination_type as string | undefined, boosted),
+      goal: channel ? 'channel' : feed?.optimization_type === 'DOF_MESSAGING_DESTINATION' ? 'messages' : goalFromAdset(String(adset.optimization_goal || ''), adset.destination_type as string | undefined, boosted),
       source,
       text: String(feed?.bodies?.[0]?.text || link.message || creative.body || ''),
       headline: String(feed?.titles?.[0]?.text || link.name || creative.title || ''),

@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (who instanceof NextResponse) return who;
   try {
     const b = (await req.json().catch(() => ({}))) as { assets?: unknown; hash?: unknown; url?: unknown; format?: unknown; name?: unknown };
-    const assets = (Array.isArray(b.assets) ? b.assets : []).filter((x): x is string => typeof x === 'string' && /^(site|drive):/.test(x)).slice(0, 10);
+    const assets = (Array.isArray(b.assets) ? b.assets : []).filter((x): x is string => typeof x === 'string' && /^(site|drive|source):/.test(x)).slice(0, 10);
     if (typeof b.hash !== 'string' || !b.hash) return NextResponse.json({ error: 'No image reference.' }, { status: 400 });
     await recordCreative({
       assets, hash: b.hash, url: typeof b.url === 'string' ? b.url : null,

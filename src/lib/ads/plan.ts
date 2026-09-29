@@ -49,6 +49,18 @@ export const GOALS: Goal[] = [
 ];
 export const goalOf = (k: GoalKey) => GOALS.find(g => g.key === k)!;
 
+/** The goal an ad set made anywhere (the ERP, Ads Manager) reads as, from its optimisation and destination. */
+export function goalFromAdset(optimization: string, destination: string | undefined, boosted: boolean): GoalKey {
+  const hit = GOALS.find(g => g.optimization === optimization && (!g.destination || g.destination === destination));
+  if (hit) return hit.key;
+  if (optimization === 'CONVERSATIONS') return destination === 'INSTAGRAM_DIRECT' ? 'instagram_dm' : 'whatsapp';
+  if (optimization === 'LANDING_PAGE_VIEWS') return 'website';
+  if (optimization === 'OFFSITE_CONVERSIONS' || optimization === 'VALUE') return 'sales';
+  if (optimization === 'POST_ENGAGEMENT' && boosted) return 'engagement';
+  return 'whatsapp';
+}
+
+
 export interface PlanPhoto { hash: string; url?: string | null; headline?: string; link?: string }
 
 /** The goals whose button opens a page on the house's own site. */

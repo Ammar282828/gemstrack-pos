@@ -122,7 +122,7 @@ function NewAd() {
   const [previewTab, setPreviewTab] = useState(0);
   const [confirm, setConfirm] = useState(false);
   const [sending, setSending] = useState(false);
-  const [made, setMade] = useState<{ adId: string; live: boolean; warnings: string[] } | null>(null);
+  const [made, setMade] = useState<{ adId: string; campaignId?: string; live: boolean; warnings: string[] } | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
 
   // The last audience and budget, on this device.
@@ -329,7 +329,7 @@ function NewAd() {
   const send = async () => {
     setSending(true); setSendError(null);
     try {
-      const d = await api<{ adId: string; live: boolean; warnings: string[] }>('/api/ads/create', { body: { plan } });
+      const d = await api<{ adId: string; campaignId?: string; live: boolean; warnings: string[] }>('/api/ads/create', { body: { plan } });
       setMade(d);
       try { localStorage.setItem(LAST_KEY, JSON.stringify({ audience, amount, budgetKind, days, goal })); } catch { /* private mode */ }
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -356,6 +356,7 @@ function NewAd() {
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <Button asChild className="h-11"><Link href={`/ads/campaigns?ad=${made.adId}`}>See it in Campaigns</Link></Button>
             <Button variant="outline" className="h-11" onClick={again}>Make another</Button>
+            <Button asChild variant="outline" className="h-11"><Link href={`/ads/adset?${made.campaignId ? `campaign=${made.campaignId}&` : ""}ads=${made.adId}`}>Test it on another audience</Link></Button>
           </div>
         </div>
       ) : (

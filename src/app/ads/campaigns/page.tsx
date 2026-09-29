@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { FolderKanban, Plus, RefreshCw, Loader2, ChevronRight, MoreVertical, Pencil, Wallet, CalendarClock, Copy, Archive, Trash2, Users, Eye, ExternalLink, Search, AlertTriangle, LayoutGrid, ListTree, ChevronsDownUp, ChevronsUpDown, ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
+import { FolderKanban, Plus, RefreshCw, Loader2, ChevronRight, MoreVertical, Pencil, Wallet, CalendarClock, Copy, Archive, Trash2, Users, Eye, ExternalLink, Search, AlertTriangle, LayoutGrid, ListTree, ChevronsDownUp, ChevronsUpDown, ArrowUpRight, ArrowDownRight, Sparkles, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS } from '@/lib/store-config';
 import {
@@ -158,6 +158,9 @@ function Campaigns() {
       <DropdownMenuContent align="end" className="w-52">
         {t.level === 'ad' && <DropdownMenuItem onSelect={() => setDialog({ kind: 'ad', id: t.id })}><Eye className="h-4 w-4 mr-2" /> Preview and review notes</DropdownMenuItem>}
         {t.level === 'ad' && <DropdownMenuItem asChild><Link href={`/ads/new?from=${t.id}`}><Sparkles className="h-4 w-4 mr-2" /> Make one like this</Link></DropdownMenuItem>}
+        {t.level === 'ad' && <DropdownMenuItem asChild><Link href={`/ads/adset?ads=${t.id}`}><Layers className="h-4 w-4 mr-2" /> Into new ad sets</Link></DropdownMenuItem>}
+        {t.level === 'campaign' && <DropdownMenuItem asChild><Link href={`/ads/adset?campaign=${t.id}`}><Layers className="h-4 w-4 mr-2" /> Add ad sets</Link></DropdownMenuItem>}
+        {t.level === 'adset' && <DropdownMenuItem asChild><Link href={`/ads/adset?from=${t.id}`}><Layers className="h-4 w-4 mr-2" /> Copy and change</Link></DropdownMenuItem>}
         {budget && <DropdownMenuItem onSelect={() => setDialog({ kind: 'budget', t })}><Wallet className="h-4 w-4 mr-2" /> Change budget</DropdownMenuItem>}
         {schedule && <DropdownMenuItem onSelect={() => setDialog({ kind: 'schedule', t })}><CalendarClock className="h-4 w-4 mr-2" /> End date</DropdownMenuItem>}
         {audience && <DropdownMenuItem onSelect={() => setDialog({ kind: 'audience', t })}><Users className="h-4 w-4 mr-2" /> Audience and placements</DropdownMenuItem>}

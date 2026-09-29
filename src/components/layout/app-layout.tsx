@@ -142,6 +142,7 @@ const navGroups: NavGroup[] = [
         // before the ad, so the Studio comes first (NEXT_PUBLIC_STORE_AD_STUDIO).
         ...(STORE_AD_STUDIO ? [{ href: '/ads/studio', label: 'Studio' }] : []),
         { href: '/ads/new', label: 'New ad' },
+        { href: '/ads/adset', label: 'Ad sets' },
         { href: '/ads/audiences', label: 'Audiences' },
         { href: '/ads/rules', label: 'Rules' },
         { href: '/ads/setup', label: 'Setup' },

@@ -39,6 +39,7 @@ import { SoloEditor, useStoryDoc } from '../../website/post/story-editor';
 import { FONTS, bodyFace, headlineFace, serifFace } from '../../website/post/fonts';
 import { useSiteAssets } from '../../website/post/site-assets';
 import { api } from '../ads-kit';
+import { PostIt } from './post-it';
 import { SITE_LABEL, b64ToBlob, downloadBlob, fetchAsset, runImageOp, safeName, scoreTone, type WorkPhoto } from './studio-kit';
 
 const FORMAT_KEY = 'taheri_studio_format';
@@ -584,6 +585,10 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
             </label>
           )}
         </section>
+
+        <PostIt ready={ready} name={fields.headline || work?.asset?.name || ''}
+          caption={[text.trim(), work?.asset?.page ?? ''].filter(Boolean).join('\n\n')}
+          render={f => draw(f === format ? doc.doc : onFrame(f, template), fields, assets, AD_FORMATS[f].px)} />
 
         <Button className="w-full h-11" disabled={!ready || sending} onClick={toNewAd}>
           {sending ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Rocket className="h-4 w-4 mr-1.5" />} Use it in a new ad
