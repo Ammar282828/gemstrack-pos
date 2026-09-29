@@ -1896,9 +1896,9 @@
     "semantic_hash": ""
   },
   "src/lib/gold-update.ts": {
-    "mtime": 1790533461.7019684,
-    "seen": 1790537191.0588548,
-    "ast_hash": "982585f843eb093af85314bef8676217",
+    "mtime": 1790687304.5413558,
+    "seen": 1790687416.4825704,
+    "ast_hash": "6e904b91f95bf90edd22797c59e6dbe7",
     "semantic_hash": ""
   },
   "src/lib/import/taheri-book.json": {
@@ -2112,9 +2112,9 @@
     "semantic_hash": ""
   },
   "src/lib/voice/gemini.ts": {
-    "mtime": 1790533461.7133434,
-    "seen": 1790537191.058948,
-    "ast_hash": "0dc34155be02dc0c06d31489c8f366c2",
+    "mtime": 1790687209.581358,
+    "seen": 1790687416.482662,
+    "ast_hash": "11a2745b70e6874e083eff714d0ab4ea",
     "semantic_hash": ""
   },
   "src/lib/voice/model.ts": {
@@ -2298,9 +2298,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790674722.632146,
-    "seen": 1790674768.6939907,
-    "ast_hash": "9a1c20a258853a37f7502685d68fdfb2",
+    "mtime": 1790687386.821354,
+    "seen": 1790687416.4827695,
+    "ast_hash": "2c7a82f31a96bf132475a7fac05ee152",
     "semantic_hash": ""
   },
   "README.md": {
@@ -2436,9 +2436,9 @@
     "semantic_hash": ""
   },
   "apphosting.mina.yaml": {
-    "mtime": 1790607401.249027,
-    "seen": 1790612253.759023,
-    "ast_hash": "39d480b873e05672e5e03ea4874249c6",
+    "mtime": 1790687312.4733555,
+    "seen": 1790687416.4827745,
+    "ast_hash": "53c9ad5ab87731f54a1ecdc75c45c752",
     "semantic_hash": ""
   },
   "apphosting.taheri.yaml": {
@@ -2556,9 +2556,9 @@
     "semantic_hash": ""
   },
   "src/lib/social/ai.ts": {
-    "mtime": 1790533461.702819,
-    "seen": 1790537191.0588987,
-    "ast_hash": "37a2861e86646fc9e1041a51ba39ee58",
+    "mtime": 1790687200.1213582,
+    "seen": 1790687416.482612,
+    "ast_hash": "86f3a1ecba3969981646b1420eb2e050",
     "semantic_hash": ""
   },
   "src/lib/social/gate.ts": {
@@ -2604,27 +2604,27 @@
     "semantic_hash": ""
   },
   "src/lib/social/diagnose.test.ts": {
-    "mtime": 1790674432.5519326,
-    "seen": 1790674768.6938794,
-    "ast_hash": "29199f0e12f76a47b0c6f6603fa8a4a3",
+    "mtime": 1790687250.877357,
+    "seen": 1790687416.4826188,
+    "ast_hash": "e61e6a71e6f24410a889c38ab99acfec",
     "semantic_hash": ""
   },
   "src/lib/social/diagnose.ts": {
-    "mtime": 1790674422.771932,
-    "seen": 1790674768.6938808,
-    "ast_hash": "82dbef9d03e9a9315ac09bb53263e11f",
+    "mtime": 1790687245.2293572,
+    "seen": 1790687416.48262,
+    "ast_hash": "62617386530593d9ff6719ff004ed107",
     "semantic_hash": ""
   },
   "src/lib/social/errors.ts": {
-    "mtime": 1790533461.704813,
-    "seen": 1790537191.0589104,
-    "ast_hash": "82246a04744540cbdc0f1545232a8c0a",
+    "mtime": 1790687236.6333573,
+    "seen": 1790687416.4826233,
+    "ast_hash": "fe4a635abae6e3e5c690d00fb46a22fc",
     "semantic_hash": ""
   },
   "src/lib/social/health.ts": {
-    "mtime": 1790533461.704813,
-    "seen": 1790537191.0589135,
-    "ast_hash": "f18b8bd713aa4ef01c7118e19b893ce1",
+    "mtime": 1790687212.397358,
+    "seen": 1790687416.4826257,
+    "ast_hash": "d33c8eed0e130e74c10075a4aeb042dd",
     "semantic_hash": ""
   },
   "src/app/website/post/story-editor.tsx": {
@@ -3018,9 +3018,9 @@
     "semantic_hash": ""
   },
   "src/lib/secret-manager.ts": {
-    "mtime": 1790533461.702819,
-    "seen": 1790537191.0588953,
-    "ast_hash": "6bd6d6a499a274e3dcc0e718a875887b",
+    "mtime": 1790687171.673359,
+    "seen": 1790687416.4826078,
+    "ast_hash": "71d8e9eb9a0a018c8f6d54fe672bdd3b",
     "semantic_hash": ""
   },
   "src/app/ads/ads-kit.tsx": {
@@ -3459,6 +3459,12 @@
     "mtime": 1790674690.4256861,
     "seen": 1790674768.69393,
     "ast_hash": "87310d2d509d2d477f427e5ae8abb6d2",
+    "semantic_hash": ""
+  },
+  "src/lib/ai-key.ts": {
+    "mtime": 1790687181.0613587,
+    "seen": 1790687416.4825382,
+    "ast_hash": "3540f1605c7d8e28439e265c25ac2f8d",
     "semantic_hash": ""
   }
 }
