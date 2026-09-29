@@ -18,9 +18,10 @@ import {
 import { cn } from '@/lib/utils';
 import { FIXES, PLACEMENT_LABEL, PLACEMENTS, type FixCode, type Placement } from '@/lib/ads/studio/assessment';
 import { SCENES } from '@/lib/social/prompts';
+import { BRAND } from '@/lib/ads/studio/brand';
 import { api } from '../ads-kit';
 import {
-  AuthedImg, FIX_OPS, Meter, ScoreBadge, downloadBlob, fetchAsset, runImageOp, safeName, scoreWord,
+  AuthedImg, FIX_OPS, Meter, SITE_LABEL, ScoreBadge, downloadBlob, fetchAsset, runImageOp, safeName, scoreWord,
   type FixResult, type LibraryItem, type LibraryResponse, type WorkPhoto,
 } from './studio-kit';
 
@@ -117,7 +118,7 @@ export function AssessBar({ counts, runner, big }: { counts: LibraryResponse['co
       <div className="flex-1 min-w-0 space-y-1.5">
         <p className="text-sm font-medium">
           {counts.assessed.toLocaleString('en-US')} of {counts.total.toLocaleString('en-US')} photos assessed
-          <span className="text-muted-foreground font-normal"> · {counts.site.toLocaleString('en-US')} from taheri.shop, {counts.drive.toLocaleString('en-US')} from Drive</span>
+          <span className="text-muted-foreground font-normal"> · {counts.site.toLocaleString('en-US')} from {SITE_LABEL}, {counts.drive.toLocaleString('en-US')} from Drive</span>
         </p>
         <div className="h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${pctDone}%` }} /></div>
         <p className="text-[11px] text-muted-foreground">
@@ -140,7 +141,6 @@ export function AssessBar({ counts, runner, big }: { counts: LibraryResponse['co
 
 // ── Drive ──────────────────────────────────────────────────────────────────
 
-const FOLDERS = ['taheri content (the shoots)', 'TC (the archive)', 'the Vault’s logos'];
 
 export function DriveCard({ drive, onRefresh, refreshing }: { drive: LibraryResponse['drive']; onRefresh: () => void; refreshing: boolean }) {
   const { toast } = useToast();
@@ -159,7 +159,7 @@ export function DriveCard({ drive, onRefresh, refreshing }: { drive: LibraryResp
   return (
     <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-2.5">
       <p className="text-sm font-semibold flex items-center gap-2"><HardDrive className="h-4 w-4" /> Your Google Drive isn’t connected yet</p>
-      <p className="text-xs text-muted-foreground">Only taheri.shop’s photos are here for now. The shoots in Drive come in once the ERP may read them — two steps, each a minute, and nothing in Drive is ever changed.</p>
+      <p className="text-xs text-muted-foreground">Only {SITE_LABEL}’s photos are here for now. The shoots in Drive come in once the ERP may read them — two steps, each a minute, and nothing in Drive is ever changed.</p>
       <ol className="text-xs space-y-2 list-decimal pl-4">
         {needApi && (
           <li>
@@ -168,7 +168,7 @@ export function DriveCard({ drive, onRefresh, refreshing }: { drive: LibraryResp
           </li>
         )}
         <li>
-          In Drive, share {FOLDERS.join(', ')} with <button type="button" onClick={copy} className="font-mono text-[11px] rounded bg-muted px-1.5 py-0.5 inline-flex items-center gap-1 break-all min-h-0">{drive.account} <Copy className="h-3 w-3 shrink-0" /></button> as <b>Viewer</b>, without notifying.
+          In Drive, share {BRAND.driveHint} with <button type="button" onClick={copy} className="font-mono text-[11px] rounded bg-muted px-1.5 py-0.5 inline-flex items-center gap-1 break-all min-h-0">{drive.account} <Copy className="h-3 w-3 shrink-0" /></button> as <b>Viewer</b>, without notifying.
         </li>
       </ol>
       {!needApi && drive.reason !== 'nothing-shared' && <p className="text-[11px] text-muted-foreground">Drive said: {drive.message}</p>}
@@ -192,7 +192,7 @@ export function AssetTile({ item, onOpen, rank }: { item: LibraryItem; onOpen: (
           {rank !== undefined && <span className="rounded-full bg-background/90 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">#{rank}</span>}
           <ScoreBadge n={item.adScore} />
         </div>
-        <span className="absolute right-1.5 top-1.5 rounded-full bg-background/90 p-1" title={item.source === 'site' ? 'taheri.shop' : 'Google Drive'}>
+        <span className="absolute right-1.5 top-1.5 rounded-full bg-background/90 p-1" title={item.source === 'site' ? SITE_LABEL : 'Google Drive'}>
           {item.source === 'site' ? <Globe className="h-3 w-3" /> : <HardDrive className="h-3 w-3" />}
         </span>
         <div className="absolute left-1.5 bottom-1.5 flex gap-1">
@@ -228,7 +228,7 @@ export function PicksSection({ placement, onPlacement, onOpen, reloadKey }: { pl
         <Button variant="ghost" size="sm" onClick={() => reload(true)} disabled={loading}><RefreshCw className={cn('h-4 w-4 mr-1', loading && 'animate-spin')} /> Look again</Button>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {data?.siteError && <p className="text-xs text-amber-700">taheri.shop didn’t answer: {data.siteError}</p>}
+      {data?.siteError && <p className="text-xs text-amber-700">{SITE_LABEL} didn’t answer: {data.siteError}</p>}
       {counts && <AssessBar counts={counts} runner={runner} big={counts.assessed === 0} />}
       {data && <DriveCard drive={data.drive} onRefresh={() => { reload(true); newest.reload(true); }} refreshing={loading} />}
       {loading && !data ? (
@@ -288,7 +288,7 @@ export function LibrarySection({ placement, onPlacement, onOpen, reloadKey }: { 
       <div className="flex flex-wrap gap-1.5">
         {(['all', 'site', 'drive'] as const).map(s => (
           <button key={s} type="button" onClick={() => setSource(s)} className={cn('rounded-full border px-3 py-1 text-xs min-h-0', source === s ? 'bg-foreground text-background' : 'text-muted-foreground')}>
-            {s === 'all' ? 'Both' : s === 'site' ? 'taheri.shop' : 'Drive'}
+            {s === 'all' ? 'Both' : s === 'site' ? SITE_LABEL : 'Drive'}
           </button>
         ))}
         <span className="w-px bg-border mx-1" />

@@ -7,7 +7,9 @@
 
 export interface PlaybookSection { id: string; title: string; lead: string; points: { head: string; body: string }[] }
 
-export const PLAYBOOK: PlaybookSection[] = [
+import { STORE_BRAND } from '@/lib/store-config';
+
+const TAHERI_PLAYBOOK: PlaybookSection[] = [
   {
     id: 'job', title: 'What an ad is for',
     lead: 'The vault’s rule for every channel: WhatsApp closes; everything else routes into WhatsApp. An ad is judged by the conversations it opens.',
@@ -77,3 +79,72 @@ export const PLAYBOOK: PlaybookSection[] = [
     ],
   },
 ];
+
+/** House of Mina: the same mechanics, in its own situation — Instagram-native buyers, orders by DM or WhatsApp, worldwide shipping. */
+const MINA_PLAYBOOK: PlaybookSection[] = [
+  {
+    id: 'job', title: 'What an ad is for',
+    lead: 'Orders close in a conversation — Instagram Direct or WhatsApp — or on houseofmina.store. An ad is judged by the conversations and orders it opens.',
+    points: [
+      { head: 'One ad, both inboxes', body: '“WhatsApp or Instagram chats” lets Meta send each person to the app they use most — for an Instagram-native audience, often Direct. Answer both quickly.' },
+      { head: 'Say what to do', body: '“DM to order”, “Order on WhatsApp”, “Shop now — shipped worldwide”. Card or bank transfer and worldwide shipping, said up front, remove the first questions.' },
+      { head: 'Teach Meta what an order is', body: 'In WhatsApp Business, share events with Meta and label chats (Lead, New order, Paid) within a week of the tap: ten labelled in 30 days lets Meta optimise for orders.' },
+    ],
+  },
+  {
+    id: 'who', title: 'Who sees it',
+    lead: 'Mina ships worldwide, so the audience isn’t one city — but the warmest people are the ones who already follow the house.',
+    points: [
+      { head: 'Start from who knows the house', body: 'Instagram engagers of @houseofmina__ and the customer list (Ads → Audiences), then a lookalike of the customers.' },
+      { head: 'Two lines, two ad sets', body: 'The men’s pieces (rings, natural ruby rings, chains, cuffs) have their own buyer — keep them in their own ad set with their own words.' },
+      { head: 'Abroad, deliberately', body: 'Worldwide shipping makes the diaspora an audience: add the countries orders already come from rather than “worldwide” at once.' },
+    ],
+  },
+  {
+    id: 'show', title: 'What to show',
+    lead: 'Colour and light first: the stones and the silver doing something in the light, large in the frame.',
+    points: [
+      { head: 'The piece fills the frame', body: 'One piece per ad, sharp, catching the light. The Picks rank the library for exactly this.' },
+      { head: '4:5 for feeds, 9:16 for stories', body: 'Send both sizes as one ad — the maker does it — so stories, reels and WhatsApp Status get a full-screen picture.' },
+      { head: 'One mark', body: 'The catalogue’s photos carry the MINA mark; the studio starts from the catalogue’s photo before it was marked and puts the mark back once.' },
+      { head: 'Refresh before it tires', body: 'At frequency 3, or when the cost per conversation climbs well above the usual, change the picture — Overview’s “Needs a look” flags both.' },
+    ],
+  },
+  {
+    id: 'words', title: 'The words',
+    lead: 'Modern, confident and clean — short, vivid lines with a little wit.',
+    points: [
+      { head: 'Short and vivid', body: 'One idea a line. What the piece does in the light, not what it is made of — “Cut to catch every light in the room.”' },
+      { head: 'Facts only as given', body: '925 sterling silver; stones and plating as the catalogue names them; a price or a weight only when the ERP has it.' },
+      { head: 'No hashtags', body: 'They make an ad look like a post that wandered off; the button does the work.' },
+    ],
+  },
+  {
+    id: 'money', title: 'The budget',
+    lead: 'Meta learns from about fifty results a week in one ad set.',
+    points: [
+      { head: 'Fewer ad sets, not more', body: 'One ad set with three to five pictures learns faster than five ad sets with one each — except the men’s line, which is its own buyer.' },
+      { head: 'Judge after days, not hours', body: 'Three or four days before pausing; a week before judging.' },
+      { head: 'A daily budget of several conversations', body: 'Around seven times the cost of a conversation you’re happy to pay.' },
+    ],
+  },
+  {
+    id: 'when', title: 'When',
+    lead: 'Gifting seasons move silver: the weeks before Eid, and the dates orders must ship by to arrive abroad.',
+    points: [
+      { head: 'Ship-by dates', body: 'For orders abroad, stop promising arrival before an occasion once the shipping time runs past it — say “order by” instead.' },
+      { head: 'New pieces as they land', body: 'A short burst for each new drop, to followers first.' },
+    ],
+  },
+  {
+    id: 'measure', title: 'Knowing it worked',
+    lead: 'Meta counts conversations and clicks; the orders are in WhatsApp, Direct and the online shop.',
+    points: [
+      { head: 'Ask where they found you', body: 'Note it on the customer — the only link between an ad and an order Meta can’t see.' },
+      { head: 'The pixel on the shop', body: 'With Meta’s pixel on houseofmina.store (Ads → Setup), website ads can buy page views and purchases, and retarget people who looked.' },
+    ],
+  },
+];
+
+/** This house's playbook. */
+export const PLAYBOOK: PlaybookSection[] = STORE_BRAND === 'mina' ? MINA_PLAYBOOK : TAHERI_PLAYBOOK;

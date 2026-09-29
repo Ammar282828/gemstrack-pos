@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import type { Competitor } from '@/lib/ads/studio/research';
 import type { FoundCompetitor } from '@/lib/ads/studio/prompts';
 import { api } from '../ads-kit';
+import { BRAND, IDENTITY } from '@/lib/ads/studio/brand';
 
 type Row = Competitor & { adLibrary: string; instagram: string; profile: (Competitor['profile'] & { posts: (NonNullable<Competitor['profile']>['posts'][number] & { rate?: number | null })[] }) | null };
 type Found = FoundCompetitor & { adLibrary: string };
@@ -64,10 +65,10 @@ export function RivalsSection({ connected }: { connected: boolean }) {
       <div className="rounded-xl border p-3 sm:p-4 space-y-3">
         <div>
           <p className="text-sm font-semibold">Who else sells to the same buyers</p>
-          <p className="text-xs text-muted-foreground">Search finds Karachi’s and Pakistan’s fine jewellers and their Instagram; each one is then looked up on Instagram through the house’s own account — followers, recent posts, what each post earned — and read for what works. Their running ads open in Meta’s public Ad Library (Meta shares no one’s ads through its API in Pakistan).</p>
+          <p className="text-xs text-muted-foreground">Search finds the houses that sell to the same buyers, and their Instagram; each one is then looked up on Instagram through the house’s own account — followers, recent posts, what each post earned — and read for what works. Their running ads open in Meta’s public Ad Library (Meta shares no one’s ads through its API in Pakistan).</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Input value={brief} onChange={e => setBrief(e.target.value)} placeholder="Focus (optional) — e.g. diamond boutiques in Clifton, Bohri Bazaar jewellers" className="h-9 text-base sm:text-sm" />
+          <Input value={brief} onChange={e => setBrief(e.target.value)} placeholder={BRAND.calendar ? 'Focus (optional) — e.g. diamond boutiques in Clifton, Bohri Bazaar jewellers' : 'Focus (optional) — e.g. men’s silver rings, Lahore silver brands'} className="h-9 text-base sm:text-sm" />
           <Button onClick={find} disabled={finding}>{finding ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Search className="h-4 w-4 mr-1.5" />} Find competitors</Button>
         </div>
         {finding && <p className="text-[11px] text-muted-foreground">Searching Google — about a minute.</p>}
@@ -180,7 +181,7 @@ function RivalCard({ c, open, onToggle, onChange, onRemove, canLook }: { c: Row;
                 <div><p className="font-semibold">Works for them</p><ul className="list-disc pl-4">{r.whatWorks.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
                 <div><p className="font-semibold">Doesn’t</p><ul className="list-disc pl-4">{r.whatDoesnt.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
               </div>
-              <div className="rounded-lg border border-primary/30 bg-background p-2"><p className="font-semibold text-primary">What taheri should do</p><ul className="list-disc pl-4">{r.ourMoves.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+              <div className="rounded-lg border border-primary/30 bg-background p-2"><p className="font-semibold text-primary">What {IDENTITY.name} should do</p><ul className="list-disc pl-4">{r.ourMoves.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
               {r.avoid.length > 0 && <div><p className="font-semibold">Don’t copy</p><ul className="list-disc pl-4">{r.avoid.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
               <p className="text-[10px] text-muted-foreground">Read {c.readingAt ? new Date(c.readingAt).toLocaleString() : ''}.</p>
             </div>

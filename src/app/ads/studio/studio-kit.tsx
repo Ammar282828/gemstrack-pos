@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import type { AssetAssessment, FixCode, Placement } from '@/lib/ads/studio/assessment';
 import type { StudioAsset, DriveSummary } from '@/lib/ads/studio/assets';
 import { authHeaders } from '../ads-kit';
+import { STORE_LINKS } from '@/lib/store-config';
 
 export interface LibraryItem extends StudioAsset {
   assessment: AssetAssessment | null;
@@ -142,5 +143,8 @@ export function downloadBlob(blob: Blob, name: string) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
+
+/** This house's website, as a name: "taheri.shop", "catalogue.houseofmina.store". */
+export const SITE_LABEL = (() => { try { return new URL(STORE_LINKS.website || '').hostname.replace(/^www\./, ''); } catch { return 'the website'; } })();
 
 export const safeName = (s: string) => (s || 'taheri-ad').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'taheri-ad';

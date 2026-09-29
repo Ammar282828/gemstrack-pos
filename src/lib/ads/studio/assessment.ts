@@ -30,7 +30,7 @@ export const FIXES: Record<FixCode, { label: string; why: string }> = {
   'extend-story': { label: 'Extend to 9:16', why: 'Stories and reels are 9:16; cropping this photo would cut the piece.' },
   'clear-labels': { label: 'Clear old labels', why: 'Burned-in labels and marks read as a catalogue shot; the maker can set the weight back cleanly.' },
   retouch: { label: 'Retouch', why: 'Soft detail on metal or stones; the upscaler sharpens without redrawing.' },
-  enhance: { label: 'Enhance light', why: 'Flat or dim lighting; gold should glow and stones should spark.' },
+  enhance: { label: 'Enhance light', why: 'Flat or dim lighting; the metal should gleam and stones should spark.' },
   restage: { label: 'New setting', why: 'The background works against the piece; restage it on a clean set.' },
   'crop-tighter': { label: 'Crop tighter', why: 'The piece is small in the frame; on a phone it will be lost.' },
 };

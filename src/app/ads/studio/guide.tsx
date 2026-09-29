@@ -14,7 +14,7 @@ import { CalendarClock, Loader2, Sparkles, Trophy, TrendingDown, ChevronDown, Ch
 import { cn } from '@/lib/utils';
 import { PLAYBOOK } from '@/lib/ads/studio/playbook';
 import { GAPS, HOUSES, MARKET_AT, META_NOTES, PATTERNS } from '@/lib/ads/studio/market';
-import { AUDIENCE, DECISION_RULES, HARD_RULES, IDENTITY, MARKET, MARK_RULES, VISUAL, VOICE } from '@/lib/ads/studio/brand';
+import { AUDIENCE, BRAND, DECISION_RULES, HARD_RULES, IDENTITY, MARKET, MARK_RULES, VISUAL, VOICE } from '@/lib/ads/studio/brand';
 import type { WinnersState } from '@/lib/ads/studio/research';
 import { api } from '../ads-kit';
 
@@ -54,7 +54,7 @@ export function GuideSection({ connected }: { connected: boolean }) {
     <div className="grid lg:grid-cols-2 gap-4 items-start">
       <div className="space-y-4">
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <section className="rounded-xl border p-4 space-y-3">
+        {BRAND.calendar && <section className="rounded-xl border p-4 space-y-3">
           <h2 className="text-base font-semibold flex items-center gap-2"><CalendarClock className="h-4 w-4" /> Ad days</h2>
           {!c ? <p className="text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin inline mr-1" /> Working out the calendar…</p> : (
             <>
@@ -81,7 +81,7 @@ export function GuideSection({ connected }: { connected: boolean }) {
               <p className="text-[10px] text-muted-foreground">Worked out from the tabular Hijri calendar the Dawoodi Bohras keep, checked against the vault’s 2025 dates. Urs and Dawat dates aren’t in the vault — confirm those against the Dawat calendar; if unsure whether a day is sacred, treat it as sacred.</p>
             </>
           )}
-        </section>
+        </section>}
 
         <section className="rounded-xl border p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
@@ -172,7 +172,7 @@ function BrandCard() {
         <h2 className="text-base font-semibold flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> The house’s rules for ads</h2>
         <Button size="sm" variant="ghost" onClick={() => setOpen(o => !o)}>{open ? 'Less' : 'All of them'}</Button>
       </div>
-      <p className="text-xs text-muted-foreground">From the Taheri Vault. Every ad the studio writes or checks is held to these.</p>
+      <p className="text-xs text-muted-foreground">{BRAND.calendar ? 'From the Taheri Vault, as the owner changed it on 2026-09-29.' : 'From the house’s own words in the ERP.'} Every ad the studio writes or checks is held to these.</p>
       <div className="text-xs"><p className="font-semibold mb-0.5">Never in an ad</p><List xs={HARD_RULES} /></div>
       <div className="flex items-center gap-2">
         {[VISUAL.ground, VISUAL.gold, VISUAL.lightGold, VISUAL.bone].map(c => <span key={c} className="h-7 w-7 rounded-full border" style={{ background: c }} title={c} />)}
@@ -194,8 +194,8 @@ function BrandCard() {
 }
 
 function MarketCard() {
-  const [open, setOpen] = useState<'gaps' | 'patterns' | 'houses' | 'meta'>('gaps');
-  const tabs = [['gaps', 'What nobody does'], ['patterns', 'What they all run'], ['houses', 'The houses'], ['meta', 'How Meta works here']] as const;
+  const [open, setOpen] = useState<'gaps' | 'patterns' | 'houses' | 'meta'>(GAPS.length ? 'gaps' : 'meta');
+  const tabs = ([['gaps', 'What nobody does', GAPS.length], ['patterns', 'What they all run', PATTERNS.length], ['houses', 'The houses', HOUSES.length], ['meta', 'How Meta works here', META_NOTES.length]] as const).filter(t => t[2] > 0);
   const list = (xs: { head: string; body: string; who?: string; source?: string }[]) => (
     <ul className="space-y-2">{xs.map(x => (
       <li key={x.head} className="text-xs"><p className="font-medium">{x.head}{x.who && <span className="text-muted-foreground font-normal"> — {x.who}</span>}</p><p className="text-muted-foreground">{x.body}{x.source && <> <a href={x.source} target="_blank" rel="noreferrer" className="text-primary">source</a></>}</p></li>

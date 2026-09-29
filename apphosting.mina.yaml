@@ -285,10 +285,10 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  # Ads → Studio is built on Taheri's brand book and photographs (the owner,
-  # 2026-09-29: "for just taheri for now").
+  # Ads → Studio, in House of Mina's own brief, dress and plays (the owner,
+  # 2026-09-29: "after youre done with taheri, do the same thing for houseofmina").
   - variable: NEXT_PUBLIC_STORE_AD_STUDIO
-    value: "0"
+    value: "1"
     availability:
       - BUILD
       - RUNTIME

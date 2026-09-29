@@ -33,6 +33,7 @@ import { Rocket, Instagram, ImagePlus, Images, Globe, Loader2, Check, X, ArrowUp
 import { cn } from '@/lib/utils';
 import { STORE_META_ADS, STORE_LINKS, STORE_SITE_POSTS, STORE_AD_STUDIO } from '@/lib/store-config';
 import { quietDaysBetween, hijriLabel, karachiDay } from '@/lib/ads/studio/calendar';
+import { BRAND } from '@/lib/ads/studio/brand';
 import { money } from '@/lib/ads/shape';
 import { defaultDraft, type AudienceDraft } from '@/lib/ads/targeting';
 import { GOALS, goalOf, isChannelLink, planProblems, planSummary, defaultName, type AdPlan, type GoalKey, type PlanPhoto } from '@/lib/ads/plan';
@@ -278,7 +279,7 @@ function NewAd() {
   }, [usingPost, post, readyPhotos, vertical, goal, text, headline, link, button, audience, budgetKind, amount, startIso, endIso, launch, name, nameTouched]);
   // The days it would run through that the house keeps free of product ads (Taheri's Bohra calendar).
   const quiet = useMemo(() => {
-    if (!STORE_AD_STUDIO) return [];
+    if (!STORE_AD_STUDIO || !BRAND.calendar) return [];
     const from = karachiDay(startIso ? new Date(startIso) : new Date());
     const to = karachiDay(new Date(endIso ? Date.parse(endIso) : Date.now() + 30 * 86_400_000));
     return quietDaysBetween(from, to).filter(d => d.level === 'sacred' || d.level === 'near');

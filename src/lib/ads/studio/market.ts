@@ -9,12 +9,14 @@
  * Kept as text on purpose: it is a snapshot, dated, not a live feed. Pure data.
  */
 
+import { STORE_BRAND } from '@/lib/store-config';
+
 export const MARKET_AT = '2026-09-29';
 
 export interface Finding { head: string; body: string; who?: string; source?: string }
 
 /** What the houses do again and again. */
-export const PATTERNS: Finding[] = [
+const TAHERI_PATTERNS: Finding[] = [
   { head: 'The three-tag sale card', body: 'Making charges waived (“Net gold price”), diamonds 50–70% off, watches off — with dates and cities. The market’s loudest ad.', who: 'Hanif, Waseem, Heritage', source: 'https://www.youtube.com/watch?v=UoVAvflwI8M' },
   { head: 'Age as the headline', body: '“Est. 1925”, “Since 1952/1956”, “500,000+ customers served”.', who: 'Patiala, Waseem, Al Syed' },
   { head: 'Trust in writing', body: 'Published buyback and exchange rates, lifetime guarantees, GIA/IGI certificates.', who: 'Hanif, Damas, Patiala, Mastaani', source: 'https://www.hanifjewellers.com/assurance' },
@@ -26,7 +28,7 @@ export const PATTERNS: Finding[] = [
 ];
 
 /** What nobody does — the openings. */
-export const GAPS: Finding[] = [
+const TAHERI_GAPS: Finding[] = [
   { head: 'The Bohra community', body: 'No site or ad found speaks to Dawoodi Bohra buyers; taheri.shop doesn’t say it either. “A Bohra family house since 1989” is unclaimed. Meta can’t target by religion (removed 2022), so it lives in the words, the occasions and the customer list — describe the house, never the viewer.' },
   { head: 'Price transparency as the hook', body: 'Taheri shows karat and weight on every piece and prices it at today’s rate; almost nobody else does. Put it in the ad.' },
   { head: 'A jeweller’s own gold-rate channel', body: 'Only aggregators (Sarafa.pk) run one. Taheri already has a channel and a daily rate post.' },
@@ -36,7 +38,8 @@ export const GAPS: Finding[] = [
 ];
 
 /** Each house, in a line or two, with where to look. */
-export const HOUSES: { name: string; city: string; ig?: string; line: string; url?: string }[] = [
+export interface House { name: string; city: string; ig?: string; line: string; url?: string }
+const TAHERI_HOUSES: House[] = [
   { name: 'Hanif Jewellers', city: 'Lahore · Islamabad · Dubai', ig: 'hanifjewellers', line: '~308k followers. Priced online store; bridal unpriced. Heavy Google ads (“Annual Gold Sale”); celebrities; published buyback. Meta and TikTok pixels.', url: 'https://www.hanifjewellers.com' },
   { name: 'Damas Pakistan', city: 'Lahore', ig: 'damas.pakistan', line: '~130k followers. Catalogue with karat in the name, no prices; “gifts under 1 lac”; named campaigns (Aroosa, Riwayat).', url: 'https://damaspakistan.com' },
   { name: 'Shafaq Habib', city: 'Lahore', ig: 'shafaqhabibjewellery', line: '~95k followers. “Call for price” on bridal; a pre-filled “Order on WhatsApp” on every piece; private viewings.', url: 'https://shafaqhabib.com' },
@@ -59,3 +62,14 @@ export const META_NOTES: Finding[] = [
   { head: 'Tired ads', body: 'Meta flags “creative limited” (dearer than your past ads) and “creative fatigue” (twice as dear): change the picture then.' },
   { head: 'The website', body: 'Pixel and Conversions API together, de-duplicated by event id, then website ads can buy page views and retarget viewers. Catalog ads need a price per item and suit an hourly feed at today’s rate.' },
 ];
+
+// ── House of Mina (research of 2026-09-29) ─────────────────────────────────
+
+const MINA_PATTERNS: Finding[] = [];
+const MINA_GAPS: Finding[] = [];
+const MINA_HOUSES: House[] = [];
+
+const MINA = STORE_BRAND === 'mina';
+export const PATTERNS = MINA ? MINA_PATTERNS : TAHERI_PATTERNS;
+export const GAPS = MINA ? MINA_GAPS : TAHERI_GAPS;
+export const HOUSES = MINA ? MINA_HOUSES : TAHERI_HOUSES;

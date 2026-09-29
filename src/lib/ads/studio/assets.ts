@@ -19,6 +19,7 @@ import { createHash } from 'crypto';
 import sharp from 'sharp';
 import { adminDb } from '@/lib/firebase-admin';
 import { getSitePieces, getSitePiece, siteOrigin } from '@/lib/website/site-pieces';
+import { STORE_POST_METAL } from '@/lib/store-config';
 import { driveJpeg, driveLibrary } from './drive';
 import { normalizeAssessment, type AssetAssessment } from './assessment';
 import { pieceSpecs } from './specs';
@@ -79,8 +80,16 @@ export async function listAssets(opts: { fresh?: boolean } = {}): Promise<Librar
       assets.push({
         id: `site:${p.id}`, source: 'site', key: p.id, name: p.name, collection: p.collection || 'Website',
         thumb: p.thumb, page: p.url || null, added: p.added,
-        specs: pieceSpecs({ karat: p.words.karat, metal: p.words.metal, stone: p.words.stone, weightGrams: p.weightGrams }),
-        original: (() => { const k = shotKey(p.id); const o = k ? originals.get(k) : undefined; return o ? { id: `drive:${o.id}`, name: o.name } : null; })(),
+        // taheri.shop tags karat, metal and stone; the Mina catalogue lists facts (stones, plating) and is all sterling silver.
+        specs: p.source === 'pieces'
+          ? [STORE_POST_METAL, ...p.facts.slice(0, 2), p.weightGrams ? `${p.weightGrams}g` : ''].filter(Boolean).join(' · ')
+          : pieceSpecs({ karat: p.words.karat, metal: p.words.metal, stone: p.words.stone, weightGrams: p.weightGrams }),
+        // The unmarked original: a Drive shoot of the same frame, else the catalogue's own source from before it was marked.
+        original: (() => {
+          const k = shotKey(p.id); const o = k ? originals.get(k) : undefined;
+          if (o) return { id: `drive:${o.id}`, name: o.name };
+          return p.photoSource && !p.sourceMarked ? { id: `source:${p.id}`, name: 'the catalogue’s photo before its mark' } : null;
+        })(),
       });
     }
   }
@@ -144,14 +153,19 @@ export async function recordCreative(row: { assets: string[]; hash: string; url?
  * An asset's photograph as a JPEG no larger than `size`, from its own source. A site
  * piece must be one the site lists (the address is the site's, never the request's).
  */
+const hostOf = (u: string) => { try { return new URL(u).hostname; } catch { return ''; } };
+
 export async function assetJpeg(id: string, size: number): Promise<Buffer> {
   const [source, ...rest] = id.split(':');
   const key = rest.join(':');
   if (source === 'drive') return driveJpeg(key, size);
-  if (source !== 'site') throw Object.assign(new Error('Unknown source.'), { status: 400 });
+  if (source !== 'site' && source !== 'source') throw Object.assign(new Error('Unknown source.'), { status: 400 });
   const piece = await getSitePiece(key);
   if (!piece || !piece.image.startsWith(`${siteOrigin()}/`)) throw Object.assign(new Error('No such piece on the website.'), { status: 404 });
-  const src = size <= 720 && piece.thumb ? piece.thumb : piece.image;
+  // `source:` — the catalogue's photo from before it was marked (Shopify's CDN or the site's own catalog-src/), never any other host.
+  const own = source === 'source' && piece.photoSource && (piece.photoSource.startsWith(`${siteOrigin()}/`) || /^cdn\.shopify\.com$/.test(hostOf(piece.photoSource))) ? piece.photoSource : null;
+  if (source === 'source' && !own) throw Object.assign(new Error('No unmarked source for this piece.'), { status: 404 });
+  const src = own ?? (size <= 720 && piece.thumb ? piece.thumb : piece.image);
   const res = await fetch(src, { cache: 'no-store', signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw Object.assign(new Error(`The website didn’t send the photograph (${res.status}).`), { status: 502 });
   return sharp(Buffer.from(await res.arrayBuffer()), { failOn: 'none' })

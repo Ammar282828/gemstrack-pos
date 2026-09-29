@@ -16,6 +16,7 @@ import { STORE_AD_STUDIO } from '@/lib/store-config';
 import { generateJson, prepareImage, TEXT_MODEL } from '@/lib/social/ai';
 import { CHECK_SCHEMA, CHECK_SYSTEM, breaksHouseRule, checkPrompt, inventedFigures, type CheckVerdict } from '@/lib/ads/studio/prompts';
 import { adDayStatus, karachiDay, quietDaysBetween, hijriLabel } from '@/lib/ads/studio/calendar';
+import { BRAND } from '@/lib/ads/studio/brand';
 import { studioAiGate, studioFail } from '@/lib/ads/studio/route-kit';
 
 export const dynamic = 'force-dynamic';
@@ -41,7 +42,8 @@ export async function POST(req: NextRequest) {
       model: process.env.AD_STUDIO_TEXT_MODEL?.trim() || TEXT_MODEL, system: CHECK_SYSTEM, schema: CHECK_SCHEMA, temperature: 0.2,
       parts: [{ inlineData: await prepareImage(Buffer.from(await file.arrayBuffer())) }, { text: checkPrompt({ format, text, headline, facts }) }],
     });
-    const quiet = quietDaysBetween(start, until);
+    // The Bohra calendar's quiet days, for a house that keeps them (Taheri).
+    const quiet = BRAND.calendar ? quietDaysBetween(start, until) : [];
     const sacred = quiet.filter(d => d.level === 'sacred' || d.level === 'near');
     return NextResponse.json({
       verdict: { ...verdict, score: Math.max(0, Math.min(100, Math.round(Number(verdict.score) || 0))) },

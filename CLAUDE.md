@@ -784,6 +784,17 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   site deploy — **taheri.shop does not load it yet** (taheri-site needs the loader); `planContext` passes `pixelLive`, which moves
   website ads to landing-page views. "Make one like this" reads asset-feed ads (both sizes, two apps) and channel links. The Ads
   helper's prompt carries the plays, the house rules and the market gaps (Taheri only, with the studio).
+  **House of Mina has the studio too** (owner, 2026-09-29: "after youre done with taheri, do the same thing for houseofmina";
+  `NEXT_PUBLIC_STORE_AD_STUDIO "1"` in `apphosting.mina.yaml`). One code path, the house chosen by `STORE_BRAND`: `brand.ts` holds a
+  `HouseBrand` per house (Mina's from what the ERP already says in her name — the caption prompts' voice, the link page, the post
+  footer, her palette #140B0B / rose #E8A5AE and MINA mark; no vault) with `calendar` (the Bohra quiet days: Taheri only), `banned`
+  (Taheri: sale words + hashtags; Mina: hashtags), the competitor brief and the Drive hint; the layouts take the house's colours,
+  heritage line ("Since 1989" / "House of Mina") and badge ("HRD Antwerp certified" / "925 Sterling Silver"), and the rate and
+  investment layouts are Taheri's only; `plays.ts` has Mina's own (DM or WhatsApp — Instagram-native buyers —, houseofmina.store,
+  the catalogue, the men's line, the profile, come back) with the Plan's stages per house; `playbook.ts` and `market.ts` per house.
+  Mina's photos are the catalogue's 619, **572 of them with the catalogue's unmarked source** (`source:<id>` assets, Shopify CDN or the
+  site's own `catalog-src/` only), and their specs line is "925 Sterling Silver · stones · plating". Mina's Drive needs the same two
+  steps in hom-pos (the Drive card names the project and the account).
 
 ## graphify
 

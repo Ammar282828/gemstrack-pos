@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The studio's maker: a photograph laid out as a Meta ad in Taheri's own dress, in
+ * The studio's maker: a photograph laid out as a Meta ad in the house's own dress, in
  * Post a Piece's editor and full-screen designer (drag, crop, type, marks, filters),
  * framed at Meta's sizes — 4:5 and 1:1 for feeds, 9:16 for stories and reels (with
  * Instagram's own bands shaded, top 14% and bottom 35%), and the 1.91:1 link format.
@@ -39,7 +39,7 @@ import { SoloEditor, useStoryDoc } from '../../website/post/story-editor';
 import { FONTS, bodyFace, headlineFace, serifFace } from '../../website/post/fonts';
 import { useSiteAssets } from '../../website/post/site-assets';
 import { api } from '../ads-kit';
-import { b64ToBlob, downloadBlob, fetchAsset, runImageOp, safeName, scoreTone, type WorkPhoto } from './studio-kit';
+import { SITE_LABEL, b64ToBlob, downloadBlob, fetchAsset, runImageOp, safeName, scoreTone, type WorkPhoto } from './studio-kit';
 
 const FORMAT_KEY = 'taheri_studio_format';
 const draw = (d: StoryDoc, f: Fields, a: Assets, px: number, q = 0.92) => canvasToJpeg(renderDocTo(reflow(d, f, a), f, a, px), q);
@@ -183,6 +183,7 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
   const playLink = (pl: Play | null | undefined): string => {
     if (pl?.goal === 'channel') return STORE_LINKS.waChannel || '';
     if (pl?.link === 'investments') return STORE_LINKS.website ? `${STORE_LINKS.website.replace(/\/+$/, '')}/investments` : '';
+    if (pl?.link === 'shop') return STORE_LINKS.shop || STORE_LINKS.website || '';
     return work?.asset?.page ?? STORE_LINKS.website ?? '';
   };
   useEffect(() => {
@@ -432,7 +433,7 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
         )}
         {marked && (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2 flex flex-wrap items-center gap-2">
-            <p className="text-[11px] flex-1 min-w-[12rem]">This photo has the taheri logo{work.asset?.assessment?.burnedText ? ' (and a label)' : ''} burned in, so the layout adds no second one.</p>
+            <p className="text-[11px] flex-1 min-w-[12rem]">This photo has the house’s logo{work.asset?.assessment?.burnedText ? ' (and a label)' : ''} burned in, so the layout adds no second one.</p>
             <Button size="sm" disabled={!cur || !!aiBusy} onClick={removeLogo}><Eraser className="h-4 w-4 mr-1" /> Remove the logo</Button>
           </div>
         )}
@@ -456,7 +457,7 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
             props: {
               api: doc, square: true, fields, assets,
               photos: cur ? [{ id: PHOTO, url: cur.url, label: work.note || work.asset?.name || 'The photo' }] : [],
-              palette: PALETTES[0], onPalette: () => undefined, lettered: null, weightOwnLine: true, websiteLabel: 'taheri.shop',
+              palette: PALETTES[0], onPalette: () => undefined, lettered: null, weightOwnLine: true, websiteLabel: SITE_LABEL,
               onField: setField,
               presets: AD_TEMPLATES.map(t => ({ id: t.id, label: t.label })), onPreset: id => chooseTemplate(id as AdTemplateId),
               previewPreset: id => applyAdTemplate(doc.doc, id as AdTemplateId, fields, assets, { photoMarked: marked, rates }),

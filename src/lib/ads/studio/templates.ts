@@ -20,7 +20,7 @@
 import { reflow, textLayer, newCornerMark, newLayerId, frameOf, type Assets, type Fields, type ImageLayer, type Layer, type ShapeLayer, type StoryDoc } from '@/lib/social/editor';
 import type { Frame } from '@/lib/social/story';
 import type { Placement } from './assessment';
-import { VISUAL } from './brand';
+import { BRAND, IDENTITY, VISUAL } from './brand';
 
 export type AdFormat = 'square' | 'portrait' | 'story' | 'landscape';
 export const AD_FORMATS: Record<AdFormat, { label: string; short: string; frame: Frame; px: number; placement: Placement; where: string }> = {
@@ -39,16 +39,18 @@ export function safeZone(f: Frame): { top: number; bottom: number } {
 }
 
 export type AdTemplateId = 'clean' | 'headline' | 'framed' | 'heritage' | 'band' | 'certified' | 'rate' | 'investment';
-export const AD_TEMPLATES: { id: AdTemplateId; label: string; note: string }[] = [
-  { id: 'clean', label: 'The photo, quietly marked', note: 'The piece alone; the monogram low in a corner.' },
-  { id: 'headline', label: 'Headline on the photo', note: 'A line in the Didone over a soft shade, the call to action beneath.' },
-  { id: 'framed', label: 'Framed on the house ground', note: 'The photo inset on the dark ground in a fine gold frame.' },
-  { id: 'heritage', label: 'Since 1989', note: 'The piece in an arch, the house’s year above, the wordmark below.' },
-  { id: 'band', label: 'Conversation band', note: 'A dark band with the line and a soft invitation to message.' },
-  { id: 'certified', label: 'Certified diamonds', note: 'An “HRD Antwerp certified” badge over the photo, the words beneath.' },
-  { id: 'rate', label: 'Today’s gold rate', note: 'The day’s rate per tola from the ERP, the piece in an arch — for the WhatsApp channel.' },
-  { id: 'investment', label: 'No making · No wastage', note: 'Investment gold: the standing offer over the framed photo, the specs beneath.' },
+const ALL_TEMPLATES: { id: AdTemplateId; label: string; note: string; houses?: 'taheri'[] }[] = [
+  { id: 'clean', label: 'The photo, quietly marked', note: 'The piece alone; the mark low in a corner.' },
+  { id: 'headline', label: 'Headline on the photo', note: 'A line in the Didone over a soft shade, the specs and the call to action beneath.' },
+  { id: 'framed', label: 'Framed on the house ground', note: 'The photo inset on the dark ground in a fine frame.' },
+  { id: 'heritage', label: IDENTITY.since, note: 'The piece in an arch, the house’s line above, the wordmark below.' },
+  { id: 'band', label: 'Conversation band', note: 'A dark band with the line and a call to message.' },
+  { id: 'certified', label: IDENTITY.badge, note: `A “${IDENTITY.badge}” badge over the photo, the words beneath.` },
+  { id: 'rate', label: 'Today’s gold rate', note: 'The day’s rate per tola from the ERP, the piece in an arch — for the WhatsApp channel.', houses: ['taheri'] },
+  { id: 'investment', label: 'No making · No wastage', note: 'Investment gold: the standing offer over the framed photo, the specs beneath.', houses: ['taheri'] },
 ];
+/** This house's layouts (the gold-rate and investment ones are Taheri's). */
+export const AD_TEMPLATES = ALL_TEMPLATES.filter(t => !t.houses || (t.houses as string[]).includes(BRAND.identity.name));
 
 /** Today's rates for the rate layout, per tola, from the ERP (`/api/ads/studio/rates`). */
 export interface RateBoard { date: string; rows: { label: string; perTola: number }[] }
@@ -64,7 +66,7 @@ const rupees = (n: number) => `~Rs ${n.toLocaleString('en-US')}`;
 
 export const PHOTO = 'photo';
 const TPL = 'template';
-const { gold: GOLD, lightGold: LIGHT_GOLD, bone: BONE, ground: GROUND } = VISUAL;
+const { gold: GOLD, lightGold: LIGHT_GOLD, bone: BONE, ground: GROUND, ground2: GROUND2 } = VISUAL;
 
 const mine = <T extends Layer>(l: T): T => ({ ...l, name: TPL });
 const isTemplate = (l: Layer) => l.name === TPL || (l.kind === 'text' && !!l.bind) || l.kind === 'wordmark';
@@ -122,7 +124,7 @@ export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields,
   const wide = f.h < 700;
   type Bg = StoryDoc['bg'];
   const photoBg: Bg = { ...doc.bg, photoId: PHOTO, gradient: 'none', dim: 0, color: GROUND, color2: null };
-  const groundBg: Bg = { ...doc.bg, photoId: null, gradient: 'none', dim: 0, color: GROUND, color2: '#132020' };
+  const groundBg: Bg = { ...doc.bg, photoId: null, gradient: 'none', dim: 0, color: GROUND, color2: GROUND2 };
   let bg: Bg = photoBg;
   const out: Layer[] = [];
 
@@ -138,7 +140,7 @@ export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields,
     const top = bottom - (wide ? 230 : 330);
     out.push(...stack(f, top, { headline: wide ? 64 : 84, kicker: id === 'headline' }));
     if (id === 'certified') {
-      out.push(mine(textLayer({ text: 'HRD Antwerp certified', x: 90, y: (zone.top || 0) + 70, size: 28, font: 'regular', color: BONE, align: 'left', upper: true, spacing: 0.26, box: { color: '#0A1111D9', radius: 40, pad: 22 } })));
+      out.push(mine(textLayer({ text: IDENTITY.badge, x: 90, y: (zone.top || 0) + 70, size: 28, font: 'regular', color: BONE, align: 'left', upper: true, spacing: 0.26, box: { color: '#0A1111D9', radius: 40, pad: 22 } })));
     }
     const w = 200;
     out.push(mark('wordmark', a, f, f.w / 2 - w / 2, zone.top ? zone.top + 40 : 60, w, BONE));
@@ -184,7 +186,7 @@ export function applyAdTemplate(doc: StoryDoc, id: AdTemplateId, fields: Fields,
       const w = 160, mh = markHeight('wordmark', a, w);
       const ph = Math.min(900, bottom - (top + 70) - 40 - 240 - mh);
       const pw = Math.round(ph * 0.78);
-      out.push(mine(textLayer({ text: 'Since 1989', x: f.w / 2, y: top, size: 40, font: 'cinzel', color: GOLD, align: 'center', upper: true, spacing: 0.3 })));
+      out.push(mine(textLayer({ text: IDENTITY.since, x: f.w / 2, y: top, size: 40, font: 'cinzel', color: GOLD, align: 'center', upper: true, spacing: 0.3 })));
       out.push(photoLayer(Math.round(f.w / 2 - pw / 2), top + 70, pw, ph, { mask: 'arch' }));
       out.push(...stack(f, top + 70 + ph + 36, { headline: 70, font: 'cormorant-italic', kicker: false }));
       out.push(mark('wordmark', a, f, f.w / 2 - w / 2, bottom - mh, w, BONE));

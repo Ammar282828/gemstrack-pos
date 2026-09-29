@@ -9,11 +9,11 @@
  * Every system prompt carries the brand brief (brand.ts). Server-only by use.
  */
 
-import { brandBrief, HARD_RULES, VOICE } from './brand';
+import { BRAND, brandBrief, HARD_RULES, IDENTITY, VISUAL, VOICE } from './brand';
 
 // ── Copy ───────────────────────────────────────────────────────────────────
 
-export const COPY_SYSTEM = `You write Meta ads (Instagram and Facebook) for a luxury jeweller.
+export const COPY_SYSTEM = `You write Meta ads (Instagram and Facebook) for ${IDENTITY.name}, a jewellery house.
 
 ${brandBrief()}
 
@@ -61,8 +61,7 @@ export function copyPrompt(p: { subject: string; category: string; collection: s
  * sale and discount language, and hashtags. (Prices, specs and direct calls to action were
  * allowed by the owner on 2026-09-29.)
  */
-const BANNED = [/\b(on sale|sale|discount(ed)?|\d+\s?% off)\b/i, /(^|\s)#[a-z]/i];
-export const breaksHouseRule = (text: string) => BANNED.some(re => re.test(text));
+export const breaksHouseRule = (text: string) => BRAND.banned.some(re => re.test(text));
 
 /** The figures in a text (a karat, a weight, a carat, a rupee amount), to hold them against the ERP's own. */
 export function figuresIn(text: string): string[] {
@@ -85,7 +84,7 @@ export function inventedFigures(text: string, facts: string): string[] {
 
 // ── Check ──────────────────────────────────────────────────────────────────
 
-export const CHECK_SYSTEM = `You are the creative director who signs off every ad for a luxury jeweller before it spends money on Meta. You look at the finished ad image (and its words, when given) and give a straight verdict.
+export const CHECK_SYSTEM = `You are the creative director who signs off every ad for ${IDENTITY.name} before it spends money on Meta. You look at the finished ad image (and its words, when given) and give a straight verdict.
 
 ${brandBrief()}
 
@@ -93,7 +92,7 @@ HOW TO JUDGE
 - verdict: "run" (ready), "fix" (worth running after the listed changes) or "dont" (breaks a hard rule, or would cost prestige).
 - score 0–100 for how well it will do its job — stopping a scroll and opening a WhatsApp conversation — while protecting prestige.
 - rules: go through each hard rule and say whether the ad keeps it (ok) with a short note when it does not.
-- craft: the first second (does the piece read at thumbnail size?), hierarchy (one idea, one focal point), type (legible on a phone, bone not white, not crowded), the mark (one only, clear space, not on the busy part), colour (gold and the dark ground; no stray palettes), and for a story or reel whether anything that must be read sits in the top 14% or bottom 35%.
+- craft: the first second (does the piece read at thumbnail size?), hierarchy (one idea, one focal point), type (legible on a phone, the house's off-white not pure white, not crowded), the mark (one only, clear space, not on the busy part), colour (the house's palette; no stray colours), and for a story or reel whether anything that must be read sits in the top 14% or bottom 35%.
 - figures: every karat, weight, carat or price on the ad must match the facts given; name any that doesn't. A rupee price shown on an ad that runs several days goes stale as the gold rate moves — say so if one is shown.
 - fixes: concrete, in the order to do them, each one sentence.
 - strengths: what to keep.`;
@@ -134,7 +133,7 @@ export function checkPrompt(p: { format: string; text?: string; headline?: strin
 
 // ── Competitors ────────────────────────────────────────────────────────────
 
-export const RIVAL_SYSTEM = `You are a paid-social strategist for a luxury Bohra family jeweller in Karachi. You study a competitor's recent Instagram posts — the images, their captions and how much engagement each earned — and say plainly what works for them, what does not, and what the house should do differently to win the same buyers without copying and without breaking its own rules.
+export const RIVAL_SYSTEM = `You are a paid-social strategist for ${IDENTITY.name}: ${IDENTITY.line} You study a competitor's recent Instagram posts — the images, their captions and how much engagement each earned — and say plainly what works for them, what does not, and what the house should do differently to win the same buyers without copying and without breaking its own rules.
 
 ${brandBrief()}`;
 
@@ -152,7 +151,7 @@ export const RIVAL_SCHEMA = {
 };
 export interface RivalReading { positioning: string; visualStyle: string; whatWorks: string[]; whatDoesnt: string[]; ourMoves: string[]; avoid: string[] }
 
-export const FIND_SYSTEM = `You find competitors for a luxury gold and diamond jeweller in Karachi, Pakistan (taheri, @collectionstaheri — a Bohra family house since 1989). Use Google Search. Return only real businesses you found evidence for: jewellers selling fine gold and diamond jewellery to the same buyers (Karachi first, then Pakistan's premium names), with their Instagram username exactly as it appears in their Instagram URL, their website if they have one, and one line on why they compete. Never invent a username; leave it empty if you did not see it.`;
+export const FIND_SYSTEM = `You find competitors for ${IDENTITY.name} — ${IDENTITY.line} Use Google Search. Return only real businesses you found evidence for: ${BRAND.competitors}, with their Instagram username exactly as it appears in their Instagram URL, their website if they have one, and one line on why they compete. Never invent a username; leave it empty if you did not see it.`;
 
 export interface FoundCompetitor { name: string; instagram: string; website: string; city: string; why: string }
 
@@ -181,16 +180,26 @@ export { VOICE };
 // ── Make it with AI ────────────────────────────────────────────────────────
 
 /** The layouts the art director may choose (templates.ts), as it reads them. */
-export const LAYOUT_CHOICES = [
+const TAHERI_LAYOUTS = [
   ['clean', 'the photo alone, the monogram low in a corner — for a photo strong enough to stand alone'],
   ['headline', 'a Didone headline over a soft shade at the bottom of the photo, specs and call to action beneath'],
-  ['framed', 'the photo inset on the dark house ground in a fine gold frame, words beneath — for busy or catalogue photos'],
+  ['framed', 'the photo inset on the dark house ground in a fine frame, words beneath — for busy or catalogue photos'],
   ['heritage', '"Since 1989" above the photo in an arch, words beneath — heritage and trust'],
   ['band', 'a dark band across the lower part with the words — the most legible on a small screen'],
   ['certified', 'an "HRD Antwerp certified" badge over the photo — only for certified diamonds'],
 ] as const;
+const MINA_LAYOUTS = [
+  ['clean', 'the photo alone, the mark in a corner — for a photo strong enough to stand alone'],
+  ['headline', 'a headline over a soft shade at the bottom of the photo, specs and call to action beneath'],
+  ['framed', 'the photo inset on the dark house ground in a fine rose frame, words beneath'],
+  ['heritage', 'the house’s name above the photo in an arch, words beneath'],
+  ['band', 'a dark band across the lower part with the words — the most legible on a small screen'],
+  ['certified', 'a "925 Sterling Silver" badge over the photo'],
+] as const;
+/** The layouts the art director may choose (templates.ts), as it reads them. */
+export const LAYOUT_CHOICES: readonly (readonly [string, string])[] = BRAND.identity.name === 'taheri' ? TAHERI_LAYOUTS : MINA_LAYOUTS;
 
-export const DIRECT_SYSTEM = `You are the art director making one Meta ad for a luxury jeweller from one photograph. You choose the layout, write every word, and decide what the photograph needs — and the ERP lays it out exactly.
+export const DIRECT_SYSTEM = `You are the art director making one Meta ad for ${IDENTITY.name} from one photograph. You choose the layout, write every word, and decide what the photograph needs — and the ERP lays it out exactly.
 
 ${brandBrief()}
 
@@ -217,7 +226,7 @@ export const DIRECT_SCHEMA = {
 };
 
 export interface Direction {
-  layout: typeof LAYOUT_CHOICES[number][0];
+  layout: 'clean' | 'headline' | 'framed' | 'heritage' | 'band' | 'certified';
   kicker: string; headline: string; cta: string;
   primaryText: string[]; adHeadlines: string[];
   extend: boolean; scene: string | null; why: string;
@@ -238,14 +247,14 @@ export function directPrompt(p: { name: string; collection: string; specs: strin
 /** The whole ad painted by the image model: the piece kept exactly, the house's dress, the words spelled exactly. */
 export function paintPrompt(p: { aspect: string; kicker: string; headline: string; specs: string; cta: string; story: boolean; brief: string }): string {
   const lines = [
-    p.kicker && `a small line "${p.kicker}" in widely spaced gold capitals (#C9A45A)`,
-    `the headline "${p.headline}" in an elegant high-contrast Didone serif, italic, in warm bone white (#F8F8F8), large`,
-    p.specs && `beneath it "${p.specs}" in a light, clean geometric sans-serif, bone white, about a third of the headline's size`,
-    p.cta && `then "${p.cta}" small, in light gold (#E4C983)`,
+    p.kicker && `a small line "${p.kicker}" in widely spaced capitals, colour ${VISUAL.gold}`,
+    `the headline "${p.headline}" in an elegant high-contrast Didone serif, italic, colour ${VISUAL.bone}, large`,
+    p.specs && `beneath it "${p.specs}" in a light, clean geometric sans-serif, colour ${VISUAL.bone}, about a third of the headline's size`,
+    p.cta && `then "${p.cta}" small, colour ${VISUAL.lightGold}`,
   ].filter(Boolean);
   return [
     'The attached photograph is the real piece and must stay the real piece. Do not redraw, re-render, re-arrange or re-imagine the jewellery: keep it exactly as photographed — the same stones (each cluster, each cut, each colour), settings, links, arrangement, angle and proportions. Build the advertisement around the photograph instead: extend and darken its surroundings, relight gently, and add the frame and lettering.',
-    `Design a finished luxury jewellery advertisement at ${p.aspect}: the photographed piece is the hero, large and sharp — gold glowing, stones sparking — on a deep green-black ground (#0A1111) with a soft vignette, a fine gold hairline corner-accent frame, restrained and prestigious, like a heritage house's print advertisement.`,
+    `Design a finished jewellery advertisement for ${IDENTITY.name} at ${p.aspect}: the photographed piece is the hero, large and sharp — the metal gleaming, stones sparking — on a deep ground (${VISUAL.ground}) with a soft vignette and a fine hairline corner-accent frame in ${VISUAL.gold}; ${VISUAL.rules[0]}`,
     p.story ? 'It is a 9:16 story: keep every word and the piece between 14% from the top and 35% from the bottom; the top and bottom bands stay calm.' : '',
     `Set the lettering, stacked and centred in calm space away from the piece: ${lines.join('; ')}.`,
     p.brief ? `The owner's direction: ${p.brief}.` : '',

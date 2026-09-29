@@ -25,7 +25,8 @@
 import sharp from 'sharp';
 import { adminDb } from '@/lib/firebase-admin';
 import { graph, MetaAdsError } from '@/lib/ads/meta';
-import { loadAdsSettings, requireAccount } from '@/lib/ads/settings';
+import { HOUSE_INSTAGRAM, loadAdsSettings, requireAccount } from '@/lib/ads/settings';
+import { BRAND } from './brand';
 import { insights, BASE_FIELDS } from '@/lib/ads/insights';
 import { metricsOf, resultOf } from '@/lib/ads/shape';
 import { chatTurn, generateJson, AiError, CHECK_MODEL, TEXT_MODEL, type InlineImage } from '@/lib/social/ai';
@@ -84,12 +85,12 @@ export const removeCompetitor = (username: string) => ref(cleanUsername(username
 /** Competitors Google Search can vouch for, minus the house itself and ones already saved. */
 export async function findCompetitors(brief = ''): Promise<FoundCompetitor[]> {
   const [saved, settings] = await Promise.all([listCompetitors(), loadAdsSettings()]);
-  const own = (settings.instagramUsername || 'collectionstaheri').toLowerCase();
+  const own = (settings.instagramUsername || HOUSE_INSTAGRAM() || '').toLowerCase();
   const prompt = [
-    'Find up to twelve competitors: fine gold and diamond jewellers in Karachi first (bridal and heritage houses, diamond boutiques, the premium names Bohra and Karachi families buy from), then Pakistan-wide premium jewellers that advertise on Instagram.',
+    `Find up to twelve competitors: ${BRAND.competitors}.`,
     brief ? `Focus: ${brief}` : '',
     saved.length ? `Already known (skip): ${saved.map(s => '@' + s.username).join(', ')}.` : '',
-    `Never list @${own} (the house itself).`,
+    own ? `Never list @${own} (the house itself).` : '',
     `Answer with only this JSON: {"competitors":[{"name":"","instagram":"","website":"","city":"","why":""}]} — "instagram" is the username alone, exactly as in the account's Instagram URL, or "" if you did not see it.`,
   ].filter(Boolean).join('\n');
   const { content } = await chatTurn({

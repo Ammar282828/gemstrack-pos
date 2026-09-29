@@ -10,7 +10,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, MessagesSquare, Rss, UserRound, MousePointerClick, ChevronDown, ChevronUp, Brush, Star, Megaphone, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PLAYS, type Play } from '@/lib/ads/studio/plays';
+import { PLAYS, STAGES, type Play } from '@/lib/ads/studio/plays';
 import { AD_FORMATS, AD_TEMPLATES } from '@/lib/ads/studio/templates';
 import type { GoalKey } from '@/lib/ads/plan';
 
@@ -19,12 +19,7 @@ const ICON: Partial<Record<GoalKey, React.ReactNode>> = {
   profile: <UserRound className="h-4 w-4" />, website: <MousePointerClick className="h-4 w-4" />,
 };
 
-const STAGES: { title: string; note: string; ids: string[] }[] = [
-  { title: 'Be found', note: 'People who don’t know the house yet — the profile and the channel give them a reason to stay.', ids: ['heritage-profile', 'rate-channel'] },
-  { title: 'Start a conversation', note: 'Where the sale closes: WhatsApp, or Instagram Direct for those who live there.', ids: ['piece-price', 'both-apps', 'investment'] },
-  { title: 'See it priced', note: 'taheri.shop prices every piece at today’s rate — for buyers who want to look first.', ids: ['website-piece'] },
-  { title: 'Come back', note: 'People who engaged or bought before — the warmest and cheapest.', ids: ['come-back'] },
-];
+
 
 export function PlanSection({ onMake, hasPhoto }: { onMake: (p: Play) => void; hasPhoto: boolean }) {
   return (
@@ -34,14 +29,14 @@ export function PlanSection({ onMake, hasPhoto }: { onMake: (p: Play) => void; h
         <p className="text-xs text-muted-foreground">Each play is an ad with a job: where a tap goes, the shape and layout, what the words aim for, who, how much and how to judge it. Start with the starred one — it runs all the time — and add the others around it. “Make this” opens the maker set up for the play{hasPhoto ? ' with the photo you chose' : ' once you choose a photo'}.</p>
         <p className="text-[11px] text-amber-700 dark:text-amber-400 flex items-start gap-1.5"><AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" /> New photo ads need the Meta app switched to Live (Ads → Setup, step 1). Until then, “Use it in a new ad” saves the picture to the ad account and the ad can be made from an Instagram post.</p>
       </div>
-      {STAGES.map(st => (
+      {STAGES.filter(st => PLAYS.some(p => p.stage === st.id)).map(st => (
         <section key={st.title} className="space-y-2">
           <div>
             <h2 className="text-base font-semibold">{st.title}</h2>
             <p className="text-xs text-muted-foreground">{st.note}</p>
           </div>
           <div className="grid md:grid-cols-2 gap-2.5">
-            {st.ids.map(id => PLAYS.find(p => p.id === id)).filter((p): p is Play => !!p).map(p => <PlayCard key={p.id} p={p} onMake={() => onMake(p)} />)}
+            {PLAYS.filter(p => p.stage === st.id).sort((a, b) => Number(!!b.core) - Number(!!a.core)).map(p => <PlayCard key={p.id} p={p} onMake={() => onMake(p)} />)}
           </div>
         </section>
       ))}

@@ -30,7 +30,7 @@ import { RivalsSection } from './rivals';
 import { GuideSection } from './guide';
 import { PlanSection } from './plan';
 import type { Play } from '@/lib/ads/studio/plays';
-import type { LibraryItem, WorkPhoto } from './studio-kit';
+import { SITE_LABEL, type LibraryItem, type WorkPhoto } from './studio-kit';
 
 const VIEWS = [
   { key: 'plan', label: 'Plan', icon: MapIcon },
@@ -67,7 +67,7 @@ function AdStudio() {
 
   return (
     <PageShell title="Ad studio" icon={<Palette className="h-6 w-6" />} width="wide"
-      subtitle="Every photo from taheri.shop and your Drive, assessed as an ad — fixed, laid out in the house’s dress, checked, and sent to a new ad.">
+      subtitle={`Every photo from ${SITE_LABEL} and your Drive, assessed as an ad — fixed, laid out in the house’s dress, checked, and sent to a new ad.`}>
       <nav className="tabs-list flex gap-1 overflow-x-auto rounded-full border p-1 w-fit max-w-full" aria-label="Studio">
         {VIEWS.map(x => (
           <button key={x.key} type="button" onClick={() => go(x.key)} aria-current={v === x.key ? 'page' : undefined}
