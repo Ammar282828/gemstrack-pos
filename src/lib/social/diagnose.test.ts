@@ -20,6 +20,13 @@ describe('diagnose — the errors actually seen on 2026-09-24', () => {
     const d = diagnose('ai', { status: 403, message: "Permission 'aiplatform.endpoints.predict' denied on resource" }, ctx);
     expect(d.action?.command).toBe('gcloud projects add-iam-policy-binding jewelgen-mm-e3d43ecb --member=serviceAccount:firebase-app-hosting-compute@gemstrack-pos.iam.gserviceaccount.com --role=roles/aiplatform.user');
   });
+  it('a project with no billing is not a missing role (2026-09-29: Google says both with 403)', () => {
+    const d = diagnose('caption', { status: 403, message: 'This API method requires billing to be enabled. Please enable billing on project #jewelgen-mm-e3d43ecb by visiting https://console.developers.google.com/billing/enable?project=jewelgen-mm-e3d43ecb then retry.' }, ctx);
+    expect(d.title).toBe('The AI project has no billing');
+    expect(d.fix).toMatch(/jewelgen-mm-e3d43ecb/);
+    expect(d.action?.href).toBe('https://console.cloud.google.com/billing/linkedaccount?project=jewelgen-mm-e3d43ecb');
+    expect(d.action?.command).toBeUndefined();
+  });
   it('recognises a retired model name', () => {
     expect(diagnose('ai', { status: 404, message: 'Publisher model `…gemini-3-pro-image-preview` was not found or your project does not have access to it' }, ctx).title).toMatch(/renamed or retired/);
   });

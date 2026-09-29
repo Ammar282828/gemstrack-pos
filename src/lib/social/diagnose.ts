@@ -175,6 +175,17 @@ export function diagnose(where: Where, err: { status?: number; message?: string 
 
     case 'ai':
     case 'caption': {
+      // Google answers a project with no billing account with 403 PERMISSION_DENIED too — "This API method
+      // requires billing to be enabled. Please enable billing on project #jewelgen-mm-e3d43ecb" (2026-09-29) —
+      // which the rule below took for a missing role. Nothing the ERP holds can fix it: the project needs billing.
+      if (/requires billing to be enabled|enable billing on project|billing account .*(disabled|closed)|billing_disabled/.test(m)) {
+        return {
+          title: 'The AI project has no billing',
+          fix: `Google stopped the AI because the project it bills to${c.aiProject ? ` (${c.aiProject})` : ''} has no active billing account. Its owner turns billing back on — or the ERP is switched to bill the AI to another project (IMAGE_AI_PROJECT).`,
+          action: c.aiProject ? { label: 'Open billing for that project', href: `https://console.cloud.google.com/billing/linkedaccount?project=${c.aiProject}` } : undefined,
+          retry: false,
+        };
+      }
       if (status === 403 || /permission_denied|aiplatform\.endpoints\.predict|permission .* denied/.test(m)) {
         const cmd = c.aiProject ? `gcloud projects add-iam-policy-binding ${c.aiProject} --member=serviceAccount:firebase-app-hosting-compute@${c.posProject || 'gemstrack-pos'}.iam.gserviceaccount.com --role=roles/aiplatform.user` : undefined;
         return { title: 'The ERP isn’t allowed to use the AI', fix: `The AI project${c.aiProject ? ` (${c.aiProject})` : ''} doesn’t let the ERP in. Its owner has to grant the ERP “Vertex AI User”.`, action: cmd ? { label: 'Copy the fix command', command: cmd } : undefined, retry: false };
