@@ -8,8 +8,8 @@
  *   /catalog-attributes.json  taheri.shop: every photograph's tagger output, which
  *                             since 2026-09-25 carries its piece page's `path`; the
  *                             counter's weights (website_pieces) are merged in; and
- *                             /api/catalog.php's drops not yet adopted (`drop`: no
- *                             page, so only the editor lists them)
+ *                             /api/catalog.php's drops not yet adopted (`drop`), whose
+ *                             page taheri.shop's api/piece.php serves at dropPath()
  *
  * Only pieces with a page are offered: a post always carries a working link.
  * Newest first, each marked if it is one of the site's new arrivals (new-arrivals.ts),
@@ -29,6 +29,7 @@ import { getPosWeights, mergeWeights } from '@/lib/website/weights';
 import { collectionOfKey } from '@/lib/website/pricing';
 import { byNewest, newArrivalIds } from '@/lib/website/new-arrivals';
 import { getSiteOverrides, imagePathOf, type SiteOverride } from '@/lib/website/site-edits';
+import { dropPath } from '@/lib/website/drop-path';
 
 /** What the site says about a piece, as the editor shows it: the catalogue's paragraphs and facts, or taheri.shop's tags. */
 export interface PieceWords {
@@ -61,7 +62,7 @@ export interface SitePiece {
   newArrival: boolean;
   /** The photograph's path under catalog-full/ (or the drop folder's, same key), which a re-made one replaces. */
   imagePath: string | null;
-  /** Still in taheri.shop's drop folder: on the site, not yet in its attributes, no page of its own yet. */
+  /** Still in taheri.shop's drop folder: on the site, not yet in its attributes; its page is served by the site's api/piece.php. */
   drop?: boolean;
   /** Which list it came from: the catalogue's pieces (paragraphs, facts) or taheri.shop's photographs (tags, counter weights). */
   source: 'pieces' | 'attributes';
@@ -119,6 +120,7 @@ const tag = (v: unknown) => (typeof v === 'string' && v.trim() && !/^none$/i.tes
 
 type Drop = { p: string; t?: number; thumb: string; full: string };
 
+
 /** taheri.shop's drop folder (api/catalog.php): photographs on the site that its attributes don't list until they are adopted. */
 async function dropsOf(site: string): Promise<Drop[]> {
   const res = await fetch(`${site}/api/catalog.php`, { cache: 'no-store', signal: AbortSignal.timeout(8000) }).catch(() => null);
@@ -137,8 +139,9 @@ async function fromAttributes(site: string): Promise<Listed[]> {
     .filter(({ key }) => !merged[key])
     .map(({ dr, key }) => {
       const name = key.split('/').pop()!.replace(/\.webp$/i, '');
+      const path = dropPath(key);
       return {
-        id: key, name, url: '', image: abs(dr.full), thumb: abs(dr.thumb), collection: collectionOfKey(key),
+        id: key, name, url: path ? `${site}${path}` : '', image: abs(dr.full), thumb: abs(dr.thumb), collection: collectionOfKey(key),
         weightGrams: null, weightOnPhoto: false, facts: [], about: '',
         added: typeof dr.t === 'number' && dr.t > 0 ? dr.t * 1000 : null, newArrival: false,
         imagePath: key, drop: true, source: 'attributes' as const, photoSource: null, sourceMarked: false,

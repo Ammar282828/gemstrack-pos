@@ -440,6 +440,10 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   `lib/social/site-design.ts`, tested) — taheri.shop's as the site shows it on "Nothing added" (Weight if the page was stamping it), Mina's
   from its `photoSource` with the MINA mark back on; while in use it is the WhatsApp square (1600 px) and the story's photo, the weight
   stamp steps aside, and "Use the photo as it is" drops it. No AI there yet (Edit a piece has it).
+  **New uploads too** (2026-09-29, owner: "new stone sets not visible in post from the website"): taheri.shop's drops (Add
+  Photos, uploads not yet adopted) are offered with their address, `dropPath` (`lib/website/drop-path.ts`, tested — the site's
+  own slug rules), which taheri.shop's `api/piece.php` now serves as a real page (named, previewed); before, a drop's address
+  answered 404 and posting left drops out.
 - **Post a Piece: channel tick, queue, and House of Mina** (2026-09-25, owner: "make a post on houseofmina pos also, same style" /
   "incorporate channel option and bulk sending"). Where the squares go is a tick per destination — the community's groups
   (`WHATSAPP_POST_GROUPS`) and the channel, first group + channel on by default — and each is its own publish step, sent with `targets`,
