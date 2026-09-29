@@ -822,6 +822,13 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   changes one thing. `lib/ads/adset-design.ts` (tested) builds each ad set with New ad's own `adsetParams`; `/api/ads/adsets`
   checks every object is this house's, and on any failure deletes what it made. Reached from Campaigns (a campaign's "Add ad
   sets", an ad set's "Copy and change", an ad's "Into new ad sets") and New ad's "Test it on another audience".
+  **Saved** (Studio → Saved; owner: "an ad container with folders etc where i can store ads and see exisiting ads stored"):
+  Make's **Save** keeps the ad — the picture, the photo it is drawn on and the layout document, plus its words, frame, layout,
+  goal and link — in Firestore `ad_saved` (+ files in `ad_saved_media`, 900 KB parts; `lib/ads/studio/saved.ts`), in the owner's
+  folders (`ad_folders`; deleting one leaves its ads unfiled). "Open in Make" puts it back exactly as left, and Save then writes
+  over it ("As new" makes a copy). **In the ad account** lists every ad Meta holds (all time), and any can be kept in a folder
+  (its picture and words; `fromAd`). What a save may carry is cleaned by `saved-shape.ts` (tested). Checked end to end in
+  headless Chromium on 2026-09-29 (folder → make → save → reopen); the test's folder and ad were deleted after.
 
 ## graphify
 

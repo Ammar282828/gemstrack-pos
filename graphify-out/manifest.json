@@ -2298,9 +2298,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790717629.560627,
-    "seen": 1790717644.9070466,
-    "ast_hash": "19eee07533fdc614d0665772fb74996d",
+    "mtime": 1790718033.496196,
+    "seen": 1790718060.250564,
+    "ast_hash": "5d6caec301ded1a5d5798d06604f7929",
     "semantic_hash": ""
   },
   "README.md": {
@@ -3558,15 +3558,15 @@
     "semantic_hash": ""
   },
   "src/app/ads/studio/maker.tsx": {
-    "mtime": 1790717112.3360453,
-    "seen": 1790717644.9061244,
-    "ast_hash": "2d8eb20e707f7766d6e5e8e363a0e249",
+    "mtime": 1790717835.8872647,
+    "seen": 1790718060.2494922,
+    "ast_hash": "9eb4e3f60cca55535f03a6db57614b0c",
     "semantic_hash": ""
   },
   "src/app/ads/studio/page.tsx": {
-    "mtime": 1790715886.7357292,
-    "seen": 1790716245.6692145,
-    "ast_hash": "2c62b3fad1be941af997cbe05745f457",
+    "mtime": 1790717835.8875287,
+    "seen": 1790718060.2494948,
+    "ast_hash": "722c6809ff7aae3f32258f5ee5d02df4",
     "semantic_hash": ""
   },
   "src/app/ads/studio/rivals.tsx": {
@@ -3888,9 +3888,33 @@
     "semantic_hash": ""
   },
   "src/lib/ads/studio/saved.ts": {
-    "mtime": 1790717535.9853528,
-    "seen": 1790717644.906755,
-    "ast_hash": "d676baf3e5be277ff16d6cf70651bb94",
+    "mtime": 1790717725.2202444,
+    "seen": 1790718060.2501566,
+    "ast_hash": "86dcbe3d25a00da0e81550649f5f08b2",
+    "semantic_hash": ""
+  },
+  "src/app/ads/studio/saved.tsx": {
+    "mtime": 1790717790.5773678,
+    "seen": 1790718060.249505,
+    "ast_hash": "41801bb58312f771ca77513ea4696cbd",
+    "semantic_hash": ""
+  },
+  "src/app/api/ads/studio/saved/[id]/route.ts": {
+    "mtime": 1790717713.840822,
+    "seen": 1790718060.249583,
+    "ast_hash": "b1869247f9f1a188c014846aa8ea3fe4",
+    "semantic_hash": ""
+  },
+  "src/app/api/ads/studio/saved/folders/route.ts": {
+    "mtime": 1790717713.8373632,
+    "seen": 1790718060.249585,
+    "ast_hash": "2b8cb7006b660f702521f28e57158b4f",
+    "semantic_hash": ""
+  },
+  "src/app/api/ads/studio/saved/route.ts": {
+    "mtime": 1790717725.2203596,
+    "seen": 1790718060.249586,
+    "ast_hash": "9c12eb9f0bc50365a568de3b95244643",
     "semantic_hash": ""
   }
 }

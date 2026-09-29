@@ -10,6 +10,7 @@
  *   Picks        the best photographs for the chosen placement, as ranked from each one's assessment
  *   Library      every photo from taheri.shop and the shared Drive folders, searchable, with its score
  *   Make         the maker: Taheri's ad layouts at Meta's sizes, AI words, a pre-flight check, → New ad
+ *   Saved        made ads kept in folders, and the ads already in the ad account
  *   Competitors  found by Google Search, looked up on Instagram, read for what works
  *   Guide        the days ads stay off, what the account's own winners share, the playbook, the rules
  *
@@ -20,7 +21,7 @@ import React, { Suspense, useCallback, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { PageShell } from '@/components/shared/page-shell';
-import { Palette, Star, Images, Brush, Swords, BookOpen, PlugZap, Map as MapIcon, X } from 'lucide-react';
+import { Palette, Star, Images, Brush, Swords, BookOpen, PlugZap, Map as MapIcon, X, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_AD_STUDIO } from '@/lib/store-config';
 import { useAdsStatus } from '../ads-kit';
@@ -29,6 +30,7 @@ import { Maker } from './maker';
 import { RivalsSection } from './rivals';
 import { GuideSection } from './guide';
 import { PlanSection } from './plan';
+import { SavedSection, type SavedRestore } from './saved';
 import type { Play } from '@/lib/ads/studio/plays';
 import { SITE_LABEL, type LibraryItem, type WorkPhoto } from './studio-kit';
 
@@ -37,6 +39,7 @@ const VIEWS = [
   { key: 'picks', label: 'Picks', icon: Star },
   { key: 'library', label: 'Library', icon: Images },
   { key: 'make', label: 'Make', icon: Brush },
+  { key: 'saved', label: 'Saved', icon: FolderOpen },
   { key: 'rivals', label: 'Competitors', icon: Swords },
   { key: 'guide', label: 'Guide', icon: BookOpen },
 ] as const;
@@ -59,10 +62,13 @@ function AdStudio() {
   /** The play being made, from the Plan tab: the maker opens set up for it. */
   const [play, setPlay] = useState<Play | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  /** A saved ad being opened again in the maker. */
+  const [restore, setRestore] = useState<SavedRestore | null>(null);
   const { status, ready } = useAdsStatus();
   const connected = !!status?.connection?.connected;
 
   const make = (w: WorkPhoto) => { setWork(w); setOpen(null); go('make'); };
+  const reopen = (r: SavedRestore) => { setPlay(null); setRestore(r); setWork(r.work); go('make'); };
   const startPlay = (p: Play) => { setPlay(p); go(work ? 'make' : 'picks'); };
 
   return (
@@ -93,7 +99,8 @@ function AdStudio() {
       {v === 'plan' && <PlanSection onMake={startPlay} hasPhoto={!!work} />}
       {v === 'picks' && <PicksSection placement={placement} onPlacement={setPlacement} onOpen={setOpen} reloadKey={reloadKey} />}
       {v === 'library' && <LibrarySection placement={placement} onPlacement={setPlacement} onOpen={setOpen} reloadKey={reloadKey} />}
-      {v === 'make' && <Maker work={work} onChoose={() => go('picks')} onUpload={setWork} play={play} />}
+      {v === 'make' && <Maker work={work} onChoose={() => go('picks')} onUpload={setWork} play={play} restore={restore} />}
+      {v === 'saved' && <SavedSection onOpen={reopen} />}
       {v === 'rivals' && <RivalsSection connected={connected} />}
       {v === 'guide' && <GuideSection connected={ready} />}
 

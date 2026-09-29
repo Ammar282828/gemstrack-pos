@@ -40,6 +40,7 @@ import { FONTS, bodyFace, headlineFace, serifFace } from '../../website/post/fon
 import { useSiteAssets } from '../../website/post/site-assets';
 import { api } from '../ads-kit';
 import { PostIt } from './post-it';
+import { SaveButton, type SavedRestore } from './saved';
 import { SITE_LABEL, b64ToBlob, downloadBlob, fetchAsset, runImageOp, safeName, scoreTone, type WorkPhoto } from './studio-kit';
 
 const FORMAT_KEY = 'taheri_studio_format';
@@ -59,7 +60,7 @@ function useFormat(): [AdFormat, (f: AdFormat) => void] {
   return [f, (v: AdFormat) => { setF(v); try { localStorage.setItem(FORMAT_KEY, v); } catch { /* private mode */ } }];
 }
 
-export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | null; onChoose: () => void; onUpload: (w: WorkPhoto) => void; play?: Play | null }) {
+export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkPhoto | null; onChoose: () => void; onUpload: (w: WorkPhoto) => void; play?: Play | null; restore?: SavedRestore | null }) {
   const { toast } = useToast();
   const router = useRouter();
   const [format, setFormat] = useFormat();
@@ -100,6 +101,10 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
   const [start, setStart] = useState(() => new Date(Date.now() + 5 * 3_600_000).toISOString().slice(0, 10));
   const [days, setDays] = useState(7);
   const [sending, setSending] = useState(false);
+  /** Saved (the Saved tab): which one this is, so Save writes over it. */
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [savedFolder, setSavedFolder] = useState<string | null>(null);
+  const reopening = !!restore && restore.work === work;
 
   const cur = photo && photo.key === work ? photo : null;
   const assets: Assets = useMemo(() => ({ photos: cur ? { [PHOTO]: cur.img } : {} as Assets['photos'], marks, fonts: FONTS }), [cur, marks]);
@@ -159,7 +164,7 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
   // Laid out once the photo, the fonts and the marks are in.
   useEffect(() => {
     if (!cur || !assetsReady || ready) return;
-    doc.reset(applyAdTemplate(blankAd(format), template, fields, assets, { photoMarked: marked, rates }));
+    doc.reset(reopening ? restore!.doc : applyAdTemplate(blankAd(format), template, fields, assets, { photoMarked: marked, rates }));
     setReady(true);
   }, [cur, assetsReady, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -194,6 +199,15 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
     setFieldsState(f => ({ ...f, details: play.cta }));
     setReady(false);
   }, [play?.id, work]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A saved ad opened again: its words, frame, layout and where it goes, as it was left.
+  useEffect(() => {
+    if (!restore || restore.work !== work) { setSavedId(null); setSavedFolder(null); return; }
+    setSavedId(restore.id); setSavedFolder(restore.folder);
+    setFormat(restore.format); setTemplate(restore.template);
+    setFieldsState(f => ({ ...f, ...restore.fields })); setPrice(restore.price);
+    setText(restore.text); setAdHeadline(restore.headline); setGoal(restore.goal); setLink(restore.link);
+  }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** An AI result in place of the photo; `clean` when it no longer carries the logo, so the layout adds the house's mark. */
   const replacePhoto = async (blob: Blob, clean: boolean) => {
@@ -344,6 +358,35 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
     }
   };
 
+  /** Into a folder of the Saved tab: the picture, the photo it is drawn on and the layout, to open again. */
+  const saveAd = async (folder: string | null, asNew: boolean) => {
+    if (!cur) return;
+    try {
+      const image = await draw(doc.doc, fields, assets, F.px);
+      const small = await draw(doc.doc, fields, assets, 200, 0.7);
+      const thumb = await new Promise<string>(res => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(small); });
+      const scale = Math.min(1, 2048 / Math.max(cur.img.naturalWidth, cur.img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(cur.img.naturalWidth * scale); c.height = Math.round(cur.img.naturalHeight * scale);
+      c.getContext('2d')!.drawImage(cur.img, 0, 0, c.width, c.height);
+      const photoJpeg = await canvasToJpeg(c, 0.9);
+      const form = new FormData();
+      form.append('meta', JSON.stringify({
+        folder, name: fields.headline || work?.asset?.name || work?.note || 'Ad', format, template, fields, price,
+        text, headline: adHeadline, goal, link, asset: work?.asset ? { id: work.asset.id, name: work.asset.name } : null, thumb,
+      }));
+      form.append('image', image, 'ad.jpg');
+      form.append('photo', photoJpeg, 'photo.jpg');
+      form.append('doc', new Blob([JSON.stringify(doc.doc)], { type: 'application/json' }), 'doc.json');
+      if (savedId && !asNew) form.append('id', savedId);
+      const d = await api<{ item: { id: string; folder: string | null } }>('/api/ads/studio/saved', { form });
+      setSavedId(d.item.id); setSavedFolder(d.item.folder);
+      toast({ title: 'Saved', description: 'In Studio → Saved.' });
+    } catch (e) {
+      toast({ title: 'Couldn’t save it', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    }
+  };
+
   const toNewAd = async () => {
     if (!ready) return;
     setSending(true);
@@ -476,6 +519,7 @@ export function Maker({ work, onChoose, onUpload, play }: { work: WorkPhoto | nu
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={!ready} onClick={() => download(false)}><Download className="h-4 w-4 mr-1" /> Download {F.short}</Button>
           <Button variant="outline" size="sm" disabled={!ready} onClick={() => download(true)}><Download className="h-4 w-4 mr-1" /> Every size</Button>
+          <SaveButton ready={ready} savedId={savedId} folder={savedFolder} onSave={saveAd} />
           <Button variant="ghost" size="sm" onClick={onChoose}><ImagePlus className="h-4 w-4 mr-1" /> Another photo</Button>
         </div>
       </div>
