@@ -60,7 +60,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
-import { STORE_LINKS, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL, STORE_MARK_SVG, STORE_MONOGRAM_SVG, STORE_POST_PIECE, STORE_POST_TAGLINE, STORE_POST_FOOTER } from '@/lib/store-config';
+import { STORE_LINKS, STORE_WEBSITE_FEATURED, STORE_WHATSAPP_NUMBERS, STORE_POST_METAL, STORE_MARK_SVG, STORE_MONOGRAM_SVG, STORE_POST_PIECE, STORE_POST_TAGLINE, STORE_POST_FOOTER, STORE_SITE_POSTS } from '@/lib/store-config';
+import { headlineOf, siteFrom, sitePhotoQuery, type SiteFrom } from '@/lib/website/site-photo';
 import { detailsLine, waNumberFromUrl, weightLabel, websiteFileName, whatsappCaption } from '@/lib/social/caption';
 import { PALETTES, STORY_H, STORY_W, canvasToJpeg, loadImage, loadStampFont, stampPhoto, suggestPalette } from '@/lib/social/story';
 import { SCENES, customPrompt, restagePrompt, type Aspect, type CaptionResult, type CheckResult } from '@/lib/social/prompts';
@@ -77,11 +78,14 @@ import {
   type PostPrefs,
 } from '@/lib/social/post-drafts';
 import { PostDraftsDialog } from './post-drafts-panel';
+import { SitePicker, type SitePick } from './site-picker';
 
 const FILL = { mode: 'fill' as const, zoom: 1, focusX: 0.5, focusY: 0.5 };
 
 const SITE = (STORE_LINKS.website || '').replace(/\/+$/, '');
 const SITE_NAME = SITE.replace(/^https?:\/\//, '');
+/** Photos → From the website: the house's own pieces, through the same list as Posts → From the website. */
+const FROM_SITE = STORE_SITE_POSTS && !!SITE;
 const NUMBERS = STORE_WHATSAPP_NUMBERS.length ? STORE_WHATSAPP_NUMBERS : [waNumberFromUrl(STORE_LINKS.whatsapp)].filter(Boolean);
 
 interface Collection { collection: string; category: string; count: number; folder: string; path?: string }
@@ -100,6 +104,8 @@ interface Photo {
   toWhatsApp: boolean;
   /** The file itself, so a draft can keep the photo (lib/social/post-drafts.ts). */
   blob: Blob;
+  /** Taken from the house's website (Photos → From the website), and every AI version of it. */
+  from?: SiteFrom;
 }
 type StepStatus = 'waiting' | 'running' | 'done' | 'failed';
 /** `manual`: a step the counter does from the phone (sharing the story); Publish lists it but doesn't run it. */
@@ -283,7 +289,8 @@ function PostAPiecePage() {
   const maisonSite = isMaisonFolder(folder);
   const [maisonHouse, setMaisonHouse] = useState('');
   const siteFileName = (i: number) => (maisonSite ? maisonFileName(maisonHouse, siteName || headline, i) : websiteFileName(siteName || headline, i));
-  const link = collectionUrl(toWebsite ? chosen : undefined);
+  // A piece taken from the website links to its own page; anything else to the collection it goes into.
+  const link = hero?.from?.url || collectionUrl(toWebsite ? chosen : undefined);
   const piece = useMemo(() => ({ headline, kicker, weight, weightEach, metal, stones, hook }), [headline, kicker, weight, weightEach, metal, stones, hook]);
   const wLabel = weightLabel(piece);
   // The details line carries the weight only when the story has no weight line of its own.
@@ -437,6 +444,42 @@ function PostAPiecePage() {
     }
   }, [toast]);
 
+  /**
+   * Pieces from the website, as photos to fix up and post. Each comes through the ERP at the site's
+   * full size. They go nowhere on the website by default — they are on it already, and the Site tick
+   * would add a second copy — and the first one names the piece when nothing is typed yet.
+   */
+  const [sitePickerOpen, setSitePickerOpen] = useState(false);
+  const addFromSite = useCallback(async (list: SitePick[]) => {
+    if (!list.length) return;
+    setReading(n => n + list.length);
+    const headers = await authHeaders();
+    let first = true;
+    for (const piece of list) {
+      try {
+        const res = await fetch(`/api/website/site-pieces/image?${sitePhotoQuery(piece)}`, { headers, cache: 'no-store' });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `The photo didn’t come (${res.status}).`);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        let img: HTMLImageElement;
+        try { img = await loadImage(url); } catch (e) { URL.revokeObjectURL(url); throw e; }
+        const p: Photo = { id: newId('site'), name: `${piece.name}.jpg`, img, url, blob, toSite: false, toWhatsApp: true, from: siteFrom(piece) };
+        setPhotos(prev => [...prev, p]);
+        p.img.decode().then(() => setPhotos(prev => prev.map(x => (x.id === p.id ? { ...x } : x))), () => undefined);
+        if (first) {
+          first = false;
+          const name = headlineOf(piece.name);
+          if (name) setHeadline(h => (h.trim() ? h : name));
+          if (piece.weightGrams) setWeight(w => (w.trim() ? w : String(piece.weightGrams)));
+        }
+      } catch (e) {
+        toast({ title: `Couldn’t bring in ${piece.name}`, description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+      } finally {
+        setReading(n => n - 1);
+      }
+    }
+  }, [toast]);
+
   const removePhoto = (id: string) => {
     setPhotos(prev => { prev.filter(p => p.id === id).forEach(p => URL.revokeObjectURL(p.url)); return prev.filter(p => p.id !== id); });
   };
@@ -464,6 +507,7 @@ function PostAPiecePage() {
         id: newId('ai'), name: `${label}.jpg`, img, url, blob,
         ai: { label, parentId: source.id, check: d.check ?? null },
         toSite: !storyShaped && source.toSite, toWhatsApp: !storyShaped && source.toWhatsApp,
+        ...(source.from ? { from: source.from } : {}),
       };
       setPhotos(prev => {
         const i = prev.findIndex(p => p.id === source.id);
@@ -886,7 +930,7 @@ function PostAPiecePage() {
     if (restoring.current || published) return;
     if (!photos.length && !headline.trim()) return;
     const state = draftState();
-    const meta = photos.map(({ id, name, toSite, toWhatsApp, ai }) => ({ id, name, toSite, toWhatsApp, ai }));
+    const meta = photos.map(({ id, name, toSite, toWhatsApp, ai, from }) => ({ id, name, toSite, toWhatsApp, ai, ...(from ? { from } : {}) }));
     const letteredMeta = lettered ? { verified: lettered.verified, missing: lettered.missing, forId: lettered.forId } : null;
     const json = JSON.stringify({ state, meta, letteredMeta, hero: hero?.id });
     if (json === lastSaved.current) return;
@@ -1089,6 +1133,7 @@ function PostAPiecePage() {
               {(photos.length > 0 || reading > 0) && (
                 <div className="flex gap-1.5">
                   <Button type="button" size="sm" variant="outline" onClick={() => fileRef.current?.click()}><ImagePlus className="h-4 w-4 mr-1.5" /> Add</Button>
+                  {FROM_SITE && <Button type="button" size="sm" variant="outline" onClick={() => setSitePickerOpen(true)} aria-label={`From ${SITE_NAME}`} title={`From ${SITE_NAME}`}><Globe className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">Website</span></Button>}
                   <Button type="button" size="sm" variant="outline" onClick={() => cameraRef.current?.click()} className="sm:hidden" aria-label="Take a photo"><Camera className="h-4 w-4" /></Button>
                 </div>
               )}
@@ -1098,8 +1143,9 @@ function PostAPiecePage() {
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <Button type="button" variant="secondary" onClick={() => fileRef.current?.click()}><ImagePlus className="h-4 w-4 mr-2" /> Choose photos</Button>
                   <Button type="button" variant="outline" onClick={() => cameraRef.current?.click()} className="sm:hidden"><Camera className="h-4 w-4 mr-2" /> Take a photo</Button>
+                  {FROM_SITE && <Button type="button" variant="outline" onClick={() => setSitePickerOpen(true)}><Globe className="h-4 w-4 mr-2" /> From {SITE_NAME}</Button>}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">Or drag them here.</p>
+                <p className="text-xs text-muted-foreground mt-2">Or drag them here{FROM_SITE ? ' — or take any piece already on the website and fix it up here' : ''}.</p>
               </div>
             ) : (<>
               <ul className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -1129,10 +1175,14 @@ function PostAPiecePage() {
                   <li key={`r${i}`} className="aspect-square rounded-lg border bg-muted/40 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></li>
                 ))}
               </ul>
+              {photos.some(p => p.from?.marked && !p.ai) && (
+                <p className="text-xs text-muted-foreground"><Globe className="inline h-3 w-3 -mt-0.5" /> Website photos carry the site’s marks — AI → Enhance (with “remove tags” on) clears them before new ones go on. They go to WhatsApp, not back on the site.</p>
+              )}
               {photos.length > 0 && (
                 <p className="text-xs text-muted-foreground"><Star className="inline h-3 w-3 -mt-0.5" /> {formats === 'both' ? 'leads: the story’s photo and the first post' : formats === 'story' ? 'is the story' : 'goes first'} · <Sparkles className="inline h-3 w-3 -mt-0.5" /> AI on any photo</p>
               )}
             </>)}
+            {FROM_SITE && <SitePicker open={sitePickerOpen} onOpenChange={setSitePickerOpen} siteName={SITE_NAME} headers={authHeaders} onAdd={pieces => { void addFromSite(pieces); }} />}
             <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
           </section>
@@ -1675,8 +1725,10 @@ function PhotoTile({ photo: p, isHero, starLabel, locked, busy, siteOn, waOn, ti
         {!locked && (
           <button type="button" onClick={onRemove} aria-label="Remove" className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center"><X className="h-3.5 w-3.5" /></button>
         )}
-        {p.ai && (
+        {p.ai ? (
           <span className="absolute top-1.5 left-1.5 rounded-full bg-black/60 text-white text-[10px] px-2 py-0.5 flex items-center gap-1"><Sparkles className="h-3 w-3" />{p.ai.label}</span>
+        ) : p.from && (
+          <span title={`From the website: ${p.from.name}`} aria-label="From the website" className="absolute top-1.5 left-1.5 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center"><Globe className="h-3.5 w-3.5" /></span>
         )}
       </div>
       <div className="p-2 space-y-1.5">
@@ -1685,12 +1737,15 @@ function PhotoTile({ photo: p, isHero, starLabel, locked, busy, siteOn, waOn, ti
             {checkOk(c) ? <><ShieldCheck className="h-3.5 w-3.5 shrink-0" /> Same piece</> : <><ShieldAlert className="h-3.5 w-3.5 shrink-0" /> {c ? (c.differences[0] ?? 'Look closely') : 'Not checked'}</>}
           </p>
         )}
+        {p.from && siteOn && p.toSite && (
+          <p className="text-[11px] leading-snug text-amber-600">Adds a second copy to the site.</p>
+        )}
         <div className="flex gap-1.5">
           {siteOn && (
-            <button type="button" onClick={() => onToggle({ toSite: !p.toSite })} className={cn('flex-1 rounded-full border px-2 py-0.5 text-[11px] inline-flex items-center justify-center gap-1', p.toSite ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground')}><Globe className="h-3 w-3" /> Site</button>
+            <button type="button" onClick={() => onToggle({ toSite: !p.toSite })} aria-pressed={p.toSite} title="On the website" className={cn('flex-1 min-w-0 min-h-0 rounded-full border px-2 py-1 text-[11px] inline-flex items-center justify-center gap-1', p.toSite ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground')}><Globe className="h-3 w-3 shrink-0" /><span className="hidden sm:inline">Site</span></button>
           )}
           {waOn && (
-            <button type="button" onClick={() => onToggle({ toWhatsApp: !p.toWhatsApp })} className={cn('flex-1 rounded-full border px-2 py-0.5 text-[11px] inline-flex items-center justify-center gap-1', p.toWhatsApp ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground')}><MessageCircle className="h-3 w-3" /> WA</button>
+            <button type="button" onClick={() => onToggle({ toWhatsApp: !p.toWhatsApp })} aria-pressed={p.toWhatsApp} title="On WhatsApp" className={cn('flex-1 min-w-0 min-h-0 rounded-full border px-2 py-1 text-[11px] inline-flex items-center justify-center gap-1', p.toWhatsApp ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground')}><MessageCircle className="h-3 w-3 shrink-0" /><span className="hidden sm:inline">WA</span></button>
           )}
         </div>
       </div>

@@ -56,9 +56,13 @@ type Part = { text: string } | { inlineData: InlineImage };
 const host = () => LOCATION === 'global' ? 'aiplatform.googleapis.com' : `${LOCATION}-aiplatform.googleapis.com`;
 
 /**
- * One generateContent call, retried twice on the errors that are worth it
- * (rate limits and the model being briefly overloaded), never on a refusal.
+ * One generateContent call, retried on the errors that are worth it, never on a refusal: the model
+ * briefly overloaded (500/503) twice, soon; a rate limit (429) three times, waiting longer each
+ * time — the Vertex AI key's project allows only a few requests a minute (2026-09-29), and an image
+ * op already takes most of a minute, so waiting beats failing. `retries: 0` for the checks panel.
  */
+const WAIT_OVERLOADED = [2500, 5000];
+const WAIT_RATE_LIMITED = [5000, 15000, 30000];
 async function endpoint(model: string): Promise<{ url: string; headers: Record<string, string> }> {
   const key = await vertexKey();
   if (key) return { url: keyedModelUrl(model), headers: { 'x-goog-api-key': key } };
@@ -72,7 +76,7 @@ async function endpoint(model: string): Promise<{ url: string; headers: Record<s
   };
 }
 
-async function call(model: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+async function call(model: string, body: Record<string, unknown>, opts: { retries?: number } = {}): Promise<Record<string, unknown>> {
   const { url, headers } = await endpoint(model);
 
   for (let attempt = 0; ; attempt++) {
@@ -85,9 +89,9 @@ async function call(model: string, body: Record<string, unknown>): Promise<Recor
     const data = await res.json().catch(() => null) as Record<string, unknown> | null;
     if (res.ok && data) return data;
     const err = (data?.error ?? {}) as { status?: string; message?: string };
-    const retryable = res.status === 429 || res.status === 503 || res.status === 500;
-    if (retryable && attempt < 2) { await new Promise(r => setTimeout(r, 2500 * (attempt + 1))); continue; }
-    if (err.status === 'RESOURCE_EXHAUSTED') throw new AiError('The AI account is out of quota or credit right now. Try again in a minute.', 429);
+    const waits = res.status === 429 ? WAIT_RATE_LIMITED : res.status === 503 || res.status === 500 ? WAIT_OVERLOADED : [];
+    if (attempt < Math.min(waits.length, opts.retries ?? Infinity)) { await new Promise(r => setTimeout(r, waits[attempt])); continue; }
+    if (err.status === 'RESOURCE_EXHAUSTED') throw new AiError('Google is holding the AI to its per-minute quota (or it is out of credit). Try again in a minute.', 429);
     throw new AiError(String(err.message || `Vertex AI returned ${res.status}`).slice(0, 300), res.status);
   }
 }
@@ -177,9 +181,16 @@ export async function chatTurn(opts: {
 
 // ── For the checks panel ───────────────────────────────────────────────────
 
-/** A one-word call to the cheap model: proves the project, the permission and the quota in a second. */
+/**
+ * A one-word call to the cheap model: proves the key (or project), the permission and the quota in
+ * a second. Thinking turned down — left to itself the model spent up to 5 s deciding how to say
+ * OK, past the panel's 8 s with a retry — and no retries: a rate limit is an answer here.
+ */
 export async function aiPing(): Promise<void> {
-  await generateText({ model: CHECK_MODEL, parts: [{ text: 'Reply with the single word OK.' }] });
+  await call(CHECK_MODEL, {
+    contents: [{ role: 'user', parts: [{ text: 'Reply with the single word OK.' }] }],
+    generationConfig: { temperature: 0, ...(/^gemini-3/.test(CHECK_MODEL) ? { thinkingConfig: { thinkingLevel: 'low' } } : {}) },
+  }, { retries: 0 });
 }
 
 /**

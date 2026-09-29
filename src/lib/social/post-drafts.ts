@@ -10,6 +10,8 @@
  * A draft leaves once it is published or queued, and after 30 days untouched.
  */
 
+import type { SiteFrom } from '@/lib/website/site-photo';
+
 const DB_NAME = 'taheri-post-drafts';
 const DB_VERSION = 1;
 export const POST_DRAFT_MAX_DAYS = 30;
@@ -20,6 +22,8 @@ export interface PostDraftPhoto {
   toSite: boolean;
   toWhatsApp: boolean;
   ai?: unknown;
+  /** Taken from the house's website (Post a Piece → From the website). */
+  from?: SiteFrom;
 }
 
 export interface PostDraft<S = Record<string, unknown>> {

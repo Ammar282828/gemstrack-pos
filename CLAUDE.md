@@ -303,6 +303,11 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   `VERTEX_AI_KEY` (or `GEMINI_API_KEY`) as a variable wins, for local runs. Every model in use answers through it
   (gemini-3-pro-image, 3.1-pro-preview, 3.8-flash, 3.6-flash, 2.5-flash; 3.5-pro still 404). The checks panel says which
   way the AI is billed; `diagnose` names the project Google complains about and knows a refused key.
+  **Its project's per-minute quota is tiny** (measured 2026-09-29: a handful of calls a minute, then 429 "Resource has been
+  exhausted (e.g. check quota)" with no details, on the keyed and the global route alike). So `call()` waits out a 429
+  (5 s, 15 s, 30 s) instead of failing, and the checks panel's ping (thinking `low`, no retries — left alone it thought for
+  up to 5 s and, with a retry, blew the panel's 8 s) shows a rate limit as a warning, not "timed out". The fix is the key
+  project owner's: raise its Vertex AI per-minute quota (IAM & Admin → Quotas).
 - **Drafts** (`/drafts`, Sales in the sidebar with a live count; 2026-09-27, owner: "drafts should have a separate section
   (order/invoice drafts) and be saved there, dont draft ongoing orders … deal with them smartly"). Firestore `drafts`, one
   document per unfinished form, seen on every device (`src/lib/work-drafts.ts`, tested; `components/drafts/use-work-drafts.ts`).
@@ -460,6 +465,14 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   Photos, uploads not yet adopted) are offered with their address, `dropPath` (`lib/website/drop-path.ts`, tested — the site's
   own slug rules), which taheri.shop's `api/piece.php` now serves as a real page (named, previewed); before, a drop's address
   answered 404 and posting left drops out.
+- **Photos from the website** (2026-09-29, owner: "for post a piece let me add any pic from the website and then fix it up
+  there"): Post a Piece's Photos step has **Website** (`site-picker.tsx`: the From the website list — New arrivals first, newest
+  first, search, collections, up to 10 at once). Each photo comes through `/api/website/site-pieces/image` at 3000 px
+  (`lib/website/site-photo.ts`, tested: the catalogue's unmarked source with `original=1`, so the post marks it once;
+  taheri.shop's photo as the site shows it) and then is an ordinary photo — Enhance, Retouch, Extend, the designer. It carries
+  `from` (kept in drafts and on every AI version of it): WhatsApp on, the Site tick off (it is on the site already; ticking it
+  adds a second copy), the first one names the piece when the headline/weight are empty, and the caption links the piece's own
+  page instead of its collection. taheri.shop's photos carry its marks: AI → Enhance with "remove tags" clears them first.
 - **Post a Piece: channel tick, queue, and House of Mina** (2026-09-25, owner: "make a post on houseofmina pos also, same style" /
   "incorporate channel option and bulk sending"). Where the squares go is a tick per destination — the community's groups
   (`WHATSAPP_POST_GROUPS`) and the channel, first group + channel on by default — and each is its own publish step, sent with `targets`,

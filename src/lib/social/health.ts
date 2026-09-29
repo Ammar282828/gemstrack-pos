@@ -14,7 +14,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { STORE_CONFIG, STORE_WEBSITE_FEATURED } from '@/lib/store-config';
 import { whatsAppChannelInfo, whatsAppDiagnostics, whatsAppProvider, whatsAppStatus } from '@/lib/whatsapp';
 import { loadFeatured } from '@/lib/website/featured';
-import { aiBilledTo, aiConfigured, aiPing, imageModelServed, IMAGE_MODEL } from './ai';
+import { AiError, aiBilledTo, aiConfigured, aiPing, imageModelServed, IMAGE_MODEL } from './ai';
 import { instagramConfigured, instagramHealth, tokenStoreAccess } from './instagram';
 import { diagnose, type Action } from './diagnose';
 import { diagnoseContext, recentErrors, type RecordedError } from './errors';
@@ -167,7 +167,15 @@ async function aiChecks(fresh: boolean): Promise<Check[]> {
   const checks = await Promise.all([
     guard('ai-access', 'AI', 'AI answers', 'ai', async () => {
       const t = Date.now();
-      await aiPing();
+      try {
+        await aiPing();
+      } catch (e) {
+        // Rate-limited is working, just not this minute: the AI buttons wait it out on their own.
+        if (e instanceof AiError && e.status === 429) {
+          return { status: 'warn', detail: `Google is rate-limiting the AI this minute (billed through ${await aiBilledTo()}).`, fix: 'The AI buttons wait and try again by themselves. If this shows often, the project the AI key belongs to needs a higher Vertex AI per-minute quota (its owner raises it under IAM & Admin → Quotas).' };
+        }
+        throw e;
+      }
       return { status: 'ok', detail: `Vertex AI answered in ${((Date.now() - t) / 1000).toFixed(1)} s (billed through ${await aiBilledTo()}).` };
     }),
     guard('ai-model', 'AI', 'Image model is available', 'ai', async () => {
