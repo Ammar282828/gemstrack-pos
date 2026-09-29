@@ -249,14 +249,21 @@ export default function CartPage() {
     bill.items.forEach(addProductToCart);
     if (bill.customerId) setSelectedCustomerId(bill.customerId);
     setScannedBillTotal(bill.writtenTotal);
+    // The paper's own rate and discount, so its lines come to its figures (vision/bill-draft.ts, billRates).
+    const rates = Object.entries(bill.rates).filter(([k]) => k in rateInputs) as [keyof RateInputs, number][];
+    if (rates.length) setRateInputs(prev => ({ ...prev, ...Object.fromEntries(rates.map(([k, v]) => [k, v.toFixed(2)])) }));
+    if (bill.discount && !(parseFloat(discountAmountInput) > 0)) setDiscountAmountInput(String(bill.discount));
     // What the paper says was paid goes into the payment rows, unless some are typed already.
     const paidOnBill = bill.amountPaid && bill.amountPaid > 0 ? bill.amountPaid : null;
     if (paidOnBill) setSalePayments(rows => (rows.some(r => parseFloat(r.amount) > 0) ? rows : [{ ...blankSalePayment(), amount: String(paidOnBill) }]));
     toast({
       title: `${bill.items.length} line${bill.items.length === 1 ? '' : 's'} added`,
-      description: paidOnBill
-        ? `Check them against the bill before invoicing. Paid PKR ${paidOnBill.toLocaleString()} is filled in as cash — change it if it was paid another way.`
-        : 'Check them against the bill before invoicing.',
+      description: [
+        rates.length ? `At the bill’s rate: ${rates.map(([k, v]) => `${k.replace(/^gold/, '')} ${Math.round(v).toLocaleString()}/g`).join(', ')}.` : '',
+        bill.discount ? `Discount ${bill.discount.toLocaleString()} from the bill.` : '',
+        paidOnBill ? `Paid PKR ${paidOnBill.toLocaleString()} is filled in as cash — change it if it was paid another way.` : '',
+        'Check them against the bill before invoicing.',
+      ].filter(Boolean).join(' '),
     });
   };
 

@@ -50,6 +50,7 @@ import { DraftsShortcut } from '@/components/drafts/draft-list';
 import { ORDER_DEFAULT_FIELDS, summarizeOrder } from '@/lib/work-drafts';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { OrderScanner } from '@/components/order/order-scanner';
+import { wastagePercentOf } from '@/lib/vision/wastage';
 import {
   exchangeValue, describeExchange, reconcileSlip, hasHisaab, karatFor, metalFor,
 } from '@/lib/vision/order-draft';
@@ -876,7 +877,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
         estimatedWeightG: weight,
         // A slip that showed its sum used the wastage it wrote, or none; a bare weight
         // is priced the way a new piece is.
-        wastagePercentage: hasHisaab(it) ? (Number(it.wastagePercent) || 0) : 10,
+        wastagePercentage: hasHisaab(it) ? (wastagePercentOf(it) ?? 0) : 10,
         makingCharges: Number(it.makingCharges) > 0 ? Number(it.makingCharges) : 0,
         diamondCharges: 0,
         stoneCharges: Number(it.stoneCharges) > 0 ? Number(it.stoneCharges) : 0,
