@@ -408,7 +408,7 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   month before for comparison. `monthly-pdf.ts` draws it A4 with the invoices' furniture (`pdf-chrome.ts`; `plain()` keeps text
   to what Helvetica can print); `monthly-server.ts` reads Firestore and the wordmark from `public/`. Two ways out: **Analytics →
   Monthly PDF** (any of the last 24 months; `/api/reports/monthly?month=2026-09`, open under open access), and the WhatsApp
-  report **`monthly-report`** (`notifMonthlyReport`, on in both houses): on the **1st at the checklist time**, the month before,
+  report **`monthly-report`** (`notifMonthlyReport`, off until the owner switches it on in Settings → Notifications): on the **1st at the checklist time**, the month before,
   as a PDF document (`sendWhatsAppFile` → WAHA `/api/sendFile`) with a short caption. jsPDF and its table plugin are
   `serverExternalPackages`, so the server takes jsPDF's Node build rather than bundling the browser one.
 - **Staff open an invoice at `/cart?invoice_id=<id>`** (payment, edit, print); `/view-invoice/<id>` is the customer's page, with
