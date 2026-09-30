@@ -1,0 +1,298 @@
+# Decisions already made
+
+Don't reopen these unless the owner asks. Each is kept as it was written in CLAUDE.md, under a heading so the index can link to it.
+
+_Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE.md keeps a one-line index; this is the record._
+
+## Navigation and the look
+
+### The map
+
+- **The map** (the audit of 2026-10-01, which reopened the sidebar, Settings, Analytics and Ads decisions; the rows are
+  the ones people learned — what changed is underneath). **One registry, `src/lib/nav.ts`:** the sidebar, the top-bar
+  tabs, the Ctrl+K palette (same role rule and house flags) and `PageShell`'s headings all read it; `nav.test.ts` fails when
+  a page under `src/app` is in no entry, an entry has no page, or two rows of a group share a name. Add a page there or it
+  is nowhere. **One tab row per screen** — no in-page `Tabs` under the top bar's.
+  ```
+  [Search ⌘K] [New sale: Invoice · Order · Repair; Scan a tag · Read a written bill · Scan a parchi]   top bar: rate chip
+  Home        Dashboard · Calendar · Today’s cash (owners)
+  SALES       Orders · Invoices · Repairs · Customers · Drafts (count)
+  WORKSHOP &  Workshop (Jobs · Karigars · Given items) · Stock (Pieces · Add in bulk · Labels · Scan) — Stock owners only
+  STOCK
+  MARKETING   Posts (Post a piece · From the website · Investments) · Website (Add photos · Edit a piece · Photo weights)
+              · Ads (Overview · Campaigns · Studio · New ad · Setup; Ad sets lights Campaigns, Audiences/Rules are cards on Setup)
+  MONEY       Money (Expenses · Extra revenue · Overheads · Hisaab · Shareholders) · Analytics (Overview · Sales · Products ·
+              Customers · Categories — the range rides in `?range=`, `lib/analytics/range-param.ts`, and carries across tabs)
+  footer      Settings (Shop · Alerts · Bank accounts · Integrations · Data · Activity · Voice)
+  ```
+  Settings' tabs are routes (`/settings`, `/settings/alerts`, `/settings/integrations`, `/settings/data`, `/activity-log`
+  with the sign-in log and Emergency lock); an old `/settings?tab=` link redirects, `?tab=rates` opens the rate sheet. Names:
+  the sidebar's word is the name everywhere (sentence case) — Invoice, Order, Finalize & invoice, Stock/piece, Hisaab, Pay
+  batch (a karigar's), Extra revenue, Bank accounts, Studio; never the Shopify note strings (`POS Invoice`, `POS-DISCOUNT`,
+  `POS Item`).
+
+### The name ERP
+
+- **It's called the ERP** (owner, 2026-09-27: "my system isn't a traditional pos anymore … rename it erp everywhere"). Every
+  word people read says ERP — screens, errors, WhatsApp alert labels (`*Taheri ERP* · …`, Mina's `NEXT_PUBLIC_STORE_NOTIFY_LABEL`
+  "House of Mina ERP"), the manifest. **Kept as POS on purpose:** the Shopify order notes and codes (`POS Invoice INV-…`,
+  `POS-DISCOUNT`, `POS Item`) — the orders webhook matches old Shopify orders by that text; code names, repos, project ids.
+  **Addresses:** `erp.taheri.shop` (gemstrack-pos) and `erp.houseofmina.store` (hom-pos) are App Hosting custom domains beside
+  pos.* (which keep answering — taheri-site and the Mina catalogue call pos.* for `/api/public/*`); both are Firebase Auth
+  authorised domains. DNS: taheri.shop at **Hostinger** (A → 35.219.200.5), houseofmina.store at **GoDaddy** (A → 35.219.200.7),
+  each with the `fah-claim` TXT and the `_acme-challenge_…` CNAME App Hosting lists (`…/backends/studio/domains/<host>`).
+  `NEXT_PUBLIC_APP_URL` moves to erp.* only once erp.* serves with a certificate, together with the Meta redirects
+  (`https://erp.<house>/api/ads/callback`, Taheri's `…/api/instagram/callback`) — OAuth returns to that address.
+
+### Number fields
+
+- Number fields (`AmountInput`) select their contents on focus, and the sale-flow ones (order items, product form,
+  cart edit) show a 0 as blank (`zeroAsEmpty`) — the counter asked for no pre-filled zeros to delete.
+
+### Hooks
+
+- In a component, no hook after an early `return` (the `/orders/add` crash of 2026-09-22 was exactly that).
+
+### Fonts
+
+- **Fonts ship in the repo; never `next/font/google`** (2026-09-30): House of Mina's build failed twice that day in
+  `website/post/fonts.ts` ("An error occurred in `next/font`… Cannot read properties of null (reading '1')") — now and then
+  Google hands the builder a font address with no `.woff2` ending, which Next 15's Google loader can't read, and that house
+  stays on its old code until the next push. Every face (Inter; the links page's Bodoni Moda / Newsreader; the story, post and
+  ad faces) is Google's own latin woff2 in `src/fonts/`, loaded with `next/font/local` with the same weights, styles and
+  fallback font, so the build fetches nothing. A new face: download its latin woff2 there (README), never the Google loader.
+  (The ERP's screens are in the system font — `font-sans` beats globals.css's `'Inter'`; Inter only reaches `/links`.)
+
+### Light and dark
+
+- **Light / dark is per device** (owner, 2026-09-25: "switching is buggy"): the sun/moon in the top bar sets this device's
+  mode (`gemstrack:theme-device` in localStorage, `writeDeviceTheme` in `src/lib/theme-cache.ts`) and switches at once; the
+  **Shop mode** in Settings (Firestore, live on every screen) only decides devices that never chose. `<html>` carries `.dark`
+  **only on the dark palette** now (`applyThemeToDocument`, and the boot script before paint) — it used to be there always, so
+  every `dark:` style showed in light mode — plus `color-scheme` and the first-paint class, kept in step on every switch.
+  **The body's `theme-default` is set the same way, never from React's className** (2026-09-27, owner: "switches to white
+  again and again"): the server rendered the body light, a device with the shop's dark theme cached hydrated it dark, React 18
+  leaves an attribute that differs at hydration as it is, and every later render computed the class React believed was
+  already there — so `<html>` was dark and `<body>` white on every cold load until a toggle changed the string. The body's
+  className now carries no theme (identical on server and client), and `applyThemeToDocument` toggles `theme-default` on it in
+  a layout effect, before paint. Reproduced and re-checked in headless Chromium in five cache states (`gemstrack:theme` /
+  `gemstrack:theme-device`).
+
+### Recent picks
+
+- Every dropdown with 7+ options (`Select`, `SearchablePicker`) shows this device's last five picks under **Recent**
+  (`src/lib/recents.ts`, localStorage). Items are *moved* up, never duplicated — Radix prints a duplicated selected
+  value twice in the trigger. Lists that change over time carry a `recentsKey`; the karigar picker opts out (it ranks itself).
+
+## Home and the day
+
+### Dashboard
+
+- **The dashboard is the morning glance** (redrawn 2026-09-27, owner: "simple and effective, don't add shortcut buttons"):
+  four figures — taken today, this month (against last), owed to you, on the bench — then **Needs you** (late promises as one
+  row, overdue pieces by karigar, unassigned, the three largest unpaid + the rest summed, repairs ready and uncollected 3+
+  days, birthdays/anniversaries), **Due to customers** (open orders *and* repairs in the shop by their promised date — late,
+  today, soonest, undated by age; `orderTiming` for both) and **Recent sales**; the 30-day line at the bottom. No buttons:
+  New Sale is the sidebar's.
+
+### Rate chip
+
+- **The rate is set in the top bar, and only on purpose** (2026-10-01 audit, Phase 1): the chip `21K 35,000 · 9:40 Ammar`
+  (Mina: `Silver …`; `lib/rates.ts` `mainRate`) sits on every page, amber when not set on Karachi's today, and opens the rate
+  sheet (`components/rates/rate-chip.tsx`, the same `RatesForm` as Settings → Rates; the cart shows one line when stale, never
+  blocks). `updateSettings` stamps `ratesUpdatedAt`/`ratesUpdatedBy` and logs `rates.update` (old → new main rate) whenever a
+  rate moves, from any screen; `/api/public/quote` returns that time as `ratesAt`. **The cart writes back only a new invoice's
+  hand-typed rates** (`ratesToKeep`): editing an invoice loads its own old rates and a scanned bill the paper's, and saving
+  either used to make that rate today's. The Settings form no longer carries rates, so saving shop details can't write back a
+  stale one.
+
+### One screen per question
+
+- **One screen per question** (2026-10-01 audit, Phase 4). **Owed to you** is one rule, `lib/owed.ts` (tested): every invoice
+  not refunded with `balanceDue` > 0.5, walk-ins and typed names included (under `WALK_IN_ENTITY` / `name:` keys, as Analytics
+  keys them) — the dashboard, the customer list (it had dropped walk-ins and typed names), Invoices' subtitle and Hisaab's "On
+  invoices" line all read it and agree to the rupee. **Today's cash** (`/today`, a Home tab, owners only;
+  `lib/analytics/todays-cash.ts`, tested) is Karachi's day: money in by method (invoice payments, advances on orders not yet
+  invoiced, repair money with the repair's own method, other income "Not recorded"), exchange apart, expenses the business paid,
+  and **the drawer = Cash − expenses**; it is built on `cash-in.ts`, so it matches Analytics, and the 9 pm daily report's "Net
+  cash" is the same function (it had counted invoice payments only, card and bank as cash, on UTC days). **The karigar page**
+  opens on **Now** (`lib/karigar-position.ts`, tested): his bench (`buildWorkshopJobs`, Pending included; links to
+  `/workshop?karigar=<id>`, which opens on his whole bench with Taken by on Anyone for that visit only), the pieces' estimated
+  weight **beside** the Gold khata (never summed — two measures), given items still out (by `recipientId`, else his name), and
+  the Hisaab cash balance (positive: he holds ours) with the open pay batch. Read only; ticking "Given" on a job still posts
+  nothing to Hisaab (the owner's call).
+
+## Selling: invoices, orders, repairs
+
+### Drafts
+
+- **Drafts** (`/drafts`, Sales in the sidebar with a live count; 2026-09-27, owner: "drafts should have a separate section
+  (order/invoice drafts) and be saved there, dont draft ongoing orders … deal with them smartly"). Firestore `drafts`, one
+  document per unfinished form, seen on every device (`src/lib/work-drafts.ts`, tested; `components/drafts/use-work-drafts.ts`).
+  **Only a new order form and a new sale are drafted** — never an order being edited or invoiced, an invoice on screen, an
+  estimate being changed. Written a second after typing stops, only when something changed and something is there (a
+  blank form's rates, promised date and row ids don't count); removed the moment the order or invoice is saved and never
+  written after (`finish()` — the old device-only drafts kept writing while the page navigated away, and kept a sale's
+  customer while its invoice was on screen, which is how saved orders and sales showed up as "unfinished"); removed when
+  the form is emptied; forgotten after 30 days. Each form is its own draft: an order's id rides in `?draft=`, the cart
+  remembers its sale in `gemstrack:sale-draft` and carries its pieces, so `/invoices/new?draft=…` continues a sale on another
+  device. Opening an invoice over a sale in progress keeps that sale in Drafts. The old `gemstrack:draft:` browser drafts
+  are moved over once per device, minus those saved afterwards. Settings' switch (`autoDraftForms`) turns it all off.
+
+### Order actions gate
+
+- The order-actions route keeps its always-verify gate: it moves money.
+
+### Wastage in grams
+
+- **Invoices show wastage in grams only** (no rupee value, no percentage); the workshop slip keeps the percentage.
+
+### Repairs
+
+- **Repairs** (`/repairs`, under Invoices): a ticket = one customer + **any number of pieces** (piece, what to do,
+  weight, price) + ready-by + optional advance; karigar / taken by / shop note fold away under "More". Deliberately
+  simple (owner's ask): three steps, **In the shop → Ready → Collected** — Ready is one tap, Hand back only takes the
+  balance. `REP-000001` numbering from `lastRepairNumber` in settings. Money taken is written to **Extra Revenue** in
+  the same transaction with `repairId`; deleting a repair deletes those rows. Receipt: `src/lib/repair-pdf.ts`.
+
+### Invoice pages
+
+- **Staff open an invoice at `/invoices/<id>`** (2026-10-01 audit, Phase 5; `components/invoice/invoice-viewer.tsx`: print, send,
+  payment, discount, refund, New sale — it never touches the cart), change it at `/invoices/<id>/edit`, and sell at
+  `/invoices/new` (both `components/sale/sale-page.tsx`, the old cart). `/cart` only redirects (307 in `middleware.ts`, and
+  `app/cart/page.tsx`): `?invoice_id=` → the invoice, anything else → `/invoices/new` with its query. Opening an invoice used to
+  clear the sale in progress, and its Refund button did nothing (its dialog was drawn only in the cart's other mode). An edit
+  marks the cart (`gemstrack:cart-editing`) so a reload re-opens it and a new sale never inherits its pieces; a sale in progress
+  when an edit opens is set aside (`gemstrack:cart-held`, and Drafts) and comes back in New sale; with Drafts off it asks first.
+  The cart's piece lines are priced at the rate boxes, like its totals (they showed today's rate on an edit or a scanned bill).
+  `/view-invoice/<id>` is the customer's page, with
+  no shell and only downloads, and is only ever sent to customers. There is no `/view-invoice` without an id: the dashboard's
+  Recent sales and unpaid rows linked `/view-invoice?invoiceId=` and opened "not found" until 2026-09-29; the workshop's invoice
+  links sent staff to the customer's page.
+
+### Invoice PDF
+
+- **One invoice PDF builder**: `src/lib/invoice-pdf.ts` (`saveInvoicePdf`) draws the customer's copy for the invoices list,
+  the invoice screen (`/invoices/<id>`) and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
+  own page ("Piece 2 of 3"); discount, exchange, adjustments and paid are shared pro rata by piece price, the last piece
+  absorbs rounding, payment history is left off the pieces. The split button is `components/shared/print-button.tsx`.
+
+### Exchange rows
+
+- **Exchange gold is one set of rows everywhere** (2026-09-25, owner: "make the exchange gold field uniform and add the
+  ability to add another"): `components/shared/exchange-rows.tsx` in the order form and the cart — what it is, karat, grams,
+  rate/g, value (grams × rate until typed), **Add another exchange**. Stored as `exchanges` on orders and invoices
+  (`lib/exchange.ts`); every write also keeps the old fields as totals (`advanceInExchangeValue`/`Description` on orders,
+  `exchangeAmount1` + `exchangeDescription` on invoices), so balances, analytics, Shopify and the per-piece split read them
+  unchanged. Old documents are read through `orderExchanges` / `invoiceExchanges`. PDFs and the order slip print a line each.
+
+### Order to invoice
+
+- **An order carries everything to its invoice** (2026-09-25, owner: "carry over all details from order to invoice, such
+  as advances, exchange gold"): exchange rows become the invoice's exchange (off its total, like the cart), each cash
+  advance a payment of its own with its date and method (`orderAdvancePayments` in `lib/order-payment.ts`; `Order.advances`
+  is written by Record an advance, `advanceMethod` by the order form), plus discount, taken by, delivery, notes (as the
+  invoice's never-printed `internalNote`), hide-rates, source and item plating. Until then exchange and advances were one
+  lumped "Advance from Order" payment. Re-saving an invoice from the cart keeps `sourceOrderId`, Shopify links and source
+  (`INVOICE_PROVENANCE`). Payments can also be taken in the cart as the invoice is written (`generateInvoice(…, payments)`).
+
+### Advance method
+
+- **An order's advance method is optional, and a refused save is never silent** (2026-09-28, owner: "paid by how? causing
+  issue when not specified"): an order saved without an advance stores `advanceMethod: null` (the edit path clears it that way),
+  and the form's `.optional()` refused null on the next edit — with no message under the field, so Update order simply did
+  nothing. The schema is `.nullish()`, the edit form never seeds a null, the method is written only with an advance and only
+  when one was chosen (the invoice's payment then prints "—" for it), the placeholder says "Not recorded", and `onInvalid` on the
+  order form toasts the first refusing field by name, since its sections fold away.
+
+### Exchange line
+
+- **Exchange is one line** (2026-09-26, owner: "a general exchange without details like just description and cash amount …
+  make it super simple"): each exchange row in the order form and the cart is what it is + the amount; "+ Weight & rate" folds
+  open grams and rate (and karat only where `defaultMetal` is gold). Labels say "Exchange", not "Exchange gold".
+
+### Walk-ins
+
+- **A walk-in sale makes no customer** (2026-09-29; Taheri's book had 17 "Walk-in Customer" records, most left behind when the
+  counter billed first and edited the real name in afterwards). `src/lib/walk-in.ts`, tested: the invoice goes out with **no
+  `customerId`** (like a walk-in order) and "Walk-in Customer" as its name; generateInvoice makes a customer only for a real name
+  (`shouldCreateCustomer`). A typed name or number is still a person and a new customer, **except a number already on file**: then it
+  is that customer (same name or none typed; a number shared by people of different names is left alone), so typing instead of tapping
+  no longer copies anyone. A picked old "Walk-in Customer" is read as a walk-in, so re-saving its invoice lets go of it. Readers:
+  Analytics keys every walk-in (no id, the placeholder name, or an old walk-in record) as one row (`saleCustomerKey`); **Hisaab shows
+  `entityId: 'walk-in'` balances as one "Walk-in Customer" row** (it used to drop them — they only showed because each had a record
+  of its own), its invoices linked; its sync never name-matches the placeholder; the customer picker, voice and both scanners skip
+  placeholder records. Cleanup that day: the 5 records nothing pointed at went to Recently removed; 11 are the customer of the invoice
+  that made them (INV-000021 and INV-000042 still owe 39,000 under them) and one is a voice alias's target, so 12 stay. Mina has 11 too
+  (not touched).
+
+## Money and analytics
+
+### Lac and crore
+
+- **Analytics money reads in lac and crore** (`src/lib/money.ts`: `pkrLac`, `lacCrore`, `axisLac`): exact below 1 lac,
+  then `4.5 lac` / `1.25 crore` to two decimals, chart axes `50k · 2.5L · 1.2Cr`. Grams, tola and counts are untouched.
+
+### Exchange as cash
+
+- **Exchange gold counts as cash** in Analytics' Cash In (owner, 2026-09-25: "count exchange gold as cash only"): every exchange —
+  at the counter, on an open order, on an invoice made from an order, inside an older invoice's lumped "Advance from Order.
+  Cash: X. Exchange: Y" payment — is a Cash In part of its own ("Exchange gold"). Each advance is counted once: on the order
+  while it is open, on the invoice once an order is invoiced (either side's link counts). `src/lib/analytics/cash-in.ts`, tested.
+  **Revenue counts it too** (2026-09-29, owner: "are taheri analytics correct, feeling stale"): an invoice's `grandTotal` is
+  subtotal − discount − exchange, so every revenue figure (Analytics' totals, day chart, months, years, customers, coins; the
+  dashboard's month) counted a part-exchange sale at its cash part and an all-exchange sale at 0 — Taheri's five such sales
+  (1.47M) and 5.29M of exchange in all were missing. They now sum `invoiceSaleValue` (`lib/analytics/sale-value.ts`, tested:
+  grandTotal + the exchange fields; an older invoice whose exchange sits inside a lumped payment has no field and adds nothing).
+  Kept on purpose: an invoiced order still counts on the order's date, and an open order at its full `subtotal`. A rolling
+  range (last 30/90 days, this year) re-anchors when the day turns on a page left open.
+
+## People and sign-in
+
+### Add photos sign-in
+
+- ~~**Add Photos needs no sign-in** under open access — the owner overruled an auth gate on 2026-09-20.~~ Superseded 2026-09-30: every house signs in (below).
+
+### Taheri sign-in
+
+- **Taheri signs in: four owners** (2026-09-30, owner: "taheri being open to all is a bit dangerous, enable taheri on these
+  gmails"): potatomasta501, mmurtaza1970, unknownuser80, hmurtaza55. `NEXT_PUBLIC_OPEN_ACCESS` is "0"; the list is
+  `NEXT_PUBLIC_STORE_OWNER_EMAILS` in apphosting.taheri.yaml, read before `ALLOWED_EMAILS` because Taheri's **console override**
+  pins that one to potatomasta501 + minakhalid00 (dead now; delete it in the console when convenient) — and the same four in
+  **`firestore.rules`**, Taheri's locked rules, which the owner publishes in the Firebase console (this session has no rules
+  permission; never the CLI from here — `.firebaserc` defaults to Mina's project). **Until they are published the database is
+  still open**: on 2026-09-30 an anonymous request with the public key listed Taheri's invoices. Found and closed with it: the ten
+  Shopify routes had no check at all (push orders, delete Shopify customers…) — now `erpUserOrCron` (`lib/erp-gate.ts`; the
+  store's calls send the login, the Shopify callback and the scripts `CRON_SECRET`); and the customer's `/view-invoice/<id>` read
+  Firestore directly, so on Mina (locked) customers' links never opened. Every invoice now carries **`shareToken`**
+  (`lib/share-token.ts`: written with it, kept on edits via `INVOICE_PROVENANCE`, added by the cart's Send when an older one has
+  none); the link is `/view-invoice/<id>?t=<key>` and **`/api/public/invoice/[id]`** serves that one invoice for the key (tested;
+  no shop notes, admin notes or karigars). Links sent before 2026-09-30 have no key: once the rules are published they say to ask
+  the shop again (a signed-in owner still opens them).
+
+### Signed-in defaults
+
+- **The ERP starts on whoever is signed in** (2026-09-30, owner: "taken by defaults to ammar when potatomasta is logged in /
+  workshop filters to ammar / orders filter to ammar"): `NEXT_PUBLIC_STORE_PEOPLE` per house ("email=Name,…"; Taheri:
+  potatomasta501=Ammar, unknownuser80=Mansoor, mmurtaza1970=Murtaza, hmurtaza55=Huzaifa, Mohammad has no account; Mina:
+  potatomasta501=Ammar, minakhalid00=Mina) → `lib/people.ts` (tested; a name must be on the house's `TAKEN_BY`). **Taken by**
+  starts on them for a new order, sale or repair (never an edited one), and the **Orders, Invoices and Workshop** filters start
+  on them (`useMineFilter`: a choice, Anyone included, holds for the visit in sessionStorage). Only a default, always shown —
+  on a device handed across the counter it would otherwise credit everyone's sales to one login. Found with it: editing an
+  invoice in the cart never loaded its Taken by, so a re-save dropped it; it loads now.
+
+## The website and copy
+
+### Customer copy
+
+- Copy: never "Najmi Market" or "Saddar" in anything a customer reads; hours are Sat–Thu 11:00–21:00, **Fri 15:30–20:00**.
+
+### Weight preview
+
+- Photo Weights' preview draws the weight with the overlay tool's geometry (Futura LT Light, 143/3000 of the width, inset 120/3000).
+
+### Shop outage
+
+- **.shop outage 2026-09-24 ~16:18 UTC:** GMO Registry answered NXDOMAIN for every .shop domain (taheri.shop, pos., links.).
+  The POS stayed usable at **https://studio--gemstrack-pos.us-central1.hosted.app** (App Hosting's own address; open access,
+  data loads). Instagram fetches story images from `SOCIAL_MEDIA_ORIGIN` (that address) so posting never depends on .shop.

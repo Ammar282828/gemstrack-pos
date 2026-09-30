@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790809617.4971852,
-    "seen": 1790810323.200564,
-    "ast_hash": "662f98600a4e3f3bd048665023593af7",
+    "mtime": 1790810561.3415828,
+    "seen": 1790810707.049322,
+    "ast_hash": "fc55207770edcd0baf068fa7511a28ef",
     "semantic_hash": ""
   },
   "README.md": {
@@ -4329,6 +4329,96 @@
     "mtime": 1790809882.8211792,
     "seen": 1790810323.2005692,
     "ast_hash": "82e3fcc531faaf415c8409d84587feb7",
+    "semantic_hash": ""
+  },
+  "docs/decisions.md": {
+    "mtime": 1790810561.3401604,
+    "seen": 1790810707.0493314,
+    "ast_hash": "44e222fe3460862d6f416a3ae77a25b4",
+    "semantic_hash": ""
+  },
+  "docs/features/ad-studio.md": {
+    "mtime": 1790810561.3406773,
+    "seen": 1790810707.0493343,
+    "ast_hash": "aa5c665c57233348003e824edc8acbd3",
+    "semantic_hash": ""
+  },
+  "docs/features/ads.md": {
+    "mtime": 1790810561.340631,
+    "seen": 1790810707.0493352,
+    "ast_hash": "aabd7ce3001e565c9ff4c6544a6c8f01",
+    "semantic_hash": ""
+  },
+  "docs/features/ai.md": {
+    "mtime": 1790810561.3403394,
+    "seen": 1790810707.0493364,
+    "ast_hash": "b64afcd9bd5b6adf3d6aec25a887288d",
+    "semantic_hash": ""
+  },
+  "docs/features/edit-a-piece.md": {
+    "mtime": 1790810561.340562,
+    "seen": 1790810707.0493371,
+    "ast_hash": "c1809add8182b385610e19cdc635b127",
+    "semantic_hash": ""
+  },
+  "docs/features/from-the-website.md": {
+    "mtime": 1790810561.3405013,
+    "seen": 1790810707.0493379,
+    "ast_hash": "a519333eeff443ecda91a646890c44df",
+    "semantic_hash": ""
+  },
+  "docs/features/investments.md": {
+    "mtime": 1790810561.340534,
+    "seen": 1790810707.0493388,
+    "ast_hash": "ed1b013ca7a2f4f70d15912bc82629fd",
+    "semantic_hash": ""
+  },
+  "docs/features/links-page.md": {
+    "mtime": 1790810561.34059,
+    "seen": 1790810707.0493395,
+    "ast_hash": "686f1b5d42096422f44004ba1c2b4a3b",
+    "semantic_hash": ""
+  },
+  "docs/features/liquid-glass.md": {
+    "mtime": 1790810561.3402956,
+    "seen": 1790810707.0493405,
+    "ast_hash": "2367a292272b80771d99963b08a043d0",
+    "semantic_hash": ""
+  },
+  "docs/features/mina-catalogue.md": {
+    "mtime": 1790810561.3485017,
+    "seen": 1790810707.0493414,
+    "ast_hash": "7bd4a62dcfb7da43d6c79ca4ae6b1a37",
+    "semantic_hash": ""
+  },
+  "docs/features/notifications.md": {
+    "mtime": 1790810561.3404546,
+    "seen": 1790810707.0493422,
+    "ast_hash": "0d5d4d00ef7a3857e6dd68f13db4104f",
+    "semantic_hash": ""
+  },
+  "docs/features/post-a-piece.md": {
+    "mtime": 1790810561.3403826,
+    "seen": 1790810707.0493703,
+    "ast_hash": "b768594f293f3ab8e1b18c12f0e9ffef",
+    "semantic_hash": ""
+  },
+  "docs/features/site-and-erp.md": {
+    "mtime": 1790810561.340824,
+    "seen": 1790810707.0493724,
+    "ast_hash": "d4c4713856ad002cdf22638cfc2dbb46",
+    "semantic_hash": ""
+  },
+  "docs/features/two-houses.md": {
+    "mtime": 1790810561.341097,
+    "seen": 1790810707.0493739,
+    "ast_hash": "d55626382b448895429374d85e5ea793",
+    "semantic_hash": ""
+  },
+  "docs/in-progress.md": {
+    "mtime": 1790810561.3410017,
+    "seen": 1790810707.049376,
+    "ast_hash": "018dec6c8926495bc95f4eaf97f686be",
     "semantic_hash": ""
   }
 }
