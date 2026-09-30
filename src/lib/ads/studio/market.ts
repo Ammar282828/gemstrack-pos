@@ -78,7 +78,7 @@ const MINA_GAPS: Finding[] = [
   { head: 'The gold look', body: '164 of 209 pieces are 21k gold-plated; the reviews say “looks exactly like real gold”. Rivals lead with white metal and moissanite.' },
   { head: 'Customers’ own words', body: '4.81★ from 138 reviews in a local voice. Rivals’ ads use generic claims.' },
   { head: 'Sets and men’s ruby', body: '62 bangle-and-ring sets and 18 natural ruby rings — ranges nobody leads with.' },
-  { head: 'Fix first', body: 'Free delivery starts at Rs 20,000, above the median piece. The catalogue has no pixel. The TikTok link goes to @houseofmina, a US beauty blog — check it is the house’s. Nothing on Google search, not even the name.' },
+  { head: 'Fix first', body: 'Free delivery starts at Rs 20,000, above the median piece. The catalogue has no pixel. The shop’s footer links TikTok to @houseofmina — someone else’s account; the link page and the catalogue dropped it. Its menu sends every page to six empty Heirloom collections (all 95 pieces are drafts), and 50 rings changed address on 24 September — Google still holds the old ones.' },
 ];
 const MINA_HOUSES: House[] = [
   { name: 'Zanvari', city: 'Karachi, since 1947', line: 'Median Rs 23,250. Lifetime replating, buy-back, 30-day exchange; Google ads “Made to order in Karachi”. Meta, TikTok and Google tags.', url: 'https://zanvari.com' },
