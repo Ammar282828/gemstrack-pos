@@ -37,6 +37,15 @@ const nextConfig: NextConfig = {
       { source: '/billing', destination: '/invoices', permanent: false },
     ];
   },
+  // A browser, bookmark or preview asking for the root icons gets this house's
+  // (public/icons/<brand>/, scripts/make-icons.mjs); the page itself links them too.
+  async rewrites() {
+    const dir = `/icons/${process.env.NEXT_PUBLIC_STORE_BRAND === 'mina' ? 'mina' : 'taheri'}`;
+    return [
+      { source: '/favicon.ico', destination: `${dir}/favicon.ico` },
+      { source: '/apple-touch-icon.png', destination: `${dir}/apple-touch-icon.png` },
+    ];
+  },
   webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,

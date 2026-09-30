@@ -151,6 +151,14 @@ back to Green API otherwise; Green API stays configured until the owner cancels 
   **WhatsApp alerts name their POS** (`lib/notify-label.ts`, owner 2026-09-26: "I get both"): every alert to the owner —
   live ones through `/api/notifications/send`, the scheduled reports, a website order to the shop — starts `*Taheri POS* · …`,
   or Mina's `NEXT_PUBLIC_STORE_NOTIFY_LABEL` ("House of Mina POS"). Messages to customers and the gold updates are not labelled.
+- **Each ERP has its own icons** (2026-09-30, owner: "update favicons for each pos"; both showed the project template's
+  orange flame, `src/app/favicon.ico`). `scripts/make-icons.mjs` writes `public/icons/<brand>/` — favicon.ico (16/32/48),
+  icon-192/512, apple-touch-icon, maskable-512: Taheri's t (`public/brand/taheri-t.svg`) in white on #0A1111, Mina's
+  interlocking monogram (the catalogue's icon, `public/brand/mina-monogram*.png`) in maroon #3A0000 on cream #FAF7F2. The
+  layout links them by `STORE_ICONS` (store-config), `next.config.ts` rewrites `/favicon.ico` and `/apple-touch-icon.png` to
+  them, and `src/app/manifest.ts` is the installed app ("Taheri ERP" / "House of Mina ERP", `POS_LABEL`) — the old
+  `public/manifest.json` was linked from nowhere and pointed at icons that didn't exist. `env-for-house.mjs` now quotes
+  values: unquoted, dotenv read `#1C1114` as a comment, so every colour variable was empty locally.
 - A `secret:` in the base must exist in **both** projects; one in a house file only in that project.
 
 **Shipping a change to both houses:**
