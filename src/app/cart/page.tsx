@@ -17,6 +17,8 @@ import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config'
 import { doc as fsDoc, setDoc as fsSetDoc } from 'firebase/firestore';
 import { db as fsDb } from '@/lib/firebase';
 import { invoiceShareUrl, newShareToken } from '@/lib/share-token';
+import { INPUT_TO_RATE, ratesToKeep, type RateInputKey } from '@/lib/rates';
+import { RateStaleNotice } from '@/components/rates/rate-chip';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -157,6 +159,11 @@ export default function CartPage() {
   const [rateInputs, setRateInputs] = useState<RateInputs>({
     gold18k: '', gold21k: '', gold22k: '', gold24k: '', palladium: '', palladium18k: '', palladium12k: '', platinum: '', silver: ''
   });
+  // Where each box's figure came from (lib/rates.ts). Typed by hand: the only rates a new invoice
+  // writes back to the shop's. Held (typed, or read off a scanned bill): no longer follows Settings.
+  // Everything else tracks the shop's live rates.
+  const [typedRates, setTypedRates] = useState<ReadonlySet<RateInputKey>>(() => new Set());
+  const [heldRates, setHeldRates] = useState<ReadonlySet<RateInputKey>>(() => new Set());
   
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
 
@@ -260,7 +267,12 @@ export default function CartPage() {
     setScannedBillTotal(bill.writtenTotal);
     // The paper's own rate and discount, so its lines come to its figures (vision/bill-draft.ts, billRates).
     const rates = Object.entries(bill.rates).filter(([k]) => k in rateInputs) as [keyof RateInputs, number][];
-    if (rates.length) setRateInputs(prev => ({ ...prev, ...Object.fromEntries(rates.map(([k, v]) => [k, v.toFixed(2)])) }));
+    if (rates.length) {
+      setRateInputs(prev => ({ ...prev, ...Object.fromEntries(rates.map(([k, v]) => [k, v.toFixed(2)])) }));
+      // The paper's rate prices this bill; it is never the shop's rate for tomorrow.
+      setHeldRates(prev => new Set([...prev, ...rates.map(([k]) => k)]));
+      setTypedRates(prev => new Set([...prev].filter(k => !rates.some(([r]) => r === k))));
+    }
     if (bill.discount && !(parseFloat(discountAmountInput) > 0)) setDiscountAmountInput(String(bill.discount));
     // What the paper says was paid goes into the payment rows, unless some are typed already.
     const paidOnBill = bill.amountPaid && bill.amountPaid > 0 ? bill.amountPaid : null;
@@ -331,8 +343,10 @@ export default function CartPage() {
   useEffect(() => {
     // Only sync rates from settings when NOT editing an existing estimate.
     // When editing, rates are loaded from the invoice by handleEditEstimate.
+    // A box typed here or read off a scanned bill keeps its figure: this runs on every settings
+    // change (another device's invoice moves lastInvoiceNumber), and used to wipe a rate typed mid-sale.
     if (appReady && settings && !isEditingEstimate) {
-      setRateInputs({
+      const fromSettings: RateInputs = {
         gold18k: (settings.goldRatePerGram18k || 0).toFixed(2),
         gold21k: (settings.goldRatePerGram21k || 0).toFixed(2),
         gold22k: (settings.goldRatePerGram22k || 0).toFixed(2),
@@ -342,9 +356,14 @@ export default function CartPage() {
         palladium12k: (settings.palladiumRatePerGram12k || 0).toFixed(2),
         platinum: (settings.platinumRatePerGram || 0).toFixed(2),
         silver: (settings.silverRatePerGram || 0).toFixed(2),
+      };
+      setRateInputs(prev => {
+        const next = { ...fromSettings };
+        for (const k of heldRates) next[k] = prev[k];
+        return next;
       });
     }
-  }, [appReady, settings, isEditingEstimate]);
+  }, [appReady, settings, isEditingEstimate, heldRates]);
   
   const cartMetalInfo = useMemo(() => {
     const metals = new Set<MetalType>();
@@ -363,6 +382,8 @@ export default function CartPage() {
 
   const handleRateChange = (metal: keyof RateInputs, value: string) => {
     setRateInputs(prev => ({ ...prev, [metal]: value }));
+    setTypedRates(prev => (prev.has(metal) ? prev : new Set([...prev, metal])));
+    setHeldRates(prev => (prev.has(metal) ? prev : new Set([...prev, metal])));
   };
 
   
@@ -629,6 +650,9 @@ export default function CartPage() {
 
     const exchanges = exchangesFromRows(exchangeRows);
 
+    // Decided before the save: the edit flags are cleared once it succeeds.
+    const keptRates = ratesToKeep({ isNew: !isEditingEstimate, typed: typedRates, inputs: rateInputs, metals: cartMetalInfo.metals, current: settings });
+
     setIsGeneratingEstimate(true);
     let invoice;
     try {
@@ -647,22 +671,21 @@ export default function CartPage() {
       setIsGeneratingEstimate(false);
     }
 
-    // Keep the rates for next time — after the invoice, not before it.
-    //
-    // This used to be awaited first, which put a whole round-trip between the click and
-    // anything happening, for a write nobody was waiting on: updateSettings merges into
-    // local state immediately, so the screen is already right, and the invoice is priced
-    // from ratesForInvoice in hand rather than from what is stored. It also writes the
-    // same settings document the invoice transaction touches, so running the two at once
-    // would trade the delay for a retry. After is both faster and safer.
-    void updateSettings(ratesForInvoice).catch((err) => {
-      console.error('[Cart handleGenerateInvoice] rates not persisted:', err);
-      toast({
-        title: "Rates not saved",
-        description: "The invoice is saved. The new rates were not kept for next time — set them in Settings.",
-        variant: "destructive",
+    // A rate typed by hand on a NEW invoice becomes the shop's rate — after the invoice, not
+    // before it (the invoice is priced from ratesForInvoice in hand, and both write the settings
+    // document). Never an edit's rates (the invoice's own, from the day it was written) and never
+    // a scanned bill's (the paper's): re-saving a July invoice used to make July's rate today's.
+    if (invoice && keptRates) {
+      void updateSettings(keptRates, { source: `the cart (${invoice.id})` }).catch((err) => {
+        console.error('[Cart handleGenerateInvoice] rates not persisted:', err);
+        toast({
+          title: "Rate not saved",
+          description: "The invoice is saved. The rate you typed was not kept for next time — set it from the rate at the top.",
+          variant: "destructive",
+        });
       });
-    });
+    }
+    if (invoice) { setTypedRates(new Set()); setHeldRates(new Set()); }
 
     if (invoice) {
       setGeneratedInvoice(invoice);
@@ -685,6 +708,7 @@ export default function CartPage() {
 
   const handleCancelEdit = () => {
     clearCart();
+    setTypedRates(new Set()); setHeldRates(new Set());
     setIsEditingEstimate(false);
     isEditingEstimateRef.current = false;
     setEditingInvoiceId(undefined);
@@ -713,6 +737,9 @@ export default function CartPage() {
     if (generatedInvoice.customerContact) {
         setWalkInCustomerPhone(generatedInvoice.customerContact);
     }
+    // The invoice's own rates: held (they must not follow Settings) and never typed (never saved back).
+    setTypedRates(new Set());
+    setHeldRates(new Set(Object.keys(INPUT_TO_RATE) as RateInputKey[]));
     setRateInputs({
         gold18k: (generatedInvoice.ratesApplied.goldRatePerGram18k || settings.goldRatePerGram18k || 0).toFixed(2),
         gold21k: (generatedInvoice.ratesApplied.goldRatePerGram21k || settings.goldRatePerGram21k || 0).toFixed(2),
@@ -1545,6 +1572,8 @@ export default function CartPage() {
                         <CardTitle className="text-base">Pricing</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
+                        {/* The shop's rate not set today: say so, never block the sale. */}
+                        <RateStaleNotice />
                         {/* Only the rates this bill actually uses. A silver-only
                             bill prices per piece and has none. */}
                         {(cartMetalInfo.karats.size > 0 || cartMetalInfo.metals.has('palladium')) && (

@@ -22,6 +22,7 @@ import {
   DrawerDescription,
 } from "@/components/ui/drawer"
 import { Button } from '@/components/ui/button';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 
 type CalendarEventType = (Invoice | Order) & { eventType: 'invoice' | 'order' };
 
@@ -112,7 +113,8 @@ export default function CalendarPage() {
         eventsMap[dateKey] = { invoices: 0, orders: 0, total: 0, events: [] };
       }
       eventsMap[dateKey].invoices++;
-      if (invoice.status !== 'Refunded') eventsMap[dateKey].total += invoice.grandTotal || 0;
+      // The sale's value, part-exchange included — as Analytics and the dashboard count it.
+      if (invoice.status !== 'Refunded') eventsMap[dateKey].total += invoiceSaleValue(invoice);
       eventsMap[dateKey].events.push({ ...invoice, eventType: 'invoice' });
     });
 

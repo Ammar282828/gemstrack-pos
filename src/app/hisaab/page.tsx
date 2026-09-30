@@ -6,6 +6,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import { useAppStore, Customer, Karigar, Invoice } from '@/lib/store';
+import { STORE_METAL_WORD } from '@/lib/store-config';
 import { useAppReady } from '@/hooks/use-store';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BookUser, ArrowRight, User, Briefcase, ArrowDown, ArrowUp, Search, PlusCircle, FileText, Loader2 } from 'lucide-react';
@@ -297,7 +298,7 @@ export default function HisaabPage() {
     doc.setFontSize(10);
     doc.text(`As of: ${format(new Date(), 'PPpp')}`, 14, 29);
 
-    const tableColumns = ["#", "Name", "Type", "Cash Balance (PKR)", "Gold Balance (g)"];
+    const tableColumns = ["#", "Name", "Type", "Cash Balance (PKR)", `${STORE_METAL_WORD} Balance (g)`];
     const tableRows = filteredSummaries.map((summary, index) => {
         const cashBalanceText = summary.cashBalance > 0 
             ? `${summary.cashBalance.toLocaleString()} (Receivable)` 
@@ -367,7 +368,7 @@ export default function HisaabPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-success">PKR {totalReceivable.toLocaleString()}</p>
-            {totalReceivableGold > 0 && <p className="text-sm font-semibold text-success/90">{totalReceivableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g Gold</p>}
+            {totalReceivableGold > 0 && <p className="text-sm font-semibold text-success/90">{totalReceivableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g {STORE_METAL_WORD}</p>}
           </CardContent>
         </Card>
         <Card className="bg-destructive/10 border-destructive/20">
@@ -379,7 +380,7 @@ export default function HisaabPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-destructive">PKR {totalPayable.toLocaleString()}</p>
-            {totalPayableGold > 0 && <p className="text-sm font-semibold text-destructive/80">{totalPayableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g Gold</p>}
+            {totalPayableGold > 0 && <p className="text-sm font-semibold text-destructive/80">{totalPayableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g {STORE_METAL_WORD}</p>}
           </CardContent>
         </Card>
       </div>

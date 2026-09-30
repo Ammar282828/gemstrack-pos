@@ -44,6 +44,15 @@ export default function OverheadsPage() {
   const updateSettings = useAppStore(s => s.updateSettings);
   const invoices = useAppStore(s => s.generatedInvoices);
   const orders = useAppStore(s => s.orders);
+  const loadGeneratedInvoices = useAppStore(s => s.loadGeneratedInvoices);
+  const loadOrders = useAppStore(s => s.loadOrders);
+  // Only settings and pieces load for every page (main-app.tsx), so opened fresh this page showed
+  // 0 earned. Load the sales the way Analytics does.
+  React.useEffect(() => {
+    if (!appReady) return;
+    loadGeneratedInvoices();
+    loadOrders();
+  }, [appReady, loadGeneratedInvoices, loadOrders]);
 
   // One clock for the whole screen, so the month boundary and the days-left
   // figure cannot disagree with each other part-way down.

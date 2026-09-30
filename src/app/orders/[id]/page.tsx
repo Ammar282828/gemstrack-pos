@@ -919,16 +919,16 @@ export default function OrderDetailPage() {
       <AlertDialog open={isRevertDialogOpen} onOpenChange={setIsRevertDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Revert & Cancel Invoice?</AlertDialogTitle>
+            <AlertDialogTitle>Cancel invoice {order?.invoiceId}?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently cancel invoice <strong>{order?.invoiceId}</strong> and revert this order back to &ldquo;In Progress&rdquo; so it can be edited and re-finalized. Any hisaab entries linked to the invoice will also be removed. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isReverting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isReverting}>Keep it</AlertDialogCancel>
             <AlertDialogAction onClick={handleRevert} disabled={isReverting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {isReverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
-              Yes, Revert Order
+              Cancel invoice
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1127,9 +1127,16 @@ export default function OrderDetailPage() {
                             <span className="text-muted-foreground">The order is locked; to change it, revert the invoice first.</span>
                           </p>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => setIsRevertAndEditDialogOpen(true)}>
-                          <Edit className="mr-2 h-4 w-4" /> Unlock &amp; edit
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          {/* Revert without editing: the invoice goes, the order is open again. The dialog
+                              was here with nothing to open it (audit, 2026-10-01). */}
+                          <Button variant="outline" size="sm" onClick={() => setIsRevertDialogOpen(true)} className="text-destructive hover:text-destructive">
+                            <RotateCcw className="mr-2 h-4 w-4" /> Cancel invoice
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setIsRevertAndEditDialogOpen(true)}>
+                            <Edit className="mr-2 h-4 w-4" /> Unlock &amp; edit
+                          </Button>
+                        </div>
                       </div>
 
                       <div>

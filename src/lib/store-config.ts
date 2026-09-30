@@ -24,6 +24,10 @@ export const STORE_CONFIG = {
   // App / branding
   name:            process.env.NEXT_PUBLIC_STORE_NAME            ?? 'TAHERI',
 
+  // The shop's street address, for Settings → Restore shop defaults. Blank where the house keeps
+  // its own in Settings (Taheri's copy never names the market); Mina's is in apphosting.mina.yaml.
+  address:         process.env.NEXT_PUBLIC_STORE_ADDRESS          ?? '',
+
   // PDF footer — contacts (all optional, leave blank to omit)
   contact1Name:    process.env.NEXT_PUBLIC_STORE_CONTACT1_NAME   ?? '',
   contact1Number:  process.env.NEXT_PUBLIC_STORE_CONTACT1_NUMBER ?? '',
@@ -155,6 +159,10 @@ export const storeLinksUrl = (): string =>
  * its aspect and the counter's names follow below. Defaults are Taheri's.
  */
 export const STORE_BRAND = (process.env.NEXT_PUBLIC_STORE_BRAND ?? 'taheri') as 'taheri' | 'mina';
+
+/** The house's own metal as a word, for the columns and labels that track it (Hisaab's metal
+ *  balance, the rate form): "Silver" in a silver house, which Hisaab used to label "Gold". */
+export const STORE_METAL_WORD = STORE_CONFIG.defaultMetal === 'silver' ? 'Silver' : 'Gold';
 export const STORE_THEME_COLOR = process.env.NEXT_PUBLIC_STORE_THEME_COLOR ?? '#0A1111';
 
 /**
@@ -227,11 +235,15 @@ export const STORE_PARTNERSHIP = process.env.NEXT_PUBLIC_STORE_PARTNERSHIP === '
  * taheri.shop prices pieces by weight at the day's gold rate, so the counter
  * enters weights (Photo Weights) and picks a set of the day. House of Mina's
  * catalogue sells at fixed prices copied from its Shopify store and has
- * neither, so its Website menu is Add Photos alone. Both default on (Taheri);
+ * neither (its Website menu is Add Photos and Edit a piece). Both default on (Taheri);
  * a house sets "0" to turn one off.
  */
 export const STORE_WEBSITE_WEIGHTS = process.env.NEXT_PUBLIC_STORE_WEBSITE_WEIGHTS !== '0';
 export const STORE_WEBSITE_FEATURED = process.env.NEXT_PUBLIC_STORE_WEBSITE_FEATURED !== '0';
+/** The website takes orders priced live at today's rate (/api/public/quote, checkout): taheri.shop.
+ *  House of Mina's catalogue sells through Shopify and sets "0", which hides Settings' website
+ *  selling card (it read "Selling on taheri.shop" in Mina's ERP). */
+export const STORE_WEBSITE_SELLING = process.env.NEXT_PUBLIC_STORE_WEBSITE_SELLING !== '0';
 
 /**
  * Website → Edit a piece: a piece already on this house's website, changed from

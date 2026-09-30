@@ -15,6 +15,7 @@
 import {
   startOfMonth, endOfMonth, isWithinInterval, parseISO, format, addMonths, isValid,
 } from 'date-fns';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 
 export interface OverheadItem {
   /** Stable across edits so a row can be changed without being replaced. */
@@ -128,9 +129,8 @@ export function overheadProgress(target: number, earned: number, now: Date): Ove
 type InvoiceLike = {
   createdAt?: string;
   sourceOrderId?: string;
-  grandTotal?: number;
   status?: string;
-};
+} & NonNullable<Parameters<typeof invoiceSaleValue>[0]>;
 type OrderLike = {
   id: string;
   createdAt?: string;
@@ -164,8 +164,11 @@ export function revenueByMonth(
     const d = parseISO(dated);
     if (!isValid(d)) continue;
     const b = bucket(monthKey(d));
-    b.invoiced += inv.grandTotal || 0;
-    b.total += inv.grandTotal || 0;
+    // The sale's value with its exchange added back, as Analytics counts it (analytics/sale-value.ts):
+    // grandTotal alone counted a part-exchange sale at its cash part.
+    const value = invoiceSaleValue(inv);
+    b.invoiced += value;
+    b.total += value;
   }
 
   for (const o of orders || []) {

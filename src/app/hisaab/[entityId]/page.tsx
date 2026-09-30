@@ -6,6 +6,7 @@ import React, { useMemo, useState } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { whatsAppLink } from '@/lib/whatsapp';
 import { useAppStore, HisaabEntry, Customer, Karigar, Settings } from '@/lib/store';
+import { STORE_METAL_WORD } from '@/lib/store-config';
 import { useAppReady } from '@/hooks/use-store';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, Control } from 'react-hook-form';
@@ -55,7 +56,7 @@ declare module 'jspdf' {
 const hisaabEntrySchema = z.object({
   description: z.string().min(1, "Description is required"),
   amount: z.coerce.number().min(0, "Amount must be non-negative").default(0),
-  goldGrams: z.coerce.number().min(0, "Gold must be non-negative").default(0),
+  goldGrams: z.coerce.number().min(0, `${STORE_METAL_WORD} must be non-negative`).default(0),
 }).superRefine((data, ctx) => {
   if (data.amount === 0 && data.goldGrams === 0) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Enter a cash amount or gold grams — both cannot be zero.", path: ['amount'] });
@@ -111,14 +112,14 @@ const AddTransactionDialog: React.FC<{
                         )}/>
                         <FormField control={form.control} name={primaryField} render={({ field }) => (
                             <FormItem>
-                                <FormLabel>{isKarigar ? 'Gold (grams)' : 'Cash Amount (PKR)'}</FormLabel>
+                                <FormLabel>{isKarigar ? `${STORE_METAL_WORD} (grams)` : 'Cash Amount (PKR)'}</FormLabel>
                                 <FormControl><AmountInput step={isKarigar ? "0.001" : "0.01"} {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}/>
                          <FormField control={form.control} name={secondaryField} render={({ field }) => (
                             <FormItem>
-                                <FormLabel>{isKarigar ? 'Cash Amount (PKR)' : 'Gold (grams)'}</FormLabel>
+                                <FormLabel>{isKarigar ? 'Cash Amount (PKR)' : `${STORE_METAL_WORD} (grams)`}</FormLabel>
                                 <FormControl><AmountInput step={isKarigar ? "0.01" : "0.001"} {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -292,11 +293,11 @@ export default function EntityHisaabPage() {
     const goldBalanceText = balances.finalGoldBalance > 0
         ? `Receivable: ${balances.finalGoldBalance.toLocaleString(undefined, {minimumFractionDigits: 3})}g`
         : `Payable: ${Math.abs(balances.finalGoldBalance).toLocaleString(undefined, {minimumFractionDigits: 3})}g`;
-    doc.text(`Gold: ${goldBalanceText}`, margin, summaryY);
+    doc.text(`${STORE_METAL_WORD}: ${goldBalanceText}`, margin, summaryY);
     
     // Table — sorted oldest-first for the printed statement
     const tableStartY = summaryY + 15;
-    const tableColumns = ["Date", "Description", "Debit (Dr)", "Credit (Cr)", "Gold Out (g)", "Gold In (g)"];
+    const tableColumns = ["Date", "Description", "Debit (Dr)", "Credit (Cr)", `${STORE_METAL_WORD} Out (g)`, `${STORE_METAL_WORD} In (g)`];
     const pdfEntries = [...entityHisaab].reverse(); // ascending date order for statement
     const tableRows = pdfEntries.map(entry => [
         format(parseISO(entry.date), 'dd-MMM-yy'),
@@ -476,7 +477,7 @@ export default function EntityHisaabPage() {
                                     <TableHead className="text-right">Given</TableHead>
                                     <TableHead className="text-right">Received</TableHead>
                                     {entityHisaab.some(e => e.goldDebitGrams > 0 || e.goldCreditGrams > 0) && (
-                                      <TableHead className="text-right">Gold Balance</TableHead>
+                                      <TableHead className="text-right">{STORE_METAL_WORD} Balance</TableHead>
                                     )}
                                     <TableHead className="text-right">Cash Balance</TableHead>
                                     <TableHead className="w-10"></TableHead>

@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
-import { useAppStore, AdditionalRevenue } from '@/lib/store';
+import { useAppStore, AdditionalRevenue, RepairRevenueError } from '@/lib/store';
 import { useAppReady } from '@/hooks/use-store';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,7 +22,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, PlusCircle, Edit, Trash2, Loader2, Save, Ban, Calendar, DollarSign, TrendingUp } from 'lucide-react';
+import { Search, PlusCircle, Edit, Trash2, Loader2, Save, Ban, Calendar, DollarSign, TrendingUp, Wrench } from 'lucide-react';
+import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import type { DateRange } from 'react-day-picker';
@@ -147,6 +148,15 @@ function RevenueForm({
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
+/** A repair's money is changed on the repair (its ticket opens from here), never deleted as a loose row. */
+function RepairLink({ repairId }: { repairId: string }) {
+  return (
+    <Button asChild variant="ghost" size="sm" title="This money was taken on a repair ticket — change it there">
+      <Link href={`/repairs?id=${encodeURIComponent(repairId)}`}><Wrench className="h-4 w-4 mr-1" /> Change this on the repair</Link>
+    </Button>
+  );
+}
+
 export default function AdditionalRevenuePage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -166,6 +176,10 @@ export default function AdditionalRevenuePage() {
       await deleteAdditionalRevenue(id);
       toast({ title: 'Deleted', description: 'Revenue entry deleted.' });
     } catch (err) {
+      if (err instanceof RepairRevenueError) {
+        toast({ title: 'Change this on the repair', description: 'This money was taken on a repair ticket; deleting it here would leave the ticket showing paid.' });
+        return;
+      }
       console.error('Failed to delete revenue entry:', err);
       toast({ title: 'Delete Failed', description: 'Could not delete the entry. Please try again.', variant: 'destructive' });
     }
@@ -282,6 +296,7 @@ export default function AdditionalRevenuePage() {
                     <p className="font-bold text-primary flex-shrink-0">PKR {r.amount.toLocaleString()}</p>
                   </div>
                   <div className="flex justify-end gap-1 mt-3 border-t pt-2">
+                    {r.repairId ? <RepairLink repairId={r.repairId} /> : <>
                     <Button variant="ghost" size="sm" onClick={() => handleEdit(r)}>
                       <Edit className="h-4 w-4 mr-1" /> Edit
                     </Button>
@@ -304,6 +319,7 @@ export default function AdditionalRevenuePage() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                    </>}
                   </div>
                 </CardContent>
               </Card>
@@ -327,6 +343,7 @@ export default function AdditionalRevenuePage() {
                     <TableCell>{r.description}</TableCell>
                     <TableCell className="text-right font-medium">{r.amount.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
+                      {r.repairId ? <RepairLink repairId={r.repairId} /> : <>
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(r)}>
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -349,6 +366,7 @@ export default function AdditionalRevenuePage() {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+                      </>}
                     </TableCell>
                   </TableRow>
                 ))}

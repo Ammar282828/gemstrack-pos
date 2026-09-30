@@ -596,6 +596,17 @@ html.ui-glass .glass-ctl {
   color: hsl(var(--foreground));
 }
 html.ui-glass .glass-ctl:hover { background-color: hsl(var(--popover) / calc(var(--glass-a) + 0.2)); }
+/* The rate chip is a control on the same layer: a glass capsule, sized by its words (lib/rates.ts). */
+html.ui-glass .rate-chip {
+  height: 2.25rem;
+  padding-inline: 0.875rem;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+}
+html.ui-glass .rate-chip:not([data-stale]) {
+  background-color: hsl(var(--popover) / var(--glass-a));
+  border-color: transparent;
+}
 /* The page's tabs: one group sharing a background, the chosen one filled — the
    toolbar grouping Apple describes, with concentric inner pills. */
 html.ui-glass .app-tabs {

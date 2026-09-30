@@ -27,6 +27,7 @@ import { useScrolled } from '@/lib/use-scrolled';
 import { roleForEmail } from '@/lib/roles';
 import { devRole, captureDevRole } from '@/lib/dev-role';
 import { writeDeviceTheme } from '@/lib/theme-cache';
+import { RateChip, RateSheet } from '@/components/rates/rate-chip';
 
 /** A page that shares a sidebar entry with its siblings, shown as a tab in the top bar. */
 interface NavTab {
@@ -289,6 +290,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // The glass top bar's scroll edge shows only once content passes beneath it. Above the early
+  // return below: a hook after it changes the hook count the render the store hydrates.
+  const scrolled = useScrolled('.app-inset > main');
+
   if (!isStoreHydrated) return null;
 
   // Staff see only what they can actually reach. This is presentation, not
@@ -308,8 +313,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const current = [...visibleGroups.flatMap(g => g.items), ...(settingsEntry ? [settingsEntry] : [])]
     .find(i => i.tabs?.some(t => t.href === pathname));
   const pageTabs = current?.tabs && current.tabs.length > 1 ? current.tabs : null;
-  // The glass top bar's scroll edge shows only once content passes beneath it.
-  const scrolled = useScrolled('.app-inset > main');
 
   const logoToUse = STORE_LOGO_URL;
 
@@ -319,6 +322,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <CommandPalette />
         {/* The microphone floats over every screen. */}
         <VoiceBubble />
+        {/* The rate form, opened by the top bar's chip (or openRateSheet()). */}
+        <RateSheet />
         <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
           <SidebarHeader className="p-4 pb-3">
             <Link href="/" className="flex items-center justify-start text-primary h-[26px]">
@@ -487,7 +492,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 })}
               </nav>
             )}
-            <div className="ml-auto -mr-1 flex items-center">
+            <div className="ml-auto -mr-1 flex shrink-0 items-center">
+            {/* The shop's rate and when it was set, on every page. */}
+            <RateChip />
             <ThemeToggle />
             {/* On a phone the sidebar is behind a tap; search is one tap from here. */}
             <button

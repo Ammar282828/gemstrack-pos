@@ -48,7 +48,11 @@ export async function POST(req: NextRequest) {
   return json(req, {
     selling,
     currency: config.currency,
-    ratesAt: new Date().toISOString(),
+    // When the shop last set its rate (not the moment of asking, which it used to say — a quote
+    // struck at last week's rate read as today's). Before any rate is stamped, the moment of
+    // asking, as before, so the site never shows an empty date; `ratesUpdatedAt` is the plain fact.
+    ratesAt: rates.updatedAt ?? new Date().toISOString(),
+    ratesUpdatedAt: rates.updatedAt,
     deliveryCharge: config.deliveryCharge,
     freeDeliveryOver: config.freeDeliveryOver ?? null,
     quotes,

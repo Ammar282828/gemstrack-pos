@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { readDeviceTheme, writeDeviceTheme, DEVICE_THEME_EVENT } from '@/lib/theme-cache';
 import { ListSkeleton } from '@/components/shared/skeletons';
-import { STORE_CONFIG } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_BRAND, STORE_WEBSITE_SELLING } from '@/lib/store-config';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
@@ -38,19 +38,12 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useWorkDrafts } from '@/components/drafts/use-work-drafts';
 import { REPORT_TOGGLE, reportWhen, type ReportTask } from '@/lib/notifications/schedule';
+import { RatesForm } from '@/components/rates/rate-chip';
+import { authedFetch } from '@/lib/voice/authed-fetch';
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
 const settingsSchema = z.object({
-  goldRatePerGram24k: z.coerce.number().min(0, "Rate must be a positive number"),
-  goldRatePerGram22k: z.coerce.number().min(0, "Rate must be a positive number"),
-  goldRatePerGram21k: z.coerce.number().min(0, "Rate must be a positive number"),
-  goldRatePerGram18k: z.coerce.number().min(0, "Rate must be a positive number"),
-  palladiumRatePerGram: z.coerce.number().min(0, "Palladium rate must be a positive number"),
-  palladiumRatePerGram18k: z.coerce.number().min(0, "Rate must be a positive number").default(0),
-  palladiumRatePerGram12k: z.coerce.number().min(0, "Rate must be a positive number").default(0),
-  platinumRatePerGram: z.coerce.number().min(0, "Platinum rate must be a positive number"),
-  silverRatePerGram: z.coerce.number().min(0, "Silver rate must be a positive number"),
   shopName: z.string().min(1, "Shop name is required"),
   shopAddress: z.string().optional(),
   shopContact: z.string().optional(),
@@ -80,10 +73,6 @@ const SECTIONS = [
 const FIELD_TAB: Partial<Record<keyof SettingsFormData, string>> = {
   shopName: 'shop', shopAddress: 'shop', shopContact: 'shop', theme: 'shop', uiStyle: 'shop',
   lastInvoiceNumber: 'shop', lastOrderNumber: 'shop',
-  goldRatePerGram24k: 'rates', goldRatePerGram22k: 'rates',
-  goldRatePerGram21k: 'rates', goldRatePerGram18k: 'rates',
-  silverRatePerGram: 'rates', platinumRatePerGram: 'rates', palladiumRatePerGram: 'rates',
-  palladiumRatePerGram18k: 'rates', palladiumRatePerGram12k: 'rates',
 };
 
 const EmergencyLock: React.FC = () => {
@@ -544,70 +533,70 @@ function DraftsRow() {
 
 const REQUIRED_SHOPIFY_SCOPES = 'read_orders,write_orders,read_customers,write_customers,read_products,write_products,read_draft_orders,write_draft_orders';
 
+type ShopifyStatus = {
+  configured: boolean; shop?: string; connected?: boolean; shopName?: string | null; error?: string;
+  scopes?: string[]; webhooksHere?: number; webhooksTotal?: number; lastSyncedAt?: string | null;
+};
+
+/**
+ * The house's Shopify store, as the store itself reports it (/api/shopify/status). Only where
+ * SHOPIFY_STORE_DOMAIN is set (House of Mina): it was hardcoded to Mina's store and always said
+ * "Connected", on Taheri too.
+ */
 const ShopifyCard: React.FC = () => {
-  const { settings } = useAppStore();
-  const { toast } = useToast();
+  const [status, setStatus] = useState<ShopifyStatus | null>(null);
+  useEffect(() => {
+    let live = true;
+    authedFetch('/api/shopify/status').then(r => (r.ok ? r.json() : null)).then(d => { if (live) setStatus(d); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  if (!status?.configured) return null;
 
-  const grantedScopes = (settings.shopifyGrantedScopes || '').split(',').filter(Boolean);
-  const requiredScopes = REQUIRED_SHOPIFY_SCOPES.split(',');
+  const granted = status.scopes ?? [];
   // write_X implies read_X, and read_all_orders covers read_orders
-  const hasScope = (required: string) => {
-    if (grantedScopes.includes(required)) return true;
-    // write implies read (e.g. write_customers covers read_customers)
-    if (required.startsWith('read_')) {
-      const writeVersion = required.replace('read_', 'write_');
-      if (grantedScopes.includes(writeVersion)) return true;
-      // read_all_orders covers read_orders
-      const allVersion = required.replace('read_', 'read_all_');
-      if (grantedScopes.includes(allVersion)) return true;
-    }
-    return false;
-  };
-  const missingScopes = requiredScopes.filter(s => !hasScope(s));
-  const needsReauth = missingScopes.length > 0 && grantedScopes.length > 0;
-
-  const handleReauth = () => {
-    window.location.href = '/api/shopify/auth?shop=af894b-7f.myshopify.com';
-  };
+  const hasScope = (required: string) => granted.includes(required)
+    || (required.startsWith('read_') && (granted.includes(required.replace('read_', 'write_')) || granted.includes(required.replace('read_', 'read_all_'))));
+  const missingScopes = REQUIRED_SHOPIFY_SCOPES.split(',').filter(s => !hasScope(s));
+  const needsReauth = !!status.connected && granted.length > 0 && missingScopes.length > 0;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-xl flex items-center"><ShoppingBag className="mr-2 h-5 w-5" /> Shopify Integration</CardTitle>
-        <CardDescription>Connected store — credentials are hardcoded in environment variables.</CardDescription>
+        <CardTitle className="text-xl flex items-center"><ShoppingBag className="mr-2 h-5 w-5" /> Shopify</CardTitle>
+        <CardDescription>{status.shopName ? `${status.shopName} · ` : ''}<span className="font-mono text-xs">{status.shop}</span></CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-2 text-sm text-success font-medium">
-          <CheckCircle2 className="h-4 w-4" />
-          Connected · real-time webhooks active
-        </div>
+        {status.connected ? (
+          <div className="flex items-center gap-2 text-sm text-success font-medium">
+            <CheckCircle2 className="h-4 w-4" />
+            Connected · {status.webhooksHere ?? 0} webhook{status.webhooksHere === 1 ? '' : 's'} to this ERP
+          </div>
+        ) : (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Shopify is not answering</AlertTitle>
+            <AlertDescription className="text-sm">{status.error || 'The store did not accept the access token.'}</AlertDescription>
+          </Alert>
+        )}
+        {status.connected && !status.webhooksHere && (
+          <p className="text-sm text-warning">No webhooks point at this ERP, so new Shopify orders won&apos;t arrive by themselves. Re-register them from the pull panel below.</p>
+        )}
         {needsReauth && (
           <Alert variant="destructive" className="border-warning bg-warning/10 text-warning [&>svg]:text-warning">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Scope upgrade required</AlertTitle>
             <AlertDescription className="space-y-2">
               <p className="text-sm">Two-way sync and payment links need additional permissions: <span className="font-mono text-xs">{missingScopes.join(', ')}</span></p>
-              <Button onClick={handleReauth} size="sm" variant="outline" className="border-warning text-warning hover:bg-warning/10">
+              <Button onClick={() => { window.location.href = `/api/shopify/auth?shop=${encodeURIComponent(status.shop || '')}`; }} size="sm" variant="outline" className="border-warning text-warning hover:bg-warning/10">
                 <RefreshCw className="mr-2 h-3 w-3" /> Re-authorize Shopify
               </Button>
             </AlertDescription>
           </Alert>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-sm text-muted-foreground">Shop domain</Label>
-            <Input value="af894b-7f.myshopify.com" readOnly className="bg-muted cursor-default"  aria-label="Shop domain"/>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-sm text-muted-foreground">Admin API access token</Label>
-            <Input value="shpat_••••••••••••••••••••••" readOnly className="bg-muted cursor-default"  aria-label="Admin API access token"/>
-          </div>
-        </div>
-        {settings.shopifyLastSyncedAt && (
-          <p className="text-xs text-muted-foreground">Last synced: {new Date(settings.shopifyLastSyncedAt).toLocaleString()}</p>
+        {status.lastSyncedAt && (
+          <p className="text-xs text-muted-foreground">Last synced: {new Date(status.lastSyncedAt).toLocaleString()}</p>
         )}
         <ShopifyPullPanel />
-
 
         <p className="text-xs text-muted-foreground">
           Sync runs one way only: Shopify &rarr; ERP. Nothing you do in the ERP creates or updates
@@ -626,7 +615,6 @@ export default function SettingsPage() {
   const updateSettingsAction = useAppStore(state => state.updateSettings);
   const isSettingsLoading = useAppStore(state => state.isSettingsLoading);
   
-  const [isFetchingRates, setIsFetchingRates] = useState(false);
   const [tab, setTab] = useState<string>('shop');
   // This device's own light/dark (the top bar's sun/moon), shown beside the shop's mode.
   const [deviceTheme, setDeviceTheme] = useState<string | null>(null);
@@ -636,24 +624,6 @@ export default function SettingsPage() {
     window.addEventListener(DEVICE_THEME_EVENT, on);
     return () => window.removeEventListener(DEVICE_THEME_EVENT, on);
   }, []);
-
-  const fetchGoldRates = async () => {
-    setIsFetchingRates(true);
-    try {
-      const res = await fetch('/api/gold-rates');
-      if (!res.ok) throw new Error('Failed to fetch rates');
-      const data = await res.json();
-      form.setValue('goldRatePerGram24k', data.goldRatePerGram24k, { shouldDirty: true });
-      form.setValue('goldRatePerGram22k', data.goldRatePerGram22k, { shouldDirty: true });
-      form.setValue('goldRatePerGram21k', data.goldRatePerGram21k, { shouldDirty: true });
-      form.setValue('goldRatePerGram18k', data.goldRatePerGram18k, { shouldDirty: true });
-      toast({ title: 'Rates fetched from gold.pk', description: `24k: PKR ${data.goldRatePerGram24k.toLocaleString()}/g` });
-    } catch (e) {
-      toast({ title: 'Failed to fetch rates', description: 'Could not load rates from gold.pk. Try again.', variant: 'destructive' });
-    } finally {
-      setIsFetchingRates(false);
-    }
-  };
 
   type SignInLog = { id: string; email: string; displayName: string | null; browser: string; os: string; timestamp: { toDate: () => Date } | null; photoURL?: string | null; };
   const [signInLogs, setSignInLogs] = useState<SignInLog[]>([]);
@@ -671,15 +641,6 @@ export default function SettingsPage() {
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
-      goldRatePerGram18k: 0,
-      palladiumRatePerGram18k: 0,
-      palladiumRatePerGram12k: 0,
-      goldRatePerGram21k: 0,
-      goldRatePerGram22k: 0,
-      goldRatePerGram24k: 0,
-      palladiumRatePerGram: 0,
-      platinumRatePerGram: 0,
-      silverRatePerGram: 0,
       shopName: "",
       shopAddress: "",
       shopContact: "",
@@ -699,13 +660,6 @@ export default function SettingsPage() {
     // must NOT wipe out in-progress edits.
     if (appReady && currentSettings && !form.formState.isDirty) {
       form.reset({
-        goldRatePerGram18k: currentSettings.goldRatePerGram18k || 0,
-        goldRatePerGram21k: currentSettings.goldRatePerGram21k || 0,
-        goldRatePerGram22k: currentSettings.goldRatePerGram22k || 0,
-        goldRatePerGram24k: currentSettings.goldRatePerGram24k || 0,
-        palladiumRatePerGram: currentSettings.palladiumRatePerGram,
-        platinumRatePerGram: currentSettings.platinumRatePerGram,
-        silverRatePerGram: currentSettings.silverRatePerGram || 0,
         shopName: currentSettings.shopName,
         shopAddress: currentSettings.shopAddress || "",
         shopContact: currentSettings.shopContact || "",
@@ -754,28 +708,29 @@ export default function SettingsPage() {
   const handleRestoreSettings = async () => {
     setIsRestoring(true);
     try {
-      const res = await fetch('/api/gold-rates');
-      const rates = res.ok ? await res.json() : null;
-      const restoredRates = {
-        goldRatePerGram24k: rates?.goldRatePerGram24k ?? currentSettings.goldRatePerGram24k,
-        goldRatePerGram22k: rates?.goldRatePerGram22k ?? currentSettings.goldRatePerGram22k,
-        goldRatePerGram21k: rates?.goldRatePerGram21k ?? currentSettings.goldRatePerGram21k,
-        goldRatePerGram18k: rates?.goldRatePerGram18k ?? currentSettings.goldRatePerGram18k,
-      };
-      const shopDefaults = {
+      // This house's own defaults (STORE_CONFIG), and only those it has: a blank one is left alone
+      // rather than erasing what the shop typed. It used to write House of Mina's address and number
+      // into whichever house ran it.
+      const shopDefaults: Partial<Settings> = {
         shopName: STORE_CONFIG.name,
-        shopAddress: '272-B, SHABBIRABAD, BLOCK B, SYEDNA FAKHRUDDIN ROAD, KARACHI',
-        shopContact: '03161930960',
+        ...(STORE_CONFIG.address && { shopAddress: STORE_CONFIG.address }),
+        ...(STORE_CONFIG.contact1Number && { shopContact: STORE_CONFIG.contact1Number.replace(/\s+/g, '') }),
       };
-      await updateSettingsAction({ ...restoredRates, ...shopDefaults });
-      form.reset({
-        ...form.getValues(),
-        ...restoredRates,
-        ...shopDefaults,
-      });
+      // gold.pk's gold rates, for a gold house; the store stamps and logs the change.
+      let restoredRates: Partial<Settings> = {};
+      if (STORE_CONFIG.defaultMetal === 'gold') {
+        const res = await fetch('/api/gold-rates');
+        const rates = res.ok ? await res.json() : null;
+        if (rates?.goldRatePerGram21k) restoredRates = {
+          goldRatePerGram24k: rates.goldRatePerGram24k, goldRatePerGram22k: rates.goldRatePerGram22k,
+          goldRatePerGram21k: rates.goldRatePerGram21k, goldRatePerGram18k: rates.goldRatePerGram18k,
+        };
+      }
+      await updateSettingsAction({ ...restoredRates, ...shopDefaults }, { source: 'Restore shop defaults (gold.pk)' });
+      form.reset({ ...form.getValues(), ...shopDefaults });
       toast({
-        title: 'Settings Restored',
-        description: `Gold rates fetched from gold.pk. Shop details reset to ${STORE_CONFIG.name} defaults.`,
+        title: 'Shop defaults restored',
+        description: `${Object.keys(restoredRates).length ? 'Gold rates from gold.pk. ' : ''}Shop details reset to ${STORE_CONFIG.name}'s defaults.`,
       });
     } catch {
       toast({ title: 'Restore failed', description: 'Could not restore settings.', variant: 'destructive' });
@@ -990,88 +945,13 @@ export default function SettingsPage() {
 
           {/* ─────────────────────────── Rates ────────────────────────── */}
           <TabsContent value="rates" className="space-y-4 mt-0">
+            {/* The same form as the top bar's rate chip; it saves on its own, so the shop details'
+                save can never write back rates it loaded minutes ago. */}
             <Card>
               <CardHeader className="pb-4">
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div className="min-w-0">
-                    <CardTitle className="text-lg">Metal rates</CardTitle>
-                    <CardDescription>PKR per gram. Used to price items where the rate is not entered by hand.</CardDescription>
-                  </div>
-                  <Button type="button" variant="outline" size="sm" onClick={fetchGoldRates} disabled={isFetchingRates} className="flex-shrink-0">
-                    {isFetchingRates ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Globe className="h-4 w-4 mr-2" />}
-                    Fetch gold from gold.pk
-                  </Button>
-                </div>
+                <CardTitle className="text-lg">Metal rates</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Gold</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {(['24k', '22k', '21k', '18k'] as const).map(k => (
-                      <FormField
-                        key={k}
-                        control={form.control}
-                        name={`goldRatePerGram${k}` as 'goldRatePerGram24k'}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-normal text-muted-foreground">{k}</FormLabel>
-                            <FormControl><AmountInput {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Palladium</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {(['18k', '12k'] as const).map(k => (
-                      <FormField
-                        key={k}
-                        control={form.control}
-                        name={`palladiumRatePerGram${k}` as 'palladiumRatePerGram18k'}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-normal text-muted-foreground">{k}</FormLabel>
-                            <FormControl><AmountInput {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Left at zero, palladium is priced from the flat rate below — which is how
-                    every palladium piece was priced before these two existed.
-                  </p>
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Other metals</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {([
-                      { name: 'silverRatePerGram', label: 'Silver', placeholder: 'e.g. 250' },
-                      { name: 'platinumRatePerGram', label: 'Platinum', placeholder: 'e.g. 25,000' },
-                      { name: 'palladiumRatePerGram', label: 'Palladium', placeholder: 'e.g. 22,000' },
-                    ] as const).map(m => (
-                      <FormField
-                        key={m.name}
-                        control={form.control}
-                        name={m.name}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-normal text-muted-foreground">{m.label}</FormLabel>
-                            <FormControl><AmountInput placeholder={m.placeholder} {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
+              <CardContent><RatesForm /></CardContent>
             </Card>
           </TabsContent>
 
@@ -1082,7 +962,7 @@ export default function SettingsPage() {
 
           {/* ─────────────────────── Integrations ─────────────────────── */}
           <TabsContent value="integrations" className="space-y-4 mt-0">
-            <WebsiteSettings />
+            {STORE_WEBSITE_SELLING && <WebsiteSettings />}
             <ShopifyCard />
             <Card>
               <CardHeader className="pb-4">
@@ -1092,8 +972,8 @@ export default function SettingsPage() {
               {/* Both of these pages existed with nothing linking to them —
                   reachable only by typing the URL. */}
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* WEPrint's live feed is hidden: its endpoint (/api/products/weprint) never existed. */}
                 <SettingsLink href="/settings/printer" icon={Tag} title="Label designer" description="Build and export jewellery tags." />
-                <SettingsLink href="/settings/weprint-api" icon={Printer} title="WEPrint API" description="Manage the label printing service." />
               </CardContent>
             </Card>
           </TabsContent>
@@ -1112,12 +992,15 @@ export default function SettingsPage() {
                 <SettingsLink href="/settings/backups" icon={ArchiveRestore} title="Backups" description="Snapshot and restore your data." />
                 <SettingsLink href="/settings/payment-methods" icon={Landmark} title="Payment methods" description="Accounts money is received into." />
                 <SettingsLink href="/settings/recently-removed" icon={RotateCcw} title="Recently removed" description="Customers and karigars you hid. Nothing is destroyed until you empty it." />
-                <SettingsLink href="/settings/import-taheri" icon={Database} title="Import Taheri Software book" description="One-off: 377 customers and 46 karigars from the shop's previous app." />
+                {/* Taheri's previous app's book: Taheri only. */}
+                {STORE_BRAND === 'taheri' && (
+                  <SettingsLink href="/settings/import-taheri" icon={Database} title="Import Taheri Software book" description="One-off: 377 customers and 46 karigars from the shop's previous app." />
+                )}
               </CardContent>
             </Card>
             <SettingRow
               title="Restore shop defaults"
-              description="Refetches gold rates from gold.pk and resets the shop name, address and contact. Rates and shop details only — no orders or invoices are touched."
+              description={`Resets the shop name, address and number to ${STORE_CONFIG.name}'s own${STORE_CONFIG.defaultMetal === 'gold' ? ', and the gold rates to gold.pk' : ''}. No orders or invoices are touched.`}
             >
               <Button type="button" variant="outline" size="sm" onClick={handleRestoreSettings} disabled={isRestoring}>
                 {isRestoring ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}

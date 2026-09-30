@@ -13,6 +13,9 @@ import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { newShareToken } from '@/lib/share-token';
+import { changedRates, mainRate, type RateKey } from '@/lib/rates';
+import { personFor } from '@/lib/people';
+import type { StoredLabelLayout } from '@/lib/label-layout';
 
 
 // --- Firestore Collection Names ---
@@ -276,6 +279,13 @@ export interface Settings extends GoldRates {
   shopifyLastSyncedAt?: string;
   shopifyGrantedScopes?: string;
   goldRatesLastFetchedAt?: string; // ISO string – when rates were last auto-fetched from gold.pk
+  /** When any rate last moved, and who moved it (lib/people.ts name, else the email). Stamped by
+   *  updateSettings on every rate change — the rate form, gold.pk, a new invoice's typed rates — and
+   *  read by the top bar's rate chip and the website quote (lib/rates.ts). */
+  ratesUpdatedAt?: string;
+  ratesUpdatedBy?: string;
+  /** Settings → Labels: the shop's tag layout (lib/label-layout.ts). Absent: the standard Zebra tag. */
+  labelLayout?: StoredLabelLayout;
   /** Keep unfinished orders and invoices on this device and offer them back.
    *  Defaults on — losing a half-entered order is worse than an occasional prompt. */
   autoDraftForms?: boolean;
@@ -1138,7 +1148,7 @@ export function sizeScaleFor(categoryId?: string): SizeScale | undefined {
   return categoryId ? SIZE_SCALES[categoryId] : undefined;
 }
 
-export const LOG_EVENT_TYPES = ['product', 'customer', 'karigar', 'invoice', 'order', 'expense', 'repair'] as const;
+export const LOG_EVENT_TYPES = ['product', 'customer', 'karigar', 'invoice', 'order', 'expense', 'repair', 'rates'] as const;
 export type LogEventType = 
   | 'product.create' | 'product.update' | 'product.delete'
   | 'customer.create' | 'customer.update' | 'customer.delete'
@@ -1149,7 +1159,8 @@ export type LogEventType =
   | 'revenue.create' | 'revenue.update' | 'revenue.delete'
   | 'given.create' | 'given.update' | 'given.delete' | 'given.returned'
   | 'job.create' | 'job.update' | 'job.delete'
-  | 'repair.create' | 'repair.update' | 'repair.status' | 'repair.payment' | 'repair.delete';
+  | 'repair.create' | 'repair.update' | 'repair.status' | 'repair.payment' | 'repair.delete'
+  | 'rates.update';
 
 export interface ActivityLog {
     id: string;
@@ -1190,6 +1201,37 @@ async function addActivityLog(
     }
 }
 
+
+/** The signed-in person as the shop knows them: their counter name, else their email. */
+function signedInName(): string {
+  const email = firebaseAuth?.currentUser?.email || '';
+  return personFor(email) || email || 'unknown';
+}
+
+const pkr = (n: unknown) => (typeof n === 'number' ? Math.round(n).toLocaleString('en-PK') : '—');
+const RATE_LABEL: Record<RateKey, string> = {
+  goldRatePerGram24k: '24K', goldRatePerGram22k: '22K', goldRatePerGram21k: '21K', goldRatePerGram18k: '18K',
+  palladiumRatePerGram: 'Palladium', palladiumRatePerGram18k: 'Palladium 18K', palladiumRatePerGram12k: 'Palladium 12K',
+  platinumRatePerGram: 'Platinum', silverRatePerGram: 'Silver',
+};
+
+/** One activity-log line per rate change: the house's main rate old → new, the rest in the details. */
+async function logRateChange(moved: RateKey[], before: Partial<Settings>, after: Partial<Settings>, source?: string) {
+  const main = mainRate(STORE_CONFIG.defaultMetal);
+  const line = (k: RateKey) => `${RATE_LABEL[k]} ${pkr(before[k])} → ${pkr(after[k] ?? before[k])}`;
+  const others = moved.filter(k => k !== main.key);
+  await addActivityLog(
+    'rates.update',
+    moved.includes(main.key) ? `Rate set: ${line(main.key)}` : `Rates set: ${others.map(k => RATE_LABEL[k]).join(', ')}`,
+    [`By ${after.ratesUpdatedBy || 'unknown'}`, source && `from ${source}`, others.length ? others.map(line).join(' · ') : ''].filter(Boolean).join(' · '),
+    'rates',
+  );
+}
+
+/** Thrown when an Extra revenue row belongs to a repair and must be changed there. */
+export class RepairRevenueError extends Error {
+  constructor(readonly repairId: string) { super('Change this on the repair'); this.name = 'RepairRevenueError'; }
+}
 
 // --- Store State and Actions ---
 type ProductDataForAdd = Omit<Product, 'sku' | 'qrCodeDataUrl'>;
@@ -1299,7 +1341,8 @@ export interface AppState {
 
   // Actions
   loadSettings: () => Promise<void>;
-  updateSettings: (newSettings: Partial<Pick<Settings, keyof Settings>>) => Promise<void>;
+  /** `source` names where a rate change came from, for the activity log (the rate form, gold.pk, the cart). */
+  updateSettings: (newSettings: Partial<Pick<Settings, keyof Settings>>, opts?: { source?: string }) => Promise<void>;
 
   addCategory: (title: string) => void; // Local category management
   updateCategory: (id: string, title: string) => void;
@@ -1919,7 +1962,7 @@ export const useAppStore = create<AppState>()(
             }
         );
       },
-      updateSettings: async (newSettings) => {
+      updateSettings: async (patch, opts) => {
         const {databaseLocked} = get().settings;
         if(databaseLocked) {
             console.warn("[updateSettings] Blocked: Database is locked.");
@@ -1927,6 +1970,11 @@ export const useAppStore = create<AppState>()(
         }
 
         const currentSettings = get().settings;
+        // A rate that moves is stamped with when and who, whichever screen moved it (lib/rates.ts).
+        const movedRates = changedRates(patch, currentSettings);
+        const newSettings: typeof patch = movedRates.length
+          ? { ...patch, ratesUpdatedAt: new Date().toISOString(), ratesUpdatedBy: signedInName() }
+          : patch;
         console.log("[GemsTrack Store updateSettings] Attempting to update settings:", newSettings);
         
         // Optimistic update: merge in-memory
@@ -1938,6 +1986,7 @@ export const useAppStore = create<AppState>()(
           // Never spread currentSettings into the write: stale in-memory defaults could overwrite real Firestore values.
           await setDoc(settingsDocRef, cleanObject(newSettings), { merge: true });
           console.log("[GemsTrack Store updateSettings] Settings updated successfully in Firestore.");
+          if (movedRates.length) void logRateChange(movedRates, currentSettings, newSettings, opts?.source);
         } catch (error) {
           console.error("[GemsTrack Store updateSettings] Error updating settings in Firestore:", error);
           // Revert on error to keep UI consistent with the database
@@ -4163,7 +4212,11 @@ export const useAppStore = create<AppState>()(
       },
       deleteAdditionalRevenue: async (id: string) => {
         if(get().settings.databaseLocked) return;
-        const desc = get().additionalRevenues.find(r => r.id === id)?.description || id;
+        const row = get().additionalRevenues.find(r => r.id === id);
+        // Money taken on a repair is the repair's: deleting the row here left the ticket showing
+        // paid (audit, 2026-10-01). It changes on the repair, whose own delete removes these rows.
+        if (row?.repairId) throw new RepairRevenueError(row.repairId);
+        const desc = row?.description || id;
         try {
           await deleteDoc(doc(db, FIRESTORE_COLLECTIONS.ADDITIONAL_REVENUE, id));
           await addActivityLog('revenue.delete', `Deleted revenue: ${desc}`, `ID: ${id}`, id);
@@ -4224,7 +4277,8 @@ export const useAppStore = create<AppState>()(
       addGivenItem: async (data) => {
         if (get().settings.databaseLocked) return null;
         try {
-          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS), data);
+          // cleanObject: an unlinked recipient arrives as recipientId: undefined, which addDoc refuses.
+          const docRef = await addDoc(collection(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS), cleanObject(data));
           await addActivityLog('given.create', `Given item: ${data.description}`, `To: ${data.recipientName}`, docRef.id);
           return { id: docRef.id, ...data };
         } catch (error) {
@@ -4235,7 +4289,10 @@ export const useAppStore = create<AppState>()(
       updateGivenItem: async (id, data) => {
         if (get().settings.databaseLocked) return;
         try {
-          await setDoc(doc(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS, id), data, { merge: true });
+          // An explicit `recipientId: undefined` clears the link (the name no longer resolves).
+          const write: Record<string, unknown> = { ...data };
+          if ('recipientId' in data && data.recipientId === undefined) write.recipientId = deleteField();
+          await setDoc(doc(db, FIRESTORE_COLLECTIONS.GIVEN_ITEMS, id), write, { merge: true });
           await addActivityLog('given.update', `Updated given item`, `ID: ${id}`, id);
         } catch (error) {
           console.error(`[GemsTrack Store updateGivenItem] Error:`, error);

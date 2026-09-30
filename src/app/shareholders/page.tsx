@@ -43,6 +43,7 @@ import {
 import { format } from 'date-fns';
 import { AmountInput } from '@/components/ui/amount-input';
 import { STORE_PARTNERSHIP } from '@/lib/store-config';
+import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 
 /** Expenses from "Pearls - Studs x2" onward. */
 const EXPENSE_CUTOFF = '2025-07-02';
@@ -112,7 +113,7 @@ export default function ShareholderFinancesPage() {
     const invoiceRevenue = generatedInvoices
       .filter(inv => inv.createdAt && inv.status !== 'Refunded'
         && getInvoiceRevenueDate(inv, ordersById) >= REVENUE_CUTOFF)
-      .reduce((s, inv) => s + (inv.grandTotal || 0), 0);
+      .reduce((s, inv) => s + invoiceSaleValue(inv), 0); // part-exchange included, as Analytics
 
     const invoicedOrderIds = new Set<string>();
     orders.forEach(o => { if (o.invoiceId) invoicedOrderIds.add(o.id); });

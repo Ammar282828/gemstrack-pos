@@ -24,11 +24,13 @@ export async function loadWebsiteConfig(): Promise<WebsiteConfig> {
   };
 }
 
-export async function loadRates(): Promise<QuoteRates> {
+/** The rates and when they were last set (Settings.ratesUpdatedAt; lib/rates.ts). */
+export async function loadRates(): Promise<QuoteRates & { updatedAt: string | null }> {
   const snap = await adminDb.collection(SETTINGS).doc(GLOBAL).get();
-  const s = (snap.exists ? snap.data() : {}) as Partial<QuoteRates>;
+  const s = (snap.exists ? snap.data() : {}) as Partial<QuoteRates> & { ratesUpdatedAt?: unknown };
   const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
   return {
+    updatedAt: typeof s.ratesUpdatedAt === 'string' ? s.ratesUpdatedAt : null,
     goldRatePerGram24k: n(s.goldRatePerGram24k), goldRatePerGram22k: n(s.goldRatePerGram22k),
     goldRatePerGram21k: n(s.goldRatePerGram21k), goldRatePerGram18k: n(s.goldRatePerGram18k),
     palladiumRatePerGram: n(s.palladiumRatePerGram), palladiumRatePerGram18k: n(s.palladiumRatePerGram18k), palladiumRatePerGram12k: n(s.palladiumRatePerGram12k),

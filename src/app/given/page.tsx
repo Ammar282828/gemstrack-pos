@@ -31,6 +31,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { resolveRecipientId } from '@/lib/given';
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 const givenSchema = z.object({
@@ -88,6 +89,9 @@ function GivenItemForm({
       description: data.description,
       recipientType: data.recipientType,
       recipientName: data.recipientName,
+      // Linked when the name is one karigar's or customer's (lib/given.ts); an edit that no longer
+      // names one clears the old link (the store turns undefined into a field delete).
+      recipientId: resolveRecipientId(data.recipientType, data.recipientName, karigars, customers),
       notes: data.notes || '',
       status: item?.status ?? 'out',
       ...(item?.returnedDate ? { returnedDate: item.returnedDate } : {}),

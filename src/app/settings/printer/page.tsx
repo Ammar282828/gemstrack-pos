@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAppStore, Product } from '@/lib/store';
+import type { StoredLabelLayout, LabelField } from '@/lib/label-layout';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,27 +19,8 @@ import { produce } from 'immer';
 import { QrCode } from 'lucide-react';
 import { FormSkeleton } from '@/components/shared/skeletons';
 
-// --- Types ---
-interface LabelField {
-  id: string;
-  type: 'text' | 'qr';
-  x: number;
-  y: number;
-  rotation?: 0 | 90 | 180 | 270;
-  data: string;
-  fontFamily?: string;
-  fontSize?: number;
-  qrMagnification?: number;
-}
-
-interface LabelLayout {
-  id: string;
-  name: string;
-  widthDots: number;
-  heightDots: number;
-  fields: LabelField[];
-}
-
+// --- Types --- (lib/label-layout.ts: the layout is kept in settings)
+type LabelLayout = StoredLabelLayout;
 
 // --- Default Layout ---
 const defaultLayout: LabelLayout = {
@@ -295,12 +277,27 @@ const TagEditor: React.FC<{ layout: LabelLayout; setLayout: React.Dispatch<React
 
 function PrinterPageComponent() {
   const appReady = useAppReady();
-  const { loadProducts, settings, addPrintHistory } = useAppStore();
+  const { loadProducts, settings, addPrintHistory, updateSettings } = useAppStore();
   const { toast } = useToast();
   const router = useRouter();
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [layout, setLayout] = useState<LabelLayout>(defaultLayout);
+  // The layout is the shop's, kept in settings (it lived in page state and was lost on every reload).
+  const [layout, setLayoutState] = useState<LabelLayout>(() => settings.labelLayout ?? defaultLayout);
+  const [edited, setEdited] = useState(false);
+  const setLayout: React.Dispatch<React.SetStateAction<LabelLayout>> = useCallback((v) => { setEdited(true); setLayoutState(v); }, []);
+  // Adopt the saved layout when it arrives (or changes on another device) unless one is being edited.
+  useEffect(() => { if (!edited && settings.labelLayout) setLayoutState(settings.labelLayout); }, [settings.labelLayout, edited]);
+  // Saved a second after the last change.
+  useEffect(() => {
+    if (!edited) return;
+    const t = setTimeout(() => {
+      updateSettings({ labelLayout: layout })
+        .then(() => setEdited(false))
+        .catch(() => toast({ title: 'Layout not saved', description: 'Check the connection; it will try again on the next change.', variant: 'destructive' }));
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [layout, edited, updateSettings, toast]);
   const [previewScale, setPreviewScale] = useState(0.5);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
@@ -345,8 +342,14 @@ function PrinterPageComponent() {
            <Button variant="outline" onClick={() => router.back()} className="mb-4">
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Settings
           </Button>
-          <h1 className="text-3xl font-bold text-primary flex items-center"><FileSpreadsheet className="mr-3 h-8 w-8"/>Label Designer &amp; Exporter</h1>
-          <p className="text-muted-foreground">Design your label layout and export product data to CSV for external printing apps like WEPrint.</p>
+          <h1 className="text-3xl font-bold text-primary flex items-center"><FileSpreadsheet className="mr-3 h-8 w-8"/>Labels</h1>
+          <p className="text-muted-foreground">
+            Design the tag and export pieces to CSV for a label printing app like WEPrint.{' '}
+            <span className="text-xs">{edited ? 'Saving…' : settings.labelLayout ? 'Layout saved.' : ''}</span>
+            {settings.labelLayout && (
+              <button type="button" className="ml-2 text-xs underline" onClick={() => { setLayout(defaultLayout); }}>Back to the standard tag</button>
+            )}
+          </p>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -305,7 +305,7 @@ function HandBackDialog({ repair, onClose }: { repair: Repair; onClose: () => vo
 export default function RepairsPage() {
   const appReady = useAppReady();
   const { toast } = useToast();
-  const { repairs, isRepairsLoading, loadRepairs, setRepairStatus, deleteRepair } = useAppStore();
+  const { repairs, isRepairsLoading, hasRepairsLoaded, loadRepairs, setRepairStatus, deleteRepair } = useAppStore();
   const [tab, setTab] = useState<Tab>('received');
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Repair | 'new' | null>(null);
@@ -313,6 +313,25 @@ export default function RepairsPage() {
   const [today] = useState(() => new Date());
 
   useEffect(() => { if (appReady) loadRepairs(); }, [appReady, loadRepairs]);
+
+  // Deep links: /repairs?id=REP-000012 opens that ticket (the dashboard's rows, Extra revenue),
+  // /repairs?new=1 the New repair form (New Sale). Read once, then dropped from the address so a
+  // refresh or Back doesn't open it again.
+  const [linkRead, setLinkRead] = useState(false);
+  useEffect(() => {
+    if (linkRead || !appReady) return;
+    const q = new URLSearchParams(window.location.search);
+    const id = q.get('id');
+    if (q.get('new') === '1') setEditing('new');
+    else if (id) {
+      if (!hasRepairsLoaded) return; // wait for the list
+      const r = repairs.find(x => x.id === id);
+      if (r) { setEditing(r); if (r.status !== 'received') setTab('all'); }
+      else toast({ title: `${id} not found`, description: 'It may have been deleted.', variant: 'destructive' });
+    }
+    setLinkRead(true);
+    if (q.has('id') || q.has('new')) window.history.replaceState(null, '', window.location.pathname);
+  }, [appReady, hasRepairsLoaded, repairs, linkRead, toast]);
 
   const count = (s: RepairStatus) => repairs.filter((r) => r.status === s).length;
 

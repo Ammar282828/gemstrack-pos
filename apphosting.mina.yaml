@@ -148,6 +148,12 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Settings → Restore shop defaults writes this and CONTACT1_NUMBER (it used to write Mina's into both houses).
+  - variable: NEXT_PUBLIC_STORE_ADDRESS
+    value: "272-B, SHABBIRABAD, BLOCK B, SYEDNA FAKHRUDDIN ROAD, KARACHI"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_CONTACT1_NAME
     value: "Mina Khalid"
     availability:
@@ -360,6 +366,12 @@ env:
     availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_STORE_WEBSITE_WEIGHTS
+    value: "0"
+    availability:
+      - BUILD
+      - RUNTIME
+  # The catalogue sells through Shopify, never at a live rate: no website-selling card in Settings.
+  - variable: NEXT_PUBLIC_STORE_WEBSITE_SELLING
     value: "0"
     availability:
       - BUILD

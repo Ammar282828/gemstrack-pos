@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * Settings → Integrations → "Selling on taheri.shop".
+ * Settings → Integrations → "Selling on <the house's site>" — only where the site sells at a live
+ * rate (STORE_WEBSITE_SELLING: taheri.shop).
  *
  * The shop's side of the website checkout: whether it is on, how a piece is
  * priced on top of its gold, what delivery costs, and which POS category a
@@ -23,6 +24,9 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Globe } from 'lucide-react';
+import { STORE_LINKS } from '@/lib/store-config';
+
+const SITE_HOST = (() => { try { return new URL(STORE_LINKS.website).hostname.replace(/^www\./, ''); } catch { return 'the website'; } })();
 
 /** The site's collection folders — the keys categoryPricing is written under. */
 const SITE_COLLECTIONS = [
@@ -92,7 +96,7 @@ export function WebsiteSettings() {
   return (
     <Card>
       <CardHeader className="pb-4">
-        <CardTitle className="text-xl flex items-center"><Globe className="mr-2 h-5 w-5" /> Selling on taheri.shop</CardTitle>
+        <CardTitle className="text-xl flex items-center"><Globe className="mr-2 h-5 w-5" /> Selling on {SITE_HOST}</CardTitle>
         <CardDescription>
           The site prices each photographed piece live — weight × today&apos;s rate for its karat, plus what you set here —
           and creates the product and the order in this book when a customer checks out. Payment is by bank transfer;

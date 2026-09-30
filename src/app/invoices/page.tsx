@@ -38,6 +38,7 @@ import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
 import { fitText } from '@/lib/pdf-text';
 import { label } from '@/lib/pdf-chrome';
 import { useMineFilter } from '@/hooks/use-me';
+import { RecordPaymentDialog } from '@/components/invoice/record-payment-dialog';
 
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
 
@@ -151,7 +152,7 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPe
                 <PrintButton className="flex-1" pieces={pieceCount(doc)} onPrint={onPrint} onPrintPerPiece={onPrintPerPiece} />
                 {status === 'Unpaid' && onMarkPaid && (
                     <Button variant="ghost" size="sm" className="flex-1 justify-center text-success hover:text-success hover:bg-success/10" onClick={(e) => { e.stopPropagation(); onMarkPaid(); }}>
-                        <CheckCircle2 className="w-4 h-4 mr-2" /> Mark Paid
+                        <CheckCircle2 className="w-4 h-4 mr-2" /> Record payment
                     </Button>
                 )}
                 {doc.docType === 'invoice' && status === 'Unpaid' && onSendPaymentLink && (
@@ -457,16 +458,13 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleMarkPaid = async (document: DocumentType) => {
+  // "Mark Paid" opens the payment dialog, balance filled in, method to choose. It used to record the
+  // whole balance at once with no method and no confirmation (audit, 2026-10-01).
+  const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
+  const handleMarkPaid = (document: DocumentType) => {
     if (document.docType !== 'invoice') return;
     const inv = document as Invoice;
-    if (inv.balanceDue <= 0) return;
-    try {
-      await updateInvoicePayment(inv.id, inv.balanceDue, new Date().toISOString());
-      toast({ title: 'Marked as Paid', description: `Payment of PKR ${inv.balanceDue.toLocaleString()} recorded for ${inv.id}.` });
-    } catch {
-      toast({ title: 'Error', description: 'Failed to record payment.', variant: 'destructive' });
-    }
+    if (inv.balanceDue > 0) setPayingInvoice(inv);
   };
 
   const handleOrderStatusChange = async (orderId: string, newStatus: OrderStatus) => {
@@ -913,7 +911,8 @@ export default function DocumentsPage() {
           </TabsContent>
         ))}
       </Tabs>
-      
+
+      <RecordPaymentDialog invoice={payingInvoice} open={!!payingInvoice} onOpenChange={o => { if (!o) setPayingInvoice(null); }} />
     </div>
   );
 }

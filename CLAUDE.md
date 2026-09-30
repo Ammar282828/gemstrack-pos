@@ -383,6 +383,14 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   Kept on purpose: an invoiced order still counts on the order's date, and an open order at its full `subtotal`. A rolling
   range (last 30/90 days, this year) re-anchors when the day turns on a page left open.
 - In a component, no hook after an early `return` (the `/orders/add` crash of 2026-09-22 was exactly that).
+- **The rate is set in the top bar, and only on purpose** (2026-10-01 audit, Phase 1): the chip `21K 35,000 · 9:40 Ammar`
+  (Mina: `Silver …`; `lib/rates.ts` `mainRate`) sits on every page, amber when not set on Karachi's today, and opens the rate
+  sheet (`components/rates/rate-chip.tsx`, the same `RatesForm` as Settings → Rates; the cart shows one line when stale, never
+  blocks). `updateSettings` stamps `ratesUpdatedAt`/`ratesUpdatedBy` and logs `rates.update` (old → new main rate) whenever a
+  rate moves, from any screen; `/api/public/quote` returns that time as `ratesAt`. **The cart writes back only a new invoice's
+  hand-typed rates** (`ratesToKeep`): editing an invoice loads its own old rates and a scanned bill the paper's, and saving
+  either used to make that rate today's. The Settings form no longer carries rates, so saving shop details can't write back a
+  stale one.
 - **Fonts ship in the repo; never `next/font/google`** (2026-09-30): House of Mina's build failed twice that day in
   `website/post/fonts.ts` ("An error occurred in `next/font`… Cannot read properties of null (reading '1')") — now and then
   Google hands the builder a font address with no `.woff2` ending, which Next 15's Google loader can't read, and that house

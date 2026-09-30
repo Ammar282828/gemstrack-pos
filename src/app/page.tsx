@@ -226,7 +226,7 @@ export default function HomePage() {
         amount: typeof o.grandTotal === 'number' ? o.grandTotal : 0, timing: orderTiming(o, now),
       })),
       ...repairs.filter(r => r.status === 'received').map((r: Repair): Due => ({
-        key: `r${r.id}`, href: '/repairs', kind: 'repair', id: r.id, customer: r.customerName || 'Walk-in',
+        key: `r${r.id}`, href: `/repairs?id=${encodeURIComponent(r.id)}`, kind: 'repair', id: r.id, customer: r.customerName || 'Walk-in',
         amount: repairTotal(r), timing: orderTiming({ promisedDate: r.promisedDate, createdAt: r.receivedAt, status: 'In Progress' }, now),
       })),
     ].sort((a, b) => dueOrder(a.timing) - dueOrder(b.timing)
@@ -319,7 +319,7 @@ export default function HomePage() {
 
     for (const r of stats.readyWaiting.slice(0, 3)) {
       out.push({
-        href: '/repairs', tone: 'warn',
+        href: `/repairs?id=${encodeURIComponent(r.id)}`, tone: 'warn',
         title: `${r.customerName || 'Walk-in'}’s repair is ready`,
         detail: `Waiting to be collected since ${format(parseISO(r.readyAt!), 'd MMM')}`,
       });

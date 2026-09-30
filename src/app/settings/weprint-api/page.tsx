@@ -1,190 +1,33 @@
-
-
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { ListSkeleton } from '@/components/shared/skeletons';
-import { useAppStore, Product } from '@/lib/store';
-import { useAppReady } from '@/hooks/use-store';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Loader2, Save, ExternalLink, Info, Check, X } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+/**
+ * WEPrint's live feed — hidden (the audit of 2026-10-01).
+ *
+ * This page picked the pieces a WEPrint printer would pull from `/api/products/weprint`, a route
+ * that does not exist, so nothing it saved ever reached a printer. Its Settings card is gone; the
+ * address stays so an old bookmark lands here. Whether to build the endpoint or drop the page is
+ * the owner's call. Until then, labels go out as CSV from Labels (Settings → Labels, or a piece's
+ * own page). The page's last working version is in git before this commit.
+ */
+
 import Link from 'next/link';
-import { PageBack } from '@/components/shared/page-back';
+import { Printer } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export default function WeprintApiPage() {
-  const appReady = useAppReady();
-  const { products, settings, loadProducts, updateSettings, isProductsLoading } = useAppStore();
-  const { toast } = useToast();
-  
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSkus, setSelectedSkus] = useState<Set<string>>(new Set());
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    if (appReady) {
-      loadProducts();
-    }
-  }, [appReady, loadProducts]);
-
-  useEffect(() => {
-    if (settings.weprintApiSkus) {
-      setSelectedSkus(new Set(settings.weprintApiSkus));
-    }
-  }, [settings.weprintApiSkus]);
-
-  const filteredProducts = useMemo(() => {
-    if (!products) return [];
-    return products.filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [products, searchTerm]);
-
-  const handleToggleSelect = (sku: string, checked: boolean) => {
-    setSelectedSkus(prev => {
-      const newSet = new Set(prev);
-      if (checked) {
-        newSet.add(sku);
-      } else {
-        newSet.delete(sku);
-      }
-      return newSet;
-    });
-  };
-
-  const handleSelectAllFiltered = () => {
-    const filteredSkus = new Set(filteredProducts.map(p => p.sku));
-    setSelectedSkus(prev => new Set([...prev, ...filteredSkus]));
-  };
-
-  const handleDeselectAllFiltered = () => {
-     const filteredSkus = new Set(filteredProducts.map(p => p.sku));
-     setSelectedSkus(prev => {
-        const newSet = new Set(prev);
-        filteredSkus.forEach(sku => newSet.delete(sku));
-        return newSet;
-     });
-  };
-
-  const handleSaveChanges = async () => {
-    setIsSaving(true);
-    try {
-      await updateSettings({ weprintApiSkus: Array.from(selectedSkus) });
-      toast({
-        title: "API Product List Updated",
-        description: `There are now ${selectedSkus.size} products available to the WEPrint API.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error Saving",
-        description: "Could not update the API product list.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-  
-  const apiEndpoint = typeof window !== 'undefined' ? `${window.location.origin}/api/products/weprint` : '/api/products/weprint';
-
-  if (!appReady || (isProductsLoading && products.length === 0)) {
-    return (
-      <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
-      <PageBack fallback="/settings" label="Back to settings" />
-        <ListSkeleton />
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto py-4 sm:py-8">
+    <div className="container mx-auto max-w-2xl px-4 py-8">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">WEPrint API Management</CardTitle>
-          <CardDescription>
-            Select which products should be accessible via the WEPrint API endpoint. Only selected products will be included in the API response.
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2 text-xl"><Printer className="h-5 w-5" />WEPrint</CardTitle>
+          <CardDescription>The live feed to WEPrint isn&apos;t set up, so this page is switched off.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-            <Alert>
-                <Info className="h-4 w-4" />
-                <AlertTitle>API Endpoint</AlertTitle>
-                <AlertDescription className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <span>Your curated product list is available at:</span>
-                    <Link href={apiEndpoint} target="_blank" className="font-mono text-primary hover:underline flex items-center gap-1 break-all">
-                        {apiEndpoint} <ExternalLink className="h-3 w-3 flex-shrink-0"/>
-                    </Link>
-                </AlertDescription>
-            </Alert>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search products by name or SKU..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-             aria-label="Search products by name or SKU"/>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={handleSelectAllFiltered} variant="outline" size="sm" disabled={filteredProducts.length === 0}>
-              Select All Filtered ({filteredProducts.length})
-            </Button>
-            <Button onClick={handleDeselectAllFiltered} variant="outline" size="sm" disabled={filteredProducts.length === 0}>
-              Deselect All Filtered
-            </Button>
-          </div>
-          <ScrollArea className="h-96 border rounded-md p-2">
-            {filteredProducts.length > 0 ? (
-              <div className="space-y-2">
-                {filteredProducts.map(product => (
-                  <div
-                    key={product.sku}
-                    className="flex items-center space-x-3 p-2 rounded-md hover:bg-muted"
-                  >
-                    <Checkbox
-                      id={`select-${product.sku}`}
-                      checked={selectedSkus.has(product.sku)}
-                      onCheckedChange={(checked) => handleToggleSelect(product.sku, !!checked)}
-                      aria-label={`Select ${product.name}`}
-                    />
-                    <label
-                      htmlFor={`select-${product.sku}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-grow"
-                    >
-                      {product.name}
-                      <span className="ml-2 text-xs text-muted-foreground font-mono">({product.sku})</span>
-                    </label>
-                     {settings.weprintApiSkus?.includes(product.sku) ? (
-                        <span className="text-xs text-success flex items-center gap-1 flex-shrink-0"><Check className="h-3 w-3"/> Published</span>
-                     ) : (
-                        <span className="text-xs text-warning flex items-center gap-1 flex-shrink-0"><X className="h-3 w-3"/> Not Published</span>
-                     )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-10">No products found matching your search.</p>
-            )}
-          </ScrollArea>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>Export the pieces as CSV from Labels and import that file into WEPrint instead.</p>
+          <Button asChild variant="outline"><Link href="/settings/printer">Open Labels</Link></Button>
         </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <p className="text-sm text-muted-foreground text-center sm:text-left">
-                <span className="font-bold">{selectedSkus.size}</span> products selected for API.
-            </p>
-            <Button onClick={handleSaveChanges} disabled={isSaving} className="w-full sm:w-auto">
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Update API Products
-            </Button>
-        </CardFooter>
       </Card>
     </div>
   );
 }
-
-    
