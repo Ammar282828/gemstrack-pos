@@ -31,7 +31,7 @@ POS reads the same file — never the values a browser sends.
    nothing that can write to the database can change where a customer's money goes.
 2. **Close the database.** `firestore.rules` is `allow read, write: if true` (opened
    2026-09-07). While it is, anyone can create orders directly and edit the pricing
-   document. Restore `firestore.rules.locked` (it already contains the website rules)
+   document. Publish `firestore.rules` (Taheri's locked rules since 2026-09-30; they contain the website rules)
    and deploy the ruleset. Selling online with the book open is not safe.
 3. **Set the pricing** in Settings → Integrations: a POS category for website products,
    the default making charge per gram, wastage, and any per-collection rows. Until a

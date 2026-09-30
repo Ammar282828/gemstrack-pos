@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { erpUserOrCron } from '@/lib/erp-gate';
 import { APP_URL, SHOPIFY_API_VERSION } from '../_lib';
 import { adminDb } from '@/lib/firebase-admin';
 
@@ -30,6 +31,9 @@ async function registerWebhook(shop: string, token: string, topic: string, addre
 }
 
 export async function POST(request: NextRequest) {
+  // Signed-in owner or staff, or the scheduler: this route changes the shop's Shopify store.
+  const denied = await erpUserOrCron(request);
+  if (denied) return denied;
   try {
     // Allow passing shop/token directly (used from callback) or read from Firestore
     let shop: string;

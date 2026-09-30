@@ -14,6 +14,9 @@ import { describeMetal, describeSettings, describeDelivery, describePlating } fr
 import { categorySingular } from '@/lib/categories';
 import { Textarea } from '@/components/ui/textarea';
 import { STORE_CONFIG, storeLinksUrl, STORE_LOGO_URL } from '@/lib/store-config';
+import { doc as fsDoc, setDoc as fsSetDoc } from 'firebase/firestore';
+import { db as fsDb } from '@/lib/firebase';
+import { invoiceShareUrl, newShareToken } from '@/lib/share-token';
 import { CustomerAutocomplete } from '@/components/customer/customer-autocomplete';
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
@@ -99,6 +102,9 @@ type EstimatedInvoice = {
 type PhoneForm = {
     phone: string;
 };
+
+/** Keys given to older invoices this session, so sending one twice sends the same link. */
+const sentKeys = new Map<string, string>();
 
 export default function CartPage() {
   const router = useRouter();
@@ -822,7 +828,17 @@ export default function CartPage() {
     message += `Thank you for your business.`;
 
     const appUrl = typeof window !== 'undefined' ? window.location.origin : STORE_CONFIG.appUrl;
-    message += `\n\nView estimate: ${appUrl}/view-invoice/${invoiceToSend.id}`;
+    // The link carries the invoice's key: its page is closed to anyone without it. An invoice
+    // from before keys existed gets one now — chosen here, not after a round trip, because
+    // window.open below must run inside the tap — and it is saved as the link goes out.
+    let key = invoiceToSend.shareToken || sentKeys.get(invoiceToSend.id);
+    if (!key) {
+      key = newShareToken();
+      sentKeys.set(invoiceToSend.id, key);
+      fsSetDoc(fsDoc(fsDb, 'invoices', invoiceToSend.id), { shareToken: key }, { merge: true })
+        .catch(e => toast({ title: 'The link may not open', description: `Could not save its key: ${(e as Error).message}`, variant: 'destructive' }));
+    }
+    message += `\n\nView estimate: ${invoiceShareUrl(appUrl, invoiceToSend.id, key)}`;
     // Country code and leading-zero handling live in one place; the raw
     // digit strip that used to be here produced wa.me/0300… , a dead link.
     window.open(whatsAppLink(whatsAppNumber, message), '_blank');

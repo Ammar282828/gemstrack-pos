@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { erpUserOrCron } from '@/lib/erp-gate';
 import { adminDb } from '@/lib/firebase-admin';
 import { shopifyRequest, getShopifyCredentials, mapProductToShopify, findShopifyProductIdsBySku } from '../../_lib';
 
@@ -9,6 +10,9 @@ import { shopifyRequest, getShopifyCredentials, mapProductToShopify, findShopify
  *   3. None — create new.
  */
 export async function POST(request: NextRequest) {
+  // Signed-in owner or staff, or the scheduler: this route changes the shop's Shopify store.
+  const denied = await erpUserOrCron(request);
+  if (denied) return denied;
   try {
     const { sku } = await request.json();
     if (!sku) return NextResponse.json({ error: 'sku required' }, { status: 400 });

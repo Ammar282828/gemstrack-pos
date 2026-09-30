@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { erpUserOrCron } from '@/lib/erp-gate';
 import { adminDb } from '@/lib/firebase-admin';
 import { shopifyRequest, getShopifyCredentials, mapCustomerToShopify, findShopifyCustomerId } from '../../_lib';
 
@@ -13,6 +14,9 @@ import { shopifyRequest, getShopifyCredentials, mapCustomerToShopify, findShopif
  * `customers/update` webhook can skip the echo.
  */
 export async function POST(request: NextRequest) {
+  // Signed-in owner or staff, or the scheduler: this route changes the shop's Shopify store.
+  const denied = await erpUserOrCron(request);
+  if (denied) return denied;
   try {
     const { customerId } = await request.json();
     if (!customerId) return NextResponse.json({ error: 'customerId required' }, { status: 400 });

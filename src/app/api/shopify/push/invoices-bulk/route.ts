@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
+import { erpUserOrCron } from '@/lib/erp-gate';
 import { adminDb } from '@/lib/firebase-admin';
 import { shopifyRequest, getShopifyCredentials } from '../../_lib';
 
@@ -8,7 +9,10 @@ import { shopifyRequest, getShopifyCredentials } from '../../_lib';
  *   - originated from Shopify (source contains 'shopify', or id starts with 'SHOPIFY-')
  *   - already has a shopifyOrderId (was already pushed)
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Signed-in owner or staff, or the scheduler: this route changes the shop's Shopify store.
+  const denied = await erpUserOrCron(request);
+  if (denied) return denied;
   try {
     const { shop, token } = await getShopifyCredentials(adminDb);
 

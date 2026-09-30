@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { erpUserOrCron } from '@/lib/erp-gate';
 import { adminDb } from '@/lib/firebase-admin';
 import { shopifyRequest, getShopifyCredentials } from '../../_lib';
 
@@ -7,6 +8,9 @@ import { shopifyRequest, getShopifyCredentials } from '../../_lib';
  * Skips Shopify-originated and already-pushed invoices.
  */
 export async function POST(request: NextRequest) {
+  // Signed-in owner or staff, or the scheduler: this route changes the shop's Shopify store.
+  const denied = await erpUserOrCron(request);
+  if (denied) return denied;
   try {
     const { invoiceId } = await request.json();
     if (!invoiceId) return NextResponse.json({ error: 'invoiceId required' }, { status: 400 });

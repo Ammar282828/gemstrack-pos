@@ -12,6 +12,7 @@ import { db, auth, firebaseConfig } from '@/lib/firebase';
 import { getInvoiceAdjustmentsAmount } from '@/lib/financials';
 import { normalizePhoneNumber } from '@/lib/utils';
 import { auth as firebaseAuth } from '@/lib/firebase';
+import { newShareToken } from '@/lib/share-token';
 
 
 // --- Firestore Collection Names ---
@@ -63,6 +64,23 @@ const MENS_RING_CATEGORY_ID_INTERNAL = 'cat018';
 const PUSH_TO_SHOPIFY = false;
 
 /**
+ * A fire-and-forget POST to one of the ERP's own Shopify routes, as the signed-in user:
+ * they refuse anyone else since 2026-09-30 (lib/erp-gate.ts). A sync must never block or
+ * fail a sale, so nothing here is awaited by the caller.
+ */
+function postShopify(path: string, body: unknown): void {
+  (async () => {
+    let token = '';
+    try { token = (await firebaseAuth?.currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
+    await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+      body: JSON.stringify(body),
+    });
+  })().catch(() => { /* fire-and-forget */ });
+}
+
+/**
  * Fire-and-forget Shopify sync. Idempotent on the server; safe to call from
  * any invoice mutation. Skipped for SHOPIFY-originated docs and during SSR.
  */
@@ -71,11 +89,7 @@ function syncInvoiceShopify(invoiceId: string | undefined | null, action: 'upser
   if (typeof window === 'undefined') return;
   if (invoiceId.startsWith('SHOPIFY-')) return;
   if (!PUSH_TO_SHOPIFY && action === 'upsert') return;
-  fetch('/api/shopify/sync/invoice', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ invoiceId, action }),
-  }).catch(() => { /* fire-and-forget */ });
+  postShopify('/api/shopify/sync/invoice', { invoiceId, action });
 }
 
 /** Fire-and-forget Shopify sync targeting a Shopify order id directly. Used
@@ -83,11 +97,7 @@ function syncInvoiceShopify(invoiceId: string | undefined | null, action: 'upser
 function syncShopifyOrderById(shopifyOrderId: string | undefined | null, action: 'cancel' | 'refund') {
   if (!shopifyOrderId) return;
   if (typeof window === 'undefined') return;
-  fetch('/api/shopify/sync/invoice', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ shopifyOrderId, action }),
-  }).catch(() => { /* fire-and-forget */ });
+  postShopify('/api/shopify/sync/invoice', { shopifyOrderId, action });
 }
 
 /**
@@ -98,11 +108,7 @@ function syncOrderShopify(orderId: string | undefined | null, action: 'upsert' |
   if (!orderId) return;
   if (typeof window === 'undefined') return;
   if (!PUSH_TO_SHOPIFY && action === 'upsert') return;
-  fetch('/api/shopify/sync/order', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ orderId, action }),
-  }).catch(() => { /* fire-and-forget */ });
+  postShopify('/api/shopify/sync/order', { orderId, action });
 }
 
 
@@ -531,6 +537,8 @@ export interface Invoice {
   shopifyCheckoutUrl?: string;
   status?: 'Refunded'; // Set when invoice has been refunded
   refundedAt?: string; // ISO string of refund time
+  /** The key in the customer's link to this invoice (lib/share-token.ts); kept when it is re-saved. */
+  shareToken?: string;
   acquisitionSource?: CustomerSource; // Acquisition channel for this sale (carried from order/customer). Named distinctly from the Shopify `source` above.
 }
 
@@ -684,6 +692,8 @@ export interface Order {
 const INVOICE_PROVENANCE = [
   'sourceOrderId', 'source', 'notes', 'acquisitionSource', 'shopifyFulfillment', 'shopifyFinancialStatus',
   'shopifyOrderName', 'shopifyOrderId', 'shopifyOrderNumber', 'shopifyDraftOrderId', 'shopifyCheckoutUrl',
+  // A link already sent to the customer keeps working after the invoice is edited.
+  'shareToken',
 ] as const;
 function pickDefined<T extends object, K extends keyof T>(obj: T, keys: readonly K[]): Partial<Pick<T, K>> {
   const out: Partial<Pick<T, K>> = {};
@@ -2185,7 +2195,7 @@ export const useAppStore = create<AppState>()(
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, newCustomerId), newCustomer);
           await addActivityLog('customer.create', `Created customer: ${newCustomer.name}`, `ID: ${newCustomerId}`, newCustomerId);
           if (typeof window !== 'undefined' && !newCustomerId.startsWith('shopify-')) {
-            if (PUSH_TO_SHOPIFY) fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: newCustomerId }) }).catch(() => {});
+            if (PUSH_TO_SHOPIFY) postShopify('/api/shopify/push/customer', { customerId: newCustomerId });
           }
           console.log("[GemsTrack Store addCustomer] Customer added successfully:", newCustomerId);
           return newCustomer;
@@ -2206,7 +2216,7 @@ export const useAppStore = create<AppState>()(
           await setDoc(doc(db, FIRESTORE_COLLECTIONS.CUSTOMERS, id), dataToWrite, { merge: true });
           await addActivityLog('customer.update', `Updated customer: ${updatedCustomerData.name}`, `ID: ${id}`, id);
           if (typeof window !== 'undefined' && !id.startsWith('shopify-')) {
-            if (PUSH_TO_SHOPIFY) fetch('/api/shopify/push/customer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customerId: id }) }).catch(() => {});
+            if (PUSH_TO_SHOPIFY) postShopify('/api/shopify/push/customer', { customerId: id });
           }
           console.log(`[GemsTrack Store updateCustomer] Customer ID ${id} updated successfully.`);
         } catch (error) {
@@ -2749,6 +2759,7 @@ export const useAppStore = create<AppState>()(
                     // Re-saving an invoice keeps where it came from: the order it was made
                     // from, the Shopify order it mirrors, the channel the sale is credited to.
                     // Without these an edited order-born invoice lost its order.
+                    shareToken: newShareToken(),
                     ...(existingInvoiceData ? pickDefined(existingInvoiceData, INVOICE_PROVENANCE) : {}),
                     // Recorded only when the piece is actually going out, so an
                     // unticked box does not stamp every invoice with an empty
@@ -2944,11 +2955,7 @@ export const useAppStore = create<AppState>()(
 
             // Mirror to Shopify: issue a refund for this exact amount.
             if (typeof window !== 'undefined' && !invoiceId.startsWith('SHOPIFY-')) {
-              fetch('/api/shopify/sync/invoice', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ invoiceId, action: 'refund', amount: refundAmount, reason }),
-              }).catch(() => { /* fire-and-forget */ });
+              postShopify('/api/shopify/sync/invoice', { invoiceId, action: 'refund', amount: refundAmount, reason });
             }
           }
           return updatedInvoice;
@@ -3829,8 +3836,9 @@ export const useAppStore = create<AppState>()(
                     throw new Error(`Invoice ${invoiceId} already exists — the invoice counter (lastInvoiceNumber=${currentSettings.lastInvoiceNumber}) is stale. Please contact your administrator to recalibrate it.`);
                 }
 
-                const newInvoice: Invoice = { id: invoiceId, ...baseInvoiceData };
-                const payload = cleanObject({ ...baseInvoiceData });
+                const withKey = { ...baseInvoiceData, shareToken: newShareToken() };
+                const newInvoice: Invoice = { id: invoiceId, ...withKey };
+                const payload = cleanObject({ ...withKey });
 
                 transaction.set(doc(db, FIRESTORE_COLLECTIONS.INVOICES, invoiceId), payload);
                 transaction.update(settingsDocRef, { lastInvoiceNumber: nextInvoiceNumber });

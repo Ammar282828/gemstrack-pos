@@ -116,7 +116,7 @@ async function shopify(method, endpoint, body) {
 
 async function callPushCustomer(customerId) {
   const r = await fetch(`${APP_URL}/api/shopify/push/customer`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}) },
     body: JSON.stringify({ customerId }),
   });
   return { ok: r.ok, status: r.status, body: await r.json().catch(() => ({})) };

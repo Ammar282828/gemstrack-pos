@@ -65,14 +65,14 @@ async function listAll(name) {
 
 async function callInvoiceUpsert(invoiceId) {
   const r = await fetch(`${APP_URL}/api/shopify/sync/invoice`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}) },
     body: JSON.stringify({ invoiceId, action: 'upsert' }),
   });
   return { ok: r.ok, status: r.status, body: await r.json().catch(() => ({})) };
 }
 async function callOrderUpsert(orderId) {
   const r = await fetch(`${APP_URL}/api/shopify/sync/order`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}) },
     body: JSON.stringify({ orderId, action: 'upsert' }),
   });
   return { ok: r.ok, status: r.status, body: await r.json().catch(() => ({})) };

@@ -44,9 +44,12 @@ export const STORE_CONFIG = {
   instagramUrl:    process.env.NEXT_PUBLIC_STORE_INSTAGRAM_URL    ?? '',
   whatsappUrl:     process.env.NEXT_PUBLIC_STORE_WHATSAPP_URL     ?? '',
 
-  // Auth — comma-separated list of allowed Google accounts
-  allowedEmails:   (process.env.NEXT_PUBLIC_STORE_ALLOWED_EMAILS ?? 'potatomasta501@gmail.com')
-                     .split(',').map(e => e.trim()),
+  // Auth — comma-separated list of the Google accounts that may use the ERP as its owners.
+  // NEXT_PUBLIC_STORE_OWNER_EMAILS wins: Taheri's backend carries a console override of
+  // ALLOWED_EMAILS (potatomasta501 + minakhalid00, from before 2026-09-30) that beats its YAML,
+  // and this session can't edit console overrides — so the list moved to a name it doesn't set.
+  allowedEmails:   (process.env.NEXT_PUBLIC_STORE_OWNER_EMAILS || process.env.NEXT_PUBLIC_STORE_ALLOWED_EMAILS || 'potatomasta501@gmail.com')
+                     .split(',').map(e => e.trim()).filter(Boolean),
 
   appUrl:          process.env.NEXT_PUBLIC_APP_URL                ?? '',
 

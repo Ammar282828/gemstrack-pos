@@ -60,21 +60,13 @@ function useDevBypass(): boolean {
 }
 
 /**
- * ██ TEMPORARY: the deployed app is open to anyone with the URL ██
+ * NEXT_PUBLIC_OPEN_ACCESS=1 removes the sign-in screen, and every route's owner check.
  *
- * Set NEXT_PUBLIC_OPEN_ACCESS=1 in apphosting.yaml on 2026-09-07 at Ammar's
- * request, so the live app can be used without signing in. Unlike useDevBypass
- * above, this one DOES survive a production build — that is the whole point of
- * it, and the reason it is written to be found.
- *
- * On its own this only removes the sign-in screen. It was paired with opening
- * firestore.rules, because the rules were the actual boundary and the app shows
- * nothing without them; see firestore.rules.locked for what to restore. Together
- * they mean anybody who reaches the hostname can read and write every customer,
- * every phone number and the whole ledger.
- *
- * TO CLOSE IT AGAIN: drop NEXT_PUBLIC_OPEN_ACCESS from apphosting.yaml and
- * restore firestore.rules.locked. Both are one change each.
+ * Taheri ran that way from 2026-09-07 (Ammar's request then) to 2026-09-30, paired with
+ * open Firestore rules — which were the real boundary: with them open, anybody who had the
+ * public config could read and write every customer, phone number and the whole ledger,
+ * sign-in screen or not. Both houses now sign in (apphosting.taheri.yaml sets it "0"), and
+ * firestore.rules is Taheri's locked set. Turning it back on means opening both again.
  */
 const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
 

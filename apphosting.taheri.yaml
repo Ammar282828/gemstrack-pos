@@ -63,8 +63,17 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Who may use Taheri's ERP (owner, 2026-09-30: "taheri being open to all is a bit dangerous,
+  # enable taheri on these gmails"). OWNER_EMAILS is what the ERP reads (store-config.ts): the
+  # backend's console override of ALLOWED_EMAILS (potatomasta501 + minakhalid00) beats this file
+  # and can't be edited from here. firestore.rules lists the same four — change both together.
+  - variable: NEXT_PUBLIC_STORE_OWNER_EMAILS
+    value: "potatomasta501@gmail.com,mmurtaza1970@gmail.com,unknownuser80@gmail.com,hmurtaza55@gmail.com"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_ALLOWED_EMAILS
-    value: "potatomasta501@gmail.com"
+    value: "potatomasta501@gmail.com,mmurtaza1970@gmail.com,unknownuser80@gmail.com,hmurtaza55@gmail.com"
     availability:
       - BUILD
       - RUNTIME
@@ -74,10 +83,11 @@ env:
       - BUILD
       - RUNTIME
 
-  # Gates the notification endpoints, which Cloud Scheduler calls without a user
-  # session. Its own value in this project, not shared with the other shop.
+  # Off since 2026-09-30: Taheri signs in with Google like House of Mina (the owner: "taheri
+  # being open to all is a bit dangerous"). "1" removes the sign-in screen and every route's
+  # owner check. Scheduler calls carry CRON_SECRET and never needed it.
   - variable: NEXT_PUBLIC_OPEN_ACCESS
-    value: "1"
+    value: "0"
     availability:
       - BUILD
       - RUNTIME

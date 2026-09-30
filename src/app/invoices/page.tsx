@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { authedFetch } from '@/lib/voice/authed-fetch';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
 import Link from 'next/link';
@@ -483,7 +484,7 @@ export default function DocumentsPage() {
     // invoice already has a shopifyDraftOrderId, otherwise it creates one.
     setSendingLinkId(invoice.id);
     try {
-      const res = await fetch('/api/shopify/push/draft-order', {
+      const res = await authedFetch('/api/shopify/push/draft-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invoiceId: invoice.id }),

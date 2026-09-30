@@ -130,7 +130,7 @@ async function getShopifyOrder(id) {
 async function callSync(body) {
   const res = await fetch(`${APP_URL}/api/shopify/sync/invoice`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}) },
     body: JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));

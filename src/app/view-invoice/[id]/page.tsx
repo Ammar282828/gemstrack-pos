@@ -31,6 +31,31 @@ export default function ViewInvoicePage() {
     if (!invoiceId) return;
 
     const fetchInvoiceData = async () => {
+      // The link the counter sends carries the invoice's key (lib/share-token.ts), and the
+      // server hands over this one invoice for it: the database itself is closed to anyone
+      // not signed in, and invoice numbers run in order, so the number alone opens nothing.
+      const key = new URLSearchParams(window.location.search).get('t');
+      if (key) {
+        try {
+          const res = await fetch(`/api/public/invoice/${encodeURIComponent(invoiceId)}?t=${encodeURIComponent(key)}`, { cache: 'no-store' });
+          if (!res.ok) {
+            setError(`This link is not valid any more. Please ask ${STORE_CONFIG.name} to send it again.`);
+            return;
+          }
+          const d = await res.json() as { invoice: Invoice; customer: { address: string } | null; shopName: string | null };
+          setInvoice(d.invoice);
+          if (d.customer) setCustomer(d.customer as Customer);
+          setSettings({ shopName: d.shopName || STORE_CONFIG.name } as Settings);
+        } catch (err) {
+          console.error('Error fetching invoice:', err);
+          setError('An error occurred while trying to load the invoice.');
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      // No key: an older link, or the shop's own staff, who are signed in and may read the book.
       try {
         // Fetch Invoice
         const invoiceDocRef = doc(db, 'invoices', invoiceId);
@@ -61,7 +86,9 @@ export default function ViewInvoicePage() {
 
       } catch (err) {
         console.error("Error fetching invoice data:", err);
-        setError("An error occurred while trying to load the invoice.");
+        setError((err as { code?: string })?.code === 'permission-denied'
+          ? `This link has expired. Please ask ${STORE_CONFIG.name} to send it again.`
+          : "An error occurred while trying to load the invoice.");
       } finally {
         setIsLoading(false);
       }

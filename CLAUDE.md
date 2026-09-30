@@ -28,9 +28,9 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 - **Node 20**, not the Mac's default: launch config "POS (node 20)" (`PATH=/opt/homebrew/opt/node@20/bin:$PATH npm run dev`, port 3000), or per house
   "Taheri (node 20)" (port 3000) / "Mina (node 20)" (port 3001). On Node 26 the Google auth library fails ("Premature close"). The per-house
   configs drop a `GOOGLE_APPLICATION_CREDENTIALS` that points at a missing file (the second laptop's `~/.zshrc` does), which otherwise breaks every Google call.
-- The app is behind Google sign-in locally; production runs `NEXT_PUBLIC_OPEN_ACCESS=1` (the owner's
-  choice since 2026-09-07, paired with open `firestore.rules`; `firestore.rules.locked` holds the real rules).
-  Don't reintroduce the open-access flag for local checks — ask the user to sign in on the preview.
+- The app is behind Google sign-in, locally and in **both** houses since 2026-09-30 (Taheri ran
+  `NEXT_PUBLIC_OPEN_ACCESS=1` with open Firestore rules from 2026-09-07; owner: "taheri being open to all is a bit
+  dangerous"). Don't reintroduce the open-access flag, for local checks or anything else.
 - Typecheck: `npx tsc --noEmit -p .`. ESLint's config is broken (v9); the build is the lint gate.
 
 ## Configuration and access
@@ -357,7 +357,7 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   saved first), New piece (it stays in Drafts), Delete. A piece leaves once published or queued, and after 30 days. Not in
   Firestore on purpose: camera photos are megabytes. A new piece starts where this device usually posts (`taheri_post_prefs`:
   WhatsApp groups/channel, Instagram, website, weight line).
-- **Add Photos needs no sign-in** under open access — the owner overruled an auth gate on 2026-09-20.
+- ~~**Add Photos needs no sign-in** under open access — the owner overruled an auth gate on 2026-09-20.~~ Superseded 2026-09-30: every house signs in (below).
 - The order-actions route keeps its always-verify gate: it moves money.
 - **Invoices show wastage in grams only** (no rupee value, no percentage); the workshop slip keeps the percentage.
 - Copy: never "Najmi Market" or "Saddar" in anything a customer reads; hours are Sat–Thu 11:00–21:00, **Fri 15:30–20:00**.
@@ -411,6 +411,20 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   report **`monthly-report`** (`notifMonthlyReport`, off until the owner switches it on in Settings → Notifications): on the **1st at the checklist time**, the month before,
   as a PDF document (`sendWhatsAppFile` → WAHA `/api/sendFile`) with a short caption. jsPDF and its table plugin are
   `serverExternalPackages`, so the server takes jsPDF's Node build rather than bundling the browser one.
+- **Taheri signs in: four owners** (2026-09-30, owner: "taheri being open to all is a bit dangerous, enable taheri on these
+  gmails"): potatomasta501, mmurtaza1970, unknownuser80, hmurtaza55. `NEXT_PUBLIC_OPEN_ACCESS` is "0"; the list is
+  `NEXT_PUBLIC_STORE_OWNER_EMAILS` in apphosting.taheri.yaml, read before `ALLOWED_EMAILS` because Taheri's **console override**
+  pins that one to potatomasta501 + minakhalid00 (dead now; delete it in the console when convenient) — and the same four in
+  **`firestore.rules`**, Taheri's locked rules, which the owner publishes in the Firebase console (this session has no rules
+  permission; never the CLI from here — `.firebaserc` defaults to Mina's project). **Until they are published the database is
+  still open**: on 2026-09-30 an anonymous request with the public key listed Taheri's invoices. Found and closed with it: the ten
+  Shopify routes had no check at all (push orders, delete Shopify customers…) — now `erpUserOrCron` (`lib/erp-gate.ts`; the
+  store's calls send the login, the Shopify callback and the scripts `CRON_SECRET`); and the customer's `/view-invoice/<id>` read
+  Firestore directly, so on Mina (locked) customers' links never opened. Every invoice now carries **`shareToken`**
+  (`lib/share-token.ts`: written with it, kept on edits via `INVOICE_PROVENANCE`, added by the cart's Send when an older one has
+  none); the link is `/view-invoice/<id>?t=<key>` and **`/api/public/invoice/[id]`** serves that one invoice for the key (tested;
+  no shop notes, admin notes or karigars). Links sent before 2026-09-30 have no key: once the rules are published they say to ask
+  the shop again (a signed-in owner still opens them).
 - **Staff open an invoice at `/cart?invoice_id=<id>`** (payment, edit, print); `/view-invoice/<id>` is the customer's page, with
   no shell and only downloads, and is only ever sent to customers. There is no `/view-invoice` without an id: the dashboard's
   Recent sales and unpaid rows linked `/view-invoice?invoiceId=` and opened "not found" until 2026-09-29; the workshop's invoice
@@ -684,7 +698,7 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   @collectionstaheri and @houseofmina__ on each respective pos"): Overview (spend, reach, results vs the period before, day by
   day, top ads, age/gender · placement · region, flagged ads), Campaigns (tree with run/pause switches, budget, end date,
   audience, rename, duplicate, archive, delete, Meta's previews and review notes), New ad, Audiences, Rules, Setup. Owner's
-  answers: **open like the rest of the POS** (no sign-in to spend), and **ad spend stays out of the books** (no expenses,
+  answers: **open like the rest of the POS** (no sign-in to spend — superseded 2026-09-30, both houses sign in), and **ad spend stays out of the books** (no expenses,
   not in Analytics). One Meta app for both houses (`META_APP_ID` 1075984878628188 in the base yaml, the same app Taheri's
   Instagram stories use); each POS connects its own Facebook login (`/api/ads/connect` → `callback`, redirect
   `https://<pos>/api/ads/callback` registered with the app) and keeps the token in **its own project's** Secret Manager

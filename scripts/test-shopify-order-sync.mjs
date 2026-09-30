@@ -84,7 +84,7 @@ async function getDraft(id) {
 
 async function callSyncOrder(body) {
   const res = await fetch(`${APP_URL}/api/shopify/sync/order`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}) },
     body: JSON.stringify(body),
   });
   return { ok: res.ok, status: res.status, body: await res.json().catch(() => ({})) };

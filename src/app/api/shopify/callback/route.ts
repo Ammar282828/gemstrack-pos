@@ -57,9 +57,10 @@ export async function GET(request: NextRequest) {
   }, { merge: true });
 
   // Auto-register webhooks for real-time sync
+  // Server to server, so it proves itself with the scheduler's key (register-webhooks refuses anyone else).
   await fetch(`${appUrl}/api/shopify/register-webhooks`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(process.env.CRON_SECRET ? { Authorization: `Bearer ${process.env.CRON_SECRET}` } : {}) },
     body: JSON.stringify({ shop, token: accessToken }),
   });
 
