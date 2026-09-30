@@ -1,0 +1,40 @@
+'use client';
+
+/**
+ * The signed-in person's counter name (lib/people.ts), for defaults: "Taken by" on new work,
+ * and the lists filtered to them. Undefined when nobody is signed in or the account has no name.
+ */
+
+import { useCallback, useState } from 'react';
+import { useAuth } from '@/components/auth/google-auth-gate';
+import { personFor } from '@/lib/people';
+import type { TakenBy } from '@/lib/store';
+
+export function useMe(): TakenBy | undefined {
+  const { user } = useAuth();
+  return personFor(user?.email) as TakenBy | undefined;
+}
+
+const ANYONE = '__anyone__';
+
+/**
+ * A list's "Taken by" filter that starts on the signed-in person. Whatever is picked after —
+ * someone else, or Anyone — holds for the rest of the visit (sessionStorage, per list), so
+ * opening an order and coming back doesn't snap the list back to them.
+ */
+export function useMineFilter(list: string): [TakenBy | undefined, (v: TakenBy | undefined) => void] {
+  const me = useMe();
+  const key = `gemstrack:taken-by-filter:${list}`;
+  const [value, setValue] = useState<TakenBy | undefined>(() => {
+    try {
+      const kept = typeof window !== 'undefined' ? window.sessionStorage.getItem(key) : null;
+      if (kept) return kept === ANYONE ? undefined : (kept as TakenBy);
+    } catch { /* storage refused: start on the person */ }
+    return me;
+  });
+  const set = useCallback((v: TakenBy | undefined) => {
+    setValue(v);
+    try { window.sessionStorage.setItem(key, v ?? ANYONE); } catch { /* the filter still changes */ }
+  }, [key]);
+  return [value, set];
+}

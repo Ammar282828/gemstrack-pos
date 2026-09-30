@@ -56,6 +56,7 @@ import {
 } from '@/lib/vision/order-draft';
 import type { OrderDraft } from '@/lib/vision/order-draft';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
+import { useMe } from '@/hooks/use-me';
 
 // Extend jsPDF interface for the autoTable plugin
 declare module 'jspdf' {
@@ -389,6 +390,8 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
     [seedFromCart, order, cartItems],
   );
 
+  // A new order starts as the signed-in person's (lib/people.ts); an edited one keeps its own.
+  const me = useMe();
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderFormSchema),
     defaultValues: {
@@ -405,7 +408,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
       customerName: '',
       customerContact: '',
       source: undefined,
-      takenBy: undefined,
+      takenBy: me,
       // Fourteen days unless something else is agreed. Blank meant the order was only
       // chased once it was a week old, which is rarely what anyone said at the counter.
       promisedDate: promiseIn(DEFAULT_PROMISE_DAYS),

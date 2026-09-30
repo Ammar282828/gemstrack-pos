@@ -126,6 +126,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Who each account is at the counter (lib/people.ts): "Taken by" and the list filters start on them.
+  # hmurtaza55 is Huzaifa, who isn't on this house's Taken by list, so he gets no default here.
+  - variable: NEXT_PUBLIC_STORE_PEOPLE
+    value: "potatomasta501@gmail.com=Ammar,minakhalid00@gmail.com=Mina"
+    availability:
+      - BUILD
+      - RUNTIME
   # Mina's own expense categories (lib/expense-categories.ts), worked out from all 379 of its
   # expenses on 2026-09-25 at the owner's ask. Comma-separated, so no commas in a name.
   # Partner Drawings, Partner Salary and Other are always added by the code.

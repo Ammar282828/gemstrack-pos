@@ -27,6 +27,7 @@ import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
 import { PromiseLine } from '@/components/shared/promise-line';
 import { useRouter } from 'next/navigation';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
+import { useMineFilter } from '@/hooks/use-me';
 
 type PaymentStatus = OrderPaymentStatus;
 const getPaymentStatus = getOrderPaymentStatus;
@@ -331,7 +332,8 @@ function monthLabel(key: string): string {
 export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
-  const [takenByFilter, setTakenByFilter] = useState<TakenBy | undefined>(undefined);
+  // Starts on whoever is signed in (lib/people.ts); Anyone is one tap away.
+  const [takenByFilter, setTakenByFilter] = useMineFilter('orders');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'All'>('All');
   const [monthFilter, setMonthFilter] = useState<string>('All');
 

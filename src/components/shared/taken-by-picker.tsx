@@ -7,9 +7,10 @@
  * and a filter can count across them. The list is fixed (TAKEN_BY) rather than free text:
  * this is counted, and "Ammar" typed three ways is three people to a filter.
  *
- * Deliberately not derived from the signed-in account. Five people work one counter and
- * whoever is standing at the screen is usually not whose session it is — reading it off
- * the login would quietly credit every sale to whoever logged in that morning.
+ * New work starts on the signed-in person (lib/people.ts; the owner asked, 2026-09-30) — only
+ * as a default this control shows and changes. It was once deliberately not derived from the
+ * login: on a device handed across the counter it credits every sale to whoever signed in,
+ * so it must stay visible and never be written behind anyone's back.
  */
 
 import React from 'react';

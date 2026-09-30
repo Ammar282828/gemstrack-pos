@@ -44,6 +44,7 @@ import { CategoryPicker } from '@/components/shared/category-picker';
 import { AmountInput } from '@/components/ui/amount-input';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import type { TakenBy } from '@/lib/store';
+import { useMineFilter } from '@/hooks/use-me';
 
 // ── small presentational helpers ────────────────────────────────────────────
 
@@ -865,7 +866,8 @@ export default function WorkshopPage() {
   const [view, setView] = useState<'list' | 'board' | 'karigar'>('list');
   const [boardMode, setBoardMode] = useState<'karigar' | 'status' | 'none'>('karigar');
   const [typeFilter, setTypeFilter] = useState<'all' | 'order' | 'stock'>('all');
-  const [takenByFilter, setTakenByFilter] = useState<TakenBy | undefined>(undefined);
+  // Starts on whoever is signed in (lib/people.ts); Anyone is one tap away.
+  const [takenByFilter, setTakenByFilter] = useMineFilter('workshop');
   // Inside "By Karigar": the whole-bench summary, or the per-karigar cards.
   const [karigarView, setKarigarView] = useState<'glance' | 'cards'>('glance');
 

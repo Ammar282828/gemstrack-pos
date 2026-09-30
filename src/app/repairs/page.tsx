@@ -42,6 +42,7 @@ import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { FilterBar } from '@/components/shared/filter-bar';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { Wrench, Plus, PlusCircle, Printer, Edit, Trash2, MessageCircle, CheckCircle2, PackageCheck, Loader2, X, ChevronDown } from 'lucide-react';
+import { useMe } from '@/hooks/use-me';
 
 const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString()}`;
 const day = (iso?: string) => { if (!iso) return ''; try { return format(parseISO(iso), 'd MMM'); } catch { return iso; } };
@@ -97,7 +98,9 @@ function RepairForm({ repair, onDone }: { repair?: Repair; onDone: (saved?: Repa
   const [method, setMethod] = useState<PaymentType>('Cash');
   const [more, setMore] = useState(Boolean(repair?.karigarId || repair?.internalNote || repair?.takenBy));
   const [karigarId, setKarigarId] = useState(repair?.karigarId || '');
-  const [takenBy, setTakenBy] = useState(repair?.takenBy);
+  // A new ticket starts as the signed-in person's (lib/people.ts); an existing one keeps its own.
+  const me = useMe();
+  const [takenBy, setTakenBy] = useState(repair ? repair.takenBy : me);
   const [note, setNote] = useState(repair?.internalNote || '');
   const [saving, setSaving] = useState(false);
 

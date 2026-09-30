@@ -425,6 +425,14 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   none); the link is `/view-invoice/<id>?t=<key>` and **`/api/public/invoice/[id]`** serves that one invoice for the key (tested;
   no shop notes, admin notes or karigars). Links sent before 2026-09-30 have no key: once the rules are published they say to ask
   the shop again (a signed-in owner still opens them).
+- **The ERP starts on whoever is signed in** (2026-09-30, owner: "taken by defaults to ammar when potatomasta is logged in /
+  workshop filters to ammar / orders filter to ammar"): `NEXT_PUBLIC_STORE_PEOPLE` per house ("email=Name,…"; Taheri:
+  potatomasta501=Ammar, unknownuser80=Mansoor, mmurtaza1970=Murtaza, hmurtaza55=Huzaifa, Mohammad has no account; Mina:
+  potatomasta501=Ammar, minakhalid00=Mina) → `lib/people.ts` (tested; a name must be on the house's `TAKEN_BY`). **Taken by**
+  starts on them for a new order, sale or repair (never an edited one), and the **Orders, Invoices and Workshop** filters start
+  on them (`useMineFilter`: a choice, Anyone included, holds for the visit in sessionStorage). Only a default, always shown —
+  on a device handed across the counter it would otherwise credit everyone's sales to one login. Found with it: editing an
+  invoice in the cart never loaded its Taken by, so a re-save dropped it; it loads now.
 - **Staff open an invoice at `/cart?invoice_id=<id>`** (payment, edit, print); `/view-invoice/<id>` is the customer's page, with
   no shell and only downloads, and is only ever sent to customers. There is no `/view-invoice` without an id: the dashboard's
   Recent sales and unpaid rows linked `/view-invoice?invoiceId=` and opened "not found" until 2026-09-29; the workshop's invoice

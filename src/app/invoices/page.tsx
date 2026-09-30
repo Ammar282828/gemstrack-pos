@@ -37,6 +37,7 @@ import QRCode from 'qrcode.react';
 import { GRADUATIONS, bucketOf, type Graduation } from '@/lib/date-grouping';
 import { fitText } from '@/lib/pdf-text';
 import { label } from '@/lib/pdf-chrome';
+import { useMineFilter } from '@/hooks/use-me';
 
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
 
@@ -401,7 +402,8 @@ export default function DocumentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [monthFilter, setMonthFilter] = useState<string>('All');
-  const [takenByFilter, setTakenByFilter] = useState<TakenBy | undefined>(undefined);
+  // Starts on whoever is signed in (lib/people.ts); Anyone is one tap away.
+  const [takenByFilter, setTakenByFilter] = useMineFilter('invoices');
   /**
    * How the list is broken up. Day by default — the usual question is what
    * happened recently — with the same graduations Expenses offers, plus a

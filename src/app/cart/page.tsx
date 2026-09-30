@@ -68,6 +68,7 @@ import { Switch } from '@/components/ui/switch';
 import { BillScanner, type ScannedBill } from '@/components/cart/bill-scanner';
 import { reconcile } from '@/lib/vision/bill-draft';
 import type { TakenBy } from '@/lib/store';
+import { useMe } from '@/hooks/use-me';
 
 
 type RateInputs = {
@@ -160,7 +161,9 @@ export default function CartPage() {
   const [discountAmountInput, setDiscountAmountInput] = useState<string>('0');
 
 
-  const [takenBy, setTakenBy] = useState<TakenBy | undefined>(undefined);
+  // A new sale starts as the signed-in person's (lib/people.ts); the picker shows it and changes it.
+  const me = useMe();
+  const [takenBy, setTakenBy] = useState<TakenBy | undefined>(me);
   // Print the bill without the per-gram rates. Pricing is unaffected; see Invoice.hideRates.
   const [hideRates, setHideRates] = useState(false);
   // See Invoice.internalNote: for the shop, never for the customer.
@@ -702,6 +705,9 @@ export default function CartPage() {
     setSelectedCustomerId(generatedInvoice.customerId || WALK_IN_CUSTOMER_VALUE);
     setHideRates(!!generatedInvoice.hideRates);
     setInternalNote(generatedInvoice.internalNote || '');
+    // Who made the sale stays theirs: editing never loaded it, so a re-save dropped it (and with
+    // the signed-in default, would have handed the sale to whoever edited it).
+    setTakenBy(generatedInvoice.takenBy as TakenBy | undefined);
     // Always restore customer name and phone regardless of walk-in vs registered customer
     setWalkInCustomerName(generatedInvoice.customerName || '');
     if (generatedInvoice.customerContact) {

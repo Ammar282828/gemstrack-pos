@@ -77,6 +77,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Who each account is at the counter: "Taken by" on new work and the Orders, Invoices and
+  # Workshop filters start on them (lib/people.ts). Mohammad has no account yet (the owner, 2026-09-30).
+  - variable: NEXT_PUBLIC_STORE_PEOPLE
+    value: "potatomasta501@gmail.com=Ammar,unknownuser80@gmail.com=Mansoor,mmurtaza1970@gmail.com=Murtaza,hmurtaza55@gmail.com=Huzaifa"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_STORE_WHATSAPP_URL
     value: "https://wa.me/923262275554"
     availability:
