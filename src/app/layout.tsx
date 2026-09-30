@@ -12,7 +12,7 @@ import { useIsStoreHydrated } from '@/hooks/use-store';
 import React, { useEffect } from 'react';
 import Script from 'next/script';
 import { GoogleAuthGate } from '@/components/auth/google-auth-gate';
-import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, STORE_LINKS_PAGE, LINKS_DRESS, isLinksHost, storeLinksUrl } from '@/lib/store-config';
+import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, STORE_ICONS, STORE_LINKS_PAGE, LINKS_DRESS, isLinksHost, storeLinksUrl } from '@/lib/store-config';
 import { readCachedTheme, writeCachedTheme, LIGHT_THEME, readDeviceTheme, DEVICE_THEME_EVENT, applyThemeToDocument, readCachedUiStyle, writeCachedUiStyle, applyUiStyleToDocument } from '@/lib/theme-cache';
 import { warmPdfLogo } from '@/lib/pdf-logo';
 
@@ -211,6 +211,10 @@ export default function RootLayout({
           </>
         )}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* The house's own icons (store-config STORE_ICONS); both ERPs showed the template's flame. */}
+        <link rel="icon" href={`${STORE_ICONS.dir}/favicon.ico`} sizes="48x48" />
+        <link rel="icon" type="image/png" sizes="192x192" href={`${STORE_ICONS.dir}/icon-192.png`} />
+        <link rel="apple-touch-icon" href={`${STORE_ICONS.dir}/apple-touch-icon.png`} />
         {/* The browser chrome around the app. #0A1111 is taheri.shop's ground —
             this was the other shop's maroon. */}
         <meta name="theme-color" content={head.themeColor} />

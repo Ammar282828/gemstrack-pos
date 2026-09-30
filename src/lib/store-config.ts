@@ -163,7 +163,18 @@ export const STORE_BRAND = (process.env.NEXT_PUBLIC_STORE_BRAND ?? 'taheri') as 
 /** The house's own metal as a word, for the columns and labels that track it (Hisaab's metal
  *  balance, the rate form): "Silver" in a silver house, which Hisaab used to label "Gold". */
 export const STORE_METAL_WORD = STORE_CONFIG.defaultMetal === 'silver' ? 'Silver' : 'Gold';
-export const STORE_THEME_COLOR = process.env.NEXT_PUBLIC_STORE_THEME_COLOR ?? '#0A1111';
+export const STORE_THEME_COLOR = process.env.NEXT_PUBLIC_STORE_THEME_COLOR?.trim() || '#0A1111';
+
+/**
+ * The house's icons — browser tab, home screen, installed app — made by scripts/make-icons.mjs into
+ * public/icons/<brand>/: Taheri's t in white on #0A1111, Mina's monogram in maroon on the catalogue's
+ * cream. `ground` is the tile they sit on (the installed app's splash); `short` its home-screen name.
+ */
+export const STORE_ICONS = {
+  dir: `/icons/${STORE_BRAND}`,
+  ground: STORE_BRAND === 'mina' ? '#FAF7F2' : '#0A1111',
+  short: STORE_BRAND === 'mina' ? 'Mina ERP' : 'Taheri ERP',
+};
 
 /**
  * The link page's dress, which its browser bar and share picture match: taheri.shop's
