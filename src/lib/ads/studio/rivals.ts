@@ -57,9 +57,18 @@ export function bestAndWorst(posts: RivalPost[], best = 6, worst = 3): { best: R
   return { best: top, worst: bottom };
 }
 
-/** The Meta Ad Library, searched for a name, in Pakistan: every ad an advertiser runs, as the public sees it. */
-export const adLibraryUrl = (q: string) =>
-  `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=PK&is_targeted_country=false&media_type=all&q=${encodeURIComponent(q)}&search_type=keyword_unordered`;
+/**
+ * The Meta Ad Library in Pakistan: every ad an advertiser runs, as the public sees it.
+ *
+ * By Facebook Page when the page is known — a name searched as words matches any ad that says
+ * them ("Al Syed" found a magazine and a beauty salon, 2026-09-30) — else by the name.
+ */
+export const adLibraryUrl = (q: string, pageId?: string | null) => {
+  const base = 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=PK&is_targeted_country=false&media_type=all';
+  return pageId && /^\d+$/.test(pageId)
+    ? `${base}&search_type=page&view_all_page_id=${pageId}`
+    : `${base}&q=${encodeURIComponent(q)}&search_type=keyword_unordered`;
+};
 
 // ── Taheri's own ads ───────────────────────────────────────────────────────
 

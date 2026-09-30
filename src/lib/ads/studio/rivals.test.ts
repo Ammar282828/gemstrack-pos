@@ -49,6 +49,13 @@ describe('rival posts', () => {
     expect(adLibraryUrl('A & B')).toContain('country=PK');
     expect(adLibraryUrl('A & B')).toContain('q=A%20%26%20B');
   });
+  it('opens the Ad Library on the rival\'s own Page when it is known', () => {
+    const u = adLibraryUrl('Al Syed Jewellers', '1602206406698885');
+    expect(u).toContain('view_all_page_id=1602206406698885');
+    expect(u).toContain('search_type=page');
+    expect(u).not.toContain('q=');
+    expect(adLibraryUrl('Al Syed Jewellers', 'not-a-page')).toContain('q=Al%20Syed%20Jewellers');
+  });
 });
 
 const ad = (id: string, spend: number, results: number, image: string | null = 'x'): OwnAd =>

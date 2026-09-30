@@ -56,6 +56,9 @@ export interface Competitor {
   profileError: string | null;
   reading: RivalReading | null;
   readingAt: string | null;
+  /** The rival's Facebook Page in the Ad Library, when known (found through Meta's own ads connector). */
+  adPageId?: string | null;
+  adPageName?: string | null;
 }
 
 const ref = (u: string) => adminDb.collection(COMPETITORS).doc(u);

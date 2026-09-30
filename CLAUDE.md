@@ -218,6 +218,14 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   Reconnected 20:52 with both: posts now list through Meta with their boost answer. **The Studio's competitor look-ups
   (Business Discovery) also need `instagram_manage_insights`** (Meta's reference: instagram_basic + instagram_manage_insights
   + pages_read_engagement) — #10 even for @instagram without it; now in SCOPES and Setup's list.
+- **Meta's own Ads connector in Claude** (2026-09-30, owner added it at claude.ai/customize/connectors: `https://mcp.facebook.com/ads`,
+  Meta's first-party Ads MCP): a chat session sees every ad account the owner's Facebook login holds (Taheri Main 28476788078639222,
+  House of Mina 2078697546326565, plus two personal ones) and can read, pause, edit and create ads — through Meta's app, so it is not
+  held back by our app's Development mode. Its **Ad Library search covers Pakistan's commercial ads** (our Graph API route doesn't): the
+  Studio's rivals now carry `adPageId`/`adPageName` found that way (10 of 14; Chhotanis, Kiran and Sherezad have run no Meta ads), and
+  "Their live ads" opens the Page's ads (`adLibraryUrl(name, pageId)`) instead of a word search that matched a magazine and a salon for
+  "Al Syed". The ERP itself cannot call the connector; it is the chat's. Its token also asks for `ads_mcp_management`, which is why that
+  permission showed on the ERP's login configuration — the ERP doesn't need it.
 
 ## Security: Mina's repo is public (found 2026-09-27)
 

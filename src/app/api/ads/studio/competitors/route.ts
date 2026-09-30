@@ -17,7 +17,7 @@ import { studioAiGate, studioFail } from '@/lib/ads/studio/route-kit';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 180;
 
-const withLinks = <T extends { name: string; username: string }>(c: T) => ({ ...c, adLibrary: adLibraryUrl(c.name || c.username), instagram: `https://www.instagram.com/${c.username}/` });
+const withLinks = <T extends { name: string; username: string; adPageId?: string | null }>(c: T) => ({ ...c, adLibrary: adLibraryUrl(c.name || c.username, c.adPageId), instagram: `https://www.instagram.com/${c.username}/` });
 
 export async function GET(req: NextRequest) {
   const who = await adsGate(req, STORE_AD_STUDIO);

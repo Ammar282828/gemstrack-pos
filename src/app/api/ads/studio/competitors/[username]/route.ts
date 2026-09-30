@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 240;
 
 const shaped = (c: Competitor) => ({
-  ...c, adLibrary: adLibraryUrl(c.name || c.username), instagram: `https://www.instagram.com/${c.username}/`,
+  ...c, adLibrary: adLibraryUrl(c.name || c.username, c.adPageId), instagram: `https://www.instagram.com/${c.username}/`,
   profile: c.profile ? { ...c.profile, posts: c.profile.posts.map(p => ({ ...p, rate: engagementRate(p, c.profile!.followers) })) } : null,
 });
 
