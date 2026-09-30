@@ -260,8 +260,13 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
       if (d.primaryText[0]) setText(d.primaryText[0]);
       if (d.adHeadlines[0]) setAdHeadline(d.adHeadlines[0]);
       setCopy({ primaryText: d.primaryText, headlines: d.adHeadlines, descriptions: [], onImage: { kicker: d.kicker, headline: d.headline, details: d.cta }, why: d.why });
-      const nextMarked = fixed ? false : marked;
-      if (fixed) await replacePhoto(fixed.blob, false);
+      // The photo op's "same piece?" check decides: a result that changed the piece (stones redrawn,
+      // metal recoloured) never goes into an ad unseen — the original photo stays, and says why.
+      const changed = fixed?.check && !fixed.check.samePiece;
+      if (changed) toast({ title: 'Kept your photo', description: `The AI changed the piece: ${fixed!.check!.differences.slice(0, 2).join('; ') || 'the check says it is not the same'}. The words and layout are in.`, variant: 'destructive' });
+      const use = changed ? null : fixed;
+      const nextMarked = use ? false : marked;
+      if (use) await replacePhoto(use.blob, false);
       setMarked(nextMarked);
       doc.reset(applyAdTemplate(blankAd(format), d.layout, next, assets, { photoMarked: nextMarked, rates }));
       setCheckSoon(true);

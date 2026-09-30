@@ -44,7 +44,18 @@ export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
 
   const res = (() => {
-    if (!isLinks) return NextResponse.next();
+    if (!isLinks) {
+      // The sale form and the invoice screen moved out of /cart (2026-10-01); links already sent,
+      // bookmarked or saved in drafts keep working. Next makes a same-origin Location relative, as
+      // it does for the links page below. app/cart/page.tsx does the same if this is ever skipped.
+      if (url.pathname === '/cart') {
+        const id = (url.searchParams.get('invoice_id') || '').trim();
+        url.searchParams.delete('invoice_id');
+        url.pathname = id ? `/invoices/${encodeURIComponent(id)}` : '/invoices/new';
+        return NextResponse.redirect(url, 307);
+      }
+      return NextResponse.next();
+    }
 
     // /api is NOT let through on this hostname. The link page is a list of addresses
     // out of STORE_CONFIG and calls nothing, so allowing the routes only widened what

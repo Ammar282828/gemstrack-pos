@@ -52,7 +52,7 @@ export const newDraftId = (kind: WorkDraftKind, now = Date.now()) =>
   `${kind}-${now.toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
 export const draftHref = (d: { kind: WorkDraftKind; id: string }) =>
-  d.kind === 'order' ? `/orders/add?draft=${encodeURIComponent(d.id)}` : `/cart?draft=${encodeURIComponent(d.id)}`;
+  d.kind === 'order' ? `/orders/add?draft=${encodeURIComponent(d.id)}` : `/invoices/new?draft=${encodeURIComponent(d.id)}`;
 
 export const isExpired = (d: { updatedAt?: string }, now = Date.now()) => {
   const t = Date.parse(d.updatedAt || '');

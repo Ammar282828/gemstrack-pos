@@ -211,9 +211,9 @@ export default function CustomerDetailPage() {
                   </TableHeader>
                   <TableBody>
                     {customerInvoices.map((invoice) => (
-                      <TableRow key={invoice.id} className="cursor-pointer" onClick={() => router.push(`/cart?invoice_id=${invoice.id}`)}>
+                      <TableRow key={invoice.id} className="cursor-pointer" onClick={() => router.push(`/invoices/${invoice.id}`)}>
                         <TableCell className="font-medium text-primary hover:underline">
-                          <Link href={`/cart?invoice_id=${invoice.id}`} onClick={e => e.stopPropagation()}>{invoice.id}</Link>
+                          <Link href={`/invoices/${invoice.id}`} onClick={e => e.stopPropagation()}>{invoice.id}</Link>
                         </TableCell>
                         <TableCell>{new Date(invoice.createdAt).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">{invoice.grandTotal.toLocaleString()}</TableCell>

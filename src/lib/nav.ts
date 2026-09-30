@@ -104,7 +104,7 @@ export const NAV: NavEntry[] = [
     ],
   },
   { id: 'orders', group: 'sales', staff: true, href: '/orders', label: 'Orders', icon: ClipboardList, keywords: ['custom order', 'order'] },
-  // An invoice opens in the cart (/cart?invoice_id=), which belongs here until invoices move out of it.
+  // /invoices/new, /invoices/<id> and its /edit sit under it; /cart only redirects there (old links).
   { id: 'invoices', group: 'sales', staff: true, href: '/invoices', label: 'Invoices', icon: Receipt, keywords: ['bills', 'estimate', 'unpaid'], match: ['/cart'] },
   { id: 'repairs', group: 'sales', staff: true, href: '/repairs', label: 'Repairs', icon: Wrench, keywords: ['repair', 'fix'] },
   { id: 'customers', group: 'sales', staff: true, href: '/customers', label: 'Customers', icon: Users, keywords: ['clients', 'people'] },
@@ -222,7 +222,7 @@ export const SETTINGS: NavEntry = {
 /** Things to make, for the palette's Create group. */
 export const ACTIONS: NavAction[] = [
   { staff: true, href: '/new', label: 'New sale', icon: PlusCircle, keywords: ['sell'] },
-  { staff: true, href: '/cart', label: 'New invoice', icon: Receipt, keywords: ['bill', 'estimate'] },
+  { staff: true, href: '/invoices/new', label: 'New invoice', icon: Receipt, keywords: ['bill', 'estimate'] },
   { staff: true, href: '/orders/add', label: 'New order', icon: ClipboardList, keywords: ['custom order'] },
   { staff: true, href: '/repairs?new=1', label: 'New repair', icon: Wrench, keywords: ['repair ticket'] },
   { staff: true, href: '/customers/add', label: 'New customer', icon: Users },

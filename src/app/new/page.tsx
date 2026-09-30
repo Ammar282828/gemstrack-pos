@@ -101,7 +101,7 @@ export default function NewSalePage() {
               </p>
             </div>
             <Button asChild size="sm" className="flex-shrink-0">
-              <Link href="/cart">Continue <ArrowRight className="ml-1.5 h-4 w-4" /></Link>
+              <Link href="/invoices/new">Continue <ArrowRight className="ml-1.5 h-4 w-4" /></Link>
             </Button>
           </CardContent>
         </Card>
@@ -113,7 +113,7 @@ export default function NewSalePage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Choice
           primary
-          href="/cart"
+          href="/invoices/new"
           title="Invoice"
           blurb="The customer is buying now."
           icon={<Receipt className="h-5 w-5" />}
@@ -153,7 +153,7 @@ export default function NewSalePage() {
           <Link href="/scan"><ScanQrCode className="mr-2 h-4 w-4" />Scan a tag</Link>
         </Button>
         <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-          <Link href="/cart?scan=bill"><Camera className="mr-2 h-4 w-4" />Read a written bill</Link>
+          <Link href="/invoices/new?scan=bill"><Camera className="mr-2 h-4 w-4" />Read a written bill</Link>
         </Button>
         <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
           <Link href="/orders/add?scan=parchi"><ScanLine className="mr-2 h-4 w-4" />Scan a parchi</Link>

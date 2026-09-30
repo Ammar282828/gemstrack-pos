@@ -58,7 +58,7 @@ function isRecent(iso: string, now: Date): boolean {
 }
 
 export function documentHref(kind: DocKind, id: string): string {
-  return kind === 'order' ? `/orders/${id}` : `/cart?invoice_id=${id}`;
+  return kind === 'order' ? `/orders/${id}` : `/invoices/${id}`;
 }
 
 /**

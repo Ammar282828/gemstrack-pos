@@ -103,7 +103,7 @@ const BoardJobCard: React.FC<{
               ? <Badge variant="secondary" className="text-2xs bg-success/15 text-success">Online</Badge>
               : null}
           {job.invoiceId
-            ? <Link href={`/cart?invoice_id=${job.invoiceId}`} className="font-mono text-success hover:underline">{job.invoiceId}</Link>
+            ? <Link href={`/invoices/${job.invoiceId}`} className="font-mono text-success hover:underline">{job.invoiceId}</Link>
             : job.orderId
               ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
               : null}

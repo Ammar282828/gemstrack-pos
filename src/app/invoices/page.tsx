@@ -86,7 +86,7 @@ const DocumentCard: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPe
         if (doc.docType === 'order') {
             router.push(`/orders/${doc.id}`);
         } else {
-            router.push(`/cart?invoice_id=${doc.id}`);
+            router.push(`/invoices/${doc.id}`);
         }
     };
 
@@ -176,7 +176,7 @@ const DocumentRow: React.FC<{ doc: DocumentType; onPrint: () => void; onPrintPer
         if (doc.docType === 'order') {
             router.push(`/orders/${doc.id}`);
         } else {
-            router.push(`/cart?invoice_id=${doc.id}`);
+            router.push(`/invoices/${doc.id}`);
         }
     };
 

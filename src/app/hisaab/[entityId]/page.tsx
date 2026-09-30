@@ -444,7 +444,7 @@ export default function EntityHisaabPage() {
                                       <div className="flex items-center gap-1.5">
                                         <p className="font-semibold truncate">{entry.description}</p>
                                         {entry.linkedInvoiceId && (
-                                          <a href={`/cart?invoice_id=${entry.linkedInvoiceId}`} className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors" title={`Open ${entry.linkedInvoiceId} to record payment`}>
+                                          <a href={`/invoices/${entry.linkedInvoiceId}`} className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors" title={`Open ${entry.linkedInvoiceId} to record payment`}>
                                             <ExternalLink className="h-3.5 w-3.5" />
                                           </a>
                                         )}
@@ -491,7 +491,7 @@ export default function EntityHisaabPage() {
                                             <div className="flex items-center gap-1.5">
                                               <span className="truncate">{entry.description}</span>
                                               {entry.linkedInvoiceId && (
-                                                <a href={`/cart?invoice_id=${entry.linkedInvoiceId}`} className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors" title={`Open ${entry.linkedInvoiceId} to record payment`}>
+                                                <a href={`/invoices/${entry.linkedInvoiceId}`} className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors" title={`Open ${entry.linkedInvoiceId} to record payment`}>
                                                   <ExternalLink className="h-3.5 w-3.5" />
                                                 </a>
                                               )}

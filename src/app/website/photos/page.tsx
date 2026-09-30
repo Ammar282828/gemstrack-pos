@@ -23,6 +23,7 @@
  * decided by Ammar on 2026-09-20. The route behind it says the same.
  */
 
+import { SetOfTheDayCard, FeatureToggle } from '@/components/website/set-of-the-day';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { auth as firebaseAuth } from '@/lib/firebase';
@@ -219,15 +220,6 @@ export default function AddPhotosPage() {
     failed: items.filter(i => i.status === 'failed').length,
   }), [items]);
 
-  // Put a photograph that just went up on the home page as the set of the day.
-  const [featuredRel, setFeaturedRel] = useState<string | null>(null);
-  const featureItem = async (rel: string) => {
-    const res = await fetch('/api/website/featured', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }, body: JSON.stringify({ key: rel }) });
-    const d = await res.json();
-    if (!res.ok) { toast({ title: 'Could not feature it', description: d.error || `${res.status}`, variant: 'destructive' }); return; }
-    setFeaturedRel(rel);
-    toast({ title: 'Set of the day', description: 'It leads the home page now. Add a line to it under Photo weights if you like.' });
-  };
 
   const clearDone = () => setItems(prev => { prev.filter(i => i.status === 'done').forEach(i => URL.revokeObjectURL(i.preview)); return prev.filter(i => i.status !== 'done'); });
   const remove = (id: string) => setItems(prev => { const it = prev.find(i => i.id === id); if (it) URL.revokeObjectURL(it.preview); return prev.filter(i => i.id !== id); });
@@ -330,6 +322,8 @@ export default function AddPhotosPage() {
               {counts.failed > 0 && <Badge variant="outline" className="border-destructive/40 text-destructive">{counts.failed} failed</Badge>}
             </div>
           </div>
+          {/* What the home page leads with now, beside the Feature today on each photo sent. */}
+          {counts.done > 0 && <SetOfTheDayCard variant="compact" />}
 
           <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {items.map(item => (
@@ -392,11 +386,7 @@ export default function AddPhotosPage() {
                       )}
                     </div>
                   )}
-                  {item.status === 'done' && item.rel && STORE_WEBSITE_FEATURED && (
-                    <button type="button" onClick={() => featureItem(item.rel!)} className={cn('mt-1.5 inline-flex items-center gap-1 text-[11px] rounded-full border px-2 py-0.5 transition-colors', featuredRel === item.rel ? 'bg-amber-500 text-black border-amber-500' : 'text-muted-foreground hover:text-foreground hover:border-foreground/40')}>
-                      <Star className={cn('h-3 w-3', featuredRel === item.rel && 'fill-current')} /> {featuredRel === item.rel ? 'Set of the day' : 'Feature today'}
-                    </button>
-                  )}
+                  {item.status === 'done' && item.rel && <FeatureToggle pieceKey={item.rel} variant="chip" className="mt-1.5" />}
                 </div>
               </li>
             ))}

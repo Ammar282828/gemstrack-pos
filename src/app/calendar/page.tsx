@@ -59,7 +59,7 @@ const EventDetails: React.FC<{ events: CalendarEventType[] | undefined, selected
         <div className="space-y-3">
             {events.map(event => (
                <div key={event.id} className="p-3 rounded-lg border bg-muted/20 flex flex-col md:flex-row justify-between gap-2">
-                    <Link href={event.eventType === 'order' ? `/orders/${event.id}` : `/cart?invoice_id=${event.id}`} passHref className="flex-grow">
+                    <Link href={event.eventType === 'order' ? `/orders/${event.id}` : `/invoices/${event.id}`} passHref className="flex-grow">
                         <div className="flex items-center justify-between cursor-pointer hover:bg-muted/50 rounded-md p-1 -m-1">
                             <div className="flex items-center gap-2">
                                 <span aria-hidden className={cn('h-2 w-2 rounded-full flex-shrink-0', event.eventType === 'invoice' ? 'bg-success' : 'bg-blue-500')} />

@@ -189,7 +189,7 @@ export function CommandPalette() {
         [inv.id, shortDate(inv.createdAt), due > 0 ? `${pkr(due)} due` : 'paid'].filter(Boolean).join(' · '),
         'Invoices',
         <Receipt className="h-4 w-4" />,
-        `/cart?invoice_id=${inv.id}`,
+        `/invoices/${inv.id}`,
         `${name} ${inv.id} ${phoneForms(inv.customerContact)}`,
         inv.createdAt,
         isNumber(inv.id),

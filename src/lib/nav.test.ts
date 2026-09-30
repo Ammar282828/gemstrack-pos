@@ -65,7 +65,7 @@ describe('who sees what', () => {
     expect(staff).not.toContain('/expenses');
     expect(staff).not.toContain('/settings/weprint-api');
     const owner = paletteFor(false);
-    expect(owner.map(d => d.href)).toEqual(expect.arrayContaining(['/drafts', '/scan', '/settings/printer', '/repairs?new=1', '/cart', '/analytics/products']));
+    expect(owner.map(d => d.href)).toEqual(expect.arrayContaining(['/drafts', '/scan', '/settings/printer', '/repairs?new=1', '/invoices/new', '/analytics/products']));
   });
   it('a tab whose words are another place\'s is named with its row', () => {
     const labels = paletteFor(false).map(d => d.label);
@@ -84,7 +84,7 @@ describe('where a page sits', () => {
     expect(locate('/products/bulk-add', entries)?.tab?.href).toBe('/products/bulk-add');
     expect(locate('/products/RIN-000001', entries)?.tab?.href).toBe('/products');
     expect(locate('/hisaab/x1', entries)?.entry.id).toBe('money');
-    expect(locate('/cart', entries)?.entry.id).toBe('invoices');
+    expect(locate('/invoices/new', entries)?.entry.id).toBe('invoices');
     expect(locate('/', entries)?.tab?.label).toBe('Dashboard');
     expect(locate('/settings/contact-import', entries)?.entry.id).toBe('settings');
   });

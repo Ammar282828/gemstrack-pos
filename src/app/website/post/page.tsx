@@ -40,6 +40,7 @@
  * runs on.
  */
 
+import { SetOfTheDayCard, putFeatured, FeaturedError } from '@/components/website/set-of-the-day';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { auth as firebaseAuth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
@@ -798,8 +799,8 @@ function PostAPiecePage() {
           const lead = sitePhotos.find(p => p.id === hero.id) ?? sitePhotos[0];
           const rel = lead && uploadedRef.current[lead.id];
           if (!rel) throw new Error('No photo is on the website yet.');
-          const res = await fetch('/api/website/featured', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ key: rel }) });
-          if (!res.ok) throw httpError((await res.json().catch(() => ({}))).error || `${res.status}`, res.status);
+          // The shared control's call, so the "Now:" beside the switch follows at once.
+          try { await putFeatured(rel); } catch (e) { throw e instanceof FeaturedError ? httpError(e.message, e.status) : e; }
         } else if (s.id === 'instagram') {
           if (!sentRef.current.instagram) {
             const form = new FormData();
@@ -1263,6 +1264,8 @@ function PostAPiecePage() {
                       onCheckedChange={v => square.change(d => ({ ...d, layers: d.layers.map(l => l.kind === 'text' && l.bind === 'weight' ? { ...l, hidden: !v } : l) }))} /> {wLabel || 'Weight'} on the photo</label>
                     {STORE_WEBSITE_FEATURED && <label className="flex items-center gap-2"><Switch checked={feature} onCheckedChange={setFeature} /> Set of the day</label>}
                   </div>
+                  {/* What publishing with the switch on replaces. */}
+                  {STORE_WEBSITE_FEATURED && feature && <SetOfTheDayCard variant="compact" />}
                   {maisonSite && (
                     <Select value={maisonHouse} onValueChange={setMaisonHouse} recentsKey="maison-house">
                       <SelectTrigger className="h-10" aria-label="House"><SelectValue placeholder="The house — Cartier, Van Cleef & Arpels…" /></SelectTrigger>

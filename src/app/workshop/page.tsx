@@ -360,7 +360,7 @@ const OrderGroupedJobs: React.FC<{
             ? <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock piece</Badge>
             : g.invoiceId
               ? (
-                <Link href={`/cart?invoice_id=${g.invoiceId}`} className="inline-flex items-center gap-1 hover:underline">
+                <Link href={`/invoices/${g.invoiceId}`} className="inline-flex items-center gap-1 hover:underline">
                   <span className="font-mono font-bold text-sm text-success">{g.invoiceId}</span>
                   <ExternalLink className="h-3 w-3 text-success" />
                 </Link>
@@ -791,7 +791,7 @@ const JobCardMobile: React.FC<{
 
             <div className="flex items-center gap-2 flex-wrap mt-1.5 text-xs text-muted-foreground">
               {job.invoiceId
-                ? <Link href={`/cart?invoice_id=${job.invoiceId}`} className="font-mono text-success hover:underline">{job.invoiceId}</Link>
+                ? <Link href={`/invoices/${job.invoiceId}`} className="font-mono text-success hover:underline">{job.invoiceId}</Link>
                 : job.orderId
                   ? <Link href={`/orders/${job.orderId}`} className="font-mono text-primary hover:underline">{job.orderId}</Link>
                   : <Badge variant="secondary" className="text-2xs bg-violet-500/15 text-violet-700 dark:text-violet-300">Stock</Badge>}
@@ -1411,7 +1411,7 @@ export default function WorkshopPage() {
 
                         <TableCell className="align-middle">
                           {j.invoiceId
-                            ? <Link href={`/cart?invoice_id=${j.invoiceId}`} className="font-mono text-sm text-success hover:underline">{j.invoiceId}</Link>
+                            ? <Link href={`/invoices/${j.invoiceId}`} className="font-mono text-sm text-success hover:underline">{j.invoiceId}</Link>
                             : j.orderId
                               ? <Link href={`/orders/${j.orderId}`} className="font-mono text-sm text-primary hover:underline">{j.orderId}</Link>
                               : <span className="text-sm text-muted-foreground">—</span>}

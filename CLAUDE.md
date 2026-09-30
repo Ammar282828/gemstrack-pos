@@ -94,7 +94,7 @@ Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27: "
 | `/api/public/me` | taheri.shop and (on Mina's POS) catalogue.houseofmina.store, Bearer Firebase ID token of that house's project | the customer's record: profile, favourites, orders (`website_customers/{uid}`). Favourites must be three-part keys (`isPieceKey`): taheri.shop's `Category/Collection/file`, the catalogue's `mina/piece/<handle>` |
 | `/api/website/photos` | POS page Add Photos | relays a photo to `taheri.shop/api/upload.php` with `WEBSITE_UPLOAD_SECRET`; HEIC → JPEG on the way |
 | `/api/website/pieces` | POS page Photo Weights | counter-entered weights (`website_pieces`) for photos with no burned-in label |
-| `/api/website/featured` | Photo Weights / Add Photos | set or clear the set of the day |
+| `/api/website/featured` | Photo weights / Add photos / Post a piece, through one control (`components/website/set-of-the-day.tsx`: the card, a compact "Now:" line, the per-photo toggle; one state per page) | set or clear the set of the day |
 | `/api/website/post` | POS page Post a Piece | GET the community's name/size; POST one image + caption to `WHATSAPP_COMMUNITY_CHAT_ID` and then the channel `WHATSAPP_CHANNEL_ID`, via WAHA, logged in `social_posts`. `/convert` turns HEIC into JPEG for the canvas |
 | `/api/website/post/ai` | Post a Piece | Gemini on Vertex (`IMAGE_AI_PROJECT`): `enhance`, `reframe`, `restage`, `letter`, `caption`, `check`. Every image edit is compared with its source ("same piece?"); capped 300 calls/day shop-wide, 60/h per IP |
 | `/api/instagram/status`, `connect`, `callback`, `story` | Post a Piece | Instagram Login OAuth → 60-day token in **Secret Manager** (`instagram-token`, renewed on use), locked to `INSTAGRAM_USERNAME`; `story` publishes a 9:16 JPEG |
@@ -368,7 +368,7 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   written after (`finish()` — the old device-only drafts kept writing while the page navigated away, and kept a sale's
   customer while its invoice was on screen, which is how saved orders and sales showed up as "unfinished"); removed when
   the form is emptied; forgotten after 30 days. Each form is its own draft: an order's id rides in `?draft=`, the cart
-  remembers its sale in `gemstrack:sale-draft` and carries its pieces, so `/cart?draft=…` continues a sale on another
+  remembers its sale in `gemstrack:sale-draft` and carries its pieces, so `/invoices/new?draft=…` continues a sale on another
   device. Opening an invoice over a sale in progress keeps that sale in Drafts. The old `gemstrack:draft:` browser drafts
   are moved over once per device, minus those saved afterwards. Settings' switch (`autoDraftForms`) turns it all off.
 - **Post a Piece remembers** (2026-09-27, owner: "post a piece should have proper memory and have drafts and continue where
@@ -484,12 +484,20 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   on them (`useMineFilter`: a choice, Anyone included, holds for the visit in sessionStorage). Only a default, always shown —
   on a device handed across the counter it would otherwise credit everyone's sales to one login. Found with it: editing an
   invoice in the cart never loaded its Taken by, so a re-save dropped it; it loads now.
-- **Staff open an invoice at `/cart?invoice_id=<id>`** (payment, edit, print); `/view-invoice/<id>` is the customer's page, with
+- **Staff open an invoice at `/invoices/<id>`** (2026-10-01 audit, Phase 5; `components/invoice/invoice-viewer.tsx`: print, send,
+  payment, discount, refund, New sale — it never touches the cart), change it at `/invoices/<id>/edit`, and sell at
+  `/invoices/new` (both `components/sale/sale-page.tsx`, the old cart). `/cart` only redirects (307 in `middleware.ts`, and
+  `app/cart/page.tsx`): `?invoice_id=` → the invoice, anything else → `/invoices/new` with its query. Opening an invoice used to
+  clear the sale in progress, and its Refund button did nothing (its dialog was drawn only in the cart's other mode). An edit
+  marks the cart (`gemstrack:cart-editing`) so a reload re-opens it and a new sale never inherits its pieces; a sale in progress
+  when an edit opens is set aside (`gemstrack:cart-held`, and Drafts) and comes back in New sale; with Drafts off it asks first.
+  The cart's piece lines are priced at the rate boxes, like its totals (they showed today's rate on an edit or a scanned bill).
+  `/view-invoice/<id>` is the customer's page, with
   no shell and only downloads, and is only ever sent to customers. There is no `/view-invoice` without an id: the dashboard's
   Recent sales and unpaid rows linked `/view-invoice?invoiceId=` and opened "not found" until 2026-09-29; the workshop's invoice
   links sent staff to the customer's page.
 - **One invoice PDF builder**: `src/lib/invoice-pdf.ts` (`saveInvoicePdf`) draws the customer's copy for the invoices list,
-  the cart's post-sale screen and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
+  the invoice screen (`/invoices/<id>`) and `/view-invoice`. `perPiece` prints a multi-piece invoice as one invoice per piece on its
   own page ("Piece 2 of 3"); discount, exchange, adjustments and paid are shared pro rata by piece price, the last piece
   absorbs rounding, payment history is left off the pieces. The split button is `components/shared/print-button.tsx`.
 - **Post a Piece** (`/website/post`, 2026-09-24): photos + headline + weight → a 1080×1920 Instagram story drawn on a canvas in

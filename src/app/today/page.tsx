@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
 const SOURCE = { invoice: 'Invoice', advance: 'Order advance', repair: 'Repair', extra: 'Extra revenue' } as const;
 const hrefOf = (source: keyof typeof SOURCE, ref: string) =>
-  source === 'invoice' ? `/cart?invoice_id=${ref}` : source === 'advance' ? `/orders/${ref}` : source === 'repair' ? `/repairs?id=${ref}` : '/additional-revenue';
+  source === 'invoice' ? `/invoices/${ref}` : source === 'advance' ? `/orders/${ref}` : source === 'repair' ? `/repairs?id=${ref}` : '/additional-revenue';
 
 export default function TodaysCashPage() {
   const appReady = useAppReady();

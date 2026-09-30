@@ -305,7 +305,7 @@ const FinalizeOrderDialog: React.FC<{
                 description: `Invoice ${newInvoice.id} has been successfully created from order ${order.id}. You will now be taken to the cart page to manage payments.`,
             });
             // Redirect to cart/payment page, which now shows the finalized invoice
-             router.push(`/cart?invoice_id=${newInvoice.id}`);
+             router.push(`/invoices/${newInvoice.id}`);
         } else {
             toast({
                 title: "Error",
@@ -1025,7 +1025,7 @@ export default function OrderDetailPage() {
 
                           {order.invoiceId ? (
                             <Button asChild size="sm">
-                              <Link href={`/cart?invoice_id=${order.invoiceId}`}>
+                              <Link href={`/invoices/${order.invoiceId}`}>
                                 <FileText className="mr-2 h-4 w-4" />Invoice {order.invoiceId}
                               </Link>
                             </Button>

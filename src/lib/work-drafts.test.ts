@@ -67,7 +67,7 @@ describe('the rest', () => {
   it('ids, links and age', () => {
     expect(newDraftId('order', 0)).toMatch(/^order-0-[a-z0-9]+$/);
     expect(draftHref({ kind: 'order', id: 'order-1' })).toBe('/orders/add?draft=order-1');
-    expect(draftHref({ kind: 'sale', id: 'sale-1' })).toBe('/cart?draft=sale-1');
+    expect(draftHref({ kind: 'sale', id: 'sale-1' })).toBe('/invoices/new?draft=sale-1');
     const now = Date.parse('2026-09-27T12:00:00Z');
     expect(isExpired({ updatedAt: '2026-09-20T12:00:00Z' }, now)).toBe(false);
     expect(isExpired({ updatedAt: '2026-08-20T12:00:00Z' }, now)).toBe(true);

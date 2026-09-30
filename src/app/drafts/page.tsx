@@ -34,7 +34,7 @@ export default function DraftsPage() {
             {orders.map(d => <DraftCard key={d.id} d={d} />)}
           </Section>
           <Section title="Sales" icon={<Receipt className="h-4 w-4" />} empty="No unfinished sales."
-            action={<Button asChild size="sm" variant="outline"><Link href="/cart"><PlusCircle className="mr-1.5 h-4 w-4" />New sale</Link></Button>}>
+            action={<Button asChild size="sm" variant="outline"><Link href="/invoices/new"><PlusCircle className="mr-1.5 h-4 w-4" />New sale</Link></Button>}>
             {sales.map(d => <DraftCard key={d.id} d={d} />)}
           </Section>
         </>
