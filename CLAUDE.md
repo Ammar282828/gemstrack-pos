@@ -835,7 +835,15 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   same made-to-order / buy-back / repolish; 164 of 209 Shopify pieces are 21k gold-plated; 4.81★ from 138 reviews; free delivery only
   over Rs 20,000; no Google ads; **the catalogue carries no pixel**; both sites link TikTok to **@houseofmina, a US beauty/fashion
   blog — not hers** (owner, 2026-09-30: "the tiktok isnt hers"): `NEXT_PUBLIC_STORE_TIKTOK_URL` is gone from `apphosting.mina.yaml`,
-  so links.houseofmina.store has no TikTok row; the Shopify theme and the catalogue carry their own copy of the link. Her plays: the gold look at the silver
+  so links.houseofmina.store has no TikTok row, and the catalogue dropped its own (mina-catalogue, same day); only the Shopify
+  theme's footer (Customize → Footer → Social icons) still links it — the connector can't write the live theme.
+  **Why Google shows few houseofmina.store products** (looked into 2026-09-30): nothing blocks indexing; the shop renamed 50 ring
+  handles on 2026-09-24 (`adele-er-single-round1ct-halo-pave` → `adele`, 301s) and 60-odd others before, so the index holds old
+  addresses until it re-crawls (Search Console → URL inspection → Request indexing speeds it); the main menu's **Heirloom Jewelry**
+  and its five sub-items link, from every page, to collections with no public products (their 95 pieces are Shopify drafts;
+  the catalogue shows them); one-word names ("Adele", "Kaia") find other brands' pieces unless searched with "House of Mina".
+  Fixed that day: the one redirect chain (amalfi → capri-earrings → capri-ear-cuffs, now one hop), and the catalogue's shop links
+  (now the current handles). Her plays: the gold look at the silver
   price (always on), a real review, the Ring Builder (`path` on a play), bangle-and-ring sets, natural ruby for him, the shop, the
   catalogue, the profile, and the promises for come-back.
   **The pixel a site already carries, and Online orders** (2026-09-29): **houseofmina.store already has Meta pixel 1429906491670575**
