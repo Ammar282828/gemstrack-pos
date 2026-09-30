@@ -307,7 +307,7 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   is nowhere. **One tab row per screen** — no in-page `Tabs` under the top bar's.
   ```
   [Search ⌘K] [New sale: Invoice · Order · Repair; Scan a tag · Read a written bill · Scan a parchi]   top bar: rate chip
-  Home        Dashboard · Calendar
+  Home        Dashboard · Calendar · Today’s cash (owners)
   SALES       Orders · Invoices · Repairs · Customers · Drafts (count)
   WORKSHOP &  Workshop (Jobs · Karigars · Given items) · Stock (Pieces · Add in bulk · Labels · Scan) — Stock owners only
   STOCK
@@ -414,6 +414,19 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   hand-typed rates** (`ratesToKeep`): editing an invoice loads its own old rates and a scanned bill the paper's, and saving
   either used to make that rate today's. The Settings form no longer carries rates, so saving shop details can't write back a
   stale one.
+- **One screen per question** (2026-10-01 audit, Phase 4). **Owed to you** is one rule, `lib/owed.ts` (tested): every invoice
+  not refunded with `balanceDue` > 0.5, walk-ins and typed names included (under `WALK_IN_ENTITY` / `name:` keys, as Analytics
+  keys them) — the dashboard, the customer list (it had dropped walk-ins and typed names), Invoices' subtitle and Hisaab's "On
+  invoices" line all read it and agree to the rupee. **Today's cash** (`/today`, a Home tab, owners only;
+  `lib/analytics/todays-cash.ts`, tested) is Karachi's day: money in by method (invoice payments, advances on orders not yet
+  invoiced, repair money with the repair's own method, other income "Not recorded"), exchange apart, expenses the business paid,
+  and **the drawer = Cash − expenses**; it is built on `cash-in.ts`, so it matches Analytics, and the 9 pm daily report's "Net
+  cash" is the same function (it had counted invoice payments only, card and bank as cash, on UTC days). **The karigar page**
+  opens on **Now** (`lib/karigar-position.ts`, tested): his bench (`buildWorkshopJobs`, Pending included; links to
+  `/workshop?karigar=<id>`, which opens on his whole bench with Taken by on Anyone for that visit only), the pieces' estimated
+  weight **beside** the Gold khata (never summed — two measures), given items still out (by `recipientId`, else his name), and
+  the Hisaab cash balance (positive: he holds ours) with the open pay batch. Read only; ticking "Given" on a job still posts
+  nothing to Hisaab (the owner's call).
 - **Fonts ship in the repo; never `next/font/google`** (2026-09-30): House of Mina's build failed twice that day in
   `website/post/fonts.ts` ("An error occurred in `next/font`… Cannot read properties of null (reading '1')") — now and then
   Google hands the builder a font address with no `.woff2` ending, which Next 15's Google loader can't read, and that house

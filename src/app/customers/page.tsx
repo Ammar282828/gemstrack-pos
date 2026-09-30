@@ -2,6 +2,7 @@
 
 "use client";
 
+import { owedToYou } from '@/lib/owed';
 import React, { useState, useMemo, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { format, parseISO, subMonths } from 'date-fns';
@@ -573,9 +574,11 @@ export default function CustomersPage() {
     toast({ title: "Customers Merged", description: `Duplicate removed. ${result.updatedDocs} records updated.` });
   };
 
-  /** Spend, outstanding and last-sale date per customer.
-   *  Invoices with no customerId cannot be attributed — a known gap, since a
-   *  large share of imported invoices only carry a typed-in name. */
+  // One "owed" for the whole ERP (lib/owed.ts): walk-ins and typed-name invoices are in its total and shown
+  // as their own line here, since they have no customer record to sit on.
+  const owed = useMemo(() => owedToYou(generatedInvoices, id => customers.find(c => c.id === id)?.name), [generatedInvoices, customers]);
+  /** Spend, outstanding and last-sale date per customer record. Invoices with only a typed-in name
+   *  have no record to sit on; what they owe is in the tile's total as its own line. */
   const statsById = useMemo(() => {
     const map = new Map<string, CustomerStats>();
     const bump = (id: string | undefined, total: number, due: number, at?: string) => {
@@ -587,16 +590,21 @@ export default function CustomersPage() {
       if (at && (!cur.lastAt || at > cur.lastAt)) cur.lastAt = at;
       map.set(id, cur);
     };
+    // Spend and last sale per customer; what they owe comes from owedToYou (below), the dashboard's own figure.
     for (const inv of generatedInvoices) {
       if (inv?.status === 'Refunded') continue;
-      bump(inv?.customerId, inv?.grandTotal || 0, inv?.balanceDue || 0, inv?.createdAt);
+      bump(inv?.customerId, inv?.grandTotal || 0, 0, inv?.createdAt);
+    }
+    for (const [key, o] of owed.byKey) {
+      const cur = map.get(key);
+      if (cur) cur.owed = o.amount;
     }
     for (const o of orders) {
       if (!o || o.invoiceId || o.status === 'Cancelled' || o.status === 'Refunded') continue;
       bump(o.customerId, o.subtotal || 0, 0, o.createdAt);
     }
     return map;
-  }, [generatedInvoices, orders]);
+  }, [generatedInvoices, orders, owed]);
 
   const matched = useMemo(() => {
     if (!appReady) return [];
@@ -637,14 +645,11 @@ export default function CustomersPage() {
     : groups;
 
   const totals = useMemo(() => {
-    let owed = 0, spent = 0;
-    for (const c of customers) {
-      const s = statsById.get(c.id);
-      owed += s?.owed || 0;
-      spent += s?.spent || 0;
-    }
-    return { owed, spent, owingCount: groups.owing.length };
-  }, [customers, statsById, groups.owing.length]);
+    let spent = 0;
+    for (const c of customers) spent += statsById.get(c.id)?.spent || 0;
+    // The dashboard's own figure, walk-ins and typed names included (they are named under the tile).
+    return { owed: owed.total, spent, owingCount: groups.owing.length, walkIn: owed.walkIn, nameOnly: owed.nameOnly };
+  }, [customers, statsById, groups.owing.length, owed]);
 
   if (!appReady) {
     return (
@@ -731,7 +736,11 @@ export default function CustomersPage() {
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Owed to you</p>
           <p className={cn('text-base sm:text-xl md:text-2xl font-bold leading-tight truncate',
             totals.owed > 0 && 'text-destructive')}>{pkr(totals.owed)}</p>
-          <p className="text-2xs text-muted-foreground">{totals.owingCount} customer{totals.owingCount === 1 ? '' : 's'}</p>
+          <p className="text-2xs text-muted-foreground">
+            {totals.owingCount} customer{totals.owingCount === 1 ? '' : 's'}
+            {totals.walkIn > 0 && <> · walk-ins {pkr(totals.walkIn)}</>}
+            {totals.nameOnly > 0 && <> · typed names {pkr(totals.nameOnly)}</>}
+          </p>
         </div>
         <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Bought in {DORMANT_AFTER_MONTHS}m</p>

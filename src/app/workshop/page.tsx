@@ -852,7 +852,9 @@ export default function WorkshopPage() {
   const [presetKarigar, setPresetKarigar] = useState<string | undefined>();
   const [editJob, setEditJob] = useState<WorkshopJob | null>(null);
   const [search, setSearch] = useState('');
-  const [karigarFilter, setKarigarFilter] = useState('all');
+  // `?karigar=<id>` (the karigar page's "On his bench") opens on his whole bench.
+  const [karigarParam] = useState(() => typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('karigar'));
+  const [karigarFilter, setKarigarFilter] = useState(() => karigarParam || 'all');
   const [statusFilter, setStatusFilter] = useState('active');
   /**
    * Two axes that used to be one tab strip.
@@ -868,7 +870,7 @@ export default function WorkshopPage() {
   const [boardMode, setBoardMode] = useState<'karigar' | 'status' | 'none'>('karigar');
   const [typeFilter, setTypeFilter] = useState<'all' | 'order' | 'stock'>('all');
   // Starts on whoever is signed in (lib/people.ts); Anyone is one tap away.
-  const [takenByFilter, setTakenByFilter] = useMineFilter('workshop');
+  const [takenByFilter, setTakenByFilter] = useMineFilter('workshop', { startOnAnyone: !!karigarParam });
   // Inside "By Karigar": the whole-bench summary, or the per-karigar cards.
   const [karigarView, setKarigarView] = useState<'glance' | 'cards'>('glance');
 

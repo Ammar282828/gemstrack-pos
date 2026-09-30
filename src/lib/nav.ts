@@ -25,7 +25,7 @@ import {
   Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale,
   PenLine, Coins, Target, BookUser, PieChart, Landmark, Tag, ArchiveRestore, RotateCcw, Mic, History, Palette,
   Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Store,
-  LayoutGrid, Bell, Plug,
+  LayoutGrid, Bell, Plug, Banknote,
 } from 'lucide-react';
 import {
   STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE,
@@ -99,6 +99,8 @@ export const NAV: NavEntry[] = [
     tabs: [
       { staff: true, href: '/', label: 'Dashboard', icon: Home },
       { staff: true, href: '/calendar', label: 'Calendar', icon: Calendar, keywords: ['due dates', 'activity'] },
+      // Money in today by method, out, and the drawer (lib/analytics/todays-cash.ts). Owners: it is the till.
+      { href: '/today', label: 'Today’s cash', icon: Banknote, keywords: ['cash', 'drawer', 'till', 'today', 'collected', 'daily cash'] },
     ],
   },
   { id: 'orders', group: 'sales', staff: true, href: '/orders', label: 'Orders', icon: ClipboardList, keywords: ['custom order', 'order'] },

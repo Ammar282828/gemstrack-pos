@@ -13,6 +13,7 @@
  * sidebar. It fits one desktop screen; each list scrolls inside its own frame.
  */
 
+import { owedToYou } from '@/lib/owed';
 import React, { useMemo } from 'react';
 import { BoardSkeleton } from '@/components/shared/skeletons';
 import Link from 'next/link';
@@ -209,10 +210,10 @@ export default function HomePage() {
     const todayInvoices = generatedInvoices.filter(i =>
       i.status !== 'Refunded' && parseISO(getInvoiceRevenueDate(i, ordersById)) >= todayStart);
 
-    const unpaid = generatedInvoices
-      .filter(i => i.status !== 'Refunded' && (i.balanceDue || 0) > 0)
-      .sort((a, b) => (b.balanceDue || 0) - (a.balanceDue || 0));
-    const totalOutstanding = unpaid.reduce((s, i) => s + Math.max(0, i.balanceDue || 0), 0);
+    // What customers owe: the one selector the customer list, Invoices and Hisaab read too (lib/owed.ts).
+    const owed = owedToYou(generatedInvoices);
+    const unpaid = [...owed.invoices].sort((a, b) => (b.balanceDue || 0) - (a.balanceDue || 0));
+    const totalOutstanding = owed.total;
 
     const jobs = buildWorkshopJobs(orders, karigarJobs, karigars, { invoices: generatedInvoices });
     const activeJobs = jobs.filter(j => j.status !== 'completed');

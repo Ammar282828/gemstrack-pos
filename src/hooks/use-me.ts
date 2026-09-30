@@ -22,10 +22,13 @@ const ANYONE = '__anyone__';
  * someone else, or Anyone — holds for the rest of the visit (sessionStorage, per list), so
  * opening an order and coming back doesn't snap the list back to them.
  */
-export function useMineFilter(list: string): [TakenBy | undefined, (v: TakenBy | undefined) => void] {
+export function useMineFilter(list: string, opts: { startOnAnyone?: boolean } = {}): [TakenBy | undefined, (v: TakenBy | undefined) => void] {
   const me = useMe();
   const key = `gemstrack:taken-by-filter:${list}`;
   const [value, setValue] = useState<TakenBy | undefined>(() => {
+    // A link that asks for everything (a karigar's whole bench) starts on Anyone, this once —
+    // nothing is kept, so the list's next plain visit starts as it always does.
+    if (opts.startOnAnyone) return undefined;
     try {
       const kept = typeof window !== 'undefined' ? window.sessionStorage.getItem(key) : null;
       if (kept) return kept === ANYONE ? undefined : (kept as TakenBy);

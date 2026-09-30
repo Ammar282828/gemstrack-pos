@@ -2,6 +2,7 @@
 
 "use client";
 
+import { isOwing, owedToYou } from '@/lib/owed';
 import { PageShell } from '@/components/shared/page-shell';
 import React, { useMemo, useState, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
@@ -215,13 +216,16 @@ export default function HisaabPage() {
     const map: Record<string, InvoiceBalance[]> = {};
     if (!Array.isArray(generatedInvoices)) return map;
     for (const inv of generatedInvoices) {
-      if (inv.balanceDue > 0 && inv.customerId && inv.customerId !== WALK_IN_ENTITY && inv.status !== 'Refunded') {
+      if (isOwing(inv) && inv.customerId && inv.customerId !== WALK_IN_ENTITY) {
         if (!map[inv.customerId]) map[inv.customerId] = [];
         map[inv.customerId].push({ id: inv.id, grandTotal: inv.grandTotal, amountPaid: inv.amountPaid, balanceDue: inv.balanceDue });
       }
     }
     return map;
   }, [generatedInvoices]);
+  // The ERP's one "owed to you" (lib/owed.ts), shown beside the ledger's own receivable: Hisaab also
+  // holds opening balances, loans and karigars, so the two can differ — and a difference is worth a look.
+  const owedOnInvoices = useMemo(() => owedToYou(Array.isArray(generatedInvoices) ? generatedInvoices : []), [generatedInvoices]);
 
   const { accountSummaries, totalReceivable, totalPayable, totalReceivableGold, totalPayableGold } = useMemo(() => {
     if (!Array.isArray(hisaabEntries)) {
@@ -357,19 +361,22 @@ export default function HisaabPage() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center text-success text-base">
               <ArrowDown className="mr-2 h-4 w-4"/>
-              You will Get (Receivable)
+              You will get
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-success">PKR {totalReceivable.toLocaleString()}</p>
             {totalReceivableGold > 0 && <p className="text-sm font-semibold text-success/90">{totalReceivableGold.toLocaleString(undefined, {minimumFractionDigits: 3})}g {STORE_METAL_WORD}</p>}
+            <p className="text-xs text-muted-foreground mt-1">
+              On invoices: PKR {Math.round(owedOnInvoices.total).toLocaleString()} (the dashboard&apos;s &ldquo;Owed to you&rdquo;, walk-ins included)
+            </p>
           </CardContent>
         </Card>
         <Card className="bg-destructive/10 border-destructive/20">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center text-destructive text-base">
                 <ArrowUp className="mr-2 h-4 w-4"/>
-                You will Give (Payable)
+                You will give
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -1,6 +1,7 @@
 
 "use client";
 
+import { isOwing, owedToYou } from '@/lib/owed';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { authedFetch } from '@/lib/voice/authed-fetch';
 import { ListSkeleton } from '@/components/shared/skeletons';
@@ -602,9 +603,9 @@ export default function DocumentsPage() {
 
   /** One section of the list, with what it is worth and what is still owed. */
   const buildSections = React.useCallback((docs: DocumentType[]) => {
+    // Owing by the ERP's one rule (lib/owed.ts): an invoice not refunded with a balance above zero.
     const owedOf = (d: DocumentType) =>
-      d.docType === 'invoice' && (d as Invoice).status !== 'Refunded'
-        ? Math.max(0, (d as Invoice).balanceDue || 0) : 0;
+      d.docType === 'invoice' && isOwing(d as Invoice) ? (d as Invoice).balanceDue || 0 : 0;
     const valueOf = (d: DocumentType) =>
       d.docType === 'invoice' ? ((d as Invoice).grandTotal || 0) : ((d as Order).grandTotal || 0);
 
@@ -752,10 +753,12 @@ export default function DocumentsPage() {
   }
 
   const pkr = (n: number) => 'PKR ' + Math.round(n).toLocaleString();
+  // The whole book's figure, whatever the filters show (the dashboard's "Owed to you").
+  const owedAll = owedToYou(generatedInvoices);
 
   return (
     <PageShell
-      subtitle="Every invoice and custom order, and what is still owed on it."
+      subtitle={<>Every invoice and order, and what is still owed on it{owedAll.total > 0 && <> — <span className="text-destructive font-medium">{pkr(owedAll.total)} owed</span> on {owedAll.invoices.length} invoice{owedAll.invoices.length === 1 ? '' : 's'}</>}.</>}
       action={
         <Button variant="outline" size="sm" className="flex-shrink-0"
           onClick={() => { setImportOpen(true); setImportFile(null); setImportPreview(null); setImportProgress([]); setImportDone(false); }}>

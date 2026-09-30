@@ -36,6 +36,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Textarea } from '@/components/ui/textarea';
 import { Save, Loader2 as Spinner } from 'lucide-react';
 import { AmountInput } from '@/components/ui/amount-input';
+import { buildWorkshopJobs } from '@/lib/workshop';
+import { karigarPosition } from '@/lib/karigar-position';
 
 const silverTransactionSchema = z.object({
   silverGrams: z.coerce.number().positive("Silver grams must be greater than 0"),
@@ -193,7 +195,12 @@ export default function KarigarDetailPage() {
   const deleteKarigarAction = useAppStore(state => state.deleteKarigar);
   const silverTransactions = useAppStore(state => state.silverTransactions);
   const hisaabEntries = useAppStore(state => state.hisaabEntries);
-  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars, addSilverTransaction, loadSilverTransactions, deleteSilverTransaction, loadHisaab } = useAppStore();
+  const orders = useAppStore(state => state.orders);
+  const karigarJobs = useAppStore(state => state.karigarJobs);
+  const karigars = useAppStore(state => state.karigars);
+  const invoices = useAppStore(state => state.generatedInvoices);
+  const givenItems = useAppStore(state => state.givenItems);
+  const { loadExpenses, loadKarigarBatches, createKarigarBatch, closeKarigarBatch, deleteKarigarBatch, loadKarigars, addSilverTransaction, loadSilverTransactions, deleteSilverTransaction, loadHisaab, loadOrders, loadKarigarJobs, loadGivenItems, loadGeneratedInvoices } = useAppStore();
 
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
   const [isSilverDialogOpen, setIsSilverDialogOpen] = useState(false);
@@ -208,7 +215,11 @@ export default function KarigarDetailPage() {
     loadKarigars();
     loadSilverTransactions();
     loadHisaab();
-  }, [loadExpenses, loadKarigarBatches, loadKarigars, loadSilverTransactions, loadHisaab]);
+    loadOrders();
+    loadKarigarJobs();
+    loadGivenItems();
+    loadGeneratedInvoices();
+  }, [loadExpenses, loadKarigarBatches, loadKarigars, loadSilverTransactions, loadHisaab, loadOrders, loadKarigarJobs, loadGivenItems, loadGeneratedInvoices]);
 
   useEffect(() => {
     if (!karigarId) return;
@@ -258,6 +269,15 @@ export default function KarigarDetailPage() {
     const received = entries.reduce((s, e) => s + (Number(e.goldCreditGrams) || 0), 0);
     return { entries, given, received, net: given - received };
   }, [hisaabEntries, karigarId]);
+
+  // What he has of ours and what we owe him, on one screen (lib/karigar-position.ts). Read only.
+  const position = useMemo(() => karigarPosition({
+    karigarId,
+    karigarName: karigar?.name ?? '',
+    jobs: buildWorkshopJobs(orders, karigarJobs, karigars, { invoices }),
+    givenItems,
+    hisaab: hisaabEntries,
+  }), [karigarId, karigar?.name, orders, karigarJobs, karigars, invoices, givenItems, hisaabEntries]);
 
   const grandTotal = allKarigarExpenses.reduce((s, e) => s + e.amount, 0);
   const openBatchTotal = openBatchExpenses.reduce((s, e) => s + e.amount, 0);
@@ -421,6 +441,9 @@ export default function KarigarDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Now: what he has of ours, what we owe him ── */}
+      <NowCard karigarId={karigarId} position={position} openBatch={openBatch ? { label: openBatch.label, total: openBatchTotal } : null} silver={karigarSilver.length ? { grams: totalSilverGrams, surcharge: totalSilverSurcharge } : null} />
 
       {/* ── Gold Khata (gold given / pieces received) ── */}
       {goldKhata.entries.length > 0 && (
@@ -739,4 +762,87 @@ export default function KarigarDetailPage() {
       )}
     </div>
   );
+}
+
+/**
+ * The karigar at a glance: his bench, the metal with him, what he has been handed, and the money
+ * between us. Read only — every figure links to where it is kept and changed.
+ */
+function NowCard({ karigarId, position, openBatch, silver }: {
+  karigarId: string;
+  position: ReturnType<typeof karigarPosition>;
+  openBatch: { label: string; total: number } | null;
+  silver: { grams: number; surcharge: number } | null;
+}) {
+  const { bench, metalOnBench, goldKhata, given, cashBalance } = position;
+  const metals = Object.entries(metalOnBench.byMetal);
+  const g = (n: number) => `${n.toFixed(3)}g`;
+  const cash = Math.round(cashBalance);
+  return (
+    <Card>
+      <CardHeader className="pb-3"><CardTitle className="text-base">Now</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <NowTile label="On his bench" value={`${bench.length} piece${bench.length === 1 ? '' : 's'}`} hint={bench.length ? `oldest ${bench[0].ageDays} d` : 'nothing open'} href={`/workshop?karigar=${karigarId}`} />
+          <NowTile label="Pieces weigh (est.)" value={metals.length ? metals.map(([, w]) => g(w)).join(' · ') : '—'}
+            hint={metals.length ? metals.map(([m]) => m).join(', ') + (metalOnBench.unweighed ? ` · ${metalOnBench.unweighed} unweighed` : '') : metalOnBench.unweighed ? `${metalOnBench.unweighed} unweighed` : 'the weights on the jobs'} />
+          <NowTile label="Gold khata" value={g(goldKhata.net)} hint="given less received, in Hisaab" href={`/hisaab/${karigarId}?type=karigar`} tone={goldKhata.net > 0.0005 ? 'bad' : undefined} />
+          <NowTile label={cash > 0 ? 'He holds of ours' : cash < 0 ? 'We owe him' : 'Cash'} value={cash ? `PKR ${Math.abs(cash).toLocaleString()}` : 'Square'}
+            hint={openBatch ? `${openBatch.label}: PKR ${openBatch.total.toLocaleString()} paid` : 'Hisaab cash'} href={`/hisaab/${karigarId}?type=karigar`} tone={cash < 0 ? 'bad' : undefined} />
+        </div>
+        <p className="text-2xs text-muted-foreground">
+          The pieces' weight is what the jobs say they will weigh; the gold khata is what was handed over and brought back. Two measures, never added.
+          {silver && <> Silver received: {g(silver.grams)} · PKR {silver.surcharge.toLocaleString()} surcharge.</>}
+        </p>
+
+        {bench.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1">On the bench</p>
+            <ul className="divide-y rounded-lg border">
+              {bench.slice(0, 12).map(j => (
+                <li key={j.id}>
+                  <Link href={j.orderId ? `/orders/${j.orderId}` : j.invoiceId ? `/cart?invoice_id=${j.invoiceId}` : `/workshop?karigar=${karigarId}`}
+                    className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/50">
+                    <span className="min-w-0 flex-1 truncate">{j.description}{j.customerName ? <span className="text-muted-foreground"> · {j.customerName}</span> : null}</span>
+                    {j.weightG ? <span className="text-xs text-muted-foreground tabular-nums flex-shrink-0">{g(Number(j.weightG))}</span> : null}
+                    <Badge variant={j.status === 'pending' ? 'outline' : 'secondary'} className="text-2xs flex-shrink-0">{j.ageDays} d</Badge>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {bench.length > 12 && <Link href={`/workshop?karigar=${karigarId}`} className="text-xs text-primary hover:underline">All {bench.length} in Workshop</Link>}
+          </div>
+        )}
+
+        {given.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Handed to him, not back</p>
+            <ul className="divide-y rounded-lg border">
+              {given.map(it => (
+                <li key={it.id}>
+                  <Link href="/given" className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/50">
+                    <span className="min-w-0 flex-1 truncate">{it.description}</span>
+                    <span className="text-xs text-muted-foreground flex-shrink-0">{it.date ? format(parseISO(it.date), 'dd MMM') : ''}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function NowTile({ label, value, hint, href, tone }: { label: string; value: string; hint: string; href?: string; tone?: 'bad' }) {
+  const body = (
+    <>
+      <p className="text-2xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={cn('text-base font-bold tabular-nums truncate', tone === 'bad' && 'text-destructive')}>{value}</p>
+      <p className="text-2xs text-muted-foreground truncate">{hint}</p>
+    </>
+  );
+  return href
+    ? <Link href={href} className="rounded-lg bg-muted/50 px-3 py-2 min-w-0 hover:bg-muted">{body}</Link>
+    : <div className="rounded-lg bg-muted/50 px-3 py-2 min-w-0">{body}</div>;
 }

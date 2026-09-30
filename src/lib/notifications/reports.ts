@@ -5,6 +5,7 @@
  * (Moved out of /api/notifications/run, which sent one copy per number and so read every
  * order, invoice and expense once for each.)
  */
+import { todaysCash, METHODS } from '@/lib/analytics/todays-cash';
 import { adminDb } from '@/lib/firebase-admin';
 import { isBusinessCost } from '@/lib/partnership';
 import { lateOrders, orderTiming, timingLabel } from '@/lib/order-timing';
@@ -228,29 +229,37 @@ async function buildEndOfDaySummary(): Promise<string | null> {
 }
 
 async function buildDailyReport(): Promise<string | null> {
-  const [ordersSnap, invoicesSnap, expensesSnap] = await Promise.all([
+  const [ordersSnap, invoicesSnap, expensesSnap, repairsSnap, extraSnap] = await Promise.all([
     adminDb.collection('orders').get(),
     adminDb.collection('invoices').get(),
     adminDb.collection('expenses').get(),
+    adminDb.collection('repairs').get(),
+    adminDb.collection('additional_revenue').get(),
   ]);
 
   const orders   = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }) as Row);
   const invoices = invoicesSnap.docs.map(d => ({ id: d.id, ...d.data() }) as Row);
-  const expenses = expensesSnap.docs.map(d => d.data() as Row);
+  const expenses = expensesSnap.docs.map(d => ({ id: d.id, ...d.data() }) as Row);
+  // The drawer, by Home → Today's cash's own rule (lib/analytics/todays-cash.ts): money in by method,
+  // exchange apart, the business's expenses out, on Karachi's day. It used to count invoice payments
+  // only and put card and bank transfers in with the cash.
+  const cash = todaysCash({
+    invoices: invoices as never, orders: orders as never, expenses: expenses as never,
+    repairs: repairsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as never,
+    extraRevenues: extraSnap.docs.map(d => ({ id: d.id, ...d.data() })) as never,
+  });
   const today    = new Date().toDateString();
 
   // ── Invoices / sales ──
   const { list: invoicesToday, value: salesTotalToday } = salesBetween(invoices, new Date(today).getTime());
 
-  // Cash collected today = payment-history entries dated today across ALL invoices
-  let cashInToday = 0;
+  // The invoice payments dated today, listed (the totals are the drawer's, above)
   const paymentsToday: Array<{ id: string; customer: string; amount: number }> = [];
   for (const inv of invoices) {
     const history = Array.isArray(inv.paymentHistory) ? inv.paymentHistory : [];
     for (const p of history) {
       if (p?.date && new Date(p.date).toDateString() === today) {
         const amt = Number(p.amount || 0);
-        cashInToday += amt;
         if (amt > 0) paymentsToday.push({ id: inv.id, customer: inv.customerName || 'Walk-in', amount: amt });
       }
     }
@@ -265,11 +274,7 @@ async function buildDailyReport(): Promise<string | null> {
   const active         = orders.filter(o => o.status === 'Pending' || o.status === 'In Progress');
   const late           = lateActive(active);
 
-  // ── Expenses ──
-  const expToday      = expenses.filter(e => new Date(e.date || e.createdAt).toDateString() === today);
-  const expTotalToday = expToday.reduce((s, e) => s + Number(e.amount || 0), 0);
-
-  const netCashToday = cashInToday - expTotalToday;
+  const netCashToday = cash.netCash;
   const date = new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   const lines = [
@@ -281,9 +286,10 @@ async function buildDailyReport(): Promise<string | null> {
     `🧾 *SALES TODAY*`,
     `  Invoices: ${invoicesToday.length}`,
     `  Sales value: PKR ${fmt(salesTotalToday)}`,
-    `  💵 Cash collected: PKR ${fmt(cashInToday)}`,
-    `  💸 Expenses: PKR ${fmt(expTotalToday)}`,
-    `  📈 Net cash: PKR ${fmt(netCashToday)} ${netCashToday >= 0 ? '✅' : '🔴'}`,
+    `  💵 Money in: PKR ${fmt(cash.totalIn)}${cash.totalIn ? ` (${METHODS.filter(m => cash.byMethod[m]).map(m => `${m.toLowerCase()} ${fmt(cash.byMethod[m])}`).join(', ')})` : ''}`,
+    ...(cash.exchange ? [`  🪙 Exchange taken: PKR ${fmt(cash.exchange)} (not cash)`] : []),
+    `  💸 Paid out: PKR ${fmt(cash.expenses)}`,
+    `  📈 Net cash (the drawer): PKR ${fmt(netCashToday)} ${netCashToday >= 0 ? '✅' : '🔴'}`,
   ];
 
   if (invoicesToday.length > 0) {
