@@ -183,6 +183,7 @@ const NOTIF_TOGGLES: { key: keyof Settings; label: string; description: string }
   { key: 'notifDailyChecklist', label: 'Daily Checklist',     description: 'Morning summary: active orders, overdue, unreturned items' },
   { key: 'notifEndOfDay',       label: 'End of Day Summary',  description: 'Evening recap: today\'s sales, orders and expenses' },
   { key: 'notifWeeklyReport',   label: 'Weekly Report',       description: 'The last seven days: sales, expenses, late orders, karigars' },
+  { key: 'notifMonthlyReport',  label: 'Monthly Report (PDF)', description: 'Every sale of the month, with its figures, as a PDF — any month is also in Analytics' },
   { key: 'notifAdsDaily',       label: 'Ads Summary',         description: 'Yesterday\'s Meta ads: spend, chats, cost per chat, and anything needing attention' },
   { key: 'notifOrderOverdue',   label: 'Overdue Order Alert', description: 'Orders past the date the customer was promised' },
   { key: 'notifGivenItems',     label: 'Given Items Overdue', description: 'Items given out and not returned for 7+ days' },

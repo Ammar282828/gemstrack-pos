@@ -9,11 +9,13 @@
  */
 
 import { adminDb } from '@/lib/firebase-admin';
-import { sendWhatsAppMessage } from '@/lib/whatsapp';
+import { sendWhatsAppFile, sendWhatsAppMessage } from '@/lib/whatsapp';
 import { adsDigest } from '@/lib/ads/digest';
 import { STORE_META_ADS } from '@/lib/store-config';
 import { fromThisPos } from '@/lib/notify-label';
 import { karachiNow } from '@/lib/investments-schedule';
+import { addMonths, karachiMonth, monthlyCaption } from '@/lib/reports/monthly';
+import { monthlyReportPdf } from '@/lib/reports/monthly-server';
 import {
   buildDailyChecklist, buildDailyReport, buildEndOfDaySummary, buildGivenItems,
   buildKarigarPayments, buildOverdueOrders, buildWeeklyReport,
@@ -30,7 +32,10 @@ export async function readNotifSettings(): Promise<NotifSettings | null> {
   return snap.exists ? (snap.data() as NotifSettings) : null;
 }
 
-const BUILDERS: Record<ReportTask, () => Promise<string | null>> = {
+/** A report is a text message, or a file with its caption (the monthly PDF). */
+type Outgoing = string | { caption: string; file: Blob; fileName: string };
+
+const BUILDERS: Record<ReportTask, (now: Date) => Promise<Outgoing | null>> = {
   'daily-checklist': buildDailyChecklist,
   'overdue-orders': buildOverdueOrders,
   'given-items': buildGivenItems,
@@ -39,6 +44,11 @@ const BUILDERS: Record<ReportTask, () => Promise<string | null>> = {
   'weekly-report': buildWeeklyReport,
   'karigar-payments': buildKarigarPayments,
   'ads-daily': async () => fromThisPos(await adsDigest()),
+  // The month before the one it is sent in: on 1 October, September.
+  'monthly-report': async (now) => {
+    const { report, bytes, fileName } = await monthlyReportPdf(addMonths(karachiMonth(now), -1), now);
+    return { caption: fromThisPos(monthlyCaption(report)), file: new Blob([bytes], { type: 'application/pdf' }), fileName };
+  },
 };
 
 export const RUNS = 'notif_runs';
@@ -99,7 +109,7 @@ export async function runReport(
 
   let result: RunResult;
   try {
-    const message = await BUILDERS[task]();
+    const message = await BUILDERS[task](o.now ?? new Date());
     if (!message) {
       // Nothing to report (no overdue orders, nothing given out): quiet, and done for the day.
       result = { task, status: 'quiet' };
@@ -107,11 +117,16 @@ export async function runReport(
       const failed: string[] = [];
       let sent = 0;
       for (const phone of phones) {
-        try { await sendWhatsAppMessage(phone, message); sent++; }
+        try {
+          if (typeof message === 'string') await sendWhatsAppMessage(phone, message);
+          else await sendWhatsAppFile(phone, message.file, message.fileName, message.caption);
+          sent++;
+        }
         catch (e) { failed.push(`${tail(phone)}: ${why(e)}`); }
       }
       // Reaching some numbers counts as sent: trying again would repeat it to the others.
-      result = { task, status: sent ? 'sent' : 'failed', sent, recipients: phones.length, failed, preview: message.slice(0, 200) };
+      const text = typeof message === 'string' ? message : `${message.fileName}\n${message.caption}`;
+      result = { task, status: sent ? 'sent' : 'failed', sent, recipients: phones.length, failed, preview: text.slice(0, 200) };
     }
   } catch (e) {
     result = { task, status: 'failed', error: why(e) };

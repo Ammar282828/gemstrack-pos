@@ -172,6 +172,20 @@ const DEFAULT_MEDIA = 'https://media.green-api.com';
 /** One file, with the caption under it, to a group or channel. Resolves to the gateway's message id. */
 export async function sendWhatsAppFileToGroup(chatId: string, file: Blob, fileName: string, caption = ''): Promise<string> {
   if (!isGroupOrChannel(chatId)) throw new Error(`Not a group or channel chat id: ${chatId}`);
+  return sendFileToChat(chatId, file, fileName, caption);
+}
+
+/**
+ * One file to a person's number — the monthly report PDF to the shop's own alert numbers.
+ * The number comes from Settings, never from a request (see /api/notifications/send for why).
+ */
+export async function sendWhatsAppFile(to: string, file: Blob, fileName: string, caption = ''): Promise<string> {
+  const digits = digitsOnly(to);
+  if (digits.length < 10) throw new Error(`Not a phone number: ${to}`);
+  return sendFileToChat(`${digits}@c.us`, file, fileName, caption);
+}
+
+async function sendFileToChat(chatId: string, file: Blob, fileName: string, caption: string): Promise<string> {
   // WhatsApp shows a caption under images and caps it at 1024 characters.
   const cap = caption ? caption.slice(0, 1024) : '';
   const w = waha();
@@ -187,7 +201,7 @@ export async function sendWhatsAppFileToGroup(chatId: string, file: Blob, fileNa
   }
   const creds = credentials();
   if (!creds) throw new WhatsAppNotConfiguredError();
-  if (!/@g\.us$/.test(chatId)) throw new Error('Green API cannot post to a WhatsApp channel — that needs WAHA.');
+  if (/@newsletter$/.test(chatId)) throw new Error('Green API cannot post to a WhatsApp channel — that needs WAHA.');
   const media = (process.env.GREENAPI_MEDIA_URL || DEFAULT_MEDIA).replace(/\/$/, '');
   const form = new FormData();
   form.set('chatId', chatId);

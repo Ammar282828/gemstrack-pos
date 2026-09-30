@@ -6,7 +6,8 @@
  * 9 pm report, both houses' ads summary). Now the five-minute tick (`social-queue-tick`,
  * in both projects) asks this module what is due and sends it, once a day each: the
  * morning checklist with its two overdue checks, the end-of-day recap, the nightly
- * report, and on Mondays the weekly report and karigar payments. A report whose time
+ * report, on Mondays the weekly report and karigar balances, and on the 1st the month
+ * before as a PDF with every sale in it (lib/reports/monthly.ts). A report whose time
  * passed while the ERP was down or rolling out still goes within the hour after.
  *
  * Pure, so the page shows the same times the server keeps.
@@ -18,7 +19,8 @@ export type ReportTask =
   | 'daily-checklist' | 'overdue-orders' | 'given-items'
   | 'end-of-day' | 'daily-report'
   | 'weekly-report' | 'karigar-payments'
-  | 'ads-daily';
+  | 'ads-daily'
+  | 'monthly-report';
 
 /** The part of `app_settings/global` the reports read. */
 export interface NotifSettings {
@@ -32,6 +34,7 @@ export interface NotifSettings {
   notifWeeklyReport?: boolean;
   notifKarigarPayment?: boolean;
   notifAdsDaily?: boolean;
+  notifMonthlyReport?: boolean;
   notifDailyChecklistTime?: string;
   notifEndOfDayTime?: string;
   notifDailyReportTime?: string;
@@ -49,6 +52,7 @@ export const REPORT_TOGGLE: Record<ReportTask, keyof NotifSettings> = {
   'weekly-report': 'notifWeeklyReport',
   'karigar-payments': 'notifKarigarPayment',
   'ads-daily': 'notifAdsDaily',
+  'monthly-report': 'notifMonthlyReport',
 };
 
 /** Every report, in the order a tick sends them. */
@@ -58,8 +62,8 @@ export const isReportTask = (t: unknown): t is ReportTask => typeof t === 'strin
 
 const MONDAY = 1;
 
-/** A report's time today (Karachi) and, for the weekly ones, its day. */
-export function reportSlot(task: ReportTask, s: NotifSettings | null | undefined): { at: string; weekday: number | null } {
+/** A report's time (Karachi) and, for the weekly ones, its weekday; for the monthly one, its day of the month. */
+export function reportSlot(task: ReportTask, s: NotifSettings | null | undefined): { at: string; weekday: number | null; monthDay?: number } {
   const checklist = isTime(s?.notifDailyChecklistTime) ? s!.notifDailyChecklistTime! : DEFAULT_TIMES.checklist;
   switch (task) {
     case 'daily-checklist':
@@ -76,12 +80,15 @@ export function reportSlot(task: ReportTask, s: NotifSettings | null | undefined
     case 'ads-daily':
       // Also the time of the `ads-daily-summary` Scheduler job; the day's claim stops a second send.
       return { at: DEFAULT_TIMES.ads, weekday: null };
+    case 'monthly-report':
+      return { at: checklist, weekday: null, monthDay: 1 };
   }
 }
 
 /** "Daily at 9:00 am", "Mondays at 9:00 am". */
 export function reportWhen(task: ReportTask, s: NotifSettings | null | undefined): string {
-  const { at, weekday } = reportSlot(task, s);
+  const { at, weekday, monthDay } = reportSlot(task, s);
+  if (monthDay) return `The 1st of each month at ${clock(at)}, for the month before`;
   return `${weekday === MONDAY ? 'Mondays' : 'Daily'} at ${clock(at)}`;
 }
 
@@ -104,8 +111,9 @@ export function dueReports(s: NotifSettings | null | undefined, now: Date, o: { 
   return REPORT_TASKS.filter(task => {
     if (!s[REPORT_TOGGLE[task]]) return false;
     if (task === 'ads-daily' && !o.ads) return false;
-    const { at, weekday } = reportSlot(task, s);
+    const { at, weekday, monthDay } = reportSlot(task, s);
     if (weekday !== null && k.weekday !== weekday) return false;
+    if (monthDay && Number(k.date.slice(8, 10)) !== monthDay) return false;
     const from = toMinutes(at);
     return k.minutes >= from && k.minutes < from + CATCH_UP_MIN;
   }).map(task => ({ task, date: k.date, key: runKey(k.date, task) }));

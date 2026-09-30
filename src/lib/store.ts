@@ -292,6 +292,7 @@ export interface Settings extends GoldRates {
   notifEndOfDay?: boolean;
   notifWeeklyReport?: boolean;
   notifAdsDaily?: boolean;         // 09:30 daily: yesterday's ads — spend, chats, what needs attention
+  notifMonthlyReport?: boolean;    // the 1st: the month before as a PDF, every sale listed (lib/reports)
   notifOrderOverdue?: boolean; // daily check: orders Pending/In Progress for 7+ days
   notifGivenItems?: boolean;   // daily check: given items unreturned for 7+ days
   notifKarigarPayment?: boolean; // weekly check: unpaid karigar batches

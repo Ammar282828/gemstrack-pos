@@ -29,6 +29,7 @@ import { cashInForPeriod, invoicedOrderIds } from '@/lib/analytics/cash-in';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
 import { saleCustomerKey, WALK_IN_ENTITY, WALK_IN_NAME } from '@/lib/walk-in';
 import { toTola, formatWeight } from '@/lib/units';
+import { MonthlyReportButton } from '@/components/reports/monthly-report-button';
 
 // Helper types for chart data
 type SalesOverTimeData = { date: string; sales: number; orders: number; itemsSold: number };
@@ -756,7 +757,10 @@ export default function AnalyticsPage() {
               <h1 className="text-2xl md:text-3xl font-bold text-primary">Store Analytics</h1>
               <p className="text-muted-foreground text-sm">Sales, products &amp; customer insights.</p>
           </div>
-          <DateRangePicker date={dateRange} onDateChange={(r) => { setDateRange(r); setActiveQuickSelect('custom'); }} />
+          <div className="flex flex-wrap items-center gap-2">
+            <DateRangePicker date={dateRange} onDateChange={(r) => { setDateRange(r); setActiveQuickSelect('custom'); }} />
+            <MonthlyReportButton />
+          </div>
         </div>
         <div className="flex flex-wrap gap-1.5 items-center">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mr-1">Quick:</span>

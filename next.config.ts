@@ -7,7 +7,9 @@ const nextConfig: NextConfig = {
   // heic-convert carries libheif as WebAssembly. Loaded from node_modules at
   // runtime rather than bundled: webpack has no good answer for an 8 MB .wasm
   // that is loaded by path, and this route is the only thing that wants it.
-  serverExternalPackages: ['heic-convert', 'heic-decode', 'libheif-js'],
+  // jsPDF too: the monthly report is drawn on the server (lib/reports), and bundled, the server
+  // would take jsPDF's browser build ("module"); from node_modules Node takes its own ("main").
+  serverExternalPackages: ['heic-convert', 'heic-decode', 'libheif-js', 'jspdf', 'jspdf-autotable'],
   images: {
     unoptimized: true,
     remotePatterns: [

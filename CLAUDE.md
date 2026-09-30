@@ -400,6 +400,17 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   completed orders instead of invoices. Now sales are invoices at `invoiceSaleValue`, a completion is dated by its invoice,
   lateness is by promised date, and karigars come from Hisaab (Taheri's is gold only, last entry July; Mina has none — it
   pays karigars through expenses).
+- **The monthly report PDF** (2026-09-30, owner: "add proper monthly report pdfs with all listed sales"): `lib/reports/monthly.ts`
+  (pure, tested) builds a Karachi month on **Analytics' own rules** so the totals always match it — jewellery invoices at
+  `invoiceSaleValue` on their order's date, open orders at their subtotal, other income; coins apart; cash in by
+  `cashInForPeriod`; business expenses (drawings shown, not counted) — and lists **every** invoice (refunds greyed and not
+  counted, coin sales marked), every open order taken, every payment by method, other income and every expense, with the
+  month before for comparison. `monthly-pdf.ts` draws it A4 with the invoices' furniture (`pdf-chrome.ts`; `plain()` keeps text
+  to what Helvetica can print); `monthly-server.ts` reads Firestore and the wordmark from `public/`. Two ways out: **Analytics →
+  Monthly PDF** (any of the last 24 months; `/api/reports/monthly?month=2026-09`, open under open access), and the WhatsApp
+  report **`monthly-report`** (`notifMonthlyReport`, on in both houses): on the **1st at the checklist time**, the month before,
+  as a PDF document (`sendWhatsAppFile` → WAHA `/api/sendFile`) with a short caption. jsPDF and its table plugin are
+  `serverExternalPackages`, so the server takes jsPDF's Node build rather than bundling the browser one.
 - **Staff open an invoice at `/cart?invoice_id=<id>`** (payment, edit, print); `/view-invoice/<id>` is the customer's page, with
   no shell and only downloads, and is only ever sent to customers. There is no `/view-invoice` without an id: the dashboard's
   Recent sales and unpaid rows linked `/view-invoice?invoiceId=` and opened "not found" until 2026-09-29; the workshop's invoice

@@ -31,6 +31,13 @@ describe('when each report goes', () => {
     expect(tasks({ ...all, notifDailyReportTime: '22:15' }, at('21:00'))).toEqual([]);
     expect(tasks({ ...all, notifDailyReportTime: '22:15' }, at('22:20'))).toEqual(['daily-report']);
   });
+  it('sends the monthly report on the 1st only, with the checklist', () => {
+    const s = { ...all, notifMonthlyReport: true };
+    expect(tasks(s, at('09:10', '2026-10-01'))).toContain('monthly-report');
+    expect(tasks(s, at('09:10', '2026-10-02'))).not.toContain('monthly-report');
+    expect(tasks(all, at('09:10', '2026-10-01'))).not.toContain('monthly-report');
+    expect(reportWhen('monthly-report', s)).toBe('The 1st of each month at 9:00 am, for the month before');
+  });
   it('follows the times set in Settings', () => {
     const s = { ...all, notifDailyChecklistTime: '10:30', notifEndOfDayTime: '20:00' };
     expect(tasks(s, at('09:00'))).toEqual([]);
