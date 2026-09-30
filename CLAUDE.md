@@ -866,7 +866,22 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   redirect — read by Google at once, 0 errors; delete after mid-November 2026); 10 old addresses of pieces now drafted (404,
   e.g. `mahira-emerald-cut-ruby-cocktail-ring`) redirect to their catalogue pages; the catalogue's 209 shop pieces name the
   shop's page as canonical. "Request indexing" has no API (the Indexing API is for jobs and livestreams only). Shopify stamps
-  every product's sitemap `lastmod` with the time the sitemap is generated, so it tells Google nothing. Her plays: the gold look at the silver
+  every product's sitemap `lastmod` with the time the sitemap is generated, so it tells Google nothing.
+  **The full audit, later that night** (owner: "check everything you can access on search console, make any possible
+  improvements"): 1,118 of 1,134 clicks in 16 months are brand searches; "house of mina" ranks **1.1 in Pakistan** (the 3.7
+  average is other House of Minas abroad); the ~7,000 "minas collection" impressions are **another brand** (minascollection.com,
+  artificial jewellery) — not demand to chase; non-brand search is product names seen on Instagram (nimbus drop, lynta, diadem,
+  sorbet), mostly landing on old addresses. Every product page **failed Product snippets** on 5 errors from
+  `snippets/hom-local-seo.liquid` (`hasOfferCatalog`: five categories typed as Product with no price) — fixed, with the stray
+  `servesCuisine: null` and the footer's TikTok, in the **unpublished theme "SEO fixes (2026-09-30)"** (#189529227544, a copy of
+  Atelier; preview `?preview_theme_id=189529227544`) — **the owner publishes it** (the connector can't write or publish the live
+  theme; publish soon, as edits made to the live theme after the copy would be lost). `hom-product-seo`'s Product (AggregateOffer,
+  Judge.me ratings from `reviews.rating`, shipping, returns) is kept: it is what carries product snippets and stars beside
+  Shopify's ProductGroup. Done live: the Fine Rings collection (`engagement-rings`) got its SEO title/description; the main menu's
+  **Heirloom Jewelry** (and its five empty sub-items) became one link to `catalogue.houseofmina.store/heirloom`; the six empty
+  collections (heirloom ×5, rose-gold-rings) carry `seo.hidden = 1` (noindex, out of the sitemap — delete the metafield when their
+  pieces are published). Left for the owner: Search Console → Settings → Shipping and returns (clears the merchant-listing
+  shipping/returns warnings on every product). Her plays: the gold look at the silver
   price (always on), a real review, the Ring Builder (`path` on a play), bangle-and-ring sets, natural ruby for him, the shop, the
   catalogue, the profile, and the promises for come-back.
   **The pixel a site already carries, and Online orders** (2026-09-29): **houseofmina.store already has Meta pixel 1429906491670575**
