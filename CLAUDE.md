@@ -843,7 +843,16 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   and its five sub-items link, from every page, to collections with no public products (their 95 pieces are Shopify drafts;
   the catalogue shows them); one-word names ("Adele", "Kaia") find other brands' pieces unless searched with "House of Mina".
   Fixed that day: the one redirect chain (amalfi → capri-earrings → capri-ear-cuffs, now one hop), and the catalogue's shop links
-  (now the current handles). Her plays: the gold look at the silver
+  (now the current handles). **Search Console, measured the same evening** (the owner added `claude-cloud@gemstrack-pos` as a
+  full user on **`sc-domain:houseofmina.store`** — shop and catalogue — and enabled the Search Console API in gemstrack-pos; the
+  Site Verification API stays off): no sitemap had ever been submitted; of the 209 live products Google had **never heard of
+  110**, indexed 89 and left 10 crawled-not-indexed; 90 days gave 542 clicks, 462 of them the home page, and **69% of product
+  impressions landed on old addresses** (`popsicle-band-…-copy`, still indexed, carried 594 for "nimbus drop"). Done then:
+  submitted the shop's and the catalogue's sitemaps and a temporary `shop-moved.xml` on the catalogue (129 old addresses that
+  redirect — read by Google at once, 0 errors; delete after mid-November 2026); 10 old addresses of pieces now drafted (404,
+  e.g. `mahira-emerald-cut-ruby-cocktail-ring`) redirect to their catalogue pages; the catalogue's 209 shop pieces name the
+  shop's page as canonical. "Request indexing" has no API (the Indexing API is for jobs and livestreams only). Shopify stamps
+  every product's sitemap `lastmod` with the time the sitemap is generated, so it tells Google nothing. Her plays: the gold look at the silver
   price (always on), a real review, the Ring Builder (`path` on a play), bangle-and-ring sets, natural ruby for him, the shop, the
   catalogue, the profile, and the promises for come-back.
   **The pixel a site already carries, and Online orders** (2026-09-29): **houseofmina.store already has Meta pixel 1429906491670575**
