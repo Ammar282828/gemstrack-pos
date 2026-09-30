@@ -834,7 +834,8 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   **Mina's market** (research of 2026-09-29, `market.ts`): her median piece is Rs 14,000 (Zanvari 23,250, Zumorrud 17,500) with the
   same made-to-order / buy-back / repolish; 164 of 209 Shopify pieces are 21k gold-plated; 4.81★ from 138 reviews; free delivery only
   over Rs 20,000; no Google ads; **the catalogue carries no pixel**; both sites link TikTok to **@houseofmina, a US beauty/fashion
-  blog** (not confirmed as the house's — ask before changing `NEXT_PUBLIC_STORE_TIKTOK_URL`). Her plays: the gold look at the silver
+  blog — not hers** (owner, 2026-09-30: "the tiktok isnt hers"): `NEXT_PUBLIC_STORE_TIKTOK_URL` is gone from `apphosting.mina.yaml`,
+  so links.houseofmina.store has no TikTok row; the Shopify theme and the catalogue carry their own copy of the link. Her plays: the gold look at the silver
   price (always on), a real review, the Ring Builder (`path` on a play), bangle-and-ring sets, natural ruby for him, the shop, the
   catalogue, the profile, and the promises for come-back.
   **The pixel a site already carries, and Online orders** (2026-09-29): **houseofmina.store already has Meta pixel 1429906491670575**

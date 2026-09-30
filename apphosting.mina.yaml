@@ -189,11 +189,7 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  - variable: NEXT_PUBLIC_STORE_TIKTOK_URL
-    value: "https://www.tiktok.com/@houseofmina"
-    availability:
-      - BUILD
-      - RUNTIME
+  # No TikTok: @houseofmina is someone else's account (owner, 2026-09-30: "the tiktok isnt hers").
   # The Shopify store, beside the catalogue on the link page.
   - variable: NEXT_PUBLIC_STORE_SHOP_URL
     value: "https://houseofmina.store"
