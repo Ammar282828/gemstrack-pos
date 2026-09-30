@@ -25,7 +25,7 @@ import {
   Wallet, TrendingUp, Settings as SettingsIcon, Calendar, Briefcase, Package, Gem, Layers, ImagePlus, Scale,
   PenLine, Coins, Target, BookUser, PieChart, Landmark, Tag, ArchiveRestore, RotateCcw, Mic, History, Palette,
   Rocket, BarChart3, UsersRound, ListChecks, SlidersHorizontal, Contact, Import, Database, ScanLine, Store,
-  LayoutGrid,
+  LayoutGrid, Bell, Plug,
 } from 'lucide-react';
 import {
   STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE,
@@ -40,7 +40,7 @@ export const GROUPS: { key: NavGroup; label: string }[] = [
   { key: 'sales', label: 'Sales' },
   { key: 'workshop', label: 'Workshop & stock' },
   { key: 'marketing', label: 'Marketing' },
-  { key: 'money', label: 'Finance' },
+  { key: 'money', label: 'Money' },
 ];
 
 interface Place {
@@ -73,6 +73,8 @@ export interface NavEntry extends Place {
   /** The palette names this entry's tabs `Entry › Tab` ("Ads › Studio"): their words alone are
    *  someone else's (Analytics' Customers is not the customer list). */
   qualify?: boolean;
+  /** Its tabs carry the page's query along (Analytics' date range). */
+  keepQuery?: boolean;
 }
 
 export interface NavAction extends Place {
@@ -121,6 +123,10 @@ export const NAV: NavEntry[] = [
     tabs: [
       { href: '/products', label: 'Pieces', heading: 'Stock', icon: Gem, keywords: ['stock', 'inventory', 'products'] },
       { href: '/products/bulk-add', label: 'Add in bulk', icon: Layers, keywords: ['bulk', 'import pieces'] },
+      // The tag designer and CSV export, moved from Settings (its address stays).
+      { href: '/settings/printer', label: 'Labels', icon: Tag, keywords: ['label designer', 'tags', 'printer', 'zebra', 'weprint', 'csv'] },
+      // Scan a tag into the sale; also offered on New sale.
+      { href: '/scan', label: 'Scan', icon: ScanLine, keywords: ['scan', 'qr', 'barcode', 'tag'] },
     ],
   },
   {
@@ -137,24 +143,28 @@ export const NAV: NavEntry[] = [
     id: 'website', group: 'marketing', staff: true, href: '/website/photos', label: 'Website', icon: Globe, when: website,
     tabs: [
       { staff: true, href: '/website/photos', label: 'Add photos', icon: ImagePlus, keywords: ['website', 'upload', 'photos'] },
-      { staff: true, href: '/website/weights', label: 'Photo weights', icon: Scale, when: () => STORE_WEBSITE_WEIGHTS, keywords: ['weights', 'website'] },
       { staff: true, href: '/website/edit', label: 'Edit a piece', icon: PenLine, when: () => STORE_SITE_EDIT, keywords: ['website', 'edit', 'crop', 'photo', 'description', 'hide', 'overlay'] },
+      { staff: true, href: '/website/weights', label: 'Photo weights', icon: Scale, when: () => STORE_WEBSITE_WEIGHTS, keywords: ['weights', 'website'] },
     ],
   },
   {
     // This house's Meta ad account (NEXT_PUBLIC_STORE_META_ADS). Owners: it is money.
     id: 'ads', group: 'marketing', href: '/ads', label: 'Ads', icon: Megaphone, when: () => STORE_META_ADS, qualify: true,
     keywords: ['meta', 'facebook', 'instagram ads', 'boost', 'ad spend'],
+    // Five tabs (the audit of 2026-10-01; there were eight). Ad sets is reached from Campaigns and New ad
+    // and lights Campaigns; Audiences and Rules are cards on Setup and light it. Their addresses stay.
     tabs: [
       { href: '/ads', label: 'Overview', heading: 'Ads', icon: BarChart3 },
-      { href: '/ads/campaigns', label: 'Campaigns', icon: ListChecks, keywords: ['campaigns', 'ad sets running'] },
+      { href: '/ads/campaigns', label: 'Campaigns', icon: ListChecks, keywords: ['campaigns', 'ad sets running'], match: ['/ads/adset'] },
       // The creative is made before the ad, so the Studio comes first (NEXT_PUBLIC_STORE_AD_STUDIO).
       { href: '/ads/studio', label: 'Studio', icon: Palette, when: () => STORE_AD_STUDIO, keywords: ['creative', 'design', 'canva', 'competitors', 'ad photos', 'drive', 'guide', 'ad studio'] },
       { href: '/ads/new', label: 'New ad', icon: Rocket, keywords: ['boost', 'promote', 'advertise', 'meta ad'] },
+      { href: '/ads/setup', label: 'Setup', icon: SlidersHorizontal, keywords: ['connect', 'pixel', 'permissions', 'ad account'], match: ['/ads/audiences', '/ads/rules'] },
+    ],
+    pages: [
       { href: '/ads/adset', label: 'Ad sets', icon: LayoutGrid, keywords: ['ad set', 'audience test'] },
       { href: '/ads/audiences', label: 'Audiences', icon: UsersRound, keywords: ['lookalike', 'custom audience'] },
       { href: '/ads/rules', label: 'Rules', icon: ListChecks, keywords: ['automated rules'] },
-      { href: '/ads/setup', label: 'Setup', icon: SlidersHorizontal, keywords: ['connect', 'pixel', 'permissions', 'ad account'] },
     ],
   },
   {
@@ -169,11 +179,12 @@ export const NAV: NavEntry[] = [
     ],
   },
   {
-    id: 'analytics', group: 'money', href: '/analytics', label: 'Analytics', icon: TrendingUp, qualify: true,
+    id: 'analytics', group: 'money', href: '/analytics', label: 'Analytics', icon: TrendingUp, qualify: true, keepQuery: true,
     keywords: ['reports', 'sales report', 'monthly pdf'],
     tabs: [
       { href: '/analytics', label: 'Overview', heading: 'Analytics', icon: TrendingUp },
-      { href: '/analytics/products', label: 'Products', icon: Gem, keywords: ['best sellers'] },
+      { href: '/analytics/sales', label: 'Sales', icon: BarChart3, keywords: ['by day', 'months', 'years', 'payments'] },
+      { href: '/analytics/products', label: 'Products', icon: Gem, keywords: ['best sellers', 'pieces sold'] },
       { href: '/analytics/customers', label: 'Customers', icon: Users, keywords: ['top customers'] },
       { href: '/analytics/categories', label: 'Categories', icon: LayoutGrid },
     ],
@@ -182,17 +193,22 @@ export const NAV: NavEntry[] = [
 
 /** Settings, pinned to the footer as a gear rather than a group of its own. */
 export const SETTINGS: NavEntry = {
-  id: 'settings', group: 'footer', href: '/settings', label: 'Settings', icon: SettingsIcon, keywords: ['gold rate', 'theme', 'preferences'],
+  id: 'settings', group: 'footer', href: '/settings', label: 'Settings', icon: SettingsIcon, keywords: ['preferences'],
+  // One route per tab (the audit of 2026-10-01: Settings had seven top-bar tabs and six in-page ones).
+  // The rates left for the top bar's chip; Labels went to Stock; Security's sign-in log and lock to Activity.
   tabs: [
-    { href: '/settings', label: 'Settings', icon: SettingsIcon },
-    { href: '/settings/payment-methods', label: 'Payment methods', icon: Landmark, keywords: ['bank', 'accounts'] },
-    { href: '/settings/printer', label: 'Labels', icon: Tag, keywords: ['label designer', 'tags', 'printer', 'zebra', 'weprint'] },
-    { href: '/settings/backups', label: 'Backups', icon: ArchiveRestore, keywords: ['backup', 'export', 'restore'] },
-    { href: '/settings/recently-removed', label: 'Recently removed', icon: RotateCcw, keywords: ['deleted', 'trash', 'restore'] },
+    { href: '/settings', label: 'Shop', heading: 'Settings', icon: SettingsIcon, keywords: ['shop details', 'theme', 'appearance', 'numbering', 'liquid glass'] },
+    { href: '/settings/alerts', label: 'Alerts', icon: Bell, keywords: ['notifications', 'whatsapp alerts', 'reports', 'monthly pdf'] },
+    { href: '/settings/payment-methods', label: 'Bank accounts', icon: Landmark, keywords: ['bank', 'iban', 'accounts', 'payment methods'] },
+    { href: '/settings/integrations', label: 'Integrations', icon: Plug, keywords: ['shopify', 'website selling', 'meta'] },
+    { href: '/settings/data', label: 'Data', icon: Database, keywords: ['backups', 'import', 'restore defaults', 'drafts'],
+      match: ['/settings/backups', '/settings/recently-removed', '/settings/contact-import', '/settings/hisaab-import', '/settings/import-taheri'] },
+    { href: '/activity-log', label: 'Activity', heading: 'Activity', icon: History, keywords: ['activity log', 'history', 'who changed', 'sign-in', 'emergency lock', 'security'] },
     { href: '/settings/voice', label: 'Voice', icon: Mic, keywords: ['microphone'] },
-    { href: '/activity-log', label: 'Activity log', icon: History, keywords: ['history', 'who changed'] },
   ],
   pages: [
+    { href: '/settings/backups', label: 'Backups', icon: ArchiveRestore, keywords: ['backup', 'export', 'restore'] },
+    { href: '/settings/recently-removed', label: 'Recently removed', icon: RotateCcw, keywords: ['deleted', 'trash', 'restore'] },
     { href: '/settings/contact-import', label: 'Import contacts', icon: Contact, keywords: ['phone book', 'vcf'] },
     { href: '/settings/hisaab-import', label: 'Import hisaab', icon: Import, keywords: ['ledger import'] },
     { href: '/settings/import-taheri', label: 'Import Taheri Software book', icon: Database, when: () => STORE_BRAND === 'taheri' },

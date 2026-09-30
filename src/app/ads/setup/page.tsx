@@ -16,7 +16,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Settings2, CheckCircle2, XCircle, Circle, Loader2, ExternalLink, Copy, Facebook, Instagram, Megaphone, RefreshCw, Check, MessageCircle, AlertTriangle, Unplug, Globe } from 'lucide-react';
+import Link from 'next/link';
+import { UsersRound, ListChecks, Settings2, CheckCircle2, XCircle, Circle, Loader2, ExternalLink, Copy, Facebook, Instagram, Megaphone, RefreshCw, Check, MessageCircle, AlertTriangle, Unplug, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STORE_CONFIG, STORE_META_ADS } from '@/lib/store-config';
 import { ACCOUNT_STATUS } from '@/lib/ads/shape';
@@ -140,12 +141,25 @@ function AdsSetup() {
   const redirectUris = [...new Set([app?.redirectUri, ...ORIGINS.map(o => `${o}/api/ads/callback`)].filter((u): u is string => !!u))];
 
   return (
-    <PageShell title="Ads setup" icon={<Settings2 className="h-7 w-7" />} width="narrow"
+    <PageShell title="Setup" icon={<Settings2 className="h-7 w-7" />} width="narrow"
       subtitle={`${STORE_CONFIG.name}’s Meta ad account, connected to this ERP`}
       action={<Button variant="outline" onClick={() => { reload(); if (connected) loadAssets(); }} disabled={loading}><RefreshCw className={cn('h-4 w-4 mr-1.5', loading && 'animate-spin')} /> Check again</Button>}>
       {error && <ErrorLine error={error} onRetry={reload} />}
       {!status && loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Checking…</div>}
       {status && <AccountAlerts status={status} />}
+
+      {/* Audiences and Rules were tabs of their own; they are set up once and looked at rarely, so they
+          are cards here and their pages light Setup (lib/nav.ts). */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Link href="/ads/audiences" className="rounded-lg border bg-card p-4 hover:bg-accent/50 transition-colors">
+          <p className="font-medium flex items-center gap-2"><UsersRound className="h-4 w-4 text-primary" />Audiences</p>
+          <p className="text-xs text-muted-foreground mt-0.5">The ERP&apos;s customers, Instagram engagers, lookalikes.</p>
+        </Link>
+        <Link href="/ads/rules" className="rounded-lg border bg-card p-4 hover:bg-accent/50 transition-colors">
+          <p className="font-medium flex items-center gap-2"><ListChecks className="h-4 w-4 text-primary" />Rules</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Meta&apos;s automated rules, and every change logged.</p>
+        </Link>
+      </div>
 
       {app && (
         <div className="space-y-3">

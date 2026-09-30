@@ -321,7 +321,7 @@ export default function ShareholderFinancesPage() {
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
-            <Users className="w-7 h-7 flex-shrink-0" />Shareholder Finances
+            <Users className="w-7 h-7 flex-shrink-0" />Shareholders
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Divided equally · expenses from {format(new Date(EXPENSE_CUTOFF), 'd MMM yyyy')} · revenue from Shopify #1103

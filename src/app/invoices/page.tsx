@@ -662,7 +662,7 @@ export default function DocumentsPage() {
           return (
              <div className="text-center py-12 bg-card rounded-lg shadow">
                 <FileText className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No Documents Found</h3>
+                <h3 className="text-xl font-semibold mb-2">Nothing found</h3>
                 <p className="text-muted-foreground">
                     {searchTerm || dateRange ? "Try adjusting your search or filter." : "No orders or invoices have been created yet."}
                 </p>
@@ -806,7 +806,7 @@ export default function DocumentsPage() {
       <Dialog open={importOpen} onOpenChange={(o) => { if (!isImporting) setImportOpen(o); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Import Shopify Orders CSV</DialogTitle>
+            <DialogTitle>Import Shopify orders (CSV)</DialogTitle>
             <DialogDescription>
               Upload a Shopify orders export CSV. Each row becomes an invoice. Invoices are numbered sequentially from the last invoice number.
             </DialogDescription>

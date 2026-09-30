@@ -95,7 +95,7 @@ export async function runReport(
 ): Promise<RunResult> {
   const s = o.settings !== undefined ? o.settings : await readNotifSettings();
   const phones = (s?.notifPhones ?? []).map(String).filter(Boolean);
-  if (!phones.length) return { task, status: 'off', error: 'No numbers are saved in Settings → Notifications.' };
+  if (!phones.length) return { task, status: 'off', error: 'No numbers are saved in Settings → Alerts.' };
   if (task === 'ads-daily' && !STORE_META_ADS) return { task, status: 'off', error: 'This house has no Ads.' };
   if (!o.force && !s?.notifEnabled) return { task, status: 'off', error: 'Notifications are switched off.' };
   if (!o.force && !s?.[REPORT_TOGGLE[task]]) return { task, status: 'off', error: 'This report is switched off.' };

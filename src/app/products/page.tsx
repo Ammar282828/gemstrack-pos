@@ -243,7 +243,7 @@ export default function ProductsPage() {
 
   const handleBulkExportCsv = () => {
     if (selectedProductSkus.length === 0) {
-      toast({ title: "No Products Selected", description: "Please select products to export.", variant: "destructive" });
+      toast({ title: "No pieces selected", description: "Select the pieces to export.", variant: "destructive" });
       return;
     }
     const productsToExport = allStoreProducts.filter(p => selectedProductSkus.includes(p.sku));
@@ -387,7 +387,7 @@ export default function ProductsPage() {
       ) : (
         <div className="text-center py-16 bg-card rounded-lg shadow">
           <Tag className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No Products Found</h3>
+          <h3 className="text-xl font-semibold mb-2">No pieces found</h3>
           <p className="text-muted-foreground">
             {searchTerm || selectedCategory ? 'Try adjusting your search or filter.' : 'Add a piece to begin.'}
           </p>

@@ -206,7 +206,7 @@ export default function PaymentMethodsPage() {
         setIsFormOpen(false);
         setEditingMethod(undefined);
     } catch (e) {
-        toast({ title: "Error", description: "Failed to save payment method.", variant: "destructive" });
+        toast({ title: "Error", description: "The bank account was not saved.", variant: "destructive" });
     } finally {
         setIsSaving(false);
     }
@@ -219,7 +219,7 @@ export default function PaymentMethodsPage() {
         await updateSettings({ paymentMethods: updatedMethods });
         toast({ title: "Deleted", description: "Payment method removed." });
     } catch (e) {
-         toast({ title: "Error", description: "Failed to delete payment method.", variant: "destructive" });
+         toast({ title: "Error", description: "The bank account was not deleted.", variant: "destructive" });
     } finally {
         setIsSaving(false);
     }
@@ -238,7 +238,7 @@ export default function PaymentMethodsPage() {
        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{editingMethod ? 'Edit' : 'Add'} Payment Method</DialogTitle>
+                    <DialogTitle>{editingMethod ? 'Edit' : 'Add'} bank account</DialogTitle>
                     <DialogDescription>
                         Fill in the bank account details. This will be visible to share with customers.
                     </DialogDescription>
@@ -311,7 +311,7 @@ export default function PaymentMethodsPage() {
       {filteredPaymentMethods.length === 0 ? (
         <Card>
             <CardHeader>
-                <CardTitle>No Payment Methods Found</CardTitle>
+                <CardTitle>No bank accounts yet</CardTitle>
             </CardHeader>
             <CardContent>
                 <Alert>

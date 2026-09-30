@@ -292,13 +292,28 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   (`data-scrolled` from `useScrolled`) — starting at the pane's edge, or drawn always, its tint made a vertical step at the
   pane. The pane has no drawn outline: a soft shadow and a specular edge (`::after`, a masked gradient ring bright at the top
   left, fading down the side). Bottom bars (`.glass-bar`) start after the pane on a computer, open or folded.
-- **The sidebar is by what the shop does** (re-audited 2026-09-27, owner: "reaudit the separation entirely"): **New Sale** is a
-  button of its own under Search; Home (Dashboard, Calendar); **Sales** — Orders, Invoices, Repairs, Customers; **Workshop &
-  stock** — Workshop (Jobs, Karigars, Given items) and **Stock** (Pieces, Add in bulk; back in the sidebar — Mina keeps ~100
-  pieces; owners only, the pages read Firestore directly); **Marketing** — Posts, Website, Ads (no longer sharing a heading with
-  the workshop); **Finance** — Money and Analytics (Overview, Products, Customers, Categories as tabs — the last three were only
-  reachable from card titles); Settings in the footer gains Labels and Recently removed. Twelve rows and a button, as the
-  2026-09-25 "way too crowded" cut asked; sibling pages stay tabs in the top bar. **One registry since 2026-10-01: `src/lib/nav.ts`** — the sidebar, the top-bar tabs, the Ctrl+K palette (same role rule and flags) and `PageShell`'s headings all read it; `nav.test.ts` fails when a page under `src/app` is in no entry, an entry has no page, or two rows of a group share a name. Add a page there or it is nowhere.
+- **The map** (the audit of 2026-10-01, which reopened the sidebar, Settings, Analytics and Ads decisions; the rows are
+  the ones people learned — what changed is underneath). **One registry, `src/lib/nav.ts`:** the sidebar, the top-bar
+  tabs, the Ctrl+K palette (same role rule and house flags) and `PageShell`'s headings all read it; `nav.test.ts` fails when
+  a page under `src/app` is in no entry, an entry has no page, or two rows of a group share a name. Add a page there or it
+  is nowhere. **One tab row per screen** — no in-page `Tabs` under the top bar's.
+  ```
+  [Search ⌘K] [New sale: Invoice · Order · Repair; Scan a tag · Read a written bill · Scan a parchi]   top bar: rate chip
+  Home        Dashboard · Calendar
+  SALES       Orders · Invoices · Repairs · Customers · Drafts (count)
+  WORKSHOP &  Workshop (Jobs · Karigars · Given items) · Stock (Pieces · Add in bulk · Labels · Scan) — Stock owners only
+  STOCK
+  MARKETING   Posts (Post a piece · From the website · Investments) · Website (Add photos · Edit a piece · Photo weights)
+              · Ads (Overview · Campaigns · Studio · New ad · Setup; Ad sets lights Campaigns, Audiences/Rules are cards on Setup)
+  MONEY       Money (Expenses · Extra revenue · Overheads · Hisaab · Shareholders) · Analytics (Overview · Sales · Products ·
+              Customers · Categories — the range rides in `?range=`, `lib/analytics/range-param.ts`, and carries across tabs)
+  footer      Settings (Shop · Alerts · Bank accounts · Integrations · Data · Activity · Voice)
+  ```
+  Settings' tabs are routes (`/settings`, `/settings/alerts`, `/settings/integrations`, `/settings/data`, `/activity-log`
+  with the sign-in log and Emergency lock); an old `/settings?tab=` link redirects, `?tab=rates` opens the rate sheet. Names:
+  the sidebar's word is the name everywhere (sentence case) — Invoice, Order, Finalize & invoice, Stock/piece, Hisaab, Pay
+  batch (a karigar's), Extra revenue, Bank accounts, Studio; never the Shopify note strings (`POS Invoice`, `POS-DISCOUNT`,
+  `POS Item`).
 - **It's called the ERP** (owner, 2026-09-27: "my system isn't a traditional pos anymore … rename it erp everywhere"). Every
   word people read says ERP — screens, errors, WhatsApp alert labels (`*Taheri ERP* · …`, Mina's `NEXT_PUBLIC_STORE_NOTIFY_LABEL`
   "House of Mina ERP"), the manifest. **Kept as POS on purpose:** the Shopify order notes and codes (`POS Invoice INV-…`,

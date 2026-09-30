@@ -27,19 +27,19 @@ import { AmountInput } from '@/components/ui/amount-input';
 const LAST_EXPORT_KEY = 'gemstrack-last-export';
 
 const EXPORTABLE_COLLECTIONS: { id: string; label: string; description: string }[] = [
-  { id: 'products',           label: 'Products',           description: 'Active inventory items' },
+  { id: 'products',           label: 'Stock',              description: 'Pieces in stock' },
   { id: 'customers',          label: 'Customers',          description: 'Customer contact details' },
   { id: 'karigars',           label: 'Karigars',           description: 'Artisan/supplier records' },
   { id: 'orders',             label: 'Orders',             description: 'Custom order records' },
   { id: 'invoices',           label: 'Invoices',           description: 'Generated sale invoices' },
-  { id: 'hisaab',             label: 'Hisaab / Ledger',   description: 'Outstanding balance ledger' },
+  { id: 'hisaab',             label: 'Hisaab',            description: 'Outstanding balances' },
   { id: 'expenses',           label: 'Expenses',           description: 'Expense records' },
-  { id: 'additional_revenue', label: 'Additional Revenue', description: 'Extra income entries' },
+  { id: 'additional_revenue', label: 'Extra revenue',     description: 'Income not tied to a sale' },
   { id: 'karigar_batches',    label: 'Karigar Batches',    description: 'Karigar work batches' },
   { id: 'given_items',        label: 'Given Items',        description: 'Items given out' },
   { id: 'repairs',            label: 'Repairs',            description: "Customers' pieces in for repair" },
   { id: 'categories',         label: 'Categories',         description: 'Product category definitions' },
-  { id: 'sold_products',      label: 'Sold Products',      description: 'Historical sold product archive' },
+  { id: 'sold_products',      label: 'Sold pieces',        description: 'Every piece sold, kept for the record' },
 ];
 
 // --- Export ---
@@ -404,7 +404,7 @@ const DangerZone: React.FC = () => {
         <CardDescription>Destructive actions that cannot be undone.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Label htmlFor="delete-count">Delete Latest N Products (by highest SKU)</Label>
+        <Label htmlFor="delete-count">Delete the latest N pieces (by highest SKU)</Label>
         <div className="flex items-center gap-2 mt-1.5">
           <AmountInput id="delete-count" value={deleteCount} maxDecimals={0}
             onValueChange={v => setDeleteCount(v || 1)} className="w-28" aria-label="Delete latest N products" />

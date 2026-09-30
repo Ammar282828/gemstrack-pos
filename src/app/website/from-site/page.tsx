@@ -318,9 +318,9 @@ function FromSitePage() {
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl space-y-5">
       <div ref={topRef} className="scroll-mt-20">
-        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Globe className="mr-3 h-7 w-7" /> Post from {siteName}</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Globe className="mr-3 h-7 w-7" /> From the website</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Pick any piece from the website — or shuffle — and send it with its link to {community ? <b>{community.name}</b> : 'the community'}{audience.groups.length > 1 ? '’s groups' : ''}{audience.channel ? <>, <b>{audience.channel.name}</b>’s channel, or both</> : null}.
+          Pick any piece from {siteName} — or shuffle — and send it with its link to {community ? <b>{community.name}</b> : 'the community'}{audience.groups.length > 1 ? '’s groups' : ''}{audience.channel ? <>, <b>{audience.channel.name}</b>’s channel, or both</> : null}.
         </p>
       </div>
 
@@ -487,7 +487,7 @@ function FromSitePage() {
                 {story && <img src={story.url} alt="The story" className="mx-auto max-h-[55vh] rounded-lg border object-contain" style={{ aspectRatio: '9 / 16' }} />}
                 <p className="text-xs">{ig?.connected
                   ? 'It goes up on Instagram at once and can’t be taken down from here. Instagram’s API can’t add a link sticker — add one by hand in the app if you want it.'
-                  : ig?.configured ? 'Instagram isn’t connected on this ERP (Post a Piece → Instagram connects it), so save it and post it from the Instagram app.'
+                  : ig?.configured ? 'Instagram isn’t connected on this ERP (Post a piece → Instagram connects it), so save it and post it from the Instagram app.'
                   : 'This ERP doesn’t post to Instagram by itself — save it and post it from the Instagram app.'}</p>
               </div>
             </AlertDialogDescription>

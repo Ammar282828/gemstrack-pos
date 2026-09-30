@@ -4,7 +4,7 @@
 import type { ReactNode } from 'react';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter,
   SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, SidebarInset,
@@ -87,6 +87,7 @@ function SidebarSearch() {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isStoreHydrated = useIsStoreHydrated();
   const settings = useAppStore(state => state.settings);
   const { user, signOut } = useAuth();
@@ -305,6 +306,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <Link
                       key={t.href}
                       href={t.href}
+                      // Analytics' range rides in the query; its tabs carry it to the next page.
+                      onClick={here?.entry.keepQuery ? (e) => { e.preventDefault(); router.push(`${t.href}${window.location.search}`); } : undefined}
                       aria-current={on ? 'page' : undefined}
                       className={cn(
                         'app-tab relative flex h-full shrink-0 items-center whitespace-nowrap px-3 text-sm transition-colors',

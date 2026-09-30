@@ -12,7 +12,8 @@ function AddOrderInner() {
   const params = useSearchParams();
   const seedFromCart = params.get('fromCart') === '1';
   // ?draft=… continues an unfinished order from Drafts (and keeps the one being typed across a reload).
-  return <OrderForm seedFromCart={seedFromCart} draftId={params.get('draft')} />;
+  // ?scan=parchi opens Scan a parchi at once (New sale's link).
+  return <OrderForm seedFromCart={seedFromCart} draftId={params.get('draft')} openScanner={params.get('scan') === 'parchi'} />;
 }
 
 export default function AddOrderPage() {

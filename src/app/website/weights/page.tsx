@@ -147,7 +147,7 @@ function PhotoWeightsPage() {
     <div className="container mx-auto px-4 py-6 max-w-5xl space-y-5">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Scale className="mr-3 h-8 w-8" /> Photo Weights</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Scale className="mr-3 h-8 w-8" /> Photo weights</h1>
           <p className="text-sm text-muted-foreground mt-1">Type the weight of the piece in the photograph. The website shows it in the corner, as on the photos that already carry one, and prices from it.</p>
         </div>
         <div className="text-right tabular-nums">

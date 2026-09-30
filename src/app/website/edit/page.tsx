@@ -153,9 +153,9 @@ function EditPiecePage() {
       <span aria-hidden className={cn(headlineFace.className, 'sr-only')}>.</span>
       <span aria-hidden className={cn(bodyFace.className, 'sr-only')}>.</span>
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><PenLine className="mr-3 h-7 w-7" /> Edit a piece on {SITE_NAME}</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><PenLine className="mr-3 h-7 w-7" /> Edit a piece</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Re-make a photo — crop it, put the weight and the logo on, fix the light — or change a piece’s name, description and details. It shows on the website within a minute; the original photo is kept to put back.
+          Re-make a photo — crop it, put the weight and the logo on, fix the light — or change a piece’s name, description and details. It shows on {SITE_NAME} within a minute; the original photo is kept to put back.
         </p>
       </div>
 

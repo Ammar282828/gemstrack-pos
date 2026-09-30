@@ -181,7 +181,7 @@ export default function BulkAddProductPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Bulk Add Products</CardTitle>
+          <CardTitle>Add pieces in bulk</CardTitle>
           <CardDescription>Add multiple products with the same configuration but different weights.</CardDescription>
         </CardHeader>
         
@@ -409,7 +409,7 @@ export default function BulkAddProductPage() {
                 <Button type="button" variant="ghost" onClick={() => form.reset()}>Reset Form</Button>
                 <Button type="submit" size="lg" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isSubmitting ? 'Creating Products...' : `Create ${fields.length} Products`}
+                    {isSubmitting ? 'Adding pieces…' : `Add ${fields.length} piece${fields.length === 1 ? '' : 's'}`}
                 </Button>
             </CardFooter>
           </form>

@@ -2,6 +2,7 @@
 "use client";
 
 import { PageShell } from '@/components/shared/page-shell';
+import { SignInActivity, EmergencyLock } from '@/components/settings/settings-sections';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { useAppStore, ActivityLog, LOG_EVENT_TYPES, LogEventType } from '@/lib/store';
@@ -223,6 +224,10 @@ export default function ActivityLogPage() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        {/* Security's two, moved here when Settings' tabs became routes: who signed in, and the lock. */}
+        <SignInActivity />
+        <EmergencyLock />
         </PageShell>
     );
 }

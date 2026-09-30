@@ -283,7 +283,7 @@ export default function KarigarDetailPage() {
     if (!newBatchLabel.trim()) return;
     const result = await createKarigarBatch({ karigarId, label: newBatchLabel.trim(), startDate: new Date().toISOString() });
     if (result) {
-      toast({ title: "New Hisaab Started", description: `"${newBatchLabel.trim()}" is now active.` });
+      toast({ title: "New pay batch started", description: `"${newBatchLabel.trim()}" is now active.` });
       setIsNewBatchOpen(false);
       setNewBatchLabel('');
     }
@@ -295,9 +295,9 @@ export default function KarigarDetailPage() {
       await closeKarigarBatch(openBatch.id, new Date().toISOString(), openBatchTotal);
       if (carryOverLabel.trim()) {
         await createKarigarBatch({ karigarId, label: carryOverLabel.trim(), startDate: new Date().toISOString() });
-        toast({ title: "Settled & New Hisaab Started", description: `"${openBatch.label}" closed. "${carryOverLabel.trim()}" is now active.` });
+        toast({ title: "Settled, and a new pay batch started", description: `"${openBatch.label}" closed. "${carryOverLabel.trim()}" is now active.` });
       } else {
-        toast({ title: "Hisaab Settled", description: `"${openBatch.label}" closed — PKR ${openBatchTotal.toLocaleString()}.` });
+        toast({ title: "Pay batch settled", description: `"${openBatch.label}" closed — PKR ${openBatchTotal.toLocaleString()}.` });
       }
       setCarryOverLabel('');
       setIsCloseDialogOpen(false);
@@ -415,7 +415,7 @@ export default function KarigarDetailPage() {
               <p className="text-2xl font-bold text-destructive">PKR {grandTotal.toLocaleString()}</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Active Hisaab</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Active pay batch</p>
               <p className="font-semibold">{openBatch ? openBatch.label : <span className="text-muted-foreground text-sm font-normal">None</span>}</p>
             </div>
           </div>
@@ -429,7 +429,7 @@ export default function KarigarDetailPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base"><Scale className="h-5 w-5 text-primary" />Gold Khata</CardTitle>
               <Button asChild variant="ghost" size="sm" className="text-primary">
-                <Link href={`/hisaab/${karigarId}?type=karigar`}>Full ledger <ExternalLink className="ml-1.5 h-3.5 w-3.5" /></Link>
+                <Link href={`/hisaab/${karigarId}?type=karigar`}>Open in Hisaab <ExternalLink className="ml-1.5 h-3.5 w-3.5" /></Link>
               </Button>
             </div>
           </CardHeader>
@@ -526,11 +526,11 @@ export default function KarigarDetailPage() {
       <Dialog open={isNewBatchOpen} onOpenChange={setIsNewBatchOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Start New Hisaab</DialogTitle>
+            <DialogTitle>Start a new pay batch</DialogTitle>
             <DialogDescription>Give it a name, e.g. "March 2026" or "Gold Set Batch".</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <Label htmlFor="batchLabel">Hisaab Name</Label>
+            <Label htmlFor="batchLabel">Pay batch name</Label>
             <Input id="batchLabel" placeholder="e.g. March 2026" value={newBatchLabel}
               onChange={e => setNewBatchLabel(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleStartNewBatch()} />
@@ -545,7 +545,7 @@ export default function KarigarDetailPage() {
       <Dialog open={isCloseDialogOpen} onOpenChange={(v) => { setIsCloseDialogOpen(v); if (!v) setCarryOverLabel(''); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-success" />Settle & Close Hisaab</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-success" />Settle and close the pay batch</DialogTitle>
             <DialogDescription>
               Closing <strong>{openBatch?.label}</strong> · total <strong>PKR {openBatchTotal.toLocaleString()}</strong>.
             </DialogDescription>
@@ -599,7 +599,7 @@ export default function KarigarDetailPage() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="flex justify-between items-center p-3 rounded-lg bg-primary/5 mb-3">
-              <span className="text-sm font-semibold">Hisaab Total</span>
+              <span className="text-sm font-semibold">Pay batch total</span>
               <span className="text-lg font-bold text-destructive">PKR {openBatchTotal.toLocaleString()}</span>
             </div>
             <ScrollArea className="max-h-72">
@@ -635,10 +635,10 @@ export default function KarigarDetailPage() {
               <Banknote className="h-6 w-6 text-muted-foreground" />
             </div>
             <div className="text-center">
-              <p className="font-semibold">No Active Hisaab</p>
+              <p className="font-semibold">No active pay batch</p>
               <p className="text-sm text-muted-foreground">Start a new hisaab to track payments in batches.</p>
             </div>
-            <Button onClick={() => setIsNewBatchOpen(true)}><PlusCircle className="mr-2 h-4 w-4" />Start New Hisaab</Button>
+            <Button onClick={() => setIsNewBatchOpen(true)}><PlusCircle className="mr-2 h-4 w-4" />Start a pay batch</Button>
           </CardContent>
         </Card>
       )}
@@ -647,7 +647,7 @@ export default function KarigarDetailPage() {
       {!openBatch && closedBatches.length > 0 && (
         <div className="flex justify-end">
           <Button size="sm" onClick={() => setIsNewBatchOpen(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" />Start New Hisaab
+            <PlusCircle className="mr-2 h-4 w-4" />Start a pay batch
           </Button>
         </div>
       )}
@@ -720,7 +720,7 @@ export default function KarigarDetailPage() {
       {/* Settled Hisaabs */}
       {closedBatches.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Settled Hisaabs</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Settled pay batches</h3>
           {closedBatches.map(batch => {
             const batchExpenses = allKarigarExpenses
               .filter(e => e.batchId === batch.id)

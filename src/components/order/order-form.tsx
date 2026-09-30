@@ -144,7 +144,7 @@ const promiseIn = (days: number) => formatDate(addDays(startOfDay(new Date()), d
 const QUICK_PROMISES = [7, 10, 14] as const;
 
 const orderFormSchema = z.object({
-    items: z.array(orderItemSchema).min(1, "You must add at least one item to the estimate."),
+    items: z.array(orderItemSchema).min(1, "Add at least one piece to the order."),
     goldRate18k: z.coerce.number().min(0),
     palladiumRate18k: z.coerce.number().min(0).default(0),
     palladiumRate12k: z.coerce.number().min(0).default(0),
@@ -352,7 +352,7 @@ const PanelSection: React.FC<{
   </section>
 );
 
-export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draftId?: string | null }> = ({ order, seedFromCart, draftId }) => {
+export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draftId?: string | null; openScanner?: boolean }> = ({ order, seedFromCart, draftId, openScanner }) => {
   const { toast } = useToast();
   const router = useRouter();
   const { settings, customers, karigars, isSettingsLoading, isCustomersLoading, isKarigarsLoading, loadSettings, loadCustomers, loadKarigars, addOrder, updateOrder, clearCart } = useAppStore();
@@ -378,7 +378,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
   // than during the previous render" -- on every direct load or refresh of
   // /orders/add. Reached from inside the app, with settings already in the
   // store, the loading branch was skipped and the page happened to work.
-  const [scannerOpen, setScannerOpen] = React.useState(false);
+  const [scannerOpen, setScannerOpen] = React.useState(!!openScanner);
   // A draft continued from Drafts: its own rates stand, not today's.
   const draftLoaded = useRef(false);
   // Delivery is held outside the zod form: it is a self-contained block with
@@ -1138,7 +1138,7 @@ export const OrderForm: React.FC<OrderFormProps & { seedFromCart?: boolean; draf
                 {isEditMode ? `Edit Order ${order?.id}` : 'Create Custom Order'}
               </CardTitle>
               <CardDescription>
-                {isEditMode ? 'Update the details for this custom order.' : 'Add one or more items to generate a combined price estimate.'}
+                {isEditMode ? 'Update the details for this custom order.' : 'Add one or more pieces to see the price.'}
               </CardDescription>
             </CardHeader>
             <CardContent>

@@ -243,7 +243,7 @@ export default function CartPage() {
       return;
     }
     if (cartItemsFromStore.find(i => i.sku === sku)) {
-      toast({ title: 'Already in cart', description: `${found.name} is already in the cart.` });
+      toast({ title: 'Already on this invoice', description: `${found.name} is already on this invoice.` });
       setSkuInput('');
       return;
     }
@@ -293,7 +293,8 @@ export default function CartPage() {
   // Most pieces here are made to order and never existed in inventory, so
   // billing starts by describing the piece rather than looking one up.
   const [newItem, setNewItem] = useState<Product | null>(null);
-  const [billScanOpen, setBillScanOpen] = useState(false);
+  // ?scan=bill opens Read a written bill at once (New sale's link).
+  const [billScanOpen, setBillScanOpen] = useState(() => searchParams.get('scan') === 'bill');
   // What the scanned bill said it came to. Kept so the cart can check its own
   // arithmetic against the paper's, which is how a missed line gets caught.
   const [scannedBillTotal, setScannedBillTotal] = useState<number | null>(null);
@@ -1265,7 +1266,7 @@ export default function CartPage() {
       <AlertDialog open={isCartClearWarningOpen} onOpenChange={setIsCartClearWarningOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Clear current sale?</AlertDialogTitle>
+            <AlertDialogTitle>Put the invoice in progress aside?</AlertDialogTitle>
             <AlertDialogDescription>
               {settings?.autoDraftForms !== false
                 ? 'You have items in your current sale. It stays in Drafts, to finish later, and this invoice opens here.'
@@ -1399,7 +1400,7 @@ export default function CartPage() {
                 <span className="mx-1.5">·</span>
                 <Link href="/scan" className="hover:underline">Scan a tag</Link>
                 <span className="mx-1.5">·</span>
-                <button type="button" className="hover:underline" onClick={() => setBillScanOpen(true)}>Photograph a bill</button>
+                <button type="button" className="hover:underline" onClick={() => setBillScanOpen(true)}>Read a written bill</button>
               </p>
             </CardContent>
           </Card>
@@ -1495,8 +1496,8 @@ export default function CartPage() {
                                 + Stock
                             </Button>
                             <Button variant="outline" onClick={() => setBillScanOpen(true)}
-                                title="Read a handwritten bill into the cart">
-                                <Camera className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">Scan bill</span>
+                                title="Read a handwritten bill into this invoice">
+                                <Camera className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">Read a bill</span>
                             </Button>
                             <Button variant="ghost" size="sm" onClick={clearCart} className="ml-auto text-muted-foreground hover:text-destructive">
                                 <Trash2 className="h-4 w-4 mr-1.5" />Clear all

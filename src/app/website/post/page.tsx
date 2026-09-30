@@ -1081,7 +1081,7 @@ function PostAPiecePage() {
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Send className="mr-3 h-7 w-7" /> Post a Piece</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><Send className="mr-3 h-7 w-7" /> Post a piece</h1>
           <p className="text-sm text-muted-foreground mt-1">One piece in — its story, its post and its caption out, sent from here.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -226,7 +226,7 @@ export default function AddPhotosPage() {
     const d = await res.json();
     if (!res.ok) { toast({ title: 'Could not feature it', description: d.error || `${res.status}`, variant: 'destructive' }); return; }
     setFeaturedRel(rel);
-    toast({ title: 'Set of the day', description: 'It leads the home page now. Add a line to it under Photo Weights if you like.' });
+    toast({ title: 'Set of the day', description: 'It leads the home page now. Add a line to it under Photo weights if you like.' });
   };
 
   const clearDone = () => setItems(prev => { prev.filter(i => i.status === 'done').forEach(i => URL.revokeObjectURL(i.preview)); return prev.filter(i => i.status !== 'done'); });
@@ -236,7 +236,7 @@ export default function AddPhotosPage() {
     <div className="container mx-auto px-4 py-6 max-w-5xl space-y-5">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><ImagePlus className="mr-3 h-8 w-8" /> Add Photos</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><ImagePlus className="mr-3 h-8 w-8" /> Add photos</h1>
           <p className="text-sm text-muted-foreground mt-1">Pick a collection, then add the photographs. They appear on {SITE_NAME} straight away — no rebuild.</p>
         </div>
         {counts.done > 0 && (

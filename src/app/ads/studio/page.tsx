@@ -47,7 +47,7 @@ const VIEWS = [
 type View = typeof VIEWS[number]['key'];
 
 export default function AdStudioRoute() {
-  if (!STORE_AD_STUDIO) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">The Ad studio isn’t part of this shop.</p>;
+  if (!STORE_AD_STUDIO) return <p className="container mx-auto px-4 py-8 text-sm text-muted-foreground">The Studio isn’t part of this shop.</p>;
   return <Suspense><AdStudio /></Suspense>;
 }
 
@@ -73,7 +73,7 @@ function AdStudio() {
   const startPlay = (p: Play) => { setPlay(p); go(work ? 'make' : 'picks'); };
 
   return (
-    <PageShell title="Ad studio" icon={<Palette className="h-6 w-6" />} width="wide">
+    <PageShell title="Studio" icon={<Palette className="h-6 w-6" />} width="wide">
       <nav className="tabs-list flex gap-1 overflow-x-auto rounded-full border p-1 w-fit max-w-full" aria-label="Studio">
         {VIEWS.map(x => (
           <button key={x.key} type="button" onClick={() => go(x.key)} aria-current={v === x.key ? 'page' : undefined}

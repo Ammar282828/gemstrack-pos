@@ -125,7 +125,7 @@ function InvestmentsPage() {
     <div className="container mx-auto px-4 py-6 max-w-5xl space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><TrendingUp className="mr-3 h-7 w-7" /> Investments by Taheri</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><TrendingUp className="mr-3 h-7 w-7" /> Investments</h1>
           <p className="text-sm text-muted-foreground mt-1">The daily gold post arrives here every morning from the Claude routine. Read it, change anything, and send it — by hand, or on your schedule.</p>
         </div>
         <div className="flex gap-2">

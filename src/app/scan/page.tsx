@@ -81,7 +81,7 @@ export default function ScanPOSPage() {
 
     if (product) {
       addToCart(product.sku);
-      toast({ title: "Item Added", description: `${product.name} added to cart.` });
+      toast({ title: "Item Added", description: `${product.name} added to the invoice.` });
       setSkuInput('');
     } else {
       toast({ title: "Product Not Found", description: `No product found with SKU: ${skuInput.trim()}`, variant: "destructive" });
@@ -106,7 +106,7 @@ export default function ScanPOSPage() {
             <CardHeader>
               <CardTitle className="text-xl flex items-center">
                 <ShoppingCart className="w-5 h-5 mr-2 text-primary" />
-                Current Sale
+                This invoice
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -134,7 +134,7 @@ export default function ScanPOSPage() {
             <CardFooter>
               <Button asChild size="lg" className="w-full" disabled={cartItems.length === 0}>
                 <Link href="/cart">
-                  View Cart & Checkout <ExternalLink className="w-4 h-4 ml-2" />
+                  Open the invoice <ExternalLink className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
             </CardFooter>

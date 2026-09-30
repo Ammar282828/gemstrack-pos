@@ -108,7 +108,7 @@ const AddNewHisaabDialog: React.FC<{
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Add or Select a Ledger</DialogTitle>
+                    <DialogTitle>Add or choose an account</DialogTitle>
                     <DialogDescription>
                         Search for an existing person or create a new one to start a ledger.
                     </DialogDescription>
@@ -165,7 +165,7 @@ const AddNewHisaabDialog: React.FC<{
                                         : <PlusCircle className="h-5 w-5 text-muted-foreground" />}
                                     <div>
                                         <p className="font-medium">{creating ? 'Adding' : 'Add karigar'} &ldquo;{typed}&rdquo;</p>
-                                        <p className="text-xs text-muted-foreground">Opens a new ledger for him</p>
+                                        <p className="text-xs text-muted-foreground">Opens a new hisaab for him</p>
                                     </div>
                                 </button>
                             </div>

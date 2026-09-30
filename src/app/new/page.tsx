@@ -16,11 +16,11 @@ import { useAppStore, selectCartDetails, selectCartSubtotal } from '@/lib/store'
 import { useAppReady } from '@/hooks/use-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
-  Receipt, ClipboardList, ArrowRight, ScanQrCode, ShoppingCart,
+  Receipt, ClipboardList, ArrowRight, ScanQrCode, ShoppingCart, Wrench, Camera, ScanLine,
 } from 'lucide-react';
-import { PageBack } from '@/components/shared/page-back';
+import { PageShell } from '@/components/shared/page-shell';
+import { useWorkDrafts } from '@/components/drafts/use-work-drafts';
 import { BoardSkeleton } from '@/components/shared/skeletons';
 import { DraftsShortcut } from '@/components/drafts/draft-list';
 
@@ -63,38 +63,41 @@ const Choice: React.FC<{
   </Link>
 );
 
+/** This device's unfinished sale (the cart's draft id: gemstrack:sale-draft). */
+function useSaleDraftId(): string | null {
+  const [id, setId] = React.useState<string | null>(null);
+  React.useEffect(() => { try { setId(localStorage.getItem('gemstrack:sale-draft')); } catch { /* private mode */ } }, []);
+  return id;
+}
+
 export default function NewSalePage() {
   const appReady = useAppReady();
   const cartItems = useAppStore(selectCartDetails);
   const cartSubtotal = useAppStore(selectCartSubtotal);
+  // The bill in progress is shown once: when Drafts already lists this sale, its card there is the way back.
+  const { drafts } = useWorkDrafts('sale');
+  const saleDraftId = useSaleDraftId();
+  const inDrafts = !!saleDraftId && drafts.some(d => d.id === saleDraftId);
 
   if (!appReady) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <BoardSkeleton tiles={2} panels={2} />
+        <BoardSkeleton tiles={3} panels={2} />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
-      <PageBack fallback="/" label="Back" />
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-primary">New sale</h1>
-        <p className="text-muted-foreground mt-1">
-          What is this? You can add the pieces once you have picked.
-        </p>
-      </div>
-
-      {/* A bill left half-finished should be obvious, and one tap from here. */}
-      {cartItems.length > 0 && (
+    <PageShell width="medium" subtitle="What is this? You add the pieces once you have picked.">
+      {/* A bill left half-finished should be obvious, and one tap from here — once. */}
+      {cartItems.length > 0 && !inDrafts && (
         <Card className="border-warning/40 bg-warning/5">
           <CardContent className="p-4 flex items-center gap-3 flex-wrap">
             <ShoppingCart className="h-5 w-5 text-warning flex-shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-sm">You have a bill in progress</p>
+              <p className="font-medium text-sm">An invoice in progress</p>
               <p className="text-xs text-muted-foreground">
-                {cartItems.length} item{cartItems.length === 1 ? '' : 's'} · PKR {cartSubtotal.toLocaleString()}
+                {cartItems.length} piece{cartItems.length === 1 ? '' : 's'} · PKR {cartSubtotal.toLocaleString()}
               </p>
             </div>
             <Button asChild size="sm" className="flex-shrink-0">
@@ -107,11 +110,11 @@ export default function NewSalePage() {
       {/* Orders and sales started and not saved — all of them are in Drafts. */}
       <DraftsShortcut />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Choice
           primary
           href="/cart"
-          title="Create Invoice"
+          title="Invoice"
           blurb="The customer is buying now."
           icon={<Receipt className="h-5 w-5" />}
           points={[
@@ -122,7 +125,7 @@ export default function NewSalePage() {
         />
         <Choice
           href="/orders/add"
-          title="Create Order"
+          title="Order"
           blurb="A piece to be made, delivered later."
           icon={<ClipboardList className="h-5 w-5" />}
           points={[
@@ -131,16 +134,31 @@ export default function NewSalePage() {
             'Goes to the workshop and can be assigned to a karigar',
           ]}
         />
+        <Choice
+          href="/repairs?new=1"
+          title="Repair"
+          blurb="A piece brought in to be fixed."
+          icon={<Wrench className="h-5 w-5" />}
+          points={[
+            'One customer, any number of pieces',
+            'What to do, a price and a ready-by date',
+            'In the shop → Ready → Collected',
+          ]}
+        />
       </div>
 
-      {/* Scanning is rare here — most pieces are made to order and never had a
-          tag — so it sits below the fold rather than as a headline action. */}
-      <div className="flex items-center gap-3 pt-2">
+      {/* The other ways in: a tag scanned, or the paper the counter already wrote. */}
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-1 pt-1 text-sm">
         <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
-          <Link href="/scan"><ScanQrCode className="mr-2 h-4 w-4" />Scan a tagged product</Link>
+          <Link href="/scan"><ScanQrCode className="mr-2 h-4 w-4" />Scan a tag</Link>
         </Button>
-        <Badge variant="outline" className="text-2xs">for stock you have already tagged</Badge>
+        <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+          <Link href="/cart?scan=bill"><Camera className="mr-2 h-4 w-4" />Read a written bill</Link>
+        </Button>
+        <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+          <Link href="/orders/add?scan=parchi"><ScanLine className="mr-2 h-4 w-4" />Scan a parchi</Link>
+        </Button>
       </div>
-    </div>
+    </PageShell>
   );
 }

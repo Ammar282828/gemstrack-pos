@@ -320,7 +320,7 @@ const FinalizeOrderDialog: React.FC<{
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle>Finalize Order & Generate Invoice</DialogTitle>
+                    <DialogTitle>Finalize & invoice</DialogTitle>
                     <DialogDescription>
                         Confirm or update the final weights and charges for each item. Everything settled on the order carries over
                         to the invoice: each advance as a payment with its date and how it was paid, the gold taken in exchange,
@@ -389,7 +389,7 @@ const FinalizeOrderDialog: React.FC<{
                             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
                             <Button type="submit" disabled={form.formState.isSubmitting}>
                                 {form.formState.isSubmitting ? <Loader2 className="animate-spin mr-2" /> : <FileText className="mr-2 h-4 w-4"/>}
-                                Create Final Invoice
+                                Finalize & invoice
                             </Button>
                         </DialogFooter>
                     </form>
@@ -937,7 +937,7 @@ export default function OrderDetailPage() {
       <AlertDialog open={isRevertAndEditDialogOpen} onOpenChange={setIsRevertAndEditDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Unlock Order for Editing?</AlertDialogTitle>
+            <AlertDialogTitle>Unlock the order to edit it?</AlertDialogTitle>
             <AlertDialogDescription>
               This will revert invoice <strong>{order?.invoiceId}</strong>, removing it and its ledger entries. Revenue calculations will be updated. You can re-finalize a new invoice after editing. This cannot be undone.
             </AlertDialogDescription>
@@ -956,7 +956,7 @@ export default function OrderDetailPage() {
       <AlertDialog open={isRefundDialogOpen} onOpenChange={setIsRefundDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Refund this Order?</AlertDialogTitle>
+            <AlertDialogTitle>Refund this order?</AlertDialogTitle>
             <AlertDialogDescription>
               This will mark order <strong>{order?.id}</strong> as <strong>Refunded</strong>.
               {order?.invoiceId
@@ -1407,7 +1407,7 @@ export default function OrderDetailPage() {
     <AlertDialog open={itemToDelete !== null} onOpenChange={(open) => !open && setItemToDelete(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Remove Item?</AlertDialogTitle>
+          <AlertDialogTitle>Remove this piece?</AlertDialogTitle>
           <AlertDialogDescription>
             {order && itemToDelete !== null && (
               <>Remove <span className="font-semibold">"{order.items[itemToDelete]?.description}"</span> from this order? This cannot be undone.</>
