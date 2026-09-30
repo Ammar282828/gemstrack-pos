@@ -287,7 +287,7 @@ export interface Settings extends GoldRates {
   notifOrderCancelled?: boolean;
   notifNewInvoice?: boolean;       // real-time: a new invoice/sale was created
   notifPaymentReceived?: boolean;  // real-time: a payment was recorded on an invoice
-  notifDailyReport?: boolean;      // 9 PM daily orders + invoices summary
+  notifDailyReport?: boolean;      // nightly orders + invoices summary, at notifDailyReportTime
   notifDailyChecklist?: boolean;
   notifEndOfDay?: boolean;
   notifWeeklyReport?: boolean;
@@ -297,6 +297,7 @@ export interface Settings extends GoldRates {
   notifKarigarPayment?: boolean; // weekly check: unpaid karigar batches
   notifDailyChecklistTime?: string; // "HH:MM", default "09:00"
   notifEndOfDayTime?: string;       // "HH:MM", default "19:00"
+  notifDailyReportTime?: string;    // "HH:MM", default "21:00" (times are Karachi's; lib/notifications/schedule.ts)
 }
 
 
@@ -974,6 +975,7 @@ const initialSettingsData: Settings = {
   notifKarigarPayment: true,
   notifDailyChecklistTime: '09:00',
   notifEndOfDayTime: '19:00',
+  notifDailyReportTime: '21:00',
   firebaseConfig: {
     projectId: "gemstrack-pos",
   }

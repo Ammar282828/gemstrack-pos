@@ -37,6 +37,7 @@ import 'react-phone-number-input/style.css';
 import { AmountInput } from '@/components/ui/amount-input';
 import { PhoneField } from '@/components/ui/phone-field';
 import { useWorkDrafts } from '@/components/drafts/use-work-drafts';
+import { REPORT_TOGGLE, reportWhen, type ReportTask } from '@/lib/notifications/schedule';
 
 const themeKeys = AVAILABLE_THEMES.map(t => t.key) as [ThemeKey, ...ThemeKey[]];
 
@@ -178,15 +179,35 @@ const NOTIF_TOGGLES: { key: keyof Settings; label: string; description: string }
   { key: 'notifOrderCancelled', label: 'Order Cancelled',     description: 'Alert when an order is cancelled or refunded' },
   { key: 'notifNewInvoice',     label: 'New Sale / Invoice',  description: 'Alert when a new invoice is created' },
   { key: 'notifPaymentReceived',label: 'Payment Received',    description: 'Alert when a payment is recorded on an invoice' },
-  { key: 'notifDailyReport',    label: 'Daily Report (9 PM)', description: 'Nightly summary: sales, cash collected, orders, outstanding' },
+  { key: 'notifDailyReport',    label: 'Daily Report',        description: 'Nightly summary: sales, cash collected, orders, outstanding' },
   { key: 'notifDailyChecklist', label: 'Daily Checklist',     description: 'Morning summary: active orders, overdue, unreturned items' },
-  { key: 'notifEndOfDay',       label: 'End of Day Summary',  description: 'Evening recap of today\'s orders' },
-  { key: 'notifWeeklyReport',   label: 'Weekly Report',       description: 'Monday morning business summary' },
-  { key: 'notifAdsDaily',       label: 'Ads Summary (9:30 AM)', description: 'Yesterday\'s Meta ads: spend, chats, cost per chat, and anything needing attention' },
-  { key: 'notifOrderOverdue',   label: 'Overdue Order Alert', description: 'Orders in Pending/In Progress for 7+ days (daily check)' },
+  { key: 'notifEndOfDay',       label: 'End of Day Summary',  description: 'Evening recap: today\'s sales, orders and expenses' },
+  { key: 'notifWeeklyReport',   label: 'Weekly Report',       description: 'The last seven days: sales, expenses, late orders, karigars' },
+  { key: 'notifAdsDaily',       label: 'Ads Summary',         description: 'Yesterday\'s Meta ads: spend, chats, cost per chat, and anything needing attention' },
+  { key: 'notifOrderOverdue',   label: 'Overdue Order Alert', description: 'Orders past the date the customer was promised' },
   { key: 'notifGivenItems',     label: 'Given Items Overdue', description: 'Items given out and not returned for 7+ days' },
-  { key: 'notifKarigarPayment', label: 'Karigar Payments Due','description': 'Unpaid karigar batches (weekly check)' },
+  { key: 'notifKarigarPayment', label: 'Karigar Balances',    description: 'Cash to pay and gold with each karigar, from Hisaab' },
 ];
+
+/** The scheduled report behind a switch; the others are live alerts, sent as things happen. */
+const REPORT_OF = Object.fromEntries(Object.entries(REPORT_TOGGLE).map(([task, key]) => [key, task])) as Partial<Record<keyof Settings, ReportTask>>;
+
+interface LastRun { date: string; status: string; at: string | null; sent: number; recipients: number; failed: string[]; error: string | null; tries: number }
+
+/** "last sent today 9:02 pm to 4", "last failed 29 Sep: …". */
+function lastRunLine(r: LastRun | undefined): { text: string; bad: boolean } {
+  if (!r) return { text: 'not sent in the last week', bad: false };
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi' }).format(new Date());
+  const time = r.at ? new Date(r.at).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: 'numeric', minute: '2-digit' }) : '';
+  const day = r.date === today ? `today ${time}`.trim()
+    : new Date(`${r.date}T12:00:00+05:00`).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
+  switch (r.status) {
+    case 'sent': return { text: `last sent ${day} to ${r.sent} of ${r.recipients}${r.failed.length ? ` (not ${r.failed.map(f => f.split(':')[0]).join(', ')})` : ''}`, bad: r.failed.length > 0 };
+    case 'quiet': return { text: `${day}: nothing to report`, bad: false };
+    case 'running': return { text: `sending (${day})`, bad: false };
+    default: return { text: `failed ${day}${r.tries < 3 && r.date === today ? ', trying again' : ''}: ${r.error || r.failed.join('; ') || 'unknown error'}`, bad: true };
+  }
+}
 
 function NotificationsCard() {
   const { settings, updateSettings } = useAppStore();
@@ -211,6 +232,37 @@ function NotificationsCard() {
     } finally { setChecking(false); }
   }, []);
   React.useEffect(() => { void checkHealth(); }, [checkHealth]);
+
+  // When each scheduled report last went (notif_runs), so a silent one shows here.
+  const [runs, setRuns] = React.useState<Partial<Record<ReportTask, LastRun>> | null>(null);
+  const loadRuns = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications/run', { cache: 'no-store' });
+      if (res.ok) setRuns((await res.json()).last ?? {});
+    } catch { /* the times still show */ }
+  }, []);
+  React.useEffect(() => { void loadRuns(); }, [loadRuns]);
+
+  const [sendingNow, setSendingNow] = React.useState<ReportTask | null>(null);
+  const sendNow = async (task: ReportTask) => {
+    setSendingNow(task);
+    try {
+      let token = '';
+      try { token = (await firebaseAuth?.currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
+      const res = await fetch('/api/notifications/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ task, force: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.status === 'off') throw new Error(body.error || `HTTP ${res.status}`);
+      toast(body.status === 'quiet'
+        ? { title: 'Nothing to report', description: 'There is nothing in it right now, so nothing was sent.' }
+        : { title: 'Sent', description: `Sent to ${body.sent} of ${body.recipients}${body.failed?.length ? ` — not to ${body.failed.join('; ')}` : ''}.` });
+    } catch (e) {
+      toast({ title: 'Send failed', description: (e as Error).message, variant: 'destructive' });
+    } finally { setSendingNow(null); }
+  };
 
   /** /api/notifications/send is owner-gated, so every caller must identify
    *  itself. Both test buttons go through here — the per-recipient one was
@@ -365,24 +417,40 @@ function NotificationsCard() {
             {/* Notification toggles */}
             <div className="space-y-3">
               <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Notification Types</p>
-              {NOTIF_TOGGLES.map(({ key, label, description }) => (
-                <div key={key} className="flex items-center justify-between py-2">
-                  <div>
-                    <p className="text-sm font-medium">{label}</p>
-                    <p className="text-xs text-muted-foreground">{description}</p>
+              {NOTIF_TOGGLES.map(({ key, label, description }) => {
+                const task = REPORT_OF[key];
+                const last = task && settings[key] && runs ? lastRunLine(runs[task]) : null;
+                return (
+                  <div key={key} className="flex items-center justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{label}</p>
+                      <p className="text-xs text-muted-foreground">{description}</p>
+                      {task && (
+                        <p className={cn('text-xs mt-0.5', last?.bad ? 'text-destructive' : 'text-muted-foreground')}>
+                          {reportWhen(task, settings)}{last ? ` · ${last.text}` : ''}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {task && (
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => sendNow(task)} disabled={!!sendingNow || !phones.length}>
+                          {sendingNow === task ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Send now'}
+                        </Button>
+                      )}
+                      <Switch
+                        checked={!!settings[key]}
+                        onCheckedChange={v => handleToggle(key, v as boolean)}
+                      />
+                    </div>
                   </div>
-                  <Switch
-                    checked={!!settings[key]}
-                    onCheckedChange={v => handleToggle(key, v as boolean)}
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <Separator />
 
             {/* Schedule times */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="checklistTime">Daily Checklist Time</Label>
                 <Input
@@ -401,16 +469,22 @@ function NotificationsCard() {
                   onBlur={e => updateSettings({ notifEndOfDayTime: e.target.value })}
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dailyReportTime">Daily Report Time</Label>
+                <Input
+                  id="dailyReportTime"
+                  type="time"
+                  defaultValue={settings.notifDailyReportTime || '21:00'}
+                  onBlur={e => updateSettings({ notifDailyReportTime: e.target.value })}
+                />
+              </div>
             </div>
 
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertTitle>Scheduler</AlertTitle>
-              <AlertDescription>
-                Scheduled notifications (daily checklist, weekly report, etc.) require the scheduler script to be running:
-                <code className="block mt-1 bg-muted px-2 py-1 rounded text-xs">node notifications-scheduler.js</code>
-              </AlertDescription>
-            </Alert>
+            <p className="text-xs text-muted-foreground">
+              Reports go out by themselves at these times, Karachi time — nothing needs to be left running.
+              The overdue checks go with the checklist, and on Mondays the weekly report and karigar payments too.
+              One missed while the ERP was updating still goes within the hour; after that it waits for its next day.
+            </p>
           </>
         )}
       </CardContent>

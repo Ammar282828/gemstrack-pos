@@ -1,564 +1,75 @@
-// @ts-nocheck
+/**
+ * POST {task, force?} → send one WhatsApp report to every number in Settings → Notifications.
+ *
+ * Callers: Cloud Scheduler (`ads-daily-summary` in both projects, Mina's `mina-daily-report`,
+ * Bearer CRON_SECRET), which sends only a report that is switched on and not yet sent today
+ * (the five-minute tick sends the same ones at the times in Settings — see
+ * lib/notifications/schedule.ts); and Settings' "Send now" (`force`), which sends it anyway.
+ *
+ * "Send now" is open while sign-in is off, like the test button: a report only ever goes to
+ * the shop's own saved numbers, never to the caller. The gold tasks stay scheduler-only.
+ *
+ * GET → when each scheduled report last went (for Settings): dates, how many numbers, errors.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isCronAuthorized } from '@/lib/api-auth';
-import { adminDb } from '@/lib/firebase-admin';
+import { verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { generateGoldDailyUpdate, checkGoldBreakingNews } from '@/lib/gold-update';
-import { isBusinessCost } from '@/lib/partnership';
-import { lateOrders, orderTiming, timingLabel } from '@/lib/order-timing';
-// These reports go to the shop's own staff, so they must carry the shop's own name.
-// They were hardcoded to MINA from the repo this was based on.
-import { STORE_CONFIG } from '@/lib/store-config';
-import { fromThisPos } from '@/lib/notify-label';  // the owner gets both houses' reports
-import { adsDigest } from '@/lib/ads/digest';
-import { STORE_META_ADS } from '@/lib/store-config';
-const SHOP = STORE_CONFIG.name.toUpperCase();
+import { lastRuns, runReport } from '@/lib/notifications/dispatch';
+import { isReportTask } from '@/lib/notifications/schedule';
 
-function daysSince(isoDate: string) {
-  return Math.floor((Date.now() - new Date(isoDate).getTime()) / 86400000);
-}
+export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
 
-function fmt(n: number) {
-  return Number(n || 0).toLocaleString('en-PK');
-}
-
-async function getSettings() {
-  const snap = await adminDb.collection('app_settings').limit(1).get();
-  return snap.empty ? null : snap.docs[0].data();
-}
-
-async function sendDailyChecklist(phone: string) {
-  const [ordersSnap, givenSnap, batchesSnap] = await Promise.all([
-    adminDb.collection('orders').get(),
-    adminDb.collection('given_items').get(),
-    adminDb.collection('karigar_batches').get(),
-  ]);
-
-  const orders  = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Array<Record<string, any>>;
-  const given   = givenSnap.docs.map(d => d.data()) as Array<Record<string, any>>;
-  const batches = batchesSnap.docs.map(d => d.data()) as Array<Record<string, any>>;
-
-  const pending    = orders.filter(o => o.status === 'Pending');
-  const inProgress = orders.filter(o => o.status === 'In Progress');
-  const active     = [...pending, ...inProgress];
-  // Late now means past the date the customer was promised, not simply old.
-  // Orders taken before promisedDate existed keep the old age rule; see
-  // orderTiming(). `estimated` marks which of the two produced the verdict so
-  // the message can be honest about it.
-  const now       = new Date();
-  const late      = lateOrders(active as unknown as Parameters<typeof lateOrders>[0], now);
-  const lateBad   = late.filter(x => x.timing.daysLate >= 7);
-  const onTrack   = active.filter(o => !late.some(x => x.order === o));
-
-  const unreturnedAll = given.filter((g: Record<string, string>) => g.status === 'out');
-  const unreturnedOld = unreturnedAll.filter((g: Record<string, string>) => daysSince(g.createdAt) >= 7);
-  const unpaidBatches = batches.filter((b: Record<string, boolean>) => !b.paid);
-  const unpaidTotal   = unpaidBatches.reduce((s: number, b: Record<string, number>) => s + Number(b.totalAmount || 0), 0);
-
-  const date = new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-
-  const lines = [
-    `━━━━━━━━━━━━━━━━━━`,
-    `💎 *${SHOP} — Daily Checklist*`,
-    `📅 ${date}`,
-    `━━━━━━━━━━━━━━━━━━`,
-    ``,
-    `📦 *ORDER PIPELINE*`,
-    `  Total active: ${active.length}`,
-    `  🟡 Pending: ${pending.length}`,
-    `  🔵 In Progress: ${inProgress.length}`,
-    `  🟢 On track: ${onTrack.length}`,
-    `  ⚠️  Late: ${late.length - lateBad.length}`,
-    `  🔴 A week or more late: ${lateBad.length}`,
-  ];
-
-  if (late.length > 0) {
-    lines.push(``, `⚠️ *PAST THE PROMISED DATE*`);
-    late.forEach(({ order: o, timing }) => {
-      const flag = timing.daysLate >= 7 ? '🔴' : '⚠️';
-      lines.push(`${flag} ${o.id} | ${o.customerName || 'Walk-in'} | ${timingLabel(timing)} | PKR ${fmt(Number(o.grandTotal))}`);
-      if (o.summary) lines.push(`   └ ${o.summary}`);
-    });
-    if (late.some(x => x.timing.estimated)) {
-      lines.push(`   ("old" = no promised date on record, counted from when it was taken)`);
-    }
-  }
-
-  if (onTrack.length > 0) {
-    lines.push(``, `🆕 *ON TRACK*`);
-    onTrack.slice(0, 8).forEach(o => {
-      const t = orderTiming(o as unknown as Parameters<typeof orderTiming>[0], now);
-      lines.push(`• ${o.id} | ${o.customerName || 'Walk-in'} | ${timingLabel(t) || `${daysSince(o.createdAt)}d`} | PKR ${fmt(Number(o.grandTotal))}`);
-    });
-    if (fresh.length > 8) lines.push(`  … and ${fresh.length - 8} more`);
-  }
-
-  if (unreturnedAll.length > 0) {
-    lines.push(``, `📤 *GIVEN ITEMS OUT*`);
-    lines.push(`  Total out: ${unreturnedAll.length} | Overdue (7d+): ${unreturnedOld.length}`);
-    unreturnedOld.slice(0, 5).forEach((g: Record<string, string>) => {
-      lines.push(`  🔴 ${g.description || g.id} — ${daysSince(g.createdAt)} days`);
-    });
-  }
-
-  if (unpaidBatches.length > 0) {
-    lines.push(``, `💸 *KARIGAR PAYMENTS DUE*`);
-    lines.push(`  ${unpaidBatches.length} unpaid batch(es) — PKR ${fmt(unpaidTotal)}`);
-    unpaidBatches.slice(0, 3).forEach((b: Record<string, string | number>) => {
-      lines.push(`  • ${b.karigarName || b.karigarId} — PKR ${fmt(Number(b.totalAmount))}`);
-    });
-  }
-
-  lines.push(``, `━━━━━━━━━━━━━━━━━━`, `Have a productive day! 💎`);
-  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
-}
-
-async function sendEndOfDaySummary(phone: string) {
-  const [ordersSnap, expensesSnap] = await Promise.all([
-    adminDb.collection('orders').get(),
-    adminDb.collection('expenses').get(),
-  ]);
-
-  const orders   = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  const expenses = expensesSnap.docs.map(d => d.data());
-  const today    = new Date().toDateString();
-
-  const createdToday   = orders.filter(o => new Date(o.createdAt).toDateString() === today);
-  const completedToday = orders.filter(o => o.status === 'Completed' && new Date(o.updatedAt || o.createdAt).toDateString() === today);
-  const expToday       = expenses.filter((e: Record<string, string>) => new Date(e.date || e.createdAt).toDateString() === today);
-  const expTotalToday  = expToday.reduce((s: number, e: Record<string, number>) => s + Number(e.amount || 0), 0);
-  const revToday       = completedToday.reduce((s: number, o: Record<string, number>) => s + Number(o.grandTotal || 0), 0);
-  const active         = orders.filter(o => o.status === 'Pending' || o.status === 'In Progress');
-
-  const date = new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long' });
-
-  const lines = [
-    `━━━━━━━━━━━━━━━━━━`,
-    `🌙 *${SHOP} — End of Day*`,
-    `📅 ${date}`,
-    `━━━━━━━━━━━━━━━━━━`,
-    ``,
-    `📊 *TODAY'S SUMMARY*`,
-    `  📝 New orders: ${createdToday.length}`,
-    `  ✅ Completed: ${completedToday.length}`,
-    `  💰 Revenue from completed: PKR ${fmt(revToday)}`,
-    `  💸 Expenses logged: PKR ${fmt(expTotalToday)}`,
-  ];
-
-  if (createdToday.length > 0) {
-    lines.push(``, `📝 *ORDERS CREATED TODAY*`);
-    createdToday.forEach(o => {
-      lines.push(`• ${o.id} | ${o.customerName || 'Walk-in'} | PKR ${fmt(Number(o.grandTotal))}`);
-      if (o.summary) lines.push(`   └ ${o.summary}`);
-    });
-  }
-
-  if (completedToday.length > 0) {
-    lines.push(``, `✅ *COMPLETED TODAY*`);
-    completedToday.forEach(o => {
-      lines.push(`• ${o.id} | ${o.customerName || 'Walk-in'} | PKR ${fmt(Number(o.grandTotal))}`);
-    });
-  }
-
-  lines.push(
-    ``,
-    `📦 *PIPELINE STATUS*`,
-    `  Active orders remaining: ${active.length}`,
-    `  Overdue (7d+): ${active.filter(o => daysSince(o.createdAt) >= 7).length}`,
-    ``,
-    `━━━━━━━━━━━━━━━━━━`,
-    `Good night! Rest well. 🌙`
-  );
-
-  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
-}
-
-async function sendDailyReport(phone: string) {
-  const [ordersSnap, invoicesSnap, expensesSnap] = await Promise.all([
-    adminDb.collection('orders').get(),
-    adminDb.collection('invoices').get(),
-    adminDb.collection('expenses').get(),
-  ]);
-
-  const orders   = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Array<Record<string, any>>;
-  const invoices = invoicesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Array<Record<string, any>>;
-  const expenses = expensesSnap.docs.map(d => d.data()) as Array<Record<string, any>>;
-  const today    = new Date().toDateString();
-
-  // ── Invoices / sales ──
-  const invoicesToday = invoices.filter(i => new Date(i.createdAt).toDateString() === today);
-  const salesTotalToday = invoicesToday.reduce((s, i) => s + Number(i.grandTotal || 0), 0);
-
-  // Cash collected today = payment-history entries dated today across ALL invoices
-  let cashInToday = 0;
-  const paymentsToday: Array<{ id: string; customer: string; amount: number }> = [];
-  for (const inv of invoices) {
-    const history = Array.isArray(inv.paymentHistory) ? inv.paymentHistory : [];
-    for (const p of history) {
-      if (p?.date && new Date(p.date).toDateString() === today) {
-        const amt = Number(p.amount || 0);
-        cashInToday += amt;
-        if (amt > 0) paymentsToday.push({ id: inv.id, customer: inv.customerName || 'Walk-in', amount: amt });
-      }
-    }
-  }
-
-  const outstanding = invoices.filter(i => Number(i.balanceDue || 0) > 0);
-  const outstandingTotal = outstanding.reduce((s, i) => s + Number(i.balanceDue || 0), 0);
-
-  // ── Orders ──
-  const createdToday   = orders.filter(o => new Date(o.createdAt).toDateString() === today);
-  const completedToday = orders.filter(o => o.status === 'Completed' && new Date(o.updatedAt || o.createdAt).toDateString() === today);
-  const active         = orders.filter(o => o.status === 'Pending' || o.status === 'In Progress');
-  const overdue7       = active.filter(o => daysSince(o.createdAt) >= 7);
-
-  // ── Expenses ──
-  const expToday      = expenses.filter(e => new Date(e.date || e.createdAt).toDateString() === today);
-  const expTotalToday = expToday.reduce((s, e) => s + Number(e.amount || 0), 0);
-
-  const netCashToday = cashInToday - expTotalToday;
-  const date = new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-
-  const lines = [
-    `━━━━━━━━━━━━━━━━━━`,
-    `💎 *${SHOP} — Daily Report*`,
-    `📅 ${date}`,
-    `━━━━━━━━━━━━━━━━━━`,
-    ``,
-    `🧾 *SALES TODAY*`,
-    `  Invoices: ${invoicesToday.length}`,
-    `  Sales value: PKR ${fmt(salesTotalToday)}`,
-    `  💵 Cash collected: PKR ${fmt(cashInToday)}`,
-    `  💸 Expenses: PKR ${fmt(expTotalToday)}`,
-    `  📈 Net cash: PKR ${fmt(netCashToday)} ${netCashToday >= 0 ? '✅' : '🔴'}`,
-  ];
-
-  if (invoicesToday.length > 0) {
-    lines.push(``, `🧾 *INVOICES CREATED*`);
-    invoicesToday.forEach(i => {
-      const bal = Number(i.balanceDue || 0);
-      const tag = bal > 0 ? `⚠️ bal PKR ${fmt(bal)}` : `✅ paid`;
-      lines.push(`• ${i.id} | ${i.customerName || 'Walk-in'} | PKR ${fmt(Number(i.grandTotal))} | ${tag}`);
-    });
-  }
-
-  if (paymentsToday.length > 0) {
-    lines.push(``, `💰 *PAYMENTS RECEIVED*`);
-    paymentsToday.forEach(p => lines.push(`• ${p.id} | ${p.customer} | PKR ${fmt(p.amount)}`));
-  }
-
-  lines.push(
-    ``,
-    `📦 *ORDERS TODAY*`,
-    `  📝 New: ${createdToday.length}`,
-    `  ✅ Completed: ${completedToday.length}`,
-  );
-  if (createdToday.length > 0) {
-    createdToday.forEach(o => lines.push(`• ${o.id} | ${o.customerName || 'Walk-in'} | PKR ${fmt(Number(o.grandTotal))}`));
-  }
-
-  lines.push(
-    ``,
-    `📊 *OUTSTANDING & PIPELINE*`,
-    `  Unpaid invoices: ${outstanding.length} | PKR ${fmt(outstandingTotal)}`,
-    `  Active orders: ${active.length} | Overdue 7d+: ${overdue7.length}`,
-    ``,
-    `━━━━━━━━━━━━━━━━━━`,
-    `Good night! 🌙`,
-  );
-
-  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
-}
-
-async function sendWeeklyReport(phone: string) {
-  const [ordersSnap, expensesSnap, batchesSnap, givenSnap] = await Promise.all([
-    adminDb.collection('orders').get(),
-    adminDb.collection('expenses').get(),
-    adminDb.collection('karigar_batches').get(),
-    adminDb.collection('given_items').get(),
-  ]);
-
-  const orders   = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-  const expenses = expensesSnap.docs.map(d => d.data());
-  const batches  = batchesSnap.docs.map(d => d.data());
-  const given    = givenSnap.docs.map(d => d.data());
-
-  const now     = Date.now();
-  const weekAgo = now - 7 * 86400000;
-
-  const newThisWeek     = orders.filter(o => new Date(o.createdAt).getTime() >= weekAgo);
-  const completedAll    = orders.filter(o => o.status === 'Completed');
-  const doneThisWeek    = orders.filter(o => o.status === 'Completed' && new Date(o.createdAt).getTime() >= weekAgo);
-  const cancelledThisWeek = orders.filter(o => (o.status === 'Cancelled' || o.status === 'Refunded') && new Date(o.createdAt).getTime() >= weekAgo);
-  const active          = orders.filter(o => o.status === 'Pending' || o.status === 'In Progress');
-  const overdue7        = active.filter(o => daysSince(o.createdAt) >= 7);
-  const overdue14       = active.filter(o => daysSince(o.createdAt) >= 14);
-
-  // netProfit below is a profit figure, so a partner's draw must not count as
-  // a cost — with a 50/50 split it would otherwise charge the other partner
-  // for half of it.
-  const expThisWeek  = expenses.filter((e: Record<string, string>) =>
-    new Date(e.date || e.createdAt).getTime() >= weekAgo && isBusinessCost(e));
-  const totalExp     = expThisWeek.reduce((s: number, e: Record<string, number>) => s + Number(e.amount || 0), 0);
-  const totalRev     = doneThisWeek.reduce((s: number, o: Record<string, number>) => s + Number(o.grandTotal || 0), 0);
-  const newOrdersVal = newThisWeek.reduce((s: number, o: Record<string, number>) => s + Number(o.grandTotal || 0), 0);
-  const netProfit    = totalRev - totalExp;
-
-  // Expense breakdown by category
-  const expByCategory: Record<string, number> = {};
-  expThisWeek.forEach((e: Record<string, string | number>) => {
-    const cat = String(e.category || 'Other');
-    expByCategory[cat] = (expByCategory[cat] || 0) + Number(e.amount || 0);
-  });
-
-  const unpaidBatches = batches.filter((b: Record<string, boolean>) => !b.paid);
-  const unpaidTotal   = unpaidBatches.reduce((s: number, b: Record<string, number>) => s + Number(b.totalAmount || 0), 0);
-  const unreturnedGiven = given.filter((g: Record<string, string>) => g.status === 'out');
-
-  const weekStart = new Date(weekAgo).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
-  const weekEnd   = new Date().toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
-
-  const lines = [
-    `━━━━━━━━━━━━━━━━━━`,
-    `📊 *${SHOP} — Weekly Report*`,
-    `📅 ${weekStart} – ${weekEnd}`,
-    `━━━━━━━━━━━━━━━━━━`,
-    ``,
-    `💼 *ORDERS THIS WEEK*`,
-    `  📝 New orders: ${newThisWeek.length} (PKR ${fmt(newOrdersVal)})`,
-    `  ✅ Completed: ${doneThisWeek.length} (PKR ${fmt(totalRev)})`,
-    `  ❌ Cancelled/Refunded: ${cancelledThisWeek.length}`,
-    `  📦 Total active pipeline: ${active.length}`,
-    ``,
-    `💰 *FINANCIALS*`,
-    `  Revenue (completed): PKR ${fmt(totalRev)}`,
-    `  Expenses: PKR ${fmt(totalExp)}`,
-    `  Net: PKR ${fmt(netProfit)} ${netProfit >= 0 ? '✅' : '🔴'}`,
-  ];
-
-  if (Object.keys(expByCategory).length > 0) {
-    lines.push(``, `💸 *EXPENSE BREAKDOWN*`);
-    Object.entries(expByCategory)
-      .sort(([, a], [, b]) => b - a)
-      .forEach(([cat, amt]) => lines.push(`  • ${cat}: PKR ${fmt(amt)}`));
-  }
-
-  if (doneThisWeek.length > 0) {
-    lines.push(``, `✅ *COMPLETED ORDERS*`);
-    doneThisWeek.forEach(o => {
-      lines.push(`• ${o.id} | ${o.customerName || 'Walk-in'} | PKR ${fmt(Number(o.grandTotal))}`);
-    });
-  }
-
-  lines.push(``, `📦 *PIPELINE HEALTH*`);
-  lines.push(`  On track (< 7d): ${active.filter(o => daysSince(o.createdAt) < 7).length}`);
-  lines.push(`  Overdue 7-14d: ${overdue7.length - overdue14.length}`);
-  lines.push(`  Critical 14d+: ${overdue14.length}`);
-
-  if (overdue7.length > 0) {
-    lines.push(``, `⚠️ *OVERDUE ORDERS*`);
-    overdue7.sort((a, b) => daysSince(b.createdAt) - daysSince(a.createdAt)).forEach(o => {
-      lines.push(`${daysSince(o.createdAt) >= 14 ? '🔴' : '⚠️'} ${o.id} | ${o.customerName || 'Walk-in'} | ${daysSince(o.createdAt)}d | PKR ${fmt(Number(o.grandTotal))}`);
-    });
-  }
-
-  if (unpaidBatches.length > 0) {
-    lines.push(``, `💸 *KARIGAR PAYMENTS OUTSTANDING*`);
-    lines.push(`  ${unpaidBatches.length} batch(es) — PKR ${fmt(unpaidTotal)}`);
-    unpaidBatches.forEach((b: Record<string, string | number>) => {
-      lines.push(`  • ${b.karigarName || b.karigarId} — PKR ${fmt(Number(b.totalAmount))}`);
-    });
-  } else {
-    lines.push(``, `✅ All karigar batches paid`);
-  }
-
-  if (unreturnedGiven.length > 0) {
-    lines.push(``, `📤 *ITEMS STILL OUT* — ${unreturnedGiven.length} total`);
-    unreturnedGiven.slice(0, 5).forEach((g: Record<string, string>) => {
-      const days = daysSince(g.createdAt);
-      lines.push(`  ${days >= 7 ? '🔴' : '•'} ${g.description || g.id} — ${days}d`);
-    });
-  }
-
-  lines.push(
-    ``,
-    `📈 *ALL-TIME STATS*`,
-    `  Total completed orders: ${completedAll.length}`,
-    `  Total active: ${active.length}`,
-    ``,
-    `━━━━━━━━━━━━━━━━━━`,
-    `Have a great week ahead! 💎`
-  );
-
-  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
-}
-
-async function checkOverdueOrders(phone: string) {
-  const snap = await adminDb.collection('orders').get();
-  const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  const late = lateOrders(orders as unknown as Parameters<typeof lateOrders>[0], new Date());
-
-  if (late.length === 0) return;
-
-  // A week past what was promised is a different conversation from a day past.
-  const critical = late.filter(x => x.timing.daysLate >= 7);
-  const warning  = late.filter(x => x.timing.daysLate < 7);
-
-  const row = ({ order: o, timing }: (typeof late)[number]) =>
-    `• ${o.id} | ${o.customerName || 'Walk-in'} | ${timingLabel(timing)} | PKR ${fmt(Number(o.grandTotal))}`;
-
-  const lines = [
-    `━━━━━━━━━━━━━━━━━━`,
-    `⚠️ *ORDERS PAST THEIR DATE*`,
-    `${late.length} order(s) need attention`,
-    `━━━━━━━━━━━━━━━━━━`,
-  ];
-
-  if (critical.length > 0) {
-    lines.push(``, `🔴 *A WEEK OR MORE LATE*`);
-    critical.forEach(x => {
-      lines.push(row(x));
-      if (x.order.summary) lines.push(`   └ ${x.order.summary}`);
-    });
-  }
-
-  if (warning.length > 0) {
-    lines.push(``, `⚠️ *JUST LATE*`);
-    warning.forEach(x => {
-      lines.push(row(x));
-      if (x.order.summary) lines.push(`   └ ${x.order.summary}`);
-    });
-  }
-
-  if (late.some(x => x.timing.estimated)) {
-    lines.push(``, `"old" means no promised date was recorded — counted from when the order was taken.`);
-  }
-
-  lines.push(``, `━━━━━━━━━━━━━━━━━━`);
-  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
-}
-
-async function checkGivenItems(phone: string) {
-  const snap = await adminDb.collection('given_items').get();
-  const items = snap.docs.map(d => d.data());
-  const allOut = items.filter(g => g.status === 'out');
-  const old    = allOut.filter(g => daysSince(g.createdAt) >= 7).sort((a: Record<string, string>, b: Record<string, string>) => daysSince(b.createdAt) - daysSince(a.createdAt));
-
-  if (old.length === 0) return;
-
-  const lines = [
-    `━━━━━━━━━━━━━━━━━━`,
-    `📤 *GIVEN ITEMS OVERDUE*`,
-    `${old.length} item(s) not returned (7+ days)`,
-    `━━━━━━━━━━━━━━━━━━`,
-    ``,
-  ];
-
-  old.forEach((g: Record<string, string>) => {
-    const days = daysSince(g.createdAt);
-    lines.push(`${days >= 14 ? '🔴' : '⚠️'} ${g.description || g.id}`);
-    lines.push(`   Given: ${new Date(g.createdAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })} — ${days} days ago`);
-    if (g.givenTo) lines.push(`   To: ${g.givenTo}`);
-  });
-
-  lines.push(``, `Total items out: ${allOut.length}`, `━━━━━━━━━━━━━━━━━━`);
-  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
-}
-
-async function checkKarigarPayments(phone: string) {
-  const snap = await adminDb.collection('karigar_batches').get();
-  const batches = snap.docs.map(d => d.data());
-  const unpaid  = batches.filter((b: Record<string, boolean>) => !b.paid);
-  if (unpaid.length === 0) return;
-
-  const total = unpaid.reduce((s: number, b: Record<string, number>) => s + Number(b.totalAmount || 0), 0);
-
-  const lines = [
-    `━━━━━━━━━━━━━━━━━━`,
-    `💸 *KARIGAR PAYMENTS DUE*`,
-    `${unpaid.length} unpaid batch(es)`,
-    `Total outstanding: PKR ${fmt(total)}`,
-    `━━━━━━━━━━━━━━━━━━`,
-    ``,
-  ];
-
-  unpaid.forEach((b: Record<string, string | number>) => {
-    lines.push(`• *${b.karigarName || b.karigarId}*`);
-    lines.push(`  Amount: PKR ${fmt(Number(b.totalAmount))}`);
-    if (b.createdAt) lines.push(`  Since: ${new Date(String(b.createdAt)).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}`);
-  });
-
-  lines.push(``, `━━━━━━━━━━━━━━━━━━`);
-  await sendWhatsAppMessage(phone, fromThisPos(lines.join('\n')));
-}
-
-// ── Gold market update tasks ────────────────────────────────────────────────
+const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
 
 const GOLD_UPDATE_PHONE = process.env.GOLD_UPDATE_PHONE || '923352275554';
 
-async function sendGoldDailyUpdate() {
-  const message = await generateGoldDailyUpdate();
-  await sendWhatsAppMessage(GOLD_UPDATE_PHONE, message);
-  return message;
+export async function GET() {
+  try {
+    return NextResponse.json({ last: await lastRuns() }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+  }
 }
-
-async function sendGoldBreakingNews() {
-  const message = await checkGoldBreakingNews();
-  if (!message) return null; // No alert needed
-  await sendWhatsAppMessage(GOLD_UPDATE_PHONE, message);
-  return message;
-}
-
 
 export async function POST(req: NextRequest) {
+  let body: { task?: unknown; force?: unknown };
   try {
-    if (!isCronAuthorized(req)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const { task, force } = await req.json();
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Bad request body.' }, { status: 400 });
+  }
+  const { task } = body;
+  const force = body.force === true;
 
-    // Gold tasks bypass store notification settings — they use their own phone
+  const viaCron = isCronAuthorized(req, { strict: true });
+  if (!viaCron) {
+    // From the page: a report the owner asked for, to the shop's own numbers.
+    const allowed = isReportTask(task) && force && (OPEN_ACCESS || isOwnerEmail(await verifyRequestEmail(req)));
+    if (!allowed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    // Gold tasks bypass the shop's notification settings — they use their own phone.
     if (task === 'gold-daily-update') {
-      const msg = await sendGoldDailyUpdate();
+      const msg = await generateGoldDailyUpdate();
+      await sendWhatsAppMessage(GOLD_UPDATE_PHONE, msg);
       return NextResponse.json({ ok: true, task, preview: msg.substring(0, 200) + '...' });
     }
     if (task === 'gold-breaking-news') {
-      const msg = await sendGoldBreakingNews();
+      const msg = await checkGoldBreakingNews();
       if (!msg) return NextResponse.json({ ok: true, task, alert: false, message: 'No breaking news' });
+      await sendWhatsAppMessage(GOLD_UPDATE_PHONE, msg);
       return NextResponse.json({ ok: true, task, alert: true, preview: msg.substring(0, 200) + '...' });
     }
+    if (!isReportTask(task)) return NextResponse.json({ error: `Unknown task: ${String(task)}` }, { status: 400 });
 
-    const s = await getSettings();
-
-    if (!s?.notifEnabled || !s?.notifPhones?.length) {
-      return NextResponse.json({ skipped: 'Notifications disabled or no recipients', settings: { notifEnabled: s?.notifEnabled, phones: s?.notifPhones } });
-    }
-
-    const phones: string[] = s.notifPhones;
-
-    // Yesterday's ads, one message built once and sent to each number (a house without Ads skips it).
-    if (task === 'ads-daily') {
-      if (!STORE_META_ADS || (!force && !s.notifAdsDaily)) return NextResponse.json({ ok: true, task, skipped: 'off' });
-      const msg = fromThisPos(await adsDigest());
-      for (const phone of phones) await sendWhatsAppMessage(phone, msg);
-      return NextResponse.json({ ok: true, task, recipients: phones.length, preview: msg.slice(0, 200) });
-    }
-
-    for (const phone of phones) {
-      switch (task) {
-        case 'daily-checklist':  if (force || s.notifDailyChecklist)  await sendDailyChecklist(phone);  break;
-        case 'daily-report':     if (force || s.notifDailyReport)      await sendDailyReport(phone);     break;
-        case 'end-of-day':       if (force || s.notifEndOfDay)         await sendEndOfDaySummary(phone); break;
-        case 'weekly-report':    if (force || s.notifWeeklyReport)     await sendWeeklyReport(phone);    break;
-        case 'overdue-orders':   if (force || s.notifOrderOverdue)     await checkOverdueOrders(phone);  break;
-        case 'given-items':      if (force || s.notifGivenItems)       await checkGivenItems(phone);     break;
-        case 'karigar-payments': if (force || s.notifKarigarPayment)   await checkKarigarPayments(phone);break;
-        default:
-          return NextResponse.json({ error: `Unknown task: ${task}` }, { status: 400 });
-      }
-    }
-
-    return NextResponse.json({ ok: true, task, recipients: phones.length, forced: !!force });
+    const r = await runReport(task, { force, by: viaCron ? 'scheduler' : 'settings' });
+    if (r.status === 'failed') return NextResponse.json({ ...r, error: r.error ?? `Could not send: ${r.failed?.join('; ')}` }, { status: 502 });
+    return NextResponse.json({ ok: true, forced: force, ...r });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[/api/notifications/run]', message);

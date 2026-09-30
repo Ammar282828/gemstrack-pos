@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sendWhatsAppMessage, WhatsAppNotConfiguredError } from '@/lib/whatsapp';
 import { isCronAuthorized } from '@/lib/api-auth';
 import { verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
-import { adminDb } from '@/lib/firebase-admin';
+import { readNotifSettings } from '@/lib/notifications/dispatch';
 import { fromThisPos } from '@/lib/notify-label';
 
 const OPEN_ACCESS = process.env.NEXT_PUBLIC_OPEN_ACCESS === '1';
@@ -27,8 +27,7 @@ async function allowedWhileOpen(to: string): Promise<boolean> {
   const want = tail(to);
   if (!want) return false;
   try {
-    const snap = await adminDb.collection('app_settings').limit(1).get();
-    const phones = (snap.empty ? [] : snap.docs[0].data()?.notifPhones) as unknown;
+    const phones = (await readNotifSettings())?.notifPhones as unknown;
     return Array.isArray(phones) && phones.some((p) => tail(p) === want);
   } catch (e) {
     // A settings read that fails must not become an open relay.

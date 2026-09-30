@@ -383,6 +383,23 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   Kept on purpose: an invoiced order still counts on the order's date, and an open order at its full `subtotal`. A rolling
   range (last 30/90 days, this year) re-anchors when the day turns on a page left open.
 - In a component, no hook after an early `return` (the `/orders/add` crash of 2026-09-22 was exactly that).
+- **The WhatsApp reports send themselves** (2026-09-30, owner: "fix this" on Settings → Notifications' "Send failed — While
+  sign-in is off, messages can only go to the numbers saved in Settings"). Cause: `/api/notifications/send` and `/run` read *the
+  first document* of `app_settings`, which since 29 Sep is `ad_studio_assess` (the Ad studio's lease sorts before `global`), so
+  every live alert was refused and every scheduled report skipped — with a 200, so no job showed red. **Read
+  `app_settings/global` by name** (`readNotifSettings` in `lib/notifications/dispatch.ts`), never `limit(1)`. The reports had
+  also needed `node notifications-scheduler.js` on a computer, so only Mina's 9 pm report and the ads summary ever went; now
+  `lib/notifications/schedule.ts` (tested) sets the times — checklist + overdue orders + given items at the checklist time,
+  end of day, the daily report at `notifDailyReportTime` (21:00), Mondays the weekly report and karigar balances, ads 09:30,
+  all Karachi time — and the `social-queue-tick` sends what is due in both projects (before its Post a Piece gate). Each goes
+  once a day: a transaction claim `notif_runs/<date>_<task>` shared with `/run`, so the `ads-daily-summary` and
+  `mina-daily-report` jobs can't double-send; one that reached nobody is retried at the next ticks (3 tries), up to 60 min
+  late. Settings shows each report's time and last send, and **Send now** (open like the test button: only to saved numbers).
+  The builders (`lib/notifications/reports.ts`, no longer `@ts-nocheck`) had never run, and were broken: the checklist threw
+  (`fresh` undefined), given items and karigar batches were read by fields that don't exist, and every revenue figure summed
+  completed orders instead of invoices. Now sales are invoices at `invoiceSaleValue`, a completion is dated by its invoice,
+  lateness is by promised date, and karigars come from Hisaab (Taheri's is gold only, last entry July; Mina has none — it
+  pays karigars through expenses).
 - **Staff open an invoice at `/cart?invoice_id=<id>`** (payment, edit, print); `/view-invoice/<id>` is the customer's page, with
   no shell and only downloads, and is only ever sent to customers. There is no `/view-invoice` without an id: the dashboard's
   Recent sales and unpaid rows linked `/view-invoice?invoiceId=` and opened "not found" until 2026-09-29; the workshop's invoice

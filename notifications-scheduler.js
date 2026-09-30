@@ -1,6 +1,10 @@
 /**
  * GemsTrack POS — WhatsApp Notification Scheduler
  *
+ * NOT NEEDED FOR THE REPORTS ANY MORE (2026-09-30): the ERP sends them itself at the times in
+ * Settings → Notifications (lib/notifications/schedule.ts, on the five-minute tick). A report this
+ * script asks for is sent only if the tick hasn't already sent it today. It still runs the gold tasks.
+ *
  * Run alongside `npm run dev`:
  *   node notifications-scheduler.js
  *
