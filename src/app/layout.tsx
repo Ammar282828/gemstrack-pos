@@ -2,7 +2,7 @@
 "use client";
 
 import { usePathname } from 'next/navigation';
-import { Inter } from 'next/font/google'; 
+import localFont from 'next/font/local';
 import './globals.css';
 import AppLayout from '@/components/layout/app-layout';
 import { Toaster } from "@/components/ui/toaster";
@@ -16,8 +16,10 @@ import { STORE_CONFIG, STORE_BRAND, STORE_THEME_COLOR, STORE_LINKS_PAGE, LINKS_D
 import { readCachedTheme, writeCachedTheme, LIGHT_THEME, readDeviceTheme, DEVICE_THEME_EVENT, applyThemeToDocument, readCachedUiStyle, writeCachedUiStyle, applyUiStyleToDocument } from '@/lib/theme-cache';
 import { warmPdfLogo } from '@/lib/pdf-logo';
 
-const inter = Inter({
-  subsets: ['latin'],
+// Google's own latin Inter, kept in the repo (src/fonts) so the build never fetches from Google —
+// see src/app/website/post/fonts.ts for why.
+const inter = localFont({
+  src: [{ path: '../fonts/inter-latin.woff2', weight: '100 900', style: 'normal' }],
   variable: '--font-inter',
 });
 

@@ -33,7 +33,7 @@
 
 import React, { Suspense } from 'react';
 import Image from 'next/image';
-import { Bodoni_Moda, Newsreader } from 'next/font/google';
+import localFont from 'next/font/local';
 import {
   LINKS_DRESS, STORE_BRAND, STORE_CONFIG, STORE_LINKS, STORE_LINKS_PAGE, STORE_LOGO_ASPECT, STORE_LOGO_LIGHT_URL,
 } from '@/lib/store-config';
@@ -42,10 +42,23 @@ import { pickShowcase } from '@/lib/website/showcase';
 // Rendered per request: the pieces change daily, and nothing here may run at build.
 export const dynamic = 'force-dynamic';
 
-// Self-hosted by next/font. Both are declared (next/font wants literals); only the
-// house's own is ever drawn, so only its files are fetched.
-const didone = Bodoni_Moda({ subsets: ['latin'], weight: ['400'], style: ['normal', 'italic'], display: 'swap', preload: false });
-const newsreader = Newsreader({ subsets: ['latin'], weight: ['400'], style: ['normal', 'italic'], display: 'swap', preload: false });
+// Self-hosted from src/fonts (Google's latin cuts; the build never fetches from Google — see
+// website/post/fonts.ts). Both are declared (next/font wants literals); only the house's own is
+// ever drawn, so only its files are fetched.
+const didone = localFont({
+  src: [
+    { path: '../../fonts/bodoni-moda-normal-latin.woff2', weight: '400', style: 'normal' },
+    { path: '../../fonts/bodoni-moda-italic-latin.woff2', weight: '400', style: 'italic' },
+  ],
+  display: 'swap', preload: false, adjustFontFallback: 'Times New Roman',
+});
+const newsreader = localFont({
+  src: [
+    { path: '../../fonts/newsreader-normal-latin.woff2', weight: '400', style: 'normal' },
+    { path: '../../fonts/newsreader-italic-latin.woff2', weight: '400', style: 'italic' },
+  ],
+  display: 'swap', preload: false, adjustFontFallback: 'Times New Roman',
+});
 const SERIF = STORE_BRAND === 'mina' ? newsreader.className : didone.className;
 
 const { ground: GROUND, accent: ACCENT, accentRgb: ACC } = LINKS_DRESS;

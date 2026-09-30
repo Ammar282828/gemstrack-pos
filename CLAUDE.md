@@ -383,6 +383,13 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   Kept on purpose: an invoiced order still counts on the order's date, and an open order at its full `subtotal`. A rolling
   range (last 30/90 days, this year) re-anchors when the day turns on a page left open.
 - In a component, no hook after an early `return` (the `/orders/add` crash of 2026-09-22 was exactly that).
+- **Fonts ship in the repo; never `next/font/google`** (2026-09-30): House of Mina's build failed twice that day in
+  `website/post/fonts.ts` ("An error occurred in `next/font`… Cannot read properties of null (reading '1')") — now and then
+  Google hands the builder a font address with no `.woff2` ending, which Next 15's Google loader can't read, and that house
+  stays on its old code until the next push. Every face (Inter; the links page's Bodoni Moda / Newsreader; the story, post and
+  ad faces) is Google's own latin woff2 in `src/fonts/`, loaded with `next/font/local` with the same weights, styles and
+  fallback font, so the build fetches nothing. A new face: download its latin woff2 there (README), never the Google loader.
+  (The ERP's screens are in the system font — `font-sans` beats globals.css's `'Inter'`; Inter only reaches `/links`.)
 - **The WhatsApp reports send themselves** (2026-09-30, owner: "fix this" on Settings → Notifications' "Send failed — While
   sign-in is off, messages can only go to the numbers saved in Settings"). Cause: `/api/notifications/send` and `/run` read *the
   first document* of `app_settings`, which since 29 Sep is `ad_studio_assess` (the Ad studio's lease sorts before `global`), so
