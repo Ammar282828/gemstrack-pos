@@ -45,6 +45,7 @@ import { AmountInput } from '@/components/ui/amount-input';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import type { TakenBy } from '@/lib/store';
 import { useMineFilter } from '@/hooks/use-me';
+import { PageShell } from '@/components/shared/page-shell';
 
 // ── small presentational helpers ────────────────────────────────────────────
 
@@ -1008,15 +1009,8 @@ export default function WorkshopPage() {
   const focusedLoads = groupByKarigar(focused);
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-5 max-w-7xl">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Hammer className="h-6 w-6 text-primary" />Workshop</h1>
-          {/* Counts read as a sentence rather than five cards repeating each
-              other. In progress only appears when it differs from active, and
-              zero-value warnings are simply omitted. */}
-          <p className="text-sm text-muted-foreground flex items-center gap-x-2 gap-y-0.5 flex-wrap mt-0.5">
+    <PageShell
+      subtitle={<span className="flex items-center gap-x-2 gap-y-0.5 flex-wrap">{/* Counts read as a sentence rather than five cards repeating each other. */}
             <span><span className="font-semibold text-foreground">{stats.active}</span> active</span>
             {stats.inProgress !== stats.active && <span>· {stats.inProgress} in progress</span>}
             {stats.overdue > 0 && (
@@ -1028,14 +1022,14 @@ export default function WorkshopPage() {
             {stats.unassigned > 0 && (
               <span className="text-destructive">· <span className="font-semibold">{stats.unassigned}</span> unassigned</span>
             )}
-          </p>
-        </div>
+      </span>}
+      action={
         <Button className="w-full sm:w-auto sm:flex-shrink-0"
           onClick={() => { setPresetKarigar(undefined); setAddOpen(true); }}>
-          <PlusCircle className="h-4 w-4 mr-2" />Assign Work
+          <PlusCircle className="h-4 w-4 mr-2" />Assign work
         </Button>
-      </div>
-
+      }
+    >
       <FilterBar
         value={search}
         onChange={setSearch}
@@ -1453,6 +1447,6 @@ export default function WorkshopPage() {
 
       <AddJobDialog open={addOpen} onOpenChange={setAddOpen} presetKarigarId={presetKarigar} />
       <EditDetailsDialog job={editJob} onClose={() => setEditJob(null)} />
-    </div>
+    </PageShell>
   );
 }

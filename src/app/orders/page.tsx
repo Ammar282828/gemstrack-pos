@@ -28,6 +28,7 @@ import { PromiseLine } from '@/components/shared/promise-line';
 import { useRouter } from 'next/navigation';
 import { TakenByPicker } from '@/components/shared/taken-by-picker';
 import { useMineFilter } from '@/hooks/use-me';
+import { PageShell } from '@/components/shared/page-shell';
 
 type PaymentStatus = OrderPaymentStatus;
 const getPaymentStatus = getOrderPaymentStatus;
@@ -434,23 +435,19 @@ export default function OrdersPage() {
   const pkr = (n: number) => 'PKR ' + Math.round(n).toLocaleString();
 
   return (
-    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl space-y-4">
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
-            <ClipboardList className="w-7 h-7 flex-shrink-0"/>Orders
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {filteredOrders.length === orders.length
-              ? `${orders.length} order${orders.length === 1 ? '' : 's'}`
-              : `${filteredOrders.length} of ${orders.length} orders`}
-            {activeCount > 0 && ` · ${activeCount} in progress`}
-          </p>
-        </div>
+    <PageShell
+      subtitle={<>
+        {filteredOrders.length === orders.length
+          ? `${orders.length} order${orders.length === 1 ? '' : 's'}`
+          : `${filteredOrders.length} of ${orders.length} orders`}
+        {activeCount > 0 && ` · ${activeCount} in progress`}
+      </>}
+      action={
         <Button asChild size="sm" className="flex-shrink-0">
           <Link href="/orders/add"><PlusCircle className="w-4 h-4 mr-2" />New order</Link>
         </Button>
-      </header>
+      }
+    >
 
       
       <FilterBar
@@ -581,6 +578,6 @@ export default function OrdersPage() {
       <div style={{ display: 'none' }} aria-hidden>
         <QRCode id="links-qr-code" value={storeLinksUrl() || STORE_CONFIG.appUrl} size={128} />
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { PageShell } from '@/components/shared/page-shell';
 
 const CustomerActions: React.FC<{ customer: Customer; onDelete: (id: string) => Promise<void>; isCard?: boolean }> = ({ customer, onDelete, isCard }) => {
   return (
@@ -698,21 +699,12 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl space-y-4">
-      <MergeCustomersDialog open={mergeOpen} onOpenChange={setMergeOpen} customers={customers} onMerge={handleMerge} />
-      <SpamReviewDialog open={spamOpen} onOpenChange={setSpamOpen} candidates={spamCandidates} onDelete={handleDeleteCustomer} />
-
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
-            <Users className="w-7 h-7 flex-shrink-0" />Customers
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {customers.length} on file
-            {totals.owingCount > 0 && <> · {totals.owingCount} owing {pkr(totals.owed)}</>}
-          </p>
-        </div>
-        <div className="flex gap-2 flex-shrink-0 [&>*]:flex-1 sm:[&>*]:flex-none">
+    <PageShell
+      subtitle={<>
+        {customers.length} on file
+        {totals.owingCount > 0 && <> · {totals.owingCount} owing {pkr(totals.owed)}</>}
+      </>}
+      action={<>
           {spamCandidates.length > 0 && (
             <Button size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10"
               onClick={() => setSpamOpen(true)}>
@@ -725,8 +717,10 @@ export default function CustomersPage() {
           <Button asChild size="sm">
             <Link href="/customers/add"><PlusCircle className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add customer</span><span className="sm:hidden">Add</span></Link>
           </Button>
-        </div>
-      </header>
+      </>}
+    >
+      <MergeCustomersDialog open={mergeOpen} onOpenChange={setMergeOpen} customers={customers} onMerge={handleMerge} />
+      <SpamReviewDialog open={spamOpen} onOpenChange={setSpamOpen} candidates={spamCandidates} onDelete={handleDeleteCustomer} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
@@ -783,6 +777,6 @@ export default function CustomersPage() {
           <Section title="Quiet" hint="no sale in a year" people={visible.quiet} />
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

@@ -14,6 +14,7 @@ import { ListSkeleton } from '@/components/shared/skeletons';
 import { DraftCard } from '@/components/drafts/draft-list';
 import { useWorkDrafts } from '@/components/drafts/use-work-drafts';
 import { DRAFT_MAX_AGE_DAYS } from '@/lib/work-drafts';
+import { PageShell } from '@/components/shared/page-shell';
 
 export default function DraftsPage() {
   const { drafts, ready } = useWorkDrafts();
@@ -21,14 +22,10 @@ export default function DraftsPage() {
   const sales = drafts.filter(d => d.kind === 'sale');
 
   return (
-    <div className="container mx-auto max-w-4xl space-y-6 px-4 py-5 md:py-6">
-      <header className="space-y-1">
-        <h1 className="flex items-center gap-2.5 text-2xl font-bold text-primary md:text-3xl"><FileClock className="h-7 w-7 flex-shrink-0" />Drafts</h1>
-        <p className="text-sm text-muted-foreground">
-          New orders and sales, kept as they are typed — on every device. One leaves this list the moment it is saved as an
-          order or invoice, and after {DRAFT_MAX_AGE_DAYS} days untouched. Orders and invoices that already exist are never drafted.
-        </p>
-      </header>
+    <PageShell width="medium" subtitle={<>
+      New orders and sales, kept as they are typed — on every device. One leaves this list the moment it is saved as an
+      order or invoice, and after {DRAFT_MAX_AGE_DAYS} days untouched. Orders and invoices that already exist are never drafted.
+    </>}>
 
       {!ready ? <ListSkeleton /> : (
         <>
@@ -42,7 +39,7 @@ export default function DraftsPage() {
           </Section>
         </>
       )}
-    </div>
+    </PageShell>
   );
 }
 

@@ -43,6 +43,7 @@ import { FilterBar } from '@/components/shared/filter-bar';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { Wrench, Plus, PlusCircle, Printer, Edit, Trash2, MessageCircle, CheckCircle2, PackageCheck, Loader2, X, ChevronDown } from 'lucide-react';
 import { useMe } from '@/hooks/use-me';
+import { PageShell } from '@/components/shared/page-shell';
 
 const pkr = (n: number) => `PKR ${Math.round(n).toLocaleString()}`;
 const day = (iso?: string) => { if (!iso) return ''; try { return format(parseISO(iso), 'd MMM'); } catch { return iso; } };
@@ -362,18 +363,13 @@ export default function RepairsPage() {
   if (!appReady) return <div className="container mx-auto px-4 py-5 md:py-6 max-w-5xl"><ListSkeleton /></div>;
 
   return (
-    <div className="container mx-auto px-4 py-5 md:py-6 max-w-5xl space-y-4">
+    <PageShell width="medium" action={<Button onClick={() => setEditing('new')}><PlusCircle className="w-4 h-4 mr-2" />New repair</Button>}>
       {/* The QR codes the receipt footer draws from. */}
       <div style={{ display: 'none' }} aria-hidden="true">
         <QRCode id="wa-qr-code" value={STORE_CONFIG.whatsappUrl || ' '} size={128} />
         <QRCode id="links-qr-code" value={storeLinksUrl() || ' '} size={128} />
         <QRCode id="insta-qr-code" value={STORE_CONFIG.instagramUrl || ' '} size={128} />
       </div>
-
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5"><Wrench className="w-7 h-7 flex-shrink-0" />Repairs</h1>
-        <Button onClick={() => setEditing('new')}><PlusCircle className="w-4 h-4 mr-2" />New repair</Button>
-      </header>
 
       <FilterBar
         value={search}
@@ -495,6 +491,6 @@ export default function RepairsPage() {
       </Dialog>
 
       {handingBack && <HandBackDialog repair={handingBack} onClose={() => setHandingBack(null)} />}
-    </div>
+    </PageShell>
   );
 }

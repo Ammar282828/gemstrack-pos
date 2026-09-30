@@ -2,6 +2,7 @@
 
 "use client";
 
+import { PageShell } from '@/components/shared/page-shell';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -442,18 +443,7 @@ export default function BackupRestorePage() {
     : 'https://console.cloud.google.com/';
 
   return (
-    <div className="container mx-auto py-4 px-3 md:py-8 md:px-4 space-y-6">
-      <header className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="flex-shrink-0">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-primary flex items-center gap-2">
-            <ArchiveRestore className="h-6 w-6" /> Backup &amp; Recovery
-          </h1>
-          <p className="text-sm text-muted-foreground">Export, restore, and manage your store data.</p>
-        </div>
-      </header>
+    <PageShell subtitle="Export, restore, and manage the shop's data.">
 
       <ExportCard />
       <ImportCard />
@@ -479,6 +469,6 @@ export default function BackupRestorePage() {
       </Card>
 
       <DangerZone />
-    </div>
+    </PageShell>
   );
 }

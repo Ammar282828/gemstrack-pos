@@ -56,9 +56,7 @@ export default function VoiceSettingsPage() {
 
   return (
     <PageShell
-      title="Voice"
       subtitle="Talk to the book, and correct it when it hears a name wrong."
-      icon={<Mic className="h-6 w-6" />}
       width="narrow"
       action={<PageBack fallback="/settings" />}
     >

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/drawer"
 import { Button } from '@/components/ui/button';
 import { invoiceSaleValue } from '@/lib/analytics/sale-value';
+import { PageShell } from '@/components/shared/page-shell';
 
 type CalendarEventType = (Invoice | Order) & { eventType: 'invoice' | 'order' };
 
@@ -224,11 +225,9 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 h-full">
-      <header className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><CalendarIcon className="mr-3 h-8 w-8"/>Activity Calendar</h1>
-        <p className="text-muted-foreground">Visualize your sales and custom orders over time.</p>
-        <div className="flex items-center gap-4 mt-2 text-sm flex-wrap">
+    <PageShell subtitle="Sales and orders, day by day.">
+      <div>
+        <div className="flex items-center gap-4 text-sm flex-wrap">
             <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-success"></div> Sales</div>
             <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-blue-500"></div> Orders</div>
             <Button variant="outline" size="sm" className="h-7 text-xs ml-auto"
@@ -251,7 +250,7 @@ export default function CalendarPage() {
             </div>
           ))}
         </div>
-      </header>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <Card className="lg:col-span-2 overflow-hidden">
@@ -334,6 +333,6 @@ export default function CalendarPage() {
             </Card>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

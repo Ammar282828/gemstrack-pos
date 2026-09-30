@@ -157,9 +157,7 @@ export default function RecentlyRemovedPage() {
 
   return (
     <PageShell
-      title="Recently removed"
       subtitle="Nothing here has been destroyed. Their history is exactly where they left it."
-      icon={<RotateCcw className="h-6 w-6" />}
       width="narrow"
       action={<PageBack fallback="/settings" />}
     >

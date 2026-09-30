@@ -2,6 +2,7 @@
 
 "use client";
 
+import { PageShell } from '@/components/shared/page-shell';
 import React, { useState, useMemo } from 'react';
 import { whatsAppLink } from '@/lib/whatsapp';
 import { useForm } from 'react-hook-form';
@@ -229,7 +230,11 @@ export default function PaymentMethodsPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-8">
+    <PageShell
+      width="narrow"
+      subtitle="The bank accounts shared with customers for payment."
+      action={<Button onClick={() => { setEditingMethod(undefined); setIsFormOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add account</Button>}
+    >
        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogContent>
                 <DialogHeader>
@@ -284,20 +289,6 @@ export default function PaymentMethodsPage() {
             </DialogContent>
         </Dialog>
 
-      <header>
-        <Button variant="outline" onClick={() => router.back()} className="mb-4">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Settings
-        </Button>
-        <div className="flex justify-between items-start">
-            <div>
-                <h1 className="text-3xl font-bold text-primary flex items-center"><Landmark className="mr-3 h-8 w-8"/>Payment Methods</h1>
-                <p className="text-muted-foreground">Manage bank details to share with customers for payment.</p>
-            </div>
-            <Button onClick={() => { setEditingMethod(undefined); setIsFormOpen(true); }}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add New Method
-            </Button>
-        </div>
-      </header>
       
       <Card>
         <CardHeader>
@@ -385,6 +376,6 @@ export default function PaymentMethodsPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

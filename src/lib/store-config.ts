@@ -328,8 +328,9 @@ export const STORE_META_ADS = process.env.NEXT_PUBLIC_STORE_META_ADS !== '0';
 /**
  * Ads → Studio: every photograph the house has (its website, its shared Google Drive)
  * assessed as an ad, the picks per placement, the maker, competitor research and the
- * guide. Built on Taheri's brand book; a house without it sets "0" (the owner,
- * 2026-09-29: "for just taheri for now").
+ * guide. Both houses since the evening of 2026-09-29 (it began as "for just taheri for
+ * now"; Mina's "1" is in apphosting.mina.yaml); each house's brand from brand.ts by
+ * STORE_BRAND. A house without it sets "0".
  */
 export const STORE_AD_STUDIO = STORE_META_ADS && process.env.NEXT_PUBLIC_STORE_AD_STUDIO !== '0';
 const lines = (v: string | undefined) => (v ?? '').replace(/\\n/g, '\n').trim();

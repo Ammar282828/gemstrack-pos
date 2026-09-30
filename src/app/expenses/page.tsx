@@ -40,6 +40,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { SHAREHOLDERS } from '@/lib/shareholders';
 import { fitText } from '@/lib/pdf-text';
+import { PageShell } from '@/components/shared/page-shell';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -247,7 +248,20 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl space-y-4">
+    <PageShell
+      subtitle={<>
+        {periodLabel}
+        {range && <> · {format(range.start, 'd MMM')} – {format(range.end, 'd MMM yyyy')}</>}
+      </>}
+      action={<>
+          <Button variant="outline" size="sm" onClick={handlePrintReport} disabled={!settings || filteredExpenses.length === 0}>
+            <FileText className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Report</span>
+          </Button>
+          <Button size="sm" onClick={handleAddNew}>
+            <PlusCircle className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add expense</span><span className="sm:hidden">Add</span>
+          </Button>
+      </>}
+    >
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -257,25 +271,6 @@ export default function ExpensesPage() {
         </DialogContent>
       </Dialog>
 
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
-            <CreditCard className="w-7 h-7 flex-shrink-0" />Expenses
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {periodLabel}
-            {range && <> · {format(range.start, 'd MMM')} – {format(range.end, 'd MMM yyyy')}</>}
-          </p>
-        </div>
-        <div className="flex gap-2 flex-shrink-0 [&>*]:flex-1 sm:[&>*]:flex-none">
-          <Button variant="outline" size="sm" onClick={handlePrintReport} disabled={!settings || filteredExpenses.length === 0}>
-            <FileText className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Report</span>
-          </Button>
-          <Button size="sm" onClick={handleAddNew}>
-            <PlusCircle className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Add expense</span><span className="sm:hidden">Add</span>
-          </Button>
-        </div>
-      </header>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
@@ -447,6 +442,6 @@ export default function ExpensesPage() {
           </p>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

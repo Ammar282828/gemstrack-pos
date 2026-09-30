@@ -2,6 +2,7 @@
 
 "use client";
 
+import { PageShell } from '@/components/shared/page-shell';
 import React, { useMemo, useState, useEffect } from 'react';
 import { BoardSkeleton } from '@/components/shared/skeletons';
 import { useAppStore, Invoice, Order, Product, Category, Customer, Expense, InvoiceItem, AdditionalRevenue, CUSTOMER_SOURCES, CUSTOMER_SOURCE_LABELS, CustomerSource, getInvoiceRevenueDate } from '@/lib/store';
@@ -697,7 +698,13 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-8">
+    <PageShell
+      subtitle="Sales, pieces and customers."
+      action={<>
+        <DateRangePicker date={dateRange} onDateChange={(r) => { setDateRange(r); setActiveQuickSelect('custom'); }} />
+        <MonthlyReportButton />
+      </>}
+    >
       {/* --- Daily Summary Dialog --- */}
       <Dialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
           <DialogContent className="max-w-4xl">
@@ -751,17 +758,7 @@ export default function AnalyticsPage() {
           </DialogContent>
       </Dialog>
       
-      <header className="flex flex-col gap-3 mb-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-          <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-primary">Store Analytics</h1>
-              <p className="text-muted-foreground text-sm">Sales, products &amp; customer insights.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <DateRangePicker date={dateRange} onDateChange={(r) => { setDateRange(r); setActiveQuickSelect('custom'); }} />
-            <MonthlyReportButton />
-          </div>
-        </div>
+      <div>
         <div className="flex flex-wrap gap-1.5 items-center">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide mr-1">Quick:</span>
           {([
@@ -777,7 +774,7 @@ export default function AnalyticsPage() {
             </Button>
           ))}
         </div>
-      </header>
+      </div>
 
       {filteredInvoices.length === 0 && filteredOrders.length === 0 && dateRange?.from ? ( 
         <Card>
@@ -1477,6 +1474,6 @@ export default function AnalyticsPage() {
           </Tabs>
         </>
       )}
-    </div>
+    </PageShell>
   );
 }

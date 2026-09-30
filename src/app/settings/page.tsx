@@ -1,6 +1,7 @@
 
 "use client";
 
+import { PageShell } from '@/components/shared/page-shell';
 import React, { useState, useEffect } from 'react';
 import { readDeviceTheme, writeDeviceTheme, DEVICE_THEME_EVENT } from '@/lib/theme-cache';
 import { ListSkeleton } from '@/components/shared/skeletons';
@@ -750,21 +751,12 @@ export default function SettingsPage() {
   const isDirty = form.formState.isDirty;
 
   return (
-    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl space-y-4">
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
-            <SlidersHorizontal className="w-7 h-7 flex-shrink-0" />Settings
-          </h1>
-          {/* Was a full-width Alert box for one line of text. */}
-          <p className="text-sm text-muted-foreground mt-0.5 truncate">
-            {currentSettings.shopName || STORE_CONFIG.name}
-            {currentSettings.firebaseConfig?.projectId && (
-              <> · <span className="font-mono text-xs">{currentSettings.firebaseConfig.projectId}</span></>
-            )}
-          </p>
-        </div>
-      </header>
+    <PageShell subtitle={<>
+      {currentSettings.shopName || STORE_CONFIG.name}
+      {currentSettings.firebaseConfig?.projectId && (
+        <> · <span className="font-mono text-xs">{currentSettings.firebaseConfig.projectId}</span></>
+      )}
+    </>}>
 
       {/* FormProvider only — deliberately no <form> element. The Integrations,
           Alerts and Security panels are full of their own buttons, and a bare
@@ -1079,6 +1071,6 @@ export default function SettingsPage() {
           </div>
         </>
       )}
-    </div>
+    </PageShell>
   );
 }

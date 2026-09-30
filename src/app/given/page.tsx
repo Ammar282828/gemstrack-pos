@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { resolveRecipientId } from '@/lib/given';
+import { PageShell } from '@/components/shared/page-shell';
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 const givenSchema = z.object({
@@ -289,21 +290,10 @@ export default function GivenItemsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      {/* Header */}
-      <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center">
-            <HandCoins className="w-8 h-8 mr-3" /> Given Items
-          </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Track samples, repairs, or anything given to karigars or customers.
-          </p>
-        </div>
-        <Button onClick={openAdd}>
-          <PlusCircle className="w-4 h-4 mr-2" /> Record Item Given
-        </Button>
-      </header>
+    <PageShell
+      subtitle="Samples, repairs, or anything given to karigars or customers."
+      action={<Button onClick={openAdd}><PlusCircle className="w-4 h-4 mr-2" /> Record item given</Button>}
+    >
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
@@ -514,6 +504,6 @@ export default function GivenItemsPage() {
           />
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

@@ -11,14 +11,15 @@ import {
   SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator, useSidebar,
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { Home, PlusCircle, Settings as SettingsIcon, Users, Gem, TrendingUp, ClipboardList, LogOut, WifiOff, Hammer, Receipt, Wrench, Send, Globe, Wallet, Search, Sun, Moon, Megaphone, Boxes, FileClock } from 'lucide-react';
+import { Gem, LogOut, WifiOff, Search, Sun, Moon } from 'lucide-react';
+import { NEW_SALE, SETTINGS, sidebarFor, forRole, locate, type NavEntry } from '@/lib/nav';
 import { useWorkDrafts } from '@/components/drafts/use-work-drafts';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppStore } from '@/lib/store';
 import { useIsStoreHydrated } from '@/hooks/use-store';
 import { CommandPalette, openCommandPalette } from '@/components/search/command-palette';
 import { VoiceBubble } from '@/components/voice/voice-bubble';
-import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LOGO_SIDEBAR_HEIGHT, STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_SITE_POSTS, STORE_META_ADS, STORE_AD_STUDIO } from '@/lib/store-config';
+import { STORE_LOGO_URL, STORE_LOGO_LIGHT_URL, STORE_LOGO_SIDEBAR_HEIGHT } from '@/lib/store-config';
 import Image from 'next/image';
 import { useAuth } from '@/components/auth/google-auth-gate';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -29,180 +30,8 @@ import { devRole, captureDevRole } from '@/lib/dev-role';
 import { writeDeviceTheme } from '@/lib/theme-cache';
 import { RateChip, RateSheet } from '@/components/rates/rate-chip';
 
-/** A page that shares a sidebar entry with its siblings, shown as a tab in the top bar. */
-interface NavTab {
-  href: string;
-  label: string;
-  /** Reachable by shop-floor staff. Absent means owners only. */
-  staff?: true;
-}
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** Reachable by shop-floor staff. Absent means owners only. */
-  staff?: true;
-  /** Sibling pages under this one entry. The entry opens the first one the
-   *  person can see; the top bar shows them all as tabs. */
-  tabs?: NavTab[];
-  /** A live count beside the label. */
-  count?: 'drafts';
-}
-
-interface NavGroup {
-  /** Empty for the first group: the daily pages need no heading. */
-  label: string;
-  items: NavItem[];
-}
-
-/**
- * The sidebar, by what the shop does (re-audited 2026-09-27, the owner: "reaudit the separation entirely and see
- * how to effectively distribute everything"; before that, 2026-09-25: "way too crowded").
- *
- *   New Sale     the one thing done most — a button of its own at the top, not a row among rows
- *   (daily)      Home (Dashboard, Calendar)
- *   Sales        Orders, Invoices, Repairs, Customers — selling and the people it is for
- *   Workshop &   Workshop (Jobs, Karigars, Given items) and Stock (Pieces, Add in bulk) — making and keeping pieces.
- *   stock        Stock was out of the sidebar altogether; House of Mina keeps ~100 pieces in it
- *   Marketing    Posts, Website, Ads — everything that goes out to customers. It used to share a group with the
- *                workshop ("Workshop & website"), which hid three unrelated jobs under one heading
- *   Finance      Money (Expenses, Extra revenue, Overheads, Hisaab, Shareholders) and Analytics (Overview, Products,
- *                Customers, Categories — the last three were reachable only from a card title)
- *   Settings     the gear in the footer; Labels and Recently removed join its tabs
- *
- * Twelve rows and a button, as before. Pages that are siblings share one row and appear as tabs in the top bar; every
- * page keeps its own address, and Ctrl+K still finds any page by name. Ordered within each group by how often you
- * reach for it. A group whose rows this house doesn't have (no website, no ads) disappears.
- */
-/** The primary action, drawn as a button under Search. */
-const newSaleItem: NavItem = { staff: true, href: '/new', label: 'New Sale', icon: <PlusCircle /> };
-
-const navGroups: NavGroup[] = [
-  {
-    label: '',
-    items: [
-      { staff: true, href: '/', label: 'Home', icon: <Home />, tabs: [
-        { staff: true, href: '/', label: 'Dashboard' },
-        { staff: true, href: '/calendar', label: 'Calendar' },
-      ] },
-    ],
-  },
-  {
-    label: 'Sales',
-    items: [
-      { staff: true, href: '/orders', label: 'Orders', icon: <ClipboardList /> },
-      { staff: true, href: '/invoices', label: 'Invoices', icon: <Receipt /> },
-      { staff: true, href: '/repairs', label: 'Repairs', icon: <Wrench /> },
-      { staff: true, href: '/customers', label: 'Customers', icon: <Users /> },
-      // Orders and sales started and not yet saved, on every device (owner, 2026-09-27: "drafts should
-      // have a separate section"). The count says when there is something waiting.
-      { staff: true, href: '/drafts', label: 'Drafts', icon: <FileClock />, count: 'drafts' },
-    ],
-  },
-  {
-    label: 'Workshop & stock',
-    items: [
-      { staff: true, href: '/workshop', label: 'Workshop', icon: <Hammer />, tabs: [
-        { staff: true, href: '/workshop', label: 'Jobs' },
-        { staff: true, href: '/karigars', label: 'Karigars' },
-        { staff: true, href: '/given', label: 'Given items' },
-      ] },
-      // Owners: the stock pages read the database directly, which staff accounts may not.
-      { href: '/products', label: 'Stock', icon: <Boxes />, tabs: [
-        { href: '/products', label: 'Pieces' },
-        { href: '/products/bulk-add', label: 'Add in bulk' },
-      ] },
-    ],
-  },
-  {
-    label: 'Marketing',
-    items: [
-      // The website pages exist only for a shop that has one (NEXT_PUBLIC_STORE_WEBSITE_URL).
-      ...(STORE_LINKS.website ? ([
-        // Everything that goes out to WhatsApp and Instagram, under one entry (the
-        // owner, 2026-09-25: Investments belongs with Post a Piece).
-        ...(STORE_POST_PIECE || STORE_INVESTMENTS || STORE_SITE_POSTS ? [{ staff: true, href: STORE_POST_PIECE ? '/website/post' : STORE_SITE_POSTS ? '/website/from-site' : '/website/investments', label: 'Posts', icon: <Send />, tabs: [
-          ...(STORE_POST_PIECE ? [{ staff: true, href: '/website/post', label: 'Post a Piece' }] : []),
-          // A piece already on the website, to the community with its link (both houses).
-          ...(STORE_SITE_POSTS ? [{ staff: true, href: '/website/from-site', label: 'From the website' }] : []),
-          ...(STORE_INVESTMENTS ? [{ staff: true, href: '/website/investments', label: 'Investments' }] : []),
-        ] as NavTab[] }] : []),
-        { staff: true, href: '/website/photos', label: 'Website', icon: <Globe />, tabs: [
-          { staff: true, href: '/website/photos', label: 'Add Photos' },
-          ...(STORE_WEBSITE_WEIGHTS ? [{ staff: true, href: '/website/weights', label: 'Photo Weights' }] : []),
-          // A piece already on the website: its photo re-made, its words changed, or hidden (both houses).
-          ...(STORE_SITE_EDIT ? [{ staff: true, href: '/website/edit', label: 'Edit a piece' }] : []),
-        ] as NavTab[] },
-      ] as NavItem[]) : []),
-      // This house's Meta ad account (NEXT_PUBLIC_STORE_META_ADS). Owners: it is money.
-      ...(STORE_META_ADS ? [{ href: '/ads', label: 'Ads', icon: <Megaphone />, tabs: [
-        { href: '/ads', label: 'Overview' },
-        { href: '/ads/campaigns', label: 'Campaigns' },
-        // The plan, the photos assessed as ads, the maker, competitors and the guide — the creative is made
-        // before the ad, so the Studio comes first (NEXT_PUBLIC_STORE_AD_STUDIO).
-        ...(STORE_AD_STUDIO ? [{ href: '/ads/studio', label: 'Studio' }] : []),
-        { href: '/ads/new', label: 'New ad' },
-        { href: '/ads/adset', label: 'Ad sets' },
-        { href: '/ads/audiences', label: 'Audiences' },
-        { href: '/ads/rules', label: 'Rules' },
-        { href: '/ads/setup', label: 'Setup' },
-      ] as NavTab[] }] : []),
-    ],
-  },
-  {
-    label: 'Finance',
-    items: [
-      { href: '/expenses', label: 'Money', icon: <Wallet />, tabs: [
-        { href: '/expenses', label: 'Expenses' },
-        { href: '/additional-revenue', label: 'Extra revenue' },
-        { href: '/overheads', label: 'Overheads' },
-        { href: '/hisaab', label: 'Hisaab' },
-        // The partnership book, for the shop that has partners (NEXT_PUBLIC_STORE_PARTNERSHIP).
-        ...(STORE_PARTNERSHIP ? [{ href: '/shareholders', label: 'Shareholders' }] : []),
-      ] as NavTab[] },
-      { href: '/analytics', label: 'Analytics', icon: <TrendingUp />, tabs: [
-        { href: '/analytics', label: 'Overview' },
-        { href: '/analytics/products', label: 'Products' },
-        { href: '/analytics/customers', label: 'Customers' },
-        { href: '/analytics/categories', label: 'Categories' },
-      ] },
-    ],
-  },
-];
-
-/** Settings, pinned to the footer as a gear rather than a group of its own. */
-const settingsItem: NavItem = {
-  href: '/settings', label: 'Settings', icon: <SettingsIcon />, tabs: [
-    { href: '/settings', label: 'Settings' },
-    { href: '/settings/payment-methods', label: 'Payment methods' },
-    { href: '/settings/printer', label: 'Labels' },
-    { href: '/settings/backups', label: 'Backups' },
-    { href: '/settings/recently-removed', label: 'Recently removed' },
-    { href: '/settings/voice', label: 'Voice' },
-    { href: '/activity-log', label: 'Activity log' },
-  ],
-};
-
-/** Is this page `href` or one beneath it? ('/' only matches itself.) */
-const within = (pathname: string, href: string) =>
-  pathname === href || (href !== '/' && pathname.startsWith(href + '/'));
-
-/** An entry is active on any of its tabs' pages and the pages beneath them. */
-function isActiveItem(item: NavItem, pathname: string): boolean {
-  if (!item.tabs) return within(pathname, item.href);
-  // Settings' own tab ('/settings') must not claim its siblings' pages — they are all this entry's anyway.
-  return item.tabs.some(t => within(pathname, t.href));
-}
-
-/** The person's view of an entry: only the tabs they can open, and the entry opens the first. */
-function forRole(item: NavItem, staff: boolean): NavItem | null {
-  if (staff && !item.staff) return null;
-  if (!item.tabs) return item;
-  const tabs = staff ? item.tabs.filter(t => t.staff) : item.tabs;
-  if (!tabs.length) return null;
-  return { ...item, href: tabs[0].href, tabs };
-}
+// The sidebar, the top bar's tabs and the palette all come from one registry (lib/nav.ts): a page is
+// added there or it is nowhere, and nav.test.ts fails when they drift.
 
 /**
  * Light / dark for THIS device, in the top bar. Switches at once and is kept on the
@@ -301,18 +130,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // that error on opening is its own kind of broken.
   const role = devRole() ?? roleForEmail(user?.email);
   const isStaff = role === 'staff';
-  const visibleGroups = navGroups
-    .map(g => ({ ...g, items: g.items.map(i => forRole(i, isStaff)).filter((i): i is NavItem => !!i) }))
-    .filter(g => g.items.length > 0);
-  const settingsEntry = forRole(settingsItem, isStaff);
-  const newSaleEntry = forRole(newSaleItem, isStaff);
+  const visibleGroups = sidebarFor(isStaff);
+  const settingsEntry = forRole(SETTINGS, isStaff);
+  const newSaleEntry = forRole(NEW_SALE, isStaff);
 
-  // The tabs for this page, when it is one of an entry's siblings. Only on the
-  // tab pages themselves — a detail page (/hisaab/…, /karigars/…) keeps its own
-  // way back — and only when there is more than one to choose between.
-  const current = [...visibleGroups.flatMap(g => g.items), ...(settingsEntry ? [settingsEntry] : [])]
-    .find(i => i.tabs?.some(t => t.href === pathname));
-  const pageTabs = current?.tabs && current.tabs.length > 1 ? current.tabs : null;
+  // This page's row and the tab it lights (a detail page lights the tab it sits under); the top bar
+  // shows the row's tabs whenever there is more than one to choose between.
+  const entries: NavEntry[] = [...visibleGroups.flatMap(g => g.entries), ...(settingsEntry ? [settingsEntry] : [])];
+  const here = locate(pathname, entries);
+  const pageTabs = here?.tab && here.entry.tabs && here.entry.tabs.length > 1 ? here.entry.tabs : null;
 
   const logoToUse = STORE_LOGO_URL;
 
@@ -362,9 +188,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <SidebarMenu className="px-2 pt-2">
               <SidebarMenuItem>
                 <Link href={newSaleEntry.href} legacyBehavior passHref>
-                  <SidebarMenuButton asChild tooltip={{ children: 'New Sale' }}
+                  <SidebarMenuButton asChild tooltip={{ children: newSaleEntry.label }}
                     className="glass-prominent justify-center gap-2 rounded-lg bg-primary font-medium text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground data-[active=true]:bg-primary data-[active=true]:text-primary-foreground">
-                    <a>{newSaleEntry.icon}<span className="group-data-[collapsible=icon]:hidden">New Sale</span></a>
+                    <a><newSaleEntry.icon /><span className="group-data-[collapsible=icon]:hidden">{newSaleEntry.label}</span></a>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -374,7 +200,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarContent asChild>
             <ScrollArea className="h-full">
               {visibleGroups.map((group, gi) => (
-                <SidebarGroup key={group.label || 'daily'} className={gi === 0 ? 'pt-2' : 'pt-0'}>
+                <SidebarGroup key={group.key} className={gi === 0 ? 'pt-2' : 'pt-0'}>
                   {group.label && (
                     <SidebarGroupLabel className="sidebar-group-label text-2xs font-semibold uppercase tracking-widest text-muted-foreground/70 px-3 pb-1 group-data-[collapsible=icon]:hidden">
                       {group.label}
@@ -382,10 +208,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   )}
                   <SidebarGroupContent>
                     <SidebarMenu>
-                      {group.items.map((item) => {
-                        const isActive = isActiveItem(item, pathname);
+                      {group.entries.map((item) => {
+                        const isActive = here?.entry.id === item.id;
                         return (
-                          <SidebarMenuItem key={item.href}>
+                          <SidebarMenuItem key={item.id}>
                             <Link href={item.href} legacyBehavior passHref>
                               <SidebarMenuButton
                                 asChild
@@ -394,7 +220,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 className="justify-start gap-3 rounded-lg"
                               >
                                 <a className={cn(isActive && 'font-medium')}>
-                                  {item.icon}
+                                  <item.icon />
                                   <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                                   {item.count === 'drafts' && draftCount > 0 && (
                                     <span className="ml-auto rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold leading-5 text-primary group-data-[collapsible=icon]:hidden">{draftCount}</span>
@@ -421,9 +247,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <SidebarMenu className="mb-1">
                 <SidebarMenuItem>
                   <Link href={settingsEntry.href} legacyBehavior passHref>
-                    <SidebarMenuButton asChild isActive={isActiveItem(settingsEntry, pathname)} tooltip={{ children: 'Settings' }} className="justify-start gap-3 rounded-lg">
-                      <a className={cn(isActiveItem(settingsEntry, pathname) && 'font-medium')}>
-                        {settingsEntry.icon}
+                    <SidebarMenuButton asChild isActive={here?.entry.id === settingsEntry.id} tooltip={{ children: 'Settings' }} className="justify-start gap-3 rounded-lg">
+                      <a className={cn(here?.entry.id === settingsEntry.id && 'font-medium')}>
+                        <settingsEntry.icon />
                         <span className="group-data-[collapsible=icon]:hidden">Settings</span>
                       </a>
                     </SidebarMenuButton>
@@ -470,11 +296,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 is what makes the wide tables fit. Cmd/Ctrl+B also toggles. */}
             <SidebarTrigger className="glass-ctl" />
             <span className="hidden lg:inline text-2xs text-muted-foreground">⌘B</span>
-            {/* The page's siblings (see navGroups): one sidebar entry, several pages. */}
+            {/* The page's siblings (lib/nav.ts): one sidebar entry, several pages. */}
             {pageTabs && (
-              <nav aria-label={`${current?.label} pages`} className="app-tabs ml-2 flex min-w-0 items-center gap-1 overflow-x-auto self-stretch">
+              <nav aria-label={`${here?.entry.label} pages`} className="app-tabs ml-2 flex min-w-0 items-center gap-1 overflow-x-auto self-stretch">
                 {pageTabs.map(t => {
-                  const on = t.href === pathname;
+                  const on = t.href === here?.tab?.href;
                   return (
                     <Link
                       key={t.href}

@@ -1,6 +1,7 @@
 
 "use client";
 
+import { PageShell } from '@/components/shared/page-shell';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { useAppStore, ActivityLog, LOG_EVENT_TYPES, LogEventType } from '@/lib/store';
@@ -132,13 +133,7 @@ export default function ActivityLogPage() {
     }
 
     return (
-        <div className="container mx-auto py-8 px-4 space-y-6">
-            <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center"><History className="mr-3 h-8 w-8"/> Activity Log</h1>
-                    <p className="text-muted-foreground">A chronological record of all significant actions taken in the system.</p>
-                </div>
-            </header>
+        <PageShell subtitle="Everything done in the ERP, newest first.">
 
             <Card>
                 <CardHeader>
@@ -228,6 +223,6 @@ export default function ActivityLogPage() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-        </div>
+        </PageShell>
     );
 }

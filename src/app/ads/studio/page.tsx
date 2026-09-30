@@ -1,10 +1,11 @@
 'use client';
 
 /**
- * Ads → Studio (Taheri only for now; the owner, 2026-09-29: "a curated ad analysis
- * guide + maker + competitor searcher + builder … assessing all images from
- * taheri.shop and from my google drive … to recommend, fix, assess and build + help
- * create like in canva ad creatives").
+ * Ads → Studio, both houses (NEXT_PUBLIC_STORE_AD_STUDIO; House of Mina's since the evening of
+ * 2026-09-29, one code path with the house chosen by STORE_BRAND — brand.ts). The owner, 2026-09-29:
+ * "a curated ad analysis guide + maker + competitor searcher + builder … assessing all images from
+ * taheri.shop and from my google drive … to recommend, fix, assess and build + help create like in
+ * canva ad creatives".
  *
  *   Plan         the plays: what to run for each place a buyer lands (plays.ts), "Make this" → the maker set up for it
  *   Picks        the best photographs for the chosen placement, as ranked from each one's assessment

@@ -2,6 +2,7 @@
 
 "use client";
 
+import { PageShell } from '@/components/shared/page-shell';
 import React, { useMemo, useState, useEffect } from 'react';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { FilterBar } from '@/components/shared/filter-bar';
@@ -340,23 +341,16 @@ export default function HisaabPage() {
   }
 
   return (
-    <div className="container mx-auto py-4 px-3 md:py-8 md:px-4">
-       <AddNewHisaabDialog 
-            open={isAddDialogOpen} 
-            onOpenChange={setIsAddDialogOpen} 
-            customers={customers} 
-            karigars={karigars} 
+    <PageShell
+      subtitle="Outstanding accounts for customers and karigars."
+      action={<Button size="sm" onClick={() => setIsAddDialogOpen(true)}><PlusCircle className="mr-2 h-4 w-4"/> Add entry</Button>}
+    >
+       <AddNewHisaabDialog
+            open={isAddDialogOpen}
+            onOpenChange={setIsAddDialogOpen}
+            customers={customers}
+            karigars={karigars}
         />
-       
-       <header className="mb-4 md:mb-6 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-3xl font-bold text-primary flex items-center"><BookUser className="mr-2 md:mr-3 h-6 w-6 md:h-8 md:w-8"/>Hisaab</h1>
-          <p className="text-sm text-muted-foreground">Outstanding accounts for customers and karigars.</p>
-        </div>
-        <Button size="sm" onClick={() => setIsAddDialogOpen(true)}>
-          <PlusCircle className="mr-2 h-4 w-4"/> Add Entry
-        </Button>
-      </header>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <Card className="bg-success/10 border-success/20">
@@ -465,6 +459,6 @@ export default function HisaabPage() {
       </div>
 
 
-    </div>
+    </PageShell>
   );
 }

@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { generateProductCsv } from '@/lib/csv';
+import { PageShell } from '@/components/shared/page-shell';
 
 type ViewMode = 'grid' | 'list';
 
@@ -278,25 +279,13 @@ export default function ProductsPage() {
 
 
   return (
-    <div className="container mx-auto py-4 px-3 md:py-8 md:px-4">
-      <header className="mb-4 md:mb-6 flex flex-col md:flex-row justify-between items-start gap-3">
-        <div>
-          <h1 className="text-xl md:text-3xl font-bold text-primary flex items-center"><Shapes className="w-6 h-6 md:w-8 md:h-8 mr-2 md:mr-3"/>Products</h1>
-          <p className="text-muted-foreground text-sm">{allStoreProducts.length} items in inventory</p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Link href="/products/bulk-add" passHref>
-            <Button variant="secondary">
-              <CopyPlus className="w-4 h-4 mr-2" /> Bulk Add
-            </Button>
-          </Link>
-          <Link href="/products/add" passHref>
-            <Button>
-              <PlusCircle className="w-4 h-4 mr-2" /> Add Product
-            </Button>
-          </Link>
-        </div>
-      </header>
+    <PageShell
+      subtitle={`${allStoreProducts.length} piece${allStoreProducts.length === 1 ? '' : 's'} in stock`}
+      action={<>
+        <Button asChild variant="secondary"><Link href="/products/bulk-add"><CopyPlus className="w-4 h-4 mr-2" /> Add in bulk</Link></Button>
+        <Button asChild><Link href="/products/add"><PlusCircle className="w-4 h-4 mr-2" /> Add piece</Link></Button>
+      </>}
+    >
 
       <FilterBar
         value={searchTerm}
@@ -400,10 +389,10 @@ export default function ProductsPage() {
           <Tag className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No Products Found</h3>
           <p className="text-muted-foreground">
-            {searchTerm || selectedCategory ? 'Try adjusting your search or filter.' : 'Add a product to begin.'}
+            {searchTerm || selectedCategory ? 'Try adjusting your search or filter.' : 'Add a piece to begin.'}
           </p>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

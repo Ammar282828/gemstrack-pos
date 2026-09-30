@@ -30,6 +30,7 @@ import type { DateRange } from 'react-day-picker';
 import { format, parseISO, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { AmountInput } from '@/components/ui/amount-input';
+import { PageShell } from '@/components/shared/page-shell';
 
 // ── Form schema ──────────────────────────────────────────────────────────────
 const revenueSchema = z.object({
@@ -225,29 +226,20 @@ export default function AdditionalRevenuePage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <PageShell
+      subtitle="Income not tied to an order or invoice."
+      action={<Button onClick={handleAddNew}><PlusCircle className="w-4 h-4 mr-2" /> Add extra revenue</Button>}
+    >
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingRevenue ? 'Edit Revenue Entry' : 'Add Revenue Entry'}</DialogTitle>
+            <DialogTitle>{editingRevenue ? 'Edit extra revenue' : 'Add extra revenue'}</DialogTitle>
           </DialogHeader>
           <RevenueForm revenue={editingRevenue} onSubmitSuccess={handleFormSuccess} />
         </DialogContent>
       </Dialog>
 
-      <header className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center">
-            <TrendingUp className="w-8 h-8 mr-3" /> Additional Revenue
-          </h1>
-          <p className="text-muted-foreground">Record extra income not tied to an order or invoice.</p>
-        </div>
-        <Button size="lg" onClick={handleAddNew}>
-          <PlusCircle className="w-5 h-5 mr-2" /> Add Revenue Entry
-        </Button>
-      </header>
-
-      <Card className="mb-6">
+      <Card>
         <CardHeader>
           <CardTitle>Filters & Summary</CardTitle>
           <CardDescription>Refine by date range or search by description.</CardDescription>
@@ -386,6 +378,6 @@ export default function AdditionalRevenuePage() {
           </p>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

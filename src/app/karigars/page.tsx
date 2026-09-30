@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { buildWorkshopJobs, groupByKarigar, KarigarWorkload, CRITICAL_DAYS } from '@/lib/workshop';
 import { Search, PlusCircle, Edit3, Briefcase, Phone, Eye, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PageShell } from '@/components/shared/page-shell';
 
 /** What this karigar is holding, in one line. */
 const BenchSummary: React.FC<{ load?: KarigarWorkload; compact?: boolean }> = ({ load, compact }) => {
@@ -239,20 +240,14 @@ export default function KarigarsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl space-y-4">
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
-            <Briefcase className="w-7 h-7 flex-shrink-0" />Karigars
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {stats.working} of {stats.total} working · {stats.pieces} piece{stats.pieces === 1 ? '' : 's'} out
-          </p>
-        </div>
+    <PageShell
+      subtitle={<>{stats.working} of {stats.total} working · {stats.pieces} piece{stats.pieces === 1 ? '' : 's'} out</>}
+      action={
         <Button asChild size="sm" className="flex-shrink-0">
           <Link href="/karigars/add"><PlusCircle className="w-4 h-4 mr-2" />Add karigar</Link>
         </Button>
-      </header>
+      }
+    >
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         <div className="rounded-xl border bg-card p-2.5 sm:p-3.5 min-w-0">
@@ -309,6 +304,6 @@ export default function KarigarsPage() {
           <Section title="Free" hint="nothing on the bench" people={visible.free} />
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

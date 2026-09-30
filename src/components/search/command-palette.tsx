@@ -20,8 +20,11 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { nameScore } from '@/lib/voice/phonetics';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Search, Users, Briefcase, Gem, Home, PlusCircle, Receipt, Hammer, ClipboardList, BookUser, TrendingUp, Settings as SettingsIcon, CreditCard, Calendar, ArrowRight, RotateCcw, Mic, Wrench, Package, Send, ImagePlus, Scale, Coins, Target, PieChart, Landmark, ArchiveRestore, History, Megaphone, Rocket, PenLine, Palette } from 'lucide-react';
-import { STORE_LINKS, STORE_PARTNERSHIP, STORE_WEBSITE_WEIGHTS, STORE_SITE_EDIT, STORE_INVESTMENTS, STORE_POST_PIECE, STORE_META_ADS, STORE_AD_STUDIO } from '@/lib/store-config';
+import { Search, Briefcase, Gem, Receipt, ClipboardList, ArrowRight } from 'lucide-react';
+import { paletteFor } from '@/lib/nav';
+import { useAuth } from '@/components/auth/google-auth-gate';
+import { roleForEmail } from '@/lib/roles';
+import { devRole } from '@/lib/dev-role';
 
 interface Item {
   id: string;
@@ -47,54 +50,19 @@ const phoneForms = (p?: string) => {
 };
 const pkr = (n: number) => (n >= 100000 ? `PKR ${(n / 100000).toFixed(n >= 1000000 ? 1 : 2).replace(/\.?0+$/, '')} lac` : `PKR ${Math.round(n).toLocaleString('en-PK')}`);
 
-/** Every page, including the ones that are now tabs of a sidebar entry (Given items,
- *  Overheads, Payment methods…), with the other words people use for them. Pages a
- *  house has switched off are left out, as in the sidebar. */
-const DESTINATIONS: Array<Omit<Item, 'id'> & { keywords?: string[] }> = [
-  { label: 'Home', group: 'Go to', icon: <Home className="h-4 w-4" />, href: '/', keywords: ['dashboard'] },
-  { label: 'New Sale', group: 'Go to', icon: <PlusCircle className="h-4 w-4" />, href: '/new', keywords: ['sale', 'sell'] },
-  { label: 'Orders', group: 'Go to', icon: <ClipboardList className="h-4 w-4" />, href: '/orders' },
-  { label: 'Invoices', group: 'Go to', icon: <Receipt className="h-4 w-4" />, href: '/invoices', keywords: ['bills'] },
-  { label: 'Repairs', group: 'Go to', icon: <Wrench className="h-4 w-4" />, href: '/repairs', keywords: ['repair', 'fix'] },
-  { label: 'Customers', group: 'Go to', icon: <Users className="h-4 w-4" />, href: '/customers' },
-  { label: 'Calendar', group: 'Go to', icon: <Calendar className="h-4 w-4" />, href: '/calendar', keywords: ['due dates'] },
-  { label: 'Workshop', group: 'Go to', icon: <Hammer className="h-4 w-4" />, href: '/workshop', keywords: ['jobs', 'bench'] },
-  { label: 'Karigars', group: 'Go to', icon: <Briefcase className="h-4 w-4" />, href: '/karigars', keywords: ['craftsmen', 'kaarigar'] },
-  { label: 'Given Items', group: 'Go to', icon: <Package className="h-4 w-4" />, href: '/given', keywords: ['given', 'gold given', 'issued'] },
-  { label: 'Products', group: 'Go to', icon: <Gem className="h-4 w-4" />, href: '/products', keywords: ['stock', 'inventory'] },
-  ...(STORE_LINKS.website ? [
-    ...(STORE_POST_PIECE ? [{ label: 'Post a Piece', group: 'Go to', icon: <Send className="h-4 w-4" />, href: '/website/post', keywords: ['post', 'story', 'instagram', 'whatsapp', 'community', 'channel'] }] : []),
-    { label: 'Add Photos', group: 'Go to', icon: <ImagePlus className="h-4 w-4" />, href: '/website/photos', keywords: ['website', 'upload', 'photos'] },
-    ...(STORE_WEBSITE_WEIGHTS ? [{ label: 'Photo Weights', group: 'Go to', icon: <Scale className="h-4 w-4" />, href: '/website/weights', keywords: ['weights', 'website'] }] : []),
-    ...(STORE_SITE_EDIT ? [{ label: 'Edit a piece', group: 'Go to', icon: <PenLine className="h-4 w-4" />, href: '/website/edit', keywords: ['website', 'edit', 'crop', 'photo', 'description', 'hide', 'overlay'] }] : []),
-    ...(STORE_INVESTMENTS ? [{ label: 'Investments', group: 'Go to', icon: <TrendingUp className="h-4 w-4" />, href: '/website/investments', keywords: ['investment', 'gold post'] }] : []),
-  ] : []),
-  ...(STORE_META_ADS ? [
-    { label: 'Ads', group: 'Go to', icon: <Megaphone className="h-4 w-4" />, href: '/ads', keywords: ['meta', 'facebook', 'instagram ads', 'boost', 'campaigns', 'ad spend'] },
-    { label: 'New ad', group: 'Go to', icon: <Rocket className="h-4 w-4" />, href: '/ads/new', keywords: ['boost', 'promote', 'advertise', 'meta ad'] },
-    ...(STORE_AD_STUDIO ? [{ label: 'Ad studio', group: 'Go to', icon: <Palette className="h-4 w-4" />, href: '/ads/studio', keywords: ['creative', 'design', 'canva', 'competitors', 'ad photos', 'drive', 'guide'] }] : []),
-  ] : []),
-  { label: 'Expenses', group: 'Go to', icon: <CreditCard className="h-4 w-4" />, href: '/expenses', keywords: ['money', 'spend'] },
-  { label: 'Extra Revenue', group: 'Go to', icon: <Coins className="h-4 w-4" />, href: '/additional-revenue', keywords: ['income', 'revenue', 'money'] },
-  { label: 'Monthly Overheads', group: 'Go to', icon: <Target className="h-4 w-4" />, href: '/overheads', keywords: ['overheads', 'rent', 'salaries', 'bills'] },
-  { label: 'Hisaab / Ledger', group: 'Go to', icon: <BookUser className="h-4 w-4" />, href: '/hisaab', keywords: ['khata', 'ledger', 'accounts', 'owed'] },
-  ...(STORE_PARTNERSHIP ? [{ label: 'Shareholder Finances', group: 'Go to', icon: <PieChart className="h-4 w-4" />, href: '/shareholders', keywords: ['shareholders', 'partners'] }] : []),
-  { label: 'Analytics', group: 'Go to', icon: <TrendingUp className="h-4 w-4" />, href: '/analytics', keywords: ['reports', 'sales report'] },
-  { label: 'Settings', group: 'Go to', icon: <SettingsIcon className="h-4 w-4" />, href: '/settings', keywords: ['gold rate', 'theme'] },
-  { label: 'Payment Methods', group: 'Go to', icon: <Landmark className="h-4 w-4" />, href: '/settings/payment-methods', keywords: ['bank', 'payment'] },
-  { label: 'Backups', group: 'Go to', icon: <ArchiveRestore className="h-4 w-4" />, href: '/settings/backups', keywords: ['backup', 'export'] },
-  { label: 'Voice', group: 'Go to', icon: <Mic className="h-4 w-4" />, href: '/settings/voice', keywords: ['microphone'] },
-  { label: 'Activity Log', group: 'Go to', icon: <History className="h-4 w-4" />, href: '/activity-log', keywords: ['history', 'who changed'] },
-  { label: 'Recently removed', group: 'Go to', icon: <RotateCcw className="h-4 w-4" />, href: '/settings/recently-removed', keywords: ['deleted', 'trash', 'restore'] },
-];
-
-
-const NEW: Array<Omit<Item, 'id'>> = [
-  { label: 'New customer', group: 'Create', icon: <Users className="h-4 w-4" />, href: '/customers/add' },
-  { label: 'New karigar', group: 'Create', icon: <Briefcase className="h-4 w-4" />, href: '/karigars/add' },
-  { label: 'New order', group: 'Create', icon: <ClipboardList className="h-4 w-4" />, href: '/orders/add' },
-  { label: 'New product', group: 'Create', icon: <Gem className="h-4 w-4" />, href: '/products/add' },
-];
+/**
+ * Every page and every thing to make comes from the navigation registry (lib/nav.ts), for this
+ * person: staff see what the sidebar shows them, and a house's switched-off pages are nowhere.
+ * It was a hand-kept list of its own that had drifted from the sidebar — other names, missing
+ * pages (From the website, Drafts, Scan, Labels, every Analytics and Ads tab) and no roles.
+ */
+function destinationsFor(staff: boolean): Array<Item & { keywords: string[] }> {
+  return paletteFor(staff).map(d => ({
+    id: d.key, label: d.label, group: d.group, href: d.href,
+    icon: <d.icon className="h-4 w-4" />,
+    keywords: d.keywords.map(k => k.toLowerCase()),
+  }));
+}
 
 /**
  * A name is a good enough match to offer when it sounds close, even if not one letter of
@@ -122,6 +90,9 @@ export function CommandPalette() {
   const loadOrders = useAppStore((s) => s.loadOrders);
   const loadInvoices = useAppStore((s) => s.loadGeneratedInvoices);
   const loadKarigars = useAppStore((s) => s.loadKarigars);
+  // The same role rule as the sidebar (app-layout.tsx).
+  const { user } = useAuth();
+  const isStaff = (devRole() ?? roleForEmail(user?.email)) === 'staff';
 
   // Ctrl+K / Cmd+K anywhere, including from inside a field.
   useEffect(() => {
@@ -150,7 +121,7 @@ export function CommandPalette() {
   const items = useMemo<Item[]>(() => {
     const needle = q.trim().toLowerCase();
 
-    const destinations: Item[] = [...NEW, ...DESTINATIONS].map((d, i) => ({ ...d, id: `d${i}` }));
+    const destinations = destinationsFor(isStaff);
 
     if (!needle) return destinations.slice(0, 10);
 
@@ -283,7 +254,7 @@ export function CommandPalette() {
       .map((x, i) => ({ x, i }))
       .sort((a, b) => (groupRank.get(a.x.item.group)! - groupRank.get(b.x.item.group)!) || (a.i - b.i))
       .map(({ x }) => x.item);
-  }, [q, orders, invoices, karigars, products]);
+  }, [q, orders, invoices, karigars, products, isStaff]);
 
   useEffect(() => setCursor(0), [q]);
 

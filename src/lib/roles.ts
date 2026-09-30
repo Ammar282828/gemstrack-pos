@@ -129,7 +129,9 @@ export const STAFF_HIDDEN_ITEM_FIELDS: readonly string[] = [
 export const STAFF_SETTINGS_FIELDS = [
   'shopName', 'shopAddress', 'shopContact', 'shopLogoUrl', 'shopLogoUrlBlack',
   'goldRatePerGram24k', 'goldRatePerGram22k', 'goldRatePerGram21k', 'goldRatePerGram18k',
-  'silverRatePerGram', 'platinumRatePerGram', 'palladiumRatePerGram',
+  'silverRatePerGram', 'platinumRatePerGram', 'palladiumRatePerGram', 'palladiumRatePerGram18k', 'palladiumRatePerGram12k',
+  // When and by whom the rate was last set, for the top bar's rate chip (lib/rates.ts).
+  'ratesUpdatedAt', 'ratesUpdatedBy',
   'theme', 'autoDraftForms', 'databaseLocked',
   'lastInvoiceNumber', 'lastOrderNumber',
 ] as const;

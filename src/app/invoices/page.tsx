@@ -39,6 +39,7 @@ import { fitText } from '@/lib/pdf-text';
 import { label } from '@/lib/pdf-chrome';
 import { useMineFilter } from '@/hooks/use-me';
 import { RecordPaymentDialog } from '@/components/invoice/record-payment-dialog';
+import { PageShell } from '@/components/shared/page-shell';
 
 type DocumentType = (Order | Invoice) & { docType: 'order' | 'invoice' };
 
@@ -753,21 +754,15 @@ export default function DocumentsPage() {
   const pkr = (n: number) => 'PKR ' + Math.round(n).toLocaleString();
 
   return (
-    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl space-y-4">
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
-            <FileText className="w-7 h-7 flex-shrink-0"/>Invoices
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Every invoice and custom order, and what is still owed on it.
-          </p>
-        </div>
+    <PageShell
+      subtitle="Every invoice and custom order, and what is still owed on it."
+      action={
         <Button variant="outline" size="sm" className="flex-shrink-0"
           onClick={() => { setImportOpen(true); setImportFile(null); setImportPreview(null); setImportProgress([]); setImportDone(false); }}>
           <Upload className="w-4 h-4 sm:mr-2" /><span className="hidden sm:inline">Import Shopify CSV</span><span className="sm:hidden">Import</span>
         </Button>
-      </header>
+      }
+    >
 
 
       <FilterBar
@@ -913,6 +908,6 @@ export default function DocumentsPage() {
       </Tabs>
 
       <RecordPaymentDialog invoice={payingInvoice} open={!!payingInvoice} onOpenChange={o => { if (!o) setPayingInvoice(null); }} />
-    </div>
+    </PageShell>
   );
 }

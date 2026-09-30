@@ -298,7 +298,7 @@ change was needed (Mina's `WEBSITE_ORIGIN` already allows the catalogue; see the
   pieces; owners only, the pages read Firestore directly); **Marketing** — Posts, Website, Ads (no longer sharing a heading with
   the workshop); **Finance** — Money and Analytics (Overview, Products, Customers, Categories as tabs — the last three were only
   reachable from card titles); Settings in the footer gains Labels and Recently removed. Twelve rows and a button, as the
-  2026-09-25 "way too crowded" cut asked; sibling pages stay tabs in the top bar (`navGroups` in `app-layout.tsx`).
+  2026-09-25 "way too crowded" cut asked; sibling pages stay tabs in the top bar. **One registry since 2026-10-01: `src/lib/nav.ts`** — the sidebar, the top-bar tabs, the Ctrl+K palette (same role rule and flags) and `PageShell`'s headings all read it; `nav.test.ts` fails when a page under `src/app` is in no entry, an entry has no page, or two rows of a group share a name. Add a page there or it is nowhere.
 - **It's called the ERP** (owner, 2026-09-27: "my system isn't a traditional pos anymore … rename it erp everywhere"). Every
   word people read says ERP — screens, errors, WhatsApp alert labels (`*Taheri ERP* · …`, Mina's `NEXT_PUBLIC_STORE_NOTIFY_LABEL`
   "House of Mina ERP"), the manifest. **Kept as POS on purpose:** the Shopify order notes and codes (`POS Invoice INV-…`,

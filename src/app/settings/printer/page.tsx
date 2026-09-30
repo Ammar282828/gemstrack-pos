@@ -1,6 +1,7 @@
 
 "use client";
 
+import { PageShell } from '@/components/shared/page-shell';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAppStore, Product } from '@/lib/store';
 import type { StoredLabelLayout, LabelField } from '@/lib/label-layout';
@@ -337,20 +338,13 @@ function PrinterPageComponent() {
   }
 
   return (
-    <div className="container mx-auto py-4 sm:py-8 space-y-8">
-        <header>
-           <Button variant="outline" onClick={() => router.back()} className="mb-4">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Settings
-          </Button>
-          <h1 className="text-3xl font-bold text-primary flex items-center"><FileSpreadsheet className="mr-3 h-8 w-8"/>Labels</h1>
-          <p className="text-muted-foreground">
-            Design the tag and export pieces to CSV for a label printing app like WEPrint.{' '}
-            <span className="text-xs">{edited ? 'Saving…' : settings.labelLayout ? 'Layout saved.' : ''}</span>
-            {settings.labelLayout && (
-              <button type="button" className="ml-2 text-xs underline" onClick={() => { setLayout(defaultLayout); }}>Back to the standard tag</button>
-            )}
-          </p>
-        </header>
+    <PageShell subtitle={<>
+      Design the tag and export pieces to CSV for a label printing app like WEPrint.{' '}
+      <span className="text-xs">{edited ? 'Saving…' : settings.labelLayout ? 'Layout saved.' : ''}</span>
+      {settings.labelLayout && (
+        <button type="button" className="ml-2 text-xs underline" onClick={() => { setLayout(defaultLayout); }}>Back to the standard tag</button>
+      )}
+    </>}>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
@@ -397,7 +391,7 @@ function PrinterPageComponent() {
             </Card>
           </div>
         </div>
-      </div>
+    </PageShell>
   );
 }
 

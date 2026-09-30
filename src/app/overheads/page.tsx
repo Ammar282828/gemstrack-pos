@@ -25,7 +25,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { AmountInput } from '@/components/ui/amount-input';
 import { ListSkeleton } from '@/components/shared/skeletons';
-import { PageBack } from '@/components/shared/page-back';
+import { PageShell } from '@/components/shared/page-shell';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
@@ -149,18 +149,10 @@ export default function OverheadsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-5 md:py-6 max-w-3xl space-y-4">
-      <PageBack fallback="/" label="Back" />
-
-      <header className="min-w-0">
-        <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2.5">
-          <Target className="w-7 h-7 flex-shrink-0" />Monthly overheads
-        </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          What {format(now, 'MMMM')} has to cover before anything is profit.
-          Scored from {monthLabel(BENCHMARK_START)}.
-        </p>
-      </header>
+    <PageShell width="narrow" subtitle={<>
+      What {format(now, 'MMMM')} has to cover before anything is profit.
+      Scored from {monthLabel(BENCHMARK_START)}.
+    </>}>
 
       {/* This month, first. */}
       <Card>
@@ -324,6 +316,6 @@ export default function OverheadsPage() {
           </Button>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
