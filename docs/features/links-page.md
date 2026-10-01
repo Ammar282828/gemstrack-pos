@@ -37,5 +37,8 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   server's own identity calls it; no key). **House of Mina has no Google listing** (none found that day), so hers are the Judge.me
   reviews of houseofmina.store — 4.81 from 138 — read live from the shop's metafields (`judgeme.all_reviews_rating`, `_count`,
   `reviews_grid`) through the ERP's Shopify access (`STORE_REVIEWS_SOURCE=judgeme`); the page never calls them Google's, and each
-  quote links its piece. Judge.me's grid was last written 2026-03-25: no review has come in since March. A Google Business Profile
-  for her studio would put her on Maps; the page then takes `STORE_GOOGLE_PLACE` like Taheri's.
+  quote links its piece. Judge.me's grid was last written 2026-03-25: no review has come in since March. **Since the evening of
+  2026-10-01 she has a Google Business Profile** (owner: "use it"): its review link (`NEXT_PUBLIC_STORE_GOOGLE_REVIEW_URL`,
+  g.page/r/CcY8juokzkagEBM) is the page's "Leave a review", and its Maps feature id (`0x3eb33fa1418115ef:0xa046ce24ea8e3cc6`,
+  the place the link opens) is in `STORE_GOOGLE_PLACE`. The rating and quotes stay Judge.me's (`STORE_REVIEWS_SOURCE=judgeme`)
+  until the listing has the reviews to show; switching is that one variable (and the Places API enabled in her project).

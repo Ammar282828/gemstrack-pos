@@ -202,11 +202,24 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  # The link page's rating and quotes: House of Mina has no Google listing; her reviews are
-  # Judge.me's on houseofmina.store (4.81 from 138 on 2026-10-01), read from the shop's
-  # metafields through the Shopify access below (lib/reviews-server.ts).
+  # The link page's rating and quotes stay Judge.me's on houseofmina.store (4.81 from 138 on
+  # 2026-10-01), read from the shop's metafields through the Shopify access below
+  # (lib/reviews-server.ts): her Google listing is new, and its count would make her look smaller.
   - variable: STORE_REVIEWS_SOURCE
     value: "judgeme"
+    availability:
+      - RUNTIME
+  # Her Google Business Profile's review link (owner, 2026-10-01: "use it"): the link page's
+  # "Leave a review" row opens the star rating on her listing.
+  - variable: NEXT_PUBLIC_STORE_GOOGLE_REVIEW_URL
+    value: "https://g.page/r/CcY8juokzkagEBM/review"
+    availability:
+      - BUILD
+      - RUNTIME
+  # The same listing's Maps feature id, which the link above opens (checked 2026-10-01). Unused while
+  # the source above is judgeme; set the source to "google" once the listing has the reviews to show.
+  - variable: STORE_GOOGLE_PLACE
+    value: "0x3eb33fa1418115ef:0xa046ce24ea8e3cc6"
     availability:
       - RUNTIME
   # No TikTok: @houseofmina is someone else's account (owner, 2026-09-30: "the tiktok isnt hers").
