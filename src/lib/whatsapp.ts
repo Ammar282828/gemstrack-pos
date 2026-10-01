@@ -177,7 +177,7 @@ export async function sendWhatsAppFileToGroup(chatId: string, file: Blob, fileNa
 
 /**
  * One file to a person's number — the monthly report PDF to the shop's own alert numbers.
- * The number comes from Settings, never from a request (see /api/notifications/send for why).
+ * The number comes from Settings, never from a request (see /api/notifications/alert).
  */
 export async function sendWhatsAppFile(to: string, file: Blob, fileName: string, caption = ''): Promise<string> {
   const digits = digitsOnly(to);

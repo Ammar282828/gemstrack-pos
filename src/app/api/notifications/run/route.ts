@@ -15,7 +15,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isCronAuthorized } from '@/lib/api-auth';
 import { verifyRequestEmail, isOwnerEmail } from '@/lib/karigar-auth';
-import { sendWhatsAppMessage } from '@/lib/whatsapp';
+import { textDoc } from '@/lib/notifications/alerts';
+import { sendDoc } from '@/lib/notifications/send-doc';
+import { shortDay } from '@/lib/notifications/doc';
 import { generateGoldDailyUpdate, checkGoldBreakingNews } from '@/lib/gold-update';
 import { lastRuns, runReport } from '@/lib/notifications/dispatch';
 import { isReportTask } from '@/lib/notifications/schedule';
@@ -54,16 +56,21 @@ export async function POST(req: NextRequest) {
 
   try {
     // Gold tasks bypass the shop's notification settings — they use their own phone.
+    // As PDFs like every other report (lib/notifications/doc.ts), from the AI's WhatsApp-formatted words.
     if (task === 'gold-daily-update') {
       const msg = await generateGoldDailyUpdate();
-      await sendWhatsAppMessage(GOLD_UPDATE_PHONE, msg);
-      return NextResponse.json({ ok: true, task, preview: msg.substring(0, 200) + '...' });
+      const now = new Date();
+      const r = await sendDoc(textDoc({ kind: task, title: 'Gold update', headline: shortDay(now.toISOString()), text: msg }, now), [GOLD_UPDATE_PHONE]);
+      if (!r.sent) throw new Error(r.failed.join('; ') || 'not sent');
+      return NextResponse.json({ ok: true, task, fileName: r.fileName, preview: msg.substring(0, 200) + '...' });
     }
     if (task === 'gold-breaking-news') {
       const msg = await checkGoldBreakingNews();
       if (!msg) return NextResponse.json({ ok: true, task, alert: false, message: 'No breaking news' });
-      await sendWhatsAppMessage(GOLD_UPDATE_PHONE, msg);
-      return NextResponse.json({ ok: true, task, alert: true, preview: msg.substring(0, 200) + '...' });
+      const now = new Date();
+      const r = await sendDoc(textDoc({ kind: task, title: 'Gold news', headline: shortDay(now.toISOString()), text: msg }, now), [GOLD_UPDATE_PHONE]);
+      if (!r.sent) throw new Error(r.failed.join('; ') || 'not sent');
+      return NextResponse.json({ ok: true, task, alert: true, fileName: r.fileName, preview: msg.substring(0, 200) + '...' });
     }
     if (!isReportTask(task)) return NextResponse.json({ error: `Unknown task: ${String(task)}` }, { status: 400 });
 

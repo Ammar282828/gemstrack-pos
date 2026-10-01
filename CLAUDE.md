@@ -206,8 +206,8 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Retouch](docs/features/post-a-piece.md#retouch) — Magnific (GPT Image) + Precision, then the same-piece check
 
 **WhatsApp reports and the monthly PDF** (`docs/features/notifications.md`)
-- [WhatsApp reports](docs/features/notifications.md#whatsapp-reports) — read `app_settings/global` by name; the tick sends each report once a day
-- [Monthly PDF](docs/features/notifications.md#monthly-pdf) — on Analytics' own rules; Analytics → Monthly PDF and the 1st-of-month WhatsApp
+- [WhatsApp reports](docs/features/notifications.md#whatsapp-reports) — `app_settings/global` by name; daily; [PDFs only](docs/features/notifications.md#pdfs-only)
+- [Monthly PDF](docs/features/notifications.md#monthly-pdf) — Analytics' rules; Analytics → Monthly PDF, and the 1st by WhatsApp
 
 **Posts → From the website** (`docs/features/from-the-website.md`)
 - [From the website](docs/features/from-the-website.md#from-the-website) — any site piece to the community or channel; crop & design

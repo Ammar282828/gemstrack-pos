@@ -35,3 +35,21 @@ describe('buildAdsDigest', () => {
     expect(r.label).toBe('Sat 26 Sept');
   });
 });
+
+describe('adsDigestDoc', () => {
+  it('is the same digest as a document: figures, the comparison table, what needs a look, the link', async () => {
+    const { adsDigestDoc } = await import('./digest');
+    const d = adsDigestDoc({
+      shop: 'TAHERI', account, yesterday: m(2400, 6), weekBefore: m(14000, 28), month: pacing(27000, 50000, new Date('2026-09-27T12:00:00')),
+      topAd: { name: 'Emerald jhumkas', metrics: m(1500, 4), goal: 'CONVERSATIONS' },
+      attention: [{ kind: 'wasting', severity: 'bad', target: null, title: 'Rs 2,400 spent, no chats started: Lookalike', why: 'No chats in 7 days' }],
+      erpUrl: 'https://erp.taheri.shop', date: 'Sat 26 Sep',
+    }, new Date('2026-09-27T04:30:00Z'));
+    expect(d.headline).toBe('Sat 26 Sep · spent Rs 2,400 · 6 chats');
+    expect(d.figures?.map(f => [f.label, f.value, f.note])).toEqual([['Spent', 'Rs 2,400', '+20% vs the week'], ['Chats started', '6', 'Rs 400 each']]);
+    const look = d.sections.find(s => s.title === 'Needs a look')!;
+    expect(look.table?.rows).toEqual([['Rs 2,400 spent, no chats started: Lookalike']]);
+    expect(look.table?.tones).toEqual(['flag']);
+    expect(d.footnote).toBe('Open Ads in the ERP: https://erp.taheri.shop/ads');
+  });
+});

@@ -9,13 +9,13 @@
  */
 
 import { adminDb } from '@/lib/firebase-admin';
-import { sendWhatsAppFile, sendWhatsAppMessage } from '@/lib/whatsapp';
-import { adsDigest } from '@/lib/ads/digest';
+import { adsDigestDoc, digestInput } from '@/lib/ads/digest';
 import { STORE_META_ADS } from '@/lib/store-config';
-import { fromThisPos } from '@/lib/notify-label';
 import { karachiNow } from '@/lib/investments-schedule';
-import { addMonths, karachiMonth, monthlyCaption } from '@/lib/reports/monthly';
+import { addMonths, karachiMonth } from '@/lib/reports/monthly';
 import { monthlyReportPdf } from '@/lib/reports/monthly-server';
+import { docFileName, docPreview, pkr, type AlertDoc } from './doc';
+import { docPdf, sendFileToAll } from './send-doc';
 import {
   buildDailyChecklist, buildDailyReport, buildEndOfDaySummary, buildGivenItems,
   buildKarigarPayments, buildOverdueOrders, buildWeeklyReport,
@@ -32,8 +32,12 @@ export async function readNotifSettings(): Promise<NotifSettings | null> {
   return snap.exists ? (snap.data() as NotifSettings) : null;
 }
 
-/** A report is a text message, or a file with its caption (the monthly PDF). */
-type Outgoing = string | { caption: string; file: Blob; fileName: string };
+/**
+ * Every report is a PDF (owner, 2026-10-01: "send all whatsapp messages/alerts/reports as proper
+ * structured pdfs only"): a document drawn on the phone page (doc-pdf.ts), or the monthly
+ * report's own A4 file. No captions: the file's name says what it is.
+ */
+type Outgoing = AlertDoc | { file: Blob; fileName: string; preview: string };
 
 const BUILDERS: Record<ReportTask, (now: Date) => Promise<Outgoing | null>> = {
   'daily-checklist': buildDailyChecklist,
@@ -43,13 +47,16 @@ const BUILDERS: Record<ReportTask, (now: Date) => Promise<Outgoing | null>> = {
   'daily-report': buildDailyReport,
   'weekly-report': buildWeeklyReport,
   'karigar-payments': buildKarigarPayments,
-  'ads-daily': async () => fromThisPos(await adsDigest()),
+  'ads-daily': async (now) => adsDigestDoc(await digestInput(now), now),
   // The month before the one it is sent in: on 1 October, September.
   'monthly-report': async (now) => {
-    const { report, bytes, fileName } = await monthlyReportPdf(addMonths(karachiMonth(now), -1), now);
-    return { caption: fromThisPos(monthlyCaption(report)), file: new Blob([bytes], { type: 'application/pdf' }), fileName };
+    const { report, bytes } = await monthlyReportPdf(addMonths(karachiMonth(now), -1), now);
+    const fileName = docFileName({ title: 'Monthly report', headline: `${report.label} · revenue ${pkr(report.revenue.total)}` });
+    return { file: new Blob([bytes], { type: 'application/pdf' }), fileName, preview: fileName };
   },
 };
+
+const isDoc = (o: Outgoing): o is AlertDoc => 'sections' in o;
 
 export const RUNS = 'notif_runs';
 const MAX_TRIES = 3;
@@ -67,7 +74,6 @@ export interface RunResult {
   preview?: string;
 }
 
-const tail = (phone: string) => `…${String(phone).replace(/\D/g, '').slice(-4)}`;
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 300);
 
 /** Take today's claim for a report; false when it already went, is going, or ran out of tries. */
@@ -114,19 +120,11 @@ export async function runReport(
       // Nothing to report (no overdue orders, nothing given out): quiet, and done for the day.
       result = { task, status: 'quiet' };
     } else {
-      const failed: string[] = [];
-      let sent = 0;
-      for (const phone of phones) {
-        try {
-          if (typeof message === 'string') await sendWhatsAppMessage(phone, message);
-          else await sendWhatsAppFile(phone, message.file, message.fileName, message.caption);
-          sent++;
-        }
-        catch (e) { failed.push(`${tail(phone)}: ${why(e)}`); }
-      }
-      // Reaching some numbers counts as sent: trying again would repeat it to the others.
-      const text = typeof message === 'string' ? message : `${message.fileName}\n${message.caption}`;
-      result = { task, status: sent ? 'sent' : 'failed', sent, recipients: phones.length, failed, preview: text.slice(0, 200) };
+      // One PDF, drawn once, to every number. Reaching some counts as sent: trying again would repeat it to the others.
+      const { file, fileName } = isDoc(message) ? await docPdf(message) : message;
+      const { sent, failed } = await sendFileToAll(phones, file, fileName);
+      const preview = isDoc(message) ? docPreview(message) : message.preview;
+      result = { task, status: sent ? 'sent' : 'failed', sent, recipients: phones.length, failed, preview: preview.slice(0, 200) };
     }
   } catch (e) {
     result = { task, status: 'failed', error: why(e) };

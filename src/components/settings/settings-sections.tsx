@@ -229,20 +229,19 @@ export function NotificationsCard() {
     } finally { setSendingNow(null); }
   };
 
-  /** /api/notifications/send is owner-gated, so every caller must identify
-   *  itself. Both test buttons go through here — the per-recipient one was
-   *  left sending no token when the endpoint was locked down, and 401'd. */
+  /** The test is a PDF like every alert (/api/notifications/alert, event 'test'), to one saved
+   *  number; the server checks the number is on the list. Both test buttons go through here. */
   const sendTestTo = React.useCallback(async (phone: string) => {
     let token = '';
     try { token = (await firebaseAuth?.currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
-    const res = await fetch('/api/notifications/send', {
+    const res = await fetch('/api/notifications/alert', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
-      body: JSON.stringify({ to: phone, message: `Test from ${STORE_CONFIG.name} ERP — notifications are working.` }),
+      body: JSON.stringify({ event: 'test', to: phone }),
     });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || `HTTP ${res.status}`);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.status === 'off' || body.status === 'failed') {
+      throw new Error(body.error || body.failed?.join('; ') || `HTTP ${res.status}`);
     }
   }, []);
 
@@ -300,7 +299,7 @@ export function NotificationsCard() {
           WhatsApp alerts
         </CardTitle>
         <CardDescription>
-          Shop alerts sent through WAHA, the shop's own WhatsApp gateway (<code className="text-xs bg-muted px-1 rounded">WAHA_URL</code>, <code className="text-xs bg-muted px-1 rounded">WAHA_API_KEY</code>), or Green API when those are not set.
+          Every alert and report arrives as a PDF, named for what it is. Sent through WAHA, the shop's own WhatsApp gateway (<code className="text-xs bg-muted px-1 rounded">WAHA_URL</code>, <code className="text-xs bg-muted px-1 rounded">WAHA_API_KEY</code>), or Green API when those are not set.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

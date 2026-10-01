@@ -35,3 +35,26 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   report **`monthly-report`** (`notifMonthlyReport`, off until the owner switches it on in Settings → Notifications): on the **1st at the checklist time**, the month before,
   as a PDF document (`sendWhatsAppFile` → WAHA `/api/sendFile`) with a short caption. jsPDF and its table plugin are
   `serverExternalPackages`, so the server takes jsPDF's Node build rather than bundling the browser one.
+
+### PDFs only
+
+- **Every WhatsApp alert and report to the shop's own numbers is a PDF** (2026-10-01, owner: "send all whatsapp
+  messages/alerts/reports as proper structured pdfs only"). A builder returns an `AlertDoc` (`lib/notifications/doc.ts`:
+  title, heading, figures, sections of tables, label/value pairs and text); `doc-pdf.ts` draws it on a **phone-shaped
+  100 × 178 mm page** with the invoices' furniture (WhatsApp's viewer fits the page's width to the screen: A4 came out a third
+  the size); `send-doc.ts` sends it with **no caption**: the file's name is the headline ("Taheri ERP · New sale · INV-000083 ·
+  Rashida Modi · PKR 321,700.pdf"), the only thing the notification, the chat list and WhatsApp's search show.
+- **Live alerts** (new sale, payment, new order, order completed / cancelled / refunded): the app posts only the record's id to
+  `/api/notifications/alert` (`send-alert.ts`, owners and staff), which reads the record from Firestore, checks the same Settings
+  switches, builds the document (`alerts.ts`) and sends it to every saved number; claimed for ten minutes in `notif_alerts` so a
+  double tap sends once. The browser no longer writes the words, and **staff payments, orders and status changes now alert
+  too** (they never did: the server write path had no `notify`). `/api/notifications/send` (any text to a saved number) is gone;
+  Settings' **Send test** is a test PDF.
+- **Scheduled reports** (`report-docs.ts`, pure, tested; `reports.ts` reads): the same figures as the texts, as tables. The
+  daily report lists every payment with its method and time. The weekly report has a day-by-day table. Found with it: "today"
+  was the server's UTC midnight, so a sale between midnight and 5 am Karachi counted on the day before; it is Karachi's day now
+  (`karachiDayPeriod`). The ads digest is `adsDigestDoc`; the monthly report keeps its A4 file, without its caption; the
+  scheduler-only gold updates go through `textDoc`.
+- **Not PDFs:** what goes to customers and the community: the website checkout's messages to the customer, Post a piece,
+  Investments, and the wa.me links the app opens on a phone (sent by a person from their own WhatsApp; a link cannot carry a
+  file). The website order's shop copy is a PDF to the alert numbers (it went to the shop's own line, which is the sender).

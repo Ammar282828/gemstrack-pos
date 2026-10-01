@@ -18,7 +18,7 @@ const rows = async <T>(name: string): Promise<T[]> =>
 let logoPending: Promise<ReportLogo | null> | null = null;
 
 /** The wordmark from public/ on disk, else from the ERP's own address; none is fine — the header sets the name in type. */
-function serverLogo(): Promise<ReportLogo | null> {
+export function serverLogo(): Promise<ReportLogo | null> {
   logoPending ??= (async () => {
     const url = STORE_LOGO_URL;
     const format: ReportLogo['format'] = /\.jpe?g($|\?)/i.test(url) ? 'JPEG' : 'PNG';

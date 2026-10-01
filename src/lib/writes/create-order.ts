@@ -173,12 +173,7 @@ export async function createOrder(
     `Customer: ${customerName || 'Walk-in'} | Total: ${grandTotal.toLocaleString()}`,
     order.id,
   );
-  fx.notify?.(
-    `*New Order* ${order.id}\n` +
-    `Customer: ${customerName || 'Walk-in'}\n` +
-    `Items: ${descriptions.join(', ') || 'Item'}\n` +
-    `Total: PKR ${grandTotal.toLocaleString()}`,
-  );
+  fx.notify?.(order.id);
 
   return order;
 }

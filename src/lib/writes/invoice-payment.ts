@@ -82,14 +82,7 @@ export async function recordInvoicePayment(
   )).catch(() => { /* logged by the driver */ });
 
   fx.syncInvoiceShopify?.(invoiceId, 'upsert');
-  fx.notify?.(
-    `💰 *Payment Received* ${invoiceId}\n` +
-    `Customer: ${updated.customerName || 'Walk-in'}\n` +
-    `Amount: PKR ${amount.toLocaleString()}\n` +
-    (updated.balanceDue > 0
-      ? `Balance remaining: PKR ${updated.balanceDue.toLocaleString()}`
-      : `✅ Fully paid`),
-  );
+  fx.notify?.(invoiceId);
 
   return updated;
 }

@@ -1,7 +1,8 @@
 /**
  * The two WhatsApp messages a website order produces, and the two more as it
- * moves. Sent through the shop's own GreenAPI instance, so they arrive from
- * the number customers already know.
+ * moves. Sent through the shop's own gateway, so they arrive from the number
+ * customers already know. The customer's are words; the shop's copy is a PDF
+ * like every alert to the shop (lib/notifications, owner 2026-10-01).
  *
  * A notification that fails must never fail the order — the order is in the
  * book either way, and the shop can read it there. So every send is caught
@@ -40,11 +41,6 @@ export function customerPlacedMessage(o: OrderSummaryForMessage, bank: WebsiteBa
   return `Assalamualaikum ${o.customerName}, thank you for your order at TAHERI.\n\nOrder ${o.id}\n${lines}${delivery}\n*Total: ${fmt(o.grandTotal)}*\n\nPlease transfer the full amount to:\n${account}\n\nThen send us the transfer slip here, quoting ${o.id}. We book your piece with Leopards the day the transfer clears and send you the tracking number.\n\nYour order: ${o.statusUrl}${bank.instructions ? `\n\n${bank.instructions}` : ''}`;
 }
 
-export function shopPlacedMessage(o: OrderSummaryForMessage): string {
-  const lines = o.lines.map((l, i) => `${i + 1}. ${l.description} — ${fmt(l.price)}`).join('\n');
-  return `🛍️ Website order ${o.id}\n${o.customerName}${o.customerPhone ? ` · ${o.customerPhone}` : ''}${o.city ? ` · ${o.city}` : ''}\n${lines}\nTotal ${fmt(o.grandTotal)} — awaiting bank transfer.`;
-}
-
 export function customerPaidMessage(orderId: string, name: string): string {
   return `Assalamualaikum ${name}, we have received your transfer for order ${orderId}. Jazakallah. We are preparing your piece and will send the Leopards tracking number as soon as it is booked.`;
 }
@@ -61,4 +57,28 @@ export async function trySend(to: string | null | undefined, body: string): Prom
   if (!to) return 'no recipient';
   try { await sendWhatsAppMessage(to, body); return null; }
   catch (e) { return e instanceof Error ? e.message : String(e); }
+}
+
+/**
+ * The shop's copy of a website order: a PDF (lib/notifications/alerts.ts websiteOrderDoc) to the
+ * alert numbers in Settings → Notifications, like every other alert, or to the shop's own number
+ * when none are set. It went only to the shop's own number before, which is the line the gateway
+ * sends from, so it arrived as a message to itself.
+ */
+export async function trySendShopCopy(o: OrderSummaryForMessage): Promise<string | null> {
+  if (process.env.WEBSITE_NOTIFY === 'off') { console.log('[website notify: off] shop copy', o.id); return 'notifications off'; }
+  try {
+    const [{ sendDoc }, { websiteOrderDoc }, { readNotifSettings }] = await Promise.all([
+      import('@/lib/notifications/send-doc'), import('@/lib/notifications/alerts'), import('@/lib/notifications/dispatch'),
+    ]);
+    const s = await readNotifSettings().catch(() => null);
+    const saved = s?.notifEnabled ? (s.notifPhones ?? []).map(String).filter(Boolean) : [];
+    const own = shopNumber();
+    const to = saved.length ? saved : own ? [own] : [];
+    if (!to.length) return 'no recipient';
+    const r = await sendDoc(websiteOrderDoc(o), to);
+    return r.sent ? null : r.failed.join('; ') || 'not sent';
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
+  }
 }

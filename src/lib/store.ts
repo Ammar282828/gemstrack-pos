@@ -126,35 +126,24 @@ function syncOrderShopify(orderId: string | undefined | null, action: 'upsert' |
 
 
 /**
- * Fire-and-forget WhatsApp notification to all configured recipients.
- * No-op during SSR, when notifications are disabled, or when no phones set.
- * `enabled` lets callers gate on a per-event toggle (e.g. settings.notifNewInvoice).
+ * Fire-and-forget WhatsApp alert, sent as a PDF to every number in Settings (owner, 2026-10-01:
+ * "send all whatsapp messages/alerts/reports as proper structured pdfs only"). The app only names
+ * the record; the server reads it, checks Settings' switches and builds the document
+ * (lib/notifications/send-alert.ts). Posted after staff writes too, which never alerted before.
+ * A failed alert must never block or fail a sale, so nothing here throws.
  */
-function notifyWhatsApp(
-  settings: { notifEnabled?: boolean; notifPhones?: string[] } | undefined,
-  message: string,
-  enabled: boolean = true,
-) {
+function notifyAlert(alert: { event: 'sale' | 'payment' | 'order' | 'order-status'; id: string; payment?: { amount: number; date: string }; status?: OrderStatus }) {
   if (typeof window === 'undefined') return;
-  if (!settings?.notifEnabled || !enabled) return;
-  const phones = settings.notifPhones || [];
-  if (!phones.length) return;
-  // The endpoint is no longer open, so the caller has to prove who it is.
-  // Fire-and-forget: a notification must never block or fail a sale.
   (async () => {
     let token = '';
     try { token = (await firebaseAuth?.currentUser?.getIdToken()) || ''; } catch { /* signed out */ }
-    for (const phone of phones) {
-      fetch('/api/notifications/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: JSON.stringify({ to: phone, message }),
-      }).catch(e => console.warn('[notif] send failed:', e));
-    }
-  })();
+    await fetch('/api/notifications/alert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+      body: JSON.stringify(alert),
+      keepalive: true,
+    });
+  })().catch(e => console.warn('[alert] not sent:', e));
 }
 
 async function deleteCollection(collectionName: string) {
@@ -2907,16 +2896,8 @@ export const useAppStore = create<AppState>()(
 
             if (result) syncInvoiceShopify(result.id, 'upsert');
 
-            // WhatsApp notification: new invoice/sale (only for brand-new invoices, not edits)
-            if (result && !existingInvoiceId) {
-                const itemList = (Array.isArray(result.items) ? result.items : Object.values(result.items || {})) as InvoiceItem[];
-                const itemNames = itemList.map(i => i.name || 'Item').join(', ');
-                const paidLine = result.balanceDue > 0
-                    ? `Paid: PKR ${result.amountPaid.toLocaleString()} | Balance: PKR ${result.balanceDue.toLocaleString()}`
-                    : `Paid in full`;
-                const msg = `🧾 *New Sale* ${result.id}\nCustomer: ${result.customerName || 'Walk-in'}\nItems: ${itemNames}\nTotal: PKR ${result.grandTotal.toLocaleString()}\n${paidLine}`;
-                notifyWhatsApp(get().settings, msg, get().settings.notifNewInvoice);
-            }
+            // The WhatsApp alert for a brand-new invoice (not an edit): the sale as a PDF.
+            if (result && !existingInvoiceId) notifyAlert({ event: 'sale', id: result.id });
 
             return result;
         } catch (error) {
@@ -2939,6 +2920,7 @@ export const useAppStore = create<AppState>()(
             set(state => ({
               generatedInvoices: state.generatedInvoices.map(i => i.id === invoiceId ? { ...i, ...updated } : i),
             }) as Partial<AppState>);
+            notifyAlert({ event: 'payment', id: invoiceId, payment: { amount: paymentAmount, date: paymentDate } });
             return updated;
           } catch (error) {
             console.error(`Error updating invoice payment for ${invoiceId}:`, error);
@@ -2955,7 +2937,7 @@ export const useAppStore = create<AppState>()(
               // is typed, and the value is one of its members.
               log: (action, title, detail, ref) => { addActivityLog(action as LogEventType, title, detail, ref ?? ''); },
               syncInvoiceShopify: (id, mode) => { syncInvoiceShopify(id, mode); },
-              notify: (msg) => { notifyWhatsApp(get().settings, msg, get().settings.notifPaymentReceived); },
+              notify: () => notifyAlert({ event: 'payment', id: invoiceId, payment: { amount: paymentAmount, date: paymentDate } }),
             },
           );
           return updated as unknown as Invoice;
@@ -3408,6 +3390,7 @@ export const useAppStore = create<AppState>()(
             const res = await staffWriteJson('createOrder', { order: orderData });
             const created = res.order as Order;
             set(state => ({ orders: [created, ...state.orders] }) as Partial<AppState>);
+            notifyAlert({ event: 'order', id: created.id });
             return created;
           } catch (error) {
             console.error('[GemsTrack Store addOrder] staff write failed:', error);
@@ -3430,7 +3413,7 @@ export const useAppStore = create<AppState>()(
             },
             {
               log: (action, title, detail, ref) => { addActivityLog(action as LogEventType, title, detail, ref ?? ''); },
-              notify: (msg) => { const st = get().settings; notifyWhatsApp(st, msg, !!st.notifNewOrder); },
+              notify: (id) => notifyAlert({ event: 'order', id }),
             },
           );
           syncOrderShopify(created.id, 'upsert');
@@ -3492,6 +3475,7 @@ export const useAppStore = create<AppState>()(
                   ? (o.items || []).map(i => ({ ...i, isCompleted: true })) : o.items }
               : o),
           }) as Partial<AppState>);
+          if (status === 'Completed' || status === 'Cancelled' || status === 'Refunded') notifyAlert({ event: 'order-status', id: orderId, status });
           return;
         }
         console.log(`[GemsTrack Store updateOrderStatus] Updating order ${orderId} to status: ${status}`);
@@ -3521,19 +3505,8 @@ export const useAppStore = create<AppState>()(
           }
           console.log(`[GemsTrack Store updateOrderStatus] Successfully updated status for order ${orderId}.`);
 
-          // WhatsApp notifications: completed or cancelled
-          const s = get().settings;
-          const order = get().orders.find(o => o.id === orderId);
-          if (s.notifEnabled && s.notifPhones?.length && order) {
-            let msg: string | null = null;
-            if (status === 'Completed' && s.notifOrderCompleted) {
-              msg = `*Order Completed* ${orderId}\nCustomer: ${order.customerName || 'Walk-in'}\nTotal: PKR ${order.grandTotal.toLocaleString()}`;
-            } else if ((status === 'Cancelled' || status === 'Refunded') && s.notifOrderCancelled) {
-              msg = `*Order ${status}* ${orderId}\nCustomer: ${order.customerName || 'Walk-in'}\nTotal: PKR ${order.grandTotal.toLocaleString()}`;
-            }
-            // The specific toggle was already checked when msg was built.
-            if (msg) notifyWhatsApp(s, msg);
-          }
+          // The WhatsApp alert for an order completed, cancelled or refunded (Settings decides whether).
+          if (status === 'Completed' || status === 'Cancelled' || status === 'Refunded') notifyAlert({ event: 'order-status', id: orderId, status });
         } catch (error) {
           console.error(`[GemsTrack Store updateOrderStatus] Error updating status for order ${orderId}:`, error);
           throw error;

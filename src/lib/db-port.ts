@@ -61,5 +61,6 @@ export interface DbPort {
 export interface SideEffects {
   log?: (action: string, title: string, detail: string, relatedId?: string) => void | Promise<void>;
   syncInvoiceShopify?: (invoiceId: string, mode: 'upsert' | 'cancel') => void;
-  notify?: (message: string) => void;
+  /** The record (its id) is written: raise its WhatsApp alert (the server builds the PDF from the record). */
+  notify?: (id: string) => void;
 }
