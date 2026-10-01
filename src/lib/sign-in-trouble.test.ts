@@ -42,6 +42,9 @@ describe('signInAdvice', () => {
     expect(signInAdvice('auth/operation-not-supported-in-this-environment', { app: 'Instagram', platform: 'ios' })).toContain('Safari');
     expect(signInAdvice('auth/internal-error', { app: 'this app', platform: 'android' })).toContain('Chrome');
   });
+  it('explains an account the project will not create', () => {
+    expect(signInAdvice('auth/admin-restricted-operation', null)).toMatch(/allow new sign-ins/);
+  });
   it('names a blocked pop-up and an unknown code', () => {
     expect(signInAdvice('auth/popup-blocked', null)).toMatch(/pop-ups/);
     expect(signInAdvice('auth/internal-error', null)).toContain('internal-error');

@@ -46644,7 +46644,7 @@
       "node_kind": "heading",
       "norm_label": "customer copy",
       "source_file": "docs/decisions.md",
-      "source_location": "L320"
+      "source_location": "L327"
     },
     {
       "id": "docs_decisions_decisions_already_made",
@@ -46692,7 +46692,7 @@
       "node_kind": "heading",
       "norm_label": "shop outage",
       "source_file": "docs/decisions.md",
-      "source_location": "L328"
+      "source_location": "L335"
     },
     {
       "id": "docs_decisions_the_website_and_copy",
@@ -46704,7 +46704,7 @@
       "node_kind": "heading",
       "norm_label": "the website and copy",
       "source_file": "docs/decisions.md",
-      "source_location": "L318"
+      "source_location": "L325"
     },
     {
       "id": "docs_decisions_weight_preview",
@@ -46716,7 +46716,7 @@
       "node_kind": "heading",
       "norm_label": "weight preview",
       "source_file": "docs/decisions.md",
-      "source_location": "L324"
+      "source_location": "L331"
     },
     {
       "id": "scripts_backfill_shopify_invoice_adjustments",
@@ -118244,7 +118244,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/karigar/karigar-form.tsx",
-      "source_location": "L214",
+      "source_location": "L216",
       "weight": 1.0
     },
     {
@@ -118256,7 +118256,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/karigar/karigar-form.tsx",
-      "source_location": "L222",
+      "source_location": "L224",
       "weight": 1.0
     },
     {
@@ -118268,7 +118268,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/karigar/karigar-form.tsx",
-      "source_location": "L223",
+      "source_location": "L225",
       "weight": 1.0
     },
     {
@@ -257479,7 +257479,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/decisions.md",
-      "source_location": "L318",
+      "source_location": "L325",
       "weight": 1.0
     },
     {
@@ -257820,7 +257820,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/decisions.md",
-      "source_location": "L320",
+      "source_location": "L327",
       "weight": 1.0
     },
     {
@@ -257831,7 +257831,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/decisions.md",
-      "source_location": "L324",
+      "source_location": "L331",
       "weight": 1.0
     },
     {
@@ -257842,7 +257842,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/decisions.md",
-      "source_location": "L328",
+      "source_location": "L335",
       "weight": 1.0
     },
     {
@@ -314156,5 +314156,5 @@
       ]
     }
   ],
-  "built_at_commit": "f0ca183434caa0f1a0ac0b749505ce2dee7c5da7"
+  "built_at_commit": "fcd1886ad7dd1e64b565332cf8273f1f63e79226"
 }

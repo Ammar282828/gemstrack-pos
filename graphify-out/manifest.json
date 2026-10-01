@@ -1380,9 +1380,9 @@
     "semantic_hash": ""
   },
   "src/components/karigar/karigar-form.tsx": {
-    "mtime": 1790533461.6948125,
-    "seen": 1790854750.371631,
-    "ast_hash": "a03abd21f9ea4794dee44e29d239ddcc",
+    "mtime": 1790868832.081358,
+    "seen": 1790869085.6691978,
+    "ast_hash": "d2aa7d8e322e8bdb6cf8c03a075663c4",
     "semantic_hash": ""
   },
   "src/components/karigar/karigar-glance.tsx": {
@@ -4332,9 +4332,9 @@
     "semantic_hash": ""
   },
   "docs/decisions.md": {
-    "mtime": 1790864605.4964657,
-    "seen": 1790864622.9697382,
-    "ast_hash": "c02a9ce6cd874e82d64a127253cc6f14",
+    "mtime": 1790868832.0824404,
+    "seen": 1790869085.6695137,
+    "ast_hash": "f72ab1f178baea267168314df0e205bf",
     "semantic_hash": ""
   },
   "docs/features/ad-studio.md": {
@@ -4524,15 +4524,15 @@
     "semantic_hash": ""
   },
   "src/lib/sign-in-trouble.test.ts": {
-    "mtime": 1790863881.9147928,
-    "seen": 1790864283.3478973,
-    "ast_hash": "3c5e4de814374ca4613d28757aed3fcf",
+    "mtime": 1790868823.2099273,
+    "seen": 1790869085.6694186,
+    "ast_hash": "3bfed15b65a3a1b74c961c57cf94e5ca",
     "semantic_hash": ""
   },
   "src/lib/sign-in-trouble.ts": {
-    "mtime": 1790863790.6787875,
-    "seen": 1790864283.3478987,
-    "ast_hash": "76644b8c7c6c36c5b646e8f206726783",
+    "mtime": 1790868823.2084236,
+    "seen": 1790869085.6694195,
+    "ast_hash": "0d40e4e848d97d9b0259b67a871a2e1a",
     "semantic_hash": ""
   }
 }

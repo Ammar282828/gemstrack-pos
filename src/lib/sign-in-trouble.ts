@@ -65,6 +65,10 @@ export function signInAdvice(code: string | null | undefined, inApp: EmbeddedBro
       return 'No connection to Google. Check the internet and try again.';
     case 'auth/unauthorized-domain':
       return `This address (${typeof window !== 'undefined' ? window.location.host : 'here'}) is not set up for Google sign-in. Use the shop's usual ERP address.`;
+    case 'auth/admin-restricted-operation':
+      // The project lets in only accounts that already exist ("Enable create (sign-up)" off): a first
+      // sign-in is refused before the ERP hears of it. Uzair, House of Mina, 2026-10-01.
+      return "This Google account hasn't been let in yet: the shop has to allow new sign-ins while you sign in the first time. Ask them, then tap Sign in again.";
     case 'auth/too-many-requests':
       return 'Too many tries. Wait a minute, then try again.';
     default:

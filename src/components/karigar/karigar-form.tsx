@@ -160,6 +160,8 @@ export const KarigarForm: React.FC<KarigarFormProps> = ({ karigar, onSubmitSucce
                   <FormDescription className="text-xs">
                     Adding a Gmail lets this karigar sign in and see only their own work list
                     and account. They cannot see customers, prices, or any other karigar.
+                    The first time, Firebase must allow new accounts while he signs in (Authentication →
+                    Settings → User actions → Enable create), or Google refuses him.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

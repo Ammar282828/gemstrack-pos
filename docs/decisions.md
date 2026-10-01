@@ -314,6 +314,13 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   Every failure is reported, "popup-closed-by-user" too, with how long Google's window was open: a window that closes without
   handing the sign-in back reads as closed by the user, which the screen used to ignore. Open 8 s or more, it now says the
   sign-in didn't finish. (Owner: "I did open in chrome" — every recorded sign-in in both houses had been Safari.)
+  **The cause, from the first real try** (Uzair, Chrome on Android, pos.houseofmina.store, 2026-10-01 15:31 UTC):
+  `failed code=auth/admin-restricted-operation after 11s` — House of Mina's Firebase project has new accounts switched off
+  (Authentication → Settings → User actions → "Enable create (sign-up)"), so an account that has never signed in is refused
+  before the ERP hears of it; the owners and staff got in because their accounts already existed. The cloud account cannot
+  read that setting or Mina's rules (Mina's Firestore refuses anonymous reads; whether it checks emails is not known here, so
+  sign-up may be what keeps strangers out). A new karigar's first sign-in needs sign-up on for that minute, then off again.
+  The screen and the karigar form say so.
 
 ## The website and copy
 
