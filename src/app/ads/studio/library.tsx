@@ -15,6 +15,7 @@ import { Sparkles, Loader2, Globe, HardDrive, Search, RefreshCw, Wand2, Download
 import { cn } from '@/lib/utils';
 import { FIXES, PLACEMENT_LABEL, PLACEMENTS, type FixCode, type Placement } from '@/lib/ads/studio/assessment';
 import { SCENES } from '@/lib/social/prompts';
+import { AI_RATIOS } from '@/lib/ads/studio/templates';
 import { BRAND } from '@/lib/ads/studio/brand';
 import { api } from '../ads-kit';
 import {
@@ -380,16 +381,18 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
   const fix = async (code: Exclude<FixCode, 'crop-tighter'>, extra: Record<string, unknown> = {}) => {
     if (!working || busy) return;
     const f = FIX_OPS[code];
-    setBusy(code); setScenes(false);
+    // "Extend to" runs at any of the image model's shapes, not only Meta's two.
+    const other = code === 'extend-portrait' && typeof extra.aspect === 'string' && extra.aspect !== f.params.aspect ? extra.aspect : null;
+    setBusy(other ? `extend:${other}` : code); setScenes(false);
     try {
       const r = await runImageOp(working, f.op, { ...f.params, ...extra });
       const url = URL.createObjectURL(r.blob);
-      const label = code === 'restage' && extra.sceneId ? `${FIXES.restage.label}: ${SCENES.find(s => s.id === extra.sceneId)?.label ?? ''}` : FIXES[code].label;
+      const label = other ? `Extend to ${other}` : code === 'restage' && extra.sceneId ? `${FIXES.restage.label}: ${SCENES.find(s => s.id === extra.sceneId)?.label ?? ''}` : FIXES[code].label;
       const tidy = TIDIES.includes(code) || !!current?.tidy || !!base?.original;
       setEdits(prev => { const next = [...prev, { blob: r.blob, url, label, check: r.check, tidy }]; setView(next.length - 1); return next; });
       toast({ title: `${label} — done`, description: r.check && !r.check.samePiece ? 'The check thinks the piece changed — look closely before using it.' : 'Compare it with the original below.' });
     } catch (e) {
-      toast({ title: `${FIXES[code].label} didn’t work`, description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+      toast({ title: `${other ? `Extend to ${other}` : FIXES[code].label} didn’t work`, description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     } finally { setBusy(null); }
   };
 
@@ -429,7 +432,7 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
               {photoError ? <p className="p-6 text-sm text-destructive">{photoError}</p>
                 : (current?.url ?? base?.url) ? <img src={current?.url ?? base!.url} alt={cur.name} className="w-full max-h-[60vh] object-contain" />
                   : <div className="aspect-square flex items-center justify-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin mr-2" /> Fetching the photo…</div>}
-              {busy && <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 text-sm"><Loader2 className="h-5 w-5 animate-spin" /> {FIXES[busy as FixCode]?.label}… {FIX_OPS[busy as keyof typeof FIX_OPS]?.secs}</div>}
+              {busy && <div className="absolute inset-0 bg-background/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 text-sm"><Loader2 className="h-5 w-5 animate-spin" /> {busy.startsWith('extend:') ? `Extend to ${busy.slice(7)}` : FIXES[busy as FixCode]?.label}… {FIX_OPS[(busy.startsWith('extend:') ? 'extend-portrait' : busy) as keyof typeof FIX_OPS]?.secs}</div>}
             </div>
             {edits.length > 0 && (
               <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -506,6 +509,15 @@ export function AssetSheet({ item, placement, onClose, onMake, onChanged }: {
                 {suggested.map(f => <FixButton key={f} code={f} busy={busy} disabled={!working} onRun={() => (f === 'restage' ? setScenes(s => !s) : fix(f))} primary />)}
                 {a?.fixes.includes('crop-tighter') && <Button size="sm" onClick={() => base && onMake({ asset: cur, blob: current?.blob ?? null, note: current?.label, clean: current?.tidy })}><Crop className="h-4 w-4 mr-1" /> Crop tighter in the maker</Button>}
                 {others.map(f => <FixButton key={f} code={f} busy={busy} disabled={!working} onRun={() => (f === 'restage' ? setScenes(s => !s) : fix(f))} />)}
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-muted-foreground">Extend to another shape:</span>
+                {AI_RATIOS.filter(r => r !== '4:5' && r !== '9:16').map(r => (
+                  <button key={r} type="button" disabled={!working || !!busy} onClick={() => fix('extend-portrait', { aspect: r })}
+                    className={cn('rounded-full border px-2 py-0.5 tabular-nums hover:border-primary/60 disabled:opacity-50', busy === `extend:${r}` && 'border-primary')}>
+                    {busy === `extend:${r}` ? <Loader2 className="inline h-3 w-3 animate-spin" /> : r}
+                  </button>
+                ))}
               </div>
               {scenes && (
                 <div className="rounded-xl border p-2 grid sm:grid-cols-2 gap-1.5">

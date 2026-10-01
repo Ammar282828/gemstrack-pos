@@ -18,7 +18,7 @@
  * box held in a hand.
  */
 
-export const ASPECTS = ['9:16', '4:5', '1:1', '5:4', '3:4', '4:3', '2:3', '3:2', '16:9'] as const;
+export const ASPECTS = ['9:16', '4:5', '1:1', '5:4', '3:4', '4:3', '2:3', '3:2', '16:9', '21:9'] as const;
 export type Aspect = typeof ASPECTS[number];
 
 /** The supported ratio nearest a photo's own, so an edit keeps its shape. */

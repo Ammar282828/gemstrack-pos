@@ -53,6 +53,17 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   and runs the check (≈30 s + the check). Op `paint` — Nano Banana paints the whole ad around the photographed piece, then the
   lettering is read back and the piece compared ("same piece?"); on the first run it redrew the stones and the check caught it,
   so the prompt now forbids re-rendering the piece and a flagged one says "Use it anyway".
+  <a id="any-shape"></a>**Any shape** (2026-10-01, owner: "ads should have an option to generate in any orientation ratio"): beside
+  Meta's four chips, **Any shape** offers every ratio the image model draws (2:3, 3:4, 5:4, 4:3, 3:2, 16:9, 21:9) and **Custom W:H**
+  (each side 1–100, remembered per device; the frame is 1080 wide, between 3:1 and 1:2.2, exported with its short side ≥ 1080 px).
+  `AD_FORMATS[f].ai` is the ratio every AI call uses (extend, new setting, Make it with AI, Paint); a custom shape is drawn at the
+  nearest one (`nearestAiRatio`) and trimmed, and the painter is told which edges are cut (`trimTo` in `paintPrompt`). The note under
+  the goal says whether Meta shows the shape as it is in feeds (1.91:1–4:5) or crops it (`metaFeedFit`); the 9:16 pair and "Every
+  size" stay Meta's (Every size adds the shape on screen). A frame wider than 1.4:1 lays out side by side — the photo as a panel, the
+  words on the ground — because across a wide frame the piece sits where words over the photo would go (1.91:1 too). The photo
+  sheet's **Extend to another shape** runs the same reframe at any of those ratios. Saved ads keep a custom shape (`ratioOfFrame`).
+  Fixed with it: "HRD Antwerp certified" drew its badge under the centred wordmark in every frame (the mark is top right now), and
+  "No making · No wastage" ran off a wide frame.
   **Assessing runs in the background** (owner: "should run in the background"): `assess-run.ts` — one slice runner with a lease in
   `app_settings/ad_studio_assess` (so the tick and the page never double-pay), paced 12 s between batches because the Vertex key's
   per-minute quota is shared with the counter. It rides the existing **`social-queue-tick`** (every 5 min, 300 s deadline) after

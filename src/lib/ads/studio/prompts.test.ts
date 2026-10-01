@@ -32,3 +32,19 @@ describe('figures', () => {
     expect(inventedFigures('Only 18k here', '')).toEqual(['18k']);
   });
 });
+
+import { paintPrompt } from './prompts';
+
+describe('paintPrompt', () => {
+  const words = { kicker: '', headline: 'Rose cut', specs: '22K | 12.4 g', cta: '', story: false, brief: '' };
+  it('leaves the corner the house mark goes in', () => {
+    expect(paintPrompt({ ...words, aspect: '1:1' })).toContain('top-right corner empty');
+    expect(paintPrompt({ ...words, aspect: '1:1', markCorner: 'bottom-right' })).toContain('bottom-right corner empty');
+    expect(paintPrompt({ ...words, aspect: '9:16', markCorner: 'top-centre' })).toContain('top centre empty');
+  });
+  it('warns of a trim only when the frame is not the painted ratio', () => {
+    expect(paintPrompt({ ...words, aspect: '4:5', trimTo: '4:5' })).not.toContain('trimmed');
+    expect(paintPrompt({ ...words, aspect: '16:9', trimTo: '1.91:1' })).toContain('top and bottom edges are cut');
+    expect(paintPrompt({ ...words, aspect: '9:16', trimTo: '1:2' })).toContain('left and right edges are cut');
+  });
+});

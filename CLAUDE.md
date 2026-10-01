@@ -26,8 +26,8 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 ## Running locally
 
 - **Node 20**, not the Mac's default: launch config "POS (node 20)" (`PATH=/opt/homebrew/opt/node@20/bin:$PATH npm run dev`, port 3000), or per house
-  "Taheri (node 20)" (port 3000) / "Mina (node 20)" (port 3001). On Node 26 the Google auth library fails ("Premature close"). The per-house
-  configs drop a `GOOGLE_APPLICATION_CREDENTIALS` that points at a missing file (the second laptop's `~/.zshrc` does), which otherwise breaks every Google call.
+  "Taheri (node 20)" (port 3000) / "Mina (node 20)" (port 3001). On Node 26 Google auth fails ("Premature close"). The per-house
+  configs drop the second laptop's `GOOGLE_APPLICATION_CREDENTIALS` (`~/.zshrc`, a missing file), which breaks every Google call.
 - The app is behind Google sign-in, locally and in **both** houses since 2026-09-30 (Taheri ran
   `NEXT_PUBLIC_OPEN_ACCESS=1` with open Firestore rules from 2026-09-07; owner: "taheri being open to all is a bit
   dangerous"). Don't reintroduce the open-access flag, for local checks or anything else.
@@ -51,7 +51,7 @@ Brand facts (name, hours, claims, links, voice) live in `taheri-site/docs/taheri
 - Hostinger (the site's server) is reachable over SSH with the deploy key `~/.ssh/taheri_deploy`
   (port 65002, user in `taheri-site/.github/workflows/deploy.yml`). **The key exists only on the owner's Mac** —
   on another device use hPanel or copy the key deliberately.
-- **A bare 503 is the server dying**, not the route (routes answer JSON): out of memory kills every request on that instance.
+- **A bare 503 is the server dying**, not a route (routes answer JSON): out of memory kills every request on it.
   `gcloud logging read 'textPayload:"Memory limit of"'`. 1 GiB since 2026-10-01 — [why](docs/features/ad-studio.md#out-of-memory).
 - The owner is a Firebase/GCP Owner but lacks `iam.serviceAccounts.signBlob`, so `createCustomToken` fails from a laptop;
   test storage layers directly (`npx tsx`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID=gemstrack-pos`).
@@ -82,10 +82,8 @@ from the YAML files (secrets left blank to fill from Secret Manager), then `npm 
 (port 3000) or `npm run dev:mina` (port 3001). `.env.local` is a hand-kept Taheri file that plain `npm run dev` uses.
 Next reads `.env.local` / `.env.development.local` even under `dev:mina` and fills any variable the process lacks, so the
 generator writes every variable that isn't the house's as **empty** (Next then leaves it alone). Re-run `npm run env:mina`
-after changing either YAML — a stale `.env.mina.local` is how a local Mina showed Taheri's Post a Piece, Investments and
-Photo Weights on 2026-09-25. `.env.local` is not Taheri's on every machine (on the second laptop it is Mina's, with Mina's
-service-account key): when it names another Firebase project, `env:taheri` blanks its variables too, so a local Taheri never
-signs in to Mina's project (2026-09-26).
+after changing either YAML (a stale one gave a local Mina Taheri's menus, 2026-09-25). `.env.local` is Mina's on the second
+laptop: when it names another Firebase project, `env:taheri` blanks its variables too (2026-09-26).
 
 ## Cloud sessions (claude.ai/code, since 2026-09-27)
 
@@ -110,11 +108,10 @@ Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27: "
 - **Going live:** a cloud session can push only its own `claude/…` branch. `.github/workflows/cloud-deploy.yml` takes any push to
   `claude/**`, merges `main`, `taheri-next` and gemstrack-pos `main` into it, runs the typecheck and tests, and pushes the result
   to `main` + `taheri-next` here and to gemstrack-pos `main` (a write deploy key there; its private half is this repo's Actions
-  secret `HOM_DEPLOY_KEY`): both houses at once, **with no review** (owner's choice, 2026-09-27). A conflict or a failed check stops
-  it before any push, and nothing is ever force-pushed. taheri-site and mina-catalogue do the same with their own `cloud-deploy.yml`
-  (branch → main → their deploy). In a cloud session: commit, push the branch, watch `gh run list`; on a conflict, rebase on
-  `origin/main` and push again. "Run workflow" on cloud-deploy.yml defaults to a dry run (checks, no pushes).
-- **Mac only:** SSH to Hostinger (port 65002; the sites deploy through Actions anyway), Google sign-in to a local ERP (no browser —
+  secret `HOM_DEPLOY_KEY`): both houses at once, **with no review** (owner, 2026-09-27). A conflict or a failed check stops
+  it before any push; nothing is force-pushed. taheri-site and mina-catalogue have their own `cloud-deploy.yml`. In a cloud
+  session: commit, push the branch, watch the run; on a conflict, rebase on `origin/main` and push again. "Run workflow" on cloud-deploy.yml defaults to a dry run (checks, no pushes).
+- **Mac only:** SSH to Hostinger (the sites deploy through Actions), Google sign-in to a local ERP (no browser —
   typecheck, tests and the gate's `?dev=1` still work), the Mac's memory files (this file is the handoff), GoDaddy / Hostinger API
   tokens (not in Secret Manager).
 
@@ -195,7 +192,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Post a piece and its tools** (`docs/features/post-a-piece.md`)
 - [Post a piece drafts](docs/features/post-a-piece.md#post-a-piece-drafts) — drafts on this device (IndexedDB), photos included; picks up where it left off
-- [Post a piece](docs/features/post-a-piece.md#post-a-piece) — story, square and caption from one piece; publish to site, WhatsApp, Instagram
+- [Post a piece](docs/features/post-a-piece.md#post-a-piece) — story, square and caption from one piece; to site, WhatsApp, Instagram; [Paint](docs/features/post-a-piece.md#paint)
 - [Checks](docs/features/post-a-piece.md#checks) — every dependency tested live, with a fix for each failure
 - [Story editor](docs/features/post-a-piece.md#story-editor) — the layer document and its editor
 - [Square only](docs/features/post-a-piece.md#square-only) — the square editor and SVG marks
@@ -227,7 +224,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Ads](docs/features/ads.md#ads) — Meta ad account per house; Overview, Campaigns, New ad, Setup; the helper
 
 **Ad studio** (`docs/features/ad-studio.md`)
-- [Ad studio](docs/features/ad-studio.md#ad-studio) — Picks, Library, Make, Plan, Guide, Saved, Competitors; both houses
+- [Ad studio](docs/features/ad-studio.md#ad-studio) — Picks, Library, Make, Plan, Guide, Saved, Competitors; both houses; [any shape](docs/features/ad-studio.md#any-shape)
 
 ## graphify
 

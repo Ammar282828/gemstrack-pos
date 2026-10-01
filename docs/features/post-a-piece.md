@@ -111,6 +111,15 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   "From your phone" is one button plus a More menu. Each step is a card of its own with a numbered badge (`STEP`, owner: "requires
   more separation"); panels inside a step are tinted, not bordered. On a phone the design toolbar is four equal tiles, icon over word.
   WhatsApp never just disappears: with no settings (a local copy) or a failed load, its card says why.
+  <a id="paint"></a>**Paint the whole story / post** (2026-10-01, owner: "add paint the ad option in post a piece in case i want that
+  creative"): the Ad studio's "Paint the whole ad" in both AI menus. Op `paint` on `/api/website/post/ai` uses the studio's own
+  `paintPrompt` (the house's ground, gold hairline frame, Didone headline) at 9:16 or 1:1 with the piece's kicker, headline and
+  details line, an optional direction, and `markCorner` — where the design's own mark sits (`markSpot`), so the painting leaves that
+  corner empty and the mark goes on top. Each part of the details line is read back on its own (the weight must survive), and the
+  piece is checked against the **real photograph** (image[1], when the photo painted from is itself an AI edit). A painted story is
+  the story (`lettered`, `kind: 'paint'`); a painted post replaces that photo's square on WhatsApp and when shared or saved —
+  **never on the website**, which keeps the catalogue square (`squareJpeg(…, { site: true })`). Both are kept in the draft
+  (`painted` beside `lettered`) and "Back to our design" / "Use the painted post" switch without painting again.
 
 ### Website photos
 

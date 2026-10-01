@@ -499,7 +499,7 @@ export function ContextToolbar({ ed }: { ed: Editor }) {
     </>
   );
   let body: React.ReactNode;
-  if (ed.p.lettered) body = <span className="text-xs text-muted-foreground">AI lettering is on — switch to “Our fonts” to style the text yourself.</span>;
+  if (ed.p.lettered) body = <span className="text-xs text-muted-foreground">The AI lettered or painted this one — go back to our design (AI menu) to style the text yourself.</span>;
   else if (!ed.selLayers.length) {
     body = (<>
       <span className="text-xs text-muted-foreground mr-2 shrink-0">{ed.bgSel ? 'The photo:' : 'Select something on the page, or:'}</span>

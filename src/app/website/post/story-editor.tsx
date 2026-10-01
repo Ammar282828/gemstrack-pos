@@ -1109,7 +1109,7 @@ function InlineEditor({ ed, tools, designer, onDesign }: { ed: Editor; tools?: R
     </div>
 
     {p.lettered ? (
-      <p className="text-xs text-muted-foreground">AI lettering is on — switch back to our fonts (AI menu) to move and style the text yourself.</p>
+      <p className="text-xs text-muted-foreground">The AI lettered or painted this one — go back to our design (AI menu) to move and style the text yourself.</p>
     ) : ed.one ? (
       <LayerInspector ed={ed} layer={ed.one} />
     ) : ed.selLayers.length > 1 ? (

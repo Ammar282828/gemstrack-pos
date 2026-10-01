@@ -3,7 +3,7 @@
  * the Saved tab files and finds them. Pure, tested.
  */
 
-import { AD_FORMATS, type AdFormat, type AdTemplateId } from './templates';
+import { isAdFormat, type AdFormat, type AdTemplateId } from './templates';
 import { GOALS, type GoalKey } from '@/lib/ads/plan';
 import type { SavedAd, SavedInput } from './saved';
 
@@ -14,7 +14,7 @@ export function savedInput(raw: unknown): SavedInput | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   const format = str(r.format, 20) as AdFormat;
-  if (!(format in AD_FORMATS)) return null;
+  if (!isAdFormat(format)) return null;
   const goal = (GOALS.some(g => g.key === r.goal) ? r.goal : 'whatsapp') as GoalKey;
   const fields: Record<string, string> = {};
   if (r.fields && typeof r.fields === 'object') for (const [k, v] of Object.entries(r.fields as Record<string, unknown>).slice(0, 12)) if (typeof v === 'string') fields[k.slice(0, 20)] = v.slice(0, 300);

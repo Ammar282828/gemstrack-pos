@@ -57,7 +57,7 @@ import { ToastAction } from '@/components/ui/toast';
 import {
   Send, ImagePlus, Camera, X, Star, Loader2, Check, RotateCw, Share2, Download, Copy, ExternalLink, Instagram,
   MessageCircle, Globe, Sparkles, Wand2, Expand, Palette as PaletteIcon, Type, ShieldCheck, ShieldAlert, Link2, MessageSquareText,
-  Radio, ListPlus, ChevronDown, MoreHorizontal, FileClock, History,
+  Radio, ListPlus, ChevronDown, MoreHorizontal, FileClock, History, Brush,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -66,7 +66,7 @@ import { headlineOf, siteFrom, sitePhotoQuery, type SiteFrom } from '@/lib/websi
 import { detailsLine, waNumberFromUrl, weightLabel, websiteFileName, whatsappCaption } from '@/lib/social/caption';
 import { PALETTES, STORY_H, STORY_W, canvasToJpeg, loadImage, loadStampFont, stampPhoto, suggestPalette } from '@/lib/social/story';
 import { SCENES, customPrompt, restagePrompt, type Aspect, type CaptionResult, type CheckResult } from '@/lib/social/prompts';
-import { PRESETS, SQUARE_PRESETS, applyPreset, applySquarePreset, emptyDoc, emptySquare, reflow, renderDoc, renderDocTo, type Assets, type Bind, type Fields, type PresetId, type SquarePresetId, type StoryDoc, type TextLayer } from '@/lib/social/editor';
+import { PRESETS, SQUARE_PRESETS, applyPreset, applySquarePreset, emptyDoc, emptySquare, frameOf, reflow, renderDoc, renderDocTo, type Assets, type Bind, type Fields, type MarkLayer, type PresetId, type SquarePresetId, type StoryDoc, type TextLayer } from '@/lib/social/editor';
 import type { Palette } from '@/lib/social/palettes';
 import { PairEditor, useStoryDoc, type PairKey } from './story-editor';
 import { FONTS, headlineFace, bodyFace } from './fonts';
@@ -123,7 +123,15 @@ interface WaGroup { key: string; label: string; name: string; size: number | nul
 /** An Error that remembers the HTTP status it came with, for diagnose(). */
 const httpError = (message: string, status: number) => Object.assign(new Error(message), { status });
 const errStatus = (e: unknown) => (typeof (e as { status?: unknown })?.status === 'number' ? (e as { status: number }).status : undefined);
-interface Lettered { url: string; img: HTMLImageElement; blob: Blob; verified: boolean; missing: string[]; forId: string }
+/** An AI-made story or post: lettered by the AI over our photo, or painted whole around the piece. */
+interface Lettered { url: string; img: HTMLImageElement; blob: Blob; verified: boolean; missing: string[]; forId: string; kind?: 'letter' | 'paint'; check?: CheckResult | null }
+/** Where the shop's mark sits on a design, so a painting leaves that place empty for it. */
+function markSpot(doc: StoryDoc): string {
+  const m = doc.layers.find(l => l.kind === 'wordmark' && !l.hidden) as MarkLayer | undefined;
+  if (!m) return 'top-right';
+  const f = frameOf(doc), cx = m.x + m.width / 2;
+  return `${m.y < f.h / 2 ? 'top' : 'bottom'}-${Math.abs(cx - f.w / 2) < f.w * 0.12 ? 'centre' : cx > f.w / 2 ? 'right' : 'left'}`;
+}
 
 async function authHeaders(): Promise<Record<string, string>> {
   try { const t = await firebaseAuth?.currentUser?.getIdToken(); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; }
@@ -216,6 +224,11 @@ function PostAPiecePage() {
   const [lettering, setLettering] = useState<'ours' | 'ai'>('ours');
   const [lettered, setLettered] = useState<Lettered | null>(null);
   const [letterStyle, setLetterStyle] = useState('');
+  // The post painted whole by the AI (WhatsApp and sharing only; the website keeps the catalogue square).
+  const [painted, setPainted] = useState<Lettered | null>(null);
+  const [postPainted, setPostPainted] = useState(false);
+  const [paintFor, setPaintFor] = useState<'story' | 'post' | null>(null);
+  const [paintBrief, setPaintBrief] = useState('');
 
   // ── AI ──
   const [aiBusy, setAiBusy] = useState<Record<string, string>>({}); // key → what it is doing
@@ -299,10 +312,16 @@ function PostAPiecePage() {
   // Photos that go out as squares: everything ticked for the website or WhatsApp.
   const squarePhotos = photos.filter(p => p.toSite || p.toWhatsApp);
   const weightStamped = square.doc.layers.some(l => l.kind === 'text' && l.bind === 'weight' && !l.hidden);
-  /** A photo's square, as a JPEG `px` wide: the square's layers over that photo's own crop. */
-  const squareJpeg = async (p: Photo, px: number) => {
+  /** The painted post, when it is on and was painted from this photo. */
+  const paintedFor = (p: Photo | null | undefined) => (postPainted && painted && p && painted.forId === p.id ? painted : null);
+  /**
+   * A photo's square, as a JPEG `px` wide: the square's layers over that photo's own crop — or, painted,
+   * the painting under the square's mark. The website always gets the catalogue square, never a painting.
+   */
+  const squareJpeg = async (p: Photo, px: number, opts: { site?: boolean } = {}) => {
     const doc: StoryDoc = { ...square.doc, bg: { ...square.doc.bg, photoId: p.id } };
-    return canvasToJpeg(renderDocTo(reflow(doc, fields, assets), fields, assets, px), 0.92);
+    const paint = opts.site ? null : paintedFor(p);
+    return canvasToJpeg(renderDocTo(reflow(doc, fields, assets), fields, assets, px, paint ? { background: paint.img, hideBound: true } : {}), 0.92);
   };
   /** Website squares at the catalogue's 3000 px when the photo has that much detail; never below 1080. */
   const siteSize = (p: Photo) => Math.max(1080, Math.min(3000, Math.min(p.img.naturalWidth, p.img.naturalHeight)));
@@ -623,6 +642,43 @@ function PostAPiecePage() {
     }
   };
 
+  /** The real photograph under any chain of AI edits, for the same-piece check. */
+  const originalOf = (p: Photo): Photo => {
+    let cur = p;
+    for (let i = 0; i < 10 && cur.ai; i++) { const up = photos.find(x => x.id === cur.ai!.parentId); if (!up) break; cur = up; }
+    return cur;
+  };
+
+  /**
+   * The Ad studio's "Paint the whole ad", here: the image model paints a finished story (9:16) or
+   * post (1:1) around the piece, with the piece's own words, leaving room for the shop's mark where
+   * the design has it. Read back and checked against the real photograph; shown, never sent unseen.
+   */
+  const paintWithAi = async (target: 'story' | 'post', brief: string) => {
+    const source = target === 'story' ? hero : squarePhotos.find(p => p.id === square.doc.bg.photoId) ?? squarePhotos[0];
+    if (!source || !headline.trim()) return;
+    const key = `paint-${target}`;
+    setBusy(key, target === 'story' ? 'Painting the story' : 'Painting the post');
+    try {
+      const original = originalOf(source);
+      const imgs = [await forAi(source.img), ...(original.id !== source.id ? [await forAi(original.img)] : [])];
+      const d = await callAi<AiImageResponse & { lettering: { verified: boolean; missing: string[] } }>('paint', imgs, {
+        aspect: target === 'story' ? '9:16' : '1:1', kicker, headline, specs: detailsLine(piece, true), brief: brief.trim(),
+        markCorner: markSpot(target === 'story' ? story.doc : square.doc),
+      });
+      const { url, img, blob } = await fromBase64(d.image.data, d.image.mimeType);
+      const made: Lettered = { url, img, blob, verified: d.lettering.verified, missing: d.lettering.missing, forId: source.id, kind: 'paint', check: d.check ?? null };
+      if (target === 'story') { if (lettered) URL.revokeObjectURL(lettered.url); setLettered(made); setLettering('ai'); }
+      else { if (painted) URL.revokeObjectURL(painted.url); setPainted(made); setPostPainted(true); }
+      if (!checkOk(d.check)) toast({ title: d.check ? 'Check the piece closely' : 'Could not check it', description: d.check?.differences[0] ?? 'Compare it with the photo before posting.', variant: d.check ? 'destructive' : undefined });
+      else if (!d.lettering.verified) toast({ title: 'The AI got some words wrong', description: `Could not find: ${d.lettering.missing.join(', ') || 'the text'}. Paint again, or go back to our design.`, variant: 'destructive' });
+    } catch (e) {
+      explain('ai', e);
+    } finally {
+      setBusy(key, null);
+    }
+  };
+
   // ── The story file: the same document the editor shows, rendered off-screen at full size ──
   const getStory = useCallback(async () => {
     if (!hero) throw new Error('Add a photo first');
@@ -733,7 +789,9 @@ function PostAPiecePage() {
   if (makeSquare && SITE && toWebsite && maisonSite && !maisonHouse) problems.push('Choose the piece’s house for The Maisons.');
   if (makeSquare && toWhatsApp && community && !caption.trim()) problems.push('The WhatsApp caption is empty.');
   if (makeSquare && toWhatsApp && community && !waChosen.length) problems.push('Choose a WhatsApp group or the channel, or switch WhatsApp off.');
-  if (makeStory && lettering === 'ai' && !aiLettered) problems.push('AI lettering is on but not made for this photo — letter it, or switch to our fonts.');
+  if (makeStory && lettering === 'ai' && !aiLettered) problems.push(lettered?.kind === 'paint'
+    ? 'The painted story was made for another photo — paint this one, or go back to our design.'
+    : 'AI lettering is on but not made for this photo — letter it, or switch to our fonts.');
 
   const setStep = (id: string, patch: Partial<Step>) => setSteps(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s));
   // Shared or saved from anywhere on the page, the by-hand story step is done.
@@ -741,7 +799,7 @@ function PostAPiecePage() {
 
   const uploadToWebsite = async (p: Photo, index: number, headers: Record<string, string>): Promise<string> => {
     if (uploadedRef.current[p.id]) return uploadedRef.current[p.id];
-    const jpeg = await squareJpeg(p, siteSize(p));
+    const jpeg = await squareJpeg(p, siteSize(p), { site: true });
     const name = siteFileName(index);
     const form = new FormData();
     form.set('folder', folder);
@@ -857,7 +915,7 @@ function PostAPiecePage() {
           instagram: igOn,
           whatsapp: waOn ? waChosen : [],
         },
-        site: await Promise.all(site.map(p => squareJpeg(p, siteSize(p)))),
+        site: await Promise.all(site.map(p => squareJpeg(p, siteSize(p), { site: true }))),
         wa: await Promise.all(wa.map(p => squareJpeg(p, 1600))),
         story: igOn ? await getStory() : null,
         thumb: await squareJpeg(hero, 240).catch(() => null),
@@ -890,10 +948,11 @@ function PostAPiecePage() {
   const startOver = () => {
     photos.forEach(p => URL.revokeObjectURL(p.url));
     if (lettered) URL.revokeObjectURL(lettered.url);
+    if (painted) URL.revokeObjectURL(painted.url);
     setPhotos([]); setHeroId(null); setKicker(''); setHeadline(''); setWeight(''); setWeightEach(false);
     setStones(''); setHook(''); setCaptionEdited(false); setSiteNameEdited(false); setFeature(false);
     story.reset(emptyDoc(null)); setPalette(PALETTES[0]);
-    setLettering('ours'); setLettered(null); setAiCaption(null);
+    setLettering('ours'); setLettered(null); setAiCaption(null); setPainted(null); setPostPainted(false);
     setSteps([]); uploadedRef.current = {}; sentRef.current = {}; setStoryOut(false);
     // The next piece is a draft of its own; the one just left stays in Drafts unless it went out.
     detachDraft();
@@ -920,7 +979,7 @@ function PostAPiecePage() {
 
   const draftState = () => ({
     kicker, headline, weight, weightEach, metal, stones, hook, story: story.doc, square: square.doc, palette, weightOwnLine,
-    lettering, letterStyle, toWebsite, folder, siteName, siteNameEdited, maisonHouse, feature, waTargets, toWhatsApp,
+    lettering, letterStyle, postPainted, toWebsite, folder, siteName, siteNameEdited, maisonHouse, feature, waTargets, toWhatsApp,
     caption, captionEdited, toInstagram, formats, view, storyOut, aiCaption, uploaded: uploadedRef.current, sent: sentRef.current,
   });
   type DraftState = ReturnType<typeof draftState>;
@@ -930,8 +989,9 @@ function PostAPiecePage() {
     if (!photos.length && !headline.trim()) return;
     const state = draftState();
     const meta = photos.map(({ id, name, toSite, toWhatsApp, ai, from }) => ({ id, name, toSite, toWhatsApp, ai, ...(from ? { from } : {}) }));
-    const letteredMeta = lettered ? { verified: lettered.verified, missing: lettered.missing, forId: lettered.forId } : null;
-    const json = JSON.stringify({ state, meta, letteredMeta, hero: hero?.id });
+    const metaOf = (l: Lettered | null) => (l ? { verified: l.verified, missing: l.missing, forId: l.forId, kind: l.kind, check: l.check ?? null } : null);
+    const letteredMeta = metaOf(lettered), paintedMeta = metaOf(painted);
+    const json = JSON.stringify({ state, meta, letteredMeta, paintedMeta, hero: hero?.id });
     if (json === lastSaved.current) return;
     let id = draftIdRef.current;
     const now = new Date().toISOString();
@@ -943,9 +1003,10 @@ function PostAPiecePage() {
     if (hero && thumb.current.forId !== hero.id) thumb.current = { forId: hero.id, blob: await thumbOf(hero.img) };
     const blobs = new Map<string, Blob>(photos.map(p => [p.id, p.blob]));
     if (lettered) blobs.set('lettered', lettered.blob);
+    if (painted) blobs.set('painted', painted.blob);
     await savePostDraft({
       id, createdAt: draftCreated.current ?? now, updatedAt: now, title: headline.trim(), photos: meta,
-      lettered: letteredMeta, thumb: thumb.current.blob, state,
+      lettered: letteredMeta, painted: paintedMeta, thumb: thumb.current.blob, state,
     }, blobs, storedPhotos.current);
     lastSaved.current = json;
     if (storedPhotos.current.size && draftCount === 0) refreshDraftCount();
@@ -958,9 +1019,10 @@ function PostAPiecePage() {
     const t = setTimeout(() => { void saveRef.current().catch(() => undefined); }, 1500);
     return () => clearTimeout(t);
   }, [photos, kicker, headline, weight, weightEach, metal, stones, hook, story.doc, square.doc, palette, weightOwnLine, lettering, letterStyle,
-      lettered, toWebsite, folder, siteName, maisonHouse, feature, waTargets, toWhatsApp, caption, toInstagram, formats, storyOut, aiCaption, published]);
+      lettered, painted, postPainted, toWebsite, folder, siteName, maisonHouse, feature, waTargets, toWhatsApp, caption, toInstagram, formats, storyOut, aiCaption, published]);
   // A new AI lettering replaces the stored one.
   useEffect(() => { storedPhotos.current.delete('lettered'); }, [lettered]);
+  useEffect(() => { storedPhotos.current.delete('painted'); }, [painted]);
 
   /** Gone out (published, or in the queue): out of Drafts. */
   const finishDraft = () => {
@@ -992,13 +1054,14 @@ function PostAPiecePage() {
       }
       photos.forEach(p => URL.revokeObjectURL(p.url));
       if (lettered) URL.revokeObjectURL(lettered.url);
+      if (painted) URL.revokeObjectURL(painted.url);
       const st = draft.state;
       setPhotos(list);
       setKicker(st.kicker ?? ''); setHeadline(st.headline ?? ''); setWeight(st.weight ?? ''); setWeightEach(!!st.weightEach);
       setMetal(st.metal ?? STORE_POST_METAL); setStones(st.stones ?? ''); setHook(st.hook ?? '');
       if (st.story) story.reset(st.story); if (st.square) square.reset(st.square);
       if (st.palette) setPalette(st.palette); setWeightOwnLine(st.weightOwnLine ?? true);
-      setLettering(st.lettering ?? 'ours'); setLetterStyle(st.letterStyle ?? '');
+      setLettering(st.lettering ?? 'ours'); setLetterStyle(st.letterStyle ?? ''); setPostPainted(!!st.postPainted);
       setToWebsite(st.toWebsite ?? !!SITE); setFolder(st.folder ?? ''); setSiteName(st.siteName ?? ''); setSiteNameEdited(!!st.siteNameEdited);
       setMaisonHouse(st.maisonHouse ?? ''); setFeature(!!st.feature);
       setWaTargets(st.waTargets ?? []); setToWhatsApp(!!st.toWhatsApp); setToInstagram(!!st.toInstagram);
@@ -1012,6 +1075,11 @@ function PostAPiecePage() {
         const url = URL.createObjectURL(lb);
         setLettered({ url, img: await loadImage(url), blob: lb, ...draft.lettered });
       } else setLettered(null);
+      const pb = blobs.get('painted');
+      if (draft.painted && pb) {
+        const url = URL.createObjectURL(pb);
+        setPainted({ url, img: await loadImage(url), blob: pb, ...draft.painted });
+      } else setPainted(null);
       draftIdRef.current = id; setDraftId(id); setCurrentPostDraft(id);
       storedPhotos.current = new Set(blobs.keys()); draftCreated.current = draft.createdAt;
       thumb.current = { forId: st.story?.bg?.photoId ?? list[0]?.id ?? null, blob: draft.thumb ?? null };
@@ -1398,19 +1466,22 @@ function PostAPiecePage() {
                         <DropdownMenuContent align="start" className="w-64">
                           <DropdownMenuLabel>AI — the piece stays as it is</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => setWholeOpen(true)}><Wand2 className="h-4 w-4 mr-2" /> Make the whole story…</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!headline.trim()} onClick={() => setPaintFor('story')}><Brush className="h-4 w-4 mr-2" /> Paint the whole story…</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setRestageFor({ photoId: (hero.ai && photos.find(p => p.id === hero.ai!.parentId)?.id) || hero.id, aspect: '9:16' })}><PaletteIcon className="h-4 w-4 mr-2" /> New setting…</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => aiImage(hero, 'reframe', { aspect: '9:16', tidy }, 'Story frame')}><Expand className="h-4 w-4 mr-2" /> Extend the photo to 9:16</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setAskFor({ photoId: hero.id, aspect: null }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-2" /> Ask AI…</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {lettering === 'ai'
-                            ? <DropdownMenuItem onClick={() => setLettering('ours')}><Type className="h-4 w-4 mr-2" /> Back to our fonts</DropdownMenuItem>
+                            ? <DropdownMenuItem onClick={() => setLettering('ours')}><Type className="h-4 w-4 mr-2" /> {lettered?.kind === 'paint' ? 'Back to our design' : 'Back to our fonts'}</DropdownMenuItem>
                             : <DropdownMenuItem disabled={!headline.trim()} onClick={() => { setLettering('ai'); if (!aiLettered) letterWithAi(); }}><Type className="h-4 w-4 mr-2" /> AI lettering</DropdownMenuItem>}
                           <DropdownMenuSeparator />
                           {tidyItem}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : null,
-                    bottom: lettering === 'ai' ? (
+                    bottom: lettering === 'ai' && lettered?.kind === 'paint' ? (
+                      <PaintedPanel what="story" made={aiLettered} busy={busyAny} onAgain={() => setPaintFor('story')} onBack={() => setLettering('ours')} />
+                    ) : lettering === 'ai' ? (
                       <div className="rounded-xl bg-muted/40 p-3 space-y-2 text-sm">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <span className="font-medium flex-1">AI lettering</span>
@@ -1436,9 +1507,9 @@ function PostAPiecePage() {
                       onPreset: id => story.change(d => applyPreset(d, id as PresetId, palette, fields, assets, { weightOwnLine, wordmark: d.layers.some(l => l.kind === 'wordmark') || d.layers.length === 0 })),
                       previewPreset: id => applyPreset(story.doc, id as PresetId, palette, fields, assets, { weightOwnLine, wordmark: story.doc.layers.some(l => l.kind === 'wordmark') || story.doc.layers.length === 0 }),
                       fileName: fileNameBase,
-                      overlay: (aiBusy.whole || aiBusy.letter) ? (
+                      overlay: (aiBusy.whole || aiBusy.letter || aiBusy['paint-story']) ? (
                         <div className="absolute inset-0 rounded-xl bg-black/45 text-white flex flex-col items-center justify-center gap-2 text-sm text-center p-6">
-                          <Loader2 className="h-6 w-6 animate-spin" />{aiBusy.whole ? 'Writing, choosing a setting and photographing it… about a minute' : 'Lettering it and reading it back…'}
+                          <Loader2 className="h-6 w-6 animate-spin" />{aiBusy.whole ? 'Writing, choosing a setting and photographing it… about a minute' : aiBusy['paint-story'] ? 'Painting the story, reading it back and checking the piece… about a minute' : 'Lettering it and reading it back…'}
                         </div>
                       ) : null,
                     },
@@ -1449,7 +1520,11 @@ function PostAPiecePage() {
                     placeholder: squarePhotos.length ? undefined : (
                       <p className="rounded-xl border-2 border-dashed p-6 text-center text-sm text-muted-foreground">{photos.length ? 'Tick Site or WA on a photo and the post appears here.' : 'Add a photo and the post appears here.'}</p>
                     ),
-                    top: notSquare ? <p className="text-xs text-amber-600">This photo isn’t square, so its edges are cropped — drag it on the post, or AI → Make it a true square.</p> : null,
+                    top: paintedFor(current) ? null : notSquare ? <p className="text-xs text-amber-600">This photo isn’t square, so its edges are cropped — drag it on the post, or AI → Make it a true square.</p> : null,
+                    bottom: paintedFor(current) ? (
+                      <PaintedPanel what="post" made={paintedFor(current)} busy={busyAny} onAgain={() => setPaintFor('post')} onBack={() => setPostPainted(false)}
+                        note={siteOn && current?.toSite ? `${SITE_NAME || 'The website'} still gets the catalogue square; the painting goes to WhatsApp and when you share or save.` : undefined} />
+                    ) : null,
                     tools: current ? (
                       <DropdownMenu>
                         {aiTrigger}
@@ -1460,6 +1535,13 @@ function PostAPiecePage() {
                           <DropdownMenuItem onClick={() => aiImage(current, 'retouch', { tidy }, 'Retouched')}><Wand2 className="h-4 w-4 mr-2" /> Retouch — piece, background, light</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setAskFor({ photoId: current.id, aspect: '1:1' }); setAskText(''); setAskPromptText(null); }}><MessageSquareText className="h-4 w-4 mr-2" /> Ask AI…</DropdownMenuItem>
                           <DropdownMenuSeparator />
+                          {paintedFor(current)
+                            ? <DropdownMenuItem onClick={() => setPostPainted(false)}><Brush className="h-4 w-4 mr-2" /> Back to our design</DropdownMenuItem>
+                            : painted?.forId === current.id
+                              ? <DropdownMenuItem onClick={() => setPostPainted(true)}><Brush className="h-4 w-4 mr-2" /> Use the painted post</DropdownMenuItem>
+                              : null}
+                          <DropdownMenuItem disabled={!headline.trim()} onClick={() => setPaintFor('post')}><Brush className="h-4 w-4 mr-2" /> {painted?.forId === current.id ? 'Paint the post again…' : 'Paint the whole post…'}</DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           {tidyItem}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1468,13 +1550,18 @@ function PostAPiecePage() {
                       api: square, square: true, fields, assets,
                       photos: squarePhotos.map(p => ({ id: p.id, url: p.url, label: p.ai?.label })),
                       palette, onPalette: setPalette,
-                      lettered: null,
+                      lettered: paintedFor(current)?.img ?? null,
                       onField, weightOwnLine,
                       websiteLabel: SITE_NAME || 'taheri.shop',
                       presets: SQUARE_PRESETS,
                       onPreset: id => square.change(d => applySquarePreset(d, id as SquarePresetId, fields, assets)),
                       previewPreset: id => applySquarePreset(square.doc, id as SquarePresetId, fields, assets),
                       fileName: fileNameBase,
+                      overlay: aiBusy['paint-post'] ? (
+                        <div className="absolute inset-0 rounded-xl bg-black/45 text-white flex flex-col items-center justify-center gap-2 text-sm text-center p-6">
+                          <Loader2 className="h-6 w-6 animate-spin" />Painting the post, reading it back and checking the piece… about a minute
+                        </div>
+                      ) : null,
                     },
                   }}
                 />
@@ -1654,6 +1741,35 @@ function PostAPiecePage() {
         </DialogContent>
       </Dialog>
 
+      {/* Paint the whole story or post: the Ad studio's painting, from this piece's words. */}
+      <Dialog open={!!paintFor} onOpenChange={o => { if (!o) setPaintFor(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Paint the whole {paintFor === 'post' ? 'post' : 'story'}</DialogTitle>
+            <DialogDescription>
+              The AI paints a finished {paintFor === 'post' ? 'square post' : '9:16 story'} around the piece, the way the Ad studio paints an ad: the ground, the light, a fine frame and the lettering, all in one picture.
+              It writes exactly these words, then reads them back and checks the piece against your photo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-0.5">
+            {kicker.trim() && <p className="text-[11px] uppercase tracking-widest text-muted-foreground">{kicker}</p>}
+            <p className="font-serif italic text-base">{headline || 'No headline yet'}</p>
+            {detailsLine(piece, true) && <p className="text-xs text-muted-foreground">{detailsLine(piece, true)}</p>}
+          </div>
+          <Textarea value={paintBrief} onChange={e => setPaintBrief(e.target.value)} rows={3}
+            placeholder="Optional — your direction, e.g. warm candlelight, deep green ground · or: minimal, lots of empty space" />
+          <p className="text-xs text-muted-foreground">
+            {paintFor === 'post'
+              ? 'The painting goes to WhatsApp and when you share or save the post; the website keeps the catalogue square.'
+              : 'Your layout’s words make way for the painting’s; the mark stays where your design has it.'}
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPaintFor(null)}>Cancel</Button>
+            <Button disabled={!headline.trim()} onClick={() => { const t = paintFor; setPaintFor(null); if (t) paintWithAi(t, paintBrief); }}><Brush className="h-4 w-4 mr-1.5" /> Paint it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1819,5 +1935,32 @@ function StepTitle({ n, children }: { n: number; children: React.ReactNode }) {
       <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">{n}</span>
       {children}
     </h2>
+  );
+}
+
+/** What a painted story or post is: read back, the same piece or not, and the way back. */
+function PaintedPanel({ what, made, busy, onAgain, onBack, note }: {
+  what: 'story' | 'post'; made: Lettered | null; busy: boolean; onAgain: () => void; onBack: () => void; note?: string;
+}) {
+  const same = made?.check ? made.check.samePiece && made.check.confidence >= 0.8 : null;
+  return (
+    <div className="rounded-xl bg-muted/40 p-3 space-y-1.5 text-sm">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-medium flex-1">Painted by AI</span>
+        <button type="button" onClick={onAgain} disabled={busy} className="min-h-0 text-xs text-primary inline-flex items-center gap-1"><Brush className="h-3 w-3" /> {made ? 'Paint again' : `Paint the ${what}`}</button>
+        <button type="button" onClick={onBack} className="min-h-0 text-xs text-muted-foreground">Back to our design</button>
+      </div>
+      {!made ? (
+        <p className="text-xs text-amber-600">Painted for another photo — paint this one, or go back to our design.</p>
+      ) : (<>
+        <p className={cn('text-xs flex items-center gap-1', made.verified ? 'text-emerald-600' : 'text-amber-600')}>
+          {made.verified ? <><ShieldCheck className="h-3.5 w-3.5" /> Read back: every word and the weight are right.</> : <><ShieldAlert className="h-3.5 w-3.5" /> Could not read: {made.missing.join(', ') || 'the words'}. Check it, or paint again.</>}
+        </p>
+        <p className={cn('text-xs flex items-center gap-1', same ? 'text-emerald-600' : 'text-amber-600')}>
+          {same ? <><ShieldCheck className="h-3.5 w-3.5" /> The same piece as your photo.</> : same === false ? <><ShieldAlert className="h-3.5 w-3.5" /> The piece may have changed: {made.check?.differences[0] ?? 'compare it with your photo'}.</> : <><ShieldAlert className="h-3.5 w-3.5" /> Not checked — compare the piece with your photo.</>}
+        </p>
+      </>)}
+      {note && <p className="text-[11px] text-muted-foreground">{note}</p>}
+    </div>
   );
 }

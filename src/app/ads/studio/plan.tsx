@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { MessageCircle, MessagesSquare, Rss, UserRound, MousePointerClick, ChevronDown, ChevronUp, Brush, Star, Megaphone, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PLAYS, STAGES, type Play } from '@/lib/ads/studio/plays';
-import { AD_FORMATS, AD_TEMPLATES } from '@/lib/ads/studio/templates';
+import { AD_TEMPLATES, formatInfo } from '@/lib/ads/studio/templates';
 import type { GoalKey } from '@/lib/ads/plan';
 
 const ICON: Partial<Record<GoalKey, React.ReactNode>> = {
@@ -47,7 +47,7 @@ function PlayCard({ p, onMake }: { p: Play; onMake: () => void }) {
         </div>
       </div>
       <div className="flex flex-wrap gap-1 text-[10px]">
-        <span className="rounded-full border px-2 py-0.5">{AD_FORMATS[p.format].label}{p.pair && p.format !== 'story' ? ' + 9:16' : ''}</span>
+        <span className="rounded-full border px-2 py-0.5">{formatInfo(p.format).label}{p.pair && p.format !== 'story' ? ' + 9:16' : ''}</span>
         <span className="rounded-full border px-2 py-0.5">{layout}</span>
         <span className="rounded-full border px-2 py-0.5">“{p.cta}”</span>
       </div>

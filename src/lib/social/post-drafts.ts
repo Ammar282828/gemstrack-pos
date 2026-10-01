@@ -26,6 +26,13 @@ export interface PostDraftPhoto {
   from?: SiteFrom;
 }
 
+/** What the page knows about an AI-made story or post besides its image. */
+export interface PaintedMeta {
+  verified: boolean; missing: string[]; forId: string;
+  kind?: 'letter' | 'paint';
+  check?: { samePiece: boolean; confidence: number; differences: string[] } | null;
+}
+
 export interface PostDraft<S = Record<string, unknown>> {
   id: string;
   createdAt: string;
@@ -33,8 +40,10 @@ export interface PostDraft<S = Record<string, unknown>> {
   /** The headline, for the list. */
   title: string;
   photos: PostDraftPhoto[];
-  /** The AI-lettered story image, when there is one (its own photo, keyed `lettered`). */
-  lettered?: { verified: boolean; missing: string[]; forId: string } | null;
+  /** The AI-lettered or painted story image, when there is one (its own photo, keyed `lettered`). */
+  lettered?: PaintedMeta | null;
+  /** The painted post (the square), when there is one (keyed `painted`). */
+  painted?: PaintedMeta | null;
   /** A small JPEG of the lead photo, for the list. */
   thumb?: Blob | null;
   state: S;
@@ -69,7 +78,7 @@ export async function savePostDraft(d: PostDraft, blobs: Map<string, Blob>, stor
   const db = await openDb();
   const tx = db.transaction(['drafts', 'photos'], 'readwrite');
   const photos = tx.objectStore('photos');
-  const keep = new Set([...d.photos.map(p => p.id), ...(d.lettered ? ['lettered'] : [])]);
+  const keep = new Set([...d.photos.map(p => p.id), ...(d.lettered ? ['lettered'] : []), ...(d.painted ? ['painted'] : [])]);
   for (const [id, blob] of blobs) {
     if (!keep.has(id) || stored.has(id)) continue;
     photos.put(blob, photoKey(d.id, id));
@@ -91,7 +100,7 @@ export async function readPostDraft<S>(id: string): Promise<{ draft: PostDraft<S
   const draft = await result(tx.objectStore('drafts').get(id)) as PostDraft<S> | undefined;
   if (!draft) return null;
   const blobs = new Map<string, Blob>();
-  const ids = [...draft.photos.map(p => p.id), ...(draft.lettered ? ['lettered'] : [])];
+  const ids = [...draft.photos.map(p => p.id), ...(draft.lettered ? ['lettered'] : []), ...(draft.painted ? ['painted'] : [])];
   await Promise.all(ids.map(async pid => {
     const b = await result(tx.objectStore('photos').get(photoKey(id, pid))) as Blob | undefined;
     if (b) blobs.set(pid, b);

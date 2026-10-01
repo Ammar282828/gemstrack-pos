@@ -25,6 +25,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 const ASPECT: Record<string, string> = { portrait: '4:5', square: '1:1', story: '9:16', landscape: '16:9' };
+/** Every ratio the image model draws at; the maker sends the one its shape needs (any shape, 2026-10-01). */
+const RATIOS = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
 const norm = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/[^a-z0-9.'·|]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 export async function POST(req: NextRequest) {
@@ -42,14 +44,16 @@ export async function POST(req: NextRequest) {
     const photo = await prepareImage(Buffer.from(await file.arrayBuffer()));
     const facts = [s('specs'), s('price', 80)].filter(Boolean).join(' · ');
     const format = s('format', 20) || 'portrait';
+    const asked = s('aspect', 8);
+    const aspect = RATIOS.includes(asked) ? asked : (ASPECT[format] ?? '4:5');
+    const shape = s('shape', 40) || format;
 
     if (form?.get('op') === 'paint') {
       const words = { kicker: s('kicker', 40), headline: s('headline', 60), specs: s('specs'), cta: s('cta', 60) };
       if (!words.headline) return NextResponse.json({ error: 'A headline is needed to paint the ad.' }, { status: 400 });
       const bad = [words.kicker, words.headline, words.cta].find(t => t && (breaksHouseRule(t) || inventedFigures(t, facts).length));
       if (bad) return NextResponse.json({ error: `“${bad}” has a figure the ERP didn't give, or sale/discount words — change it first.` }, { status: 400 });
-      const aspect = ASPECT[format] ?? '4:5';
-      const image = await generateImage({ images: [photo], aspect, size: '2K', prompt: paintPrompt({ ...words, aspect, story: format === 'story', brief: s('brief', 400) }) });
+      const image = await generateImage({ images: [photo], aspect, size: '2K', prompt: paintPrompt({ ...words, aspect, story: aspect === '9:16', brief: s('brief', 400), trimTo: /^\d+(\.\d+)?:\d+$/.test(s('trimTo', 12)) ? s('trimTo', 12) : undefined }) });
       const painted: InlineImage = { mimeType: image.mimeType, data: image.data };
       const [read, check] = await Promise.all([
         generateText({ parts: [{ inlineData: painted }, { text: READ_PROMPT }] }).catch(() => ''),
@@ -64,7 +68,7 @@ export async function POST(req: NextRequest) {
       model: process.env.AD_STUDIO_TEXT_MODEL?.trim() || TEXT_MODEL, system: DIRECT_SYSTEM, schema: DIRECT_SCHEMA, temperature: 0.7,
       parts: [{ inlineData: photo }, { text: directPrompt({
         name: s('name', 120), collection: s('collection', 80), specs: s('specs'), price: s('price', 80), brief: s('brief', 400),
-        format: `${format} (${ASPECT[format] ?? '4:5'})`, destination: s('destination', 120) || 'a WhatsApp chat with the shop',
+        format: `${shape} (${aspect})`, destination: s('destination', 120) || 'a WhatsApp chat with the shop',
         scenes: SCENES.map(x => `${x.id} (${x.label}; suits ${x.suits})`).join(', '),
       }) }],
     });

@@ -21,6 +21,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, ShieldCheck, Rocket, Download, Upload, ImagePlus, CalendarClock, CheckCircle2, AlertTriangle, XCircle, Layers, Wand2, Eraser, Brush } from 'lucide-react';
@@ -28,7 +29,7 @@ import { cn } from '@/lib/utils';
 import { STORE_LINKS } from '@/lib/store-config';
 import { PALETTES, canvasToJpeg, loadImage } from '@/lib/social/story';
 import { reflow, renderDocTo, type Assets, type Bind, type Fields, type StoryDoc } from '@/lib/social/editor';
-import { AD_FORMATS, AD_FORMAT_ORDER, AD_TEMPLATES, PHOTO, applyAdTemplate, blankAd, paintedAd, rateBoard, safeZone, type AdFormat, type AdTemplateId, type RateBoard } from '@/lib/ads/studio/templates';
+import { AD_FORMATS, AD_FORMAT_ORDER, AD_TEMPLATES, MORE_FORMAT_ORDER, PHOTO, applyAdTemplate, blankAd, formatInfo, isAdFormat, metaFeedFit, ratioOfFrame, paintedAd, rateBoard, safeZone, type AdFormat, type AdTemplateId, type RateBoard } from '@/lib/ads/studio/templates';
 import { GOALS, goesToSite, isChannelLink, type GoalKey } from '@/lib/ads/plan';
 import type { Play } from '@/lib/ads/studio/plays';
 import { VOICE } from '@/lib/ads/studio/brand';
@@ -54,16 +55,28 @@ interface CheckAnswer {
 }
 
 
-function useFormat(): [AdFormat, (f: AdFormat) => void] {
+const CUSTOM_KEY = 'taheri_studio_custom_ratio';
+type Ratio = { w: number; h: number };
+/** The shape, and a custom W:H, remembered on this device. */
+function useFormat(): [AdFormat, (f: AdFormat) => void, Ratio, (r: Ratio) => void] {
   const [f, setF] = useState<AdFormat>('portrait');
-  useEffect(() => { try { const v = localStorage.getItem(FORMAT_KEY) as AdFormat | null; if (v && v in AD_FORMATS) setF(v); } catch { /* private mode */ } }, []);
-  return [f, (v: AdFormat) => { setF(v); try { localStorage.setItem(FORMAT_KEY, v); } catch { /* private mode */ } }];
+  const [ratio, setRatioState] = useState<Ratio>({ w: 4, h: 5 });
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(FORMAT_KEY); if (isAdFormat(v)) setF(v);
+      const [w, h] = (localStorage.getItem(CUSTOM_KEY) || '').split(':').map(Number); if (w > 0 && h > 0) setRatioState({ w, h });
+    } catch { /* private mode */ }
+  }, []);
+  return [
+    f, (v: AdFormat) => { setF(v); try { localStorage.setItem(FORMAT_KEY, v); } catch { /* private mode */ } },
+    ratio, (r: Ratio) => { setRatioState(r); try { localStorage.setItem(CUSTOM_KEY, `${r.w}:${r.h}`); } catch { /* private mode */ } },
+  ];
 }
 
 export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkPhoto | null; onChoose: () => void; onUpload: (w: WorkPhoto) => void; play?: Play | null; restore?: SavedRestore | null }) {
   const { toast } = useToast();
   const router = useRouter();
-  const [format, setFormat] = useFormat();
+  const [format, setFormat, custom, setCustom] = useFormat();
   const [template, setTemplate] = useState<AdTemplateId>('headline');
   const [fields, setFieldsState] = useState<Fields>({ kicker: '', headline: '', weight: '', details: VOICE.ctas[0].replace(/\.$/, '') });
   /** A price the owner types for this ad (prices are allowed since 2026-09-29; the ERP doesn't guess one). */
@@ -108,7 +121,7 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
 
   const cur = photo && photo.key === work ? photo : null;
   const assets: Assets = useMemo(() => ({ photos: cur ? { [PHOTO]: cur.img } : {} as Assets['photos'], marks, fonts: FONTS }), [cur, marks]);
-  const F = AD_FORMATS[format];
+  const F = formatInfo(format, custom);
   const sig = JSON.stringify([doc.doc, fields, text, adHeadline]);
 
   // A new photograph: its words start from the assessment, its picture is fetched at full size.
@@ -164,14 +177,19 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
   // Laid out once the photo, the fonts and the marks are in.
   useEffect(() => {
     if (!cur || !assetsReady || ready) return;
-    doc.reset(reopening ? restore!.doc : applyAdTemplate(blankAd(format), template, fields, assets, { photoMarked: marked, rates }));
+    doc.reset(reopening ? restore!.doc : applyAdTemplate(blankAd(format, F.frame), template, fields, assets, { photoMarked: marked, rates }));
     setReady(true);
   }, [cur, assetsReady, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** The same photo crop and layout on another frame (anything added by hand stays with the old frame). */
-  const onFrame = (f: AdFormat, t: AdTemplateId, m = marked) => applyAdTemplate({ ...blankAd(f), bg: { ...blankAd(f).bg, placement: doc.doc.bg.placement } }, t, fields, assets, { photoMarked: m, rates });
-  const layOut = (f: AdFormat, t: AdTemplateId) => doc.change(() => onFrame(f, t));
+  const onFrame = (f: AdFormat, t: AdTemplateId, m = marked, r: Ratio = custom) => {
+    const blank = blankAd(f, formatInfo(f, r).frame);
+    return applyAdTemplate({ ...blank, bg: { ...blank.bg, placement: doc.doc.bg.placement } }, t, fields, assets, { photoMarked: m, rates });
+  };
+  const layOut = (f: AdFormat, t: AdTemplateId, r: Ratio = custom) => doc.change(() => onFrame(f, t, marked, r));
   const chooseFormat = (f: AdFormat) => { setFormat(f); if (ready) layOut(f, template); setCheck(null); };
+  /** A custom W:H, laid out at once when it is the shape in use. */
+  const chooseRatio = (r: Ratio) => { setCustom(r); if (ready && format === 'custom') layOut('custom', template, r); setCheck(null); };
   const chooseTemplate = (t: AdTemplateId) => { setTemplate(t); if (ready) doc.change(d => applyAdTemplate(d, t, fields, assets, { photoMarked: marked, rates })); };
   const toggleMarked = (m: boolean) => { setMarked(m); if (ready) doc.change(d => applyAdTemplate(d, template, fields, assets, { photoMarked: m, rates })); };
   const setField = useCallback((b: Bind, v: string) => setFieldsState(f => ({ ...f, [b]: v })), []);
@@ -205,6 +223,7 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
     if (!restore || restore.work !== work) { setSavedId(null); setSavedFolder(null); return; }
     setSavedId(restore.id); setSavedFolder(restore.folder);
     setFormat(restore.format); setTemplate(restore.template);
+    if (restore.format === 'custom' && restore.doc.frame) setCustom(ratioOfFrame(restore.doc.frame));
     setFieldsState(f => ({ ...f, ...restore.fields })); setPrice(restore.price);
     setText(restore.text); setAdHeadline(restore.headline); setGoal(restore.goal); setLink(restore.link);
   }, [work]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -230,9 +249,8 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
     } finally { setAiBusy(null); }
   };
 
-  const ASPECT: Record<AdFormat, string> = { portrait: '4:5', square: '1:1', story: '9:16', landscape: '16:9' };
   const aiParams = () => ({
-    name: work?.asset?.name ?? '', collection: work?.asset?.collection ?? '', specs: fields.weight, price, brief, format,
+    name: work?.asset?.name ?? '', collection: work?.asset?.collection ?? '', specs: fields.weight, price, brief, format, aspect: F.ai, shape: F.label, trimTo: F.short,
     destination: GOALS.find(g => g.key === goal)?.hint ?? 'a WhatsApp chat with the shop', kicker: fields.kicker, headline: fields.headline, cta: fields.details,
   });
 
@@ -244,7 +262,7 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
     try {
       const ratio = (cur.img.naturalWidth / cur.img.naturalHeight) / (F.frame.w / F.frame.h);
       const extend = ratio > 1.3 || ratio < 0.77;
-      const photoOp = extend ? runImageOp(cur.blob, 'reframe', { aspect: ASPECT[format], tidy: marked })
+      const photoOp = extend ? runImageOp(cur.blob, 'reframe', { aspect: F.ai, tidy: marked })
         : marked ? runImageOp(cur.blob, 'enhance', { tidy: true }) : null;
       const form = new FormData();
       form.append('op', 'direct');
@@ -296,7 +314,7 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
     if (!painted) return;
     await replacePhoto(painted.blob, false);
     setMarked(false);
-    doc.reset(paintedAd(format, assets));
+    doc.reset(paintedAd(format, assets, F.frame));
     setPainted(null);
     setCheckSoon(true);
   };
@@ -304,7 +322,7 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
     if (!cur || aiBusy) return;
     setAiBusy('Setting the piece in a new scene — about a minute…');
     try {
-      const r = await runImageOp(cur.blob, 'restage', { sceneId, aspect: ASPECT[format] });
+      const r = await runImageOp(cur.blob, 'restage', { sceneId, aspect: F.ai });
       await replacePhoto(r.blob, true);
       if (r.check && !r.check.samePiece) toast({ title: 'Look closely', description: `The check thinks the piece changed: ${r.check.differences.slice(0, 2).join('; ')}` });
     } catch (e) {
@@ -361,6 +379,8 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
       const d = f === format ? doc.doc : onFrame(f, template);
       downloadBlob(await draw(d, fields, assets, AD_FORMATS[f].px), `${base}-${AD_FORMATS[f].short.replace(':', 'x')}.jpg`);
     }
+    // Meta's four, and the shape on screen when it is another one.
+    if (!(AD_FORMAT_ORDER as readonly AdFormat[]).includes(format)) downloadBlob(await draw(doc.doc, fields, assets, F.px), `${base}-${F.short.replace(':', 'x')}.jpg`);
   };
 
   /** Into a folder of the Saved tab: the picture, the photo it is drawn on and the layout, to open again. */
@@ -404,7 +424,7 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
         form.append('file', b, name);
         return api<{ hash: string; url: string | null }>('/api/ads/images', { form });
       };
-      const withStory = pair && format !== 'story' && format !== 'landscape';
+      const withStory = pair && (format === 'portrait' || format === 'square');
       const [up, vert] = await Promise.all([
         draw(doc.doc, fields, assets, F.px).then(b => upload(b, `${safeName(fields.headline)}.jpg`)),
         withStory ? draw(onFrame('story', template), fields, assets, AD_FORMATS.story.px).then(b => upload(b, `${safeName(fields.headline)}-9x16.jpg`)) : Promise.resolve(null),
@@ -456,13 +476,32 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
       <span aria-hidden className={cn(serifFace.className, 'sr-only')}>.</span>
 
       <div className="space-y-3 min-w-0">
-        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Ad size">
+        <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Ad size">
           {AD_FORMAT_ORDER.map(f => (
             <button key={f} type="button" role="radio" aria-checked={format === f} onClick={() => chooseFormat(f)} title={AD_FORMATS[f].where}
               className={cn('rounded-full border px-3 py-1.5 text-xs min-h-0', format === f ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground hover:text-foreground')}>
               {AD_FORMATS[f].label}
             </button>
           ))}
+          {/* Any other shape: every ratio the image model draws, or your own W:H. */}
+          <Select value={F.meta ? '' : format} onValueChange={v => chooseFormat(v as AdFormat)}>
+            <SelectTrigger aria-label="Any shape" title="Any other shape — the AI draws the ad at this ratio"
+              className={cn('h-auto w-auto gap-1 rounded-full px-3 py-1.5 text-xs min-h-0', !F.meta && 'bg-primary text-primary-foreground border-primary')}>
+              <SelectValue placeholder="Any shape" />
+            </SelectTrigger>
+            <SelectContent>
+              {MORE_FORMAT_ORDER.map(f => <SelectItem key={f} value={f}>{AD_FORMATS[f].label}</SelectItem>)}
+              <SelectItem value="custom">Custom W:H…</SelectItem>
+            </SelectContent>
+          </Select>
+          {format === 'custom' && (
+            <span className="inline-flex items-center gap-1 text-xs" title={F.where}>
+              <RatioInput label="Width" value={custom.w} onValue={w => chooseRatio({ ...custom, w })} />
+              :
+              <RatioInput label="Height" value={custom.h} onValue={h => chooseRatio({ ...custom, h })} />
+              <span className="text-muted-foreground">AI at {F.ai}</span>
+            </span>
+          )}
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
           {AD_TEMPLATES.map(t => (
@@ -495,7 +534,7 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
           <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">{photoError}</p>
         ) : (
           <SoloEditor side={{
-            label: 'The ad', sub: `${F.label} · ${F.frame.w === 1080 && F.px === 1080 ? `${F.frame.w}×${F.frame.h}` : '1200×628'}`,
+            label: 'The ad', sub: `${F.label} · ${F.px}×${Math.round(F.px * F.frame.h / F.frame.w)}`,
             placeholder: ready ? undefined : (
               <div className="mx-auto flex aspect-[4/5] w-[300px] max-w-full items-center justify-center rounded-xl border-2 border-dashed text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Fetching the photo…
@@ -624,7 +663,14 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
             ))}
           </div>
           {(goesToSite(goal) || goal === 'channel') && <Input value={link} onChange={e => setLink(e.target.value)} placeholder={goal === 'channel' ? 'https://whatsapp.com/channel/…' : 'https://…'} className="h-9 text-base sm:text-xs" />}
-          {format !== 'story' && format !== 'landscape' && (
+          {!F.meta && (
+            <p className="text-[11px] text-muted-foreground">
+              {metaFeedFit(F.frame) === 'as-is'
+                ? `Meta shows this ${F.short} picture as it is in feeds (anything from 1.91:1 to 4:5); stories want 9:16.`
+                : `Meta crops this ${F.short} picture to ${metaFeedFit(F.frame)} in feeds — keep the piece and the words in the middle.`}
+            </p>
+          )}
+          {(format === 'portrait' || format === 'square') && (
             <label className="flex items-start gap-2 text-[11px] text-muted-foreground">
               <input type="checkbox" className="mt-0.5" checked={pair} onChange={e => setPair(e.target.checked)} />
               <span title={`One ad: the ${F.short} picture in feeds, the 9:16 one in stories, reels and WhatsApp Status.`}>With a 9:16 for stories</span>
@@ -641,6 +687,18 @@ export function Maker({ work, onChoose, onUpload, play, restore }: { work: WorkP
         </Button>
       </div>
     </div>
+  );
+}
+
+/** One side of a custom W:H: typed freely (it may be empty for a moment), used once it is a whole number 1–100. */
+function RatioInput({ label, value, onValue }: { label: string; value: number; onValue: (n: number) => void }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => { setText(t => (Number(t) === value ? t : String(value))); }, [value]);
+  return (
+    // Text, not a number box: a box this narrow is mostly spinner, and a click in it nudged the number.
+    <Input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={3} value={text} aria-label={label} className="h-8 w-12 text-center text-base sm:text-xs"
+      onChange={e => { const t = e.target.value.replace(/\D/g, ''); setText(t); const n = Number(t); if (n >= 1 && n <= 100) onValue(n); }}
+      onBlur={() => setText(String(value))} />
   );
 }
 

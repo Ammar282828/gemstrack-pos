@@ -118,7 +118,7 @@ export function SavedSection({ onOpen }: { onOpen: (r: SavedRestore) => void }) 
                       {s.thumb ? <img src={s.thumb} alt="" className="max-h-full max-w-full object-contain" /> : null}
                     </div>
                     <p className="px-2 pt-1.5 text-xs font-medium truncate">{s.name}</p>
-                    <p className="px-2 pb-1.5 text-[10px] text-muted-foreground">{AD_FORMATS[s.format]?.short ?? s.format}{s.fromAd ? ' · from the account' : ''}</p>
+                    <p className="px-2 pb-1.5 text-[10px] text-muted-foreground">{s.format === 'custom' ? 'Custom' : AD_FORMATS[s.format]?.short ?? s.format}{s.fromAd ? ' · from the account' : ''}</p>
                   </button>
                 ))}
               </div>

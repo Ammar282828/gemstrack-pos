@@ -10,6 +10,9 @@
  *             read back and compared with what was asked
  *   caption   image[0..1], {facts} → headlines, hook, WhatsApp and Instagram captions,
  *             and a plan for the story (scene, colours, layout)
+ *   paint     image[0] (+ image[1], the original, when image[0] is an AI edit), {aspect 9:16|1:1, kicker, headline, specs, brief, markCorner} → the whole story or post
+ *             painted around the piece by the image model, as the Ad studio's "Paint the whole ad"
+ *             (the same prompt), read back and checked against the photo
  *   check     image[0] = reference, image[1] = edit → is it the same piece?
  *   retouch   image[0], {parts?: jewelry|background|light} → the same photo retouched by GPT Image 2.5
  *             Edit, then its detail brought back by Precision — both on Magnific (lib/social/retouch.ts)
@@ -42,6 +45,7 @@ import { notInThisShop } from '@/lib/social/gate';
 import sharp from 'sharp';
 import { recordError } from '@/lib/social/errors';
 import { RETOUCH_PARTS, retouchPhoto, type RetouchPart } from '@/lib/social/retouch';
+import { paintPrompt } from '@/lib/ads/studio/prompts';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -163,6 +167,34 @@ export async function POST(req: NextRequest) {
         const wanted = [t.kicker, t.headline, t.weight, t.details].filter(Boolean) as string[];
         const missing = wanted.filter(w => !lines.some(l => sameText(l, w)) && !sameText(lines.join(' '), w) && !lines.join(' ').toLowerCase().includes(w.toLowerCase()));
         result = { image, lettering: { read: lines, missing, verified: !!read && missing.length === 0 } };
+        break;
+      }
+      case 'paint': {
+        need(1);
+        const str = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
+        const aspect = aspectOf(params.aspect, '9:16');
+        const words = { kicker: str(params.kicker, 40), headline: str(params.headline, 80), specs: str(params.specs, 160) };
+        if (!words.headline) throw new AiError('A headline is needed to paint it.', 400);
+        const corner = ['top-right', 'top-left', 'top-centre', 'bottom-right', 'bottom-left', 'bottom-centre'].includes(String(params.markCorner)) ? String(params.markCorner) : 'top-right';
+        const image = await generateImage({
+          images: images.slice(0, 1), aspect, size: '2K',
+          prompt: paintPrompt({ ...words, cta: '', aspect, story: aspect === '9:16', brief: str(params.brief, 400), markCorner: corner }),
+        });
+        const painted: InlineImage = { mimeType: image.mimeType, data: image.data };
+        // Read back like the lettering, and checked like every edit: the model rebuilt everything around the piece.
+        const [read, check] = await Promise.all([
+          generateText({ parts: [{ inlineData: painted }, { text: READ_PROMPT }] }).catch(() => ''),
+          // Against the real photograph: image[1] when the one painted from is itself an AI edit.
+          checkSame(images[1] ?? images[0], painted),
+        ]);
+        const lines = read.split('\n').map(s => s.trim()).filter(Boolean);
+        // Each part of the details line on its own (the model may set "|" as "·" or break the line),
+        // spacing ignored: what matters is that the weight and every word are there, spelt right.
+        const squash = (t: string) => t.toLowerCase().replace(/[‘’]/g, "'").replace(/\s+/g, '');
+        const all = squash(lines.join(' '));
+        const wanted = [words.kicker, words.headline, ...words.specs.split('|')].map(w => w.trim()).filter(Boolean);
+        const missing = wanted.filter(w => !all.includes(squash(w)));
+        result = { image, check, aspect, lettering: { read: lines, missing, verified: !!read && missing.length === 0 } };
         break;
       }
       case 'caption': {

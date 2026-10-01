@@ -245,7 +245,13 @@ export function directPrompt(p: { name: string; collection: string; specs: strin
 }
 
 /** The whole ad painted by the image model: the piece kept exactly, the house's dress, the words spelled exactly. */
-export function paintPrompt(p: { aspect: string; kicker: string; headline: string; specs: string; cta: string; story: boolean; brief: string }): string {
+/** `markCorner`: the corner the house's own mark goes in afterwards (the studio's is top-right; Post a piece's follows its layout). */
+/** `trimTo`: the frame's own ratio when the painting (at the nearest ratio the model draws) is trimmed to it. */
+export function paintPrompt(p: { aspect: string; kicker: string; headline: string; specs: string; cta: string; story: boolean; brief: string; markCorner?: string; trimTo?: string }): string {
+  const ratio = (t: string) => { const [a, b] = t.split(':').map(Number); return a > 0 && b > 0 ? a / b : 0; };
+  const trim = p.trimTo && ratio(p.trimTo) && Math.abs(Math.log(ratio(p.trimTo) / ratio(p.aspect))) > 0.02
+    ? `The finished picture is trimmed to ${p.trimTo}, so its ${ratio(p.trimTo) > ratio(p.aspect) ? 'top and bottom' : 'left and right'} edges are cut: keep every word, the frame and the piece well inside, away from those edges.`
+    : '';
   const lines = [
     p.kicker && `a small line "${p.kicker}" in widely spaced capitals, colour ${VISUAL.gold}`,
     `the headline "${p.headline}" in an elegant high-contrast Didone serif, italic, colour ${VISUAL.bone}, large`,
@@ -256,9 +262,10 @@ export function paintPrompt(p: { aspect: string; kicker: string; headline: strin
     'The attached photograph is the real piece and must stay the real piece. Do not redraw, re-render, re-arrange or re-imagine the jewellery: keep it exactly as photographed — the same stones (each cluster, each cut, each colour), settings, links, arrangement, angle and proportions. Build the advertisement around the photograph instead: extend and darken its surroundings, relight gently, and add the frame and lettering.',
     `Design a finished jewellery advertisement for ${IDENTITY.name} at ${p.aspect}: the photographed piece is the hero, large and sharp — the metal gleaming, stones sparking — on a deep ground (${VISUAL.ground}) with a soft vignette and a fine hairline corner-accent frame in ${VISUAL.gold}; ${VISUAL.rules[0]}`,
     p.story ? 'It is a 9:16 story: keep every word and the piece between 14% from the top and 35% from the bottom; the top and bottom bands stay calm.' : '',
+    trim,
     `Set the lettering, stacked and centred in calm space away from the piece: ${lines.join('; ')}.`,
     p.brief ? `The owner's direction: ${p.brief}.` : '',
-    'Spell every word and number exactly as given, character for character. Crisp, flat, perfectly legible lettering; no effects, no outlines, no shadows. Leave the top-right corner empty — the house adds its own mark.',
+    `Spell every word and number exactly as given, character for character. Crisp, flat, perfectly legible lettering; no effects, no outlines, no shadows. Leave the ${p.markCorner?.endsWith('centre') ? p.markCorner.replace('-', ' ') : `${p.markCorner || 'top-right'} corner`} empty — the house adds its own mark.`,
     'Avoid: any other text, logos, watermarks, price tags, discount bursts, stickers, extra jewellery, changes to the piece.',
   ].filter(Boolean).join(' ');
 }
