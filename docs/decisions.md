@@ -311,6 +311,9 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   and Copy link; says what each Firebase error means; names the Gmail it refused and the shop; and no longer calls a server that
   failed to answer (a 503) "not authorised". Every failure goes to the server log, nothing stored:
   `gcloud logging read 'textPayload:"[sign-in]"'` — `start`, `failed code=…`, `refused email=…`, `check-failed status=…`.
+  Every failure is reported, "popup-closed-by-user" too, with how long Google's window was open: a window that closes without
+  handing the sign-in back reads as closed by the user, which the screen used to ignore. Open 8 s or more, it now says the
+  sign-in didn't finish. (Owner: "I did open in chrome" — every recorded sign-in in both houses had been Safari.)
 
 ## The website and copy
 

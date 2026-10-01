@@ -214,13 +214,19 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
     setIsSigningIn(true);
     setError(null);
     reportSignIn('start');
+    const opened = Date.now();
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
+      // Every failure is reported, a closed window too: Google's window closing without handing
+      // the sign-in back reads as "closed by user", and that was the one nobody could see.
+      const openFor = Math.round((Date.now() - opened) / 1000);
+      reportSignIn('failed', { code: `${err?.code || String(err?.message || '').slice(0, 50)} after ${openFor}s` });
       const advice = signInAdvice(err?.code, inApp);
-      if (advice) {
-        setError(advice);
-        reportSignIn('failed', { code: err?.code || String(err?.message || '').slice(0, 60) });
+      if (advice) setError(advice);
+      else if (err?.code === 'auth/popup-closed-by-user' && openFor >= 8) {
+        // Open long enough to have chosen an account: say so, rather than showing the button again as if nothing happened.
+        setError('The Google window closed before sign-in finished. If you chose your account, try once more; if it happens again, tell the shop.');
       }
     } finally {
       setIsSigningIn(false);

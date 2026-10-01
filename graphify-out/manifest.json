@@ -1332,9 +1332,9 @@
     "semantic_hash": ""
   },
   "src/components/auth/google-auth-gate.tsx": {
-    "mtime": 1790863833.3740048,
-    "seen": 1790864283.3475811,
-    "ast_hash": "1e3ed6d0eecf9a30470950487106f627",
+    "mtime": 1790864496.0927954,
+    "seen": 1790864622.9693341,
+    "ast_hash": "1d0be045a0f2a0707a6052ea8c10ea5d",
     "semantic_hash": ""
   },
   "src/components/cart/bill-scanner.tsx": {
@@ -4332,9 +4332,9 @@
     "semantic_hash": ""
   },
   "docs/decisions.md": {
-    "mtime": 1790864108.8200014,
-    "seen": 1790864283.348021,
-    "ast_hash": "8018e6c488d3263d39826dd6da64694f",
+    "mtime": 1790864605.4964657,
+    "seen": 1790864622.9697382,
+    "ast_hash": "c02a9ce6cd874e82d64a127253cc6f14",
     "semantic_hash": ""
   },
   "docs/features/ad-studio.md": {

@@ -1,7 +1,7 @@
 # Graph Report - taheri-pos  (2026-10-01)
 
 ## Corpus Check
-- 726 files · ~681,061 words
+- 726 files · ~681,220 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 25 file(s) not represented in the graph (top: .woff2 14, (none) 3, .cache 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `9542eff1`
+- Built from commit: `f0ca1834`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1119,11 +1119,11 @@ Nodes (3): App blueprint (style + features), GemsTrack user tutorial, GemsTrack 
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `firebase` connect `firebase` to `Card`, `backfill-source-orders.mjs`, `add-mina-payment.mjs`, `store.ts`, `use-work-drafts.ts`, `fix-dates.mjs`, `fix-invoice-dates.mjs`, `package.json`, `fix-bareeka.mjs`, `restore-orders.mjs`, `restore-settings.mjs`, `backfill-payment-credits.mjs`, `invoices/page.tsx`, `do-refund-fatima.mjs`, `react`, `add-bank-account.mjs`, `list-invoices.mjs`, `add-order-1141.mjs`, `reset-and-reimport.mjs`, `fix-invoice-skus.mjs`, `delete-bad-invoices.mjs`, `clean-hisaab.mjs`, `cn`, `check-counters.mjs`, `import-expenses.mjs`, `preview-karigar-links.mjs`, `link-invoice-hisaab.mjs`, `diagnose-orders.mjs`, `add-ali-customer.mjs`, `check-refunded-invoices.mjs`, `inspect-zahra.mjs`, `useToast`, `diagnose-dbs.mjs`, `check-outstanding.mjs`, `create-order.ts`, `add-bareeka-invoice.mjs`, `add-uzair-skipped-entries.mjs`, `delete-sherbano-invoice.mjs`, `import-shopify-orders.mjs`, `renumber-orders.mjs`, `shareholders/page.tsx`, `link-all-karigar-expenses.mjs`, `check-orders.mjs`, `diagnose-counter.mjs`, `link-new-karigars.mjs`, `link-uzair-expenses.mjs`, `google-auth-gate.tsx`, `sync-hisaab-balances.mjs`, `import-shopify-customers.mjs`, `fix-zahra-invoice.mjs`?**
-  _High betweenness centrality (0.175) - this node is a cross-community bridge._
+  _High betweenness centrality (0.174) - this node is a cross-community bridge._
 - **Why does `next` connect `next` to `investments.ts`, `library.tsx`, `Card`, `store.ts`, `meta.ts`, `site-pieces.ts`, `use-work-drafts.ts`, `assistant.ts`, `store-config.ts`, `package.json`, `investments/route.ts`, `adsGate`, `invoices/page.tsx`, `whatsapp.ts`, `fulfilment.ts`, `react`, `saved.tsx`, `health.ts`, `verifyRequestEmail`, `assess-run.ts`, `website/featured/route.ts`, `monthly.ts`, `exchange.ts`, `range-param.ts`, `gold-rates/route.ts`, `app-layout.tsx`, `overheads/page.tsx`, `cn`, `voice-bubble.tsx`, `ai/route.ts`, `queue.ts`, `studio/prompts.ts`, `postGate`, `checkout.ts`, `photos/route.ts`, `website/edit/page.tsx`, `assets.ts`, `MetaAdsError`, `from-site/page.tsx`, `tcs/route.ts`, `rateLimit`, `ads/new/page.tsx`, `adsFail`, `useToast`, `Button`, `karigar-auth.ts`, `research.ts`, `check/route.ts`, `settings.ts`, `publish/route.ts`, `caption/route.ts`, `gemini.ts`, `edits/route.ts`, `app/layout.tsx`, `vitest`, `maker.tsx`, `campaigns/page.tsx`, `google-auth-gate.tsx`, `write/route.ts`, `command-palette.tsx`, `links/page.tsx`?**
-  _High betweenness centrality (0.168) - this node is a cross-community bridge._
+  _High betweenness centrality (0.169) - this node is a cross-community bridge._
 - **Why does `cn()` connect `cn` to `Card`, `library.tsx`, `store.ts`, `guide.tsx`, `story-editor.tsx`, `use-work-drafts.ts`, `invoices/page.tsx`, `karigar-picker.tsx`, `react`, `saved.tsx`, `post/page.tsx`, `rate-chip.tsx`, `set-of-the-day.tsx`, `chart.tsx`, `app-layout.tsx`, `investments/page.tsx`, `overheads/page.tsx`, `voice-bubble.tsx`, `editor-panels.tsx`, `queue.ts`, `website/edit/page.tsx`, `from-site/page.tsx`, `useToast`, `ads/new/page.tsx`, `Button`, `studio-kit.tsx`, `toast.tsx`, `menubar.tsx`, `shareholders/page.tsx`, `order-timing.ts`, `maker.tsx`, `plan.tsx`, `campaigns/page.tsx`?**
-  _High betweenness centrality (0.049) - this node is a cross-community bridge._
+  _High betweenness centrality (0.050) - this node is a cross-community bridge._
 - **What connects `privateKey`, `db`, `dump` to the rest of the system?**
   _1585 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Card` be split into smaller, more focused modules?**

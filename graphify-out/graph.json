@@ -46644,7 +46644,7 @@
       "node_kind": "heading",
       "norm_label": "customer copy",
       "source_file": "docs/decisions.md",
-      "source_location": "L317"
+      "source_location": "L320"
     },
     {
       "id": "docs_decisions_decisions_already_made",
@@ -46692,7 +46692,7 @@
       "node_kind": "heading",
       "norm_label": "shop outage",
       "source_file": "docs/decisions.md",
-      "source_location": "L325"
+      "source_location": "L328"
     },
     {
       "id": "docs_decisions_the_website_and_copy",
@@ -46704,7 +46704,7 @@
       "node_kind": "heading",
       "norm_label": "the website and copy",
       "source_file": "docs/decisions.md",
-      "source_location": "L315"
+      "source_location": "L318"
     },
     {
       "id": "docs_decisions_weight_preview",
@@ -46716,7 +46716,7 @@
       "node_kind": "heading",
       "norm_label": "weight preview",
       "source_file": "docs/decisions.md",
-      "source_location": "L321"
+      "source_location": "L324"
     },
     {
       "id": "scripts_backfill_shopify_invoice_adjustments",
@@ -115076,7 +115076,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/auth/google-auth-gate.tsx",
-      "source_location": "L220",
+      "source_location": "L225",
       "weight": 1.0
     },
     {
@@ -115088,7 +115088,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/auth/google-auth-gate.tsx",
-      "source_location": "L254",
+      "source_location": "L260",
       "weight": 1.0
     },
     {
@@ -115100,7 +115100,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/auth/google-auth-gate.tsx",
-      "source_location": "L255",
+      "source_location": "L261",
       "weight": 1.0
     },
     {
@@ -115112,7 +115112,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/auth/google-auth-gate.tsx",
-      "source_location": "L259",
+      "source_location": "L265",
       "weight": 1.0
     },
     {
@@ -115124,7 +115124,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/auth/google-auth-gate.tsx",
-      "source_location": "L260",
+      "source_location": "L266",
       "weight": 1.0
     },
     {
@@ -115136,7 +115136,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/auth/google-auth-gate.tsx",
-      "source_location": "L262",
+      "source_location": "L268",
       "weight": 1.0
     },
     {
@@ -115148,7 +115148,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/auth/google-auth-gate.tsx",
-      "source_location": "L274",
+      "source_location": "L280",
       "weight": 1.0
     },
     {
@@ -115160,7 +115160,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/auth/google-auth-gate.tsx",
-      "source_location": "L274",
+      "source_location": "L280",
       "weight": 1.0
     },
     {
@@ -115172,7 +115172,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/auth/google-auth-gate.tsx",
-      "source_location": "L289",
+      "source_location": "L295",
       "weight": 1.0
     },
     {
@@ -115184,7 +115184,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/auth/google-auth-gate.tsx",
-      "source_location": "L306",
+      "source_location": "L312",
       "weight": 1.0
     },
     {
@@ -257479,7 +257479,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/decisions.md",
-      "source_location": "L315",
+      "source_location": "L318",
       "weight": 1.0
     },
     {
@@ -257820,7 +257820,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/decisions.md",
-      "source_location": "L317",
+      "source_location": "L320",
       "weight": 1.0
     },
     {
@@ -257831,7 +257831,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/decisions.md",
-      "source_location": "L321",
+      "source_location": "L324",
       "weight": 1.0
     },
     {
@@ -257842,7 +257842,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/decisions.md",
-      "source_location": "L325",
+      "source_location": "L328",
       "weight": 1.0
     },
     {
@@ -314156,5 +314156,5 @@
       ]
     }
   ],
-  "built_at_commit": "9542eff1922ee45cc33bc53214191abcb7006e70"
+  "built_at_commit": "f0ca183434caa0f1a0ac0b749505ce2dee7c5da7"
 }
