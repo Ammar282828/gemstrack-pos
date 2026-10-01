@@ -298,6 +298,20 @@ _Moved from CLAUDE.md on 2026-10-01 (the audit's Phase 6), word for word. CLAUDE
   on a device handed across the counter it would otherwise credit everyone's sales to one login. Found with it: editing an
   invoice in the cart never loaded its Taken by, so a re-save dropped it; it loads now.
 
+### Karigar sign-in
+
+- **A karigar's Google sign-in fails on his phone, where the ERP can't see it** (2026-10-01, owner: "why cant uzair my karigar
+  access his part through pos"). Uzair's work is in House of Mina (66 lines, 11 open) and his Gmail is on his Mina record, yet in
+  a month of logs no sign-in of his reached `/api/karigar/me` — a signed-in account the ERP doesn't know answers 403 there, and
+  there were none. Taheri's 55 karigars have no Gmail at all (the form's "Google Login" field), so none can sign in there.
+  Both pos.* and erp.* are Firebase-authorised domains in both projects (checked against the public project config).
+  The sign-in screen now: names the app when the page is open in one's built-in browser, where Google refuses to sign in
+  (`lib/sign-in-trouble.ts`, tested: Instagram, Facebook, Android WebView `; wv)`, an iPhone web view without `Safari/`;
+  WhatsApp's own links open in Chrome tabs / Safari views and pass) with **Open in Chrome** (an `intent://` link) or Safari steps
+  and Copy link; says what each Firebase error means; names the Gmail it refused and the shop; and no longer calls a server that
+  failed to answer (a 503) "not authorised". Every failure goes to the server log, nothing stored:
+  `gcloud logging read 'textPayload:"[sign-in]"'` — `start`, `failed code=…`, `refused email=…`, `check-failed status=…`.
+
 ## The website and copy
 
 ### Customer copy

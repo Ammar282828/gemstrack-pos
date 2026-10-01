@@ -1332,9 +1332,9 @@
     "semantic_hash": ""
   },
   "src/components/auth/google-auth-gate.tsx": {
-    "mtime": 1790798780.1111548,
-    "seen": 1790854750.3716033,
-    "ast_hash": "b827f2cf28070189a88f26f6ae3effbc",
+    "mtime": 1790863833.3740048,
+    "seen": 1790864283.3475811,
+    "ast_hash": "1e3ed6d0eecf9a30470950487106f627",
     "semantic_hash": ""
   },
   "src/components/cart/bill-scanner.tsx": {
@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1790854594.7332315,
-    "seen": 1790854750.3726275,
-    "ast_hash": "af44da9ab7e06629d2aa35cf72f96834",
+    "mtime": 1790864119.1924784,
+    "seen": 1790864283.3480153,
+    "ast_hash": "bcfebbb53d6cefeb247e444e10c5d178",
     "semantic_hash": ""
   },
   "README.md": {
@@ -4332,9 +4332,9 @@
     "semantic_hash": ""
   },
   "docs/decisions.md": {
-    "mtime": 1790843711.7884426,
-    "seen": 1790854750.372646,
-    "ast_hash": "3c693f968bd80a4356e6c3153bd31c1a",
+    "mtime": 1790864108.8200014,
+    "seen": 1790864283.348021,
+    "ast_hash": "8018e6c488d3263d39826dd6da64694f",
     "semantic_hash": ""
   },
   "docs/features/ad-studio.md": {
@@ -4515,6 +4515,24 @@
     "mtime": 1790854556.7006733,
     "seen": 1790854750.3722868,
     "ast_hash": "3f1cc4c137fd097812c553dde82ca45f",
+    "semantic_hash": ""
+  },
+  "src/app/api/auth/trouble/route.ts": {
+    "mtime": 1790863801.6170506,
+    "seen": 1790864283.3473663,
+    "ast_hash": "06a6ba588536283fa05bb6d5cb066480",
+    "semantic_hash": ""
+  },
+  "src/lib/sign-in-trouble.test.ts": {
+    "mtime": 1790863881.9147928,
+    "seen": 1790864283.3478973,
+    "ast_hash": "3c5e4de814374ca4613d28757aed3fcf",
+    "semantic_hash": ""
+  },
+  "src/lib/sign-in-trouble.ts": {
+    "mtime": 1790863790.6787875,
+    "seen": 1790864283.3478987,
+    "ast_hash": "76644b8c7c6c36c5b646e8f206726783",
     "semantic_hash": ""
   }
 }

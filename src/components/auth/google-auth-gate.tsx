@@ -12,10 +12,11 @@ import {
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, LogIn } from 'lucide-react';
+import { Loader2, LogIn, Copy, ExternalLink } from 'lucide-react';
 import { STORE_CONFIG } from '@/lib/store-config';
 import { roleForEmail } from '@/lib/roles';
 import { captureDevRole } from '@/lib/dev-role';
+import { chromeIntent, embeddedBrowser, signInAdvice, type EmbeddedBrowser } from '@/lib/sign-in-trouble';
 import dynamic from 'next/dynamic';
 
 // Loaded lazily so the store app's bundle is not pulled in for karigars.
@@ -109,6 +110,19 @@ async function logSignIn(user: User) {
   }
 }
 
+/**
+ * What went wrong with a sign-in, to the server log (/api/auth/trouble): Google's sign-in fails on
+ * the phone, where the ERP could not see it — a karigar left no trace for a month (2026-10-01).
+ */
+function reportSignIn(stage: 'start' | 'failed' | 'refused' | 'check-failed', extra: Record<string, unknown> = {}) {
+  try {
+    const inApp = embeddedBrowser(navigator.userAgent);
+    const standalone = window.matchMedia?.('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
+    const body = JSON.stringify({ stage, inApp: inApp?.app ?? '', standalone, host: window.location.host, ...extra });
+    fetch('/api/auth/trouble', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => undefined);
+  } catch { /* never in the way of signing in */ }
+}
+
 interface AuthContextValue {
   user: User | null;
   signOut: () => Promise<void>;
@@ -143,16 +157,26 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
           // Not an owner — it may still be a karigar. Ask the server, which is
           // the only side that can look up karigars (they have no Firestore
           // access of their own).
-          let isKarigar = false;
+          // 'refused' only when the server answered that this account is nobody here: a server
+          // that failed to answer (a 503 while it restarts) used to read as "not authorised" too.
+          let check: 'karigar' | 'refused' | 'failed' = 'failed';
+          let status = 0;
           try {
             const token = await firebaseUser.getIdToken();
             const res = await fetch('/api/karigar/me', { headers: { Authorization: `Bearer ${token}` } });
-            isKarigar = res.ok && (await res.json())?.role === 'karigar';
-          } catch { /* treated as not-a-karigar below */ }
+            status = res.status;
+            if (res.ok) check = (await res.json().catch(() => null))?.role === 'karigar' ? 'karigar' : 'refused';
+            else if (res.status === 401 || res.status === 403) check = 'refused';
+          } catch { /* no answer: 'failed' */ }
 
-          if (!isKarigar) {
+          if (check !== 'karigar') {
+            const email = firebaseUser.email || '';
             await firebaseSignOut(auth);
-            setError('This Google account is not authorised to access this app.');
+            reportSignIn(check === 'refused' ? 'refused' : 'check-failed', { email, status });
+            setError(check === 'refused'
+              // Named, so the karigar can tell the shop exactly which Gmail to put on his page.
+              ? `${email || 'This Google account'} isn't on ${STORE_CONFIG.name}'s list. Ask the shop to put this Gmail on your karigar page, and check this is your shop's ERP address.`
+              : `Signed in, but ${STORE_CONFIG.name}'s server didn't answer${status ? ` (${status})` : ''}. Try again in a minute.`);
             setUser(null);
             setIsLoading(false);
             return;
@@ -180,14 +204,23 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
 
   const devBypass = useDevBypass() || OPEN_ACCESS;
 
+  // An app's built-in browser (Instagram, Facebook, a WebView), where Google refuses to sign in.
+  // Read after mounting: the server has no user agent to render the same thing with.
+  const [inApp, setInApp] = useState<EmbeddedBrowser | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => { setInApp(embeddedBrowser(navigator.userAgent)); }, []);
+
   const handleSignIn = async () => {
     setIsSigningIn(true);
     setError(null);
+    reportSignIn('start');
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError('Sign-in failed. Please try again.');
+      const advice = signInAdvice(err?.code, inApp);
+      if (advice) {
+        setError(advice);
+        reportSignIn('failed', { code: err?.code || String(err?.message || '').slice(0, 60) });
       }
     } finally {
       setIsSigningIn(false);
@@ -224,9 +257,28 @@ export function GoogleAuthGate({ children }: { children: React.ReactNode }) {
               <LogIn className="h-7 w-7 text-primary" />
             </div>
             <CardTitle className="text-2xl">{STORE_CONFIG.name}</CardTitle>
-            <CardDescription>Sign in to access your store dashboard</CardDescription>
+            <CardDescription>Sign in to access your store dashboard. Karigars: sign in with the Gmail the shop has for you.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pb-6">
+            {inApp && (
+              <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-left text-sm">
+                <p>
+                  This page is open inside <b>{inApp.app}</b>. Google doesn&apos;t allow signing in here —
+                  open it in {inApp.platform === 'ios' ? 'Safari' : 'Chrome'}.
+                </p>
+                {inApp.platform === 'ios' && (
+                  <p className="text-xs text-muted-foreground">Tap the ••• or share button, then <b>Open in Safari</b>. Or copy the link and paste it into Safari.</p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {inApp.platform === 'android' && (
+                    <Button asChild size="sm"><a href={chromeIntent(window.location.href)}><ExternalLink className="mr-1.5 h-4 w-4" /> Open in Chrome</a></Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => {
+                    navigator.clipboard?.writeText(window.location.href).then(() => setCopied(true), () => setCopied(false));
+                  }}><Copy className="mr-1.5 h-4 w-4" /> {copied ? 'Link copied' : 'Copy link'}</Button>
+                </div>
+              </div>
+            )}
             {error && (
               <p className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">{error}</p>
             )}

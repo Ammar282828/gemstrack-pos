@@ -74,7 +74,7 @@ git push taheri main main:taheri-next         # GitHub's main + Taheri rolls out
 git push hom main:main                        # House of Mina rolls out
 ```
 **Push both together, always** (owner, 2026-09-26: "push both together always") — no waiting on Taheri's rollout before
-Mina's. Keep `taheri`'s `main` level too: it is where every cloud session starts (it was 7 commits behind on 2026-09-27). `main` here is the shared working branch (the old dead
+Mina's. Keep `taheri`'s `main` level too: every cloud session starts there. `main` here is the shared working branch (the old dead
 `main` is kept as tag `old-main-2026-06`). `website-checkout` is retired.
 
 **Running a house locally:** `npm run env:taheri` or `npm run env:mina` writes `.env.<house>.local`
@@ -87,7 +87,7 @@ laptop: when it names another Firebase project, `env:taheri` blanks its variable
 
 ## Cloud sessions (claude.ai/code, since 2026-09-27)
 
-Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27: "i want to run this on the cloud").
+Claude Code runs these repos in the cloud too, with no Mac (owner, 2026-09-27).
 - **One Google credential:** the service account `claude-cloud@gemstrack-pos`. Its JSON key, base64, is the environment
   variable `GCP_SA_KEY_B64` of the claude.ai/code environment (the Mac keeps it in `~/.config/claude-cloud/`, owner-only;
   `environment.env` there is the line to paste). It may read exactly the secrets the backends use (Taheri 13, Mina 14 —
@@ -143,7 +143,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 
 **Navigation and the look**
 - [The map](docs/decisions.md#the-map) — the sidebar rows, the one tab row per screen, and `lib/nav.ts` as the only registry
-- [The name ERP](docs/decisions.md#the-name-erp) — ERP in every word people read; Shopify codes and code names stay POS; erp.* domains
+- [The name ERP](docs/decisions.md#the-name-erp) — ERP in every word people read; Shopify codes and code names stay POS
 - [Number fields](docs/decisions.md#number-fields) — and sale-flow fields show 0 as blank
 - [Hooks](docs/decisions.md#hooks) — the `/orders/add` crash of 2026-09-22
 - [Fonts](docs/decisions.md#fonts) — every face in `src/fonts/`, `next/font/local`
@@ -177,6 +177,7 @@ One line each; the text is in `docs/decisions.md` and `docs/features/`. Add a ne
 - [Add photos sign-in](docs/decisions.md#add-photos-sign-in) — superseded 2026-09-30: every house signs in
 - [Taheri sign-in](docs/decisions.md#taheri-sign-in) — `NEXT_PUBLIC_STORE_OWNER_EMAILS`; locked `firestore.rules` for the owner to publish; invoice share keys
 - [Signed-in defaults](docs/decisions.md#signed-in-defaults) — `NEXT_PUBLIC_STORE_PEOPLE`; Taken by and the Orders/Invoices/Workshop filters
+- [Karigar sign-in](docs/decisions.md#karigar-sign-in) — in-app browsers; `[sign-in]` in the log
 
 **The website and copy**
 - [Customer copy](docs/decisions.md#customer-copy) — never "Najmi Market" or "Saddar"; the hours
